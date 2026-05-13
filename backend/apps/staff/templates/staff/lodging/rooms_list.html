@@ -1,0 +1,34 @@
+{% extends "staff/base.html" %}
+{% block title %}Rooms{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Rooms<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
+          <p class="staff-dash-hero__tagline mb-0">Physical keys in the system — type and housekeeping status.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+  <h2 class="staff-section-head">Directory</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Room</th><th>Type</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for r in rooms %}
+          <tr>
+            <td>{{ r.name }}</td>
+            <td>{{ r.room_type.name }}</td>
+            <td>{{ r.get_status_display }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="staff-muted">No rooms.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

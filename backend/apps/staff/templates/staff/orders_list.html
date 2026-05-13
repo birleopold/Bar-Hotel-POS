@@ -1,0 +1,243 @@
+{% extends "staff/base.html" %}
+{% block title %}Orders{% endblock %}
+{% block body_class %}staff-body--pos staff-body--pos-page-scroll{% endblock %}
+{% block main_class %}staff-main--wide staff-main--pos{% endblock %}
+{% block content %}
+  <div class="staff-pos-orders-shell">
+    <div class="staff-pos-orders-top">
+    <section class="staff-pos-orders-hero">
+      <div class="staff-toolbar staff-toolbar--pos-head">
+        <div class="staff-pos-orders-hero__titles">
+          <div class="staff-pos-orders-hero__eyebrow">
+            <div class="orders-live-pill" data-live-status="live">
+              <span class="orders-live-pill__dot"></span>
+              <span class="orders-live-pill__text">Live</span>
+            </div>
+            <span class="visually-hidden orders-live-pill--error">Degraded (retrying)</span>
+            <a class="staff-pos-orders-jump" href="#staff-orders-history"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>Past orders</a>
+          </div>
+          <p class="staff-pos-orders-kicker mb-1">Point of sale</p>
+          <h1 class="staff-page-title staff-page-title--pos mb-1">Orders<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-muted mb-0 staff-pos-orders-hero__lede">Active tabs up top; search and scroll the full ledger below.</p>
+        </div>
+        <div class="staff-pos-orders-hero__actions">
+          {% if current_outlet %}
+            <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="mode" value="">
+              <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>New order</button>
+            </form>
+            <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="mode" value="hold">
+              <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-plus-circle-dotted me-2"></i>Held tab</button>
+            </form>
+          {% endif %}
+          {% if show_supermarket_lane %}
+            <a class="btn btn-outline-secondary" href="{% url 'staff-pos-shifts' %}">{% if supermarket_shift_open %}<i class="bi bi-check2-circle me-1"></i>Shift open{% else %}Shift{% endif %}</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="staff-pos-orders-summary" aria-label="Orders summary">
+        <div class="staff-pos-orders-summary__item">
+          <div class="h-100 p-3">
+            <div class="d-flex align-items-center">
+              <div class="summary-icon me-3"><i class="bi bi-pause-circle"></i></div>
+              <div>
+                <div class="text-muted small">Held</div>
+                <div class="fs-4 fw-semibold">{{ held_tabs|length }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="staff-pos-orders-summary__item">
+          <div class="h-100 p-3">
+            <div class="d-flex align-items-center">
+              <div class="summary-icon me-3"><i class="bi bi-record-circle"></i></div>
+              <div>
+                <div class="text-muted small">Open</div>
+                <div class="fs-4 fw-semibold">{{ open_tabs|length }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="staff-pos-orders-summary__item">
+          <div class="h-100 p-3">
+            <div class="d-flex align-items-center">
+              <div class="summary-icon me-3"><i class="bi bi-check-circle"></i></div>
+              <div>
+                <div class="text-muted small">Recent</div>
+                <div class="fs-4 fw-semibold">{{ recent_orders|length }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="staff-pos-orders-summary__item">
+          <div class="h-100 p-3">
+            <div class="d-flex align-items-center">
+              <div class="summary-icon me-3"><i class="bi bi-funnel"></i></div>
+              <div>
+                <div class="text-muted small">Filtered</div>
+                <div class="fs-4 fw-semibold">{{ page_obj.paginator.count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {% if ready_handoff_count %}
+      <div class="staff-alert staff-alert--info staff-alert--pos mb-0 staff-pos-orders-alert">{{ ready_handoff_count }} ready for handoff.</div>
+    {% endif %}
+
+    <section class="staff-pos-orders-lanes" aria-labelledby="staff-pos-lanes-heading">
+      <div class="staff-card staff-card--pos staff-card--soft staff-pos-orders-lanes-shell mb-0">
+        {% if show_supermarket_lane %}
+          <div class="visually-hidden orders-supermarket-lane-card" data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}">Supermarket lane</div>
+          <div class="staff-pos-supermarket-card" data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}">
+            <div>
+              <h3 class="staff-pos-supermarket-card__title"><i class="bi bi-shop me-2"></i>Supermarket</h3>
+              <p class="staff-pos-supermarket-card__status">Shift is {% if supermarket_shift_open %}<strong>Open</strong>{% else %}<strong>Closed</strong>{% endif %}</p>
+            </div>
+            <a href="{% url 'staff-pos-shifts' %}" class="btn btn-sm btn-secondary">Manage shift</a>
+          </div>
+        {% endif %}
+        <div class="staff-pos-orders-lanes__head">
+          <div>
+            <h2 id="staff-pos-lanes-heading" class="staff-card__title staff-card__title--pos mb-1">Now serving</h2>
+            <p class="staff-muted mb-0">Held tabs, walk-ins, and a short list of recent checks.</p>
+          </div>
+        </div>
+        <div id="staff-orders-lanes-scroll" class="staff-pos-orders-lanes-scroll" aria-label="Active checks">
+          {% include "staff/includes/orders_lanes.html" %}
+        </div>
+      </div>
+    </section>
+    </div>
+
+    <section id="staff-orders-history" class="staff-pos-orders-history" aria-labelledby="staff-orders-history-heading">
+      <header class="staff-pos-orders-history__intro">
+        <div>
+          <h2 id="staff-orders-history-heading" class="staff-pos-orders-history__title">Past orders</h2>
+          <p class="staff-muted mb-0 staff-pos-orders-history__subtitle">Filter by status, search by bill or tab, then scroll this list. Pagination stays at the bottom.</p>
+        </div>
+        {% if is_paginated %}
+          <p class="staff-pos-orders-history__count" aria-live="polite">
+            <span class="staff-pos-orders-history__count-strong">{{ page_obj.start_index }}–{{ page_obj.end_index }}</span>
+            <span class="text-muted"> of {{ paginator.count }}</span>
+          </p>
+        {% elif orders %}
+          <p class="staff-pos-orders-history__count"><span class="staff-pos-orders-history__count-strong">{{ orders|length }}</span><span class="text-muted"> shown</span></p>
+        {% endif %}
+      </header>
+
+      <div class="staff-pos-orders-history__controls">
+        <nav class="staff-pos-orders-segments" aria-label="Order status">
+          <a class="staff-pos-orders-seg{% if not status_filter %} staff-pos-orders-seg--active{% endif %}" href="{% url 'staff-orders' %}{% if q_filter %}?q={{ q_filter|urlencode }}{% endif %}">All</a>
+          <a class="staff-pos-orders-seg{% if status_filter == 'open' %} staff-pos-orders-seg--active{% endif %}" href="{% url 'staff-orders' %}?status=open{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Open</a>
+          <a class="staff-pos-orders-seg{% if status_filter == 'closed' %} staff-pos-orders-seg--active{% endif %}" href="{% url 'staff-orders' %}?status=closed{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Closed</a>
+          <a class="staff-pos-orders-seg{% if status_filter == 'cancelled' %} staff-pos-orders-seg--active{% endif %}" href="{% url 'staff-orders' %}?status=cancelled{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Cancelled</a>
+        </nav>
+        <form class="staff-pos-orders-search" method="get" action="{% url 'staff-orders' %}">
+          {% if status_filter %}
+            <input type="hidden" name="status" value="{{ status_filter }}">
+          {% endif %}
+          <label class="visually-hidden" for="q">Search orders</label>
+          <div class="staff-pos-orders-search__field">
+            <i class="bi bi-search staff-pos-orders-search__icon" aria-hidden="true"></i>
+            <input class="staff-input staff-pos-orders-search__input" id="q" name="q" type="search" value="{{ q_filter }}" placeholder="Bill ref, tab name, outlet…" autocomplete="off">
+          </div>
+          <button type="submit" class="btn btn-primary staff-pos-orders-search__btn">Search</button>
+        </form>
+      </div>
+
+      <div class="staff-pos-orders-ledger" role="list">
+      {% for o in orders %}
+        <a class="staff-pos-order-card" role="listitem" href="{% url 'staff-order-detail' order_id=o.id %}">
+          <div class="staff-pos-order-card__main">
+            <div class="staff-pos-order-card__title">{{ o.bill_reference }}</div>
+            <div class="staff-pos-order-card__meta">
+              <span>{{ o.outlet.name }}</span>
+              {% if o.table_label %}<span>Tab: {{ o.table_label }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="staff-pos-order-card__status">
+            <span class="staff-tag staff-tag--{% if o.status == 'open' %}citrus{% elif o.status == 'closed' %}teal{% else %}magenta{% endif %}">{{ o.get_status_display }}</span>
+          </div>
+          <div class="staff-pos-order-card__pricing">
+            <div class="staff-pos-order-card__total">{{ o.currency }} {{ o.total }}</div>
+            <div class="staff-pos-order-card__due">{{ o.display_paid }} / {{ o.display_balance }}</div>
+          </div>
+          <div class="staff-pos-order-card__chevron">
+            <i class="bi bi-chevron-right"></i>
+          </div>
+        </a>
+      {% empty %}
+        {% url "staff-orders" as orders_url %}
+        {% include "staff/includes/empty_state.html" with title="No orders match your filters" message="Try clearing the status/search filters or create a new order tab." action_url=orders_url action_label="Reset filters" %}
+      {% endfor %}
+      </div>
+
+    {% if is_paginated %}
+      <nav class="staff-pager staff-pager--pos staff-pager--pos-footer" aria-label="Past orders pages">
+        {% if page_obj.has_previous %}
+          <a class="staff-btn staff-btn--sm staff-btn--ghost" rel="prev" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}"><i class="bi bi-chevron-left me-1"></i>Newer</a>
+        {% else %}
+          <span class="staff-pager__spacer"></span>
+        {% endif %}
+        <span class="staff-pager__meta">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a class="staff-btn staff-btn--sm staff-btn--ghost" rel="next" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Older<i class="bi bi-chevron-right ms-1"></i></a>
+        {% else %}
+          <span class="staff-pager__spacer"></span>
+        {% endif %}
+      </nav>
+    {% endif %}
+    </section>
+  </div>
+{% endblock %}
+{% block extra_js %}
+  {{ block.super }}
+  <script>
+    var nextDelayMs = 1500;
+    function scheduleNext() {
+      return nextDelayMs;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const livePill = document.querySelector('.orders-live-pill');
+      if (!livePill) return;
+
+      const liveText = livePill.querySelector('.orders-live-pill__text');
+      let errorCount = 0;
+
+      function setPillState(status, text) {
+        livePill.dataset.liveStatus = status;
+        liveText.textContent = text;
+      }
+
+      document.body.addEventListener('htmx:beforeRequest', function () {
+        setPillState('connecting', 'Syncing...');
+      });
+
+      document.body.addEventListener('htmx:afterRequest', function (evt) {
+        if (evt.detail.failed) {
+          errorCount++;
+          setPillState('reconnecting', 'Retrying...');
+        } else {
+          errorCount = 0;
+          setPillState('live', 'Live');
+        }
+      });
+
+      document.body.addEventListener('htmx:responseError', function () {
+        errorCount++;
+        setPillState('offline', 'Offline');
+      });
+
+      // Initial state
+      setPillState('live', 'Live');
+    });
+  </script>
+{% endblock %}

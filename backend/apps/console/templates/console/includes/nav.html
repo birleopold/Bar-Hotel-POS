@@ -1,0 +1,34 @@
+<header class="staff-nav" role="banner">
+  <a class="staff-nav__brand" href="{% url 'console-index' %}">
+    <span class="staff-nav__dot" aria-hidden="true"></span>
+    Console
+  </a>
+  <nav aria-label="Console">
+    <ul class="staff-nav__links">
+      <li><a class="staff-nav__link" href="{% url 'console-index' %}">Home</a></li>
+      {% if request.tenant %}
+        <li><a class="staff-nav__link" href="{% url 'console-org' %}">Organization</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-setup' %}">Setup</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-sites' %}">Branches</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-menu-categories' %}">Menu</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-menu-items' %}">Items</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-modifier-groups' %}">Modifiers</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-service-offerings' %}">Services</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-room-types' %}">Room types</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-rooms' %}">Rooms</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-org-room-rates' %}">Rates</a></li>
+      {% endif %}
+      <li><a class="staff-nav__link" href="{% url 'staff-dashboard' %}">Staff</a></li>
+      {% if user.is_superuser or user.is_platform_staff %}
+        <li><a class="staff-nav__link" href="{% url 'console-platform-tenants' %}">Platform</a></li>
+        <li><a class="staff-nav__link" href="{% url 'console-platform-plans' %}">Plans</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  <div class="staff-nav__meta">
+    {% if request.user.is_authenticated %}
+      <span class="staff-nav__email">{{ request.user.email }}</span>
+      {% if request.tenant %}<span class="staff-context-pill"><strong>{{ request.tenant.name }}</strong></span>{% endif %}
+    {% endif %}
+  </div>
+</header>

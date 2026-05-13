@@ -1,0 +1,77 @@
+{% extends "staff/base.html" %}
+{% block title %}EFRIS settings{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Workspace</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">URA EFRIS setup<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Configure credentials and run health checks without editing raw JSON.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-integrations' %}">Back to links</a>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/settings/includes/subnav.html" %}
+
+  <h2 class="staff-section-head">EFRIS configuration</h2>
+  <form method="post" class="staff-card">
+    {% csrf_token %}
+    {% include "staff/includes/form_errors_block.html" with form=form title="Fix EFRIS settings" %}
+    {% for field in form %}
+      <div class="mb-3">
+        {{ field.label_tag }}{{ field }}
+        {% if field.help_text %}<p class="staff-muted mb-1">{{ field.help_text }}</p>{% endif %}
+        {{ field.errors }}
+      </div>
+    {% endfor %}
+    <div class="d-flex gap-2">
+      <button type="submit" name="action" value="save" class="staff-btn staff-btn--primary">Save EFRIS settings</button>
+      <button type="submit" name="action" value="health_check" class="staff-btn staff-btn--ghost">Run health check</button>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-integrations' %}">Back</a>
+    </div>
+  </form>
+
+  {% if efris_link %}
+    <p class="staff-muted mt-3 mb-0">
+      Existing integration link: <code>{{ efris_link.provider_key }}</code>
+      {% if efris_link.is_enabled %}(enabled){% else %}(disabled){% endif %}
+    </p>
+  {% endif %}
+
+  <h2 class="staff-section-head mt-4">Submission queue</h2>
+  <p class="staff-muted small">Recent cashbook-linked EFRIS outbox rows for this workspace. Failed rows retry on the background schedule until they succeed or need credential fixes.</p>
+  {% if efris_submissions %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Status</th>
+            <th>Attempts</th>
+            <th>Cashbook</th>
+            <th>Provider ref</th>
+            <th>Last error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in efris_submissions %}
+            <tr>
+              <td>{{ s.created_at }}</td>
+              <td><span class="staff-tag {% if s.status == 'submitted' %}staff-tag--teal{% elif s.status == 'failed' %}staff-tag--magenta{% else %}staff-tag--citrus{% endif %}">{{ s.get_status_display }}</span></td>
+              <td>{{ s.attempts }}</td>
+              <td class="small">{{ s.cashbook_entry.transaction_date }} · {{ s.cashbook_entry.category.name }} · {{ s.cashbook_entry.amount }}</td>
+              <td class="small">{% if s.provider_reference %}{{ s.provider_reference }}{% else %}—{% endif %}</td>
+              <td class="small staff-muted">{% if s.last_error %}{{ s.last_error|truncatechars:120 }}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="staff-muted mb-0">No submissions yet. Entries appear when EFRIS is enabled globally and for this tenant, and operational posting creates a cashbook line.</p>
+  {% endif %}
+{% endblock %}

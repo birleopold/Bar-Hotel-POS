@@ -1,0 +1,76 @@
+{% extends "staff/base.html" %}
+{% block title %}PO {{ po.reference|default:po.id }}{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Purchasing</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">PO {{ po.reference|default:po.id }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">{{ po.supplier.name }} · {{ po.outlet.name }} · <span class="staff-tag staff-tag--citrus">{{ po.get_status_display }}</span></p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All orders</a>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/purchasing/includes/subnav.html" %}
+  <h2 class="staff-section-head">Line items</h2>
+  <div class="staff-card mb-3">
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th>Item</th><th>Ordered</th><th>Goods received</th><th>Remaining</th></tr></thead>
+        <tbody>
+          {% for line in po.lines.all %}
+            <tr>
+              <td>{{ line.menu_item.name }}</td>
+              <td>{{ line.quantity_ordered }}</td>
+              <td>{{ line.quantity_received }}</td>
+              <td>{{ line.quantity_remaining }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if can_modify_purchasing %}
+    <h2 class="staff-section-head">Status</h2>
+    <div class="staff-toolbar staff-toolbar--tight flex-wrap mb-3">
+      {% if po.status == 'draft' %}
+        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="send"><button type="submit" class="staff-btn staff-btn--primary">Mark sent</button></form>
+      {% endif %}
+      <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button type="submit" class="staff-btn staff-btn--ghost">Cancel PO</button></form>
+      {% if can_receive %}
+        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="receive_all"><button type="submit" class="staff-btn staff-btn--primary">Receive all outstanding</button></form>
+      {% endif %}
+    </div>
+    {% if can_receive %}
+      <h2 class="staff-section-head">Partial goods received</h2>
+      <div class="staff-card">
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="receive">
+          <div class="staff-table-wrap">
+            <table class="staff-table">
+              <thead><tr><th>Item</th><th>Remaining</th><th>Qty to receive</th></tr></thead>
+              <tbody>
+                {% for line in po.lines.all %}
+                  {% if line.quantity_remaining > 0 %}
+                    <tr>
+                      <td>{{ line.menu_item.name }}</td>
+                      <td>{{ line.quantity_remaining }}</td>
+                      <td><input class="staff-input" type="number" step="0.001" min="0" name="recv_{{ line.id }}" placeholder="0"></td>
+                    </tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <button type="submit" class="staff-btn staff-btn--primary mt-2">Receive entered quantities</button>
+        </form>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

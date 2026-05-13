@@ -1,0 +1,87 @@
+{% extends "staff/base.html" %}
+{% block title %}Team{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Workspace</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Members<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Who can access this workspace and their roles.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          {% if can_manage_members %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-workspace-member-create' %}">New worker</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/settings/includes/subnav.html" %}
+  {% if worker_reset_link %}
+    <div class="staff-alert staff-alert--info">
+      <strong>Password setup link ready</strong><br>
+      <strong>{{ worker_reset_link.email }}</strong> — password setup link:
+      <a href="{{ worker_reset_link.url }}" target="_blank" rel="noopener">{{ worker_reset_link.url }}</a>
+    </div>
+  {% endif %}
+  <h2 class="staff-section-head">Filter</h2>
+  <form class="staff-toolbar staff-toolbar--tight staff-card mb-3" method="get">
+    <input class="staff-input" type="search" name="q" value="{{ filter_q }}" placeholder="Email">
+    <select class="staff-input" name="role">
+      <option value="">Any role</option>
+      {% for val, label in role_choices %}
+        <option value="{{ val }}"{% if filter_role == val %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select class="staff-input" name="status">
+      <option value="">Any status</option>
+      <option value="active"{% if filter_status == 'active' %} selected{% endif %}>Active</option>
+      <option value="inactive"{% if filter_status == 'inactive' %} selected{% endif %}>Inactive</option>
+    </select>
+    <button type="submit" class="staff-btn staff-btn--ghost">Filter</button>
+  </form>
+  {% if can_manage_members %}
+    <form method="post" action="{% url 'staff-workspace-member-bulk-action' %}" class="staff-card mb-3">
+      {% csrf_token %}
+      <h2 class="staff-card__title">Bulk actions</h2>
+      <p class="staff-muted small">Hold Ctrl/Cmd to select multiple members.</p>
+      {% for field in bulk_form %}
+        <div class="mb-2">{{ field.label_tag }}{{ field }}</div>
+      {% endfor %}
+      <button type="submit" class="staff-btn staff-btn--ghost">Apply to selection</button>
+    </form>
+  {% endif %}
+  <h2 class="staff-section-head">Directory</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Email</th><th>Role</th><th>Active</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <tbody>
+        {% for m in memberships %}
+          <tr>
+            <td>{{ m.user.email }}</td>
+            <td>{{ m.get_role_display }}</td>
+            <td>{% if m.is_active %}Yes{% else %}No{% endif %}</td>
+            <td class="staff-table__actions-cell">
+              {% if can_manage_members %}
+                <a class="staff-table__action-link" href="{% url 'staff-workspace-member-edit' membership_id=m.id %}">Edit</a>
+              {% else %}
+                <span class="staff-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="staff-muted">No members.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

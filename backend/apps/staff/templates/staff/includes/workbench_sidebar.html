@@ -1,0 +1,132 @@
+{# Role- and module-aware sidebar; keep in sync with staff_nav visibility. #}
+{% with u=request.resolver_match.url_name %}
+<nav class="wb-side-nav" aria-label="Staff sections">
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Hub</span>
+    <ul class="wb-nav-list">
+      <li><a class="wb-nav-link{% if u == 'staff-dashboard' %} wb-nav-link--active{% endif %}" href="{% url 'staff-dashboard' %}">Workbench</a></li>
+    </ul>
+  </div>
+
+  {% if staff_nav %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Sales &amp; floor</span>
+    <ul class="wb-nav-list">
+      {% if staff_nav.orders %}
+      <li><a class="wb-nav-link{% if u == 'staff-orders' or u == 'staff-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-orders' %}">Orders &amp; tabs</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-order-quick-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-order-quick-create' %}">Quick order</a></li>
+      {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-pos-shifts' %} wb-nav-link--active{% endif %}" href="{% url 'staff-pos-shifts' %}">Shift close</a></li>{% endif %}
+      {% endif %}
+      {% if staff_nav.tables %}
+      <li><a class="wb-nav-link{% if u == 'staff-tables' or u == 'staff-table-create' or u == 'staff-table-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-tables' %}">Tables</a></li>
+      {% endif %}
+      {% if staff_nav.menu %}
+      <li><a class="wb-nav-link{% if u == 'staff-menu' %} wb-nav-link--active{% endif %}" href="{% url 'staff-menu' %}">Items</a></li>
+      {% endif %}
+    </ul>
+  </div>
+
+  {% if staff_nav.kitchen %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Prep</span>
+    <ul class="wb-nav-list">
+      <li><a class="wb-nav-link{% if u == 'staff-kds' %} wb-nav-link--active{% endif %}" href="{% url 'staff-kds' %}">Prep queue</a></li>
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if staff_nav.promotions or staff_nav.sales %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Commercial</span>
+    <ul class="wb-nav-list">
+      {% if staff_nav.promotions %}
+      <li><a class="wb-nav-link{% if u == 'staff-promotions' or u == 'staff-promotion-detail' or u == 'staff-promotion-create' or u == 'staff-promotion-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-promotions' %}">Offers</a></li>
+      {% endif %}
+      {% if staff_nav.sales %}
+      <li><a class="wb-nav-link{% if u == 'staff-sales' %} wb-nav-link--active{% endif %}" href="{% url 'staff-sales' %}">Sales report</a></li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if staff_nav.inventory or staff_nav.purchasing %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Stock &amp; buying</span>
+    <ul class="wb-nav-list">
+      {% if staff_nav.inventory %}
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-balances' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-balances' %}">On hand</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-movements' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-movements' %}">Ledger</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-movement-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-movement-upload' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-movement-upload' %}">CSV upload</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-transfer' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-transfer' %}">Transfer</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-counts' or u == 'staff-inventory-count-create' or u == 'staff-inventory-count-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-counts' %}">Stock take</a></li>
+      {% endif %}
+      {% if staff_nav.purchasing %}
+      <li><a class="wb-nav-link{% if u == 'staff-purchasing-orders' or u == 'staff-purchasing-order-create' or u == 'staff-purchasing-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-purchasing-orders' %}">Purchase orders</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-purchasing-suppliers' or u == 'staff-purchasing-supplier-create' or u == 'staff-purchasing-supplier-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-purchasing-suppliers' %}">Suppliers</a></li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if staff_show_lodging_nav %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Guests &amp; rooms</span>
+    <ul class="wb-nav-list">
+      <li><a class="wb-nav-link{% if u == 'staff-lodging-reservations' or u == 'staff-lodging-reservation-detail' or u == 'staff-lodging-reservation-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}">Reservations</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-lodging-folios' or u == 'staff-lodging-folio-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-folios' %}">Folios</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-lodging-rooms' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-rooms' %}">Rooms</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-lodging-tape' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-tape' %}">Tape</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-lodging-housekeeping' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-lodging-room-types' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-room-types' %}">Room types</a></li>
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if staff_nav.finance %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Finance</span>
+    <ul class="wb-nav-list">
+      <li><a class="wb-nav-link{% if u == 'staff-finance-entries' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-entries' %}">Income &amp; expenses</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-finance-entry-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-entry-create' %}">New entry</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-finance-categories-new' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-categories-new' %}">Categories</a></li>
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if staff_nav.events %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Events</span>
+    <ul class="wb-nav-list">
+      <li><a class="wb-nav-link{% if u == 'staff-events-bookings' or u == 'staff-events-booking-create' or u == 'staff-events-booking-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-bookings' %}">Bookings</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-events-calendar' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-calendar' %}">Calendar</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-events-spaces' or u == 'staff-events-space-create' or u == 'staff-events-space-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-spaces' %}">Spaces</a></li>
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if staff_nav.workspace %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Workspace</span>
+    <ul class="wb-nav-list">
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-branding' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-branding' %}">Branding</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-modules' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-modules' %}">Staff areas</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-integrations' or u == 'staff-workspace-integration-create' or u == 'staff-workspace-integration-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-integrations' %}">Integrations</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-members' or u == 'staff-workspace-member-create' or u == 'staff-workspace-member-edit' or u == 'staff-workspace-member-bulk-action' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-members' %}">Team</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-invites' or u == 'staff-workspace-invite-create' or u == 'staff-workspace-invite-regenerate' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-invites' %}">Invites</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-audit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-audit' %}">Activity</a></li>
+    </ul>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {% if staff_show_console_entry %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Platform</span>
+    <ul class="wb-nav-list">
+      <li><a class="wb-nav-link" href="{% url 'console-index' %}">Admin console</a></li>
+    </ul>
+  </div>
+  {% endif %}
+</nav>
+{% endwith %}

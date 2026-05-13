@@ -1,0 +1,111 @@
+{% extends "staff/base.html" %}
+{% block title %}Income & expenses{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Finance</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Income &amp; expenses<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Manual income and expense lines outside POS sales (utilities, bank fees, other income, etc.). Aligns with day-to-day cash tracking on the ground.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--primary" href="{% url 'staff-finance-entry-create' %}">New entry</a>
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-finance-categories-new' %}">New category</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <h2 class="staff-section-head">Date range</h2>
+  <form class="staff-toolbar staff-toolbar--tight mb-3" method="get">
+    <div>
+      <label class="staff-label staff-label--compact" for="df">From</label>
+      <input class="staff-input" type="date" id="df" name="date_from" value="{{ date_from|date:'Y-m-d' }}">
+    </div>
+    <div>
+      <label class="staff-label staff-label--compact" for="dt">To</label>
+      <input class="staff-input" type="date" id="dt" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
+    </div>
+    <div>
+      <label class="staff-label staff-label--compact" for="kind">Kind</label>
+      <select class="staff-input" id="kind" name="kind">
+        <option value=""{% if not kind_filter %} selected{% endif %}>All</option>
+        <option value="income"{% if kind_filter == 'income' %} selected{% endif %}>Income</option>
+        <option value="expense"{% if kind_filter == 'expense' %} selected{% endif %}>Expense</option>
+      </select>
+    </div>
+    <button type="submit" class="staff-btn staff-btn--ghost">Apply</button>
+  </form>
+
+  {% for e in date_errors %}<div class="staff-alert staff-alert--danger mb-2">{{ e }}</div>{% endfor %}
+
+  {% if date_errors|length == 0 %}
+    <p class="mb-3">
+      <a
+        class="staff-btn staff-btn--ghost staff-btn--sm"
+        href="?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}{% if kind_filter %}&kind={{ kind_filter }}{% endif %}&format=csv"
+      >Download CSV</a>
+      <span class="staff-muted small ms-2">Exports all rows in the current filters (not only this page).</span>
+    </p>
+    <h2 class="staff-section-head">Totals</h2>
+    <div class="staff-card staff-card--soft mb-3">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="text-muted small fw-bold text-uppercase">Income</div>
+          <div class="fs-4 fw-bold text-success">{{ total_income }}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="text-muted small fw-bold text-uppercase">Expense</div>
+          <div class="fs-4 fw-bold text-danger">{{ total_expense }}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="text-muted small fw-bold text-uppercase">Net (in − out)</div>
+          <div class="fs-4 fw-bold">{{ net_cash }}</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if not has_categories %}
+    <div class="staff-alert staff-alert--info mb-3">Create at least one <a href="{% url 'staff-finance-categories-new' %}">category</a> before adding entries.</div>
+  {% endif %}
+
+  <h2 class="staff-section-head">Entries</h2>
+  {% if entries %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Category</th>
+            <th>Branch</th>
+            <th class="text-end">Amount</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entries %}
+            <tr>
+              <td>{{ e.transaction_date }}</td>
+              <td><span class="badge rounded-pill {% if e.category.kind == 'income' %}text-bg-success{% else %}text-bg-warning{% endif %}">{{ e.category.get_kind_display }}</span> {{ e.category.name }}</td>
+              <td>{% if e.site %}{{ e.site.name }}{% else %}—{% endif %}</td>
+              <td class="text-end">{{ e.amount }}</td>
+              <td class="staff-muted small">{{ e.note|default:e.reference|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {% url "staff-finance-entry-create" as finance_entry_create_url %}
+    {% include "staff/includes/empty_state.html" with title="No entries in this range" message="Try widening the date range or create a new manual income/expense line." action_url=finance_entry_create_url action_label="New entry" %}
+  {% endif %}
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&kind={{ kind_filter }}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&kind={{ kind_filter }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

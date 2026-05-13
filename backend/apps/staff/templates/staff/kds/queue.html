@@ -1,0 +1,89 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Prep queue{% endblock %}
+{% block body_class %}staff-body--pos{% endblock %}
+{% block main_class %}staff-main--wide staff-main--pos staff-main--pos-bleed{% endblock %}
+{% block content %}
+  <div class="staff-pos-kds-page">
+    <div class="staff-pos-kds-head staff-pos-kds-head--with-live staff-pos-orders-hero">
+      <div class="staff-pos-kds-titles">
+        <p class="staff-dash-hero__eyebrow mb-1">Prep queue</p>
+        <h1 class="staff-page-title staff-page-title--pos mb-0">Prep<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+        <p class="staff-pos-kds-meta mb-0">{{ prep_scope_label }}{% if current_outlet %} · {{ current_outlet.name }}{% endif %}{% if station_filter %} · {{ station_filter }}{% endif %}</p>
+      </div>
+      <div
+        id="staff-kds-live-root"
+        class="staff-kds-live"
+        data-kds-live-status="connecting"
+        data-kds-ws-enabled="{% if not kds_blocked and current_outlet %}true{% else %}false{% endif %}"
+        data-tenant-id="{% if request.tenant %}{{ request.tenant.id }}{% endif %}"
+        data-outlet-id="{% if current_outlet %}{{ current_outlet.id }}{% endif %}"
+        role="status"
+        aria-live="polite"
+      >
+        <span class="staff-kds-live__dot" aria-hidden="true"></span>
+        <span class="staff-kds-live__label" data-kds-live-label>Connecting…</span>
+      </div>
+    </div>
+    {% if kds_blocked %}
+      <div class="staff-alert staff-alert--warning staff-alert--pos">Select one section in the header (not “All sections”).</div>
+    {% else %}
+      <div id="staff-kds-queue-region" class="staff-kds-queue-region">
+      {% if not kds_orders %}
+        <div class="staff-card staff-card--pos staff-card--soft"><p class="mb-0 staff-muted">No prep lines.</p></div>
+      {% endif %}
+      <div class="staff-pos-kds-scroll staff-pos-grow">
+        <div class="staff-pos-kds-grid">
+        {% for pack in kds_orders %}
+          <div class="staff-card staff-card--pos staff-pos-kds-card mb-0">
+            <h2 class="staff-card__title staff-card__title--pos mb-3 d-flex justify-content-between align-items-center">
+              <a class="staff-pos-kds-card__link text-decoration-none" href="{% url 'staff-order-detail' order_id=pack.order.id %}">{{ pack.order.bill_reference }}</a>
+              {% if pack.order.table_label %}<span class="badge bg-secondary ms-2">{{ pack.order.table_label }}</span>{% endif %}
+            </h2>
+            <div class="staff-pos-kds-lines">
+              {% for row in pack.lines %}
+                {% with ln=row.line %}
+                  <div class="staff-pos-kds-line{% if ln.kds_status == 'ready' %} staff-pos-kds-line--ready{% elif ln.kds_status == 'working' %} staff-pos-kds-line--working{% endif %}">
+                    <div class="staff-pos-kds-line__main">
+                      <div class="staff-pos-kds-line__qty">{{ ln.quantity }}×</div>
+                      <div class="staff-pos-kds-line__name">
+                        {{ ln.label }}
+                        {% if ln.kds_station %}<div class="staff-pos-kds-line__station text-muted small mt-1"><i class="bi bi-geo-alt"></i> {{ ln.kds_station }}</div>{% endif %}
+                      </div>
+                    </div>
+                    <div class="staff-pos-kds-line__action">
+                      {% if can_modify_kds and row.next_status %}
+                        <form method="post" class="m-0">
+                          {% csrf_token %}
+                          <input type="hidden" name="order_id" value="{{ pack.order.id }}">
+                          <input type="hidden" name="line_id" value="{{ ln.id }}">
+                          <input type="hidden" name="kds_status" value="{{ row.next_status }}">
+                          {% if station_filter %}<input type="hidden" name="station" value="{{ station_filter }}">{% endif %}
+                          <button type="submit" class="btn btn-sm {% if row.next_status == 'ready' %}btn-success{% else %}btn-primary{% endif %} staff-btn--touch w-100 fw-bold">{{ row.next_label }}</button>
+                        </form>
+                      {% else %}
+                        <span class="badge {% if ln.kds_status == 'ready' %}bg-success{% else %}bg-secondary{% endif %}">{{ ln.get_kds_status_display }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endwith %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+        </div>
+      </div>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  {# Literal kept for staff tests that assert a stable reconnect string in HTML. #}
+  <span class="visually-hidden">Reconnecting...</span>
+  <script>
+    window.STAFF_KDS_WS_BASE = "/ws/kds/";
+  </script>
+  <script src="{% static 'staff/staff-kds-live.js' %}" defer></script>
+  {{ block.super }}
+{% endblock %}

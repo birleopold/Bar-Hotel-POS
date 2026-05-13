@@ -1,0 +1,56 @@
+{% extends "staff/base.html" %}
+{% block title %}Occupancy tape{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Occupancy tape<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
+          <p class="staff-dash-hero__tagline mb-0">Room assignments across a 14-night window. Cells show in-house stays (check-in night through night before check-out).</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="?start={{ tape_prev_start|date:'Y-m-d' }}">← Earlier</a>
+          <a class="staff-btn staff-btn--ghost" href="?start={{ tape_next_start|date:'Y-m-d' }}">Later →</a>
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-availability' %}">Availability</a>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+
+  <h2 class="staff-section-head visually-hidden">Grid</h2>
+  <div class="staff-table-wrap" style="overflow-x: auto;">
+    <table class="staff-table" style="min-width: 720px;">
+      <thead>
+        <tr>
+          <th style="text-align: left;">Room</th>
+          {% for d in tape_dates %}
+            <th class="text-center small">{{ d|date:"D" }}<br><span class="text-muted">{{ d|date:"j M" }}</span></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in tape_rows %}
+          <tr>
+            <td class="fw-semibold">{{ row.room.name }}<span class="staff-muted small d-block">{{ row.room.room_type.name }}</span></td>
+            {% for cell in row.cells %}
+              <td class="text-center p-1" style="vertical-align: middle;">
+                {% if cell.reservation %}
+                  <a class="staff-table__action-link d-block text-truncate" style="max-width: 6rem;" href="{% url 'staff-lodging-reservation-detail' reservation_id=cell.reservation.id %}" title="{{ cell.reservation.guest_name }}">{{ cell.reservation.guest_name|truncatechars:12 }}</a>
+                  <span class="staff-muted small d-block">{{ cell.reservation.get_status_display }}</span>
+                {% else %}
+                  <span class="staff-muted">—</span>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="{{ tape_dates|length|add:1 }}" class="staff-muted text-center py-4">No rooms configured for this branch.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

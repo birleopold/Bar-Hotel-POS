@@ -1,0 +1,53 @@
+{% extends "staff/base.html" %}
+{% block title %}Tables{% endblock %}
+{% block body_class %}staff-body--pos{% endblock %}
+{% block main_class %}staff-main--wide staff-main--pos{% endblock %}
+{% block content %}
+  <section class="staff-pos-orders-hero mb-3">
+    <div class="staff-toolbar staff-toolbar--pos-head">
+      <div class="staff-pos-orders-hero__titles">
+        <p class="staff-dash-hero__eyebrow mb-1">Floor</p>
+        <h1 class="staff-page-title staff-page-title--pos mb-0">Tables<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+        <p class="staff-pos-orders-hero__lede mb-0">Tabs and service by table or zone.</p>
+      </div>
+      <div class="staff-pos-orders-hero__actions">
+        {% if current_outlet and can_modify_tables %}
+          <a class="staff-btn staff-btn--primary staff-btn--touch" href="{% url 'staff-table-create' %}">New table</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+  {% if not current_outlet %}
+    <div class="staff-alert staff-alert--warning">Pick one outlet in the header to see tables.</div>
+  {% else %}
+    <div class="staff-pos-tables-shell">
+      <h2 class="staff-section-head">Layout</h2>
+      <div class="staff-toolbar staff-toolbar--tight mb-2 justify-content-between">
+        <span class="staff-muted mb-0 align-self-center">{{ current_outlet.name }}</span>
+        <a class="staff-btn staff-btn--sm staff-btn--ghost staff-btn--touch" href="?include_inactive={% if include_inactive %}0{% else %}1{% endif %}">{% if include_inactive %}Hide inactive{% else %}Inactive{% endif %}</a>
+      </div>
+      <div class="staff-pos-panel-scroll staff-pos-grow">
+        <div class="staff-pos-tables-grid">
+          {% for t in tables %}
+            <a class="staff-pos-table-card{% if not t.is_active %} staff-pos-table-card--inactive{% endif %}" {% if can_modify_tables %}href="{% url 'staff-table-edit' table_id=t.id %}"{% endif %}>
+              <div class="staff-pos-table-card__main">
+                <div class="staff-pos-table-card__label">{{ t.label }}</div>
+                <div class="staff-pos-table-card__meta">
+                  <i class="bi bi-people-fill me-1"></i> {{ t.capacity }}
+                  {% if not t.is_active %}<span class="ms-2 badge bg-secondary">Inactive</span>{% endif %}
+                </div>
+              </div>
+              {% if can_modify_tables %}
+                <div class="staff-pos-table-card__chevron">
+                  <i class="bi bi-chevron-right"></i>
+                </div>
+              {% endif %}
+            </a>
+          {% empty %}
+            <div class="staff-card staff-card--soft text-center staff-muted py-4 col-12">No tables yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "console/base.html" %}
+{% block title %}Organization{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <h1 class="staff-page-title">Organization overview<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+  <p class="staff-lead">{{ request.tenant.name }} — branches, sections, menu, and lodging in one place.</p>
+
+  <div class="staff-grid-2 mb-4">
+    <div class="staff-card staff-card--soft">
+      <h2 class="staff-card__title">Counts</h2>
+      <ul class="mb-0">
+        <li>Branches (sites): <strong>{{ site_count }}</strong></li>
+        <li>Sections (outlets): <strong>{{ outlet_count }}</strong></li>
+        <li>Room types: <strong>{{ room_type_count }}</strong></li>
+        <li>Rooms: <strong>{{ room_count }}</strong></li>
+        <li>Active services: <strong>{{ service_count }}</strong></li>
+      </ul>
+    </div>
+    <div class="staff-card staff-card--soft">
+      <h2 class="staff-card__title">Business lines</h2>
+      <ul class="mb-0 small">
+        <li>F&amp;B: {% if console_has_fnb %}Yes{% else %}—{% endif %}</li>
+        <li>Retail / supermarket: {% if console_has_retail %}Yes{% else %}—{% endif %}</li>
+        <li>Lodging: {% if console_has_lodging %}Yes{% else %}—{% endif %}</li>
+        <li>Events: {% if console_has_events %}Yes{% else %}—{% endif %}</li>
+      </ul>
+    </div>
+  </div>
+
+  {% if show_setup_prompt %}
+    <div class="staff-card mb-4" style="border-color: rgba(232, 93, 76, 0.25);">
+      <h2 class="staff-card__title">Business setup</h2>
+      <h2 class="staff-card__title">Guided setup</h2>
+      <p class="staff-muted">Required steps: {{ setup_state.required_completion_percent }}% complete.</p>
+      <a class="staff-btn staff-btn--primary" href="{{ setup_url }}">Finish business setup</a>
+    </div>
+  {% endif %}
+
+  <h2 class="staff-section-title">Quick links</h2>
+  <div class="staff-quick-links mb-4">
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}">Branches</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}">Menu categories</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Menu items</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-service-offerings' %}">Services</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-types' %}">Room types</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-rooms' %}">Rooms</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-rates' %}">Nightly rates</a>
+  </div>
+{% endblock %}

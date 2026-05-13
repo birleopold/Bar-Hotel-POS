@@ -1,0 +1,9 @@
+<div class="staff-card staff-empty-state">
+  <p class="staff-empty-state__title">{{ title|default:"Nothing yet" }}</p>
+  <p class="staff-empty-state__copy">{{ message|default:"No records match this view yet." }}</p>
+  {% if action_url and action_label %}
+    <div class="staff-empty-state__actions">
+      <a class="staff-btn staff-btn--ghost" href="{{ action_url }}">{{ action_label }}</a>
+    </div>
+  {% endif %}
+</div>

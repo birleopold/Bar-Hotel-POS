@@ -1,0 +1,59 @@
+{# HTMX-style fragment: same context as orders list #}
+<div class="staff-grid-2 staff-grid-2--pos-lanes">
+  {% if held_tabs %}
+    <div class="staff-card staff-card--soft staff-pos-lane-card staff-pos-lane-card--held">
+      <div class="staff-pos-lane-card__head">
+        <h3 class="staff-card__title staff-card__title--pos-sm"><i class="bi bi-pause-fill me-2"></i>Held</h3>
+        <span class="staff-tag staff-tag--citrus">{{ held_tabs|length }}</span>
+      </div>
+      <ul class="list-unstyled mb-0">
+        {% for o in held_tabs %}
+          <li class="staff-pos-lane-card__row">
+            <div>
+              <a href="{% url 'staff-order-detail' order_id=o.id %}">{{ o.table_label|default:o.bill_reference }}</a>
+              <div class="staff-muted small">{{ o.outlet.name }}</div>
+            </div>
+            {% if o.ready_for_me %}<span class="staff-tag staff-tag--teal">Ready</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+  {% if open_tabs %}
+    <div class="staff-card staff-card--soft staff-pos-lane-card staff-pos-lane-card--open">
+      <div class="staff-pos-lane-card__head">
+        <h3 class="staff-card__title staff-card__title--pos-sm"><i class="bi bi-record-fill me-2"></i>Open</h3>
+        <span class="staff-tag staff-tag--teal">{{ open_tabs|length }}</span>
+      </div>
+      <ul class="list-unstyled mb-0">
+        {% for o in open_tabs %}
+          <li class="staff-pos-lane-card__row">
+            <div>
+              <a href="{% url 'staff-order-detail' order_id=o.id %}">{{ o.bill_reference }}</a>
+              <div class="staff-muted small">{{ o.outlet.name }}</div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+</div>
+{% if recent_orders %}
+  <div class="staff-card staff-card--soft staff-pos-lane-card staff-pos-lane-card--recent mt-2">
+    <div class="staff-pos-lane-card__head">
+      <h3 class="staff-card__title staff-card__title--pos-sm"><i class="bi bi-check-all me-2"></i>Recent</h3>
+      <span class="staff-tag staff-tag--coral">{{ recent_orders|length }}</span>
+    </div>
+    <ul class="list-unstyled mb-0">
+      {% for o in recent_orders %}
+        <li class="staff-pos-lane-card__row">
+          <div>
+            <a href="{% url 'staff-order-detail' order_id=o.id %}">{{ o.bill_reference }}</a>
+            <div class="staff-muted small">{{ o.outlet.name }}</div>
+          </div>
+          <span class="staff-tag staff-tag--coral">{{ o.get_status_display }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}

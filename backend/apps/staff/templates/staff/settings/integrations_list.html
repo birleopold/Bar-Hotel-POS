@@ -1,0 +1,63 @@
+{% extends "staff/base.html" %}
+{% block title %}Integrations{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Workspace</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Integrations<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Connect payment and messaging providers.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          {% if can_manage_integrations %}
+            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-efris' %}">EFRIS setup</a>
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-workspace-integration-create' %}">New link</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/settings/includes/subnav.html" %}
+  {% if not can_manage_integrations %}
+    <p class="staff-muted mb-3">Read-only list</p>
+  {% endif %}
+  <h2 class="staff-section-head">Links</h2>
+  {% if integration_links %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th>Provider</th><th>Label</th><th>Enabled</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+        <tbody>
+          {% for link in integration_links %}
+            <tr>
+              <td>{{ link.provider_key }}</td>
+              <td>{{ link.label }}</td>
+              <td>{% if link.is_enabled %}Yes{% else %}No{% endif %}</td>
+              <td class="staff-table__actions-cell">
+                {% if can_manage_integrations %}
+                  <a class="staff-table__action-link" href="{% url 'staff-workspace-integration-edit' link_id=link.id %}">Edit</a>
+                {% else %}
+                  <span class="staff-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {% if can_manage_integrations %}
+      {% url "staff-workspace-integration-create" as integration_create_url %}
+      {% include "staff/includes/empty_state.html" with title="No integration links yet" message="Start with EFRIS, payments, or messaging providers for this workspace." action_url=integration_create_url action_label="New link" %}
+    {% else %}
+      {% include "staff/includes/empty_state.html" with title="No integration links yet" message="No integrations are configured for this workspace." %}
+    {% endif %}
+  {% endif %}
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

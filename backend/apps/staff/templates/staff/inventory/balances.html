@@ -1,0 +1,55 @@
+{% extends "staff/base.html" %}
+{% block title %}Stock balances{% endblock %}
+{% block content %}
+  {% include "staff/inventory/includes/subnav.html" %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Stock</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Stock balances<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Quantities by section — filter to low stock for reorder.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="?low_stock=1">Low stock only</a>
+          {% if can_modify_inventory %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
+            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer' %}">Transfer</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  <h2 class="staff-section-head">Balances</h2>
+  {% if balances %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th>Section</th><th>Item</th><th>Qty</th><th>Reorder</th></tr></thead>
+        <tbody>
+          {% for b in balances %}
+            <tr>
+              <td>{{ b.outlet.name }}</td>
+              <td>{{ b.menu_item.name }}</td>
+              <td>{{ b.quantity }}</td>
+              <td>{% if b.menu_item.reorder_level %}{{ b.menu_item.reorder_level }}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {% if can_modify_inventory %}
+      {% url "staff-inventory-movement-create" as movement_create_url %}
+      {% include "staff/includes/empty_state.html" with title="No stock balances yet" message="Record your first stock movement to initialize on-hand quantities." action_url=movement_create_url action_label="Record stock movement" %}
+    {% else %}
+      {% include "staff/includes/empty_state.html" with title="No stock balances yet" message="There are no balances in your current scope." %}
+    {% endif %}
+  {% endif %}
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&low_stock={% if low_stock %}1{% endif %}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&low_stock={% if low_stock %}1{% endif %}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

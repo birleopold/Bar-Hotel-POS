@@ -1,0 +1,13 @@
+{% if request.resolver_match %}
+{% with n=request.resolver_match.url_name %}
+<div class="staff-subnav-pills" aria-label="Workspace sections">
+  <a class="staff-btn {% if n == 'staff-workspace-branding' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-workspace-branding' %}">Branding</a>
+  <a class="staff-btn {% if n == 'staff-workspace-modules' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-workspace-modules' %}">Staff areas</a>
+  <a class="staff-btn {% if n == 'staff-workspace-integrations' or n == 'staff-workspace-integration-create' or n == 'staff-workspace-integration-edit' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-workspace-integrations' %}">Integrations</a>
+  <a class="staff-btn {% if n == 'staff-workspace-efris' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-workspace-efris' %}">EFRIS</a>
+  <a class="staff-btn {% if n == 'staff-workspace-members' or n == 'staff-workspace-member-create' or n == 'staff-workspace-member-edit' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-workspace-members' %}">Members</a>
+  <a class="staff-btn {% if n == 'staff-workspace-invites' or n == 'staff-workspace-invite-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-workspace-invites' %}">Invites</a>
+  <a class="staff-btn {% if n == 'staff-workspace-audit' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-workspace-audit' %}">Activity</a>
+</div>
+{% endwith %}
+{% endif %}

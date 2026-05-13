@@ -1,0 +1,55 @@
+{% extends "staff/base.html" %}
+{% block title %}Housekeeping{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Housekeeping<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
+          <p class="staff-dash-hero__tagline mb-0">Room status for the next guest — clean, dirty, inspected, or out of order.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+
+  {% if not can_modify_lodging %}
+    <div class="staff-alert staff-alert--info mb-3">View only — your role cannot change room status.</div>
+  {% endif %}
+
+  <h2 class="staff-section-head">By status</h2>
+  <div class="row g-3">
+    {% for label, room_list in status_columns %}
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="staff-card staff-card--soft h-100">
+          <h2 class="staff-card__title staff-card__title--pos mb-2">{{ label }} <span class="badge bg-secondary">{{ room_list|length }}</span></h2>
+          {% if room_list %}
+            <ul class="list-unstyled mb-0">
+              {% for room in room_list %}
+                <li class="py-2 border-bottom border-light">
+                  <div class="fw-bold">{{ room.name }}</div>
+                  <div class="small staff-muted">{{ room.room_type.name }}</div>
+                  {% if can_modify_lodging %}
+                    <form method="post" class="mt-2 d-flex flex-wrap gap-1">
+                      {% csrf_token %}
+                      <input type="hidden" name="room_id" value="{{ room.id }}">
+                      {% for value, slabel in room_statuses %}
+                        {% if value != room.status %}
+                          <button type="submit" name="status" value="{{ value }}" class="staff-btn staff-btn--ghost staff-btn--sm">{{ slabel }}</button>
+                        {% endif %}
+                      {% endfor %}
+                    </form>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="staff-muted small mb-0">No rooms in this state.</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

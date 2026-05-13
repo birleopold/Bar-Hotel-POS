@@ -1,0 +1,12 @@
+{# Pass: src, alt, optional loading, fetchpriority #}
+<figure class="staff-photo-hero">
+  <img
+    src="{{ src }}"
+    alt="{{ alt }}"
+    width="1200"
+    height="800"
+    loading="{{ loading|default:'lazy' }}"
+    decoding="async"
+    {% if fetchpriority %}fetchpriority="{{ fetchpriority }}"{% endif %}
+  >
+</figure>

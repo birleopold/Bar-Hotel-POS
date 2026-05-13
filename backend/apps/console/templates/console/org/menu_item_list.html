@@ -1,0 +1,35 @@
+{% extends "console/base.html" %}
+{% block title %}Menu items{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Menu items<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-modifier-groups' %}">Modifier groups</a>
+      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}">New item</a>
+    </div>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>SKU</th><th>Track stock</th><th></th></tr></thead>
+      <tbody>
+        {% for it in items %}
+          <tr>
+            <td>{{ it.name }}</td>
+            <td>{{ it.category.name }}</td>
+            <td>{{ it.unit_price }}</td>
+            <td>{{ it.sku|default:"—" }}</td>
+            <td>{% if it.track_inventory %}Yes{% else %}No{% endif %}</td>
+            <td>
+              <a href="{% url 'console-org-menu-item-edit' item_id=it.id %}">Edit</a>
+              · <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Outlets</a>
+              · <a href="{% url 'console-org-menu-item-recipe' item_id=it.id %}">Recipe</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="staff-muted">No items.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

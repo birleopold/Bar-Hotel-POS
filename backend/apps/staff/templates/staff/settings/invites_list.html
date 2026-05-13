@@ -1,0 +1,59 @@
+{% extends "staff/base.html" %}
+{% block title %}Invites{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Workspace</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Invites<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Invite teammates by email and role.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          {% if can_manage_invites %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-workspace-invite-create' %}">New invite</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/settings/includes/subnav.html" %}
+  {% if new_invite_token %}
+    <div class="staff-alert staff-alert--warning">
+      <strong>Copy this token now</strong><br>
+      <strong>Copy once:</strong> token <code class="staff-code">{{ new_invite_token }}</code>
+      {% if new_invite_meta %}for {{ new_invite_meta.email }} ({{ new_invite_meta.role }}){% endif %}
+    </div>
+  {% endif %}
+  <h2 class="staff-section-head">Pending invites</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Email</th><th>Role</th><th>Expires</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <tbody>
+        {% for inv in invites %}
+          <tr>
+            <td>{{ inv.email }}</td>
+            <td>{{ inv.get_role_display }}</td>
+            <td>{{ inv.expires_at }}</td>
+            <td class="staff-table__actions-cell">
+              {% if can_manage_invites and inv.expires_at > now %}
+                <form method="post" action="{% url 'staff-workspace-invite-regenerate' invite_id=inv.id %}" class="d-inline">{% csrf_token %}<button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">New token</button></form>
+              {% else %}
+                <span class="staff-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="staff-muted">No invites.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

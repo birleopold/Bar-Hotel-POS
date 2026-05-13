@@ -1,0 +1,35 @@
+{% extends "staff/base.html" %}
+{% block title %}Room types{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Room types &amp; rates<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
+          <p class="staff-dash-hero__tagline mb-0">Nightly rate windows and occupancy limits.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+  <h2 class="staff-section-head">Types</h2>
+  {% for rt in room_types %}
+    <div class="staff-card">
+      <h2 class="staff-card__title">{{ rt.name }}</h2>
+      <p class="staff-muted">Max guests: {{ rt.max_occupancy }}</p>
+      {% if rt.rate_windows.all %}
+        <ul>
+          {% for w in rt.rate_windows.all %}
+            <li>{{ w.valid_from }}{% if w.valid_to %} – {{ w.valid_to }}{% else %}+{% endif %}: {{ w.nightly_amount }} / night{% if w.label %} ({{ w.label }}){% endif %}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="staff-muted mb-0">No rate windows configured.</p>
+      {% endif %}
+    </div>
+  {% empty %}
+    <p class="staff-muted">No room types.</p>
+  {% endfor %}
+{% endblock %}

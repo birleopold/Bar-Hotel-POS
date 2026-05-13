@@ -1,0 +1,65 @@
+{% extends "staff/base.html" %}
+{% block title %}Reservations{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Reservations<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
+          <p class="staff-dash-hero__tagline mb-0">Stays, check-in, and room assignment.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          {% if can_modify_lodging %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-lodging-reservation-create' %}">New reservation</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+  <h2 class="staff-section-head">Status</h2>
+  <form class="staff-toolbar staff-toolbar--tight" method="get">
+    <select class="staff-input" name="status" onchange="this.form.submit()">
+      <option value="">All statuses</option>
+      <option value="held"{% if status_filter == 'held' %} selected{% endif %}>Held</option>
+      <option value="confirmed"{% if status_filter == 'confirmed' %} selected{% endif %}>Confirmed</option>
+      <option value="checked_in"{% if status_filter == 'checked_in' %} selected{% endif %}>Checked in</option>
+      <option value="checked_out"{% if status_filter == 'checked_out' %} selected{% endif %}>Checked out</option>
+      <option value="cancelled"{% if status_filter == 'cancelled' %} selected{% endif %}>Cancelled</option>
+    </select>
+  </form>
+  <h2 class="staff-section-head">Stays</h2>
+  {% if reservations %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th>Guest</th><th>Stay</th><th>Room</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for r in reservations %}
+            <tr>
+              <td><a href="{% url 'staff-lodging-reservation-detail' reservation_id=r.id %}">{{ r.guest_name }}</a></td>
+              <td>{{ r.check_in }} → {{ r.check_out }}</td>
+              <td>{% if r.room %}{{ r.room.name }}{% else %}—{% endif %}</td>
+              <td>{{ r.get_status_display }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {% if can_modify_lodging %}
+      {% url "staff-lodging-reservation-create" as reservation_create_url %}
+      {% include "staff/includes/empty_state.html" with title="No reservations found" message="Create your first reservation to start front-desk operations for this branch." action_url=reservation_create_url action_label="New reservation" %}
+    {% else %}
+      {% include "staff/includes/empty_state.html" with title="No reservations found" message="No reservations are visible in your current scope." %}
+    {% endif %}
+  {% endif %}
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

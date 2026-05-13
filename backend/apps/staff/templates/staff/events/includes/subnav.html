@@ -1,0 +1,7 @@
+{% with n=request.resolver_match.url_name %}
+<div class="staff-subnav-pills" aria-label="Events sections">
+  <a class="staff-btn {% if n == 'staff-events-calendar' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-events-calendar' %}">Week</a>
+  <a class="staff-btn {% if n == 'staff-events-bookings' or n == 'staff-events-booking-create' or n == 'staff-events-booking-detail' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-events-bookings' %}">Bookings</a>
+  <a class="staff-btn {% if n == 'staff-events-spaces' or n == 'staff-events-space-create' or n == 'staff-events-space-edit' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-events-spaces' %}">Spaces</a>
+</div>
+{% endwith %}

@@ -1,0 +1,35 @@
+{% extends "console/base.html" %}
+{% block title %}Plans{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Plans<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-platform-plan-create' %}">New plan</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Code</th><th>Active</th><th>Monthly</th><th>Workspaces</th><th></th></tr></thead>
+      <tbody>
+        {% for p in plans %}
+          <tr>
+            <td>{{ p.name }}</td>
+            <td><code>{{ p.code }}</code></td>
+            <td>{% if p.is_active %}Yes{% else %}No{% endif %}</td>
+            <td>{{ p.monthly_price }}</td>
+            <td>{{ p.tenant_count }}</td>
+            <td><a href="{% url 'console-platform-plan-edit' plan_id=p.id %}">Edit</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="staff-muted">No plans.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+    <nav class="staff-muted mt-3" aria-label="Pagination">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span class="mx-2">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

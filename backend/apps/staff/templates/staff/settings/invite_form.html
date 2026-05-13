@@ -1,0 +1,25 @@
+{% extends "staff/base.html" %}
+{% block title %}New invite{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Workspace</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Invite teammate<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">They’ll receive a link to join this workspace.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/settings/includes/subnav.html" %}
+  <h2 class="staff-section-head">Invite details</h2>
+  <form method="post" class="staff-card">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+    {% endfor %}
+    <button type="submit" class="staff-btn staff-btn--primary">Create invite</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-invites' %}">Cancel</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,7107 @@
+openapi: 3.0.3
+info:
+  title: Hotel & Bar Management API
+  version: 0.1.0
+  description: Tenant-scoped hospitality API. Authenticated calls use **Bearer** JWT.
+    Send header **X-Tenant-Id** (tenant UUID) on tenant-scoped routes; omit on `/health/`,
+    `/auth/token/`, `/auth/token/refresh/`, `/auth/password/reset/`, `/auth/password/reset/confirm/`,
+    and `/invites/accept/`.
+paths:
+  /api/v1/audit-events/:
+    get:
+      operationId: audit_events_list
+      tags:
+      - audit-events
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditEvent'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/audit-events/{id}/:
+    get:
+      operationId: audit_events_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this audit event.
+        required: true
+      tags:
+      - audit-events
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+          description: ''
+  /api/v1/auth/password/reset/:
+    post:
+      operationId: auth_password_reset_create
+      description: Request a reset email. Response is always the same to avoid account
+        enumeration.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequestRequest'
+        required: true
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetAccepted'
+          description: ''
+  /api/v1/auth/password/reset/confirm/:
+    post:
+      operationId: auth_password_reset_confirm_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetDone'
+          description: ''
+  /api/v1/auth/signup/:
+    post:
+      operationId: auth_signup_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequestRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignupResponse'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/auth/token/:
+    post:
+      operationId: auth_token_create
+      description: |-
+        Takes a set of user credentials and returns an access and refresh JSON web
+        token pair to prove the authentication of those credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenObtainPairRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenObtainPair'
+          description: ''
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/events/bookings/:
+    get:
+      operationId: events_bookings_list
+      tags:
+      - events
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventBooking'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: events_bookings_create
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventBookingRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventBooking'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/events/bookings/{id}/:
+    get:
+      operationId: events_bookings_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event booking.
+        required: true
+      tags:
+      - events
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventBooking'
+          description: ''
+    patch:
+      operationId: events_bookings_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event booking.
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEventBookingRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventBooking'
+          description: ''
+  /api/v1/events/spaces/:
+    get:
+      operationId: events_spaces_list
+      tags:
+      - events
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventSpace'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: events_spaces_create
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSpaceRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSpace'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/events/spaces/{id}/:
+    get:
+      operationId: events_spaces_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event space.
+        required: true
+      tags:
+      - events
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSpace'
+          description: ''
+    put:
+      operationId: events_spaces_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event space.
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSpaceRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSpace'
+          description: ''
+    patch:
+      operationId: events_spaces_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event space.
+        required: true
+      tags:
+      - events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEventSpaceRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSpace'
+          description: ''
+    delete:
+      operationId: events_spaces_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this event space.
+        required: true
+      tags:
+      - events
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthOk'
+          description: ''
+  /api/v1/integrations/links/:
+    get:
+      operationId: integrations_links_list
+      description: Tenant integration registry (owner / tenant_admin for writes).
+      tags:
+      - integrations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntegrationLink'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: integrations_links_create
+      description: Tenant integration registry (owner / tenant_admin for writes).
+      tags:
+      - integrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationLinkRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationLink'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/integrations/links/{id}/:
+    get:
+      operationId: integrations_links_retrieve
+      description: Tenant integration registry (owner / tenant_admin for writes).
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this integration link.
+        required: true
+      tags:
+      - integrations
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationLink'
+          description: ''
+    put:
+      operationId: integrations_links_update
+      description: Tenant integration registry (owner / tenant_admin for writes).
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this integration link.
+        required: true
+      tags:
+      - integrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationLinkRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationLink'
+          description: ''
+    patch:
+      operationId: integrations_links_partial_update
+      description: Tenant integration registry (owner / tenant_admin for writes).
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this integration link.
+        required: true
+      tags:
+      - integrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedIntegrationLinkRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationLink'
+          description: ''
+  /api/v1/integrations/payment-webhook/:
+    post:
+      operationId: integrations_payment_webhook_create
+      description: |-
+        ``POST`` with JSON body containing at least **event_id**, **provider**, **status**.
+        Requires header **X-Tenant-Id** and **X-Webhook-Secret** matching
+        ``PAYMENT_WEBHOOK_SHARED_SECRET`` when that setting is non-empty.
+        Idempotent per tenant + **event_id** (~30 days).
+      parameters:
+      - in: header
+        name: X-Tenant-Id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: header
+        name: X-Webhook-Secret
+        schema:
+          type: string
+        required: true
+      tags:
+      - integrations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/invites/:
+    post:
+      operationId: invites_create
+      tags:
+      - invites
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteCreateRequestRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCreated'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/invites/accept/:
+    post:
+      operationId: invites_accept_create
+      tags:
+      - invites
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteAcceptRequestRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteAccepted'
+          description: ''
+  /api/v1/kds/tickets/:
+    get:
+      operationId: kds_tickets_retrieve
+      description: Open orders with non-served lines for kitchen display.
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: outlet
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: station
+        schema:
+          type: string
+      tags:
+      - kds
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/lodging/folios/:
+    get:
+      operationId: lodging_folios_list
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Folio'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: lodging_folios_create
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FolioCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolioCreate'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/lodging/folios/{id}/:
+    get:
+      operationId: lodging_folios_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this folio.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folio'
+          description: ''
+    patch:
+      operationId: lodging_folios_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this folio.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFolioStatusRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolioStatus'
+          description: ''
+  /api/v1/lodging/folios/{id}/lines/:
+    post:
+      operationId: lodging_folios_lines_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this folio.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folio'
+          description: ''
+  /api/v1/lodging/rate-windows/:
+    get:
+      operationId: lodging_rate_windows_list
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoomRateWindow'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: lodging_rate_windows_create
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomRateWindowRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomRateWindow'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/lodging/rate-windows/{id}/:
+    get:
+      operationId: lodging_rate_windows_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room rate window.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomRateWindow'
+          description: ''
+    put:
+      operationId: lodging_rate_windows_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room rate window.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomRateWindowRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomRateWindow'
+          description: ''
+    patch:
+      operationId: lodging_rate_windows_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room rate window.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoomRateWindowRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomRateWindow'
+          description: ''
+    delete:
+      operationId: lodging_rate_windows_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room rate window.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/lodging/reservations/:
+    get:
+      operationId: lodging_reservations_list
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reservation'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: lodging_reservations_create
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/lodging/reservations/{id}/:
+    get:
+      operationId: lodging_reservations_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this reservation.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+    patch:
+      operationId: lodging_reservations_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this reservation.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedReservationRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+  /api/v1/lodging/reservations/{id}/check-in/:
+    post:
+      operationId: lodging_reservations_check_in_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this reservation.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+  /api/v1/lodging/reservations/{id}/check-out/:
+    post:
+      operationId: lodging_reservations_check_out_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this reservation.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+  /api/v1/lodging/reservations/{id}/post-folio-charge/:
+    post:
+      operationId: lodging_reservations_post_folio_charge_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this reservation.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+  /api/v1/lodging/room-types/:
+    get:
+      operationId: lodging_room_types_list
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoomType'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: lodging_room_types_create
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomTypeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomType'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/lodging/room-types/{id}/:
+    get:
+      operationId: lodging_room_types_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room type.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomType'
+          description: ''
+    put:
+      operationId: lodging_room_types_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room type.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomTypeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomType'
+          description: ''
+    patch:
+      operationId: lodging_room_types_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room type.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoomTypeRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomType'
+          description: ''
+    delete:
+      operationId: lodging_room_types_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room type.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/lodging/rooms/:
+    get:
+      operationId: lodging_rooms_list
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Room'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: lodging_rooms_create
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/lodging/rooms/{id}/:
+    get:
+      operationId: lodging_rooms_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+          description: ''
+    put:
+      operationId: lodging_rooms_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoomRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+          description: ''
+    patch:
+      operationId: lodging_rooms_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRoomRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+          description: ''
+    delete:
+      operationId: lodging_rooms_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this room.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/me/:
+    get:
+      operationId: me_retrieve
+      tags:
+      - me
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+  /api/v1/menu/categories/:
+    get:
+      operationId: menu_categories_list
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuCategory'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: menu_categories_create
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuCategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuCategory'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/menu/categories/{id}/:
+    get:
+      operationId: menu_categories_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu category.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuCategory'
+          description: ''
+    put:
+      operationId: menu_categories_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu category.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuCategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuCategory'
+          description: ''
+    patch:
+      operationId: menu_categories_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu category.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMenuCategoryRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuCategory'
+          description: ''
+    delete:
+      operationId: menu_categories_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu category.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/menu/items/:
+    get:
+      operationId: menu_items_list
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuItemList'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: menu_items_create
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/menu/items/{id}/:
+    get:
+      operationId: menu_items_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu item.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+          description: ''
+    put:
+      operationId: menu_items_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu item.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+          description: ''
+    patch:
+      operationId: menu_items_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu item.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMenuItemRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+          description: ''
+    delete:
+      operationId: menu_items_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu item.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/menu/items/{id}/recipe/:
+    get:
+      operationId: menu_items_recipe_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu item.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+          description: ''
+    put:
+      operationId: menu_items_recipe_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this menu item.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+          description: ''
+  /api/v1/menu/items/resolve/:
+    get:
+      operationId: menu_items_resolve_retrieve
+      description: Resolve a single sellable row by barcode (and optional outlet scoping).
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/menu/modifier-groups/:
+    get:
+      operationId: menu_modifier_groups_list
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModifierGroup'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: menu_modifier_groups_create
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifierGroupRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierGroup'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/menu/modifier-groups/{id}/:
+    get:
+      operationId: menu_modifier_groups_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this modifier group.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierGroup'
+          description: ''
+    put:
+      operationId: menu_modifier_groups_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this modifier group.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifierGroupRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierGroup'
+          description: ''
+    patch:
+      operationId: menu_modifier_groups_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this modifier group.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedModifierGroupRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierGroup'
+          description: ''
+    delete:
+      operationId: menu_modifier_groups_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this modifier group.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/menu/modifier-options/:
+    get:
+      operationId: menu_modifier_options_list
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModifierOption'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: menu_modifier_options_create
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifierOptionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierOption'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/menu/modifier-options/{id}/:
+    get:
+      operationId: menu_modifier_options_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this modifier option.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierOption'
+          description: ''
+    put:
+      operationId: menu_modifier_options_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this modifier option.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifierOptionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierOption'
+          description: ''
+    patch:
+      operationId: menu_modifier_options_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this modifier option.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedModifierOptionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierOption'
+          description: ''
+    delete:
+      operationId: menu_modifier_options_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this modifier option.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/menu/promotions/:
+    get:
+      operationId: menu_promotions_list
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Promotion'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: menu_promotions_create
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Promotion'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/menu/promotions/{id}/:
+    get:
+      operationId: menu_promotions_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this promotion.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Promotion'
+          description: ''
+    put:
+      operationId: menu_promotions_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this promotion.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromotionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Promotion'
+          description: ''
+    patch:
+      operationId: menu_promotions_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this promotion.
+        required: true
+      tags:
+      - menu
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPromotionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Promotion'
+          description: ''
+    delete:
+      operationId: menu_promotions_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this promotion.
+        required: true
+      tags:
+      - menu
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/orders/:
+    get:
+      operationId: orders_list
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderList'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: orders_create
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/orders/{id}/:
+    get:
+      operationId: orders_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+    patch:
+      operationId: orders_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+  /api/v1/orders/{id}/apply-promotion/:
+    post:
+      operationId: orders_apply_promotion_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+  /api/v1/orders/{id}/kds-line/:
+    post:
+      operationId: orders_kds_line_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+  /api/v1/orders/{id}/lines/:
+    post:
+      operationId: orders_lines_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+  /api/v1/orders/{id}/payments/:
+    post:
+      operationId: orders_payments_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+  /api/v1/orders/{id}/refunds/:
+    post:
+      operationId: orders_refunds_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+  /api/v1/orders/{id}/void-line/:
+    post:
+      operationId: orders_void_line_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
+  /api/v1/pos/catalog-version/:
+    get:
+      operationId: pos_catalog_version_retrieve
+      description: |-
+        Outlet-scoped catalog fingerprint for offline POS clients.
+
+        Poll or use before replaying queued ``order_create`` mutations; send the token back
+        as ``payload.catalog_version`` on offline sync to get ``409 catalog_stale`` when the
+        menu changed while offline.
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: outlet
+        schema:
+          type: string
+          format: uuid
+        description: Outlet UUID within the tenant
+        required: true
+      tags:
+      - pos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/pos/offline-sync/:
+    post:
+      operationId: pos_offline_sync_create
+      tags:
+      - pos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfflineQueueCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/pos/offline-sync/batch/:
+    post:
+      operationId: pos_offline_sync_batch_create
+      description: |-
+        Process up to 50 offline mutations in order.
+
+        Each entry matches ``POST pos/offline-sync/`` plus optional **``depends_on``** (0-based
+        index). For **``order_add_lines``** or **``order_payment``**: omit **``payload.order_id``**
+        and set **``depends_on``** to an earlier operation whose result includes
+        **``applied_order_id``** (e.g. **``order_create``** or **``order_add_lines``**). Do not send
+        both **``order_id``** and **``depends_on``**.
+
+        Per-item ``catalog_stale`` only fails that index. Response is always HTTP **200** with
+        **``results[]``**; inspect each **``status_code``**.
+      tags:
+      - pos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfflineQueueBatchRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/purchasing/purchase-orders/:
+    get:
+      operationId: purchasing_purchase_orders_list
+      tags:
+      - purchasing
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PurchaseOrder'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: purchasing_purchase_orders_create
+      tags:
+      - purchasing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PurchaseOrderCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderCreate'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/purchasing/purchase-orders/{id}/:
+    get:
+      operationId: purchasing_purchase_orders_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this purchase order.
+        required: true
+      tags:
+      - purchasing
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+          description: ''
+    patch:
+      operationId: purchasing_purchase_orders_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this purchase order.
+        required: true
+      tags:
+      - purchasing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPurchaseOrderStatusUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrderStatusUpdate'
+          description: ''
+  /api/v1/purchasing/purchase-orders/{id}/receive/:
+    post:
+      operationId: purchasing_purchase_orders_receive_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this purchase order.
+        required: true
+      tags:
+      - purchasing
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+          description: ''
+  /api/v1/purchasing/suppliers/:
+    get:
+      operationId: purchasing_suppliers_list
+      tags:
+      - purchasing
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Supplier'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: purchasing_suppliers_create
+      tags:
+      - purchasing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/purchasing/suppliers/{id}/:
+    get:
+      operationId: purchasing_suppliers_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this supplier.
+        required: true
+      tags:
+      - purchasing
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+    put:
+      operationId: purchasing_suppliers_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this supplier.
+        required: true
+      tags:
+      - purchasing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupplierRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+    patch:
+      operationId: purchasing_suppliers_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this supplier.
+        required: true
+      tags:
+      - purchasing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSupplierRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Supplier'
+          description: ''
+  /api/v1/reports/operations-rollup/:
+    get:
+      operationId: reports_operations_rollup_retrieve
+      description: |-
+        Daily rollups (payments, refunds, net) for dashboards and scheduled reports.
+        Same date filters as sales summary; adds **by_day** time series.
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        required: true
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        required: true
+      - in: query
+        name: outlet
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/reports/sales-summary/:
+    get:
+      operationId: reports_sales_summary_retrieve
+      description: Aggregated payment and refund totals for a date range (UTC calendar
+        dates on ``created_at``).
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        required: true
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        required: true
+      - in: query
+        name: outlet
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/stock/balances/:
+    get:
+      operationId: stock_balances_list
+      tags:
+      - stock
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockBalance'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/stock/balances/{id}/:
+    get:
+      operationId: stock_balances_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this stock balance.
+        required: true
+      tags:
+      - stock
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockBalance'
+          description: ''
+  /api/v1/stock/count-sessions/:
+    get:
+      operationId: stock_count_sessions_list
+      tags:
+      - stock
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockCountSession'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: stock_count_sessions_create
+      tags:
+      - stock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockCountSessionCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCountSessionCreate'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/stock/count-sessions/{id}/:
+    get:
+      operationId: stock_count_sessions_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this stock count session.
+        required: true
+      tags:
+      - stock
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCountSession'
+          description: ''
+  /api/v1/stock/count-sessions/{id}/cancel/:
+    post:
+      operationId: stock_count_sessions_cancel_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this stock count session.
+        required: true
+      tags:
+      - stock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockCountSessionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCountSession'
+          description: ''
+  /api/v1/stock/count-sessions/{id}/complete/:
+    post:
+      operationId: stock_count_sessions_complete_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this stock count session.
+        required: true
+      tags:
+      - stock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockCountSessionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCountSession'
+          description: ''
+  /api/v1/stock/movements/:
+    get:
+      operationId: stock_movements_list
+      tags:
+      - stock
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockMovement'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: stock_movements_create
+      tags:
+      - stock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockMovementWriteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockMovementWrite'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/stock/transfers/:
+    post:
+      operationId: stock_transfers_create
+      tags:
+      - stock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockTransferRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockTransfer'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/tables/:
+    get:
+      operationId: tables_list
+      tags:
+      - tables
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Table'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: tables_create
+      tags:
+      - tables
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TableRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/tables/{id}/:
+    get:
+      operationId: tables_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this table.
+        required: true
+      tags:
+      - tables
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+          description: ''
+    put:
+      operationId: tables_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this table.
+        required: true
+      tags:
+      - tables
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TableRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+          description: ''
+    patch:
+      operationId: tables_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this table.
+        required: true
+      tags:
+      - tables
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTableRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Table'
+          description: ''
+    delete:
+      operationId: tables_destroy
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this table.
+        required: true
+      tags:
+      - tables
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/tenant/settings/:
+    get:
+      operationId: tenant_settings_retrieve
+      description: Branding and regional defaults for the active tenant (``X-Tenant-Id``).
+      tags:
+      - tenant
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: tenant_settings_partial_update
+      description: Branding and regional defaults for the active tenant (``X-Tenant-Id``).
+      tags:
+      - tenant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTenantSettingsRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+components:
+  schemas:
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        action:
+          type: string
+          readOnly: true
+        entity_type:
+          type: string
+          readOnly: true
+        entity_id:
+          type: string
+          readOnly: true
+        payload:
+          readOnly: true
+        user:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - created_at
+      - entity_id
+      - entity_type
+      - id
+      - payload
+      - user
+    EventBooking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tenant:
+          type: string
+          format: uuid
+          readOnly: true
+        space:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 255
+        customer_name:
+          type: string
+          maxLength: 255
+        customer_email:
+          type: string
+          format: email
+          maxLength: 254
+        customer_phone:
+          type: string
+          maxLength: 32
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/EventBookingStatusEnum'
+        headcount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        notes:
+          type: string
+        deposit_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - customer_name
+      - end_at
+      - id
+      - space
+      - start_at
+      - tenant
+      - title
+      - updated_at
+    EventBookingRequest:
+      type: object
+      properties:
+        space:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        customer_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        customer_email:
+          type: string
+          format: email
+          maxLength: 254
+        customer_phone:
+          type: string
+          maxLength: 32
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/EventBookingStatusEnum'
+        headcount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        notes:
+          type: string
+        deposit_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - customer_name
+      - end_at
+      - space
+      - start_at
+      - title
+    EventBookingStatusEnum:
+      enum:
+      - tentative
+      - confirmed
+      - cancelled
+      type: string
+      description: |-
+        * `tentative` - Tentative
+        * `confirmed` - Confirmed
+        * `cancelled` - Cancelled
+    EventSpace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tenant:
+          type: string
+          format: uuid
+          readOnly: true
+        site:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - site
+      - tenant
+      - updated_at
+    EventSpaceRequest:
+      type: object
+      properties:
+        site:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+      required:
+      - name
+      - site
+    Folio:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tenant:
+          type: string
+          format: uuid
+          readOnly: true
+        site:
+          type: string
+          format: uuid
+          readOnly: true
+        site_id:
+          type: string
+          format: uuid
+          readOnly: true
+        site_name:
+          type: string
+          readOnly: true
+        reservation:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        guest_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LodgingFolioStatus'
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/FolioLine'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - currency
+      - guest_name
+      - id
+      - lines
+      - notes
+      - reservation
+      - site
+      - site_id
+      - site_name
+      - status
+      - tenant
+      - updated_at
+    FolioCreate:
+      type: object
+      properties:
+        site:
+          type: string
+          format: uuid
+        reservation:
+          type: string
+          format: uuid
+          nullable: true
+        guest_name:
+          type: string
+          maxLength: 255
+        currency:
+          type: string
+          maxLength: 3
+        notes:
+          type: string
+      required:
+      - guest_name
+      - site
+    FolioCreateRequest:
+      type: object
+      properties:
+        site:
+          type: string
+          format: uuid
+        reservation:
+          type: string
+          format: uuid
+          nullable: true
+        guest_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        currency:
+          type: string
+          minLength: 1
+          maxLength: 3
+        notes:
+          type: string
+      required:
+      - guest_name
+      - site
+    FolioLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        tax_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        source_order:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - description
+      - id
+      - source_order
+      - tax_amount
+    FolioStatus:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/LodgingFolioStatus'
+    HealthOk:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    IntegrationLink:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tenant:
+          type: string
+          format: uuid
+          readOnly: true
+        provider_key:
+          type: string
+          description: Stable key e.g. stripe_connect, mailchimp, sms_gateway.
+          maxLength: 64
+        label:
+          type: string
+          maxLength: 128
+        settings: {}
+        is_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - provider_key
+      - tenant
+      - updated_at
+    IntegrationLinkRequest:
+      type: object
+      properties:
+        provider_key:
+          type: string
+          minLength: 1
+          description: Stable key e.g. stripe_connect, mailchimp, sms_gateway.
+          maxLength: 64
+        label:
+          type: string
+          maxLength: 128
+        settings: {}
+        is_enabled:
+          type: boolean
+      required:
+      - provider_key
+    InviteAcceptRequestRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - password
+      - token
+    InviteAccepted:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        tenant_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+      required:
+      - email
+      - message
+      - tenant_id
+    InviteCreateRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        role:
+          type: string
+          minLength: 1
+        expires_days:
+          type: integer
+      required:
+      - email
+    InviteCreated:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        token:
+          type: string
+      required:
+      - email
+      - expires_at
+      - id
+      - role
+      - token
+    KdsStatusEnum:
+      enum:
+      - pending
+      - in_prep
+      - ready
+      - served
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `in_prep` - In prep
+        * `ready` - Ready
+        * `served` - Served
+    LodgingFolioStatus:
+      enum:
+      - open
+      - closed
+      type: string
+      description: |-
+        * `open` - Open
+        * `closed` - Closed
+    Me:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          title: Email address
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 32
+        memberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+      required:
+      - email
+      - id
+      - memberships
+    MenuCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 128
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - updated_at
+    MenuCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+      required:
+      - name
+    MenuItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        category:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        sku:
+          type: string
+          maxLength: 64
+        barcode:
+          type: string
+          description: Scannable barcode / PLU for retail and supermarket POS.
+          maxLength: 64
+        unit_of_measure:
+          $ref: '#/components/schemas/UnitOfMeasureEnum'
+        track_inventory:
+          type: boolean
+          description: When true, outlet stock is reduced when the order is paid.
+        reorder_level:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          description: Optional low-stock hint for dashboards (same UoM as quantity).
+        kds_station:
+          type: string
+          description: Default kitchen display station tag (e.g. kitchen, bar).
+          maxLength: 32
+        consume_recipe_on_sale:
+          type: boolean
+          description: When true and the order is fully paid, deduct recipe ingredient
+            stock.
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        tax_rate_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+          description: If set, tax is computed on the line subtotal (exclusive).
+        is_active:
+          type: boolean
+        outlet_links:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItemOutletLink'
+          readOnly: true
+        modifier_groups:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              min_selections:
+                type: integer
+              max_selections:
+                type: integer
+                nullable: true
+              options:
+                type: array
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category
+      - category_id
+      - category_name
+      - created_at
+      - id
+      - modifier_groups
+      - name
+      - outlet_links
+      - unit_price
+      - updated_at
+    MenuItemList:
+      type: object
+      description: Lighter list for POS; includes effective price when ``context[outlet_id]``
+        is set.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_id:
+          type: string
+          format: uuid
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        sku:
+          type: string
+          maxLength: 64
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        effective_unit_price:
+          type: string
+          description: Decimal string; outlet-specific when context has outlet_id.
+          readOnly: true
+        barcode:
+          type: string
+          description: Scannable barcode / PLU for retail and supermarket POS.
+          maxLength: 64
+        unit_of_measure:
+          $ref: '#/components/schemas/UnitOfMeasureEnum'
+        track_inventory:
+          type: boolean
+          description: When true, outlet stock is reduced when the order is paid.
+        kds_station:
+          type: string
+          description: Default kitchen display station tag (e.g. kitchen, bar).
+          maxLength: 32
+        consume_recipe_on_sale:
+          type: boolean
+          description: When true and the order is fully paid, deduct recipe ingredient
+            stock.
+        tax_rate_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+          description: If set, tax is computed on the line subtotal (exclusive).
+        is_active:
+          type: boolean
+      required:
+      - category_id
+      - category_name
+      - effective_unit_price
+      - id
+      - name
+      - unit_price
+    MenuItemOutletLink:
+      type: object
+      properties:
+        outlet_id:
+          type: string
+          format: uuid
+          readOnly: true
+        outlet_name:
+          type: string
+          readOnly: true
+        price_override:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - outlet_id
+      - outlet_name
+    MenuItemOutletLinkRequest:
+      type: object
+      properties:
+        price_override:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+    MenuItemRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        sku:
+          type: string
+          maxLength: 64
+        barcode:
+          type: string
+          description: Scannable barcode / PLU for retail and supermarket POS.
+          maxLength: 64
+        unit_of_measure:
+          $ref: '#/components/schemas/UnitOfMeasureEnum'
+        track_inventory:
+          type: boolean
+          description: When true, outlet stock is reduced when the order is paid.
+        reorder_level:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          description: Optional low-stock hint for dashboards (same UoM as quantity).
+        kds_station:
+          type: string
+          description: Default kitchen display station tag (e.g. kitchen, bar).
+          maxLength: 32
+        consume_recipe_on_sale:
+          type: boolean
+          description: When true and the order is fully paid, deduct recipe ingredient
+            stock.
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        tax_rate_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+          description: If set, tax is computed on the line subtotal (exclusive).
+        is_active:
+          type: boolean
+        outlet_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+          description: If provided, item is limited to these outlets; omit for all
+            outlets.
+        modifier_group_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+          description: Ordered list of modifier group ids attached to this item.
+      required:
+      - category
+      - name
+      - unit_price
+    MethodEnum:
+      enum:
+      - cash
+      - card
+      - other
+      type: string
+      description: |-
+        * `cash` - Cash
+        * `card` - Card
+        * `other` - Other
+    ModifierGroup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tenant:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 128
+        min_selections:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Minimum options the guest must pick from this group (0 = optional).
+        max_selections:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Maximum picks; blank = no limit.
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModifierOption'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - options
+      - tenant
+      - updated_at
+    ModifierGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        min_selections:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Minimum options the guest must pick from this group (0 = optional).
+        max_selections:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Maximum picks; blank = no limit.
+      required:
+      - name
+    ModifierOption:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        group:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 128
+        price_delta:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          description: Added to each unit's price before tax (per sold unit).
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - group
+      - id
+      - name
+      - updated_at
+    ModifierOptionRequest:
+      type: object
+      properties:
+        group:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        price_delta:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          description: Added to each unit's price before tax (per sold unit).
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+      required:
+      - group
+      - name
+    OfflineQueueBatchOperationRequest:
+      type: object
+      description: 'One batch entry: same as single sync, plus optional ``depends_on``
+        (prior index).'
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        client_mutation_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        operation_type:
+          $ref: '#/components/schemas/OperationTypeEnum'
+        payload:
+          type: object
+          additionalProperties: {}
+        depends_on:
+          type: integer
+          maximum: 49
+          minimum: 0
+      required:
+      - client_mutation_id
+      - operation_type
+      - outlet
+      - payload
+    OfflineQueueBatchRequest:
+      type: object
+      description: Drain multiple offline mutations in one request; each keeps its
+        own ``client_mutation_id``.
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfflineQueueBatchOperationRequest'
+      required:
+      - operations
+    OfflineQueueCreateRequest:
+      type: object
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        client_mutation_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        operation_type:
+          $ref: '#/components/schemas/OperationTypeEnum'
+        payload:
+          type: object
+          additionalProperties: {}
+      required:
+      - client_mutation_id
+      - operation_type
+      - outlet
+      - payload
+    OperationTypeEnum:
+      enum:
+      - order_payment
+      - order_create
+      - order_add_lines
+      type: string
+      description: |-
+        * `order_payment` - order_payment
+        * `order_create` - order_create
+        * `order_add_lines` - order_add_lines
+    OrderLineRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        label:
+          type: string
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        line_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Line subtotal before tax (qty × unit price).
+        tax_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        sort_order:
+          type: integer
+          readOnly: true
+        is_voided:
+          type: boolean
+          readOnly: true
+        void_reason:
+          type: string
+          readOnly: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        kds_station:
+          type: string
+          readOnly: true
+        kds_status:
+          allOf:
+          - $ref: '#/components/schemas/KdsStatusEnum'
+          readOnly: true
+        modifiers_snapshot:
+          readOnly: true
+          description: Chosen modifier options at sale time (name + price_delta per
+            option).
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - is_voided
+      - kds_station
+      - kds_status
+      - label
+      - line_total
+      - menu_item
+      - modifiers_snapshot
+      - quantity
+      - sort_order
+      - tax_amount
+      - unit_price
+      - void_reason
+      - voided_at
+    OrderList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        bill_reference:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PosOrderStatus'
+          readOnly: true
+        table_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        table_label:
+          type: string
+          readOnly: true
+        outlet_id:
+          type: string
+          format: uuid
+          readOnly: true
+        outlet_name:
+          type: string
+          readOnly: true
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Order-level discount subtracted after line subtotals and tax
+            (open orders only).
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        amount_paid:
+          type: string
+          readOnly: true
+        balance_due:
+          type: string
+          readOnly: true
+        is_paid:
+          type: boolean
+          readOnly: true
+        folio:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount_paid
+      - balance_due
+      - bill_reference
+      - created_at
+      - discount_amount
+      - folio
+      - id
+      - is_paid
+      - outlet_id
+      - outlet_name
+      - status
+      - table_id
+      - table_label
+      - total
+    OrderRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        bill_reference:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PosOrderStatus'
+          readOnly: true
+        table_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        table_label:
+          type: string
+          readOnly: true
+        outlet_id:
+          type: string
+          format: uuid
+          readOnly: true
+        outlet_name:
+          type: string
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        tax_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Order-level discount subtracted after line subtotals and tax
+            (open orders only).
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        amount_paid:
+          type: string
+          readOnly: true
+        balance_due:
+          type: string
+          readOnly: true
+        is_paid:
+          type: boolean
+          readOnly: true
+        folio:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        applied_promotion:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineRead'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+          readOnly: true
+      required:
+      - amount_paid
+      - applied_promotion
+      - balance_due
+      - bill_reference
+      - created_at
+      - currency
+      - discount_amount
+      - folio
+      - id
+      - is_paid
+      - lines
+      - outlet_id
+      - outlet_name
+      - payments
+      - status
+      - subtotal
+      - table_id
+      - table_label
+      - tax_total
+      - total
+      - updated_at
+    PasswordResetAccepted:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    PasswordResetConfirmRequest:
+      type: object
+      properties:
+        uid:
+          type: string
+          minLength: 1
+        token:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - new_password
+      - token
+      - uid
+    PasswordResetDone:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    PasswordResetRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    PatchedEventBookingRequest:
+      type: object
+      properties:
+        space:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        customer_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        customer_email:
+          type: string
+          format: email
+          maxLength: 254
+        customer_phone:
+          type: string
+          maxLength: 32
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/EventBookingStatusEnum'
+        headcount:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        notes:
+          type: string
+        deposit_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+    PatchedEventSpaceRequest:
+      type: object
+      properties:
+        site:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+    PatchedFolioStatusRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/LodgingFolioStatus'
+    PatchedIntegrationLinkRequest:
+      type: object
+      properties:
+        provider_key:
+          type: string
+          minLength: 1
+          description: Stable key e.g. stripe_connect, mailchimp, sms_gateway.
+          maxLength: 64
+        label:
+          type: string
+          maxLength: 128
+        settings: {}
+        is_enabled:
+          type: boolean
+    PatchedMenuCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+    PatchedMenuItemRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        sku:
+          type: string
+          maxLength: 64
+        barcode:
+          type: string
+          description: Scannable barcode / PLU for retail and supermarket POS.
+          maxLength: 64
+        unit_of_measure:
+          $ref: '#/components/schemas/UnitOfMeasureEnum'
+        track_inventory:
+          type: boolean
+          description: When true, outlet stock is reduced when the order is paid.
+        reorder_level:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          nullable: true
+          description: Optional low-stock hint for dashboards (same UoM as quantity).
+        kds_station:
+          type: string
+          description: Default kitchen display station tag (e.g. kitchen, bar).
+          maxLength: 32
+        consume_recipe_on_sale:
+          type: boolean
+          description: When true and the order is fully paid, deduct recipe ingredient
+            stock.
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        tax_rate_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+          description: If set, tax is computed on the line subtotal (exclusive).
+        is_active:
+          type: boolean
+        outlet_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+          description: If provided, item is limited to these outlets; omit for all
+            outlets.
+        modifier_group_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+          description: Ordered list of modifier group ids attached to this item.
+    PatchedModifierGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        min_selections:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Minimum options the guest must pick from this group (0 = optional).
+        max_selections:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Maximum picks; blank = no limit.
+    PatchedModifierOptionRequest:
+      type: object
+      properties:
+        group:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        price_delta:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          description: Added to each unit's price before tax (per sold unit).
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+    PatchedPromotionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        discount_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        min_order_subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_active:
+          type: boolean
+        outlet_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+          description: Limit to these outlets; omit or empty for all outlets.
+    PatchedPurchaseOrderStatusUpdateRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/PurchaseOrderWorkflowStatus'
+    PatchedReservationRequest:
+      type: object
+      properties:
+        site:
+          type: string
+          format: uuid
+        guest_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        guest_email:
+          type: string
+          format: email
+          maxLength: 254
+        guest_phone:
+          type: string
+          maxLength: 32
+        check_in:
+          type: string
+          format: date
+        check_out:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/ReservationStatusEnum'
+        room:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+    PatchedRoomRateWindowRequest:
+      type: object
+      properties:
+        room_type:
+          type: string
+          format: uuid
+        label:
+          type: string
+          maxLength: 128
+        valid_from:
+          type: string
+          format: date
+        valid_to:
+          type: string
+          format: date
+          nullable: true
+          description: Null = open-ended from valid_from.
+        nightly_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+    PatchedRoomRequest:
+      type: object
+      properties:
+        room_type:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          description: Room number or label.
+          maxLength: 64
+        status:
+          $ref: '#/components/schemas/RoomStatusEnum'
+        is_active:
+          type: boolean
+    PatchedRoomTypeRequest:
+      type: object
+      properties:
+        site:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description:
+          type: string
+        max_occupancy:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        is_active:
+          type: boolean
+    PatchedSupplierRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 64
+        address_line:
+          type: string
+          maxLength: 512
+        notes:
+          type: string
+        is_active:
+          type: boolean
+    PatchedTableRequest:
+      type: object
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        label:
+          type: string
+          minLength: 1
+          maxLength: 64
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+    PatchedTenantSettingsRequest:
+      type: object
+      properties:
+        business_lines:
+          description: 'Business lines enabled for this workspace. Keys: bar, lounge,
+            restaurant, cafeteria, lodging, retail, supermarket, events.'
+        default_currency:
+          type: string
+          minLength: 1
+          maxLength: 3
+        default_timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        receipt_footer:
+          type: string
+        theme_primary:
+          type: string
+          minLength: 1
+          description: Hex color
+          maxLength: 7
+        theme_secondary:
+          type: string
+          minLength: 1
+          description: Hex color
+          maxLength: 7
+        theme_accent:
+          type: string
+          minLength: 1
+          description: Hex color
+          maxLength: 7
+        logo_url:
+          type: string
+          format: uri
+          maxLength: 200
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_id:
+          type: string
+          format: uuid
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/MethodEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - id
+      - method
+      - order_id
+    PosOrderStatus:
+      enum:
+      - open
+      - cancelled
+      - closed
+      type: string
+      description: |-
+        * `open` - Open
+        * `cancelled` - Cancelled
+        * `closed` - Closed
+    Promotion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tenant:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 128
+        discount_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        min_order_subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_active:
+          type: boolean
+        outlets:
+          type: array
+          items:
+            type: string
+            format: uuid
+          readOnly: true
+          description: Empty = valid at all outlets.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - outlets
+      - starts_at
+      - tenant
+      - updated_at
+    PromotionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        discount_percent:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        min_order_subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_active:
+          type: boolean
+        outlet_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          writeOnly: true
+          description: Limit to these outlets; omit or empty for all outlets.
+      required:
+      - name
+      - starts_at
+    PurchaseOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tenant:
+          type: string
+          format: uuid
+          readOnly: true
+        supplier:
+          type: string
+          format: uuid
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        outlet:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Receiving outlet / warehouse.
+        outlet_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PurchaseOrderWorkflowStatus'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+          description: Supplier or internal reference number.
+        expected_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderLineRead'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - expected_date
+      - id
+      - lines
+      - notes
+      - outlet
+      - outlet_name
+      - reference
+      - status
+      - supplier
+      - supplier_name
+      - tenant
+      - updated_at
+    PurchaseOrderCreate:
+      type: object
+      properties:
+        supplier:
+          type: string
+          format: uuid
+        outlet:
+          type: string
+          format: uuid
+        reference:
+          type: string
+          default: ''
+        expected_date:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderLineInput'
+      required:
+      - lines
+      - outlet
+      - supplier
+    PurchaseOrderCreateRequest:
+      type: object
+      properties:
+        supplier:
+          type: string
+          format: uuid
+        outlet:
+          type: string
+          format: uuid
+        reference:
+          type: string
+          default: ''
+        expected_date:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderLineInputRequest'
+      required:
+      - lines
+      - outlet
+      - supplier
+    PurchaseOrderLineInput:
+      type: object
+      properties:
+        menu_item:
+          type: string
+          format: uuid
+        quantity_ordered:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - menu_item
+      - quantity_ordered
+    PurchaseOrderLineInputRequest:
+      type: object
+      properties:
+        menu_item:
+          type: string
+          format: uuid
+        quantity_ordered:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - menu_item
+      - quantity_ordered
+    PurchaseOrderLineRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item_name:
+          type: string
+          readOnly: true
+        quantity_ordered:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        quantity_received:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        quantity_remaining:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - menu_item
+      - menu_item_name
+      - quantity_ordered
+      - quantity_received
+      - quantity_remaining
+      - unit_cost
+      - updated_at
+    PurchaseOrderStatusUpdate:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/PurchaseOrderWorkflowStatus'
+    PurchaseOrderWorkflowStatus:
+      enum:
+      - draft
+      - sent
+      - partially_received
+      - received
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `sent` - Sent
+        * `partially_received` - Partially received
+        * `received` - Fully received
+        * `cancelled` - Cancelled
+    ReasonEnum:
+      enum:
+      - receive
+      - sale
+      - adjust_in
+      - adjust_out
+      - waste
+      - transfer_out
+      - transfer_in
+      - physical_count
+      - recipe
+      type: string
+      description: |-
+        * `receive` - Receive / purchase
+        * `sale` - Sale (POS)
+        * `adjust_in` - Adjustment increase
+        * `adjust_out` - Adjustment decrease
+        * `waste` - Waste / shrink
+        * `transfer_out` - Transfer out
+        * `transfer_in` - Transfer in
+        * `physical_count` - Physical count adjustment
+        * `recipe` - Recipe / BOM consumption
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        site:
+          type: string
+          format: uuid
+        site_id:
+          type: string
+          format: uuid
+          readOnly: true
+        site_name:
+          type: string
+          readOnly: true
+        guest_name:
+          type: string
+          maxLength: 255
+        guest_email:
+          type: string
+          format: email
+          maxLength: 254
+        guest_phone:
+          type: string
+          maxLength: 32
+        check_in:
+          type: string
+          format: date
+        check_out:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/ReservationStatusEnum'
+        room:
+          type: string
+          format: uuid
+          nullable: true
+        room_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        room_label:
+          type: string
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - check_in
+      - check_out
+      - created_at
+      - guest_name
+      - id
+      - room_id
+      - room_label
+      - site
+      - site_id
+      - site_name
+      - updated_at
+    ReservationRequest:
+      type: object
+      properties:
+        site:
+          type: string
+          format: uuid
+        guest_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        guest_email:
+          type: string
+          format: email
+          maxLength: 254
+        guest_phone:
+          type: string
+          maxLength: 32
+        check_in:
+          type: string
+          format: date
+        check_out:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/ReservationStatusEnum'
+        room:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+      required:
+      - check_in
+      - check_out
+      - guest_name
+      - site
+    ReservationStatusEnum:
+      enum:
+      - held
+      - confirmed
+      - checked_in
+      - checked_out
+      - cancelled
+      type: string
+      description: |-
+        * `held` - Held
+        * `confirmed` - Confirmed
+        * `checked_in` - Checked in
+        * `checked_out` - Checked out
+        * `cancelled` - Cancelled
+    Room:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        room_type:
+          type: string
+          format: uuid
+        room_type_id:
+          type: string
+          format: uuid
+          readOnly: true
+        room_type_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          description: Room number or label.
+          maxLength: 64
+        status:
+          $ref: '#/components/schemas/RoomStatusEnum'
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - room_type
+      - room_type_id
+      - room_type_name
+      - updated_at
+    RoomRateWindow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        room_type:
+          type: string
+          format: uuid
+        label:
+          type: string
+          maxLength: 128
+        valid_from:
+          type: string
+          format: date
+        valid_to:
+          type: string
+          format: date
+          nullable: true
+          description: Null = open-ended from valid_from.
+        nightly_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - nightly_amount
+      - room_type
+      - updated_at
+      - valid_from
+    RoomRateWindowRequest:
+      type: object
+      properties:
+        room_type:
+          type: string
+          format: uuid
+        label:
+          type: string
+          maxLength: 128
+        valid_from:
+          type: string
+          format: date
+        valid_to:
+          type: string
+          format: date
+          nullable: true
+          description: Null = open-ended from valid_from.
+        nightly_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - nightly_amount
+      - room_type
+      - valid_from
+    RoomRequest:
+      type: object
+      properties:
+        room_type:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          description: Room number or label.
+          maxLength: 64
+        status:
+          $ref: '#/components/schemas/RoomStatusEnum'
+        is_active:
+          type: boolean
+      required:
+      - name
+      - room_type
+    RoomStatusEnum:
+      enum:
+      - clean
+      - dirty
+      - inspected
+      - out_of_order
+      type: string
+      description: |-
+        * `clean` - Clean
+        * `dirty` - Dirty
+        * `inspected` - Inspected
+        * `out_of_order` - Out of order
+    RoomType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        site:
+          type: string
+          format: uuid
+        site_id:
+          type: string
+          format: uuid
+          readOnly: true
+        site_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 128
+        description:
+          type: string
+        max_occupancy:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - site
+      - site_id
+      - site_name
+      - updated_at
+    RoomTypeRequest:
+      type: object
+      properties:
+        site:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description:
+          type: string
+        max_occupancy:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        is_active:
+          type: boolean
+      required:
+      - name
+      - site
+    SignupRequestRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+        workspace_name:
+          type: string
+          minLength: 1
+        business_lines:
+          type: array
+          items:
+            type: string
+            minLength: 1
+      required:
+      - email
+      - password
+      - workspace_name
+    SignupResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+      required:
+      - message
+      - tenant_id
+      - user_id
+    StockBalance:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        outlet:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item_name:
+          type: string
+          readOnly: true
+        menu_item_sku:
+          type: string
+          readOnly: true
+        menu_item_barcode:
+          type: string
+          readOnly: true
+        unit_of_measure:
+          type: string
+          readOnly: true
+        track_inventory:
+          type: boolean
+          readOnly: true
+        reorder_level:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          nullable: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - menu_item
+      - menu_item_barcode
+      - menu_item_name
+      - menu_item_sku
+      - outlet
+      - quantity
+      - reorder_level
+      - track_inventory
+      - unit_of_measure
+      - updated_at
+    StockCountLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item_name:
+          type: string
+          readOnly: true
+        menu_item_sku:
+          type: string
+          readOnly: true
+        menu_item_barcode:
+          type: string
+          readOnly: true
+        counted_quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        system_quantity_before:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+        variance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - counted_quantity
+      - id
+      - menu_item
+      - menu_item_barcode
+      - menu_item_name
+      - menu_item_sku
+      - system_quantity_before
+      - variance
+    StockCountSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        outlet:
+          type: string
+          format: uuid
+        outlet_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StockCountSessionStatusEnum'
+          readOnly: true
+        note:
+          type: string
+          maxLength: 512
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockCountLine'
+          readOnly: true
+      required:
+      - completed_at
+      - created_at
+      - created_by
+      - id
+      - lines
+      - outlet
+      - outlet_name
+      - status
+      - updated_at
+    StockCountSessionCreate:
+      type: object
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        note:
+          type: string
+          maxLength: 512
+      required:
+      - outlet
+    StockCountSessionCreateRequest:
+      type: object
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        note:
+          type: string
+          maxLength: 512
+      required:
+      - outlet
+    StockCountSessionRequest:
+      type: object
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        note:
+          type: string
+          maxLength: 512
+      required:
+      - outlet
+    StockCountSessionStatusEnum:
+      enum:
+      - draft
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `completed` - Completed
+        * `cancelled` - Cancelled
+    StockMovement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        outlet:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item:
+          type: string
+          format: uuid
+          readOnly: true
+        menu_item_name:
+          type: string
+          readOnly: true
+        quantity_change:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+          description: Positive adds stock; negative removes (e.g. sale).
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/ReasonEnum'
+          readOnly: true
+        transfer_batch:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+          description: Links paired transfer_out / transfer_in rows.
+        purchase_order:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        order:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        note:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - id
+      - menu_item
+      - menu_item_name
+      - note
+      - order
+      - outlet
+      - purchase_order
+      - quantity_change
+      - reason
+      - transfer_batch
+    StockMovementWrite:
+      type: object
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        menu_item:
+          type: string
+          format: uuid
+        quantity_change:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        reason:
+          $ref: '#/components/schemas/ReasonEnum'
+        note:
+          type: string
+          default: ''
+      required:
+      - menu_item
+      - outlet
+      - quantity_change
+      - reason
+    StockMovementWriteRequest:
+      type: object
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        menu_item:
+          type: string
+          format: uuid
+        quantity_change:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        reason:
+          $ref: '#/components/schemas/ReasonEnum'
+        note:
+          type: string
+          default: ''
+      required:
+      - menu_item
+      - outlet
+      - quantity_change
+      - reason
+    StockTransfer:
+      type: object
+      properties:
+        from_outlet:
+          type: string
+          format: uuid
+        to_outlet:
+          type: string
+          format: uuid
+        menu_item:
+          type: string
+          format: uuid
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        note:
+          type: string
+          default: ''
+      required:
+      - from_outlet
+      - menu_item
+      - quantity
+      - to_outlet
+    StockTransferRequest:
+      type: object
+      properties:
+        from_outlet:
+          type: string
+          format: uuid
+        to_outlet:
+          type: string
+          format: uuid
+        menu_item:
+          type: string
+          format: uuid
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+        note:
+          type: string
+          default: ''
+      required:
+      - from_outlet
+      - menu_item
+      - quantity
+      - to_outlet
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        tenant:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 64
+        address_line:
+          type: string
+          maxLength: 512
+        notes:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - tenant
+      - updated_at
+    SupplierRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 64
+        address_line:
+          type: string
+          maxLength: 512
+        notes:
+          type: string
+        is_active:
+          type: boolean
+      required:
+      - name
+    Table:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        outlet:
+          type: string
+          format: uuid
+        outlet_name:
+          type: string
+          readOnly: true
+        label:
+          type: string
+          maxLength: 64
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - label
+      - outlet
+      - outlet_name
+      - updated_at
+    TableRequest:
+      type: object
+      properties:
+        outlet:
+          type: string
+          format: uuid
+        label:
+          type: string
+          minLength: 1
+          maxLength: 64
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+      required:
+      - label
+      - outlet
+    TenantSettings:
+      type: object
+      properties:
+        business_lines:
+          description: 'Business lines enabled for this workspace. Keys: bar, lounge,
+            restaurant, cafeteria, lodging, retail, supermarket, events.'
+        default_currency:
+          type: string
+          maxLength: 3
+        default_timezone:
+          type: string
+          maxLength: 64
+        receipt_footer:
+          type: string
+        theme_primary:
+          type: string
+          description: Hex color
+          maxLength: 7
+        theme_secondary:
+          type: string
+          description: Hex color
+          maxLength: 7
+        theme_accent:
+          type: string
+          description: Hex color
+          maxLength: 7
+        logo_url:
+          type: string
+          format: uri
+          maxLength: 200
+    TokenObtainPair:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+      required:
+      - access
+      - refresh
+    TokenObtainPairRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          writeOnly: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    UnitOfMeasureEnum:
+      enum:
+      - each
+      - kg
+      - lb
+      - liter
+      type: string
+      description: |-
+        * `each` - Each (SKU / piece)
+        * `kg` - Kilogram
+        * `lb` - Pound
+        * `liter` - Liter
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    tenantId:
+      type: apiKey
+      in: header
+      name: X-Tenant-Id
+      description: Active tenant UUID; required for most authenticated routes.
+servers:
+- url: http://127.0.0.1:8000
+  description: Local
+- url: https://api.example.com
+  description: Production (example)
+tags:
+- name: Health
+- name: Auth
+- name: Session
+- name: Tenant
+- name: Reports
+- name: POS
+- name: Invites
+- name: Catalog
+- name: Lodging
+- name: Inventory
+- name: Purchasing
+- name: Events
+- name: Integrations
+- name: Audit

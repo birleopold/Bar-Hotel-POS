@@ -1,0 +1,50 @@
+{% extends "staff/order_detail.html" %}
+{% block order_extra %}
+  {% if can_modify_open_order and scan_add_form %}
+    <div class="staff-card">
+      <h2 class="staff-card__title">Scan or enter PLU</h2>
+      <form method="post" class="row g-3 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="scan_add_line">
+        <div class="col-md-6">{{ scan_add_form.code.label_tag }}{{ scan_add_form.code }}</div>
+        <div class="col-md-3">{{ scan_add_form.quantity.label_tag }}{{ scan_add_form.quantity }}</div>
+        <div class="col-md-3"><button type="submit" class="staff-btn staff-btn--primary">Add SKU</button></div>
+      </form>
+    </div>
+  {% endif %}
+  {% if can_modify_open_order and line_discount_form %}
+    <div class="staff-card">
+      <h2 class="staff-card__title">Line discount</h2>
+      <p class="staff-muted">Select a line in the table, then apply amount or percent.</p>
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="line_discount">
+        <div class="col-md-3">
+          <label class="staff-label" for="disc_line">Line ID</label>
+          <input class="staff-input" id="disc_line" name="line_id" placeholder="From table above" required>
+        </div>
+        <div class="col-md-3">{{ line_discount_form.discount_amount.label_tag }}{{ line_discount_form.discount_amount }}</div>
+        <div class="col-md-3">{{ line_discount_form.discount_percent.label_tag }}{{ line_discount_form.discount_percent }}</div>
+        <div class="col-md-3"><button type="submit" class="staff-btn staff-btn--ghost">Apply</button></div>
+      </form>
+    </div>
+  {% endif %}
+  {% if line_return_form %}
+    <div class="staff-card">
+      <h2 class="staff-card__title">Return line</h2>
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="line_return">
+        <p class="staff-muted col-12">Paste line UUID from the lines table; enter quantity and optional restock.</p>
+        <div class="col-md-3">
+          <label class="staff-label" for="ret_line">Line ID</label>
+          <input class="staff-input" id="ret_line" name="line_id" required>
+        </div>
+        <div class="col-md-2">{{ line_return_form.quantity.label_tag }}{{ line_return_form.quantity }}</div>
+        <div class="col-md-4">{{ line_return_form.reason.label_tag }}{{ line_return_form.reason }}</div>
+        <div class="col-md-2">{{ line_return_form.restock.label_tag }}{{ line_return_form.restock }}</div>
+        <div class="col-md-1"><button type="submit" class="staff-btn staff-btn--primary">Return</button></div>
+      </form>
+    </div>
+  {% endif %}
+{% endblock %}

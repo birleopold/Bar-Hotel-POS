@@ -1,0 +1,92 @@
+{% load static %}
+<header class="staff-nav{% if '/staff/orders' in request.path or '/staff/kitchen' in request.path or '/staff/tables' in request.path %} staff-nav--pos{% endif %}" role="banner">
+  <a class="staff-nav__brand" href="{% url 'staff-dashboard' %}">
+    <span class="staff-nav__dot" aria-hidden="true"></span>
+    {{ request.tenant.name|default:"Staff" }}
+  </a>
+  {% if user.is_authenticated and staff_nav %}
+    <nav aria-label="Primary">
+      <ul class="staff-nav__links">
+        {% if staff_show_ops_nav %}
+          {% if staff_nav.orders %}
+            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-orders' or request.resolver_match.url_name == 'staff-order-detail' %} staff-nav__link--active{% endif %}" href="{% url 'staff-orders' %}">Orders</a></li>
+          {% endif %}
+          {% if staff_nav.tables %}
+            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-tables' or request.resolver_match.url_name == 'staff-table-create' or request.resolver_match.url_name == 'staff-table-edit' %} staff-nav__link--active{% endif %}" href="{% url 'staff-tables' %}">Tables</a></li>
+          {% endif %}
+          {% if staff_nav.kitchen %}
+            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-kds' %} staff-nav__link--active{% endif %}" href="{% url 'staff-kds' %}">Prep</a></li>
+          {% endif %}
+          {% if staff_nav.menu %}
+            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-menu' %} staff-nav__link--active{% endif %}" href="{% url 'staff-menu' %}">Items</a></li>
+          {% endif %}
+          {% if staff_nav.promotions %}
+            <li><a class="staff-nav__link{% if 'promotion' in request.resolver_match.url_name|default:'' or request.resolver_match.url_name == 'staff-promotions' %} staff-nav__link--active{% endif %}" href="{% url 'staff-promotions' %}">Offers</a></li>
+          {% endif %}
+          {% if staff_nav.sales %}
+            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-sales' %} staff-nav__link--active{% endif %}" href="{% url 'staff-sales' %}">Sales</a></li>
+          {% endif %}
+          {% if staff_nav.offline_sync %}
+            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-offline-queue' %} staff-nav__link--active{% endif %}" href="{% url 'staff-offline-queue' %}">Offline</a></li>
+          {% endif %}
+        {% endif %}
+        {% if staff_nav.inventory %}
+          <li><a class="staff-nav__link{% if 'inventory' in request.path and '/staff/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-inventory-balances' %}">Stock</a></li>
+        {% endif %}
+        {% if staff_nav.purchasing %}
+          <li><a class="staff-nav__link{% if '/staff/purchasing/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-purchasing-orders' %}">Purchasing</a></li>
+        {% endif %}
+        {% if staff_show_lodging_nav and staff_nav.lodging %}
+          <li><a class="staff-nav__link{% if '/staff/lodging/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}">Lodging</a></li>
+        {% endif %}
+        {% if staff_nav.events %}
+          <li><a class="staff-nav__link{% if '/staff/events/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-events-bookings' %}">Events</a></li>
+        {% endif %}
+        {% if staff_show_workspace_nav and staff_nav.workspace %}
+          <li><a class="staff-nav__link{% if '/staff/settings/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-workspace-branding' %}">Workspace</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+  <div class="staff-nav__meta">
+    {% if user.is_authenticated %}
+      {% if staff_nav_outlets %}
+        <form class="staff-nav__outlet-form" method="post" action="{% url 'staff-select-outlet' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <label class="staff-nav__field-label" for="staff-outlet-select">Section</label>
+          <select class="staff-input" id="staff-outlet-select" name="outlet_id" onchange="this.form.submit()">
+            {% if staff_all_outlets %}
+              <option value="__all__" selected>All sections</option>
+            {% else %}
+              <option value="__all__">All sections</option>
+            {% endif %}
+            {% for o in staff_nav_outlets %}
+              <option value="{{ o.id }}"{% if staff_nav_outlet and staff_nav_outlet.id == o.id and not staff_all_outlets %} selected{% endif %}>{{ o.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      {% endif %}
+      {% if staff_show_lodging_nav and staff_lodging_sites %}
+        <form class="staff-nav__outlet-form" method="post" action="{% url 'staff-select-site' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <label class="staff-nav__field-label" for="staff-site-select">Branch</label>
+          <select class="staff-input" id="staff-site-select" name="site_id" onchange="this.form.submit()">
+            {% for s in staff_lodging_sites %}
+              <option value="{{ s.id }}"{% if staff_lodging_site and staff_lodging_site.id == s.id %} selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      {% endif %}
+      <span class="staff-nav__email">{{ user.email }}</span>
+      {% if staff_show_console_entry %}
+        <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'console-org' %}">Console</a>
+      {% endif %}
+      <form method="post" action="{% url 'staff-logout' %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Sign out</button>
+      </form>
+    {% endif %}
+  </div>
+</header>

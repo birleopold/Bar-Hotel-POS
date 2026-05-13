@@ -1,0 +1,26 @@
+{% extends "console/base.html" %}
+{% block title %}Rooms{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Rooms<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-create' %}">New room</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Branch</th><th>Type</th><th>Room</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for r in rooms %}
+          <tr>
+            <td>{{ r.room_type.site.name }}</td>
+            <td>{{ r.room_type.name }}</td>
+            <td>{{ r.name }}</td>
+            <td>{{ r.get_status_display }}</td>
+            <td><a href="{% url 'console-org-room-edit' room_id=r.id %}">Edit</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="staff-muted">No rooms.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

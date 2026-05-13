@@ -1,0 +1,49 @@
+{% extends "staff/base.html" %}
+{% block title %}Count session{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  {% include "staff/inventory/includes/subnav.html" %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Stock</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Stock take<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">{{ count_session.outlet.name }} · {{ count_session.get_status_display }}</p>
+          <p class="staff-dash-hero__tagline mb-0">{{ count_session.created_at }}</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% if count_session.status == 'draft' and can_modify_inventory %}
+    <h2 class="staff-section-head">Counts</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="complete">
+      <div class="staff-table-wrap mb-3">
+        <table class="staff-table">
+          <thead><tr><th>Item</th><th>System qty</th><th>Counted</th></tr></thead>
+          <tbody>
+            {% for row in count_rows %}
+              <tr>
+                <td>{{ row.menu_item.name }}</td>
+                <td>{{ row.system_qty }}</td>
+                <td><input class="staff-input" type="number" step="0.001" min="0" name="counted_{{ row.menu_item.id }}" value="{{ row.system_qty }}" style="max-width: 8rem;"></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="staff-muted">No tracked items at this outlet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <button type="submit" class="staff-btn staff-btn--primary">Complete count</button>
+    </form>
+    <form method="post" class="mt-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancel">
+      <button type="submit" class="staff-btn staff-btn--ghost">Cancel session</button>
+    </form>
+  {% else %}
+    <div class="staff-card"><p class="mb-0">This session is {{ count_session.get_status_display|lower }}. Count adjustments are locked.</p></div>
+  {% endif %}
+{% endblock %}

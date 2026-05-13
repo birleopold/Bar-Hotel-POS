@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Set new password</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}">
+</head>
+<body class="staff-body">
+<div class="staff-login-wrap">
+  <div class="staff-login-card" style="max-width: 28rem;">
+    <h1>Set new password</h1>
+
+    {% if invalid_link %}
+      <div class="staff-alert staff-alert--danger" role="alert">
+        This reset link is invalid or incomplete. Request a new reset from your administrator.
+      </div>
+    {% elif success %}
+      <div class="staff-alert staff-alert--success" role="status">{{ success_message }}</div>
+      <p class="staff-muted" style="font-size: 0.9rem; margin-top: 1rem;">You can close this page and sign in with your new password at <a href="{% url 'staff-login' %}">staff login</a>.</p>
+    {% elif form %}
+      {% if form.non_field_errors %}
+        <div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <form method="post" action="">
+        {% csrf_token %}
+        {{ form.uid }}
+        {{ form.token }}
+        {% if form.new_password.errors %}
+          <div class="staff-alert staff-alert--danger" style="font-size: 0.9rem;">{{ form.new_password.errors }}</div>
+        {% endif %}
+        <label class="staff-label" for="id_new_password">{{ form.new_password.label }}</label>
+        {{ form.new_password }}
+        <button type="submit" class="staff-btn staff-btn--primary" style="width: 100%; margin-top: 1rem;">Update password</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

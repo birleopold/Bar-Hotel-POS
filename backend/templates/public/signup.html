@@ -1,0 +1,65 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}">
+  <style>
+    .public-wrap { max-width: 46rem; margin: 2.5rem auto; padding: 0 1.25rem; }
+    .public-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+    .public-checks label { display: flex; gap: 0.6rem; align-items: baseline; margin: 0.5rem 0; }
+    .public-checks input { transform: translateY(1px); }
+  </style>
+</head>
+<body class="staff-body">
+  <div class="public-wrap">
+    <h1 class="staff-page-title">Create your workspace<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <p class="staff-lead" style="margin-bottom: 1.25rem;">Set up your account and choose what you run. We’ll seed the right outlets automatically.</p>
+
+    <div class="staff-card staff-card--soft">
+      <form method="post" action="">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="public-grid">
+          <div>
+            <label class="staff-label" for="id_email">Email</label>
+            {{ form.email }}
+            {% if form.email.errors %}<div class="staff-muted" style="font-size: 0.85rem; margin-top: 0.35rem;">{{ form.email.errors }}</div>{% endif %}
+          </div>
+
+          <div>
+            <label class="staff-label" for="id_workspace_name">Workspace name</label>
+            {{ form.workspace_name }}
+            {% if form.workspace_name.errors %}<div class="staff-muted" style="font-size: 0.85rem; margin-top: 0.35rem;">{{ form.workspace_name.errors }}</div>{% endif %}
+          </div>
+
+          <div>
+            <label class="staff-label" for="id_password">Password</label>
+            {{ form.password }}
+            {% if form.password.errors %}<div class="staff-muted" style="font-size: 0.85rem; margin-top: 0.35rem;">{{ form.password.errors }}</div>{% endif %}
+          </div>
+
+          <div class="public-checks">
+            <div class="staff-label" style="margin-bottom: 0.35rem;">Business lines</div>
+            {{ form.business_lines }}
+            {% if form.business_lines.errors %}<div class="staff-muted" style="font-size: 0.85rem; margin-top: 0.35rem;">{{ form.business_lines.errors }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div style="margin-top: 1.25rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+          <button type="submit" class="staff-btn staff-btn--primary">Create workspace</button>
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-login' %}">I already have an account</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

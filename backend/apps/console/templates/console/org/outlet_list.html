@@ -1,0 +1,25 @@
+{% extends "console/base.html" %}
+{% block title %}Sections · {{ site.name }}{% endblock %}
+{% block content %}
+  <p class="staff-muted"><a href="{% url 'console-org-sites' %}">Branches</a> / {{ site.name }}</p>
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Sections (outlets)<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-outlet-create' site_id=site.id %}">New section</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Type</th><th></th></tr></thead>
+      <tbody>
+        {% for o in outlets %}
+          <tr>
+            <td>{{ o.name }}</td>
+            <td>{{ o.get_outlet_type_display }}</td>
+            <td><a href="{% url 'console-org-outlet-edit' outlet_id=o.id %}">Edit</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="staff-muted">No sections yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "console/base.html" %}
+{% block title %}Recipe · {{ menu_item.name }}{% endblock %}
+{% block content %}
+  <p class="staff-muted"><a href="{% url 'console-org-menu-items' %}">Items</a> / {{ menu_item.name }}</p>
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Recipe / BOM<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-recipe-create' item_id=menu_item.id %}">Add ingredient</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Ingredient</th><th>Qty per unit sold</th><th></th></tr></thead>
+      <tbody>
+        {% for line in lines %}
+          <tr>
+            <td>{{ line.ingredient_item.name }}</td>
+            <td>{{ line.quantity_per_unit }}</td>
+            <td>
+              <a href="{% url 'console-org-menu-item-recipe-edit' item_id=menu_item.id line_id=line.id %}">Edit</a>
+              · <a href="{% url 'console-org-menu-item-recipe-delete' item_id=menu_item.id line_id=line.id %}">Remove</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="staff-muted">No recipe lines.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

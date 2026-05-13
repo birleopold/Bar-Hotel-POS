@@ -1,0 +1,11 @@
+{% extends "console/base.html" %}
+{% block title %}Remove ingredient{% endblock %}
+{% block content %}
+  <h1 class="staff-page-title">Remove from recipe?<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+  <p>{{ menu_item.name }} — {{ object.ingredient_item.name }}</p>
+  <form method="post" class="staff-card">
+    {% csrf_token %}
+    <button type="submit" class="staff-btn staff-btn--primary">Yes, remove</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-recipe' item_id=menu_item.id %}">Cancel</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% with n=request.resolver_match.url_name %}
+<div class="staff-subnav-pills" aria-label="Stock sections">
+  <a class="staff-btn {% if n == 'staff-inventory-balances' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-balances' %}">Stock</a>
+  <a class="staff-btn {% if n == 'staff-inventory-movements' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movements' %}">Ledger</a>
+  <a class="staff-btn {% if n == 'staff-inventory-movement-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
+  <a class="staff-btn {% if n == 'staff-inventory-movement-upload' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movement-upload' %}">Upload CSV</a>
+  <a class="staff-btn {% if n == 'staff-inventory-transfer' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-transfer' %}">Transfer</a>
+  <a class="staff-btn {% if n == 'staff-inventory-counts' or n == 'staff-inventory-count-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-counts' %}">Stock take</a>
+</div>
+{% endwith %}

@@ -1,0 +1,168 @@
+{% extends "console/base.html" %}
+{% block title %}Control plane · {{ tenant_obj.name }}{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <p class="staff-muted"><a href="{% url 'console-platform-tenants' %}">Workspaces</a> · <a href="{% url 'console-platform-tenant-edit' tenant_id=tenant_obj.id %}">Edit workspace</a></p>
+  <h1 class="staff-page-title">{{ tenant_obj.name }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+  <p class="staff-muted">Slug <code>{{ tenant_obj.slug }}</code> · {% if tenant_obj.is_active %}Active{% else %}Inactive{% endif %}</p>
+
+  {% if has_past_due_invoice %}
+    <div class="staff-card mb-3" style="border-left: 4px solid #c45c3e;">
+      <strong>Past-due invoice</strong> — this workspace has at least one invoice marked past due.
+    </div>
+  {% endif %}
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">Provisioning</h2>
+    <p class="staff-muted small">Apply supermarket baseline: plan, module entitlements, default site/outlet, and setup seed.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" name="provision_supermarket" value="1" class="staff-btn staff-btn--primary">Provision supermarket baseline</button>
+    </form>
+  </section>
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">Subscription</h2>
+    {% if subscription %}
+      <p class="staff-muted small">Current status: {{ subscription.get_status_display }}</p>
+    {% else %}
+      <p class="staff-muted small">No subscription yet — save below to create one.</p>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      {% for field in subscription_form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+      <button type="submit" name="save_subscription" value="1" class="staff-btn staff-btn--primary">Save subscription</button>
+    </form>
+  </section>
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">Module entitlements (tenant)</h2>
+    <p class="staff-muted small">Per-workspace overrides for staff modules.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in entitlements_form %}<div class="mb-2">{{ field.label_tag }} {{ field }}{{ field.errors }}</div>{% endfor %}
+      <button type="submit" name="save_entitlements" value="1" class="staff-btn staff-btn--primary">Save entitlements</button>
+    </form>
+  </section>
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">Outlet module policy</h2>
+    <p class="staff-muted small">Choose outlet type, optionally apply a template, then adjust modules and save. Use one form for both actions.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in outlet_policy_form %}<div class="mb-2">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <button type="submit" name="prefill_outlet_policy" value="1" class="staff-btn staff-btn--ghost">Apply preset to form</button>
+        <button type="submit" name="save_outlet_policy" value="1" class="staff-btn staff-btn--primary">Save outlet policy</button>
+      </div>
+    </form>
+    {% if outlet_policies %}
+      <h3 class="h6 mt-4">Saved policies</h3>
+      <div class="staff-table-wrap">
+        <table class="staff-table">
+          <thead><tr><th>Outlet type</th><th>Active</th><th>Modules</th></tr></thead>
+          <tbody>
+            {% for pol in outlet_policies %}
+              <tr>
+                <td>{{ pol.get_outlet_type_display }}</td>
+                <td>{% if pol.is_active %}Yes{% else %}No{% endif %}</td>
+                <td><code class="small">{{ pol.enabled_modules|join:", " }}</code></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">New invoice</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in invoice_form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+      <button type="submit" name="create_invoice" value="1" class="staff-btn staff-btn--primary">Create invoice</button>
+    </form>
+  </section>
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">Recent invoices</h2>
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead>
+          <tr>
+            <th>Number</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Issued</th>
+            <th>Set status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in invoices %}
+            <tr>
+              <td>{{ inv.invoice_number }}</td>
+              <td>{{ inv.amount }} {{ inv.currency }}</td>
+              <td>{{ inv.get_status_display }}</td>
+              <td>{{ inv.issued_at|default:"—" }}</td>
+              <td>
+                <form method="post" class="d-flex flex-wrap gap-2 align-items-end">
+                  {% csrf_token %}
+                  <input type="hidden" name="invoice_id" value="{{ inv.id }}">
+                  <select name="status" class="staff-input" aria-label="New status for {{ inv.invoice_number }}">
+                    <option value="draft" {% if inv.status == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="issued" {% if inv.status == 'issued' %}selected{% endif %}>Issued</option>
+                    <option value="past_due" {% if inv.status == 'past_due' %}selected{% endif %}>Past due</option>
+                    <option value="paid" {% if inv.status == 'paid' %}selected{% endif %}>Paid</option>
+                    <option value="void" {% if inv.status == 'void' %}selected{% endif %}>Void</option>
+                  </select>
+                  <button type="submit" name="invoice_set_status" value="1" class="staff-btn staff-btn--ghost staff-btn--sm">Update</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="staff-muted">No invoices.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">Subscription transition</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in transition_form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+      <button type="submit" name="transition_subscription" value="1" class="staff-btn staff-btn--primary">Record transition</button>
+    </form>
+  </section>
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">Billing note</h2>
+    <form method="post">
+      {% csrf_token %}
+      {% for field in note_form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+      <button type="submit" name="add_billing_note" value="1" class="staff-btn staff-btn--primary">Add note</button>
+    </form>
+  </section>
+
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-3">Billing event log</h2>
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th>When</th><th>Type</th><th>Actor</th><th>Message</th></tr></thead>
+        <tbody>
+          {% for ev in billing_events %}
+            <tr>
+              <td>{{ ev.occurred_at }}</td>
+              <td>{{ ev.get_event_type_display }}</td>
+              <td>{% if ev.actor %}{{ ev.actor.get_username }}{% else %}—{% endif %}</td>
+              <td class="small">{{ ev.message|default:"—"|truncatewords:40 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="staff-muted">No events.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

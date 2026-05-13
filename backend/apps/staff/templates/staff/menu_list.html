@@ -1,0 +1,41 @@
+{% extends "staff/base.html" %}
+{% block title %}Menu items{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Catalog</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Sellable items<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">
+            {% if menu_all_outlets_mode %}Showing catalog across sections.{% elif menu_scope_outlet %}Scoped to {{ menu_scope_outlet.name }}.{% else %}What guests can order at this workspace.{% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </header>
+  <h2 class="staff-section-head">By category</h2>
+  <div class="staff-pos-menu-grid">
+    {% for cat in categories %}
+      <div class="staff-card staff-card--pos staff-pos-menu-category">
+        <h2 class="staff-card__title staff-card__title--pos">{{ cat.name }}</h2>
+        <div class="staff-pos-menu-items">
+          {% for item in cat.items.all %}
+            <div class="staff-pos-menu-item">
+              <div class="staff-pos-menu-item__main">
+                <div class="staff-pos-menu-item__name">{{ item.name }}</div>
+                {% if item.sku %}<div class="staff-pos-menu-item__sku text-muted small">SKU {{ item.sku }}</div>{% endif %}
+              </div>
+              {% if item.unit_price %}<div class="staff-pos-menu-item__price fw-bold">{{ item.unit_price }}</div>{% endif %}
+            </div>
+          {% empty %}
+            <div class="staff-muted py-2 col-12">No items in this category.</div>
+          {% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="staff-card staff-card--soft text-center staff-muted py-4 col-12">No categories yet.</div>
+    {% endfor %}
+  </div>
+{% endblock %}

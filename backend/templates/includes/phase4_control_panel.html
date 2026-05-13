@@ -1,0 +1,203 @@
+{% if panel_mode == "compact" %}
+  {% if show_prompt and setup_state and not setup_state.setup_complete %}
+  <div class="staff-card staff-card--soft" style="margin-bottom: 1.5rem; border-left: 4px solid var(--tenant-secondary, #2DD4BF);">
+    <h2 class="staff-card__title" style="font-size: 1rem;">Finish business setup</h2>
+    <p class="staff-muted" style="font-size: 0.9rem; margin: 0 0 1rem;">
+      Core setup is {{ setup_state.required_completion_percent }}% complete. Finish key onboarding tasks so POS and staff areas are fully usable.
+    </p>
+    {% if setup_state.next_step %}
+    <p class="staff-muted" style="font-size: 0.85rem; margin: -0.35rem 0 0.85rem;">
+      Next recommended: <strong style="color: var(--text);">{{ setup_state.next_step.name }}</strong>
+    </p>
+    {% endif %}
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <a class="staff-btn staff-btn--primary staff-btn--sm" href="{{ setup_url }}">Open business setup</a>
+      {% if allow_dismiss and dismiss_action_url %}
+      <form method="post" action="{{ dismiss_action_url }}" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm">Hide prompt</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if setup_progress and setup_progress.suppress_dashboard_prompt and setup_state and not setup_state.setup_complete and allow_resume and resume_action_url %}
+  <div class="staff-card staff-card--soft" style="margin-bottom: 1.5rem;">
+    <h2 class="staff-card__title" style="font-size: 1rem;">Setup checklist hidden</h2>
+    <p class="staff-muted" style="font-size: 0.9rem; margin: 0 0 0.85rem;">
+      Resume guided onboarding when you are ready. Current progress: {{ setup_state.required_completion_percent }}%.
+    </p>
+    <form method="post" action="{{ resume_action_url }}" style="display: inline;">
+      {% csrf_token %}
+      <button type="submit" class="staff-btn staff-btn--primary staff-btn--sm">Resume setup flow</button>
+    </form>
+  </div>
+  {% endif %}
+{% endif %}
+
+{% if panel_mode == "full" and setup_state %}
+{% if setup_state.setup_complete %}
+<div class="staff-card staff-card--soft" style="margin-bottom: 1.25rem;">
+  <h2 class="staff-card__title" style="font-size: 1rem;">Setup complete</h2>
+  <p class="staff-muted" style="margin: 0;">
+    Your workspace already has a branch, sections, and item categories. Continue with full setup in the Console business setup pages.
+  </p>
+</div>
+{% elif setup_state.next_step %}
+<div class="staff-card staff-card--soft" style="margin-bottom: 1.25rem; border-left: 4px solid var(--tenant-secondary, #2DD4BF);">
+  <h2 class="staff-card__title" style="font-size: 1rem;">Next recommended step</h2>
+  <p class="staff-muted" style="margin: 0 0 0.9rem;">{{ setup_state.next_step.name }}</p>
+  <a class="staff-btn staff-btn--primary staff-btn--sm" href="{{ setup_state.next_step.cta_url }}">{{ setup_state.next_step.cta_label }}</a>
+</div>
+{% endif %}
+
+<section class="staff-card staff-card--soft">
+  <h2 class="staff-card__title" style="font-size: 1rem;">Core setup checklist</h2>
+  <div style="display: grid; gap: 0.85rem;">
+    {% for step in setup_state.required_steps %}
+      <article style="border: 1px solid rgba(0,0,0,.08); border-radius: 12px; padding: 0.9rem 1rem;">
+        <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; flex-wrap: wrap;">
+          <h3 style="margin: 0; font-size: 0.98rem;">{{ forloop.counter }}. {{ step.name }}</h3>
+          {% if step.status == "done" %}
+            <span class="staff-tag staff-tag--teal">Done</span>
+          {% elif step.status == "skipped" %}
+            <span class="staff-tag staff-tag--magenta">Skipped</span>
+          {% elif step.status == "blocked" %}
+            <span class="staff-tag staff-tag--coral">Blocked</span>
+          {% else %}
+            <span class="staff-tag staff-tag--citrus">Pending</span>
+          {% endif %}
+        </div>
+        <p class="staff-muted" style="margin: 0.55rem 0 0.75rem;">{{ step.description }}</p>
+        <a class="staff-btn {% if step.status == 'done' %}staff-btn--ghost{% else %}staff-btn--primary{% endif %} staff-btn--sm" href="{{ step.cta_url }}">
+          {{ step.cta_label }}
+        </a>
+        {% if step.secondary_cta_url %}
+          <a class="staff-btn staff-btn--ghost staff-btn--sm" href="{{ step.secondary_cta_url }}">
+            {{ step.secondary_cta_label }}
+          </a>
+        {% endif %}
+        {% if setup_action_url and step.status != "done" %}
+          <div style="display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.6rem;">
+            {% if step.status != "skipped" %}
+            <form method="post" action="{{ setup_action_url }}" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="step_key" value="{{ step.key }}">
+              <input type="hidden" name="state" value="skipped">
+              <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+              <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm">Skip</button>
+            </form>
+            {% endif %}
+            {% if step.status != "blocked" %}
+            <form method="post" action="{{ setup_action_url }}" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="step_key" value="{{ step.key }}">
+              <input type="hidden" name="state" value="blocked">
+              <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+              <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm">Mark blocked</button>
+            </form>
+            {% endif %}
+            {% if step.status == "skipped" or step.status == "blocked" %}
+            <form method="post" action="{{ setup_action_url }}" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="step_key" value="{{ step.key }}">
+              <input type="hidden" name="state" value="reset">
+              <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+              <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm">Reset</button>
+            </form>
+            {% endif %}
+          </div>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="staff-card staff-card--soft" style="margin-top: 1rem;">
+  <h2 class="staff-card__title" style="font-size: 1rem;">Go-live readiness</h2>
+  {% if setup_state.go_live_ready %}
+    <p class="staff-muted" style="margin: 0;">All critical checks are ready for day-to-day operations.</p>
+  {% else %}
+    <div style="display: grid; gap: 0.6rem;">
+      {% for c in setup_state.go_live_checks %}
+        <div style="display: flex; gap: 0.75rem; justify-content: space-between; align-items: center; border: 1px solid rgba(0,0,0,.06); border-radius: 10px; padding: 0.65rem 0.85rem;">
+          <span style="font-size: 0.92rem;">{{ c.label }}</span>
+          <div style="display: flex; gap: 0.6rem; align-items: center;">
+            {% if c.done %}
+              <span class="staff-tag staff-tag--teal">Ready</span>
+            {% else %}
+              <span class="staff-tag staff-tag--citrus">Missing</span>
+              <a class="staff-btn staff-btn--ghost staff-btn--sm" href="{{ c.fix_url }}">Fix</a>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+{% if setup_state.optional_steps %}
+<section class="staff-card staff-card--soft" style="margin-top: 1rem;">
+  <h2 class="staff-card__title" style="font-size: 1rem;">Recommended next flows</h2>
+  <div style="display: grid; gap: 0.85rem;">
+    {% for step in setup_state.optional_steps %}
+      <article style="border: 1px solid rgba(0,0,0,.08); border-radius: 12px; padding: 0.9rem 1rem;">
+        <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; flex-wrap: wrap;">
+          <h3 style="margin: 0; font-size: 0.98rem;">{{ forloop.counter }}. {{ step.name }}</h3>
+          {% if step.status == "done" %}
+            <span class="staff-tag staff-tag--teal">Done</span>
+          {% elif step.status == "skipped" %}
+            <span class="staff-tag staff-tag--magenta">Skipped</span>
+          {% elif step.status == "blocked" %}
+            <span class="staff-tag staff-tag--coral">Blocked</span>
+          {% else %}
+            <span class="staff-tag staff-tag--magenta">Recommended</span>
+          {% endif %}
+        </div>
+        <p class="staff-muted" style="margin: 0.55rem 0 0.75rem;">{{ step.description }}</p>
+        <a class="staff-btn {% if step.status == 'done' %}staff-btn--ghost{% else %}staff-btn--primary{% endif %} staff-btn--sm" href="{{ step.cta_url }}">
+          {{ step.cta_label }}
+        </a>
+        {% if step.secondary_cta_url %}
+          <a class="staff-btn staff-btn--ghost staff-btn--sm" href="{{ step.secondary_cta_url }}">
+            {{ step.secondary_cta_label }}
+          </a>
+        {% endif %}
+        {% if setup_action_url and step.status != "done" %}
+          <div style="display: flex; gap: 0.45rem; flex-wrap: wrap; margin-top: 0.6rem;">
+            {% if step.status != "skipped" %}
+            <form method="post" action="{{ setup_action_url }}" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="step_key" value="{{ step.key }}">
+              <input type="hidden" name="state" value="skipped">
+              <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+              <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm">Skip</button>
+            </form>
+            {% endif %}
+            {% if step.status != "blocked" %}
+            <form method="post" action="{{ setup_action_url }}" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="step_key" value="{{ step.key }}">
+              <input type="hidden" name="state" value="blocked">
+              <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+              <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm">Mark blocked</button>
+            </form>
+            {% endif %}
+            {% if step.status == "skipped" or step.status == "blocked" %}
+            <form method="post" action="{{ setup_action_url }}" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="step_key" value="{{ step.key }}">
+              <input type="hidden" name="state" value="reset">
+              <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+              <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm">Reset</button>
+            </form>
+            {% endif %}
+          </div>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endif %}

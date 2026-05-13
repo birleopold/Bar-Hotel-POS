@@ -1,0 +1,94 @@
+{% extends "staff/base.html" %}
+{% block title %}{{ reservation.guest_name }}{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">{{ reservation.guest_name }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">{{ reservation.check_in }} → {{ reservation.check_out }} · <span class="staff-tag staff-tag--citrus">{{ reservation.get_status_display }}</span></p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}">All reservations</a>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+  <h2 class="staff-section-head">Room</h2>
+  <div class="staff-card mb-3">
+    {% if can_modify_lodging %}
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="assign_room">
+        <div class="col-md-6">
+          <select class="staff-input" name="room_id">
+            <option value="__none__">Not assigned</option>
+            {% for rm in room_choices %}
+              <option value="{{ rm.id }}"{% if reservation.room_id == rm.id %} selected{% endif %}>{{ rm.room_type.name }} — {{ rm.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2"><button type="submit" class="staff-btn staff-btn--ghost">Save</button></div>
+      </form>
+    {% else %}
+      <p class="mb-0">{% if reservation.room %}{{ reservation.room.name }}{% else %}Not assigned{% endif %}</p>
+    {% endif %}
+  </div>
+  {% if can_modify_lodging %}
+    <h2 class="staff-section-head">Actions</h2>
+    <div class="staff-toolbar staff-toolbar--tight mb-3">
+      <form method="post" class="d-inline">
+        {% csrf_token %}<input type="hidden" name="action" value="check_in">
+        {% if reservation.status == 'held' or reservation.status == 'confirmed' %}
+          <button type="submit" class="staff-btn staff-btn--primary">Check in</button>
+        {% endif %}
+      </form>
+      <form method="post" class="d-inline">
+        {% csrf_token %}<input type="hidden" name="action" value="check_out">
+        {% if reservation.status == 'checked_in' %}
+          <button type="submit" class="staff-btn staff-btn--ghost">Check out</button>
+        {% endif %}
+      </form>
+      {% if reservation.status != 'cancelled' and reservation.status != 'checked_out' %}
+        <form method="post" class="d-inline">
+          {% csrf_token %}<input type="hidden" name="action" value="cancel">
+          <input class="staff-input" type="text" name="reason" maxlength="255" placeholder="Cancel reason (optional)" autocomplete="off" aria-label="Cancel reason">
+          <button type="submit" class="staff-btn staff-btn--ghost">Cancel</button>
+        </form>
+      {% endif %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}<input type="hidden" name="action" value="open_folio">
+        {% if reservation.status != 'cancelled' %}
+          <button type="submit" class="staff-btn staff-btn--ghost">Open folio</button>
+        {% endif %}
+      </form>
+    </div>
+  {% endif %}
+  {% if open_folio %}
+    <h2 class="staff-section-head">Open folio</h2>
+    <div class="staff-card mb-3">
+      <p class="staff-muted">{{ open_folio.guest_name }} · {{ open_folio.get_status_display }}</p>
+      <ul class="mb-3">
+        {% for line in open_folio.lines.all %}
+          <li>{{ line.description }} — {{ line.amount }} + tax {{ line.tax_amount }}</li>
+        {% empty %}
+          <li class="staff-muted">No lines yet.</li>
+        {% endfor %}
+      </ul>
+      {% if can_modify_lodging %}
+        <form method="post" class="row g-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="folio_line">
+          <input type="hidden" name="folio_id" value="{{ open_folio.id }}">
+          <div class="col-md-4">{{ folio_line_form.description.label_tag }}{{ folio_line_form.description }}</div>
+          <div class="col-md-3">{{ folio_line_form.amount.label_tag }}{{ folio_line_form.amount }}</div>
+          <div class="col-md-3">{{ folio_line_form.tax_amount.label_tag }}{{ folio_line_form.tax_amount }}</div>
+          <div class="col-md-2 align-self-end"><button type="submit" class="staff-btn staff-btn--primary">Add charge</button></div>
+        </form>
+      {% endif %}
+      <p class="mb-0 mt-2"><a href="{% url 'staff-lodging-folio-detail' folio_id=open_folio.id %}">View folio</a></p>
+    </div>
+  {% endif %}
+{% endblock %}

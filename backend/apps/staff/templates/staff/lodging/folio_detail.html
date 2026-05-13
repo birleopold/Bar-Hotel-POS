@@ -1,0 +1,41 @@
+{% extends "staff/base.html" %}
+{% block title %}Folio {{ folio.guest_name }}{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Folio · {{ folio.guest_name }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">{{ folio.get_status_display }} · {{ current_site.name }}</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-folios' %}">All folios</a>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+  <h2 class="staff-section-head">Charges</h2>
+  <div class="staff-card">
+    {% if folio.lines.all %}
+      <div class="staff-table-wrap">
+        <table class="staff-table">
+          <thead><tr><th>Description</th><th>Amount</th><th>Tax</th></tr></thead>
+          <tbody>
+            {% for line in folio.lines.all %}
+              <tr>
+                <td>{{ line.description }}{% if line.source_order %} <span class="staff-muted">(order)</span>{% endif %}</td>
+                <td>{{ line.amount }}</td>
+                <td>{{ line.tax_amount }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      {% include "staff/includes/empty_state.html" with title="No folio charges yet" message="Post charges from reservations or POS to build this guest folio." %}
+    {% endif %}
+    <p class="mb-0"><strong>Subtotal</strong> {{ lines_subtotal }} · <strong>Tax</strong> {{ lines_tax_total }} · <strong>Total</strong> {{ lines_grand_total }}</p>
+  </div>
+{% endblock %}

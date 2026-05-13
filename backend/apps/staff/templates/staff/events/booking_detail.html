@@ -1,0 +1,35 @@
+{% extends "staff/base.html" %}
+{% block title %}{{ booking.title }}{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Events</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">{{ booking.title }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">{{ booking.space.name }} · {{ booking.start_at }} → {{ booking.end_at }}</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-events-bookings' %}">All bookings</a>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/events/includes/subnav.html" %}
+  <h2 class="staff-section-head">Booking</h2>
+  <div class="staff-card mb-3">
+    <p><strong>{{ booking.customer_name }}</strong>{% if booking.customer_email %} · {{ booking.customer_email }}{% endif %}</p>
+    <p class="staff-muted">Headcount {{ booking.headcount }} · Deposit {{ booking.deposit_amount }} · {{ booking.get_status_display }}</p>
+    {% if booking.notes %}<p>{{ booking.notes }}</p>{% endif %}
+  </div>
+  {% if can_modify_events and form %}
+    <h2 class="staff-section-head">Edit</h2>
+    <form method="post" class="staff-card">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      {% endfor %}
+      <button type="submit" class="staff-btn staff-btn--primary">Save changes</button>
+    </form>
+  {% endif %}
+{% endblock %}

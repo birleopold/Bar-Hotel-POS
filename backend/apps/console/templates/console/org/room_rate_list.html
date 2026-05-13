@@ -1,0 +1,27 @@
+{% extends "console/base.html" %}
+{% block title %}Nightly rates{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Rate windows<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-rate-create' %}">New rate window</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Branch</th><th>Room type</th><th>Valid from</th><th>Valid to</th><th>Nightly</th><th></th></tr></thead>
+      <tbody>
+        {% for w in windows %}
+          <tr>
+            <td>{{ w.room_type.site.name }}</td>
+            <td>{{ w.room_type.name }}</td>
+            <td>{{ w.valid_from }}</td>
+            <td>{{ w.valid_to|default:"—" }}</td>
+            <td>{{ w.nightly_amount }}</td>
+            <td><a href="{% url 'console-org-room-rate-edit' rate_id=w.id %}">Edit</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="staff-muted">No rate windows.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

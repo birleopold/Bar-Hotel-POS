@@ -1,0 +1,6 @@
+{% with n=request.resolver_match.url_name %}
+<div class="staff-subnav-pills" aria-label="Purchasing sections">
+  <a class="staff-btn {% if n == 'staff-purchasing-orders' or n == 'staff-purchasing-order-create' or n == 'staff-purchasing-order-detail' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-purchasing-orders' %}">Orders</a>
+  <a class="staff-btn {% if n == 'staff-purchasing-suppliers' or n == 'staff-purchasing-supplier-create' or n == 'staff-purchasing-supplier-edit' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-purchasing-suppliers' %}">Suppliers</a>
+</div>
+{% endwith %}

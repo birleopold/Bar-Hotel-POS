@@ -1,0 +1,53 @@
+{% extends "staff/base.html" %}
+{% block title %}Event spaces{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Events</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Function spaces<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
+          <p class="staff-dash-hero__tagline mb-0">Rooms and venues you attach to bookings.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          {% if can_modify_events %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-events-space-create' %}">New space</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/events/includes/subnav.html" %}
+  <h2 class="staff-section-head">Spaces</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Capacity</th><th>Active</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <tbody>
+        {% for s in spaces %}
+          <tr>
+            <td>{{ s.name }}</td>
+            <td>{{ s.capacity }}</td>
+            <td>{% if s.is_active %}Yes{% else %}No{% endif %}</td>
+            <td class="staff-table__actions-cell">
+              {% if can_modify_events %}
+                <a class="staff-table__action-link" href="{% url 'staff-events-space-edit' space_id=s.id %}">Edit</a>
+              {% else %}
+                <span class="staff-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="staff-muted">No spaces.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

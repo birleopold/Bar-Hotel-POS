@@ -1,0 +1,25 @@
+{% extends "console/base.html" %}
+{% block title %}Room types{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Room types<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-type-create' %}">New room type</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Branch</th><th>Name</th><th>Max guests</th><th></th></tr></thead>
+      <tbody>
+        {% for rt in room_types %}
+          <tr>
+            <td>{{ rt.site.name }}</td>
+            <td>{{ rt.name }}</td>
+            <td>{{ rt.max_occupancy }}</td>
+            <td><a href="{% url 'console-org-room-type-edit' room_type_id=rt.id %}">Edit</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="staff-muted">No room types.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

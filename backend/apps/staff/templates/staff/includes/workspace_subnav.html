@@ -1,0 +1,8 @@
+<nav class="staff-subnav-pills mb-4" aria-label="Workspace settings">
+  <a class="staff-btn staff-btn--ghost{% if request.resolver_match.url_name == 'staff-workspace-branding' %} staff-nav__link--active{% endif %}" href="{% url 'staff-workspace-branding' %}">Branding</a>
+  <a class="staff-btn staff-btn--ghost{% if request.resolver_match.url_name == 'staff-workspace-modules' %} staff-nav__link--active{% endif %}" href="{% url 'staff-workspace-modules' %}">Areas</a>
+  <a class="staff-btn staff-btn--ghost{% if request.resolver_match.url_name == 'staff-workspace-members' or request.resolver_match.url_name == 'staff-workspace-member-create' or request.resolver_match.url_name == 'staff-workspace-member-edit' %} staff-nav__link--active{% endif %}" href="{% url 'staff-workspace-members' %}">Team</a>
+  <a class="staff-btn staff-btn--ghost{% if 'invite' in request.resolver_match.url_name %} staff-nav__link--active{% endif %}" href="{% url 'staff-workspace-invites' %}">Invites</a>
+  <a class="staff-btn staff-btn--ghost{% if request.resolver_match.url_name == 'staff-workspace-integrations' or request.resolver_match.url_name == 'staff-workspace-integration-create' or request.resolver_match.url_name == 'staff-workspace-integration-edit' %} staff-nav__link--active{% endif %}" href="{% url 'staff-workspace-integrations' %}">Integrations</a>
+  <a class="staff-btn staff-btn--ghost{% if request.resolver_match.url_name == 'staff-workspace-audit' %} staff-nav__link--active{% endif %}" href="{% url 'staff-workspace-audit' %}">Activity</a>
+</nav>

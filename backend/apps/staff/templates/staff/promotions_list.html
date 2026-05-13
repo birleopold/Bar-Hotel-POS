@@ -1,0 +1,45 @@
+{% extends "staff/base.html" %}
+{% block title %}Offers{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Commercial</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Offers &amp; promos<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Discounts and deals applied at the till.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          {% if can_manage_promotions %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-promotion-create' %}">New promotion</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  <h2 class="staff-section-head">Active &amp; scheduled</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Starts</th><th>Ends</th><th>Active</th></tr></thead>
+      <tbody>
+        {% for p in promotions %}
+          <tr>
+            <td><a href="{% url 'staff-promotion-detail' promotion_id=p.id %}">{{ p.name }}</a></td>
+            <td>{{ p.starts_at }}</td>
+            <td>{{ p.ends_at|default:"—" }}</td>
+            <td>{% if p.is_active %}Yes{% else %}No{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="staff-muted">No promotions yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a class="staff-btn staff-btn--sm staff-btn--ghost" href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a class="staff-btn staff-btn--sm staff-btn--ghost" href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "staff/base.html" %}
+{% block title %}Stock take{% endblock %}
+{% block content %}
+  {% include "staff/inventory/includes/subnav.html" %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Stock</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Stock take<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Physical counts and variance vs ledger.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          {% if can_modify_inventory %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-count-create' %}">Start stock take</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  <h2 class="staff-section-head">Sessions</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Started</th><th>Section</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <tbody>
+        {% for s in sessions %}
+          <tr>
+            <td>{{ s.created_at }}</td>
+            <td>{{ s.outlet.name }}</td>
+            <td>{{ s.get_status_display }}</td>
+            <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-inventory-count-detail' session_id=s.id %}">View</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="staff-muted">No sessions.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

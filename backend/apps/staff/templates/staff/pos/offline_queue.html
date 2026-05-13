@@ -1,0 +1,109 @@
+{% extends "staff/base.html" %}
+{% load staff_tags %}
+{% block title %}Offline sync · {{ request.tenant.name }}{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">POS</p>
+    <div class="staff-page-hero__head">
+      <div class="staff-page-hero__copy">
+        <h1 class="staff-page-title mb-0">Offline device queue<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+        <p class="staff-dash-hero__tagline mb-0">Replay log from POS devices (<code class="staff-code">client_mutation_id</code>). API: <code class="staff-code">POST /api/v1/pos/offline-sync/</code> and batch.</p>
+      </div>
+    </div>
+  </div>
+</header>
+<div class="staff-card mb-3">
+  <h2 class="staff-section-head">When sync shows <code class="staff-code">409 catalog_stale</code></h2>
+  <p class="staff-muted mb-2">The device sent a menu fingerprint (<code class="staff-code">payload.catalog_version</code>) that no longer matches the server outlet catalog (prices, items, promos, etc. changed). The API rejects the mutation and records a <strong>failed</strong> row here so you can see it.</p>
+  <ul class="staff-muted mb-0 small ps-3">
+    <li>On the POS: refresh the cached catalog (same source as <code class="staff-code">GET /api/v1/pos/catalog-version/?outlet=…</code>), then <strong>replay the same</strong> <code class="staff-code">client_mutation_id</code> with the updated fingerprint.</li>
+    <li>Batch sync: the failing entry returns <code class="staff-code">ok: false</code> and <code class="staff-code">status_code: 409</code> for that index only; other operations may still apply.</li>
+    <li>The <strong>Server (now)</strong> column below is the fingerprint at page load—use it to confirm the device is behind after menu edits.</li>
+  </ul>
+</div>
+<h2 class="staff-section-head">Filter</h2>
+<form method="get" class="staff-toolbar staff-toolbar--tight staff-card mb-3 flex-wrap">
+  <div>
+    <label class="staff-label d-block mb-1" for="st">Status</label>
+    <select name="status" id="st" class="staff-input">
+      <option value=""{% if not filter_status %} selected{% endif %}>All</option>
+      <option value="applied"{% if filter_status == "applied" %} selected{% endif %}>Applied</option>
+      <option value="failed"{% if filter_status == "failed" %} selected{% endif %}>Failed</option>
+      <option value="pending"{% if filter_status == "pending" %} selected{% endif %}>Pending</option>
+    </select>
+  </div>
+  <div class="flex-grow-1" style="min-width: 12rem;">
+    <label class="staff-label d-block mb-1" for="sq">Search</label>
+    <input type="search" name="q" id="sq" class="staff-input w-100" value="{{ filter_q }}" placeholder="mutation id, type, error…">
+  </div>
+  <div class="align-self-end">
+    <button type="submit" class="staff-btn staff-btn--primary">Filter</button>
+  </div>
+</form>
+{% if object_list %}
+<h2 class="staff-section-head">Queue</h2>
+<div class="staff-table-wrap">
+  <table class="staff-table">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Section</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Mutation id</th>
+        <th>Applied ids</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in page_obj %}
+      <tr>
+        <td class="text-nowrap">{{ e.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ e.outlet.name }}</td>
+        <td><code class="staff-code">{{ e.operation_type }}</code></td>
+        <td><span class="staff-tag {% if e.status == "applied" %}staff-tag--teal{% elif e.status == "failed" %}staff-tag--coral{% else %}staff-tag--citrus{% endif %}">{{ e.status }}</span></td>
+        <td class="small">
+          {% with pin=e.payload.catalog_version|default:"" snap=catalog_by_outlet|get_item:e.outlet_id %}
+            {% if pin %}<code class="staff-code text-break" title="{{ pin }}">{{ pin|truncatechars:14 }}</code>{% else %}<span class="staff-muted">—</span>{% endif %}
+            {% if snap %}
+              <span class="staff-muted">→</span>
+              <code class="staff-code text-break" title="{{ snap.catalog_version }}">{{ snap.catalog_version|truncatechars:14 }}</code>
+              {% if pin %}
+                {% if pin == snap.catalog_version %}
+                  <span class="staff-tag staff-tag--teal">match</span>
+                {% else %}
+                  <span class="staff-tag staff-tag--coral">diff</span>
+                {% endif %}
+              {% endif %}
+            {% endif %}
+          {% endwith %}
+        </td>
+        <td class="text-break small">{{ e.client_mutation_id }}</td>
+        <td class="small">
+          {% if e.applied_order_id %}order {{ e.applied_order_id|truncatechars:8 }}{% endif %}
+          {% if e.applied_payment_id %} pay {{ e.applied_payment_id|truncatechars:8 }}{% endif %}
+          {% if not e.applied_order_id and not e.applied_payment_id %}—{% endif %}
+        </td>
+        <td class="small text-break staff-muted">{{ e.error_message|truncatechars:120 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if is_paginated %}
+<nav class="staff-pager mt-2" aria-label="Pagination">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}&status={{ filter_status }}&q={{ filter_q|urlencode }}">Previous</a>
+  {% endif %}
+  <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}&status={{ filter_status }}&q={{ filter_q|urlencode }}">Next</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% else %}
+<p class="staff-muted">No offline queue rows yet.</p>
+{% endif %}
+{% endblock %}

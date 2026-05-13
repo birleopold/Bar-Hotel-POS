@@ -1,0 +1,51 @@
+{% extends "staff/base.html" %}
+{% block title %}Suppliers{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Purchasing</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Suppliers<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Vendors you buy from on purchase orders.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          {% if can_modify_purchasing %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-supplier-create' %}">New supplier</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/purchasing/includes/subnav.html" %}
+  <h2 class="staff-section-head">Directory</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Contact</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <tbody>
+        {% for s in suppliers %}
+          <tr>
+            <td>{{ s.name }}</td>
+            <td>{% if s.email %}{{ s.email }}{% elif s.phone %}{{ s.phone }}{% else %}—{% endif %}</td>
+            <td class="staff-table__actions-cell">
+              {% if can_modify_purchasing %}
+                <a class="staff-table__action-link" href="{% url 'staff-purchasing-supplier-edit' supplier_id=s.id %}">Edit</a>
+              {% else %}
+                <span class="staff-muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="staff-muted">No suppliers.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+    <nav class="staff-pager">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

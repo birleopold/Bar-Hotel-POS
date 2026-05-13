@@ -1,0 +1,54 @@
+{% extends "staff/base.html" %}
+{% block title %}Availability{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Availability<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
+          <p class="staff-dash-hero__tagline mb-0">See free rooms for a check-in / check-out window.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+  <h2 class="staff-section-head">Dates</h2>
+  <form method="get" class="staff-card mb-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="staff-label" for="id_check_in">Check in</label>
+        <input class="staff-input" id="id_check_in" name="check_in" type="date" value="{{ check_in|date:'Y-m-d' }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="staff-label" for="id_check_out">Check out</label>
+        <input class="staff-input" id="id_check_out" name="check_out" type="date" value="{{ check_out|date:'Y-m-d' }}">
+      </div>
+      <div class="col-12 col-md-4">
+        <button type="submit" class="staff-btn staff-btn--primary">Check</button>
+        <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-availability' %}">Reset</a>
+      </div>
+    </div>
+  </form>
+
+  <h2 class="staff-section-head">Available rooms</h2>
+  <div class="staff-card">
+    <p class="staff-muted mb-2 fw-semibold">{{ check_in }} → {{ check_out }}</p>
+
+    {% if available_by_type %}
+      {% for type_name, rooms in available_by_type.items %}
+        <div class="mb-3">
+          <strong>{{ type_name }}</strong>
+          <div class="staff-chip-row mt-2">
+            {% for rm in rooms %}
+              <span class="staff-tag staff-tag--citrus">{{ rm.name }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="staff-muted mb-0">No available rooms for this date range.</p>
+    {% endif %}
+  </div>
+{% endblock %}

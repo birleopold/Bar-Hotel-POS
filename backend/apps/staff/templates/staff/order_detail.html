@@ -1,0 +1,293 @@
+{% extends "staff/base.html" %}
+{% block title %}Order {{ order.bill_reference }}{% endblock %}
+{% block body_class %}staff-body--pos staff-body--pos-page-scroll{% endblock %}
+{% block main_class %}staff-main--wide staff-main--pos staff-main--pos-bleed{% endblock %}
+{% block content %}
+  <div class="staff-pos-order-accent" aria-hidden="true"></div>
+  <div class="staff-context-bar staff-context-bar--pos">
+    <div class="staff-context-bar__items">
+      <span class="staff-context-pill staff-context-pill--primary"><strong>{{ order.bill_reference }}</strong></span>
+      <span class="staff-context-pill">{{ order.outlet.name }}</span>
+      <span class="staff-context-pill">{{ order.get_status_display }}{% if order.is_paid %} · Paid{% endif %}</span>
+      {% if order.table_label %}<span class="staff-context-pill">Tab: {{ order.table_label }}</span>{% endif %}
+    </div>
+    <div class="staff-context-bar__actions staff-context-bar__actions--pos">
+      {% if hardware.receipt_printer_enabled %}
+        <div class="staff-print-toolbar staff-print-toolbar--pos" role="group" aria-label="Print formats">
+          <span class="staff-muted staff-print-toolbar__lbl">Rcpt</span>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=50mm" target="_blank" rel="noopener">50</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=80mm" target="_blank" rel="noopener">80</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=a4" target="_blank" rel="noopener">A4</a>
+          <span class="staff-muted staff-print-toolbar__lbl">Bill</span>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=50mm" target="_blank" rel="noopener">50</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=80mm" target="_blank" rel="noopener">80</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=a4" target="_blank" rel="noopener">A4</a>
+        </div>
+      {% endif %}
+      <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'staff-orders' %}">Orders</a>
+    </div>
+  </div>
+
+  <h1 class="visually-hidden">Order {{ order.bill_reference }}</h1>
+  <div class="staff-pos-totals-row">
+    <span class="staff-pos-totals-row__total">{{ order.currency }} <strong>{{ order.total }}</strong></span>
+    <span class="staff-pos-totals-row__meta">Sub {{ order.subtotal }} · Tax {{ order.tax_total }}</span>
+    {% if order.applied_promotion %}<span class="staff-pos-totals-row__meta">Offer: {{ order.applied_promotion.name }}</span>{% endif %}
+    {% if order.folio %}<span class="staff-pos-totals-row__meta">Folio: {{ order.folio.guest_name }}</span>{% endif %}
+  </div>
+
+  {% if ready_handoff_count and can_ack_ready_handoff %}
+    <div class="staff-alert staff-alert--info staff-alert--pos mb-0">{{ ready_handoff_count }} ready — ack below.</div>
+  {% endif %}
+
+  <div class="staff-pos-order-layout">
+    <section class="staff-pos-order-main staff-pos-panel-scroll" aria-label="Order lines">
+      <div class="staff-card staff-card--pos mb-0">
+        <h2 class="staff-card__title staff-card__title--pos">Lines</h2>
+        <div class="staff-table-wrap staff-table-wrap--pos">
+          <table class="staff-table staff-table--pos">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Prep</th>
+                <th>Amt</th>
+                <th class="staff-table__actions-head">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for line in order.lines.all %}
+                {% if not line.is_voided %}
+                  <tr>
+                    <td>
+                      {{ line.label }}{% if line.line_discount_amount %} <span class="staff-muted">(disc.)</span>{% endif %}
+                      {% if line.modifiers_snapshot %}
+                        <div class="staff-muted small mt-1">
+                          {% for m in line.modifiers_snapshot %}{{ m.group }}: {{ m.name }}{% if not forloop.last %} · {% endif %}{% endfor %}
+                        </div>
+                      {% endif %}
+                    </td>
+                    <td>{{ line.quantity }}</td>
+                    <td><span class="staff-tag staff-tag--citrus">{{ line.get_kds_status_display }}</span>{% if line.kds_station %} <span class="staff-muted">{{ line.kds_station }}</span>{% endif %}</td>
+                    <td>{{ line.line_total }}</td>
+                    <td class="staff-table--pos-actions staff-table__actions-cell">
+                      {% if line.id|stringformat:"s" in ready_line_ids and can_ack_ready_handoff %}
+                        <form method="post" class="d-inline">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="ack_ready_line">
+                          <input type="hidden" name="line_id" value="{{ line.id }}">
+                          <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Ack</button>
+                        </form>
+                      {% endif %}
+                      {% if can_modify_open_order %}
+                        <form method="post" class="staff-pos-line-actions">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="adjust_line_qty">
+                          <input type="hidden" name="line_id" value="{{ line.id }}">
+                          <input class="staff-input staff-input--pos-qty" type="number" name="quantity" step="0.001" min="0.001" value="{{ line.quantity }}" aria-label="Quantity">
+                          <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Set</button>
+                        </form>
+                        <form method="post" class="staff-pos-line-actions mt-1">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="void_line">
+                          <input type="hidden" name="line_id" value="{{ line.id }}">
+                          <input class="staff-input staff-input--pos-reason" type="text" name="reason" placeholder="Why void" aria-label="Void reason">
+                          <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Void</button>
+                        </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endif %}
+              {% empty %}
+                <tr><td colspan="5"><div class="staff-empty-state"><p class="staff-empty-state__title">No order lines yet</p><p class="staff-empty-state__copy">Add items or services from the action panel to build this bill.</p></div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <aside class="staff-pos-order-side staff-pos-panel-scroll" aria-label="Order actions">
+      {% if can_record_payment and payment_form %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Pay</h2>
+          <p class="staff-muted staff-pos-side-hint">Due <strong>{{ balance_due }}</strong> · Paid {{ amount_paid }}</p>
+          {% include "staff/includes/form_errors_block.html" with form=payment_form title="Fix payment details" %}
+          <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="record_payment">
+            <div class="col-12 col-md-4">{{ payment_form.amount.label_tag }}{{ payment_form.amount }}</div>
+            <div class="col-12 col-md-4">{{ payment_form.method.label_tag }}{{ payment_form.method }}</div>
+            <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Record payment</button></div>
+          </form>
+        </div>
+      {% endif %}
+
+      {% if can_set_folio and folio_form %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Folio</h2>
+          <p class="staff-muted staff-pos-side-hint">Attach this order to a guest folio to post charges when paid.</p>
+          {% include "staff/includes/form_errors_block.html" with form=folio_form title="Fix folio assignment" %}
+          <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="set_folio">
+            <div class="col-12 col-md-8">{{ folio_form.folio_id.label_tag }}{{ folio_form.folio_id }}</div>
+            <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch w-100">Save</button></div>
+          </form>
+        </div>
+      {% endif %}
+
+      {% if can_modify_open_order and add_line_form %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Add item</h2>
+          {% include "staff/includes/form_errors_block.html" with form=add_line_form title="Fix item details" %}
+          <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_line">
+            <div class="col-12">{{ add_line_form.menu_item.label_tag }}{{ add_line_form.menu_item }}</div>
+            <div class="col-12" id="staff-pos-add-line-modifiers" aria-live="polite"></div>
+            <div class="col-6">{{ add_line_form.quantity.label_tag }}{{ add_line_form.quantity }}</div>
+            <div class="col-6 d-flex align-items-end"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch w-100">Add</button></div>
+          </form>
+        </div>
+      {% endif %}
+
+      {% if can_modify_open_order and add_service_form and service_offerings %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Service</h2>
+          {% include "staff/includes/form_errors_block.html" with form=add_service_form title="Fix service details" %}
+          <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_service_line">
+            <div class="col-12 col-md-6">{{ add_service_form.service_offering.label_tag }}{{ add_service_form.service_offering }}</div>
+            <div class="col-12 col-md-4">{{ add_service_form.service_option.label_tag }}{{ add_service_form.service_option }}</div>
+            <div class="col-6 col-md-2">{{ add_service_form.quantity.label_tag }}{{ add_service_form.quantity }}</div>
+            <div class="col-6 col-md-12 col-lg-auto d-flex align-items-end"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Add</button></div>
+          </form>
+        </div>
+      {% endif %}
+
+      {% if can_modify_open_order and apply_promotion_form %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Offer</h2>
+          {% include "staff/includes/form_errors_block.html" with form=apply_promotion_form title="Fix offer details" %}
+          <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="apply_promotion">
+            <div class="col-12 col-md-8">{{ apply_promotion_form.promotion.label_tag }}{{ apply_promotion_form.promotion }}</div>
+            <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch w-100">Apply</button></div>
+          </form>
+        </div>
+      {% endif %}
+
+      {% if can_modify_open_order and order.status == 'open' and not order.is_paid %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Hold / void</h2>
+          <div class="row g-2" data-pos-hold-mask>
+            <div class="col-12 col-md-6">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="hold_order">
+                <label class="staff-label" for="hold_label">Hold</label>
+                <input class="staff-input mb-2" id="hold_label" name="hold_label" maxlength="64" placeholder="Name / table" autocomplete="off" data-pos-hold-input>
+                <button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch" data-pos-hold-save>Hold</button>
+              </form>
+            </div>
+            <div class="col-12 col-md-6">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="void_order">
+                <label class="staff-label" for="void_reason">Void all</label>
+                <input class="staff-input mb-2" id="void_reason" name="reason" maxlength="255" placeholder="Reason" autocomplete="off">
+                <button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch">Void</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if can_record_refund and refund_form %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Refund</h2>
+          <p class="staff-muted staff-pos-side-hint">Max {{ refundable_remaining }}</p>
+          {% include "staff/includes/form_errors_block.html" with form=refund_form title="Fix refund details" %}
+          <form method="post" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="record_refund">
+            {% for field in refund_form %}
+              {% if field.is_hidden %}{{ field }}{% else %}
+                <div class="col-6 col-md-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+              {% endif %}
+            {% endfor %}
+            <div class="col-12 col-md-auto"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Refund</button></div>
+          </form>
+        </div>
+      {% endif %}
+
+      {% block order_extra %}{% endblock %}
+    </aside>
+  </div>
+{% endblock %}
+{% block extra_js %}
+  {{ block.super }}
+  {% if add_line_form %}
+    {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
+    <script>
+      (function () {
+        var dataEl = document.getElementById("staff-pos-menu-modifiers");
+        var sel = document.getElementById("staff-pos-add-line-menu-item");
+        var host = document.getElementById("staff-pos-add-line-modifiers");
+        if (!dataEl || !sel || !host) return;
+        var map = {};
+        try {
+          map = JSON.parse(dataEl.textContent) || {};
+        } catch (e) {
+          return;
+        }
+        function render() {
+          host.innerHTML = "";
+          var id = sel.value || "";
+          var groups = map[id] || [];
+          if (!groups.length) return;
+          for (var gi = 0; gi < groups.length; gi++) {
+            var g = groups[gi];
+            var wrap = document.createElement("div");
+            wrap.className = "mb-2";
+            var cap = document.createElement("div");
+            cap.className = "staff-label small mb-1";
+            var hint = g.name;
+            if (g.min > 0) {
+              hint += " (choose at least " + g.min + ")";
+            }
+            if (g.max != null) {
+              hint += " · max " + g.max;
+            }
+            cap.textContent = hint;
+            wrap.appendChild(cap);
+            var opts = g.options || [];
+            for (var oi = 0; oi < opts.length; oi++) {
+              var o = opts[oi];
+              var lab = document.createElement("label");
+              lab.className = "staff-muted d-block small mb-1";
+              var inp = document.createElement("input");
+              inp.type = "checkbox";
+              inp.name = "modifier_option";
+              inp.value = o.id;
+              inp.className = "me-1";
+              lab.appendChild(inp);
+              var extra = o.name;
+              if (o.price_delta && o.price_delta !== "0.00") {
+                extra += " (+" + o.price_delta + ")";
+              }
+              lab.appendChild(document.createTextNode(extra));
+              wrap.appendChild(lab);
+            }
+            host.appendChild(wrap);
+          }
+        }
+        sel.addEventListener("change", render);
+        render();
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

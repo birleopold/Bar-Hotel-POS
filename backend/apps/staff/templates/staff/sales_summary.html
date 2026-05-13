@@ -1,0 +1,108 @@
+{% extends "staff/base.html" %}
+{% block title %}Sales summary{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Reports</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Sales summary<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Payments and refunds in range; kitchen / bar / service split follows line mix.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&format=csv">Download CSV</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <h2 class="staff-section-head">Date range</h2>
+  <form class="staff-toolbar staff-toolbar--tight staff-page-hero__filter-card mb-4" method="get">
+    <div class="d-flex flex-wrap gap-3 align-items-end w-100">
+      <div style="flex: 1 1 12rem;">
+        <label class="staff-label staff-label--compact" for="df">From</label>
+        <input class="staff-input w-100" style="min-height: 2.75rem; border-radius: 0.75rem;" type="date" id="df" name="date_from" value="{{ date_from|date:'Y-m-d' }}">
+      </div>
+      <div style="flex: 1 1 12rem;">
+        <label class="staff-label staff-label--compact" for="dt">To</label>
+        <input class="staff-input w-100" style="min-height: 2.75rem; border-radius: 0.75rem;" type="date" id="dt" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
+      </div>
+      <div style="flex: 0 0 auto;">
+        <button type="submit" class="staff-btn staff-btn--primary" style="min-height: 2.75rem; border-radius: 0.75rem;"><i class="bi bi-arrow-clockwise me-2"></i>Update</button>
+      </div>
+    </div>
+  </form>
+
+  {% for e in date_errors %}<div class="staff-alert staff-alert--danger mb-4">{{ e }}</div>{% endfor %}
+  
+  {% if summary %}
+    <h2 class="staff-section-head">Overview</h2>
+    <div class="row g-4 mb-4">
+      <div class="col-12 col-md-6">
+        <div class="staff-card staff-card--pos h-100">
+          <div class="d-flex align-items-center mb-3">
+            <div class="summary-icon me-3" style="width: 2.5rem; height: 2.5rem; border-radius: 50%; background: rgba(45, 212, 191, 0.15); color: var(--tenant-secondary); display: flex; align-items: center; justify-content: center; font-size: 1.25rem;"><i class="bi bi-graph-up-arrow"></i></div>
+            <h3 class="staff-card__title staff-card__title--pos mb-0">Net sales</h3>
+          </div>
+          <p class="mb-1" style="font-size: 2.5rem; font-weight: 900; letter-spacing: -0.03em; color: var(--text-strong); line-height: 1;">{{ summary.net_sales }}</p>
+          <p class="staff-muted mb-0 fw-semibold">Gross {{ summary.gross_sales }} &middot; Refunds <span class="text-danger">{{ summary.refunds_total }}</span></p>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="staff-card staff-card--pos h-100">
+          <div class="d-flex align-items-center mb-3">
+            <div class="summary-icon me-3" style="width: 2.5rem; height: 2.5rem; border-radius: 50%; background: rgba(232, 93, 76, 0.15); color: var(--tenant-primary); display: flex; align-items: center; justify-content: center; font-size: 1.25rem;"><i class="bi bi-receipt"></i></div>
+            <h3 class="staff-card__title staff-card__title--pos mb-0">Volume</h3>
+          </div>
+          <p class="mb-1" style="font-size: 2.5rem; font-weight: 900; letter-spacing: -0.03em; color: var(--text-strong); line-height: 1;">{{ summary.payments_count }} <span style="font-size: 1rem; font-weight: 600; color: var(--text-muted); letter-spacing: normal;">payments</span></p>
+          {% if summary.top_seller %}<p class="staff-muted mb-0 fw-semibold"><i class="bi bi-star-fill text-warning me-1"></i> Top seller: {{ summary.top_seller.seller_name }}</p>{% else %}<p class="staff-muted mb-0 fw-semibold">No seller data</p>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <h2 class="staff-section-head">Breakdown</h2>
+    <div class="row g-4">
+      <div class="col-12 col-lg-6">
+        <div class="staff-card staff-card--pos h-100">
+          <h3 class="staff-card__title staff-card__title--pos"><i class="bi bi-pie-chart me-2 text-muted"></i>By section</h3>
+          <div class="staff-table-wrap staff-table-wrap--pos mt-3">
+            <table class="staff-table staff-table--pos">
+              <thead><tr><th>Section</th><th class="text-end">Net</th></tr></thead>
+              <tbody>
+                {% for row in summary.by_section %}
+                  <tr><td class="fw-bold">{{ row.section_label }}</td><td class="text-end">{{ row.net_sales }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-center staff-muted py-4">No section data</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="staff-card staff-card--pos h-100">
+          <h3 class="staff-card__title staff-card__title--pos"><i class="bi bi-trophy me-2 text-muted"></i>Top items</h3>
+          <div class="staff-table-wrap staff-table-wrap--pos mt-3">
+            <table class="staff-table staff-table--pos">
+              <thead><tr><th>Item</th><th class="text-end">Sold</th><th class="text-end">Rev</th></tr></thead>
+              <tbody>
+                {% for it in summary.top_items %}
+                  <tr><td class="fw-bold">{{ it.item_name }}</td><td class="text-end">{{ it.quantity_sold }}</td><td class="text-end text-success fw-semibold">{{ it.revenue }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-center staff-muted py-4">No item data in range.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% elif not date_errors %}
+    <div class="staff-card staff-card--pos text-center py-5">
+      <div style="font-size: 3rem; color: var(--text-muted); opacity: 0.5; margin-bottom: 1rem;"><i class="bi bi-inbox"></i></div>
+      <h3 class="staff-card__title staff-card__title--pos mb-2">No summary data</h3>
+      <p class="staff-muted mb-0">Try adjusting the date range to see sales activity.</p>
+    </div>
+  {% endif %}
+{% endblock %}

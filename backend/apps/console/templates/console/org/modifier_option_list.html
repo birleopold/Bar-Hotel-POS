@@ -1,0 +1,28 @@
+{% extends "console/base.html" %}
+{% block title %}Options · {{ modifier_group.name }}{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <p class="staff-muted"><a href="{% url 'console-org-modifier-groups' %}">Modifier groups</a> / {{ modifier_group.name }}</p>
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Options<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-modifier-option-create' group_id=modifier_group.id %}">New option</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Sort</th><th>Name</th><th>Price +</th><th>Active</th><th></th></tr></thead>
+      <tbody>
+        {% for opt in options %}
+          <tr>
+            <td>{{ opt.sort_order }}</td>
+            <td>{{ opt.name }}</td>
+            <td>{{ opt.price_delta }}</td>
+            <td>{% if opt.is_active %}Yes{% else %}No{% endif %}</td>
+            <td><a href="{% url 'console-org-modifier-option-edit' group_id=modifier_group.id option_id=opt.id %}">Edit</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="staff-muted">No options. Add at least one for this group to appear on POS.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

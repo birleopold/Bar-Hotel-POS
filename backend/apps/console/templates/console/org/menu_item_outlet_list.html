@@ -1,0 +1,28 @@
+{% extends "console/base.html" %}
+{% block title %}Outlet pricing · {{ menu_item.name }}{% endblock %}
+{% block content %}
+  <p class="staff-muted"><a href="{% url 'console-org-menu-items' %}">Items</a> / {{ menu_item.name }}</p>
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Outlet pricing<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-outlet-create' item_id=menu_item.id %}">Add outlet row</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Outlet</th><th>Price override</th><th></th></tr></thead>
+      <tbody>
+        {% for link in links %}
+          <tr>
+            <td>{{ link.outlet.site.name }} — {{ link.outlet.name }}</td>
+            <td>{{ link.price_override|default:"—" }}</td>
+            <td>
+              <a href="{% url 'console-org-menu-item-outlet-edit' item_id=menu_item.id link_id=link.id %}">Edit</a>
+              · <a href="{% url 'console-org-menu-item-outlet-delete' item_id=menu_item.id link_id=link.id %}">Remove</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="staff-muted">No outlet rows. Set “Limit to outlets” on the item first.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

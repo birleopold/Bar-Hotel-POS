@@ -1,0 +1,30 @@
+{% extends "console/base.html" %}
+{% block title %}Modifier groups{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Modifier groups<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-modifier-group-create' %}">New group</a>
+  </div>
+  <p class="staff-muted">Define option groups (size, add-ons, prep), then attach them to menu items on the item form.</p>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Min picks</th><th>Max picks</th><th></th></tr></thead>
+      <tbody>
+        {% for g in groups %}
+          <tr>
+            <td>{{ g.name }}</td>
+            <td>{{ g.min_selections }}</td>
+            <td>{% if g.max_selections %}{{ g.max_selections }}{% else %}—{% endif %}</td>
+            <td>
+              <a href="{% url 'console-org-modifier-options' group_id=g.id %}">Options</a>
+              · <a href="{% url 'console-org-modifier-group-edit' group_id=g.id %}">Edit</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="staff-muted">No modifier groups yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

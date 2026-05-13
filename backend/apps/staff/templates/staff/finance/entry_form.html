@@ -1,0 +1,29 @@
+{% extends "staff/base.html" %}
+{% block title %}New income or expense entry{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Finance</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">New income or expense<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Record a line outside POS sales.</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-finance-entries' %}">Back</a>
+        </div>
+      </div>
+    </div>
+  </header>
+  <form method="post" class="staff-card staff-card--soft" style="max-width: 32rem;">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label class="staff-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+      </div>
+    {% endfor %}
+    <button type="submit" class="staff-btn staff-btn--primary">Save</button>
+  </form>
+{% endblock %}

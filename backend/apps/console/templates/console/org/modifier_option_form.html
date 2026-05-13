@@ -1,0 +1,13 @@
+{% extends "console/base.html" %}
+{% block title %}{{ form_title }}{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <p class="staff-muted"><a href="{% url 'console-org-modifier-options' group_id=modifier_group.id %}">Back</a> · {{ modifier_group.name }}</p>
+  <h1 class="staff-page-title">{{ form_title }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+  <form method="post" class="staff-card">
+    {% csrf_token %}
+    {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+    <button type="submit" class="staff-btn staff-btn--primary">Save</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-modifier-options' group_id=modifier_group.id %}">Cancel</a>
+  </form>
+{% endblock %}

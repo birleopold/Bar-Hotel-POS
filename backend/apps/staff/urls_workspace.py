@@ -1,0 +1,83 @@
+"""Workspace settings (branding, integrations, team invites, audit). Included under ``staff/settings/``."""
+
+from django.urls import path
+
+from . import views_audit, views_invites, views_workspace
+
+urlpatterns = [
+    path(
+        "activity/",
+        views_audit.StaffAuditLogListView.as_view(),
+        name="staff-workspace-audit",
+    ),
+    path(
+        "members/",
+        views_invites.StaffMembershipListView.as_view(),
+        name="staff-workspace-members",
+    ),
+    path(
+        "members/new/",
+        views_invites.StaffWorkerCreateView.as_view(),
+        name="staff-workspace-member-create",
+    ),
+    path(
+        "members/bulk-action/",
+        views_invites.StaffMembershipBulkActionView.as_view(),
+        name="staff-workspace-member-bulk-action",
+    ),
+    path(
+        "members/<uuid:membership_id>/edit/",
+        views_invites.StaffMembershipUpdateView.as_view(),
+        name="staff-workspace-member-edit",
+    ),
+    path(
+        "members/<uuid:membership_id>/deactivate/",
+        views_invites.StaffMembershipDeactivateView.as_view(),
+        name="staff-workspace-member-deactivate",
+    ),
+    path(
+        "invites/",
+        views_invites.StaffInviteListView.as_view(),
+        name="staff-workspace-invites",
+    ),
+    path(
+        "invites/new/",
+        views_invites.StaffInviteCreateView.as_view(),
+        name="staff-workspace-invite-create",
+    ),
+    path(
+        "invites/<uuid:invite_id>/regenerate/",
+        views_invites.StaffInviteRegenerateView.as_view(),
+        name="staff-workspace-invite-regenerate",
+    ),
+    path(
+        "branding/",
+        views_workspace.StaffWorkspaceBrandingView.as_view(),
+        name="staff-workspace-branding",
+    ),
+    path(
+        "modules/",
+        views_workspace.StaffWorkspaceModulesView.as_view(),
+        name="staff-workspace-modules",
+    ),
+    path(
+        "integrations/",
+        views_workspace.StaffIntegrationLinkListView.as_view(),
+        name="staff-workspace-integrations",
+    ),
+    path(
+        "integrations/new/",
+        views_workspace.StaffIntegrationLinkCreateView.as_view(),
+        name="staff-workspace-integration-create",
+    ),
+    path(
+        "integrations/<uuid:link_id>/edit/",
+        views_workspace.StaffIntegrationLinkUpdateView.as_view(),
+        name="staff-workspace-integration-edit",
+    ),
+    path(
+        "integrations/efris/",
+        views_workspace.StaffEfrisSettingsView.as_view(),
+        name="staff-workspace-efris",
+    ),
+]

@@ -1,0 +1,51 @@
+{% extends "console/base.html" %}
+{% block title %}Workspaces{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Customer workspaces<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-platform-tenant-create' %}">New workspace</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Slug</th>
+          <th>Active</th>
+          <th>Sites</th>
+          <th>Members</th>
+          <th>Plan</th>
+          <th>Subscription</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tenants %}
+          <tr>
+            <td>{{ t.name }}</td>
+            <td><code>{{ t.slug }}</code></td>
+            <td>{% if t.is_active %}Yes{% else %}No{% endif %}</td>
+            <td>{{ t.site_count }}</td>
+            <td>{{ t.member_count }}</td>
+            <td>{% if t.subscription and t.subscription.plan %}{{ t.subscription.plan.name }}{% else %}—{% endif %}</td>
+            <td>{% if t.subscription %}{{ t.subscription.get_status_display }}{% else %}—{% endif %}</td>
+            <td>
+              <a href="{% url 'console-platform-tenant-control-plane' tenant_id=t.id %}">Control plane</a>
+              · <a href="{% url 'console-platform-tenant-edit' tenant_id=t.id %}">Edit</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="staff-muted">No workspaces.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+    <nav class="staff-muted mt-3" aria-label="Pagination">
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      <span class="mx-2">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,62 @@
+"""Attach ``request.tenant`` from session for browser staff UI (no ``X-Tenant-Id`` header)."""
+
+from __future__ import annotations
+
+import uuid
+from typing import Callable
+
+from django.http import HttpRequest
+
+from apps.accounts.models import Membership
+
+STAFF_SESSION_TENANT_KEY = "staff_tenant_id"
+STAFF_SESSION_OUTLET_KEY = "staff_outlet_id"
+# Session value meaning: show aggregated lists / all outlets (orders, sales).
+STAFF_SESSION_OUTLET_ALL = "__all__"
+# Active property (site) for lodging lists and front-desk flows.
+STAFF_SESSION_SITE_KEY = "staff_site_id"
+
+
+class StaffSessionTenantMiddleware:
+    """
+    For paths under ``/staff/`` (except login/logout), if the user is authenticated and
+    ``request.session[staff_tenant_id]`` is set and valid, attach ``request.tenant`` and
+    ``request.tenant_membership`` (same attributes as API tenant middleware).
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], object]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest):
+        path = request.path
+        if not path.startswith("/staff/") and not path.startswith("/console"):
+            return self.get_response(request)
+        if path.startswith("/staff/login") or path.startswith("/staff/logout"):
+            return self.get_response(request)
+        if not request.user.is_authenticated:
+            return self.get_response(request)
+
+        raw = request.session.get(STAFF_SESSION_TENANT_KEY)
+        if not raw:
+            return self.get_response(request)
+        try:
+            tenant_uuid = uuid.UUID(str(raw))
+        except ValueError:
+            return self.get_response(request)
+
+        membership = (
+            Membership.objects.filter(
+                user=request.user,
+                tenant_id=tenant_uuid,
+                is_active=True,
+            )
+            .select_related("tenant")
+            .first()
+        )
+        if membership is None:
+            return self.get_response(request)
+
+        request.tenant = membership.tenant
+        request.tenant_membership = membership
+
+        return self.get_response(request)

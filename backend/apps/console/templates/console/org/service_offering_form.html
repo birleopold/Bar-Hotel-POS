@@ -1,0 +1,15 @@
+{% extends "console/base.html" %}
+{% block title %}{% if object %}Edit service{% else %}New service{% endif %}{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <h1 class="staff-page-title">{% if object %}Edit service{% else %}New service{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+  {% if object %}
+    <p class="staff-muted"><a href="{% url 'console-org-service-offering-options' service_id=object.id %}">Manage packages</a></p>
+  {% endif %}
+  <form method="post" class="staff-card">
+    {% csrf_token %}
+    {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<small class="staff-muted d-block">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
+    <button type="submit" class="staff-btn staff-btn--primary">Save</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-service-offerings' %}">Cancel</a>
+  </form>
+{% endblock %}

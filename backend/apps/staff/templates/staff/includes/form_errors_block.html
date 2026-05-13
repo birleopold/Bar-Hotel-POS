@@ -1,0 +1,18 @@
+{% if form.errors %}
+  <div class="staff-alert staff-alert--danger staff-form-errors" role="alert">
+    <strong>{{ title|default:"Please fix the following" }}:</strong>
+    <ul>
+      {% for field_name, field_errors in form.errors.items %}
+        {% for error in field_errors %}
+          <li>
+            {% if field_name == "__all__" %}
+              {{ error }}
+            {% else %}
+              <strong>{{ field_name|cut:"_"|title }}:</strong> {{ error }}
+            {% endif %}
+          </li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}

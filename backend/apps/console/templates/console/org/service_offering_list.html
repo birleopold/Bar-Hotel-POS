@@ -1,0 +1,29 @@
+{% extends "console/base.html" %}
+{% block title %}Services{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Services &amp; packages<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-service-offering-create' %}">New service</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Outlets</th><th>Packages</th><th></th></tr></thead>
+      <tbody>
+        {% for s in services %}
+          <tr>
+            <td>{{ s.name }}</td>
+            <td>{% for o in s.outlets.all %}{{ o.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+            <td>{{ s.options.count }}</td>
+            <td>
+              <a href="{% url 'console-org-service-offering-edit' service_id=s.id %}">Edit</a>
+              · <a href="{% url 'console-org-service-offering-options' service_id=s.id %}">Packages</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="staff-muted">No services.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

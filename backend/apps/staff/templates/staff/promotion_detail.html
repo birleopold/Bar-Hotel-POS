@@ -1,0 +1,32 @@
+{% extends "staff/base.html" %}
+{% block title %}{{ promotion.name }}{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">POS &amp; pricing</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">{{ promotion.name }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">{{ promotion.starts_at }} → {{ promotion.ends_at|default:"open-ended" }}</p>
+        </div>
+        <div class="staff-page-hero__actions">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-promotions' %}">All promotions</a>
+          {% if can_manage_promotions %}
+            <a class="staff-btn staff-btn--primary" href="{% url 'staff-promotion-edit' promotion_id=promotion.id %}">Edit</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </header>
+  <h2 class="staff-section-head">Details</h2>
+  <div class="staff-card">
+    <p><strong>Schedule</strong> {{ promotion.starts_at }} → {{ promotion.ends_at|default:"open" }}</p>
+    <p><strong>Discount</strong>
+      {% if promotion.discount_percent %}{{ promotion.discount_percent }}%{% endif %}
+      {% if promotion.discount_amount %}{{ promotion.discount_amount }} off{% endif %}
+    </p>
+    <p class="staff-muted">Sections:
+      {% for o in promotion.outlets.all %}{{ o.name }}{% if not forloop.last %}, {% endif %}{% empty %}All{% endfor %}
+    </p>
+  </div>
+{% endblock %}

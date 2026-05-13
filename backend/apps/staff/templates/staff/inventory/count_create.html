@@ -1,0 +1,25 @@
+{% extends "staff/base.html" %}
+{% block title %}Start stock take{% endblock %}
+{% block content %}
+  {% include "staff/inventory/includes/subnav.html" %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Stock</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Start stock take<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Open a count session for one section.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  <h2 class="staff-section-head">Session</h2>
+  <form method="post" class="staff-card">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+    {% endfor %}
+    <button type="submit" class="staff-btn staff-btn--primary">Start</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-counts' %}">Cancel</a>
+  </form>
+{% endblock %}

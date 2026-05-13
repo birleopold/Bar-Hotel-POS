@@ -1,0 +1,24 @@
+{% extends "console/base.html" %}
+{% block title %}Menu categories{% endblock %}
+{% block content %}
+  <div class="staff-toolbar">
+    <h1 class="staff-page-title mb-0">Menu categories<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-category-create' %}">New category</a>
+  </div>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Sort</th><th>Name</th><th></th></tr></thead>
+      <tbody>
+        {% for c in categories %}
+          <tr>
+            <td>{{ c.sort_order }}</td>
+            <td>{{ c.name }}</td>
+            <td><a href="{% url 'console-org-menu-category-edit' category_id=c.id %}">Edit</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="staff-muted">No categories.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

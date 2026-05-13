@@ -1,0 +1,237 @@
+{% extends "staff/base.html" %}
+{% block title %}Home{% endblock %}
+{% block main_class %}staff-main--wide staff-main--dashboard{% endblock %}
+{% block content %}
+  <header class="staff-dash-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Today</p>
+      <h1 class="staff-dash-hero__title">Home</h1>
+      {% if active_membership %}
+        <p class="staff-dash-hero__meta">{{ active_membership.tenant.name }}</p>
+      {% endif %}
+      <p class="staff-dash-hero__tagline">Sales, prep, stock, and guest folios in one workspace.</p>
+    </div>
+  </header>
+
+  <ul class="staff-intent-strip" aria-label="Typical day flow">
+    <li><span class="staff-intent-pill">Sell</span></li>
+    <li class="staff-intent-strip__sep" aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+    <li><span class="staff-intent-pill">Prep</span></li>
+    <li class="staff-intent-strip__sep" aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+    <li><span class="staff-intent-pill">Stock</span></li>
+    <li class="staff-intent-strip__sep" aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+    <li><span class="staff-intent-pill">Folio</span></li>
+  </ul>
+
+  {% if not active_membership %}
+    <div class="staff-card staff-card--soft staff-empty-split">
+      <div class="staff-empty-copy">
+        <h2 class="staff-card__title">Pick a workspace</h2>
+        <p class="staff-muted">No workspace</p>
+        <p class="staff-muted">Choose where you’re working.</p>
+        {% if memberships %}
+          <form method="post" action="{% url 'staff-select-tenant' %}" class="mt-3">
+            {% csrf_token %}
+            <label class="staff-label" for="dash-tenant">Workspace</label>
+            <select class="staff-input mb-3" id="dash-tenant" name="tenant_id" required>
+              {% for m in memberships %}
+                <option value="{{ m.tenant_id }}">{{ m.tenant.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="staff-btn staff-btn--primary">Open</button>
+          </form>
+        {% endif %}
+      </div>
+      <figure class="staff-photo-hero">
+        <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=900&q=80" alt="" width="900" height="600" loading="lazy" decoding="async">
+      </figure>
+    </div>
+  {% else %}
+
+    {% if show_workspace_setup_cta and tenant_setup_state and tenant_setup_progress %}
+      <div class="staff-setup-banner">
+        <p class="staff-setup-banner__text">Finish business setup</p>
+        <p class="staff-muted mb-0">Core setup is {{ tenant_setup_state.required_completion_percent }}% complete.</p>
+        <div class="staff-setup-banner__actions">
+          <a class="staff-btn staff-btn--primary" href="{{ tenant_setup_url }}">Continue</a>
+          <form method="post" action="{{ tenant_setup_dismiss_url }}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="staff-btn staff-btn--ghost">Later</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if show_workspace_admin_tools %}
+      <div class="staff-card mb-3">
+        <h2 class="staff-card__title">Administration</h2>
+        <p class="staff-muted">Owner tools and platform console.</p>
+        <p class="mb-2"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Open admin console</a></p>
+        <h3 class="staff-card__title">{% autoescape off %}Team & onboarding{% endautoescape %}</h3>
+        <div class="staff-chip-row">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-member-create' %}">New worker</a>
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-members' %}">Team</a>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if staff_dashboard_primary_actions %}
+      <h2 class="staff-section-head">Now</h2>
+      <div class="staff-tile-grid">
+        {% for a in staff_dashboard_primary_actions %}
+          <a
+            href="{{ a.url }}"
+            class="staff-tile staff-tile--primary{% if a.variant == 'primary' %} staff-tile--emphasis{% endif %} {% cycle 'staff-tile--c0' 'staff-tile--c1' 'staff-tile--c2' 'staff-tile--c3' 'staff-tile--c4' 'staff-tile--c5' %}"
+            {% if a.hint %}title="{{ a.hint }}"{% endif %}
+          >
+            <span class="staff-tile__glyph" aria-hidden="true">{{ a.label|slice:":1"|upper }}</span>
+            <span class="staff-tile__label">{{ a.label }}</span>
+            {% if a.hint %}<span class="staff-tile__hint">{{ a.hint }}</span>{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if staff_dashboard_secondary_actions %}
+      <h2 class="staff-section-head">Quick</h2>
+      <div class="staff-chip-row">
+        {% for a in staff_dashboard_secondary_actions %}
+          <a class="staff-btn staff-btn--ghost" href="{{ a.url }}"{% if a.hint %} title="{{ a.hint }}"{% endif %}>{{ a.label }}</a>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if staff_dashboard_sales_snapshot %}
+      <section class="staff-dash-sales" aria-labelledby="dash-sales-title">
+        <div class="staff-dash-sales__head">
+          <div>
+            <h2 id="dash-sales-title" class="staff-dash-sales__title">
+              <i class="bi bi-graph-up-arrow me-2" aria-hidden="true"></i>Sales snapshot
+            </h2>
+            <p class="staff-muted small mb-0">{{ staff_dashboard_sales_snapshot.range_caption }} · {{ staff_dashboard_sales_snapshot.currency_code }}</p>
+          </div>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_sales_snapshot.detail_url }}">Full report</a>
+        </div>
+        <div class="staff-dash-sales__kpis">
+          <div class="staff-dash-sales__kpi">
+            <div class="staff-dash-sales__kpi-top">
+              <span class="staff-dash-sales__kpi-icon" aria-hidden="true"><i class="bi bi-cash-stack"></i></span>
+              <span class="staff-dash-sales__kpi-label">Net sales</span>
+            </div>
+            <span class="staff-dash-sales__kpi-value">{{ staff_dashboard_sales_snapshot.net_sales }}</span>
+          </div>
+          <div class="staff-dash-sales__kpi">
+            <div class="staff-dash-sales__kpi-top">
+              <span class="staff-dash-sales__kpi-icon" aria-hidden="true"><i class="bi bi-receipt"></i></span>
+              <span class="staff-dash-sales__kpi-label">Payments</span>
+            </div>
+            <span class="staff-dash-sales__kpi-value">{{ staff_dashboard_sales_snapshot.payments_count }}</span>
+          </div>
+          <div class="staff-dash-sales__kpi staff-dash-sales__kpi--muted">
+            <div class="staff-dash-sales__kpi-top">
+              <span class="staff-dash-sales__kpi-icon" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></span>
+              <span class="staff-dash-sales__kpi-label">Gross / refunds</span>
+            </div>
+            <span class="staff-dash-sales__kpi-sub">{{ staff_dashboard_sales_snapshot.gross_sales }} / {{ staff_dashboard_sales_snapshot.refunds_total }}</span>
+          </div>
+        </div>
+        {% if staff_dashboard_sales_snapshot.top_items %}
+          <h3 class="staff-dash-sales__subhead">Top items by quantity</h3>
+          <ul class="staff-dash-sales__top">
+            {% for row in staff_dashboard_sales_snapshot.top_items %}
+              <li class="staff-dash-sales__top-row">
+                <span class="staff-dash-sales__top-name">{{ row.name }}</span>
+                <span class="staff-dash-sales__top-qty">{{ row.quantity_sold }} sold</span>
+                <span class="staff-dash-sales__top-rev">{{ row.revenue }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="staff-muted small mb-0 mt-2">No line-level sales in this range yet.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {% if staff_dashboard_low_stock_rows %}
+      <section class="staff-dash-insight staff-dash-insight--stock" aria-labelledby="dash-low-stock-title">
+        <div class="staff-dash-insight__head">
+          <h2 id="dash-low-stock-title" class="staff-dash-insight__title">
+            <i class="bi bi-box-seam me-2" aria-hidden="true"></i>Low stock
+          </h2>
+          {% if staff_dashboard_low_stock_url %}
+            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_low_stock_url }}">View on hand</a>
+          {% endif %}
+        </div>
+        <p class="staff-muted small mb-2 mb-md-3">At or below reorder level for the outlet(s) you’re scoped to.</p>
+        <ul class="staff-dash-insight__list">
+          {% for row in staff_dashboard_low_stock_rows %}
+            <li class="staff-dash-insight__row">
+              <span class="staff-dash-insight__name">{{ row.menu_item_name }}</span>
+              <span class="staff-dash-insight__meta">{{ row.outlet_name }}</span>
+              <span class="staff-dash-insight__qty"><strong>{{ row.quantity }}</strong> / reorder {{ row.reorder_level }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    {% if staff_role_at_work %}
+      <div class="staff-role-strip">
+        <strong>Role</strong> — {% for line in staff_role_at_work %}{{ line }}{% if not forloop.last %} {% endif %}{% endfor %}
+      </div>
+    {% endif %}
+
+    {% if staff_workbench_playbook %}
+      <h2 class="staff-section-head">All tools</h2>
+      {% for section in staff_workbench_playbook %}
+        <div class="staff-workbench-block">
+          <h3 class="staff-card__title mb-1">{{ section.title }}</h3>
+          {% if section.subtitle %}<p class="staff-workbench-block__subtitle">{{ section.subtitle }}</p>{% endif %}
+          <div class="staff-tile-grid">
+            {% for link in section.links %}
+              <a
+                href="{{ link.url }}"
+                class="staff-tile staff-tile--dense {% if link.emphasis %}staff-tile--primary staff-tile--emphasis{% endif %} {% cycle 'staff-tile--c0' 'staff-tile--c1' 'staff-tile--c2' 'staff-tile--c3' 'staff-tile--c4' 'staff-tile--c5' %}"
+                {% if link.hint %}title="{{ link.hint }}"{% endif %}
+              >
+                <span class="staff-tile__glyph" aria-hidden="true">{{ link.label|slice:":1"|upper }}</span>
+                <span class="staff-tile__label">{{ link.label }}</span>
+                {% if link.hint %}<span class="staff-tile__hint">{{ link.hint }}</span>{% endif %}
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if sites_with_outlets %}
+      <h2 class="staff-section-head">Branches</h2>
+      <div class="staff-card staff-branches-card">
+        {% for block in sites_with_outlets %}
+          <p class="staff-branches-card__site">{{ block.site.name }}</p>
+          <ul>
+            {% for o in block.outlets %}
+              <li>{{ o.name }} <span class="staff-muted">· {{ o.get_outlet_type_display }}</span></li>
+            {% empty %}
+              <li class="staff-muted">No outlets</li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if memberships|length > 1 %}
+      <h2 class="staff-section-head">Workspace</h2>
+      <form method="post" action="{% url 'staff-select-tenant' %}" class="staff-card staff-switch-inline">
+        {% csrf_token %}
+        <label class="staff-label" for="switch-tenant">Switch</label>
+        <select class="staff-input mb-3" id="switch-tenant" name="tenant_id" required>
+          {% for m in memberships %}
+            <option value="{{ m.tenant_id }}"{% if active_membership and m.tenant_id == active_membership.tenant_id %} selected{% endif %}>{{ m.tenant.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="staff-btn staff-btn--ghost">Apply</button>
+      </form>
+    {% endif %}
+  {% endif %}
+{% endblock %}

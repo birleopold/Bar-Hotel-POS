@@ -1,0 +1,78 @@
+{% extends "console/base.html" %}
+{% block title %}Setup wizard{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <h1 class="staff-page-title">Workspace setup<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+  <p class="staff-lead">Complete required steps so staff can sell, prep, and (if needed) post to guest folios.</p>
+
+  <div class="staff-card staff-card--soft mb-4">
+    <p class="mb-1"><strong>Progress:</strong> {{ setup_completion_percent }}% of required steps</p>
+    {% if setup_complete %}
+      <p class="staff-tag staff-tag--teal mb-0">Setup complete</p>
+    {% elif next_step %}
+      <p class="mb-0">Next: <a href="{{ next_step.cta_url }}">{{ next_step.name }}</a></p>
+    {% endif %}
+  </div>
+
+  <h2 class="staff-section-title">Required steps</h2>
+  {% for step in setup_steps %}
+    <div class="staff-card mb-3">
+      <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+        <div>
+          <h3 class="staff-card__title mb-1">{{ step.name }}</h3>
+          <p class="staff-muted mb-2 small">{{ step.description }}</p>
+          <span class="staff-tag {% if step.status == 'done' %}staff-tag--teal{% elif step.status == 'skipped' %}staff-tag--citrus{% elif step.status == 'blocked' %}staff-tag--magenta{% else %}staff-tag--coral{% endif %}">{{ step.status|title }}</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="staff-btn staff-btn--sm {% if step.done %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}" href="{{ step.cta_url }}">{{ step.cta_label }}</a>
+          {% if step.secondary_cta_url %}
+            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>
+          {% endif %}
+        </div>
+      </div>
+      {% if step.required %}
+        <form method="post" action="{{ setup_action_url }}" class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+          {% csrf_token %}
+          <input type="hidden" name="step_key" value="{{ step.key }}">
+          <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+          <button type="submit" name="state" value="skipped" class="staff-btn staff-btn--sm staff-btn--ghost">Mark skipped</button>
+          <button type="submit" name="state" value="blocked" class="staff-btn staff-btn--sm staff-btn--ghost">Blocked</button>
+          <button type="submit" name="state" value="" class="staff-btn staff-btn--sm staff-btn--ghost">Reset flag</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  {% if setup_optional_steps %}
+    <h2 class="staff-section-title">Recommended next</h2>
+    {% for step in setup_optional_steps %}
+      <div class="staff-card mb-3">
+        <h3 class="staff-card__title">{{ step.name }}</h3>
+        <p class="staff-muted small">{{ step.description }}</p>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.cta_url }}">{{ step.cta_label }}</a>
+          {% if step.secondary_cta_url %}
+            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>
+          {% endif %}
+        </div>
+        <form method="post" action="{{ setup_action_url }}" class="mt-2 d-flex flex-wrap gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="step_key" value="{{ step.key }}">
+          <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+          <button type="submit" name="state" value="skipped" class="staff-btn staff-btn--sm staff-btn--ghost">Skip for now</button>
+        </form>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <h2 class="staff-section-title">Go-live checks</h2>
+  <ul class="staff-card">
+    {% for c in go_live_checks %}
+      <li class="mb-2">{% if c.done %}✓{% else %}○{% endif %} {{ c.label }}{% if not c.done %} — <a href="{{ c.fix_url }}">Fix</a>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% if go_live_ready %}
+    <p class="staff-tag staff-tag--teal">All go-live checks passed</p>
+  {% endif %}
+  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Back to overview</a></p>
+{% endblock %}

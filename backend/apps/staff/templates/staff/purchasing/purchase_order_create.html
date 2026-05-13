@@ -1,0 +1,48 @@
+{% extends "staff/base.html" %}
+{% block title %}New purchase order{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Purchasing</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">New purchase order<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Draft a PO with supplier, section, and line items.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/purchasing/includes/subnav.html" %}
+  <h2 class="staff-section-head">Order details</h2>
+  <form method="post" class="staff-card">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+    {% endfor %}
+    <h2 class="staff-section-head">Lines (tracked items)</h2>
+    <div class="staff-table-wrap mb-3">
+      <table class="staff-table">
+        <thead><tr><th>Item</th><th>Qty</th><th>Unit cost (optional)</th></tr></thead>
+        <tbody>
+          {% for i in line_slots %}
+            <tr>
+              <td>
+                <select class="staff-input" name="line_{{ i }}_menu_item">
+                  <option value="">—</option>
+                  {% for mi in menu_items %}
+                    <option value="{{ mi.id }}">{{ mi.name }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td><input class="staff-input" type="number" step="0.001" min="0" name="line_{{ i }}_quantity_ordered"></td>
+              <td><input class="staff-input" type="number" step="0.01" min="0" name="line_{{ i }}_unit_cost"></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" class="staff-btn staff-btn--primary">Create draft</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">Cancel</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "staff/base.html" %}
+{% block title %}Shift close{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Till</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Shift close &amp; cash<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Retail and supermarket lanes track an open shift before sales.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  <h2 class="staff-section-head">Shift</h2>
+  {% if not current_outlet %}
+    <div class="staff-alert staff-alert--warning">Select one section in the header — not “All sections”.</div>
+  {% else %}
+    <p class="staff-muted">{{ current_outlet.name }}</p>
+    {% if open_shift %}
+      <div class="staff-card">
+        <h2 class="staff-card__title">Open shift</h2>
+        <p>Opened {{ open_shift.opened_at }} · Opening cash {{ open_shift.opening_cash }}</p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="close_shift">
+          <input type="hidden" name="shift_id" value="{{ open_shift.id }}">
+          <div class="mb-2">{{ close_form.counted_cash.label_tag }}{{ close_form.counted_cash }}</div>
+          <div class="mb-2">{{ close_form.note.label_tag }}{{ close_form.note }}</div>
+          <button type="submit" class="staff-btn staff-btn--primary">Close shift</button>
+        </form>
+      </div>
+    {% else %}
+      <div class="staff-card">
+        <h2 class="staff-card__title">Open a shift</h2>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="open_shift">
+          <div class="mb-2">{{ open_form.opening_cash.label_tag }}{{ open_form.opening_cash }}</div>
+          <div class="mb-2">{{ open_form.note.label_tag }}{{ open_form.note }}</div>
+          <button type="submit" class="staff-btn staff-btn--primary">Open shift</button>
+        </form>
+      </div>
+    {% endif %}
+    {% if recent_shifts %}
+      <h2 class="staff-section-title">Recent shifts</h2>
+      <div class="staff-table-wrap">
+        <table class="staff-table">
+          <thead><tr><th>Opened</th><th>Closed</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for s in recent_shifts %}
+              <tr>
+                <td>{{ s.opened_at }}</td>
+                <td>{{ s.closed_at|default:"—" }}</td>
+                <td>{{ s.get_status_display }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

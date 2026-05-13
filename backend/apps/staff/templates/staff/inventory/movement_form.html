@@ -1,0 +1,42 @@
+{% extends "staff/base.html" %}
+{% block title %}Stock movement{% endblock %}
+{% block content %}
+  {% include "staff/inventory/includes/subnav.html" %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Stock</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Stock movement<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Stock receive, adjustment, or waste — one line at a time.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  <h2 class="staff-section-head">Line</h2>
+  {% if not has_tracked_menu_items %}
+    <div class="staff-card staff-card--soft mb-4">
+      <p class="mb-2">No tracked items yet. Create one quickly or use the console catalog.</p>
+      {% if not has_menu_categories %}
+        <p class="staff-muted mb-0">Create a menu category in console first.</p>
+      {% else %}
+        <form method="post" class="row g-2 align-items-end">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="create_tracked_item">
+          {% for field in quick_item_form %}
+            <div class="col-md-4">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+          {% endfor %}
+          <div class="col-md-2"><button type="submit" class="staff-btn staff-btn--primary">Create item</button></div>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+  <form method="post" class="staff-card">
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+    {% endfor %}
+    <button type="submit" class="staff-btn staff-btn--primary">Save movement</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-movements' %}">Cancel</a>
+  </form>
+{% endblock %}
