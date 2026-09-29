@@ -23,7 +23,8 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="assign_room">
         <div class="col-md-6">
-          <select class="staff-input" name="room_id">
+          <label class="staff-label" for="reservation-room">Assigned room</label>
+          <select class="staff-input" id="reservation-room" name="room_id">
             <option value="__none__">Not assigned</option>
             {% for rm in room_choices %}
               <option value="{{ rm.id }}"{% if reservation.room_id == rm.id %} selected{% endif %}>{{ rm.room_type.name }} — {{ rm.name }}</option>
@@ -54,8 +55,9 @@
       {% if reservation.status != 'cancelled' and reservation.status != 'checked_out' %}
         <form method="post" class="d-inline">
           {% csrf_token %}<input type="hidden" name="action" value="cancel">
-          <input class="staff-input" type="text" name="reason" maxlength="255" placeholder="Cancel reason (optional)" autocomplete="off" aria-label="Cancel reason">
-          <button type="submit" class="staff-btn staff-btn--ghost">Cancel</button>
+          <label class="staff-label" for="reservation-cancel-reason">Cancellation reason</label>
+          <input class="staff-input" id="reservation-cancel-reason" type="text" name="reason" maxlength="255" placeholder="Reason (optional)" autocomplete="off">
+          <button type="submit" class="staff-btn staff-btn--ghost">Cancel reservation</button>
         </form>
       {% endif %}
       <form method="post" class="d-inline">
@@ -83,6 +85,7 @@
         {% endfor %}
       </ul>
       {% if can_modify_lodging %}
+        {% include "staff/includes/form_errors_block.html" with form=folio_line_form title="Fix charge details" %}
         <form method="post" class="row g-2">
           {% csrf_token %}
           <input type="hidden" name="action" value="folio_line">

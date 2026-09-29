@@ -14,17 +14,17 @@
     <div class="staff-context-bar__actions staff-context-bar__actions--pos">
       {% if hardware.receipt_printer_enabled %}
         <div class="staff-print-toolbar staff-print-toolbar--pos" role="group" aria-label="Print formats">
-          <span class="staff-muted staff-print-toolbar__lbl">Rcpt</span>
-          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=50mm" target="_blank" rel="noopener">50</a>
-          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=80mm" target="_blank" rel="noopener">80</a>
-          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=a4" target="_blank" rel="noopener">A4</a>
+          <span class="staff-muted staff-print-toolbar__lbl">Receipt</span>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=50mm" target="_blank" rel="noopener" aria-label="Print 50 millimetre receipt">50 mm</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=80mm" target="_blank" rel="noopener" aria-label="Print 80 millimetre receipt">80 mm</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=a4" target="_blank" rel="noopener" aria-label="Print A4 receipt">A4</a>
           <span class="staff-muted staff-print-toolbar__lbl">Bill</span>
-          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=50mm" target="_blank" rel="noopener">50</a>
-          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=80mm" target="_blank" rel="noopener">80</a>
-          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=a4" target="_blank" rel="noopener">A4</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=50mm" target="_blank" rel="noopener" aria-label="Print 50 millimetre bill">50 mm</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=80mm" target="_blank" rel="noopener" aria-label="Print 80 millimetre bill">80 mm</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=a4" target="_blank" rel="noopener" aria-label="Print A4 bill">A4</a>
         </div>
       {% endif %}
-      <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'staff-orders' %}">Orders</a>
+      <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'staff-orders' %}">All orders</a>
     </div>
   </div>
 
@@ -111,7 +111,7 @@
       {% if can_record_payment and payment_form %}
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Pay</h2>
-          <p class="staff-muted staff-pos-side-hint">Due <strong>{{ balance_due }}</strong> · Paid {{ amount_paid }}</p>
+          <p class="staff-muted staff-pos-side-hint">Due <strong>{{ order.currency }} {{ balance_due }}</strong> · Paid {{ order.currency }} {{ amount_paid }}</p>
           {% include "staff/includes/form_errors_block.html" with form=payment_form title="Fix payment details" %}
           <form method="post" class="row g-2 align-items-end">
             {% csrf_token %}

@@ -15,13 +15,17 @@
   {% if can_modify_open_order and line_discount_form %}
     <div class="staff-card">
       <h2 class="staff-card__title">Line discount</h2>
-      <p class="staff-muted">Select a line in the table, then apply amount or percent.</p>
+      <p class="staff-muted">Choose the item to discount, then enter an amount or percent.</p>
+      {% include "staff/includes/form_errors_block.html" with form=line_discount_form title="Fix discount details" %}
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <input type="hidden" name="action" value="line_discount">
         <div class="col-md-3">
-          <label class="staff-label" for="disc_line">Line ID</label>
-          <input class="staff-input" id="disc_line" name="line_id" placeholder="From table above" required>
+          <label class="staff-label" for="disc_line">Order item</label>
+          <select class="staff-input" id="disc_line" name="line_id" required>
+            <option value="">Select an item</option>
+            {% for line in order.lines.all %}{% if not line.is_voided %}<option value="{{ line.id }}">{{ line.label }} · {{ line.quantity }}</option>{% endif %}{% endfor %}
+          </select>
         </div>
         <div class="col-md-3">{{ line_discount_form.discount_amount.label_tag }}{{ line_discount_form.discount_amount }}</div>
         <div class="col-md-3">{{ line_discount_form.discount_percent.label_tag }}{{ line_discount_form.discount_percent }}</div>
@@ -32,13 +36,17 @@
   {% if line_return_form %}
     <div class="staff-card">
       <h2 class="staff-card__title">Return line</h2>
+      {% include "staff/includes/form_errors_block.html" with form=line_return_form title="Fix return details" %}
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <input type="hidden" name="action" value="line_return">
-        <p class="staff-muted col-12">Paste line UUID from the lines table; enter quantity and optional restock.</p>
+        <p class="staff-muted col-12">Choose the sold item and quantity to return. Restock only when the goods are back on hand.</p>
         <div class="col-md-3">
-          <label class="staff-label" for="ret_line">Line ID</label>
-          <input class="staff-input" id="ret_line" name="line_id" required>
+          <label class="staff-label" for="ret_line">Order item</label>
+          <select class="staff-input" id="ret_line" name="line_id" required>
+            <option value="">Select an item</option>
+            {% for line in order.lines.all %}{% if not line.is_voided %}<option value="{{ line.id }}">{{ line.label }} · {{ line.quantity }}</option>{% endif %}{% endfor %}
+          </select>
         </div>
         <div class="col-md-2">{{ line_return_form.quantity.label_tag }}{{ line_return_form.quantity }}</div>
         <div class="col-md-4">{{ line_return_form.reason.label_tag }}{{ line_return_form.reason }}</div>

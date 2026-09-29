@@ -19,9 +19,10 @@
     </div>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <h2 class="staff-section-head">Status</h2>
+  <h2 class="staff-section-head">Find a stay</h2>
   <form class="staff-toolbar staff-toolbar--tight" method="get">
-    <select class="staff-input" name="status" onchange="this.form.submit()">
+    <label class="staff-label" for="reservation-status">Status</label>
+    <select class="staff-input staff-filter-select" id="reservation-status" name="status" onchange="this.form.submit()">
       <option value="">All statuses</option>
       <option value="held"{% if status_filter == 'held' %} selected{% endif %}>Held</option>
       <option value="confirmed"{% if status_filter == 'confirmed' %} selected{% endif %}>Confirmed</option>
@@ -29,19 +30,21 @@
       <option value="checked_out"{% if status_filter == 'checked_out' %} selected{% endif %}>Checked out</option>
       <option value="cancelled"{% if status_filter == 'cancelled' %} selected{% endif %}>Cancelled</option>
     </select>
+    <button class="staff-btn staff-btn--ghost" type="submit">Apply filter</button>
   </form>
   <h2 class="staff-section-head">Stays</h2>
   {% if reservations %}
     <div class="staff-table-wrap">
       <table class="staff-table">
+        <caption class="visually-hidden">Reservations for {{ current_site.name }}</caption>
         <thead><tr><th>Guest</th><th>Stay</th><th>Room</th><th>Status</th></tr></thead>
         <tbody>
           {% for r in reservations %}
             <tr>
               <td><a href="{% url 'staff-lodging-reservation-detail' reservation_id=r.id %}">{{ r.guest_name }}</a></td>
-              <td>{{ r.check_in }} → {{ r.check_out }}</td>
+              <td class="staff-stay-dates"><span>{{ r.check_in }}</span><span aria-hidden="true"> → </span><span>{{ r.check_out }}</span></td>
               <td>{% if r.room %}{{ r.room.name }}{% else %}—{% endif %}</td>
-              <td>{{ r.get_status_display }}</td>
+              <td><span class="staff-tag{% if r.status == 'checked_in' %} staff-tag--teal{% elif r.status == 'cancelled' %} staff-tag--magenta{% else %} staff-tag--citrus{% endif %}">{{ r.get_status_display }}</span></td>
             </tr>
           {% endfor %}
         </tbody>
@@ -56,9 +59,9 @@
     {% endif %}
   {% endif %}
   {% if is_paginated %}
-    <nav class="staff-pager">
+    <nav class="staff-pager" aria-label="Reservation pages">
       {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}">Previous</a>{% endif %}
-      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
       {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>{% endif %}
     </nav>
   {% endif %}

@@ -16,18 +16,25 @@
     </div>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <h2 class="staff-section-head">Charges</h2>
+  <h2 class="staff-section-head">Guest balance</h2>
+  <div class="staff-metric-row staff-metric-row--folio mb-3" aria-label="Folio totals">
+    <span><strong>{{ folio.currency }} {{ lines_grand_total }}</strong><small>Charges and credits</small></span>
+    <span><strong>{{ folio.currency }} {{ payments_total }}</strong><small>Payments</small></span>
+    <span><strong>{{ folio.currency }} {{ balance_due }}</strong><small>Balance due</small></span>
+  </div>
+  <h2 class="staff-section-head">Charges and credits</h2>
   <div class="staff-card">
     {% if folio.lines.all %}
       <div class="staff-table-wrap">
         <table class="staff-table">
+          <caption class="visually-hidden">Charges and credits for {{ folio.guest_name }}</caption>
           <thead><tr><th>Description</th><th>Amount</th><th>Tax</th></tr></thead>
           <tbody>
             {% for line in folio.lines.all %}
               <tr>
                 <td>{{ line.description }}{% if line.source_order %} <span class="staff-muted">(order)</span>{% endif %}</td>
-                <td>{{ line.amount }}</td>
-                <td>{{ line.tax_amount }}</td>
+                <td class="staff-money">{{ folio.currency }} {{ line.amount }}</td>
+                <td class="staff-money">{{ folio.currency }} {{ line.tax_amount }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -36,28 +43,25 @@
     {% else %}
       {% include "staff/includes/empty_state.html" with title="No folio charges yet" message="Post charges from reservations or POS to build this guest folio." %}
     {% endif %}
-    <div class="staff-metric-row" aria-label="Folio totals">
-      <span><strong>{{ folio.currency }} {{ lines_grand_total }}</strong><small>Total charges</small></span>
-      <span><strong>{{ folio.currency }} {{ payments_total }}</strong><small>Payments</small></span>
-      <span><strong>{{ folio.currency }} {{ balance_due }}</strong><small>Balance due</small></span>
-    </div>
   </div>
   <h2 class="staff-section-head">Payments</h2>
   <div class="staff-card">
     {% if folio.payments.all %}
       <div class="staff-table-wrap mb-3"><table class="staff-table">
+        <caption class="visually-hidden">Payments recorded for {{ folio.guest_name }}</caption>
         <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead>
-        <tbody>{% for payment in folio.payments.all %}<tr><td>{{ payment.created_at }}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference|default:"—" }}</td><td>{{ folio.currency }} {{ payment.amount }}</td></tr>{% endfor %}</tbody>
+        <tbody>{% for payment in folio.payments.all %}<tr><td>{{ payment.created_at }}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference|default:"—" }}</td><td class="staff-money">{{ folio.currency }} {{ payment.amount }}</td></tr>{% endfor %}</tbody>
       </table></div>
     {% else %}<p class="staff-muted">No payments recorded.</p>{% endif %}
     {% if can_modify_lodging and folio.status == 'open' and balance_due > 0 %}
+      {% include "staff/includes/form_errors_block.html" with form=payment_form title="Fix payment details" %}
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <div class="col-md-3">{{ payment_form.amount.label_tag }}{{ payment_form.amount }}</div>
         <div class="col-md-3">{{ payment_form.method.label_tag }}{{ payment_form.method }}</div>
         <div class="col-md-4">{{ payment_form.reference.label_tag }}{{ payment_form.reference }}</div>
-        <div class="col-md-2"><button class="staff-btn staff-btn--primary" type="submit">Record payment</button></div>
+        <div class="col-md-2"><button class="staff-btn staff-btn--primary staff-btn--touch" type="submit">Record payment</button></div>
       </form>
-    {% elif folio.status == 'open' %}<p class="staff-tag staff-tag--citrus mb-0">Fully settled · ready for checkout</p>{% endif %}
+    {% elif folio.status == 'open' and balance_due <= 0 %}<p class="staff-tag staff-tag--teal mb-0">Fully settled · ready for checkout</p>{% endif %}
   </div>
 {% endblock %}

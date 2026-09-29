@@ -14,26 +14,28 @@
     </div>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <h2 class="visually-hidden">Folios</h2>
-  <h2 class="staff-section-head">Filter</h2>
-  <form class="mb-3" method="get">
-    <select class="staff-input" name="status" onchange="this.form.submit()">
-      <option value="">All</option>
+  <h2 class="staff-section-head">Find a folio</h2>
+  <form class="staff-toolbar staff-toolbar--tight" method="get">
+    <label class="staff-label" for="folio-status">Status</label>
+    <select class="staff-input staff-filter-select" id="folio-status" name="status" onchange="this.form.submit()">
+      <option value="">All statuses</option>
       <option value="open"{% if status_filter == 'open' %} selected{% endif %}>Open</option>
       <option value="closed"{% if status_filter == 'closed' %} selected{% endif %}>Closed</option>
     </select>
+    <button class="staff-btn staff-btn--ghost" type="submit">Apply filter</button>
   </form>
   <h2 class="staff-section-head">Folios</h2>
   <div class="staff-table-wrap">
     <table class="staff-table">
+      <caption class="visually-hidden">Guest folios for {{ current_site.name }}</caption>
       <thead><tr><th>Guest</th><th>Status</th><th>Lines total</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for f in folios %}
           <tr>
             <td>{{ f.guest_name }}</td>
-            <td>{{ f.get_status_display }}</td>
-            <td>{{ f.lines_grand }}</td>
-            <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-lodging-folio-detail' folio_id=f.id %}">View</a></td>
+            <td><span class="staff-tag{% if f.status == 'open' %} staff-tag--citrus{% else %} staff-tag--teal{% endif %}">{{ f.get_status_display }}</span></td>
+            <td class="staff-money">{{ f.currency }} {{ f.lines_grand }}</td>
+            <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-lodging-folio-detail' folio_id=f.id %}" aria-label="View folio for {{ f.guest_name }}">View folio</a></td>
           </tr>
         {% empty %}
           <tr><td colspan="4" class="staff-muted">No folios.</td></tr>
@@ -42,9 +44,9 @@
     </table>
   </div>
   {% if is_paginated %}
-    <nav class="staff-pager">
+    <nav class="staff-pager" aria-label="Folio pages">
       {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}">Previous</a>{% endif %}
-      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+      <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
       {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>{% endif %}
     </nav>
   {% endif %}

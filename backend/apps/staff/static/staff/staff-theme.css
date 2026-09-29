@@ -4091,3 +4091,23 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
   .staff-pos-order-card__meta { flex-wrap: wrap; gap: 0.15rem 0.5rem; }
   .staff-pos-order-card__due { white-space: normal; }
 }
+
+/* Front desk and retail forms share readable numeric columns and compact filters. */
+.staff-filter-select { width: auto; min-width: 11rem; max-width: 100%; }
+.staff-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.staff-stay-dates { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.staff-metric-row--folio { margin-bottom: 1rem; }
+.staff-metric-row--folio > span {
+  background: var(--bg-elevated);
+  border-color: rgba(15, 23, 42, 0.1);
+  padding: 1rem 1.1rem;
+}
+.staff-metric-row--folio strong { font-variant-numeric: tabular-nums; }
+.staff-metric-row--folio > span:last-child { border-left: 3px solid var(--tenant-primary); }
+.staff-print-toolbar--pos { flex-wrap: wrap; }
+.staff-print-toolbar--pos .staff-order-print-link { white-space: nowrap; }
+@media (max-width: 600px) {
+  .staff-filter-select { flex: 1 1 10rem; }
+  .staff-stay-dates { white-space: normal; }
+  .staff-metric-row--folio { grid-template-columns: 1fr; }
+}
