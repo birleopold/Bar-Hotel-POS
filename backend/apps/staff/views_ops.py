@@ -27,6 +27,7 @@ from apps.pos.services import (
     apply_promotion_to_order,
     apply_supermarket_line_discount,
     cancel_open_unpaid_order,
+    charge_order_to_folio,
     close_pos_shift,
     create_order_with_lines,
     default_currency_for_tenant,
@@ -432,6 +433,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
 
         # Folio attach/clear (only for open, unpaid orders).
         ctx["can_set_folio"] = can_modify_open
+        ctx["can_charge_to_folio"] = can_modify_open and order.folio_id is not None and b > Decimal("0")
         ctx["folio_form"] = None
         ctx["folio_choices"] = []
         if can_modify_open:
@@ -624,6 +626,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_record_payment(request, order)
         if action == "set_folio":
             return self._post_set_folio(request, order)
+        if action == "charge_to_folio":
+            try:
+                charge_order_to_folio(order=order, membership=m, user=request.user)
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(request, "Remaining balance charged to the guest folio.")
+            return redirect("staff-order-detail", order_id=order.id)
         if action == "add_line":
             return self._post_add_line(request, order)
         if action == "add_service_line":

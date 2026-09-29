@@ -463,6 +463,176 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/finance/categories/:
+    get:
+      operationId: finance_categories_list
+      tags:
+      - finance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FinanceCategory'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: finance_categories_create
+      tags:
+      - finance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinanceCategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceCategory'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/finance/categories/{id}/:
+    get:
+      operationId: finance_categories_retrieve
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this finance category.
+        required: true
+      tags:
+      - finance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceCategory'
+          description: ''
+    patch:
+      operationId: finance_categories_partial_update
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this finance category.
+        required: true
+      tags:
+      - finance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFinanceCategoryRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinanceCategory'
+          description: ''
+  /api/v1/finance/entries/:
+    get:
+      operationId: finance_entries_list
+      tags:
+      - finance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CashbookEntry'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: finance_entries_create
+      tags:
+      - finance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashbookEntryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashbookEntry'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
   /api/v1/health/:
     get:
       operationId: health_retrieve
@@ -913,6 +1083,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/Folio'
           description: ''
+  /api/v1/lodging/folios/{id}/payments/:
+    post:
+      operationId: lodging_folios_payments_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this folio.
+        required: true
+      tags:
+      - lodging
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folio'
+          description: ''
   /api/v1/lodging/rate-windows/:
     get:
       operationId: lodging_rate_windows_list
@@ -1198,6 +1398,42 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PatchedReservationRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+          description: ''
+  /api/v1/lodging/reservations/{id}/cancel/:
+    post:
+      operationId: lodging_reservations_cancel_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this reservation.
+        required: true
+      tags:
+      - lodging
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+        required: true
       security:
       - jwtAuth: []
       responses:
@@ -2793,6 +3029,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderRead'
           description: ''
+  /api/v1/orders/{id}/charge-to-folio/:
+    post:
+      operationId: orders_charge_to_folio_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
   /api/v1/orders/{id}/kds-line/:
     post:
       operationId: orders_kds_line_create
@@ -3174,6 +3440,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PurchaseOrderStatusUpdate'
+          description: ''
+  /api/v1/purchasing/purchase-orders/{id}/confirm-cost/:
+    post:
+      operationId: purchasing_purchase_orders_confirm_cost_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this purchase order.
+        required: true
+      tags:
+      - purchasing
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+          description: ''
+  /api/v1/purchasing/purchase-orders/{id}/payments/:
+    post:
+      operationId: purchasing_purchase_orders_payments_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this purchase order.
+        required: true
+      tags:
+      - purchasing
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
           description: ''
   /api/v1/purchasing/purchase-orders/{id}/receive/:
     post:
@@ -4002,6 +4328,98 @@ components:
       - id
       - payload
       - user
+    CashbookEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        category:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+          readOnly: true
+        category_kind:
+          type: string
+          readOnly: true
+        site:
+          type: string
+          format: uuid
+          nullable: true
+        site_name:
+          type: string
+          readOnly: true
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        transaction_date:
+          type: string
+          format: date
+        reference:
+          type: string
+          maxLength: 64
+        note:
+          type: string
+        created_by_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_by_email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - category
+      - category_kind
+      - category_name
+      - created_at
+      - created_by_email
+      - created_by_id
+      - id
+      - site_name
+      - transaction_date
+      - updated_at
+    CashbookEntryRequest:
+      type: object
+      properties:
+        category:
+          type: string
+          format: uuid
+        site:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        transaction_date:
+          type: string
+          format: date
+        reference:
+          type: string
+          maxLength: 64
+        note:
+          type: string
+      required:
+      - amount
+      - category
+      - transaction_date
     EventBooking:
       type: object
       properties:
@@ -4181,6 +4599,58 @@ components:
       required:
       - name
       - site
+    FinanceCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 128
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - kind
+      - name
+      - updated_at
+    FinanceCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+      required:
+      - kind
+      - name
     Folio:
       type: object
       properties:
@@ -4226,6 +4696,20 @@ components:
           items:
             $ref: '#/components/schemas/FolioLine'
           readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FolioPayment'
+          readOnly: true
+        total_charges:
+          type: string
+          readOnly: true
+        total_paid:
+          type: string
+          readOnly: true
+        balance_due:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -4235,18 +4719,22 @@ components:
           format: date-time
           readOnly: true
       required:
+      - balance_due
       - created_at
       - currency
       - guest_name
       - id
       - lines
       - notes
+      - payments
       - reservation
       - site
       - site_id
       - site_name
       - status
       - tenant
+      - total_charges
+      - total_paid
       - updated_at
     FolioCreate:
       type: object
@@ -4328,6 +4816,35 @@ components:
       - id
       - source_order
       - tax_amount
+    FolioPayment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/TenderMethod'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - id
+      - method
+      - reference
     FolioStatus:
       type: object
       properties:
@@ -4466,6 +4983,14 @@ components:
         * `in_prep` - In prep
         * `ready` - Ready
         * `served` - Served
+    KindEnum:
+      enum:
+      - income
+      - expense
+      type: string
+      description: |-
+        * `income` - Income
+        * `expense` - Expense
     LodgingFolioStatus:
       enum:
       - open
@@ -4812,16 +5337,6 @@ components:
       - category
       - name
       - unit_price
-    MethodEnum:
-      enum:
-      - cash
-      - card
-      - other
-      type: string
-      description: |-
-        * `cash` - Cash
-        * `card` - Card
-        * `other` - Other
     ModifierGroup:
       type: object
       properties:
@@ -5387,6 +5902,22 @@ components:
           format: int64
         is_active:
           type: boolean
+    PatchedFinanceCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
     PatchedFolioStatusRequest:
       type: object
       properties:
@@ -5593,8 +6124,6 @@ components:
         check_out:
           type: string
           format: date
-        status:
-          $ref: '#/components/schemas/ReservationStatusEnum'
         room:
           type: string
           format: uuid
@@ -5734,6 +6263,10 @@ components:
           type: string
           format: uri
           maxLength: 200
+        efris_enabled:
+          type: boolean
+          description: If enabled, finance postings are queued for Uganda EFRIS submission.
+            Keep off for properties that do not use EFRIS.
     Payment:
       type: object
       properties:
@@ -5752,7 +6285,7 @@ components:
           readOnly: true
         method:
           allOf:
-          - $ref: '#/components/schemas/MethodEnum'
+          - $ref: '#/components/schemas/TenderMethod'
           readOnly: true
         created_at:
           type: string
@@ -5928,6 +6461,16 @@ components:
           items:
             $ref: '#/components/schemas/PurchaseOrderLineRead'
           readOnly: true
+        receipts:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseReceipt'
+          readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierPayment'
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -5945,6 +6488,8 @@ components:
       - notes
       - outlet
       - outlet_name
+      - payments
+      - receipts
       - reference
       - status
       - supplier
@@ -6113,6 +6658,70 @@ components:
         * `partially_received` - Partially received
         * `received` - Fully received
         * `cancelled` - Cancelled
+    PurchaseReceipt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        delivery_reference:
+          type: string
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        received_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        received_by_email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseReceiptLine'
+          readOnly: true
+      required:
+      - created_at
+      - delivery_reference
+      - id
+      - lines
+      - note
+      - received_by
+      - received_by_email
+    PurchaseReceiptLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        purchase_order_line:
+          type: string
+          format: uuid
+          readOnly: true
+        item_name:
+          type: string
+          readOnly: true
+        quantity_received:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,11}(?:\.\d{0,3})?$
+          readOnly: true
+      required:
+      - id
+      - item_name
+      - purchase_order_line
+      - quantity_received
     ReasonEnum:
       enum:
       - receive
@@ -6169,7 +6778,9 @@ components:
           type: string
           format: date
         status:
-          $ref: '#/components/schemas/ReservationStatusEnum'
+          allOf:
+          - $ref: '#/components/schemas/ReservationStatusEnum'
+          readOnly: true
         room:
           type: string
           format: uuid
@@ -6204,6 +6815,7 @@ components:
       - site
       - site_id
       - site_name
+      - status
       - updated_at
     ReservationRequest:
       type: object
@@ -6228,8 +6840,6 @@ components:
         check_out:
           type: string
           format: date
-        status:
-          $ref: '#/components/schemas/ReservationStatusEnum'
         room:
           type: string
           format: uuid
@@ -6897,6 +7507,49 @@ components:
       - name
       - tenant
       - updated_at
+    SupplierPayment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/SupplierPaymentMethod'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - id
+      - method
+      - reference
+    SupplierPaymentMethod:
+      enum:
+      - cash
+      - bank
+      - mobile_money
+      - card
+      - other
+      type: string
+      description: |-
+        * `cash` - Cash
+        * `bank` - Bank transfer
+        * `mobile_money` - Mobile money
+        * `card` - Card
+        * `other` - Other
     SupplierRequest:
       type: object
       properties:
@@ -7018,6 +7671,24 @@ components:
           type: string
           format: uri
           maxLength: 200
+        efris_enabled:
+          type: boolean
+          description: If enabled, finance postings are queued for Uganda EFRIS submission.
+            Keep off for properties that do not use EFRIS.
+    TenderMethod:
+      enum:
+      - cash
+      - card
+      - mobile_money
+      - bank
+      - other
+      type: string
+      description: |-
+        * `cash` - Cash
+        * `card` - Card
+        * `mobile_money` - Mobile money
+        * `bank` - Bank transfer
+        * `other` - Other
     TokenObtainPair:
       type: object
       properties:

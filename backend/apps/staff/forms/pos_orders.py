@@ -274,7 +274,7 @@ class StaffOrderLineReturnForm(forms.Form):
         max_length=255,
         widget=forms.TextInput(attrs={"class": "staff-input", "maxlength": 255}),
     )
-    restock = forms.BooleanField(required=False, initial=True, widget=forms.CheckboxInput())
+    restock = forms.BooleanField(required=False, initial=False, widget=forms.CheckboxInput())
 
 
 class StaffOrderReadyHandoffForm(forms.Form):

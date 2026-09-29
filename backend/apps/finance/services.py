@@ -163,26 +163,18 @@ def post_folio_payment_income(*, payment, user) -> tuple[CashbookEntry | None, b
     )
 
 
-def post_purchase_receive_expense_from_movement(
-    *,
-    movement,
-    po,
-    line,
-    quantity,
-    user,
-) -> tuple[CashbookEntry | None, bool]:
-    if line.unit_cost is None or line.unit_cost <= 0:
-        return None, False
-    amount = (quantity * line.unit_cost).quantize(Decimal("0.01"))
+def post_supplier_payment_expense(*, payment, user) -> tuple[CashbookEntry | None, bool]:
+    po = payment.purchase_order
     return post_cashbook_for_source(
         tenant_id=po.tenant_id,
-        source_type=FinancePostingSource.PURCHASE_RECEIVE_MOVEMENT,
-        source_id=str(movement.id),
+        source_type=FinancePostingSource.SUPPLIER_PAYMENT,
+        source_id=str(payment.id),
         kind=FinanceCategoryKind.EXPENSE,
-        amount=amount,
+        amount=payment.amount,
         site=po.outlet.site,
-        reference=(po.reference or str(po.id))[:64],
-        note=f"Auto-posted from PO receive movement {movement.id}",
+        reference=(payment.reference or po.reference or str(po.id))[:64],
+        note=f"Supplier payment {payment.id} for PO {po.reference or po.id} ({payment.get_method_display()})",
         created_by=user,
-        transaction_date=movement.created_at.date(),
+        transaction_date=payment.created_at.date(),
+        enqueue_efris=False,
     )

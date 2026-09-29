@@ -20,7 +20,7 @@ from apps.lodging.models import (
 )
 from apps.lodging.services import check_out_reservation, folio_totals, record_folio_payment
 from apps.pos.models import Order
-from apps.pos.services import record_order_payment
+from apps.pos.services import charge_order_to_folio, record_order_payment
 from apps.staff.middleware import STAFF_SESSION_SITE_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, Site, Tenant, TenantSettings
 
@@ -59,6 +59,63 @@ def test_closed_folio_rejects_pos_payment_without_finance_side_effect():
     assert not order.payments.exists()
     assert not folio.lines.exists()
     assert not CashbookEntry.objects.exists()
+
+
+@pytest.mark.django_db
+def test_partial_pos_tender_transfers_only_remaining_balance_to_folio():
+    tenant = Tenant.objects.create(name="Room Charge", slug="room-charge")
+    site = Site.objects.create(tenant=tenant, name="Hotel")
+    outlet = Outlet.objects.create(site=site, name="Restaurant", outlet_type="supermarket")
+    user = User.objects.create_user(email="room-charge@example.invalid", password="TestPass9!")
+    membership = Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+    folio = Folio.objects.create(tenant=tenant, site=site, guest_name="Guest", currency="UGX")
+    order = Order.objects.create(
+        tenant=tenant, outlet=outlet, folio=folio, created_by=user, currency="UGX",
+        subtotal=Decimal("100"), tax_total=Decimal("10"), discount_amount=Decimal("20"), total=Decimal("90"),
+    )
+    record_order_payment(order=order, user=user, amount=Decimal("30"), method="cash", idempotency_key="room-cash")
+    charge_order_to_folio(order=order, membership=membership, user=user)
+    order.refresh_from_db()
+    assert order.status == "closed" and not order.is_paid
+    assert folio_totals(folio) == (Decimal("60"), Decimal("0"), Decimal("60"))
+    assert list(folio.lines.values_list("amount", "tax_amount")) == [
+        (Decimal("80"), Decimal("10")), (Decimal("-30"), Decimal("0")),
+    ]
+    assert CashbookEntry.objects.count() == 1
+    with pytest.raises(ValidationError):
+        charge_order_to_folio(order=order, membership=membership, user=user)
+    assert folio.lines.count() == 2
+    record_folio_payment(
+        folio=folio, amount=Decimal("60"), method="cash", reference="ROOM-1",
+        idempotency_key="room-final", user=user,
+    )
+    assert folio_totals(folio)[2] == Decimal("0")
+    assert sorted(CashbookEntry.objects.values_list("amount", flat=True)) == [Decimal("30"), Decimal("60")]
+
+
+@pytest.mark.django_db
+def test_api_cannot_close_order_without_settlement():
+    tenant = Tenant.objects.create(name="Close Guard", slug="close-guard")
+    site = Site.objects.create(tenant=tenant, name="Main")
+    outlet = Outlet.objects.create(site=site, name="POS", outlet_type="supermarket")
+    user = User.objects.create_user(email="close-guard@example.invalid", password="TestPass9!")
+    Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+    order = Order.objects.create(tenant=tenant, outlet=outlet, total=Decimal("10"), subtotal=Decimal("10"))
+    client = APIClient()
+    client.force_login(user)
+    url = f"/api/v1/orders/{order.id}/"
+    headers = {"HTTP_X_TENANT_ID": str(tenant.id)}
+    assert client.patch(url, {"status": "closed"}, format="json", **headers).status_code == 400
+    assert client.patch(url, {"is_paid": True}, format="json", **headers).status_code == 400
+    order.refresh_from_db()
+    assert order.status == "open" and not order.is_paid
+    folio = Folio.objects.create(tenant=tenant, site=site, guest_name="Guest", currency=order.currency)
+    order.folio = folio
+    order.save(update_fields=["folio", "updated_at"])
+    charge = client.post(f"/api/v1/orders/{order.id}/charge-to-folio/", {}, format="json", **headers)
+    assert charge.status_code == 200, charge.content
+    assert charge.data["status"] == "closed"
+    assert folio_totals(folio)[2] == Decimal("10")
 
 
 @pytest.mark.django_db

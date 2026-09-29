@@ -85,6 +85,7 @@ class FinancePostingSource(models.TextChoices):
     POS_REFUND = "pos_refund", "POS refund"
     FOLIO_PAYMENT = "folio_payment", "Folio payment"
     PURCHASE_RECEIVE_MOVEMENT = "purchase_receive_movement", "Purchase receive movement"
+    SUPPLIER_PAYMENT = "supplier_payment", "Supplier payment"
 
 
 class FinancePostingLink(TimeStampedModel):

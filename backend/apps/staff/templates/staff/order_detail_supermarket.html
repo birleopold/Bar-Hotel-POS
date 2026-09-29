@@ -40,7 +40,7 @@
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <input type="hidden" name="action" value="line_return">
-        <p class="staff-muted col-12">Choose the sold item and quantity to return. Restock only when the goods are back on hand.</p>
+        <p class="staff-muted col-12">This records the physical return. A customer refund is recorded separately in the Refund panel by a manager. Select restock only for direct-sale goods actually back on hand; prepared recipe ingredients are not recovered automatically.</p>
         <div class="col-md-3">
           <label class="staff-label" for="ret_line">Order item</label>
           <select class="staff-input" id="ret_line" name="line_id" required>
@@ -50,9 +50,19 @@
         </div>
         <div class="col-md-2">{{ line_return_form.quantity.label_tag }}{{ line_return_form.quantity }}</div>
         <div class="col-md-4">{{ line_return_form.reason.label_tag }}{{ line_return_form.reason }}</div>
-        <div class="col-md-2">{{ line_return_form.restock.label_tag }}{{ line_return_form.restock }}</div>
+        <div class="col-md-2"><label class="staff-label" for="{{ line_return_form.restock.id_for_label }}">{{ line_return_form.restock }} Restock received goods</label></div>
         <div class="col-md-1"><button type="submit" class="staff-btn staff-btn--primary">Return</button></div>
       </form>
+    </div>
+  {% endif %}
+  {% if order.supermarket_returns.all %}
+    <div class="staff-card">
+      <h2 class="staff-card__title">Return history</h2>
+      <div class="staff-table-wrap"><table class="staff-table">
+        <caption class="visually-hidden">Physical returns recorded for this order</caption>
+        <thead><tr><th>Item</th><th>Qty</th><th>Stock</th><th>Reason</th></tr></thead>
+        <tbody>{% for ret in order.supermarket_returns.all %}<tr><td>{{ ret.order_line.label }}</td><td>{{ ret.quantity }}</td><td>{% if ret.restocked %}Restocked{% else %}Not restocked{% endif %}</td><td>{{ ret.reason|default:"—" }}</td></tr>{% endfor %}</tbody>
+      </table></div>
     </div>
   {% endif %}
 {% endblock %}

@@ -7,7 +7,7 @@ from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
 from apps.tenants.models import Outlet
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -71,11 +71,30 @@ class PurchaseReceiptSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class SupplierPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupplierPayment
+        fields = ("id", "amount", "method", "reference", "created_at")
+        read_only_fields = fields
+
+
+class RecordSupplierPaymentSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
+    method = serializers.ChoiceField(choices=SupplierPaymentMethod.choices)
+    reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
+
+
+class ConfirmMissingUnitCostSerializer(serializers.Serializer):
+    line_id = serializers.UUIDField()
+    unit_cost = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
+
+
 class PurchaseOrderSerializer(serializers.ModelSerializer):
     lines = PurchaseOrderLineReadSerializer(many=True, read_only=True)
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     outlet_name = serializers.CharField(source="outlet.name", read_only=True)
     receipts = PurchaseReceiptSerializer(many=True, read_only=True)
+    payments = SupplierPaymentSerializer(many=True, read_only=True)
 
     class Meta:
         model = PurchaseOrder
@@ -93,6 +112,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             "created_by",
             "lines",
             "receipts",
+            "payments",
             "created_at",
             "updated_at",
         ]

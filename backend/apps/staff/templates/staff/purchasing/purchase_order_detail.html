@@ -98,4 +98,43 @@
       </div>
     {% else %}<p class="staff-muted mb-0">No deliveries have been received against this purchase order.</p>{% endif %}
   </section>
+
+  <h2 class="staff-section-head">Supplier settlement</h2>
+  <section class="staff-card" aria-label="Supplier settlement">
+    <div class="staff-metric-row staff-metric-row--folio mb-3">
+      <span><strong>{{ purchase_currency }} {{ received_value }}</strong><small>Value of costed goods received</small></span>
+      <span><strong>{{ purchase_currency }} {{ supplier_paid }}</strong><small>Supplier payments recorded</small></span>
+      <span><strong>{{ purchase_currency }} {{ supplier_due }}</strong><small>Unpaid received value</small></span>
+    </div>
+    {% if legacy_receipt_expenses %}
+      <div class="staff-alert staff-alert--info mb-3">This order has expenses posted by the earlier receipt workflow. Reconcile those entries before recording a supplier payment; no automatic cashbook changes were made.</div>
+    {% elif uncosted_received %}
+      <div class="staff-alert staff-alert--info mb-3">Some received goods have no unit cost. Confirm the invoice cost below before recording a supplier payment.</div>
+      {% if can_modify_purchasing and not po.payments.all %}
+        {% for line in po.lines.all %}{% if line.quantity_received > 0 and line.unit_cost == None %}
+          <form method="post" class="row g-2 align-items-end mb-3">
+            {% csrf_token %}<input type="hidden" name="action" value="confirm_cost"><input type="hidden" name="line_id" value="{{ line.id }}">
+            <div class="col-12 col-md-5"><label class="staff-label" for="cost-{{ line.id }}">{{ line.menu_item.name }} · unit cost</label><input class="staff-input" id="cost-{{ line.id }}" name="unit_cost" type="number" step="0.01" min="0" required></div>
+            <div class="col-12 col-md-3"><button type="submit" class="staff-btn staff-btn--ghost">Confirm cost</button></div>
+          </form>
+        {% endif %}{% endfor %}
+      {% endif %}
+    {% elif can_modify_purchasing and supplier_due > 0 %}
+      <p class="staff-muted">Record a payment only after money has actually been sent to the supplier. Receiving goods alone does not create a cashbook expense.</p>
+      <form method="post" class="row g-2 align-items-end mb-3">
+        {% csrf_token %}<input type="hidden" name="action" value="supplier_payment"><input type="hidden" name="idempotency_key" value="{{ supplier_payment_key }}">
+        <div class="col-12 col-md-3"><label class="staff-label" for="supplier-payment-amount">Amount paid</label><input class="staff-input" id="supplier-payment-amount" name="amount" type="number" step="0.01" min="0.01" max="{{ supplier_due }}" required></div>
+        <div class="col-12 col-md-3"><label class="staff-label" for="supplier-payment-method">Method</label><select class="staff-input" id="supplier-payment-method" name="method" required>{% for value, label in supplier_payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+        <div class="col-12 col-md-4"><label class="staff-label" for="supplier-payment-reference">Payment reference</label><input class="staff-input" id="supplier-payment-reference" name="reference" maxlength="128" placeholder="Bank or mobile money reference"></div>
+        <div class="col-12 col-md-2"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Record payment</button></div>
+      </form>
+    {% endif %}
+    {% if po.payments.all %}
+      <div class="staff-table-wrap"><table class="staff-table">
+        <caption class="visually-hidden">Payments to {{ po.supplier.name }}</caption>
+        <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead>
+        <tbody>{% for payment in po.payments.all %}<tr><td>{{ payment.created_at }}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference|default:"—" }}</td><td class="staff-money">{{ purchase_currency }} {{ payment.amount }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    {% else %}<p class="staff-muted mb-0">No supplier payments recorded.</p>{% endif %}
+  </section>
 {% endblock %}

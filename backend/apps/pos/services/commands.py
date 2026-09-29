@@ -18,7 +18,7 @@ from .orders import (
     set_open_order_folio,
     void_open_order_line,
 )
-from .payments import record_order_payment, record_order_refund
+from .payments import charge_order_to_folio, record_order_payment, record_order_refund
 from .pricing import recalculate_order_totals
 
 __all__ = [
@@ -30,6 +30,7 @@ __all__ = [
     "apply_promotion_to_order",
     "cancel_open_unpaid_order",
     "close_pos_shift",
+    "charge_order_to_folio",
     "create_order_with_lines",
     "hold_open_order",
     "open_pos_shift",

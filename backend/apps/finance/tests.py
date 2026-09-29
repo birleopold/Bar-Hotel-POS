@@ -2,17 +2,22 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from io import StringIO
+import json
 
+from django.core.management import call_command
 from django.test import TestCase
+from rest_framework.test import APIClient
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.models import StockBalance
+from apps.lodging.models import Folio, FolioLine
 from apps.pos.models import Order, OrderLine
 from apps.pos.services import close_pos_shift, open_pos_shift, process_supermarket_line_return, record_order_payment, record_order_refund
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, Supplier
-from apps.purchasing.services import receive_purchase_order_goods
+from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment
 from apps.tenants.models import Outlet, OutletType, Site, Tenant
 
 from .models import CashbookEntry, FinanceCategoryKind, FinancePostingLink, FinancePostingSource
@@ -131,6 +136,36 @@ class PosFinancePostingTests(TestCase):
         balance.refresh_from_db()
         self.assertEqual(balance.quantity, Decimal("1"))
 
+    def test_legacy_audit_lists_uncredited_folio_without_changing_it(self) -> None:
+        folio = Folio.objects.create(tenant=self.tenant, site=self.site, guest_name="Guest", currency="USD")
+        self.order.folio = folio
+        self.order.is_paid = True
+        self.order.status = "closed"
+        self.order.save(update_fields=["folio", "is_paid", "status", "updated_at"])
+        FolioLine.objects.create(tenant=self.tenant, folio=folio, amount=Decimal("10"), description="Old POS", source_order=self.order)
+        out = StringIO()
+        call_command("audit_legacy_postings", tenant_id=str(self.tenant.id), stdout=out)
+        self.assertEqual(json.loads(out.getvalue())["paid_pos_orders_with_uncredited_folio_lines"], [str(self.order.id)])
+        self.assertEqual(folio.lines.count(), 1)
+
+    def test_return_restock_uses_original_sale_even_if_catalog_flag_changes(self) -> None:
+        line, balance = self._add_tracked_sale()
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("10"), method="cash", idempotency_key="flag-change-pay")
+        line.menu_item.track_inventory = False
+        line.menu_item.save(update_fields=["track_inventory", "updated_at"])
+        process_supermarket_line_return(order=self.order, line=line, quantity=Decimal("1"), reason="Unopened", restock=True, user=self.user)
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("1"))
+
+    def test_return_cannot_add_stock_for_untracked_sale(self) -> None:
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Services")
+        item = MenuItem.objects.create(tenant=self.tenant, category=category, name="Fee", unit_price=Decimal("10"), track_inventory=False)
+        line = OrderLine.objects.create(order=self.order, menu_item=item, label=item.name, quantity=Decimal("1"), unit_price=Decimal("10"), line_total=Decimal("10"), kds_status="ready")
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("10"), method="cash", idempotency_key="untracked-pay")
+        with self.assertRaises(ValidationError):
+            process_supermarket_line_return(order=self.order, line=line, quantity=Decimal("1"), reason="", restock=True, user=self.user)
+        self.assertFalse(self.order.supermarket_returns.exists())
+
 
 class PurchaseFinancePostingTests(TestCase):
     def setUp(self) -> None:
@@ -157,7 +192,7 @@ class PurchaseFinancePostingTests(TestCase):
             unit_price=Decimal("1.00"),
         )
 
-    def test_receive_posts_expense_for_costed_line(self) -> None:
+    def test_receipt_is_not_cash_expense_and_supplier_payment_posts_once(self) -> None:
         po = PurchaseOrder.objects.create(
             tenant=self.tenant,
             supplier=self.supplier,
@@ -179,20 +214,71 @@ class PurchaseFinancePostingTests(TestCase):
             user=self.user,
             membership=self.membership,
         )
-        self.assertEqual(CashbookEntry.objects.count(), 1)
+        self.assertEqual(CashbookEntry.objects.count(), 0)
+        payment, replay = record_supplier_payment(
+            po=po, amount=Decimal("3.00"), method="bank", reference="BANK-1",
+            idempotency_key="supplier-pay-1", user=self.user, membership=self.membership,
+        )
+        self.assertFalse(replay)
         entry = CashbookEntry.objects.get()
         self.assertEqual(entry.category.kind, FinanceCategoryKind.EXPENSE)
-        self.assertEqual(entry.amount, Decimal("5.00"))
-        self.assertEqual(entry.reference, "PO-001")
+        self.assertEqual(entry.amount, Decimal("3.00"))
+        self.assertEqual(entry.reference, "BANK-1")
         self.assertEqual(entry.site_id, self.site.id)
         self.assertEqual(entry.transaction_date, date.today())
         self.assertEqual(
             FinancePostingLink.objects.filter(
                 tenant=self.tenant,
-                source_type=FinancePostingSource.PURCHASE_RECEIVE_MOVEMENT,
+                source_type=FinancePostingSource.SUPPLIER_PAYMENT,
+                source_id=str(payment.id),
             ).count(),
             1,
         )
+        again, replay = record_supplier_payment(
+            po=po, amount=Decimal("3.00"), method="bank", reference="BANK-1",
+            idempotency_key="supplier-pay-1", user=self.user, membership=self.membership,
+        )
+        self.assertTrue(replay)
+        self.assertEqual(again.id, payment.id)
+        self.assertEqual(CashbookEntry.objects.count(), 1)
+        with self.assertRaises(ValidationError):
+            record_supplier_payment(
+                po=po, amount=Decimal("3.01"), method="bank", reference="BANK-1",
+                idempotency_key="supplier-pay-1", user=self.user, membership=self.membership,
+            )
+        with self.assertRaises(ValidationError):
+            record_supplier_payment(
+                po=po, amount=Decimal("2.01"), method="cash", reference="CASH-2",
+                idempotency_key="supplier-pay-2", user=self.user, membership=self.membership,
+            )
+
+    def test_legacy_receipt_posting_blocks_new_supplier_payment(self) -> None:
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant, supplier=self.supplier, outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT, reference="OLD-PO", created_by=self.user,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=self.menu_item,
+            quantity_ordered=Decimal("2"), unit_cost=Decimal("4"),
+        )
+        receive_purchase_order_goods(
+            po=po, lines_payload=[{"line_id": line.id, "quantity": Decimal("1")}],
+            user=self.user, membership=self.membership,
+        )
+        from apps.inventory.models import StockMovement
+        from .services import post_cashbook_for_source
+        movement = StockMovement.objects.get(purchase_order=po)
+        post_cashbook_for_source(
+            tenant_id=self.tenant.id, source_type=FinancePostingSource.PURCHASE_RECEIVE_MOVEMENT,
+            source_id=str(movement.id), kind=FinanceCategoryKind.EXPENSE,
+            amount=Decimal("4"), site=self.site,
+        )
+        with self.assertRaises(ValidationError):
+            record_supplier_payment(
+                po=po, amount=Decimal("4"), method="cash", reference="",
+                idempotency_key="old-po-pay", user=self.user, membership=self.membership,
+            )
+        self.assertEqual(CashbookEntry.objects.count(), 1)
 
     def test_receive_skips_expense_posting_without_unit_cost(self) -> None:
         po = PurchaseOrder.objects.create(
@@ -217,3 +303,68 @@ class PurchaseFinancePostingTests(TestCase):
             membership=self.membership,
         )
         self.assertEqual(CashbookEntry.objects.count(), 0)
+        with self.assertRaises(ValidationError):
+            record_supplier_payment(
+                po=po, amount=Decimal("1"), method="cash", reference="",
+                idempotency_key="no-cost", user=self.user, membership=self.membership,
+            )
+        confirm_missing_unit_cost(
+            po=po, line_id=line.id, unit_cost=Decimal("2.50"),
+            user=self.user, membership=self.membership,
+        )
+        record_supplier_payment(
+            po=po, amount=Decimal("2.50"), method="cash", reference="",
+            idempotency_key="cost-confirmed-pay", user=self.user, membership=self.membership,
+        )
+        with self.assertRaises(ValidationError):
+            confirm_missing_unit_cost(
+                po=po, line_id=line.id, unit_cost=Decimal("3"),
+                user=self.user, membership=self.membership,
+            )
+
+    def test_duplicate_receive_line_does_not_double_count_stock(self) -> None:
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant, supplier=self.supplier, outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT, created_by=self.user,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=self.menu_item,
+            quantity_ordered=Decimal("3"), unit_cost=Decimal("2"),
+        )
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po, lines_payload=[
+                    {"line_id": line.id, "quantity": Decimal("1")},
+                    {"line_id": line.id, "quantity": Decimal("1")},
+                ], user=self.user, membership=self.membership,
+            )
+        line.refresh_from_db()
+        self.assertEqual(line.quantity_received, Decimal("0"))
+        self.assertFalse(po.receipts.exists())
+
+    def test_supplier_payment_api_requires_key_and_returns_same_record_on_retry(self) -> None:
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant, supplier=self.supplier, outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT, created_by=self.user,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=self.menu_item,
+            quantity_ordered=Decimal("2"), unit_cost=Decimal("4"),
+        )
+        receive_purchase_order_goods(
+            po=po, lines_payload=[{"line_id": line.id, "quantity": Decimal("1")}],
+            user=self.user, membership=self.membership,
+        )
+        client = APIClient()
+        self.assertTrue(client.login(username=self.user.email, password="TestPass9!"))
+        url = f"/api/v1/purchasing/purchase-orders/{po.id}/payments/"
+        payload = {"amount": "4.00", "method": "bank", "reference": "REF-1"}
+        scope = {"HTTP_X_TENANT_ID": str(self.tenant.id)}
+        self.assertEqual(client.post(url, payload, format="json", **scope).status_code, 400)
+        headers = {**scope, "HTTP_IDEMPOTENCY_KEY": "po-api-pay-1"}
+        first = client.post(url, payload, format="json", **headers)
+        self.assertEqual(first.status_code, 201, first.content)
+        retry = client.post(url, payload, format="json", **headers)
+        self.assertEqual(retry.status_code, 200, retry.content)
+        self.assertEqual(first.data["id"], retry.data["id"])
+        self.assertEqual(CashbookEntry.objects.count(), 1)

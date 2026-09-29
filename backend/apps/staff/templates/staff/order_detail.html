@@ -8,7 +8,7 @@
     <div class="staff-context-bar__items">
       <span class="staff-context-pill staff-context-pill--primary"><strong>{{ order.bill_reference }}</strong></span>
       <span class="staff-context-pill">{{ order.outlet.name }}</span>
-      <span class="staff-context-pill">{{ order.get_status_display }}{% if order.is_paid %} · Paid{% endif %}</span>
+      <span class="staff-context-pill">{{ order.get_status_display }}{% if order.is_paid %} · Paid{% elif order.status == 'closed' and order.folio_id %} · Charged to folio{% endif %}</span>
       {% if order.table_label %}<span class="staff-context-pill">Tab: {{ order.table_label }}</span>{% endif %}
     </div>
     <div class="staff-context-bar__actions staff-context-bar__actions--pos">
@@ -126,7 +126,7 @@
       {% if can_set_folio and folio_form %}
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Folio</h2>
-          <p class="staff-muted staff-pos-side-hint">Attach this order to a guest folio to post charges when paid.</p>
+          <p class="staff-muted staff-pos-side-hint">Attach the guest folio, then collect payment here or charge the remaining balance to the room.</p>
           {% include "staff/includes/form_errors_block.html" with form=folio_form title="Fix folio assignment" %}
           <form method="post" class="row g-2 align-items-end">
             {% csrf_token %}
@@ -134,6 +134,13 @@
             <div class="col-12 col-md-8">{{ folio_form.folio_id.label_tag }}{{ folio_form.folio_id }}</div>
             <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch w-100">Save</button></div>
           </form>
+          {% if can_charge_to_folio %}
+            <form method="post" class="staff-pos-folio-charge-form mt-3">
+              {% csrf_token %}<input type="hidden" name="action" value="charge_to_folio">
+              <p class="staff-muted mb-2">Charge {{ order.currency }} {{ balance_due }} to {{ order.folio.guest_name }}. POS payments already collected will appear as a folio credit.</p>
+              <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Charge balance to folio</button>
+            </form>
+          {% endif %}
         </div>
       {% endif %}
 

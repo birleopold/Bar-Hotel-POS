@@ -13,10 +13,12 @@ from .serializers import (
     PurchaseOrderCreateSerializer,
     PurchaseOrderSerializer,
     PurchaseOrderStatusUpdateSerializer,
+    ConfirmMissingUnitCostSerializer,
+    RecordSupplierPaymentSerializer,
     ReceivePurchaseOrderSerializer,
     SupplierSerializer,
 )
-from .services import receive_purchase_order_goods
+from .services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment
 
 
 class SupplierViewSet(viewsets.ModelViewSet):
@@ -44,7 +46,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         qs = (
             PurchaseOrder.objects.filter(tenant=self.request.tenant, outlet_id__in=oids)
             .select_related("supplier", "outlet", "created_by")
-            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item")
+            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments")
             .order_by("-created_at")
         )
         supplier = self.request.query_params.get("supplier")
@@ -78,7 +80,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         po = (
             PurchaseOrder.objects.filter(pk=po.pk)
             .select_related("supplier", "outlet", "created_by")
-            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item")
+            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments")
             .first()
         )
         return Response(
@@ -106,7 +108,31 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         po = (
             PurchaseOrder.objects.filter(pk=po.pk)
             .select_related("supplier", "outlet", "created_by")
-            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item")
+            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments")
             .first()
         )
+        return Response(PurchaseOrderSerializer(po, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="payments")
+    def record_payment(self, request, pk=None):
+        po = self.get_object()
+        ser = RecordSupplierPaymentSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        payment, replay = record_supplier_payment(
+            po=po, user=request.user, membership=request.tenant_membership,
+            idempotency_key=request.headers.get("Idempotency-Key", ""),
+            **ser.validated_data,
+        )
+        from .serializers import SupplierPaymentSerializer
+        return Response(SupplierPaymentSerializer(payment).data, status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="confirm-cost")
+    def confirm_cost(self, request, pk=None):
+        po = self.get_object()
+        ser = ConfirmMissingUnitCostSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        confirm_missing_unit_cost(
+            po=po, user=request.user, membership=request.tenant_membership, **ser.validated_data,
+        )
+        po = self.get_queryset().get(pk=po.pk)
         return Response(PurchaseOrderSerializer(po, context={"request": request}).data)

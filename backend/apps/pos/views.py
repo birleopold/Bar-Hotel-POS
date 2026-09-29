@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.api.permissions import CanApproveRefunds, HasTenantContext, NotReadOnlyRole
+from apps.access.outlets import membership_outlet_ids
 from apps.audit.services import log_audit
 from .models import Order, OrderLine, Table
 from .view_helpers import (
@@ -34,6 +35,7 @@ from .serializers import (
 from .services import (
     add_line_to_open_order,
     apply_promotion_to_order,
+    charge_order_to_folio,
     create_order_with_lines,
     default_currency_for_tenant,
     record_order_payment,
@@ -53,7 +55,7 @@ class TableViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Table.objects.none()
-        qs = Table.objects.filter(outlet__site__tenant=self.request.tenant).select_related(
+        qs = Table.objects.filter(outlet_id__in=membership_outlet_ids(self.request.tenant_membership)).select_related(
             "outlet", "outlet__site"
         )
         outlet = self.request.query_params.get("outlet")
@@ -82,7 +84,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             "sort_order", "created_at"
         )
         qs = (
-            Order.objects.filter(tenant=self.request.tenant)
+            Order.objects.filter(tenant=self.request.tenant, outlet_id__in=membership_outlet_ids(self.request.tenant_membership))
             .select_related("outlet", "table")
             .prefetch_related(Prefetch("lines", queryset=line_qs), "payments")
             .order_by("-created_at")
@@ -146,6 +148,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             PaymentSerializer(payment).data,
             status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["post"], url_path="charge-to-folio")
+    def charge_to_folio(self, request, pk=None):
+        order = self.get_object()
+        charge_order_to_folio(order=order, membership=request.tenant_membership, user=request.user)
+        order.refresh_from_db()
+        return Response(OrderReadSerializer(order, context=self.get_serializer_context()).data)
 
     @action(detail=True, methods=["post"], url_path="lines")
     def add_line(self, request, pk=None):

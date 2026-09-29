@@ -19,7 +19,7 @@ Base commit: `2c76808` (`main`). This is a code and local SQLite test audit, not
 
 Regression coverage was added in `apps/finance/tests.py`, `tests/test_folio_settlement.py`, `tests/test_offline_v2.py`, and `tests/test_phase1_isolation_and_idempotency.py`. The local suite passed 242 tests after the code changes, and the additional post-refund line-return guard passed separately. Django system and migration checks passed. Production PostgreSQL and browser checks remain separate release gates.
 
-## Open findings requiring a separately certified change
+## Earlier open findings (tracked through the next implementation)
 
 1. **Historical folios and charge-to-room:** New paid POS sales now have matching folio charge and paid-at-POS credit. Previously posted positive-only POS folio lines remain as recorded. Review and reconcile these against actual guest payments before any historical backfill. A separate charge-to-room flow (unpaid at POS, settled at checkout) still requires a defined accounting and stock-consumption policy.
 2. **Recipe ingredient refunds:** Whole-order restock now follows the original direct-sale movements and deducts prior retail line returns, including on the last split-tender refund. It intentionally does not put consumed recipe ingredients back into stock; whether prepared goods can be recovered needs an explicit operational policy.
@@ -28,3 +28,34 @@ Regression coverage was added in `apps/finance/tests.py`, `tests/test_folio_sett
 5. **PostgreSQL concurrency and UI:** The local SQLite suite does not prove lock behavior under simultaneous checkout, receiving, stock counts, and register close. Browser coverage for mobile POS, KDS, hotel folios, and offline replay remains a separate release gate.
 
 These open items should not be represented as completed features or certified controls.
+
+## Follow-up implementation on current `main`
+
+The follow-up change treats settlement as an explicit action in each workspace. The staff UI and API now both expose supplier payments and charge-to-room, and the new endpoints are included in `docs/openapi.yaml`.
+
+Local verification: Django system and migration checks passed; the full SQLite-backed suite passed **252 tests**. This does not certify production PostgreSQL locking, RLS role behavior, visual layout, or external hardware.
+
+| Area | Implemented behavior | Scope and limits |
+| --- | --- | --- |
+| Purchasing and cashbook | Goods receipt updates stock and a delivery record. A separately recorded supplier payment creates the cashbook expense. Received value, paid amount, and unpaid received value appear on the PO screen. Payment retries compare immutable fields and cannot exceed the value of costed goods received. | Existing receipt expenses remain untouched. POs with legacy receipt postings block new supplier payments until a human reconciles them. Missing unit costs can be confirmed once, with an audit event, before settlement. The app does not model supplier invoices, credit notes, deposits, or currency conversion. |
+| Hotel and POS | Staff can charge an open order's unpaid balance to an open same-site, same-currency folio. Any partial POS tender becomes a folio credit; stock is consumed once, the order closes, and the remaining balance is collected through folio payment. Direct order PATCH closure is rejected. | A charged-to-room order remains `is_paid=False` because POS tender has not paid it; the folio holds the receivable. Historical folios are not rewritten. |
+| Returns | Physical line restock checks recorded `SALE` movements instead of current product settings, and cannot add more than the sale consumed. The retail UI explains that physical return and customer refund are separate actions and shows return history. | Monetary refund and physical return are still separate audited operations; staff must match them. Recipe ingredient `RECIPE` movements are deliberately not reversed. |
+| Tenant scope | Order and table API reads are limited to the membership's outlets. | Production PostgreSQL RLS behavior still needs an integration run. |
+
+### Historical reconciliation (read-only)
+
+Run on the direct VPS with its normal Django environment:
+
+```bash
+cd /path/to/Bar-Hotel-POS/backend
+python manage.py audit_legacy_postings --tenant-id TENANT_UUID
+```
+
+The JSON report lists paid POS orders with positive-only folio lines and legacy purchase receipt movement IDs. Match each item against actual guest and supplier payments before adjusting historical books. The command changes no data.
+
+### Release evidence still required
+
+1. Apply migrations and run the full backend suite against a disposable PostgreSQL database with the same tenant RLS role setup as production. Exercise concurrent checkout, PO receiving, stock counts, supplier payments, and shift close. SQLite cannot certify row locks.
+2. Use a real browser at desktop, tablet, and phone widths for cashier, retail return/refund, room charge, folio settlement, purchasing receipt/payment, KDS, and offline replay. Check keyboard focus, scrolling, and touch targets. Template loading and HTTP tests do not certify visual layout.
+3. Validate receipt printer, scanner, payment provider, and physical devices at their deployment sites. No hardware or external payment certification is implied by the local suite.
+4. Review recipe ingredient recovery and the business policy for linking a return quantity to a specific tender refund. Automating either without that policy could create stock or cash discrepancies.

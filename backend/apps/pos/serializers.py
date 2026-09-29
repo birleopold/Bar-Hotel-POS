@@ -264,6 +264,12 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
         new_status = attrs.get("status", inst.status)
         if new_status not in (OrderStatus.OPEN, OrderStatus.CANCELLED, OrderStatus.CLOSED):
             raise serializers.ValidationError({"status": "Invalid status."})
+        if new_status == OrderStatus.CLOSED:
+            raise serializers.ValidationError({"status": "Close by recording payment or charging the balance to a folio."})
+        if "is_paid" in attrs:
+            raise serializers.ValidationError({"is_paid": "Payment state is set by the settlement workflow."})
+        if new_status == OrderStatus.CANCELLED and inst.payments.exists():
+            raise serializers.ValidationError({"status": "Refund recorded payments before cancelling this order."})
 
         if "discount_amount" in attrs or "folio" in attrs:
             if inst.status != OrderStatus.OPEN or inst.is_paid:
@@ -296,17 +302,6 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                     {"discount_amount": "Cannot change discount after partial payments exist."}
                 )
 
-        if attrs.get("is_paid") is True:
-            from django.db.models import Sum
-
-            paid = (
-                Payment.objects.filter(order_id=inst.id).aggregate(s=Sum("amount"))["s"]
-                or Decimal("0")
-            )
-            if paid < inst.total:
-                raise serializers.ValidationError(
-                    {"is_paid": "Record payments until the balance is zero before marking paid."}
-                )
         return attrs
 
     def update(self, instance: Order, validated_data: dict) -> Order:

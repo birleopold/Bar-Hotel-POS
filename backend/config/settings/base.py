@@ -270,6 +270,8 @@ SPECTACULAR_SETTINGS = {
         "PosOrderStatus": "apps.pos.models.OrderStatus",
         "LodgingFolioStatus": "apps.lodging.models.FolioStatus",
         "PurchaseOrderWorkflowStatus": "apps.purchasing.models.PurchaseOrderStatus",
+        "SupplierPaymentMethod": "apps.purchasing.models.SupplierPaymentMethod",
+        "TenderMethod": "apps.pos.models.PaymentMethod",
     },
 }
 

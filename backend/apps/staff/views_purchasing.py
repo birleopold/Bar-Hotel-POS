@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
@@ -13,10 +13,10 @@ from django.views.generic import DetailView, FormView, ListView, UpdateView
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem
-from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier
-from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer
-from apps.purchasing.services import receive_purchase_order_goods
-from apps.tenants.models import Outlet
+from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
+from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, ConfirmMissingUnitCostSerializer
+from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, received_goods_value, has_legacy_receipt_expenses
+from apps.tenants.models import Outlet, TenantSettings
 
 from .forms import StaffPOHeaderForm, StaffSupplierForm
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
@@ -74,7 +74,7 @@ def _po_base_queryset(request) -> QuerySet:
     return (
         PurchaseOrder.objects.filter(tenant=request.tenant, outlet_id__in=oids)
         .select_related("supplier", "outlet", "created_by")
-        .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item")
+        .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments")
     )
 
 
@@ -323,6 +323,15 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
             PurchaseOrderStatus.SENT,
             PurchaseOrderStatus.PARTIALLY_RECEIVED,
         )
+        ctx["received_value"] = received_goods_value(self.object)
+        ctx["supplier_paid"] = self.object.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        ctx["supplier_due"] = ctx["received_value"] - ctx["supplier_paid"]
+        ctx["legacy_receipt_expenses"] = has_legacy_receipt_expenses(self.object)
+        ctx["uncosted_received"] = self.object.lines.filter(quantity_received__gt=0, unit_cost__isnull=True).exists()
+        ctx["supplier_payment_methods"] = SupplierPaymentMethod.choices
+        settings = TenantSettings.objects.filter(tenant_id=self.object.tenant_id).first()
+        ctx["purchase_currency"] = settings.default_currency if settings else "USD"
+        ctx["supplier_payment_key"] = uuid.uuid4()
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
@@ -334,6 +343,39 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-purchasing-order-detail", po_id=po.id)
 
         action = request.POST.get("action", "").strip()
+
+        if action == "confirm_cost":
+            ser = ConfirmMissingUnitCostSerializer(data=request.POST)
+            if not ser.is_valid():
+                _flash_serializer_errors(request, ser.errors)
+            else:
+                try:
+                    confirm_missing_unit_cost(
+                        po=po, user=request.user, membership=request.tenant_membership,
+                        **ser.validated_data,
+                    )
+                except DRFValidationError as exc:
+                    _flash_drf_validation(request, exc)
+                else:
+                    messages.success(request, "Unit cost confirmed.")
+            return redirect("staff-purchasing-order-detail", po_id=po.id)
+
+        if action == "supplier_payment":
+            ser = RecordSupplierPaymentSerializer(data=request.POST)
+            if not ser.is_valid():
+                _flash_serializer_errors(request, ser.errors)
+            else:
+                try:
+                    _, replay = record_supplier_payment(
+                        po=po, user=request.user, membership=request.tenant_membership,
+                        idempotency_key=request.POST.get("idempotency_key", ""),
+                        **ser.validated_data,
+                    )
+                except DRFValidationError as exc:
+                    _flash_drf_validation(request, exc)
+                else:
+                    messages.success(request, "Supplier payment already recorded." if replay else "Supplier payment recorded.")
+            return redirect("staff-purchasing-order-detail", po_id=po.id)
 
         if action == "send":
             ser = PurchaseOrderStatusUpdateSerializer(

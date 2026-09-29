@@ -5,6 +5,7 @@ from django.db.models import Sum
 from rest_framework.exceptions import ValidationError
 
 from apps.audit.services import log_audit
+from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
 from apps.finance.services import post_pos_payment_income, post_pos_refund_expense
 from apps.inventory.models import StockMovement, StockReason
@@ -21,6 +22,18 @@ def _is_kitchen_section_station(station: str | None) -> bool:
     if token in {"service", "spa", "steam", "sauna", "lodging", "frontdesk", "front_desk"}:
         return False
     return True
+
+
+def _ensure_kitchen_ready(order: Order) -> None:
+    if order.outlet.outlet_type not in {
+        OutletType.RESTAURANT, OutletType.BAR, OutletType.LOUNGE, OutletType.CAFETERIA,
+    }:
+        return
+    pending = order.lines.filter(
+        is_voided=False, kds_status__in=[KdsLineStatus.PENDING, KdsLineStatus.IN_PREP],
+    )
+    if any(_is_kitchen_section_station(line.kds_station) for line in pending):
+        raise ValidationError("Order cannot be closed yet: kitchen food items are still pending/in prep. Mark them ready first.")
 
 
 @transaction.atomic
@@ -84,21 +97,7 @@ def record_order_payment(
     new_paid = (paid_so_far + amount).quantize(Decimal("0.01"))
     if new_paid >= locked.total:
         # Guard close-out until kitchen/food lines have been prepared.
-        if locked.outlet.outlet_type in {
-            OutletType.RESTAURANT,
-            OutletType.BAR,
-            OutletType.LOUNGE,
-            OutletType.CAFETERIA,
-        }:
-            pending_kitchen_exists = locked.lines.filter(
-                is_voided=False,
-                kds_status__in=[KdsLineStatus.PENDING, KdsLineStatus.IN_PREP],
-            )
-            pending_kitchen_exists = any(_is_kitchen_section_station(ln.kds_station) for ln in pending_kitchen_exists)
-            if pending_kitchen_exists:
-                raise ValidationError(
-                    "Order cannot be closed yet: kitchen food items are still pending/in prep. Mark them ready first."
-                )
+        _ensure_kitchen_ready(locked)
         locked.is_paid = True
         locked.status = OrderStatus.CLOSED
         locked.save(update_fields=["is_paid", "status", "updated_at"])
@@ -143,6 +142,44 @@ def record_order_payment(
         },
     )
     return payment, False
+
+
+@transaction.atomic
+def charge_order_to_folio(*, order: Order, membership, user) -> FolioLine:
+    """Close an open POS order and transfer only its unpaid balance to the guest folio."""
+    locked = Order.objects.select_for_update().select_related("outlet__site").get(pk=order.pk)
+    if not outlet_belongs_to_membership(membership, locked.outlet_id):
+        raise ValidationError({"detail": "You cannot charge an order at this outlet."})
+    if locked.status != OrderStatus.OPEN or locked.is_paid or locked.folio_id is None:
+        raise ValidationError({"folio": "Attach an open folio to an open, unpaid order first."})
+    if locked.total <= 0:
+        raise ValidationError({"order": "Add chargeable items before charging a folio."})
+    folio = Folio.objects.select_for_update().get(pk=locked.folio_id)
+    if (folio.tenant_id != locked.tenant_id or folio.site_id != locked.outlet.site_id
+            or folio.status != FolioStatus.OPEN or folio.currency != locked.currency):
+        raise ValidationError({"folio": "Folio must be open, in this branch, and use the order currency."})
+    paid = Payment.objects.filter(order=locked).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    if paid >= locked.total:
+        raise ValidationError({"order": "This order is fully paid at the POS."})
+    _ensure_kitchen_ready(locked)
+    validate_and_consume_stock_for_paid_order(locked, user)
+    charge = FolioLine.objects.create(
+        tenant_id=locked.tenant_id, folio=folio, description=f"POS {locked.bill_reference}",
+        amount=locked.total - locked.tax_total, tax_amount=locked.tax_total, source_order=locked,
+    )
+    if paid > 0:
+        FolioLine.objects.create(
+            tenant_id=locked.tenant_id, folio=folio, description=f"Paid at POS {locked.bill_reference}",
+            amount=-paid, source_order=locked,
+        )
+    locked.status = OrderStatus.CLOSED
+    locked.save(update_fields=["status", "updated_at"])
+    log_audit(
+        tenant_id=locked.tenant_id, user_id=user.id if user else None,
+        action="order.charged_to_folio", entity_type="order", entity_id=str(locked.id),
+        payload={"folio_id": str(folio.id), "total": str(locked.total), "paid_at_pos": str(paid)},
+    )
+    return charge
 
 
 def _restock_paid_order_tracked_lines(*, order: Order, user) -> None:

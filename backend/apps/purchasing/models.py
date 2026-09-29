@@ -160,3 +160,32 @@ class PurchaseReceiptLine(TimeStampedModel):
 
     class Meta:
         ordering = ["receipt", "purchase_order_line__menu_item__name"]
+
+
+class SupplierPaymentMethod(models.TextChoices):
+    CASH = "cash", "Cash"
+    BANK = "bank", "Bank transfer"
+    MOBILE_MONEY = "mobile_money", "Mobile money"
+    CARD = "card", "Card"
+    OTHER = "other", "Other"
+
+
+class SupplierPayment(TimeStampedModel):
+    """Actual settlement of received goods; distinct from physical receipt."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="supplier_payments")
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.PROTECT, related_name="payments")
+    amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    method = models.CharField(max_length=24, choices=SupplierPaymentMethod.choices)
+    reference = models.CharField(max_length=128, blank=True)
+    idempotency_key = models.CharField(max_length=128)
+    recorded_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, related_name="supplier_payments_recorded"
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "idempotency_key"], name="uniq_supplier_payment_key_tenant"),
+        ]

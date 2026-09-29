@@ -16,7 +16,7 @@ from apps.catalog.models import (
     SupermarketSkuProfile,
     WeightedPricingMode,
 )
-from apps.inventory.models import StockReason
+from apps.inventory.models import StockMovement, StockReason
 from apps.inventory.services import apply_manual_stock_change
 from apps.lodging.models import Folio, FolioStatus
 from apps.pos.models import (
@@ -664,6 +664,21 @@ def process_supermarket_line_return(
     remaining = locked_ln.quantity - returned
     if quantity > remaining:
         raise ValidationError({"quantity": f"Cannot exceed remaining returnable quantity {remaining}."})
+    if restock:
+        if not locked_ln.menu_item_id:
+            raise ValidationError({"restock": "This line has no direct-sale stock to return."})
+        sold = -(
+            StockMovement.objects.filter(
+                order=locked_o, menu_item_id=locked_ln.menu_item_id, reason=StockReason.SALE
+            ).aggregate(s=Sum("quantity_change"))["s"] or Decimal("0")
+        )
+        restored = (
+            SupermarketLineReturn.objects.filter(
+                order=locked_o, order_line__menu_item_id=locked_ln.menu_item_id, restocked=True
+            ).aggregate(s=Sum("quantity"))["s"] or Decimal("0")
+        )
+        if sold <= 0 or quantity > sold - restored:
+            raise ValidationError({"restock": "Only stock consumed by this sale can be put back on hand."})
     ret = SupermarketLineReturn.objects.create(
         tenant_id=locked_o.tenant_id,
         order=locked_o,
@@ -673,7 +688,7 @@ def process_supermarket_line_return(
         restocked=restock,
         created_by=user,
     )
-    if restock and locked_ln.menu_item and locked_ln.menu_item.track_inventory:
+    if restock:
         apply_manual_stock_change(
             tenant_id=locked_o.tenant_id,
             outlet=locked_o.outlet,

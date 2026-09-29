@@ -78,6 +78,10 @@ def test_site_restricted_membership_cannot_read_other_site_stock_or_sales(api_cl
     balances = api_client.get("/api/v1/stock/balances/", **headers)
     assert balances.status_code == 200
     assert {row["outlet"] for row in balances.json()} == {str(a["outlet"].id)}
+    orders = api_client.get("/api/v1/orders/", **headers)
+    assert orders.status_code == 200
+    assert str(order.id) not in str(orders.json())
+    assert api_client.get(f"/api/v1/orders/{order.id}/", **headers).status_code == 404
     for path in ("sales-summary", "operations-rollup"):
         response = api_client.get(f"/api/v1/reports/{path}/", {"date_from": "2020-01-01", "date_to": "2030-01-01"}, **headers)
         assert response.status_code == 200

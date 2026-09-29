@@ -1006,6 +1006,25 @@ class StaffPurchasingReceiveGuardTests(TestCase):
         self.assertEqual(receipt.lines.get().quantity_received, Decimal("4"))
         self.assertContains(r, "DN-1042")
 
+    def test_supplier_payment_is_separate_from_receipt_and_visible_on_detail(self) -> None:
+        self.po.status = PurchaseOrderStatus.SENT
+        self.po.save(update_fields=["status", "updated_at"])
+        self.line.unit_cost = Decimal("2.50")
+        self.line.save(update_fields=["unit_cost", "updated_at"])
+        url = reverse("staff-purchasing-order-detail", kwargs={"po_id": self.po.id})
+        self.client.post(url, {"action": "receive", f"recv_{self.line.id}": "2"})
+        self.assertEqual(CashbookEntry.objects.count(), 0)
+        page = self.client.get(url)
+        self.assertContains(page, "Supplier settlement")
+        self.assertContains(page, "USD 5.00")
+        response = self.client.post(url, {
+            "action": "supplier_payment", "amount": "3.00", "method": "bank",
+            "reference": "BANK-44", "idempotency_key": "staff-supplier-payment",
+        }, follow=True)
+        self.assertContains(response, "Supplier payment recorded.")
+        self.assertContains(response, "BANK-44")
+        self.assertEqual(CashbookEntry.objects.get().amount, Decimal("3.00"))
+
 
 class StaffOrderPaymentTests(TestCase):
     @classmethod
@@ -1762,13 +1781,12 @@ class StaffOrdersLaneTests(TestCase):
         self.assertContains(r, "HOLD A1")
         self.assertNotContains(r, self.open_order.bill_reference)
 
-    def test_orders_page_contains_polling_degraded_state_logic(self) -> None:
+    def test_orders_page_labels_manual_refresh_honestly(self) -> None:
         r = self.client.get(reverse("staff-orders"))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "orders-live-pill--error")
-        self.assertContains(r, "Degraded (retrying)")
-        self.assertContains(r, "nextDelayMs")
-        self.assertContains(r, "scheduleNext")
+        self.assertContains(r, "Current view")
+        self.assertContains(r, "Refresh")
+        self.assertNotContains(r, "Degraded (retrying)")
 
     def test_quick_create_get_walkin_order_redirects_to_detail(self) -> None:
         before = Order.objects.filter(tenant=self.tenant).count()
