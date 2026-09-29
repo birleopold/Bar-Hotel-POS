@@ -1,27 +1,17 @@
 {% extends "staff/base.html" %}
-{% block title %}Home{% endblock %}
+{% block title %}Operations overview{% endblock %}
 {% block main_class %}staff-main--wide staff-main--dashboard{% endblock %}
 {% block content %}
   <header class="staff-dash-hero">
     <div class="staff-dash-hero__panel">
       <p class="staff-dash-hero__eyebrow">Today</p>
-      <h1 class="staff-dash-hero__title">Home</h1>
+      <h1 class="staff-dash-hero__title">Operations overview</h1>
       {% if active_membership %}
         <p class="staff-dash-hero__meta">{{ active_membership.tenant.name }}</p>
       {% endif %}
-      <p class="staff-dash-hero__tagline">Sales, prep, stock, and guest folios in one workspace.</p>
+      <p class="staff-dash-hero__tagline">Your service, stock, and guest activity at a glance.</p>
     </div>
   </header>
-
-  <ul class="staff-intent-strip" aria-label="Typical day flow">
-    <li><span class="staff-intent-pill">Sell</span></li>
-    <li class="staff-intent-strip__sep" aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
-    <li><span class="staff-intent-pill">Prep</span></li>
-    <li class="staff-intent-strip__sep" aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
-    <li><span class="staff-intent-pill">Stock</span></li>
-    <li class="staff-intent-strip__sep" aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
-    <li><span class="staff-intent-pill">Folio</span></li>
-  </ul>
 
   {% if not active_membership %}
     <div class="staff-card staff-card--soft staff-empty-split">

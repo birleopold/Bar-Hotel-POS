@@ -4027,3 +4027,67 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
     scroll-behavior: auto;
   }
 }
+
+/* Shared keyboard affordances and a calmer transaction workspace. */
+.staff-skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 2000;
+  transform: translateY(-200%);
+  padding: 0.65rem 1rem;
+  border-radius: 0.6rem;
+  background: #142033;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+}
+.staff-skip-link:focus { transform: translateY(0); color: #fff; }
+:where(.staff-sidebar a, .staff-sidebar button, .staff-sidebar select, .staff-main a, .staff-main button, .staff-main input, .staff-main select, .staff-main textarea):focus-visible {
+  outline: 3px solid #0e7490;
+  outline-offset: 2px;
+}
+.staff-sidebar .wb-nav-link--active { background: rgba(255, 255, 255, 0.1); }
+.staff-dash-hero { animation: none; }
+.staff-dash-hero__panel {
+  background: var(--bg-elevated);
+  box-shadow: 0 5px 22px rgba(15, 23, 42, 0.045);
+}
+.staff-dash-hero__panel::before { width: 3px; background: var(--tenant-primary); }
+.staff-action-card--primary { background: var(--bg-elevated); }
+.staff-pos-orders-hero {
+  background: var(--bg-elevated);
+  border-left-width: 3px;
+  box-shadow: 0 5px 22px rgba(15, 23, 42, 0.045);
+}
+.staff-pos-orders-summary__item {
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.1);
+  border-radius: 0.8rem;
+  backdrop-filter: none;
+}
+.staff-pos-orders-history {
+  border-radius: 0.9rem;
+  box-shadow: 0 5px 22px rgba(15, 23, 42, 0.045);
+}
+.staff-pos-orders-history__controls { background: var(--bg-elevated); }
+.staff-pos-orders-seg { min-height: 2.75rem; }
+.staff-pos-order-card {
+  box-shadow: none;
+  border-color: rgba(15, 23, 42, 0.1);
+}
+.staff-pos-order-card:hover, .staff-pos-order-card:focus-visible {
+  border-color: #0e7490;
+  box-shadow: 0 5px 18px rgba(15, 23, 42, 0.08);
+  transform: none;
+}
+.staff-pos-order-card__total { font-variant-numeric: tabular-nums; font-size: 1.02rem; }
+.staff-pos-order-card__due { white-space: nowrap; }
+@media (max-width: 600px) {
+  .staff-pos-orders-segments { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 0.25rem; }
+  .staff-pos-orders-seg { flex: 0 0 auto; }
+  .staff-pos-orders-hero__actions > form { display: block !important; }
+  .staff-pos-orders-hero__actions > form .btn { width: 100%; min-height: 2.75rem; }
+  .staff-pos-order-card__meta { flex-wrap: wrap; gap: 0.15rem 0.5rem; }
+  .staff-pos-order-card__due { white-space: normal; }
+}
