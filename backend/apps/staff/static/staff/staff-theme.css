@@ -2886,57 +2886,6 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
   overflow: hidden;
 }
 
-/* Orders list: document scroll (entire page scrolls like a normal workbench view) */
-.staff-body.staff-body--pos.staff-body--pos-page-scroll {
-  height: auto;
-  min-height: 100dvh;
-  max-height: none;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  display: block;
-}
-
-.staff-body--pos-page-scroll main.staff-main.staff-main--pos {
-  flex: none;
-  min-height: auto;
-  overflow: visible;
-}
-
-.staff-body--pos-page-scroll.staff-body--pos .staff-main--pos > .staff-pos-orders-shell {
-  flex: none;
-  min-height: auto;
-  overflow: visible;
-}
-
-.staff-body--pos-page-scroll .staff-pos-orders-shell {
-  flex: none;
-  min-height: auto;
-}
-
-.staff-body--pos-page-scroll .staff-pos-orders-history {
-  flex: none;
-  min-height: auto;
-  overflow: visible;
-}
-
-.staff-body--pos-page-scroll .staff-pos-orders-ledger {
-  flex: none;
-  min-height: auto;
-  overflow: visible;
-  max-height: none;
-  padding-bottom: 1rem;
-}
-
-.staff-body--pos-page-scroll .staff-pos-orders-lanes-scroll {
-  max-height: none;
-  overflow: visible;
-}
-
-.staff-body--pos-page-scroll .staff-pos-orders-lanes-scroll:focus-visible {
-  outline: none;
-}
-
 .staff-pos-orders-shell {
   flex: 1 1 auto;
   display: flex;
@@ -3813,8 +3762,23 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
     min-height: auto;
   }
 
+  .staff-body--pos .staff-main--pos > .staff-pos-orders-shell,
+  .staff-body--pos .staff-pos-orders-shell,
+  .staff-body--pos .staff-pos-orders-top,
+  .staff-body--pos .staff-pos-orders-history {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .staff-body--pos .staff-pos-orders-lanes-shell {
+    min-height: auto;
+  }
+
   .staff-body--pos .staff-pos-kds-scroll,
-  .staff-body--pos .staff-pos-panel-scroll {
+  .staff-body--pos .staff-pos-panel-scroll,
+  .staff-body--pos .staff-pos-orders-lanes-scroll,
+  .staff-body--pos .staff-pos-orders-ledger {
     max-height: none;
     overflow: visible;
   }

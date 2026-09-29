@@ -1749,6 +1749,13 @@ class StaffOrdersLaneTests(TestCase):
         self.assertContains(r, ">Recent</h3>")
         self.assertContains(r, "HOLD A1")
 
+    def test_orders_page_keeps_active_and_history_scroll_regions(self) -> None:
+        r = self.client.get(reverse("staff-orders"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'class="staff-pos-orders-lanes-scroll"')
+        self.assertContains(r, 'class="staff-pos-orders-ledger"')
+        self.assertNotContains(r, "staff-body--pos-page-scroll")
+
     def test_orders_search_filters_by_hold_label(self) -> None:
         r = self.client.get(reverse("staff-orders"), {"q": "HOLD A1"})
         self.assertEqual(r.status_code, 200)
