@@ -302,7 +302,7 @@ The platform should be positioned as:
 
 ## Near-term implementation sequence (before integrated payments)
 
-**Decision:** Build out **operational depth and platform reliability first**; tackle **unified payments** (card rails, mobile money orchestration, fiscal compliance) **only after** the themes below are in strong shape. Recorded tenders (cash/card/other as methods) remain the working model until then.
+**Decision:** Build out **operational depth and platform reliability first**; tackle **unified payments** (card rails, mobile money orchestration, fiscal compliance) **only after** the themes below are in strong shape. Recorded tenders (cash, card, mobile money, bank transfer, and other) remain the working model until then.
 
 Aligned with the technical roadmap in [HOSPITALITY_SAAS_PRODUCT_PLAN.md](./HOSPITALITY_SAAS_PRODUCT_PLAN.md) and [AUDIT_RECOMMENDATIONS.md](./AUDIT_RECOMMENDATIONS.md).
 

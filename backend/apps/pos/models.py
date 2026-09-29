@@ -221,6 +221,8 @@ class OrderLine(TimeStampedModel):
 class PaymentMethod(models.TextChoices):
     CASH = "cash", "Cash"
     CARD = "card", "Card"
+    MOBILE_MONEY = "mobile_money", "Mobile money"
+    BANK = "bank", "Bank transfer"
     OTHER = "other", "Other"
 
 

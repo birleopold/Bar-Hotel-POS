@@ -76,6 +76,8 @@ html {
 body.staff-body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
   touch-action: manipulation;
   background:
     radial-gradient(120% 80% at 10% -10%, rgba(255, 237, 213, 0.65) 0%, transparent 55%),
@@ -312,7 +314,7 @@ body.staff-body {
 
 /* ——— Application shell: desktop sidebar + compact mobile header ——— */
 .staff-app-shell { min-height: 100vh; }
-.staff-app-shell__body { min-width: 0; }
+.staff-app-shell__body { min-width: 0; overflow: visible; }
 .staff-sidebar { display: none; }
 
 @media (min-width: 1024px) {
@@ -2742,9 +2744,12 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
 }
 
 .staff-pos-panel-scroll {
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
 }
 
 .staff-pos-grow {
@@ -3769,7 +3774,50 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
   padding-right: 0.15rem;
+}
+
+/* Small screens need document scrolling: viewport-locked POS panels can otherwise
+   trap content below the fold when browser chrome or the mobile header changes height. */
+@media (max-width: 1023px) {
+  body.staff-body.staff-body--pos {
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .staff-body--pos .staff-app-shell,
+  .staff-body--pos .staff-app-shell__body {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .staff-body--pos main.staff-main.staff-main--pos {
+    display: block;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .staff-body--pos .staff-pos-kds-page,
+  .staff-body--pos .staff-kds-queue-region,
+  .staff-body--pos .staff-pos-tables-shell {
+    min-height: auto;
+  }
+
+  .staff-body--pos .staff-pos-kds-scroll,
+  .staff-body--pos .staff-pos-panel-scroll {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 .staff-pos-kds-grid {

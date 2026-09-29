@@ -1054,6 +1054,26 @@ class StaffOrderPaymentTests(TestCase):
         self.assertTrue(self.order.is_paid)
         self.assertEqual(self.order.status, OrderStatus.CLOSED)
 
+    def test_mobile_money_is_available_as_a_pos_tender(self) -> None:
+        response = self.client.get(
+            reverse("staff-order-detail", kwargs={"order_id": self.order.id})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="mobile_money"')
+        self.assertContains(response, "Mobile money")
+
+        response = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": self.order.id}),
+            {
+                "action": "record_payment",
+                "amount": "25.00",
+                "method": PaymentMethod.MOBILE_MONEY,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        payment = Payment.objects.get(order=self.order)
+        self.assertEqual(payment.method, PaymentMethod.MOBILE_MONEY)
+
     def test_cannot_close_order_when_kitchen_line_not_ready(self) -> None:
         OrderLine.objects.create(
             order=self.order,

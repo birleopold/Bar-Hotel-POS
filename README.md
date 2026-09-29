@@ -68,7 +68,7 @@ python manage.py makemigrations --check --dry-run
 python -m pytest -q -p no:cacheprovider --basetemp=.pytest-tmp
 ```
 
-The latest local verification completed with **229 passing tests** before the final documentation update. Console-specific validation subsequently completed with **32 passing tests**. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
+The latest local verification completed with **230 passing tests**. Console-specific validation previously completed with **32 passing tests**. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
 
 ## Documentation
 
@@ -85,6 +85,7 @@ The latest local verification completed with **229 passing tests** before the fi
 - [Architecture and API outline](docs/ARCHITECTURE.md)
 - [Uganda platform overview](docs/PLATFORM_OVERVIEW_UGANDA.md)
 - [Multi-vertical operations reference](docs/MULTI_VERTICAL_OPERATIONS_REFERENCE.md)
+- [Supermarket POS capability and gap analysis](docs/SUPERMARKET_POS_GAP_ANALYSIS.md)
 - [Product requirements](docs/PRODUCT_REQUIREMENTS_UGANDA.md)
 - [Hospitality SaaS product plan](docs/HOSPITALITY_SAAS_PRODUCT_PLAN.md)
 - [Staff and API parity](docs/STAFF_API_PARITY.md)
