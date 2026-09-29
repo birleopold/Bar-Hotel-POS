@@ -5,11 +5,12 @@ from django.db.models import Sum
 from rest_framework.exceptions import ValidationError
 
 from apps.audit.services import log_audit
+from apps.catalog.models import MenuItem
 from apps.finance.services import post_pos_payment_income, post_pos_refund_expense
-from apps.inventory.models import StockReason
+from apps.inventory.models import StockMovement, StockReason
 from apps.inventory.services import apply_manual_stock_change, validate_and_consume_stock_for_paid_order
 from apps.lodging.models import Folio, FolioLine, FolioStatus
-from apps.pos.models import KdsLineStatus, Order, OrderStatus, Payment, Refund
+from apps.pos.models import KdsLineStatus, Order, OrderStatus, Payment, Refund, SupermarketLineReturn
 from apps.tenants.models import OutletType
 
 
@@ -145,18 +146,27 @@ def record_order_payment(
 
 
 def _restock_paid_order_tracked_lines(*, order: Order, user) -> None:
-    tenant_id = order.tenant_id
-    outlet = order.outlet
-    for line in order.lines.filter(is_voided=False, menu_item__isnull=False).select_related(
-        "menu_item"
-    ):
-        if not line.menu_item.track_inventory:
+    # Return only stock that this order actually consumed, regardless of current
+    # catalog settings. Account for items already restocked via line returns.
+    sold = StockMovement.objects.filter(order=order, reason=StockReason.SALE).values(
+        "menu_item_id"
+    ).annotate(quantity=Sum("quantity_change"))
+    already_returned = dict(
+        SupermarketLineReturn.objects.filter(order=order, restocked=True)
+        .values("order_line__menu_item_id")
+        .annotate(quantity=Sum("quantity"))
+        .values_list("order_line__menu_item_id", "quantity")
+    )
+    for row in sold:
+        item_id = row["menu_item_id"]
+        quantity = -row["quantity"] - already_returned.get(item_id, Decimal("0"))
+        if quantity <= 0:
             continue
         apply_manual_stock_change(
-            tenant_id=tenant_id,
-            outlet=outlet,
-            menu_item=line.menu_item,
-            quantity_change=line.quantity,
+            tenant_id=order.tenant_id,
+            outlet=order.outlet,
+            menu_item=MenuItem.objects.get(pk=item_id),
+            quantity_change=quantity,
             reason=StockReason.ADJUST_IN,
             user=user,
             note=f"Refund restock {order.bill_reference}"[:512],
@@ -264,11 +274,11 @@ def record_order_refund(
     )
 
     if restock:
-        if prior_refunds_order > 0:
-            raise ValidationError({"restock": "Restock is only allowed when there are no prior refunds."})
-        if amount != paid_total:
+        if Refund.objects.filter(order=locked, restocked=True).exists():
+            raise ValidationError({"restock": "This order's stock has already been restocked."})
+        if amount + prior_refunds_order != paid_total:
             raise ValidationError(
-                {"restock": "Restock requires refunding the full amount paid on the order in one step."}
+                {"restock": "Restock is allowed on the final refund when all payments have been refunded."}
             )
 
     refund = Refund.objects.create(

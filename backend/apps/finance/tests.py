@@ -8,8 +8,9 @@ from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem
-from apps.pos.models import Order
-from apps.pos.services import close_pos_shift, open_pos_shift, record_order_payment, record_order_refund
+from apps.inventory.models import StockBalance
+from apps.pos.models import Order, OrderLine
+from apps.pos.services import close_pos_shift, open_pos_shift, process_supermarket_line_return, record_order_payment, record_order_refund
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, Supplier
 from apps.purchasing.services import receive_purchase_order_goods
 from apps.tenants.models import Outlet, OutletType, Site, Tenant
@@ -96,6 +97,39 @@ class PosFinancePostingTests(TestCase):
         with self.assertRaises(ValidationError):
             record_order_refund(order=self.order, user=self.user, amount=Decimal("4"), reason="Return", idempotency_key="refund-key", restock=True)
         self.assertEqual(self.order.refunds.count(), 1)
+
+    def _add_tracked_sale(self):
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Goods")
+        item = MenuItem.objects.create(tenant=self.tenant, category=category, name="Bottle", unit_price=Decimal("10"), track_inventory=True)
+        line = OrderLine.objects.create(order=self.order, menu_item=item, label=item.name, quantity=Decimal("1"), unit_price=Decimal("10"), line_total=Decimal("10"), kds_status="ready")
+        balance = StockBalance.objects.create(tenant=self.tenant, outlet=self.outlet, menu_item=item, quantity=Decimal("1"))
+        return line, balance
+
+    def test_final_split_tender_refund_restocks_actual_sale_once(self) -> None:
+        _line, balance = self._add_tracked_sale()
+        cash, _ = record_order_payment(order=self.order, user=self.user, amount=Decimal("4"), method="cash", idempotency_key="split-cash")
+        card, _ = record_order_payment(order=self.order, user=self.user, amount=Decimal("6"), method="card", idempotency_key="split-card")
+        record_order_refund(order=self.order, user=self.user, amount=Decimal("4"), reason="Return", idempotency_key="split-refund-cash", restock=False, payment_id=cash.id)
+        record_order_refund(order=self.order, user=self.user, amount=Decimal("6"), reason="Return", idempotency_key="split-refund-card", restock=True, payment_id=card.id)
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("1"))
+
+    def test_refund_does_not_restock_items_already_returned(self) -> None:
+        line, balance = self._add_tracked_sale()
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("10"), method="cash", idempotency_key="returned-payment")
+        process_supermarket_line_return(order=self.order, line=line, quantity=Decimal("0.5"), reason="Return", restock=True, user=self.user)
+        record_order_refund(order=self.order, user=self.user, amount=Decimal("10"), reason="Return", idempotency_key="returned-refund", restock=True)
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("1"))
+
+    def test_line_return_cannot_restock_after_order_refund_restock(self) -> None:
+        line, balance = self._add_tracked_sale()
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("10"), method="cash", idempotency_key="fully-refunded-payment")
+        record_order_refund(order=self.order, user=self.user, amount=Decimal("10"), reason="Return", idempotency_key="fully-refunded-refund", restock=True)
+        with self.assertRaises(ValidationError):
+            process_supermarket_line_return(order=self.order, line=line, quantity=Decimal("1"), reason="Return", restock=True, user=self.user)
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("1"))
 
 
 class PurchaseFinancePostingTests(TestCase):

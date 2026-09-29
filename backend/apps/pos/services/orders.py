@@ -27,6 +27,7 @@ from apps.pos.models import (
     PaymentMethod,
     PosShift,
     PosShiftStatus,
+    Refund,
     SupermarketLineReturn,
     Table,
 )
@@ -652,6 +653,8 @@ def process_supermarket_line_return(
     )
     if locked_ln.is_voided:
         raise ValidationError("Cannot return a voided line.")
+    if restock and Refund.objects.filter(order=locked_o, restocked=True).exists():
+        raise ValidationError({"restock": "This order was already restocked by its final refund."})
     if quantity <= Decimal("0"):
         raise ValidationError({"quantity": "Quantity must be greater than zero."})
     returned = (
@@ -743,8 +746,6 @@ def close_pos_shift(*, shift: PosShift, user, counted_cash: Decimal, note: str =
         ).aggregate(s=Sum("amount"))["s"]
         or Decimal("0")
     )
-    from apps.pos.models import Refund
-
     cash_refunds = (
         Refund.objects.filter(
             tenant_id=locked.tenant_id,
