@@ -1074,6 +1074,21 @@ class StaffOrderPaymentTests(TestCase):
         payment = Payment.objects.get(order=self.order)
         self.assertEqual(payment.method, PaymentMethod.MOBILE_MONEY)
 
+    def test_order_detail_keeps_independent_panel_scrolling(self) -> None:
+        response = self.client.get(
+            reverse("staff-order-detail", kwargs={"order_id": self.order.id})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="staff-pos-order-main staff-pos-panel-scroll"',
+        )
+        self.assertContains(
+            response,
+            'class="staff-pos-order-side staff-pos-panel-scroll"',
+        )
+        self.assertNotContains(response, "staff-body--pos-page-scroll")
+
     def test_cannot_close_order_when_kitchen_line_not_ready(self) -> None:
         OrderLine.objects.create(
             order=self.order,
