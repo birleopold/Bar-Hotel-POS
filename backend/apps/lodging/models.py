@@ -59,7 +59,7 @@ class RoomRateWindow(TimeStampedModel):
         ordering = ["room_type", "valid_from"]
         constraints = [
             models.CheckConstraint(
-                check=Q(valid_to__isnull=True) | Q(valid_to__gte=F("valid_from")),
+                condition=Q(valid_to__isnull=True) | Q(valid_to__gte=F("valid_from")),
                 name="lodging_roomratewindow_valid_range",
             ),
         ]
@@ -96,6 +96,53 @@ class Room(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.room_type}:{self.name}"
+
+
+class MaintenanceStatus(models.TextChoices):
+    OPEN = "open", "Open"
+    IN_PROGRESS = "in_progress", "In progress"
+    RESOLVED = "resolved", "Resolved"
+
+
+class MaintenancePriority(models.TextChoices):
+    LOW = "low", "Low"
+    NORMAL = "normal", "Normal"
+    HIGH = "high", "High"
+    URGENT = "urgent", "Urgent"
+
+
+class RoomMaintenanceRequest(TimeStampedModel):
+    """Accountable repair work for a room, separate from its availability status."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="room_maintenance_requests")
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="maintenance_requests")
+    title = models.CharField(max_length=160)
+    description = models.TextField(blank=True)
+    priority = models.CharField(max_length=12, choices=MaintenancePriority.choices, default=MaintenancePriority.NORMAL)
+    status = models.CharField(max_length=16, choices=MaintenanceStatus.choices, default=MaintenanceStatus.OPEN)
+    assigned_to = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="room_maintenance_assignments",
+    )
+    expected_by = models.DateField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="room_maintenance_requests_created",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["status", "-priority", "expected_by", "-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.room.name}: {self.title}"
 
 
 class ReservationStatus(models.TextChoices):
@@ -141,7 +188,7 @@ class Reservation(TimeStampedModel):
         ordering = ["-check_in", "guest_name"]
         constraints = [
             models.CheckConstraint(
-                check=Q(check_out__gt=F("check_in")),
+                condition=Q(check_out__gt=F("check_in")),
                 name="lodging_reservation_check_out_after_check_in",
             ),
         ]
@@ -224,3 +271,50 @@ class FolioLine(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.description} {self.amount}"
+
+
+class FolioPaymentMethod(models.TextChoices):
+    CASH = "cash", "Cash"
+    CARD = "card", "Card"
+    MOBILE_MONEY = "mobile_money", "Mobile money"
+    BANK = "bank", "Bank transfer"
+    OTHER = "other", "Other"
+
+
+class FolioPayment(TimeStampedModel):
+    """An immutable settlement received against a guest folio."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="folio_payments",
+    )
+    folio = models.ForeignKey(Folio, on_delete=models.PROTECT, related_name="payments")
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    method = models.CharField(max_length=20, choices=FolioPaymentMethod.choices)
+    reference = models.CharField(max_length=128, blank=True)
+    idempotency_key = models.CharField(max_length=128)
+    recorded_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="folio_payments_recorded",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "idempotency_key"],
+                name="uniq_folio_payment_idempotency_per_tenant",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.amount} {self.method} ({self.folio.guest_name})"

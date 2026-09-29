@@ -70,6 +70,11 @@
     <h2 class="staff-section-head">Open folio</h2>
     <div class="staff-card mb-3">
       <p class="staff-muted">{{ open_folio.guest_name }} · {{ open_folio.get_status_display }}</p>
+      <div class="staff-metric-row mb-3" aria-label="Folio totals">
+        <span><strong>{{ open_folio.currency }} {{ folio_charges }}</strong><small>Charges</small></span>
+        <span><strong>{{ open_folio.currency }} {{ folio_paid }}</strong><small>Paid</small></span>
+        <span><strong>{{ open_folio.currency }} {{ folio_balance }}</strong><small>Balance due</small></span>
+      </div>
       <ul class="mb-3">
         {% for line in open_folio.lines.all %}
           <li>{{ line.description }} — {{ line.amount }} + tax {{ line.tax_amount }}</li>

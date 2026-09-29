@@ -7,6 +7,7 @@
   <a class="staff-btn {% if n == 'staff-lodging-folios' or n == 'staff-lodging-folio-detail' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-folios' %}">Folios</a>
   <a class="staff-btn {% if n == 'staff-lodging-rooms' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-rooms' %}">Rooms</a>
   <a class="staff-btn {% if n == 'staff-lodging-housekeeping' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a>
+  <a class="staff-btn {% if n == 'staff-lodging-maintenance' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-maintenance' %}">Maintenance</a>
   <a class="staff-btn {% if n == 'staff-lodging-room-types' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-room-types' %}">Types &amp; rates</a>
 </div>
 {% endwith %}

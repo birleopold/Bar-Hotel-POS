@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import uuid
 from decimal import Decimal
 
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncDate
-from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
@@ -13,10 +11,10 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.datetime_bounds import utc_day_range_inclusive
 from apps.pos.models import Payment, Refund
 
 from .permissions import HasTenantContext
+from .report_queries import parse_outlet_uuid_param, parse_report_dates_from_query
 
 
 class SalesSummaryView(APIView):
@@ -35,59 +33,25 @@ class SalesSummaryView(APIView):
         responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request: Request) -> Response:
-        df_raw = request.query_params.get("date_from")
-        dt_raw = request.query_params.get("date_to")
-        if not df_raw or not dt_raw:
-            return Response(
-                {
-                    "error": {
-                        "code": "dates_required",
-                        "message": "Query parameters date_from and date_to are required (YYYY-MM-DD).",
-                    }
-                },
-                status=400,
-            )
-        d0 = parse_date(str(df_raw))
-        d1 = parse_date(str(dt_raw))
-        if d0 is None or d1 is None:
-            return Response(
-                {
-                    "error": {
-                        "code": "invalid_date",
-                        "message": "date_from and date_to must be valid dates.",
-                    }
-                },
-                status=400,
-            )
-        if d0 > d1:
-            return Response(
-                {
-                    "error": {
-                        "code": "invalid_range",
-                        "message": "date_from must be on or before date_to.",
-                    }
-                },
-                status=400,
-            )
+        rng = parse_report_dates_from_query(
+            request.query_params.get("date_from"),
+            request.query_params.get("date_to"),
+        )
+        if isinstance(rng, Response):
+            return rng
 
-        start, end = utc_day_range_inclusive(d0, d1)
+        outlet_res = parse_outlet_uuid_param(request.query_params.get("outlet"))
+        if isinstance(outlet_res, Response):
+            return outlet_res
+        oid = outlet_res
 
         tenant_id = request.tenant.id
         payments_qs = Payment.objects.filter(
             tenant_id=tenant_id,
-            created_at__gte=start,
-            created_at__lte=end,
+            created_at__gte=rng.start,
+            created_at__lte=rng.end,
         ).select_related("order", "order__outlet")
-
-        outlet_param = request.query_params.get("outlet")
-        if outlet_param:
-            try:
-                oid = uuid.UUID(str(outlet_param))
-            except ValueError:
-                return Response(
-                    {"error": {"code": "invalid_outlet", "message": "outlet must be a UUID."}},
-                    status=400,
-                )
+        if oid is not None:
             payments_qs = payments_qs.filter(order__outlet_id=oid)
 
         pay_agg = payments_qs.aggregate(
@@ -99,10 +63,10 @@ class SalesSummaryView(APIView):
 
         refunds_qs = Refund.objects.filter(
             tenant_id=tenant_id,
-            created_at__gte=start,
-            created_at__lte=end,
+            created_at__gte=rng.start,
+            created_at__lte=rng.end,
         ).select_related("order")
-        if outlet_param:
+        if oid is not None:
             refunds_qs = refunds_qs.filter(order__outlet_id=oid)
 
         ref_agg = refunds_qs.aggregate(
@@ -143,8 +107,8 @@ class SalesSummaryView(APIView):
 
         return Response(
             {
-                "date_from": str(d0),
-                "date_to": str(d1),
+                "date_from": str(rng.d0),
+                "date_to": str(rng.d1),
                 "payments": {
                     "count": pay_count,
                     "gross_sales": str(gross),
@@ -177,66 +141,34 @@ class OperationsRollupView(APIView):
         responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request: Request) -> Response:
-        df_raw = request.query_params.get("date_from")
-        dt_raw = request.query_params.get("date_to")
-        if not df_raw or not dt_raw:
-            return Response(
-                {
-                    "error": {
-                        "code": "dates_required",
-                        "message": "Query parameters date_from and date_to are required (YYYY-MM-DD).",
-                    }
-                },
-                status=400,
-            )
-        d0 = parse_date(str(df_raw))
-        d1 = parse_date(str(dt_raw))
-        if d0 is None or d1 is None:
-            return Response(
-                {
-                    "error": {
-                        "code": "invalid_date",
-                        "message": "date_from and date_to must be valid dates.",
-                    }
-                },
-                status=400,
-            )
-        if d0 > d1:
-            return Response(
-                {
-                    "error": {
-                        "code": "invalid_range",
-                        "message": "date_from must be on or before date_to.",
-                    }
-                },
-                status=400,
-            )
-        start, end = utc_day_range_inclusive(d0, d1)
+        rng = parse_report_dates_from_query(
+            request.query_params.get("date_from"),
+            request.query_params.get("date_to"),
+        )
+        if isinstance(rng, Response):
+            return rng
+
+        outlet_res = parse_outlet_uuid_param(request.query_params.get("outlet"))
+        if isinstance(outlet_res, Response):
+            return outlet_res
+        oid = outlet_res
+
         tenant_id = request.tenant.id
 
         payments_qs = Payment.objects.filter(
             tenant_id=tenant_id,
-            created_at__gte=start,
-            created_at__lte=end,
+            created_at__gte=rng.start,
+            created_at__lte=rng.end,
         ).select_related("order", "order__outlet")
-
-        outlet_param = request.query_params.get("outlet")
-        if outlet_param:
-            try:
-                oid = uuid.UUID(str(outlet_param))
-            except ValueError:
-                return Response(
-                    {"error": {"code": "invalid_outlet", "message": "outlet must be a UUID."}},
-                    status=400,
-                )
+        if oid is not None:
             payments_qs = payments_qs.filter(order__outlet_id=oid)
 
         refunds_qs = Refund.objects.filter(
             tenant_id=tenant_id,
-            created_at__gte=start,
-            created_at__lte=end,
-        )
-        if outlet_param:
+            created_at__gte=rng.start,
+            created_at__lte=rng.end,
+        ).select_related("order")
+        if oid is not None:
             refunds_qs = refunds_qs.filter(order__outlet_id=oid)
 
         pay_by_day = {
@@ -256,7 +188,7 @@ class OperationsRollupView(APIView):
         for day in all_days:
             pa, pc = pay_by_day.get(day, (Decimal("0"), 0))
             ra, rc = ref_by_day.get(day, (Decimal("0"), 0))
-            net = (pa - ra).quantize(Decimal("0.01"))
+            day_net = (pa - ra).quantize(Decimal("0.01"))
             by_day.append(
                 {
                     "date": day,
@@ -264,7 +196,7 @@ class OperationsRollupView(APIView):
                     "payment_count": pc,
                     "refunds": str(ra),
                     "refund_count": rc,
-                    "net_sales": str(net),
+                    "net_sales": str(day_net),
                 }
             )
 
@@ -274,8 +206,8 @@ class OperationsRollupView(APIView):
 
         return Response(
             {
-                "date_from": str(d0),
-                "date_to": str(d1),
+                "date_from": str(rng.d0),
+                "date_to": str(rng.d1),
                 "net_sales": str(net),
                 "by_day": by_day,
             }

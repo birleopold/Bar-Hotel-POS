@@ -155,6 +155,11 @@ urlpatterns = [
         name="staff-lodging-housekeeping",
     ),
     path(
+        "lodging/maintenance/",
+        views_lodging.StaffRoomMaintenanceView.as_view(),
+        name="staff-lodging-maintenance",
+    ),
+    path(
         "lodging/room-types/",
         views_lodging.StaffLodgingRoomTypesListView.as_view(),
         name="staff-lodging-room-types",

@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.invite_service import create_user_invite
@@ -33,6 +33,7 @@ from apps.purchasing.models import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderStatus,
+    PurchaseReceipt,
     Supplier,
 )
 from apps.staff.middleware import (
@@ -81,6 +82,30 @@ class StaffUiTests(TestCase):
         r2 = self.client.get(reverse("staff-dashboard"))
         self.assertEqual(r2.status_code, 200)
         self.assertContains(r2, "No workspace")
+
+    def test_authenticated_workspace_uses_sector_aware_sidebar_shell(self) -> None:
+        tenant = Tenant.objects.create(name="Multi Venue", slug="multi-venue-sidebar")
+        TenantSettings.objects.get_or_create(tenant=tenant)
+        site = Site.objects.create(tenant=tenant, name="Central")
+        Outlet.objects.create(site=site, name="Main supermarket", outlet_type=OutletType.SUPERMARKET)
+        Outlet.objects.create(site=site, name="Terrace bar", outlet_type=OutletType.BAR)
+        user = User.objects.create_user(email="sidebar-owner@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(tenant.id)
+        session.save()
+
+        response = self.client.get(reverse("staff-dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="staff-sidebar"')
+        self.assertContains(response, "All sections")
+        self.assertContains(response, "Main supermarket")
+        self.assertContains(response, "Terrace bar")
+        self.assertContains(response, "Sales &amp; floor")
+        self.assertContains(response, "Stock &amp; buying")
+        self.assertContains(response, "Workspace")
 
     def test_workspace_named_urls_reverse(self) -> None:
         self.assertEqual(reverse("staff-workspace-branding"), "/staff/settings/branding/")
@@ -960,6 +985,26 @@ class StaffPurchasingReceiveGuardTests(TestCase):
         self.line.refresh_from_db()
         self.assertEqual(self.line.quantity_received, Decimal("0"))
         self.assertEqual(StockMovement.objects.filter(purchase_order=self.po).count(), 0)
+
+    def test_partial_receipt_records_delivery_history(self) -> None:
+        self.po.status = PurchaseOrderStatus.SENT
+        self.po.save(update_fields=["status", "updated_at"])
+        r = self.client.post(
+            reverse("staff-purchasing-order-detail", kwargs={"po_id": self.po.id}),
+            {
+                "action": "receive",
+                "delivery_reference": "DN-1042",
+                "receipt_note": "Two cartons received in good condition",
+                f"recv_{self.line.id}": "4",
+            },
+            follow=True,
+        )
+        self.assertEqual(r.status_code, 200)
+        receipt = PurchaseReceipt.objects.get(purchase_order=self.po)
+        self.assertEqual(receipt.delivery_reference, "DN-1042")
+        self.assertEqual(receipt.received_by, self.user)
+        self.assertEqual(receipt.lines.get().quantity_received, Decimal("4"))
+        self.assertContains(r, "DN-1042")
 
 
 class StaffOrderPaymentTests(TestCase):
@@ -1989,6 +2034,7 @@ class StaffKitchenHandoffFlowTests(TestCase):
         self.assertEqual(self.line.kds_status, KdsLineStatus.READY)
 
 
+@override_settings(TIME_ZONE="UTC")
 class StaffSalesSectionSplitTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
@@ -2029,6 +2075,7 @@ class StaffSalesSectionSplitTests(TestCase):
             sort_order=1,
             kds_station="bar",
         )
+        pay_ts = timezone.now()
         Payment.objects.create(
             tenant=cls.tenant,
             order=cls.order,
@@ -2036,6 +2083,7 @@ class StaffSalesSectionSplitTests(TestCase):
             method=PaymentMethod.CASH,
             idempotency_key="section-sales-pay-1",
             recorded_by=cls.user,
+            created_at=pay_ts,
         )
 
     def test_sales_summary_splits_revenue_by_section(self) -> None:
@@ -2238,7 +2286,7 @@ class StaffWorkspaceMembersTests(TestCase):
         r = self.client.get(reverse("staff-workspace-members"))
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "member-list@test.local")
-        self.assertContains(r, "Manage")
+        self.assertContains(r, "Edit")
 
     def test_owner_can_update_worker_role_and_scope(self) -> None:
         r = self.client.post(
@@ -2485,6 +2533,13 @@ class StaffDashboardLowStockInsightTests(TestCase):
             menu_item=cls.menu_item,
             quantity=Decimal("2"),
         )
+        Order.objects.create(
+            tenant=cls.tenant,
+            outlet=cls.outlet,
+            status=OrderStatus.OPEN,
+            is_paid=False,
+            currency="UGX",
+        )
 
     def setUp(self) -> None:
         self.client.force_login(self.user)
@@ -2499,6 +2554,15 @@ class StaffDashboardLowStockInsightTests(TestCase):
         self.assertContains(r, "Low stock")
         self.assertContains(r, "Reorder Me Ale")
         self.assertContains(r, "low_stock=1")
+
+    def test_dashboard_shows_scoped_cross_module_workload(self) -> None:
+        r = self.client.get(reverse("staff-dashboard"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Operations pulse")
+        self.assertContains(r, "Open orders")
+        self.assertContains(r, "Awaiting settlement")
+        snapshot = r.context["staff_dashboard_operations_snapshot"]
+        self.assertEqual(snapshot[0].value, 1)
 
 
 class StaffDashboardSalesSnapshotTests(TestCase):

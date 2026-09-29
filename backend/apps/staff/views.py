@@ -29,7 +29,12 @@ from .services import (
     staff_nav_visibility_scoped,
     staff_action_overrides_for_tenant,
 )
-from .services.dashboard_insights import dashboard_low_stock_snapshot, dashboard_sales_snapshot
+from .services.dashboard_insights import (
+    dashboard_lodging_snapshot,
+    dashboard_low_stock_snapshot,
+    dashboard_operations_snapshot,
+    dashboard_sales_snapshot,
+)
 from .services.workbench import build_workbench_playbook, role_at_work_copy
 
 
@@ -97,6 +102,8 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
         ctx["staff_dashboard_low_stock_rows"] = ()
         ctx["staff_dashboard_low_stock_url"] = ""
         ctx["staff_dashboard_sales_snapshot"] = None
+        ctx["staff_dashboard_lodging_snapshot"] = None
+        ctx["staff_dashboard_operations_snapshot"] = ()
 
         if active:
             ctx["show_console_entry"] = user_is_platform_operator(user) or membership_can_manage_org_console(active)
@@ -155,6 +162,17 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
                 modules=modules,
                 vis_sales=vis.sales,
             )
+            ctx["staff_dashboard_lodging_snapshot"] = dashboard_lodging_snapshot(
+                self.request,
+                membership=active,
+                visible=show_lodging_nav,
+            )
+            ctx["staff_dashboard_operations_snapshot"] = dashboard_operations_snapshot(
+                self.request,
+                membership=active,
+                modules=modules,
+                vis=vis,
+            )
             if can_manage_console:
                 setup_state = build_tenant_setup_state(active.tenant)
                 setup_progress = sync_tenant_setup_progress(active.tenant, setup_state)
@@ -171,6 +189,8 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
             ctx["staff_dashboard_low_stock_rows"] = ()
             ctx["staff_dashboard_low_stock_url"] = ""
             ctx["staff_dashboard_sales_snapshot"] = None
+            ctx["staff_dashboard_lodging_snapshot"] = None
+            ctx["staff_dashboard_operations_snapshot"] = ()
 
         return ctx
 

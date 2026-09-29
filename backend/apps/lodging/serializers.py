@@ -1,11 +1,13 @@
 from decimal import Decimal
 
+from django.db import transaction
+
 from rest_framework import serializers
 
 from apps.tenants.models import Site
 
-from .models import Folio, FolioLine, FolioStatus, Reservation, Room, RoomRateWindow, RoomType
-from .services import validate_room_available_for_reservation
+from .models import Folio, FolioLine, FolioPayment, FolioPaymentMethod, FolioStatus, Reservation, Room, RoomRateWindow, RoomType
+from .services import folio_totals, validate_room_available_for_reservation
 
 
 class RoomTypeSerializer(serializers.ModelSerializer):
@@ -78,9 +80,12 @@ class RoomSerializer(serializers.ModelSerializer):
             self.fields["room_type"].queryset = RoomType.objects.filter(tenant=tenant)
 
     def validate_room_type(self, value: RoomType) -> RoomType:
-        req = self.context["request"]
-        if value.tenant_id != req.tenant.id:
+        request = self.context["request"]
+        if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Room type must belong to the current tenant.")
+        membership = request.tenant_membership
+        if membership.sites.exists() and value.site_id not in membership.sites.values_list("pk", flat=True):
+            raise serializers.ValidationError("You cannot create or update rooms for this site.")
         return value
 
 
@@ -122,6 +127,7 @@ class ReservationSerializer(serializers.ModelSerializer):
             "site_name",
             "room_id",
             "room_label",
+            "status",
             "created_at",
             "updated_at",
         )
@@ -189,7 +195,29 @@ class ReservationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data["tenant"] = self.context["request"].tenant
-        return super().create(validated_data)
+        with transaction.atomic():
+            room = validated_data.get("room")
+            if room is not None:
+                Room.objects.select_for_update().get(pk=room.pk)
+                candidate = Reservation(**validated_data)
+                validate_room_available_for_reservation(reservation=candidate, room=room)
+            return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        with transaction.atomic():
+            room = validated_data.get("room", instance.room)
+            if room is not None:
+                Room.objects.select_for_update().get(pk=room.pk)
+                candidate = Reservation(
+                    id=instance.id,
+                    tenant=instance.tenant,
+                    site=validated_data.get("site", instance.site),
+                    room=room,
+                    check_in=validated_data.get("check_in", instance.check_in),
+                    check_out=validated_data.get("check_out", instance.check_out),
+                )
+                validate_room_available_for_reservation(reservation=candidate, room=room)
+            return super().update(instance, validated_data)
 
 
 class FolioLineSerializer(serializers.ModelSerializer):
@@ -206,8 +234,19 @@ class FolioLineSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class FolioPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FolioPayment
+        fields = ["id", "amount", "method", "reference", "created_at"]
+        read_only_fields = fields
+
+
 class FolioSerializer(serializers.ModelSerializer):
     lines = FolioLineSerializer(many=True, read_only=True)
+    payments = FolioPaymentSerializer(many=True, read_only=True)
+    total_charges = serializers.SerializerMethodField()
+    total_paid = serializers.SerializerMethodField()
+    balance_due = serializers.SerializerMethodField()
     site_id = serializers.UUIDField(source="site.id", read_only=True)
     site_name = serializers.CharField(source="site.name", read_only=True)
 
@@ -225,6 +264,10 @@ class FolioSerializer(serializers.ModelSerializer):
             "currency",
             "notes",
             "lines",
+            "payments",
+            "total_charges",
+            "total_paid",
+            "balance_due",
             "created_at",
             "updated_at",
         ]
@@ -243,6 +286,15 @@ class FolioSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+    def get_total_charges(self, obj: Folio) -> str:
+        return str(folio_totals(obj)[0].quantize(Decimal("0.01")))
+
+    def get_total_paid(self, obj: Folio) -> str:
+        return str(folio_totals(obj)[1].quantize(Decimal("0.01")))
+
+    def get_balance_due(self, obj: Folio) -> str:
+        return str(folio_totals(obj)[2].quantize(Decimal("0.01")))
 
 
 class FolioCreateSerializer(serializers.ModelSerializer):
@@ -285,7 +337,12 @@ class FolioCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data["tenant"] = self.context["request"].tenant
-        validated_data.setdefault("currency", "USD")
+        tenant = self.context["request"].tenant
+        try:
+            default_currency = tenant.settings.default_currency
+        except Exception:
+            default_currency = "USD"
+        validated_data.setdefault("currency", default_currency)
         return super().create(validated_data)
 
 
@@ -316,6 +373,13 @@ class FolioManualLineSerializer(serializers.Serializer):
     )
 
 
+class FolioPaymentCreateSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
+    method = serializers.ChoiceField(choices=FolioPaymentMethod.choices)
+    reference = serializers.CharField(max_length=128, allow_blank=True, required=False, default="")
+    idempotency_key = serializers.CharField(max_length=128)
+
+
 class RoomRateWindowSerializer(serializers.ModelSerializer):
     room_type = serializers.PrimaryKeyRelatedField(queryset=RoomType.objects.none())
 
@@ -341,8 +405,12 @@ class RoomRateWindowSerializer(serializers.ModelSerializer):
             self.fields["room_type"].queryset = RoomType.objects.filter(tenant=tenant)
 
     def validate_room_type(self, value: RoomType) -> RoomType:
-        if value.tenant_id != self.context["request"].tenant.id:
+        request = self.context["request"]
+        if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Room type must belong to the current tenant.")
+        membership = request.tenant_membership
+        if membership.sites.exists() and value.site_id not in membership.sites.values_list("pk", flat=True):
+            raise serializers.ValidationError("You cannot manage rates for this site.")
         return value
 
 

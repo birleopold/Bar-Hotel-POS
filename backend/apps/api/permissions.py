@@ -42,3 +42,27 @@ class NotReadOnlyRole(permissions.BasePermission):
         if membership is None:
             return False
         return membership.role != MembershipRole.ACCOUNTANT
+
+
+class CanApproveRefunds(permissions.BasePermission):
+    message = "Only owners and managers can approve refunds."
+
+    def has_permission(self, request, view) -> bool:
+        membership = getattr(request, "tenant_membership", None)
+        return membership is not None and membership.role in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+            MembershipRole.OUTLET_MANAGER,
+        )
+
+
+class CanManageIntegrations(permissions.BasePermission):
+    message = "Only owners and tenant admins can access integration configuration."
+
+    def has_permission(self, request, view) -> bool:
+        membership = getattr(request, "tenant_membership", None)
+        return membership is not None and membership.role in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+        )

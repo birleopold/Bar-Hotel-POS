@@ -1,0 +1,75 @@
+{% extends "staff/base.html" %}
+{% block title %}Room maintenance{% endblock %}
+{% block content %}
+  <header class="staff-page-hero">
+    <div class="staff-dash-hero__panel">
+      <p class="staff-dash-hero__eyebrow">Lodging operations</p>
+      <div class="staff-page-hero__head">
+        <div class="staff-page-hero__copy">
+          <h1 class="staff-page-title mb-0">Room maintenance<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
+          <p class="staff-dash-hero__tagline mb-0">Assign, prioritize, and resolve repairs that affect room readiness.</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% include "staff/lodging/includes/subnav.html" %}
+
+  <div class="staff-chip-row mb-3" aria-label="Maintenance status filter">
+    <a class="staff-btn staff-btn--sm {% if status_filter == 'active' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?status=active">Active</a>
+    {% for value, label in maintenance_statuses %}
+      <a class="staff-btn staff-btn--sm {% if status_filter == value %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?status={{ value }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3 align-items-start">
+    <div class="col-12 col-xl-8">
+      <section class="staff-card">
+        <h2 class="staff-card__title">Work orders</h2>
+        {% if maintenance_requests %}
+          <div class="staff-table-wrap">
+            <table class="staff-table">
+              <thead><tr><th>Room / issue</th><th>Priority</th><th>Assigned</th><th>Due</th><th>Status</th></tr></thead>
+              <tbody>
+                {% for item in maintenance_requests %}
+                  <tr>
+                    <td><strong>{{ item.room.name }} · {{ item.title }}</strong>{% if item.description %}<div class="staff-muted small">{{ item.description }}</div>{% endif %}</td>
+                    <td><span class="staff-tag">{{ item.get_priority_display }}</span></td>
+                    <td>{% if item.assigned_to %}{{ item.assigned_to.email }}{% else %}<span class="staff-muted">Unassigned</span>{% endif %}</td>
+                    <td>{% if item.expected_by %}{{ item.expected_by }}{% else %}<span class="staff-muted">—</span>{% endif %}</td>
+                    <td>
+                      {% if can_modify_lodging %}
+                        <form method="post" class="d-flex gap-1 align-items-center">
+                          {% csrf_token %}<input type="hidden" name="action" value="status"><input type="hidden" name="request_id" value="{{ item.id }}">
+                          <select class="staff-input staff-input--compact" name="status" aria-label="Status for {{ item.title }}">
+                            {% for value, label in maintenance_statuses %}<option value="{{ value }}"{% if item.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                          </select>
+                          <button class="staff-btn staff-btn--sm staff-btn--ghost" type="submit">Save</button>
+                        </form>
+                      {% else %}{{ item.get_status_display }}{% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}<p class="staff-muted mb-0">No maintenance requests in this view.</p>{% endif %}
+      </section>
+    </div>
+    {% if can_modify_lodging %}
+      <div class="col-12 col-xl-4">
+        <section class="staff-card staff-card--soft">
+          <h2 class="staff-card__title">New work order</h2>
+          <form method="post">
+            {% csrf_token %}<input type="hidden" name="action" value="create">
+            {% for field in form %}
+              <div class="mb-3"><label class="staff-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+            {% endfor %}
+            {% for error in form.non_field_errors %}<div class="staff-alert staff-alert--danger mb-2">{{ error }}</div>{% endfor %}
+            <button class="staff-btn staff-btn--primary" type="submit">Open request</button>
+          </form>
+        </section>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

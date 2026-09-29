@@ -74,7 +74,7 @@ def _po_base_queryset(request) -> QuerySet:
     return (
         PurchaseOrder.objects.filter(tenant=request.tenant, outlet_id__in=oids)
         .select_related("supplier", "outlet", "created_by")
-        .prefetch_related("lines__menu_item")
+        .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item")
     )
 
 
@@ -390,6 +390,8 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     lines_payload=lines_payload,
                     user=request.user,
                     membership=request.tenant_membership,
+                    delivery_reference=(request.POST.get("delivery_reference") or "").strip(),
+                    note=(request.POST.get("receipt_note") or "").strip(),
                 )
             except DRFValidationError as e:
                 _flash_drf_validation(request, e)
@@ -427,6 +429,8 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     lines_payload=lines_payload,
                     user=request.user,
                     membership=request.tenant_membership,
+                    delivery_reference=(request.POST.get("delivery_reference") or "").strip(),
+                    note=(request.POST.get("receipt_note") or "").strip(),
                 )
             except DRFValidationError as e:
                 _flash_drf_validation(request, e)

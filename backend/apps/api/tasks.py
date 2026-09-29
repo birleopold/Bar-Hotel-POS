@@ -3,12 +3,47 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import EmailMessage, send_mail
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from apps.tenants.models import Tenant
+
+
+def _iter_digest_tenants() -> Iterator[Tenant]:
+    from apps.tenants.models import SubscriptionStatus, Tenant, TenantSubscription
+
+    for tenant in Tenant.objects.filter(is_active=True).order_by("id").iterator():
+        try:
+            sub = tenant.subscription
+        except TenantSubscription.DoesNotExist:
+            yield tenant
+            continue
+        if sub.status in {SubscriptionStatus.SUSPENDED, SubscriptionStatus.CANCELLED}:
+            continue
+        yield tenant
+
+
+def _digest_recipient_emails(tenant: Tenant) -> list[str]:
+    from apps.accounts.models import Membership, MembershipRole
+
+    roles = (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN)
+    emails = []
+    for m in Membership.objects.filter(
+        tenant=tenant,
+        is_active=True,
+        role__in=roles,
+    ).select_related("user"):
+        addr = (m.user.email or "").strip()
+        if addr:
+            emails.append(addr)
+    return sorted(set(emails))
 
 
 @shared_task
@@ -24,43 +59,17 @@ def daily_operations_digest() -> None:
 
     from django.utils import timezone
 
-    from apps.accounts.models import Membership, MembershipRole
     from apps.staff.report_csv import (
         cashbook_entries_for_export,
         format_cashbook_csv,
         format_sales_summary_csv_from_summary,
     )
     from apps.staff.sales_summary import build_sales_summary
-    from apps.tenants.models import SubscriptionStatus, Tenant, TenantSubscription
 
     send_email = bool(getattr(settings, "DAILY_OPERATIONS_DIGEST_SEND", False))
     digest_date = timezone.now().date() - timedelta(days=1)
 
-    def tenants() -> list[Tenant]:
-        out: list[Tenant] = []
-        for tenant in Tenant.objects.filter(is_active=True).order_by("id").iterator():
-            try:
-                sub = tenant.subscription
-            except TenantSubscription.DoesNotExist:
-                out.append(tenant)
-                continue
-            if sub.status in {SubscriptionStatus.SUSPENDED, SubscriptionStatus.CANCELLED}:
-                continue
-            out.append(tenant)
-        return out
-
-    def recipient_emails(tenant: Tenant) -> list[str]:
-        roles = (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN)
-        emails: list[str] = []
-        for m in Membership.objects.filter(
-            tenant=tenant, is_active=True, role__in=roles
-        ).select_related("user"):
-            addr = (m.user.email or "").strip()
-            if addr:
-                emails.append(addr)
-        return sorted(set(emails))
-
-    for tenant in tenants():
+    for tenant in _iter_digest_tenants():
         summary = build_sales_summary(tenant.id, digest_date, digest_date, outlet_id=None)
         sales_csv = format_sales_summary_csv_from_summary(summary)
         cash_qs = cashbook_entries_for_export(tenant.id, digest_date, digest_date)
@@ -79,7 +88,7 @@ def daily_operations_digest() -> None:
         if not send_email:
             continue
 
-        to = recipient_emails(tenant)
+        to = _digest_recipient_emails(tenant)
         if not to:
             logger.warning("daily_operations_digest skip email tenant=%s (no recipients)", tenant.slug)
             continue
@@ -118,7 +127,7 @@ def send_password_reset_email_task(self, *, user_email: str, uid_b64: str, token
     from apps.api.password_views import build_password_reset_email_body
 
     subject = getattr(settings, "PASSWORD_RESET_EMAIL_SUBJECT", "Password reset")
-    body = build_password_reset_email_body(user_email=user_email, uid=uid_b64, token=token)
+    body = build_password_reset_email_body(user_email=user_email, uid_b64=uid_b64, token=token)
     try:
         send_mail(
             subject=subject,

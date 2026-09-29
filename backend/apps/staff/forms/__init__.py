@@ -10,7 +10,7 @@ from .inventory import (
     StaffStockMovementUploadForm,
     StaffStockTransferForm,
 )
-from .lodging import StaffFolioManualLineForm, StaffReservationForm
+from .lodging import StaffFolioManualLineForm, StaffFolioPaymentForm, StaffReservationForm, StaffRoomMaintenanceForm
 from .pos_orders import (
     StaffOrderAdjustLineQuantityForm,
     StaffOrderAddLineForm,
@@ -50,6 +50,8 @@ __all__ = [
     "StaffEventSpaceForm",
     "StaffFinanceCategoryForm",
     "StaffFolioManualLineForm",
+    "StaffFolioPaymentForm",
+    "StaffRoomMaintenanceForm",
     "StaffIntegrationLinkForm",
     "StaffMembershipBulkActionForm",
     "StaffMembershipManageForm",

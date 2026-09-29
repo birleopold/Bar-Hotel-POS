@@ -62,13 +62,55 @@
       </div>
     {% endif %}
 
+    {% if staff_dashboard_lodging_snapshot %}
+      <section class="staff-property-pulse" aria-labelledby="property-pulse-title">
+        <div class="staff-property-pulse__head">
+          <div>
+            <p class="staff-dash-hero__eyebrow mb-1">Property pulse</p>
+            <h2 id="property-pulse-title" class="staff-property-pulse__title">Today at {{ staff_dashboard_lodging_snapshot.site_name }}</h2>
+          </div>
+          <div class="staff-chip-row">
+            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_lodging_snapshot.tape_url }}">View tape</a>
+            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}">Housekeeping</a>
+            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_lodging_snapshot.maintenance_url }}">Maintenance · {{ staff_dashboard_lodging_snapshot.open_maintenance }}</a>
+          </div>
+        </div>
+        <div class="staff-property-pulse__kpis">
+          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}" class="staff-property-kpi staff-property-kpi--arrival"><strong>{{ staff_dashboard_lodging_snapshot.arrivals }}</strong><span>Arrivals</span></a>
+          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?status=checked_in" class="staff-property-kpi staff-property-kpi--inhouse"><strong>{{ staff_dashboard_lodging_snapshot.in_house }}</strong><span>In house</span></a>
+          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}" class="staff-property-kpi"><strong>{{ staff_dashboard_lodging_snapshot.departures }}</strong><span>Departures</span></a>
+          <a href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}" class="staff-property-kpi staff-property-kpi--ready"><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong><span>Rooms ready</span></a>
+          <a href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}" class="staff-property-kpi staff-property-kpi--attention"><strong>{{ staff_dashboard_lodging_snapshot.dirty_rooms }}</strong><span>Need cleaning</span></a>
+          <a href="{{ staff_dashboard_lodging_snapshot.tape_url }}" class="staff-property-kpi"><strong>{{ staff_dashboard_lodging_snapshot.occupancy_percent }}%</strong><span>Occupied</span></a>
+        </div>
+        <div class="staff-property-pulse__lower">
+          <div>
+            <h3 class="staff-property-pulse__subhead">Arriving today</h3>
+            {% if staff_dashboard_lodging_snapshot.arrival_rows %}
+              <ul class="staff-property-arrivals">
+                {% for row in staff_dashboard_lodging_snapshot.arrival_rows %}
+                  <li><a href="{{ row.detail_url }}"><span><strong>{{ row.guest_name }}</strong><small>{{ row.status_label }}</small></span><span class="staff-tag">{{ row.room_label }}</span></a></li>
+                {% endfor %}
+              </ul>
+            {% else %}<p class="staff-muted small mb-0">No arrivals waiting for check-in.</p>{% endif %}
+          </div>
+          <div class="staff-room-health">
+            <h3 class="staff-property-pulse__subhead">Room readiness</h3>
+            <div class="staff-room-health__bar" aria-label="{{ staff_dashboard_lodging_snapshot.ready_rooms }} of {{ staff_dashboard_lodging_snapshot.total_rooms }} rooms ready"><span style="width: {% widthratio staff_dashboard_lodging_snapshot.ready_rooms staff_dashboard_lodging_snapshot.total_rooms 100 %}%"></span></div>
+            <p><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong> ready · {{ staff_dashboard_lodging_snapshot.dirty_rooms }} dirty · {{ staff_dashboard_lodging_snapshot.out_of_order_rooms }} out of order</p>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+
     {% if show_workspace_admin_tools %}
-      <div class="staff-card mb-3">
-        <h2 class="staff-card__title">Administration</h2>
-        <p class="staff-muted">Owner tools and platform console.</p>
-        <p class="mb-2"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Open admin console</a></p>
-        <h3 class="staff-card__title">{% autoescape off %}Team & onboarding{% endautoescape %}</h3>
-        <div class="staff-chip-row">
+      <div class="staff-card staff-admin-compact mb-3">
+        <div>
+          <h2 class="staff-card__title mb-1">Administration</h2>
+          <p class="staff-muted mb-0">Team & onboarding</p>
+        </div>
+        <div class="staff-chip-row staff-admin-compact__actions">
+          <a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Open admin console</a>
           <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-member-create' %}">New worker</a>
           <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-members' %}">Team</a>
         </div>
@@ -90,6 +132,27 @@
           </a>
         {% endfor %}
       </div>
+    {% endif %}
+
+    {% if staff_dashboard_operations_snapshot %}
+      <section class="staff-operations-pulse" aria-labelledby="operations-pulse-title">
+        <div class="staff-operations-pulse__head">
+          <div>
+            <p class="staff-dash-hero__eyebrow mb-1">Operations pulse</p>
+            <h2 id="operations-pulse-title" class="staff-operations-pulse__title">Work needing attention</h2>
+          </div>
+          <p class="staff-muted small mb-0">Live for your current branch and section scope.</p>
+        </div>
+        <div class="staff-operations-pulse__grid">
+          {% for metric in staff_dashboard_operations_snapshot %}
+            <a class="staff-operations-metric{% if metric.tone %} staff-operations-metric--{{ metric.tone }}{% endif %}" href="{{ metric.url }}">
+              <span class="staff-operations-metric__value">{{ metric.value }}</span>
+              <span class="staff-operations-metric__copy"><strong>{{ metric.label }}</strong><small>{{ metric.detail }}</small></span>
+              <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
     {% endif %}
 
     {% if staff_dashboard_secondary_actions %}

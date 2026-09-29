@@ -8,7 +8,7 @@ from apps.finance.services import post_purchase_receive_expense_from_movement
 from apps.inventory.models import StockReason
 from apps.inventory.services import apply_manual_stock_change
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine
 
 
 @transaction.atomic
@@ -18,6 +18,8 @@ def receive_purchase_order_goods(
     lines_payload: list[dict],
     user,
     membership,
+    delivery_reference: str = "",
+    note: str = "",
 ) -> PurchaseOrder:
     if po.status not in (
         PurchaseOrderStatus.SENT,
@@ -31,6 +33,13 @@ def receive_purchase_order_goods(
 
     po_locked = PurchaseOrder.objects.select_for_update().get(pk=po.pk)
     any_positive = False
+    receipt = PurchaseReceipt.objects.create(
+        tenant_id=po_locked.tenant_id,
+        purchase_order=po_locked,
+        delivery_reference=(delivery_reference or "")[:128],
+        note=(note or "")[:512],
+        received_by=user,
+    )
 
     for row in lines_payload:
         line_id = row["line_id"]
@@ -73,6 +82,11 @@ def receive_purchase_order_goods(
         )
         line.quantity_received += qty
         line.save(update_fields=["quantity_received", "updated_at"])
+        PurchaseReceiptLine.objects.create(
+            receipt=receipt,
+            purchase_order_line=line,
+            quantity_received=qty,
+        )
 
     if not any_positive:
         raise ValidationError({"lines": "At least one line must have quantity greater than zero."})

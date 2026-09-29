@@ -9,7 +9,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20260929.1">
   {% if tenant_settings %}
   <style>
     :root {
@@ -21,12 +22,17 @@
   {% endif %}
   {% block extra_css %}{% endblock %}
 </head>
-<body class="staff-body">
-  {% include "console/includes/nav.html" %}
-  <main class="staff-main {% block main_class %}{% endblock %}">
-    {% include "staff/includes/messages.html" %}
-    {% block content %}{% endblock %}
-  </main>
+<body class="staff-body console-body">
+  <div class="staff-app-shell console-app-shell">
+    {% include "console/includes/sidebar.html" %}
+    <div class="staff-app-shell__body">
+      {% include "console/includes/nav.html" %}
+      <main class="staff-main staff-main--wide console-main {% block main_class %}{% endblock %}">
+        {% include "staff/includes/messages.html" %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   {% block extra_js %}{% endblock %}
 </body>

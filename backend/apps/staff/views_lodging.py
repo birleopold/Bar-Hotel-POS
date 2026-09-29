@@ -10,6 +10,7 @@ from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views import View
 from django.views.generic import DetailView, FormView, ListView
@@ -23,6 +24,8 @@ from apps.lodging.models import (
     Reservation,
     ReservationStatus,
     Room,
+    RoomMaintenanceRequest,
+    MaintenanceStatus,
     RoomStatus,
     RoomType,
 )
@@ -30,10 +33,12 @@ from apps.lodging.services import (
     cancel_reservation,
     check_in_reservation,
     check_out_reservation,
+    folio_totals,
+    record_folio_payment,
     validate_room_available_for_reservation,
 )
 
-from .forms import StaffFolioManualLineForm, StaffReservationForm
+from .forms import StaffFolioManualLineForm, StaffFolioPaymentForm, StaffReservationForm, StaffRoomMaintenanceForm
 from .middleware import STAFF_SESSION_SITE_KEY
 from .mixins import StaffTenantRequiredMixin
 from .services import membership_can_modify_lodging, resolve_staff_site, sites_visible_for_membership
@@ -248,6 +253,9 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
         )
         ctx["open_folio"] = open_folio
         ctx["folio_line_form"] = StaffFolioManualLineForm()
+        if open_folio:
+            charges, paid, balance = folio_totals(open_folio)
+            ctx.update(folio_charges=charges, folio_paid=paid, folio_balance=balance)
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
@@ -327,7 +335,7 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
                     site_id=res.site_id,
                     reservation=res,
                     guest_name=res.guest_name,
-                    currency="USD",
+                    currency=getattr(getattr(res.tenant, "settings", None), "default_currency", "USD"),
                     status=FolioStatus.OPEN,
                 )
                 messages.success(request, "Folio opened.")
@@ -478,6 +486,7 @@ class StaffFolioDetailView(StaffTenantRequiredMixin, DetailView):
     template_name = "staff/lodging/folio_detail.html"
     context_object_name = "folio"
     pk_url_kwarg = "folio_id"
+    http_method_names = ["get", "post", "head", "options"]
 
     def dispatch(self, request, *args, **kwargs):
         self.sites, self.current_site = _lodging_sites_and_site(request)
@@ -491,7 +500,7 @@ class StaffFolioDetailView(StaffTenantRequiredMixin, DetailView):
         return (
             Folio.objects.filter(tenant=self.request.tenant, site_id__in=allowed)
             .select_related("site", "reservation", "reservation__room", "reservation__room__room_type")
-            .prefetch_related("lines__source_order")
+            .prefetch_related("lines__source_order", "payments__recorded_by")
         )
 
     def get_context_data(self, **kwargs):
@@ -500,13 +509,44 @@ class StaffFolioDetailView(StaffTenantRequiredMixin, DetailView):
         lines = list(folio.lines.all())
         sub = sum((ln.amount for ln in lines), Decimal("0"))
         tax = sum((ln.tax_amount for ln in lines), Decimal("0"))
+        _charges, paid, balance = folio_totals(folio)
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
         ctx["lines_subtotal"] = sub
         ctx["lines_tax_total"] = tax
         ctx["lines_grand_total"] = sub + tax
+        ctx["payments_total"] = paid
+        ctx["balance_due"] = balance
+        ctx["payment_form"] = StaffFolioPaymentForm(initial={"amount": balance if balance > 0 else None})
         ctx["can_modify_lodging"] = membership_can_modify_lodging(self.request.tenant_membership)
         return ctx
+
+    def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        self.object = self.get_object()
+        folio: Folio = self.object
+        if not membership_can_modify_lodging(request.tenant_membership):
+            messages.error(request, "Your role cannot record folio payments.")
+            return redirect("staff-lodging-folio-detail", folio_id=folio.id)
+        form = StaffFolioPaymentForm(request.POST)
+        if not form.is_valid():
+            for errs in form.errors.values():
+                for err in errs:
+                    messages.error(request, str(err))
+            return redirect("staff-lodging-folio-detail", folio_id=folio.id)
+        try:
+            record_folio_payment(
+                folio=folio,
+                amount=form.cleaned_data["amount"],
+                method=form.cleaned_data["method"],
+                reference=form.cleaned_data["reference"],
+                user=request.user,
+                idempotency_key=str(uuid.uuid4()),
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(request, "Folio payment recorded.")
+        return redirect("staff-lodging-folio-detail", folio_id=folio.id)
 
 
 class StaffLodgingTapeChartView(StaffTenantRequiredMixin, View):
@@ -641,3 +681,72 @@ class StaffHousekeepingBoardView(StaffTenantRequiredMixin, View):
         room.save(update_fields=["status", "updated_at"])
         messages.success(request, f"{room.name} is now {room.get_status_display()}.")
         return redirect("staff-lodging-housekeeping")
+
+
+class StaffRoomMaintenanceView(StaffTenantRequiredMixin, View):
+    staff_nav_capability = "lodging"
+    template_name = "staff/lodging/maintenance.html"
+
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        self.sites, self.current_site = _lodging_sites_and_site(request)
+        if self.current_site is None:
+            messages.info(request, "No branch is set up for lodging in this workspace.")
+            return redirect("staff-dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _context(self, form=None):
+        requests = RoomMaintenanceRequest.objects.filter(
+            tenant=self.request.tenant,
+            room__room_type__site=self.current_site,
+        ).select_related("room", "room__room_type", "assigned_to", "created_by")
+        status_filter = (self.request.GET.get("status") or "active").strip()
+        if status_filter == "active":
+            requests = requests.exclude(status=MaintenanceStatus.RESOLVED)
+        elif status_filter in {value for value, _ in MaintenanceStatus.choices}:
+            requests = requests.filter(status=status_filter)
+        else:
+            status_filter = "active"
+            requests = requests.exclude(status=MaintenanceStatus.RESOLVED)
+        return {
+            "sites": self.sites,
+            "current_site": self.current_site,
+            "maintenance_requests": requests,
+            "maintenance_statuses": MaintenanceStatus.choices,
+            "status_filter": status_filter,
+            "can_modify_lodging": membership_can_modify_lodging(self.request.tenant_membership),
+            "form": form or StaffRoomMaintenanceForm(tenant=self.request.tenant, site=self.current_site),
+        }
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        return render(request, self.template_name, self._context())
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        if not membership_can_modify_lodging(request.tenant_membership):
+            messages.error(request, "Your role cannot manage maintenance requests.")
+            return redirect("staff-lodging-maintenance")
+        action = (request.POST.get("action") or "create").strip()
+        if action == "create":
+            form = StaffRoomMaintenanceForm(request.POST, tenant=request.tenant, site=self.current_site)
+            if not form.is_valid():
+                return render(request, self.template_name, self._context(form), status=400)
+            item = form.save(commit=False)
+            item.tenant = request.tenant
+            item.created_by = request.user
+            item.save()
+            messages.success(request, f"Maintenance request opened for room {item.room.name}.")
+            return redirect("staff-lodging-maintenance")
+
+        item = RoomMaintenanceRequest.objects.filter(
+            id=request.POST.get("request_id"),
+            tenant=request.tenant,
+            room__room_type__site=self.current_site,
+        ).first()
+        new_status = (request.POST.get("status") or "").strip()
+        if item is None or new_status not in {value for value, _ in MaintenanceStatus.choices}:
+            messages.error(request, "Maintenance request or status is invalid.")
+            return redirect("staff-lodging-maintenance")
+        item.status = new_status
+        item.resolved_at = timezone.now() if new_status == MaintenanceStatus.RESOLVED else None
+        item.save(update_fields=["status", "resolved_at", "updated_at"])
+        messages.success(request, f"{item.title} is now {item.get_status_display()}.")
+        return redirect("staff-lodging-maintenance")

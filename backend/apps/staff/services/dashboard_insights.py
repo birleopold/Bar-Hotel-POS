@@ -11,17 +11,22 @@ from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.core.cache import cache
-from django.db.models import F
+from django.db.models import Count, F, Q
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.common.datetime_bounds import utc_day_range_inclusive
+from apps.events.models import EventBooking, EventBookingStatus
 from apps.inventory.models import StockBalance
+from apps.lodging.models import MaintenanceStatus, Reservation, ReservationStatus, Room, RoomMaintenanceRequest, RoomStatus
+from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus
 from apps.pos.services import default_currency_for_tenant
+from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus
 
 from ..middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from ..sales_summary import build_sales_summary
-from . import resolve_staff_outlet, staff_accessible_outlets
+from . import resolve_staff_outlet, resolve_staff_site, sites_visible_for_membership, staff_accessible_outlets
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +35,197 @@ class DashboardLowStockRow:
     outlet_name: str
     quantity: str
     reorder_level: str
+
+
+@dataclass(frozen=True, slots=True)
+class DashboardArrivalRow:
+    guest_name: str
+    room_label: str
+    status_label: str
+    detail_url: str
+
+
+@dataclass(frozen=True, slots=True)
+class DashboardLodgingSnapshot:
+    site_name: str
+    arrivals: int
+    in_house: int
+    departures: int
+    ready_rooms: int
+    dirty_rooms: int
+    out_of_order_rooms: int
+    occupied_rooms: int
+    total_rooms: int
+    occupancy_percent: int
+    open_maintenance: int
+    arrival_rows: tuple[DashboardArrivalRow, ...]
+    reservations_url: str
+    tape_url: str
+    housekeeping_url: str
+    maintenance_url: str
+
+
+@dataclass(frozen=True, slots=True)
+class DashboardOperationsMetric:
+    label: str
+    value: int
+    detail: str
+    url: str
+    tone: str = ""
+
+
+def dashboard_operations_snapshot(
+    request: HttpRequest,
+    *,
+    membership,
+    modules: frozenset[str],
+    vis,
+) -> tuple[DashboardOperationsMetric, ...]:
+    """Live cross-module workload, scoped to the selected outlet and branch."""
+    outlets = staff_accessible_outlets(membership)
+    if request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL:
+        outlet_ids = [outlet.id for outlet in outlets]
+    else:
+        current = resolve_staff_outlet(request, outlets)
+        outlet_ids = [current.id] if current else []
+
+    metrics: list[DashboardOperationsMetric] = []
+    if "pos" in modules and vis.orders and outlet_ids:
+        open_orders = Order.objects.filter(
+            tenant_id=membership.tenant_id,
+            outlet_id__in=outlet_ids,
+            status=OrderStatus.OPEN,
+            is_paid=False,
+        ).count()
+        metrics.append(
+            DashboardOperationsMetric("Open orders", open_orders, "Awaiting settlement", reverse("staff-orders"), "sales")
+        )
+
+    if "kitchen" in modules and vis.kitchen and outlet_ids:
+        active_lines = OrderLine.objects.filter(
+            order__tenant_id=membership.tenant_id,
+            order__outlet_id__in=outlet_ids,
+            order__status=OrderStatus.OPEN,
+            is_voided=False,
+        )
+        prep_count = active_lines.filter(kds_status__in=(KdsLineStatus.PENDING, KdsLineStatus.IN_PREP)).count()
+        ready_count = active_lines.filter(kds_status=KdsLineStatus.READY).count()
+        metrics.append(
+            DashboardOperationsMetric("Prep queue", prep_count, f"{ready_count} ready to serve", reverse("staff-kds"), "prep")
+        )
+
+    if "purchasing" in modules and vis.purchasing and outlet_ids:
+        open_purchase_orders = PurchaseOrder.objects.filter(
+            tenant_id=membership.tenant_id,
+            outlet_id__in=outlet_ids,
+            status__in=(
+                PurchaseOrderStatus.DRAFT,
+                PurchaseOrderStatus.SENT,
+                PurchaseOrderStatus.PARTIALLY_RECEIVED,
+            ),
+        ).count()
+        metrics.append(
+            DashboardOperationsMetric(
+                "Purchase orders", open_purchase_orders, "Open or receiving", reverse("staff-purchasing-orders"), "stock"
+            )
+        )
+
+    if "events" in modules and vis.events:
+        sites = sites_visible_for_membership(membership)
+        site = resolve_staff_site(request, sites)
+        if site is not None:
+            today = timezone.localdate()
+            day_start, day_end = utc_day_range_inclusive(today, today)
+            event_count = EventBooking.objects.filter(
+                tenant_id=membership.tenant_id,
+                space__site=site,
+                status__in=(EventBookingStatus.TENTATIVE, EventBookingStatus.CONFIRMED),
+                start_at__lte=day_end,
+                end_at__gte=day_start,
+            ).count()
+            metrics.append(
+                DashboardOperationsMetric("Events today", event_count, site.name, reverse("staff-events-calendar"), "events")
+            )
+
+    return tuple(metrics)
+
+
+def dashboard_lodging_snapshot(
+    request: HttpRequest,
+    *,
+    membership,
+    visible: bool,
+    limit: int = 5,
+) -> DashboardLodgingSnapshot | None:
+    if not visible:
+        return None
+    sites = sites_visible_for_membership(membership)
+    site = resolve_staff_site(request, sites)
+    if site is None:
+        return None
+
+    today = timezone.localdate()
+    reservations = Reservation.objects.filter(tenant_id=membership.tenant_id, site=site)
+    arrivals_qs = (
+        reservations.filter(
+            check_in=today,
+            status__in=(ReservationStatus.HELD, ReservationStatus.CONFIRMED),
+        )
+        .select_related("room")
+        .order_by("guest_name")
+    )
+    arrivals = arrivals_qs.count()
+    in_house = reservations.filter(status=ReservationStatus.CHECKED_IN).count()
+    departures = reservations.filter(
+        check_out=today,
+        status__in=(ReservationStatus.CONFIRMED, ReservationStatus.CHECKED_IN),
+    ).count()
+
+    room_counts = Room.objects.filter(room_type__site=site, is_active=True).aggregate(
+        total=Count("id"),
+        ready=Count("id", filter=Q(status__in=(RoomStatus.CLEAN, RoomStatus.INSPECTED))),
+        dirty=Count("id", filter=Q(status=RoomStatus.DIRTY)),
+        out_of_order=Count("id", filter=Q(status=RoomStatus.OUT_OF_ORDER)),
+    )
+    total_rooms = int(room_counts["total"] or 0)
+    occupied_rooms = (
+        reservations.filter(status=ReservationStatus.CHECKED_IN, room_id__isnull=False)
+        .values("room_id")
+        .distinct()
+        .count()
+    )
+    occupancy_percent = round((occupied_rooms / total_rooms) * 100) if total_rooms else 0
+    open_maintenance = RoomMaintenanceRequest.objects.filter(
+        tenant_id=membership.tenant_id,
+        room__room_type__site=site,
+    ).exclude(status=MaintenanceStatus.RESOLVED).count()
+    arrival_rows = tuple(
+        DashboardArrivalRow(
+            guest_name=res.guest_name,
+            room_label=res.room.name if res.room else "Unassigned",
+            status_label=res.get_status_display(),
+            detail_url=reverse("staff-lodging-reservation-detail", kwargs={"reservation_id": res.id}),
+        )
+        for res in arrivals_qs[: int(limit)]
+    )
+    return DashboardLodgingSnapshot(
+        site_name=site.name,
+        arrivals=arrivals,
+        in_house=in_house,
+        departures=departures,
+        ready_rooms=int(room_counts["ready"] or 0),
+        dirty_rooms=int(room_counts["dirty"] or 0),
+        out_of_order_rooms=int(room_counts["out_of_order"] or 0),
+        occupied_rooms=occupied_rooms,
+        total_rooms=total_rooms,
+        occupancy_percent=occupancy_percent,
+        open_maintenance=open_maintenance,
+        arrival_rows=arrival_rows,
+        reservations_url=reverse("staff-lodging-reservations"),
+        tape_url=reverse("staff-lodging-tape"),
+        housekeeping_url=reverse("staff-lodging-housekeeping"),
+        maintenance_url=reverse("staff-lodging-maintenance"),
+    )
 
 
 def dashboard_low_stock_snapshot(

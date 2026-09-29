@@ -44,7 +44,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         qs = (
             PurchaseOrder.objects.filter(tenant=self.request.tenant, outlet_id__in=oids)
             .select_related("supplier", "outlet", "created_by")
-            .prefetch_related("lines__menu_item")
+            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item")
             .order_by("-created_at")
         )
         supplier = self.request.query_params.get("supplier")
@@ -78,7 +78,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         po = (
             PurchaseOrder.objects.filter(pk=po.pk)
             .select_related("supplier", "outlet", "created_by")
-            .prefetch_related("lines__menu_item")
+            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item")
             .first()
         )
         return Response(
@@ -100,11 +100,13 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             lines_payload=lines_payload,
             user=request.user,
             membership=request.tenant_membership,
+            delivery_reference=ser.validated_data.get("delivery_reference", ""),
+            note=ser.validated_data.get("note", ""),
         )
         po = (
             PurchaseOrder.objects.filter(pk=po.pk)
             .select_related("supplier", "outlet", "created_by")
-            .prefetch_related("lines__menu_item")
+            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item")
             .first()
         )
         return Response(PurchaseOrderSerializer(po, context={"request": request}).data)

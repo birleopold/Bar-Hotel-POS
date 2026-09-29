@@ -123,3 +123,40 @@ class PurchaseOrderLine(TimeStampedModel):
     @property
     def quantity_remaining(self) -> Decimal:
         return self.quantity_ordered - self.quantity_received
+
+
+class PurchaseReceipt(TimeStampedModel):
+    """One physical delivery received against a purchase order."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="purchase_receipts")
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name="receipts")
+    delivery_reference = models.CharField(max_length=128, blank=True)
+    note = models.CharField(max_length=512, blank=True)
+    received_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_receipts_recorded",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.delivery_reference or f"Receipt {self.id}"
+
+
+class PurchaseReceiptLine(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    receipt = models.ForeignKey(PurchaseReceipt, on_delete=models.CASCADE, related_name="lines")
+    purchase_order_line = models.ForeignKey(PurchaseOrderLine, on_delete=models.PROTECT, related_name="receipt_lines")
+    quantity_received = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+
+    class Meta:
+        ordering = ["receipt", "purchase_order_line__menu_item__name"]

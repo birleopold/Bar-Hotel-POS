@@ -74,7 +74,7 @@ class EventBooking(TimeStampedModel):
         ordering = ["start_at"]
         constraints = [
             models.CheckConstraint(
-                check=Q(end_at__gt=F("start_at")),
+                condition=Q(end_at__gt=F("start_at")),
                 name="events_booking_end_after_start",
             ),
         ]

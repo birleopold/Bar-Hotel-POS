@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
-from apps.api.permissions import CanManageTenantSettings, HasTenantContext, NotReadOnlyRole
+from apps.api.permissions import CanManageIntegrations, HasTenantContext, NotReadOnlyRole
 
 from .models import IntegrationLink
 from .serializers import IntegrationLinkSerializer
@@ -13,7 +13,7 @@ class IntegrationLinkViewSet(viewsets.ModelViewSet):
     permission_classes = [
         IsAuthenticated,
         HasTenantContext,
-        CanManageTenantSettings,
+        CanManageIntegrations,
         NotReadOnlyRole,
     ]
     serializer_class = IntegrationLinkSerializer

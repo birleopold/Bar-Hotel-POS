@@ -51,12 +51,16 @@ def post_room_nights_on_check_in(*, reservation: Reservation, user) -> int:
         .first()
     )
     if folio is None:
+        try:
+            currency = reservation.tenant.settings.default_currency
+        except Exception:
+            currency = "USD"
         folio = Folio.objects.create(
             tenant_id=reservation.tenant_id,
             site_id=reservation.site_id,
             reservation=reservation,
             guest_name=reservation.guest_name,
-            currency="USD",
+            currency=currency,
         )
     n_created = 0
     for night in _iter_stay_nights(reservation.check_in, reservation.check_out):

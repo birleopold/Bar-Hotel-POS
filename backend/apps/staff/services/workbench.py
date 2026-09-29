@@ -297,6 +297,7 @@ def build_workbench_playbook(
                         _u("staff-lodging-housekeeping"),
                         "Room clean / dirty / inspected.",
                     ),
+                    WorkbenchLink("Maintenance", _u("staff-lodging-maintenance"), "Assign and resolve room repairs."),
                     WorkbenchLink("Room types", _u("staff-lodging-room-types"), ""),
                 ),
             )

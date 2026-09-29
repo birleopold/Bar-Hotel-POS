@@ -298,6 +298,12 @@ class UraEfrisHttpAdapter(BaseEfrisAdapter):
                 "providerReference",
             ),
         )
+        explicit_success = status_token in {"success", "succeeded", "accepted", "ok"} or success_flag is True
+        if not reference and not explicit_success:
+            return EfrisSubmitResult(
+                success=False,
+                error_message="EFRIS response did not confirm acceptance or provide a fiscal reference.",
+            )
         return EfrisSubmitResult(success=True, provider_reference=str(reference or "")[:128])
 
     def _extract_error_message(self, body: dict[str, Any]) -> str:

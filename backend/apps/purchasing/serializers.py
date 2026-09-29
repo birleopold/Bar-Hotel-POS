@@ -7,7 +7,7 @@ from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
 from apps.tenants.models import Outlet
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, Supplier
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -52,10 +52,30 @@ class PurchaseOrderLineReadSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PurchaseReceiptLineSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="purchase_order_line.menu_item.name", read_only=True)
+
+    class Meta:
+        model = PurchaseReceiptLine
+        fields = ("id", "purchase_order_line", "item_name", "quantity_received")
+        read_only_fields = fields
+
+
+class PurchaseReceiptSerializer(serializers.ModelSerializer):
+    lines = PurchaseReceiptLineSerializer(many=True, read_only=True)
+    received_by_email = serializers.EmailField(source="received_by.email", read_only=True, allow_null=True)
+
+    class Meta:
+        model = PurchaseReceipt
+        fields = ("id", "delivery_reference", "note", "received_by", "received_by_email", "created_at", "lines")
+        read_only_fields = fields
+
+
 class PurchaseOrderSerializer(serializers.ModelSerializer):
     lines = PurchaseOrderLineReadSerializer(many=True, read_only=True)
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     outlet_name = serializers.CharField(source="outlet.name", read_only=True)
+    receipts = PurchaseReceiptSerializer(many=True, read_only=True)
 
     class Meta:
         model = PurchaseOrder
@@ -72,6 +92,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             "notes",
             "created_by",
             "lines",
+            "receipts",
             "created_at",
             "updated_at",
         ]
@@ -218,6 +239,8 @@ class ReceiveLineSerializer(serializers.Serializer):
 
 class ReceivePurchaseOrderSerializer(serializers.Serializer):
     lines = ReceiveLineSerializer(many=True)
+    delivery_reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
+    note = serializers.CharField(required=False, allow_blank=True, max_length=512, default="")
 
     def validate_lines(self, value):
         if not value:

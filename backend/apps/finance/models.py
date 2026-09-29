@@ -82,6 +82,8 @@ class CashbookEntry(TimeStampedModel):
 
 class FinancePostingSource(models.TextChoices):
     POS_PAYMENT = "pos_payment", "POS payment"
+    POS_REFUND = "pos_refund", "POS refund"
+    FOLIO_PAYMENT = "folio_payment", "Folio payment"
     PURCHASE_RECEIVE_MOVEMENT = "purchase_receive_movement", "Purchase receive movement"
 
 

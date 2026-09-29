@@ -11,7 +11,10 @@ def utc_day_range_inclusive(d0: date, d1: date) -> tuple[datetime, datetime]:
 
     Matches prior naive ``combine(min)`` / ``combine(max)`` semantics under ``TIME_ZONE=UTC`` + ``USE_TZ``,
     but passes aware datetimes so the ORM does not warn.
+
+    Uses ``replace(tzinfo=UTC)`` so bounds are unmistakably aware even if callers pass
+    non-midnight time components downstream.
     """
-    start = datetime.combine(d0, time.min, tzinfo=dt_timezone.utc)
-    end = datetime.combine(d1, time.max, tzinfo=dt_timezone.utc)
+    start = datetime.combine(d0, time.min).replace(tzinfo=dt_timezone.utc)
+    end = datetime.combine(d1, time.max).replace(tzinfo=dt_timezone.utc)
     return start, end

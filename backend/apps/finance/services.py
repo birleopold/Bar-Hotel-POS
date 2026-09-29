@@ -14,6 +14,8 @@ from .models import (
 )
 
 SYSTEM_POS_INCOME_CATEGORY = "POS Sales"
+SYSTEM_POS_REFUND_CATEGORY = "POS Refunds"
+SYSTEM_FOLIO_INCOME_CATEGORY = "Guest Folio Payments"
 SYSTEM_PURCHASE_EXPENSE_CATEGORY = "Stock Purchases"
 
 
@@ -52,6 +54,8 @@ def post_cashbook_for_source(
     note: str = "",
     created_by=None,
     transaction_date=None,
+    default_category_name: str | None = None,
+    enqueue_efris: bool = True,
 ) -> tuple[CashbookEntry | None, bool]:
     """
     Idempotently post one operational event to one cashbook entry.
@@ -69,7 +73,7 @@ def post_cashbook_for_source(
     category = _system_category_for_kind(
         tenant_id=tenant_id,
         kind=kind,
-        default_name=(
+        default_name=default_category_name or (
             SYSTEM_POS_INCOME_CATEGORY
             if kind == FinanceCategoryKind.INCOME
             else SYSTEM_PURCHASE_EXPENSE_CATEGORY
@@ -105,7 +109,8 @@ def post_cashbook_for_source(
         raise
     from apps.integrations.services import enqueue_efris_submission_for_cashbook_entry
 
-    enqueue_efris_submission_for_cashbook_entry(entry)
+    if enqueue_efris:
+        enqueue_efris_submission_for_cashbook_entry(entry)
     return entry, False
 
 
@@ -121,6 +126,40 @@ def post_pos_payment_income(*, payment, order, user) -> tuple[CashbookEntry | No
         note=f"Auto-posted from POS payment {payment.id}",
         created_by=user,
         transaction_date=payment.created_at.date(),
+    )
+
+
+def post_pos_refund_expense(*, refund, order, user) -> tuple[CashbookEntry | None, bool]:
+    return post_cashbook_for_source(
+        tenant_id=order.tenant_id,
+        source_type=FinancePostingSource.POS_REFUND,
+        source_id=str(refund.id),
+        kind=FinanceCategoryKind.EXPENSE,
+        amount=refund.amount,
+        site=order.outlet.site,
+        reference=order.bill_reference,
+        note=f"Auto-posted from POS refund {refund.id}",
+        created_by=user,
+        transaction_date=refund.created_at.date(),
+        default_category_name=SYSTEM_POS_REFUND_CATEGORY,
+        enqueue_efris=False,
+    )
+
+
+def post_folio_payment_income(*, payment, user) -> tuple[CashbookEntry | None, bool]:
+    folio = payment.folio
+    return post_cashbook_for_source(
+        tenant_id=folio.tenant_id,
+        source_type=FinancePostingSource.FOLIO_PAYMENT,
+        source_id=str(payment.id),
+        kind=FinanceCategoryKind.INCOME,
+        amount=payment.amount,
+        site=folio.site,
+        reference=(payment.reference or str(folio.id))[:64],
+        note=f"Auto-posted from guest folio payment {payment.id}",
+        created_by=user,
+        transaction_date=payment.created_at.date(),
+        default_category_name=SYSTEM_FOLIO_INCOME_CATEGORY,
     )
 
 

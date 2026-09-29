@@ -100,36 +100,40 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
             menu_item__track_inventory=True,
         )
     )
-    lines.sort(key=lambda ln: str(ln.menu_item_id))
-
+    item_need: dict = {}
+    item_names: dict = {}
     for line in lines:
+        item_need[line.menu_item_id] = item_need.get(line.menu_item_id, Decimal("0")) + line.quantity
+        item_names[line.menu_item_id] = line.menu_item.name
+
+    for item_id, need in sorted(item_need.items(), key=lambda row: str(row[0])):
         bal, _ = StockBalance.objects.select_for_update().get_or_create(
             outlet_id=outlet_id,
-            menu_item_id=line.menu_item_id,
+            menu_item_id=item_id,
             defaults={"tenant_id": tenant_id, "quantity": Decimal("0")},
         )
-        if bal.quantity < line.quantity:
+        if bal.quantity < need:
             raise ValidationError(
                 {
                     "stock": (
-                        f'Insufficient stock for "{line.menu_item.name}" '
-                        f"(need {line.quantity}, have {bal.quantity})."
+                        f'Insufficient stock for "{item_names[item_id]}" '
+                        f"(need {need}, have {bal.quantity})."
                     )
                 }
             )
 
-    for line in lines:
+    for item_id, need in sorted(item_need.items(), key=lambda row: str(row[0])):
         bal = StockBalance.objects.select_for_update().get(
             outlet_id=outlet_id,
-            menu_item_id=line.menu_item_id,
+            menu_item_id=item_id,
         )
-        bal.quantity -= line.quantity
+        bal.quantity -= need
         bal.save(update_fields=["quantity", "updated_at"])
         StockMovement.objects.create(
             tenant_id=tenant_id,
             outlet_id=outlet_id,
-            menu_item_id=line.menu_item_id,
-            quantity_change=-line.quantity,
+            menu_item_id=item_id,
+            quantity_change=-need,
             reason=StockReason.SALE,
             order=order,
             created_by=user,

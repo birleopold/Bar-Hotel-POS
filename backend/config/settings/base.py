@@ -170,6 +170,7 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
+FORMS_URLFIELD_ASSUME_HTTPS = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -191,7 +192,7 @@ MESSAGE_TAGS = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.api.authentication.TenantJWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -259,7 +260,7 @@ SPECTACULAR_SETTINGS = {
         }
     },
     "AUTHENTICATION_WHITELIST": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.api.authentication.TenantJWTAuthentication",
     ],
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.hooks.postprocess_schema_enums",

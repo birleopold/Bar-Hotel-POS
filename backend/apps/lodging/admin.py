@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from apps.common.admin_mixins import PlatformOperatorModelAdmin
 
-from .models import Folio, FolioLine, Reservation, Room, RoomRateWindow, RoomType
+from .models import Folio, FolioLine, FolioPayment, Reservation, Room, RoomMaintenanceRequest, RoomRateWindow, RoomType
 
 
 class FolioLineInline(admin.TabularInline):
@@ -11,12 +11,18 @@ class FolioLineInline(admin.TabularInline):
     readonly_fields = ("source_order",)
 
 
+class FolioPaymentInline(admin.TabularInline):
+    model = FolioPayment
+    extra = 0
+    readonly_fields = ("amount", "method", "reference", "idempotency_key", "recorded_by", "created_at")
+
+
 @admin.register(Folio)
 class FolioAdmin(PlatformOperatorModelAdmin):
     list_display = ("guest_name", "site", "status", "currency", "tenant", "created_at")
     list_filter = ("status", "tenant")
     search_fields = ("guest_name", "notes")
-    inlines = [FolioLineInline]
+    inlines = [FolioLineInline, FolioPaymentInline]
     autocomplete_fields = ("site", "reservation")
 
 
@@ -49,3 +55,11 @@ class ReservationAdmin(PlatformOperatorModelAdmin):
     list_filter = ("status", "tenant")
     search_fields = ("guest_name", "guest_email")
     autocomplete_fields = ("room", "site")
+
+
+@admin.register(RoomMaintenanceRequest)
+class RoomMaintenanceRequestAdmin(PlatformOperatorModelAdmin):
+    list_display = ("title", "room", "priority", "status", "assigned_to", "expected_by", "tenant")
+    list_filter = ("status", "priority", "tenant")
+    search_fields = ("title", "description", "room__name")
+    autocomplete_fields = ("room", "assigned_to")

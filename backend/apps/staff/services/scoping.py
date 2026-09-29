@@ -119,7 +119,11 @@ def staff_nav_visibility_scoped(
 
     allowed = _caps_for_business_lines(lines)
     if outlet is not None:
-        allowed &= _caps_for_outlet_type(outlet.outlet_type)
+        # An active POS section narrows section-specific tools, while property-level
+        # workflows remain reachable (front desk, events, finance, workspace).
+        property_caps = {"lodging", "events", "finance", "workspace"}
+        outlet_caps = _caps_for_outlet_type(outlet.outlet_type)
+        allowed = (allowed & outlet_caps) | (allowed & property_caps)
 
     return StaffNavVisibility(
         orders=base.orders and "orders" in allowed,

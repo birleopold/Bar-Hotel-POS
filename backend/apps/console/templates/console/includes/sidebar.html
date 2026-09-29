@@ -1,0 +1,97 @@
+{% with u=request.resolver_match.url_name %}
+<aside class="staff-sidebar console-sidebar" aria-label="Administration navigation">
+  <div class="staff-sidebar__brand-wrap">
+    <a class="staff-sidebar__brand" href="{% url 'console-index' %}">
+      <span class="staff-sidebar__mark" aria-hidden="true"><i class="bi bi-sliders2"></i></span>
+      <span><strong>Administration</strong><small>{{ console_active_tenant.name|default:"Business console" }}</small></span>
+    </a>
+  </div>
+
+  {% if request.user.is_authenticated %}
+    {% if console_memberships|length > 1 %}
+      <div class="staff-sidebar__scope">
+        <form method="post" action="{% url 'console-select-tenant' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <label for="console-tenant-select">Workspace</label>
+          <select id="console-tenant-select" name="tenant_id" onchange="this.form.submit()">
+            {% for membership in console_memberships %}
+              <option value="{{ membership.tenant_id }}"{% if console_active_tenant and membership.tenant_id == console_active_tenant.id %} selected{% endif %}>{{ membership.tenant.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+    {% endif %}
+
+    <div class="staff-sidebar__scroll">
+      <nav class="wb-side-nav" aria-label="Console sections">
+        <div class="wb-nav-group">
+          <span class="wb-nav-group__label">Control center</span>
+          <ul class="wb-nav-list">
+            <li><a class="wb-nav-link{% if u == 'console-index' %} wb-nav-link--active{% endif %}" href="{% url 'console-index' %}">Console home</a></li>
+            <li><a class="wb-nav-link" href="{% url 'staff-dashboard' %}">Operations workspace</a></li>
+          </ul>
+        </div>
+
+        {% if console_active_tenant and console_can_org_admin %}
+          <div class="wb-nav-group">
+            <span class="wb-nav-group__label">Organization</span>
+            <ul class="wb-nav-list">
+              <li><a class="wb-nav-link{% if u == 'console-org' %} wb-nav-link--active{% endif %}" href="{% url 'console-org' %}">Overview</a></li>
+              <li><a class="wb-nav-link{% if u == 'console-org-setup' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-setup' %}">Setup progress</a></li>
+              <li><a class="wb-nav-link{% if u == 'console-org-sites' or u == 'console-org-site-create' or u == 'console-org-site-edit' or u == 'console-org-outlets' or u == 'console-org-outlet-create' or u == 'console-org-outlet-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-sites' %}">Branches &amp; sections</a></li>
+            </ul>
+          </div>
+
+          {% if console_has_fnb or console_has_retail %}
+            <div class="wb-nav-group">
+              <span class="wb-nav-group__label">Catalog &amp; sales</span>
+              <ul class="wb-nav-list">
+                <li><a class="wb-nav-link{% if u == 'console-org-menu-categories' or u == 'console-org-menu-category-create' or u == 'console-org-menu-category-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-menu-categories' %}">Categories</a></li>
+                <li><a class="wb-nav-link{% if u == 'console-org-menu-items' or u == 'console-org-menu-item-create' or u == 'console-org-menu-item-edit' or u == 'console-org-menu-item-outlets' or u == 'console-org-menu-item-outlet-create' or u == 'console-org-menu-item-outlet-edit' or u == 'console-org-menu-item-outlet-delete' or u == 'console-org-menu-item-recipe' or u == 'console-org-menu-item-recipe-create' or u == 'console-org-menu-item-recipe-edit' or u == 'console-org-menu-item-recipe-delete' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-menu-items' %}">Items &amp; recipes</a></li>
+                {% if console_has_fnb %}<li><a class="wb-nav-link{% if u == 'console-org-modifier-groups' or u == 'console-org-modifier-group-create' or u == 'console-org-modifier-group-edit' or u == 'console-org-modifier-options' or u == 'console-org-modifier-option-create' or u == 'console-org-modifier-option-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-modifier-groups' %}">Modifiers</a></li>{% endif %}
+              </ul>
+            </div>
+          {% endif %}
+
+          <div class="wb-nav-group">
+            <span class="wb-nav-group__label">Services</span>
+            <ul class="wb-nav-list">
+              <li><a class="wb-nav-link{% if u == 'console-org-service-offerings' or u == 'console-org-service-offering-create' or u == 'console-org-service-offering-edit' or u == 'console-org-service-offering-options' or u == 'console-org-service-offering-option-create' or u == 'console-org-service-offering-option-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-service-offerings' %}">Services &amp; packages</a></li>
+            </ul>
+          </div>
+
+          {% if console_has_lodging %}
+            <div class="wb-nav-group">
+              <span class="wb-nav-group__label">Lodging setup</span>
+              <ul class="wb-nav-list">
+                <li><a class="wb-nav-link{% if u == 'console-org-room-types' or u == 'console-org-room-type-create' or u == 'console-org-room-type-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-room-types' %}">Room types</a></li>
+                <li><a class="wb-nav-link{% if u == 'console-org-rooms' or u == 'console-org-room-create' or u == 'console-org-room-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-rooms' %}">Rooms</a></li>
+                <li><a class="wb-nav-link{% if u == 'console-org-room-rates' or u == 'console-org-room-rate-create' or u == 'console-org-room-rate-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-room-rates' %}">Rate windows</a></li>
+              </ul>
+            </div>
+          {% endif %}
+        {% endif %}
+
+        {% if user.is_superuser or user.is_platform_staff %}
+          <div class="wb-nav-group">
+            <span class="wb-nav-group__label">Platform</span>
+            <ul class="wb-nav-list">
+              <li><a class="wb-nav-link{% if u == 'console-platform-tenants' or u == 'console-platform-tenant-create' or u == 'console-platform-tenant-edit' or u == 'console-platform-tenant-control-plane' %} wb-nav-link--active{% endif %}" href="{% url 'console-platform-tenants' %}">Workspaces</a></li>
+              <li><a class="wb-nav-link{% if u == 'console-platform-plans' or u == 'console-platform-plan-create' or u == 'console-platform-plan-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-platform-plans' %}">Plans &amp; modules</a></li>
+            </ul>
+          </div>
+        {% endif %}
+      </nav>
+    </div>
+
+    <div class="staff-sidebar__footer">
+      <div class="staff-sidebar__user"><span aria-hidden="true">{{ request.user.email|slice:":1"|upper }}</span><div><strong>{{ request.user.email }}</strong><small>Administrator</small></div></div>
+      <div class="staff-sidebar__footer-actions">
+        <a href="{% url 'staff-dashboard' %}" title="Operations workspace"><i class="bi bi-grid"></i><span>Workspace</span></a>
+        <form method="post" action="{% url 'staff-logout' %}">{% csrf_token %}<button type="submit" title="Sign out"><i class="bi bi-box-arrow-right"></i><span>Sign out</span></button></form>
+      </div>
+    </div>
+  {% endif %}
+</aside>
+{% endwith %}

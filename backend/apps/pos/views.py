@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.api.permissions import HasTenantContext, NotReadOnlyRole
+from apps.api.permissions import CanApproveRefunds, HasTenantContext, NotReadOnlyRole
 from apps.audit.services import log_audit
 from .models import Order, OrderLine, Table
 from .view_helpers import (
@@ -68,6 +68,12 @@ class TableViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
     http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_permissions(self):
+        classes = list(self.permission_classes)
+        if self.action == "refunds":
+            classes.append(CanApproveRefunds)
+        return [permission() for permission in classes]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

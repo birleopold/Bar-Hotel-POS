@@ -470,7 +470,11 @@ class StaffWorkerCreateForm(forms.Form):
 
 
 class StaffMembershipBulkActionForm(forms.Form):
-    member_ids = forms.ModelMultipleChoiceField(queryset=Membership.objects.none(), required=True)
+    member_ids = forms.ModelMultipleChoiceField(
+        queryset=Membership.objects.none(),
+        required=True,
+        widget=forms.SelectMultiple(attrs={"class": "staff-input"}),
+    )
     action = forms.ChoiceField(
         choices=[
             ("activate", "Activate selected"),

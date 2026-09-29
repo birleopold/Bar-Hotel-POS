@@ -12,6 +12,7 @@ from .models import Folio, FolioLine, FolioStatus, Reservation, Room, RoomRateWi
 from .serializers import (
     FolioCreateSerializer,
     FolioManualLineSerializer,
+    FolioPaymentCreateSerializer,
     FolioSerializer,
     FolioStatusSerializer,
     ReservationFolioChargeSerializer,
@@ -20,7 +21,7 @@ from .serializers import (
     RoomSerializer,
     RoomTypeSerializer,
 )
-from .services import cancel_reservation, check_in_reservation, check_out_reservation
+from .services import cancel_reservation, check_in_reservation, check_out_reservation, close_folio, record_folio_payment
 
 
 class RoomTypeViewSet(viewsets.ModelViewSet):
@@ -158,7 +159,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
         folio = (
             Folio.objects.filter(pk=folio.pk)
             .select_related("site", "reservation")
-            .prefetch_related("lines")
+            .prefetch_related("lines", "payments")
             .first()
         )
         return Response(FolioSerializer(folio, context={"request": request}).data)
@@ -236,6 +237,27 @@ class FolioViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        if serializer.validated_data.get("status") == FolioStatus.CLOSED:
+            serializer.instance = close_folio(folio=instance, user=self.request.user)
+            return
+        serializer.save()
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        refreshed = (
+            Folio.objects.filter(pk=serializer.instance.pk)
+            .select_related("site", "reservation")
+            .prefetch_related("lines", "payments")
+            .get()
+        )
+        return Response(FolioSerializer(refreshed, context={"request": request}).data)
+
     @action(detail=True, methods=["post"], url_path="lines")
     def add_line(self, request, pk=None):
         folio = self.get_object()
@@ -269,5 +291,16 @@ class FolioViewSet(viewsets.ModelViewSet):
         )
         return Response(
             FolioSerializer(folio, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"], url_path="payments")
+    def add_payment(self, request, pk=None):
+        folio = self.get_object()
+        ser = FolioPaymentCreateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        payment = record_folio_payment(folio=folio, user=request.user, **ser.validated_data)
+        return Response(
+            {"id": str(payment.id), "amount": str(payment.amount), "method": payment.method},
             status=status.HTTP_201_CREATED,
         )
