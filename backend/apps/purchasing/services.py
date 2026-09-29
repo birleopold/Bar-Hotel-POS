@@ -21,17 +21,14 @@ def receive_purchase_order_goods(
     delivery_reference: str = "",
     note: str = "",
 ) -> PurchaseOrder:
-    if po.status not in (
-        PurchaseOrderStatus.SENT,
-        PurchaseOrderStatus.PARTIALLY_RECEIVED,
-    ):
-        raise ValidationError(
-            {"detail": "Purchase order must be sent or partially received to receive goods."}
-        )
     if not outlet_belongs_to_membership(membership, po.outlet_id):
         raise ValidationError({"detail": "You cannot receive stock for this outlet."})
 
     po_locked = PurchaseOrder.objects.select_for_update().get(pk=po.pk)
+    if po_locked.status not in (PurchaseOrderStatus.SENT, PurchaseOrderStatus.PARTIALLY_RECEIVED):
+        raise ValidationError(
+            {"detail": "Purchase order must be sent or partially received to receive goods."}
+        )
     any_positive = False
     receipt = PurchaseReceipt.objects.create(
         tenant_id=po_locked.tenant_id,

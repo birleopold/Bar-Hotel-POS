@@ -234,6 +234,10 @@ def process_offline_queue_entry(
         },
     )
     obj = OfflineQueuedOperation.objects.select_for_update().get(pk=obj.pk)
+    if obj.status == OfflineQueueStatus.APPLIED and (
+        obj.outlet_id != outlet.id or obj.operation_type != operation_type or obj.payload != payload
+    ):
+        raise ValidationError({"client_mutation_id": "This mutation ID was already used for a different operation."})
     if obj.status == OfflineQueueStatus.APPLIED:
         return obj, True
 

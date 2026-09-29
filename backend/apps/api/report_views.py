@@ -11,6 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.access.outlets import membership_outlet_ids
 from apps.pos.models import Payment, Refund
 
 from .permissions import HasTenantContext
@@ -46,8 +47,10 @@ class SalesSummaryView(APIView):
         oid = outlet_res
 
         tenant_id = request.tenant.id
+        allowed_outlets = membership_outlet_ids(request.tenant_membership)
         payments_qs = Payment.objects.filter(
             tenant_id=tenant_id,
+            order__outlet_id__in=allowed_outlets,
             created_at__gte=rng.start,
             created_at__lte=rng.end,
         ).select_related("order", "order__outlet")
@@ -63,6 +66,7 @@ class SalesSummaryView(APIView):
 
         refunds_qs = Refund.objects.filter(
             tenant_id=tenant_id,
+            order__outlet_id__in=allowed_outlets,
             created_at__gte=rng.start,
             created_at__lte=rng.end,
         ).select_related("order")
@@ -154,9 +158,11 @@ class OperationsRollupView(APIView):
         oid = outlet_res
 
         tenant_id = request.tenant.id
+        allowed_outlets = membership_outlet_ids(request.tenant_membership)
 
         payments_qs = Payment.objects.filter(
             tenant_id=tenant_id,
+            order__outlet_id__in=allowed_outlets,
             created_at__gte=rng.start,
             created_at__lte=rng.end,
         ).select_related("order", "order__outlet")
@@ -165,6 +171,7 @@ class OperationsRollupView(APIView):
 
         refunds_qs = Refund.objects.filter(
             tenant_id=tenant_id,
+            order__outlet_id__in=allowed_outlets,
             created_at__gte=rng.start,
             created_at__lte=rng.end,
         ).select_related("order")

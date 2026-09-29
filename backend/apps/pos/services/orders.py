@@ -732,19 +732,33 @@ def close_pos_shift(*, shift: PosShift, user, counted_cash: Decimal, note: str =
         raise ValidationError("Only open shifts can be closed.")
     if counted_cash < 0:
         raise ValidationError({"counted_cash": "Counted cash cannot be negative."})
+    closed_at = timezone.now()
     cash_payments = (
         Payment.objects.filter(
             tenant_id=locked.tenant_id,
             order__outlet_id=locked.outlet_id,
             method=PaymentMethod.CASH,
             created_at__gte=locked.opened_at,
+            created_at__lte=closed_at,
         ).aggregate(s=Sum("amount"))["s"]
         or Decimal("0")
     )
-    expected = (locked.opening_cash + cash_payments).quantize(Decimal("0.01"))
+    from apps.pos.models import Refund
+
+    cash_refunds = (
+        Refund.objects.filter(
+            tenant_id=locked.tenant_id,
+            order__outlet_id=locked.outlet_id,
+            payment__method=PaymentMethod.CASH,
+            created_at__gte=locked.opened_at,
+            created_at__lte=closed_at,
+        ).aggregate(s=Sum("amount"))["s"]
+        or Decimal("0")
+    )
+    expected = (locked.opening_cash + cash_payments - cash_refunds).quantize(Decimal("0.01"))
     locked.status = PosShiftStatus.CLOSED
     locked.closed_by = user
-    locked.closed_at = timezone.now()
+    locked.closed_at = closed_at
     locked.expected_cash = expected
     locked.counted_cash = counted_cash.quantize(Decimal("0.01"))
     locked.note = (note or locked.note or "")[:255]
@@ -768,6 +782,7 @@ def close_pos_shift(*, shift: PosShift, user, counted_cash: Decimal, note: str =
         payload={
             "expected_cash": str(expected),
             "counted_cash": str(locked.counted_cash),
+            "cash_refunds": str(cash_refunds),
         },
     )
     return locked

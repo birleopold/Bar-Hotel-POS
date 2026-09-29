@@ -101,6 +101,24 @@ def test_offline_order_create_replay_is_idempotent(api_client):
 
 
 @pytest.mark.django_db
+def test_applied_offline_mutation_cannot_be_reused_for_different_order(api_client):
+    a = _seed_tenant_bundle(name="OC Conflict", slug="oc-conflict", user_email="occonflict@test.local")
+    assert api_client.login(username=a["user"].email, password="TestPass9!")
+    body = {
+        "outlet": str(a["outlet"].id),
+        "client_mutation_id": "device-1:conflict",
+        "operation_type": "order_create",
+        "payload": {"lines": [{"menu_item": str(a["item"].id), "quantity": "1"}]},
+    }
+    url = "/api/v1/pos/offline-sync/"
+    headers = {"HTTP_X_TENANT_ID": str(a["tenant"].id)}
+    assert api_client.post(url, body, format="json", **headers).status_code == 201
+    body["payload"]["lines"][0]["quantity"] = "2"
+    assert api_client.post(url, body, format="json", **headers).status_code == 400
+    assert Order.objects.filter(tenant=a["tenant"]).count() == 1
+
+
+@pytest.mark.django_db
 def test_offline_order_create_catalog_stale_returns_409(api_client):
     a = _seed_tenant_bundle(name="OC Stale", slug="oc-stale", user_email="ocstale@test.local")
     assert api_client.login(username=a["user"].email, password="TestPass9!")

@@ -1,6 +1,6 @@
 import uuid
 
-from apps.access.outlets import outlet_belongs_to_membership
+from apps.access.outlets import membership_outlet_ids, outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -30,7 +30,10 @@ class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return StockBalance.objects.none()
         qs = (
-            StockBalance.objects.filter(tenant=self.request.tenant)
+            StockBalance.objects.filter(
+                tenant=self.request.tenant,
+                outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
+            )
             .select_related("outlet", "menu_item")
             .order_by("outlet", "menu_item__name")
         )
@@ -57,7 +60,10 @@ class StockMovementViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, views
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return StockMovement.objects.none()
-        qs = StockMovement.objects.filter(tenant=self.request.tenant).select_related(
+        qs = StockMovement.objects.filter(
+            tenant=self.request.tenant,
+            outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
+        ).select_related(
             "outlet", "menu_item", "order", "purchase_order", "created_by"
         )
         outlet = self.request.query_params.get("outlet")
@@ -126,7 +132,10 @@ class StockCountSessionViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return StockCountSession.objects.none()
         qs = (
-            StockCountSession.objects.filter(tenant=self.request.tenant)
+            StockCountSession.objects.filter(
+                tenant=self.request.tenant,
+                outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
+            )
             .select_related("outlet", "created_by")
             .prefetch_related("lines__menu_item")
         )

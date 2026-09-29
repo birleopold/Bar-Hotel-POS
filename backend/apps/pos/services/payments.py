@@ -8,7 +8,7 @@ from apps.audit.services import log_audit
 from apps.finance.services import post_pos_payment_income, post_pos_refund_expense
 from apps.inventory.models import StockReason
 from apps.inventory.services import apply_manual_stock_change, validate_and_consume_stock_for_paid_order
-from apps.lodging.models import FolioLine
+from apps.lodging.models import Folio, FolioLine, FolioStatus
 from apps.pos.models import KdsLineStatus, Order, OrderStatus, Payment, Refund
 from apps.tenants.models import OutletType
 
@@ -35,7 +35,9 @@ def record_order_payment(
         raise ValidationError(
             {"Idempotency-Key": "Required non-empty header Idempotency-Key for payments."}
         )
-    idempotency_key = idempotency_key.strip()[:128]
+    idempotency_key = idempotency_key.strip()
+    if len(idempotency_key) > 128:
+        raise ValidationError({"Idempotency-Key": "Must be at most 128 characters."})
 
     locked = Order.objects.select_for_update().get(pk=order.pk)
 
@@ -44,9 +46,9 @@ def record_order_payment(
         idempotency_key=idempotency_key,
     ).first()
     if existing is not None:
-        if existing.order_id != locked.id:
+        if existing.order_id != locked.id or existing.amount != amount or existing.method != method:
             raise ValidationError(
-                {"Idempotency-Key": "This key was already used for a different order."}
+                {"Idempotency-Key": "This key was already used for a different payment."}
             )
         return existing, True
 
@@ -102,12 +104,24 @@ def record_order_payment(
         validate_and_consume_stock_for_paid_order(locked, user)
 
         if locked.folio_id:
+            folio = Folio.objects.select_for_update().get(pk=locked.folio_id)
+            if folio.status != FolioStatus.OPEN or folio.currency != locked.currency:
+                raise ValidationError({"folio": "Folio must be open and use the order currency."})
+            # The sale was already settled at the POS and posted to finance above.
+            # Show it on the guest statement without making it payable twice.
             FolioLine.objects.create(
                 tenant_id=locked.tenant_id,
-                folio_id=locked.folio_id,
+                folio=folio,
                 description=f"POS {locked.bill_reference}",
-                amount=locked.subtotal,
+                amount=locked.total - locked.tax_total,
                 tax_amount=locked.tax_total,
+                source_order=locked,
+            )
+            FolioLine.objects.create(
+                tenant_id=locked.tenant_id,
+                folio=folio,
+                description=f"Paid at POS {locked.bill_reference}",
+                amount=-locked.total,
                 source_order=locked,
             )
     else:
@@ -200,7 +214,9 @@ def record_order_refund(
         raise ValidationError(
             {"Idempotency-Key": "Required non-empty header Idempotency-Key for refunds."}
         )
-    idempotency_key = idempotency_key.strip()[:128]
+    idempotency_key = idempotency_key.strip()
+    if len(idempotency_key) > 128:
+        raise ValidationError({"Idempotency-Key": "Must be at most 128 characters."})
 
     locked = Order.objects.select_for_update().get(pk=order.pk)
 
@@ -209,7 +225,13 @@ def record_order_refund(
         idempotency_key=idempotency_key,
     ).first()
     if existing is not None:
-        if existing.order_id != locked.id:
+        if (
+            existing.order_id != locked.id
+            or existing.amount != amount
+            or existing.reason != (reason or "")[:255]
+            or existing.restocked != restock
+            or (payment_id is not None and existing.payment_id != payment_id)
+        ):
             raise ValidationError(
                 {"Idempotency-Key": "This key was already used for a different refund."}
             )

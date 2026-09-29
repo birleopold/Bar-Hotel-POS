@@ -292,6 +292,7 @@ def complete_stock_count_session(
     user,
     membership: Membership,
 ) -> StockCountSession:
+    session = StockCountSession.objects.select_for_update().get(pk=session.pk)
     if session.status != StockCountStatus.DRAFT:
         raise ValidationError("Only draft sessions can be completed.")
     if not outlet_belongs_to_membership(membership, session.outlet_id):

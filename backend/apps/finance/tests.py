@@ -4,11 +4,12 @@ from datetime import date
 from decimal import Decimal
 
 from django.test import TestCase
+from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.pos.models import Order
-from apps.pos.services import record_order_payment
+from apps.pos.services import close_pos_shift, open_pos_shift, record_order_payment, record_order_refund
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, Supplier
 from apps.purchasing.services import receive_purchase_order_goods
 from apps.tenants.models import Outlet, OutletType, Site, Tenant
@@ -70,6 +71,31 @@ class PosFinancePostingTests(TestCase):
         self.assertTrue(replay_flag)
         self.assertEqual(replay_payment.id, payment.id)
         self.assertEqual(CashbookEntry.objects.count(), 1)
+
+
+    def test_payment_replay_rejects_changed_tender(self) -> None:
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("5.00"), method="cash", idempotency_key="pay-change")
+        with self.assertRaises(ValidationError):
+            record_order_payment(order=self.order, user=self.user, amount=Decimal("6.00"), method="cash", idempotency_key="pay-change")
+        with self.assertRaises(ValidationError):
+            record_order_payment(order=self.order, user=self.user, amount=Decimal("5.00"), method="card", idempotency_key="pay-change")
+        self.assertEqual(self.order.payments.count(), 1)
+
+    def test_shift_cash_expected_balance_deducts_refunds(self) -> None:
+        shift = open_pos_shift(tenant_id=self.tenant.id, outlet=self.outlet, user=self.user, opening_cash=Decimal("20"))
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("10"), method="cash", idempotency_key="shift-payment")
+        record_order_refund(order=self.order, user=self.user, amount=Decimal("4"), reason="Return", idempotency_key="shift-refund", restock=False)
+        closed = close_pos_shift(shift=shift, user=self.user, counted_cash=Decimal("26"))
+        self.assertEqual(closed.expected_cash, Decimal("26.00"))
+
+    def test_refund_replay_rejects_changed_amount_or_restock(self) -> None:
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("10"), method="cash", idempotency_key="refund-pay")
+        record_order_refund(order=self.order, user=self.user, amount=Decimal("4"), reason="Return", idempotency_key="refund-key", restock=False)
+        with self.assertRaises(ValidationError):
+            record_order_refund(order=self.order, user=self.user, amount=Decimal("5"), reason="Return", idempotency_key="refund-key", restock=False)
+        with self.assertRaises(ValidationError):
+            record_order_refund(order=self.order, user=self.user, amount=Decimal("4"), reason="Return", idempotency_key="refund-key", restock=True)
+        self.assertEqual(self.order.refunds.count(), 1)
 
 
 class PurchaseFinancePostingTests(TestCase):

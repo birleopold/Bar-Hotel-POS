@@ -144,6 +144,8 @@ class StockMovementWriteSerializer(serializers.Serializer):
         ).first()
         if outlet is None:
             raise serializers.ValidationError({"outlet": "Invalid outlet for this tenant."})
+        if not outlet_belongs_to_membership(request.tenant_membership, outlet.id):
+            raise serializers.ValidationError({"outlet": "You cannot adjust stock for this outlet."})
         menu_item = MenuItem.objects.filter(
             id=validated_data["menu_item"],
             tenant_id=tenant.id,

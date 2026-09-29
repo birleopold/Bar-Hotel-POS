@@ -42,12 +42,22 @@ def folio_totals(folio: Folio) -> tuple[Decimal, Decimal, Decimal]:
 
 @transaction.atomic
 def record_folio_payment(*, folio: Folio, amount: Decimal, method: str, reference: str, user, idempotency_key: str) -> FolioPayment:
+    if not idempotency_key or not idempotency_key.strip() or len(idempotency_key.strip()) > 128:
+        raise ValidationError({"idempotency_key": "Required key of at most 128 characters."})
+    idempotency_key = idempotency_key.strip()
     folio = Folio.objects.select_for_update().get(pk=folio.pk)
     existing = FolioPayment.objects.filter(
         tenant_id=folio.tenant_id,
         idempotency_key=idempotency_key,
     ).first()
     if existing is not None:
+        if (
+            existing.folio_id != folio.id
+            or existing.amount != amount
+            or existing.method != method
+            or existing.reference != (reference or "")[:128]
+        ):
+            raise ValidationError({"idempotency_key": "This key was already used for a different folio payment."})
         return existing
     if folio.status != FolioStatus.OPEN:
         raise ValidationError({"detail": "Payments can only be recorded on an open folio."})

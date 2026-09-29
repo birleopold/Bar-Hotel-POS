@@ -7,7 +7,8 @@ from django.utils import timezone
 
 from apps.accounts.models import Membership, MembershipRole, UserInvite
 from apps.catalog.models import MenuCategory, MenuItem, Promotion
-from apps.inventory.models import StockCountSession, StockCountStatus, StockMovement
+from apps.inventory.models import StockBalance, StockCountSession, StockCountStatus, StockMovement
+from apps.inventory.serializers import StockCountCompleteSerializer
 from apps.pos.models import (
     KdsLineStatus,
     Order,
@@ -59,6 +60,44 @@ def _create_open_order(*, tenant, outlet, total: str = "10.00") -> Order:
         discount_amount=Decimal("0.00"),
         currency="USD",
     )
+
+
+@pytest.mark.django_db
+def test_site_restricted_membership_cannot_read_other_site_stock_or_sales(api_client):
+    a = _seed_tenant_bundle(name="Branch Scope", slug="branch-scope", user_email="branch-scope@test.local")
+    other_site = Site.objects.create(tenant=a["tenant"], name="Other site")
+    other_outlet = Outlet.objects.create(site=other_site, name="Other bar", outlet_type=OutletType.BAR)
+    membership = Membership.objects.get(user=a["user"], tenant=a["tenant"])
+    membership.sites.add(a["site"])
+    StockBalance.objects.create(tenant=a["tenant"], outlet=a["outlet"], menu_item=a["item"], quantity=Decimal("3"))
+    StockBalance.objects.create(tenant=a["tenant"], outlet=other_outlet, menu_item=a["item"], quantity=Decimal("99"))
+    order = _create_open_order(tenant=a["tenant"], outlet=other_outlet)
+    Payment.objects.create(tenant=a["tenant"], order=order, amount=Decimal("10"), method="cash", idempotency_key="other-branch-sale")
+    assert api_client.login(username=a["user"].email, password="TestPass9!")
+    headers = {"HTTP_X_TENANT_ID": str(a["tenant"].id)}
+    balances = api_client.get("/api/v1/stock/balances/", **headers)
+    assert balances.status_code == 200
+    assert {row["outlet"] for row in balances.json()} == {str(a["outlet"].id)}
+    for path in ("sales-summary", "operations-rollup"):
+        response = api_client.get(f"/api/v1/reports/{path}/", {"date_from": "2020-01-01", "date_to": "2030-01-01"}, **headers)
+        assert response.status_code == 200
+        assert Decimal(response.json()["net_sales"]) == 0
+        if path == "sales-summary":
+            assert Decimal(response.json()["payments"]["gross_sales"]) == 0
+        else:
+            assert response.json()["by_day"] == []
+
+
+def test_stock_count_rejects_duplicate_item_rows():
+    import uuid
+
+    item_id = str(uuid.uuid4())
+    serializer = StockCountCompleteSerializer(data={"lines": [
+        {"menu_item": item_id, "counted_quantity": "2"},
+        {"menu_item": item_id, "counted_quantity": "3"},
+    ]})
+    assert not serializer.is_valid()
+    assert "lines" in serializer.errors
 
 
 @pytest.mark.django_db

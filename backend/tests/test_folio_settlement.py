@@ -19,8 +19,46 @@ from apps.lodging.models import (
     RoomType,
 )
 from apps.lodging.services import check_out_reservation, folio_totals, record_folio_payment
+from apps.pos.models import Order
+from apps.pos.services import record_order_payment
 from apps.staff.middleware import STAFF_SESSION_SITE_KEY, STAFF_SESSION_TENANT_KEY
-from apps.tenants.models import Site, Tenant, TenantSettings
+from apps.tenants.models import Outlet, Site, Tenant, TenantSettings
+
+
+@pytest.mark.django_db
+def test_paid_discounted_pos_sale_on_folio_does_not_create_second_balance():
+    tenant = Tenant.objects.create(name="POS Folio", slug="pos-folio")
+    site = Site.objects.create(tenant=tenant, name="Main")
+    outlet = Outlet.objects.create(site=site, name="Shop", outlet_type="supermarket")
+    user = User.objects.create_user(email="pos-folio@example.invalid", password="TestPass9!")
+    folio = Folio.objects.create(tenant=tenant, site=site, guest_name="Guest", currency="UGX")
+    order = Order.objects.create(
+        tenant=tenant, outlet=outlet, folio=folio, created_by=user, currency="UGX",
+        subtotal=Decimal("100"), tax_total=Decimal("10"), discount_amount=Decimal("20"), total=Decimal("90"),
+    )
+    record_order_payment(order=order, user=user, amount=Decimal("90"), method="cash", idempotency_key="paid-pos-folio")
+    assert folio_totals(folio) == (Decimal("0"), Decimal("0"), Decimal("0"))
+    assert list(folio.lines.values_list("amount", "tax_amount")) == [
+        (Decimal("80"), Decimal("10")), (Decimal("-90"), Decimal("0")),
+    ]
+    assert CashbookEntry.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_closed_folio_rejects_pos_payment_without_finance_side_effect():
+    tenant = Tenant.objects.create(name="Closed POS Folio", slug="closed-pos-folio")
+    site = Site.objects.create(tenant=tenant, name="Main")
+    outlet = Outlet.objects.create(site=site, name="Shop", outlet_type="supermarket")
+    user = User.objects.create_user(email="closed-folio@example.invalid", password="TestPass9!")
+    folio = Folio.objects.create(tenant=tenant, site=site, guest_name="Guest", currency="UGX", status=FolioStatus.CLOSED)
+    order = Order.objects.create(tenant=tenant, outlet=outlet, folio=folio, created_by=user, currency="UGX", subtotal=Decimal("10"), total=Decimal("10"))
+    with pytest.raises(ValidationError, match="Folio must be open"):
+        record_order_payment(order=order, user=user, amount=Decimal("10"), method="cash", idempotency_key="closed-folio-pay")
+    order.refresh_from_db()
+    assert not order.is_paid
+    assert not order.payments.exists()
+    assert not folio.lines.exists()
+    assert not CashbookEntry.objects.exists()
 
 
 @pytest.mark.django_db
@@ -75,6 +113,11 @@ def test_unpaid_folio_blocks_checkout_then_payment_closes_stay_and_posts_income(
         user=user,
     )
     assert repeated.pk == payment.pk
+    with pytest.raises(ValidationError, match="different folio payment"):
+        record_folio_payment(folio=folio, amount=Decimal("1"), method="mobile_money", reference="MOMO-123", idempotency_key="folio-pay-1", user=user)
+    other_folio = Folio.objects.create(tenant=tenant, site=site, guest_name="Other Guest", currency="UGX")
+    with pytest.raises(ValidationError, match="different folio payment"):
+        record_folio_payment(folio=other_folio, amount=Decimal("118000"), method="mobile_money", reference="MOMO-123", idempotency_key="folio-pay-1", user=user)
     assert folio_totals(folio) == (Decimal("118000"), Decimal("118000"), Decimal("0"))
     assert CashbookEntry.objects.get(posting_link__source_type=FinancePostingSource.FOLIO_PAYMENT).category.kind == FinanceCategoryKind.INCOME
 
