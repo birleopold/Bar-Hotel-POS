@@ -73,3 +73,7 @@ The retail and supermarket order screen now offers a manager-approved **Return a
 | `apps/finance/tests.py`, `apps/staff/tests.py` | Service, HTTP permission and replay, posting rollback, and rendered staff action have regression coverage. |
 
 The amount is entered by an approving manager because the order can contain discounts, tax, and split payments. There is no automatic per-unit allocation or enforced equivalence between item value and tender amount. Recipe ingredient recovery, historical pairing of older independent records, production PostgreSQL concurrency, and real device/browser checks remain release work.
+
+### PostgreSQL race check prepared
+
+`backend/tests/test_postgres_settlement_concurrency.py` starts two independent database connections that each try to pay the full received value of the same purchase order. On PostgreSQL, exactly one payment and one cashbook expense should survive. The test skips SQLite because it cannot verify PostgreSQL row locks. Run it on the disposable PostgreSQL test database with `pytest -q tests/test_postgres_settlement_concurrency.py`; the local SQLite pass below does **not** execute that assertion. Additional concurrent checkout, receiving, stock count, and shift-close runs still need PostgreSQL release evidence.
