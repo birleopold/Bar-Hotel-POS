@@ -87,11 +87,14 @@ class OrderLineReadSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     order_id = serializers.UUIDField(source="order.id", read_only=True)
 
+    shift_id = serializers.UUIDField(read_only=True, allow_null=True)
+
     class Meta:
         model = Payment
         fields = [
             "id",
             "order_id",
+            "shift_id",
             "amount",
             "method",
             "created_at",
@@ -99,6 +102,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "order_id",
+            "shift_id",
             "amount",
             "method",
             "created_at",
@@ -315,6 +319,8 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
 
 
 class OrderPaySerializer(serializers.Serializer):
+    workstation_id = serializers.UUIDField(required=False, allow_null=True)
+    shift_id = serializers.UUIDField(required=False, allow_null=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
     method = serializers.ChoiceField(choices=PaymentMethod.choices)
 
@@ -339,6 +345,8 @@ class OrderVoidLineSerializer(serializers.Serializer):
 
 
 class OrderRefundSerializer(serializers.Serializer):
+    workstation_id = serializers.UUIDField(required=False, allow_null=True)
+    shift_id = serializers.UUIDField(required=False, allow_null=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
     reason = serializers.CharField(required=False, allow_blank=True, default="")
     restock = serializers.BooleanField(default=False)
@@ -346,6 +354,8 @@ class OrderRefundSerializer(serializers.Serializer):
 
 
 class RetailLineRefundSerializer(serializers.Serializer):
+    workstation_id = serializers.UUIDField(required=False, allow_null=True)
+    shift_id = serializers.UUIDField(required=False, allow_null=True)
     line_id = serializers.UUIDField()
     quantity = serializers.DecimalField(max_digits=10, decimal_places=3, min_value=Decimal("0.001"))
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
@@ -357,11 +367,14 @@ class RetailLineRefundSerializer(serializers.Serializer):
 class RefundSerializer(serializers.ModelSerializer):
     order_id = serializers.UUIDField(source="order.id", read_only=True)
 
+    shift_id = serializers.UUIDField(read_only=True, allow_null=True)
+
     class Meta:
         model = Refund
         fields = [
             "id",
             "order_id",
+            "shift_id",
             "payment",
             "amount",
             "reason",
@@ -371,6 +384,7 @@ class RefundSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "order_id",
+            "shift_id",
             "payment",
             "amount",
             "reason",
@@ -491,6 +505,10 @@ class OfflineQueueCreateSerializer(serializers.Serializer):
                         )
                     }
                 )
+            OrderPaySerializer(data=payload).is_valid(raise_exception=True)
+            for name in ("workstation_id", "shift_id"):
+                if payload.get(name) is not None:
+                    payload[name] = str(serializers.UUIDField().run_validation(payload[name]))
             return attrs
         if op == "order_create":
             ser = OfflineOrderCreatePayloadSerializer(data=payload)

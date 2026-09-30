@@ -15,6 +15,9 @@ from apps.pos.models import KdsLineStatus, Order, OrderStatus, Payment, Refund, 
 from apps.tenants.models import OutletType
 
 
+from .registers import resolve_settlement_shift, check_replay_register
+
+
 def _is_kitchen_section_station(station: str | None) -> bool:
     token = (station or "").strip().lower()
     if token in {"bar", "drinks", "beverage", "bartender"}:
@@ -44,6 +47,8 @@ def record_order_payment(
     amount: Decimal,
     method: str,
     idempotency_key: str,
+    workstation_id=None,
+    shift_id=None,
 ) -> tuple[Payment, bool]:
     if not idempotency_key or not idempotency_key.strip():
         raise ValidationError(
@@ -64,6 +69,7 @@ def record_order_payment(
             raise ValidationError(
                 {"Idempotency-Key": "This key was already used for a different payment."}
             )
+        check_replay_register(existing, workstation_id=workstation_id, shift_id=shift_id)
         return existing, True
 
     if locked.status != OrderStatus.OPEN:
@@ -85,6 +91,7 @@ def record_order_payment(
             }
         )
 
+    shift = resolve_settlement_shift(order=locked, workstation_id=workstation_id, shift_id=shift_id)
     payment = Payment.objects.create(
         tenant_id=locked.tenant_id,
         order=locked,
@@ -92,6 +99,7 @@ def record_order_payment(
         method=method,
         idempotency_key=idempotency_key,
         recorded_by=user,
+        shift=shift,
     )
     post_pos_payment_income(payment=payment, order=locked, user=user)
     new_paid = (paid_so_far + amount).quantize(Decimal("0.01"))
@@ -135,6 +143,7 @@ def record_order_payment(
         entity_id=str(locked.id),
         payload={
             "payment_id": str(payment.id),
+            "shift_id": str(payment.shift_id) if payment.shift_id else None,
             "amount": str(amount),
             "method": method,
             "folio_id": str(locked.folio_id) if locked.folio_id else None,
@@ -256,6 +265,8 @@ def record_order_refund(
     idempotency_key: str,
     restock: bool,
     payment_id=None,
+    workstation_id=None,
+    shift_id=None,
 ) -> tuple[Refund, bool]:
     if not idempotency_key or not idempotency_key.strip():
         raise ValidationError(
@@ -282,6 +293,7 @@ def record_order_refund(
             raise ValidationError(
                 {"Idempotency-Key": "This key was already used for a different refund."}
             )
+        check_replay_register(existing, workstation_id=workstation_id, shift_id=shift_id)
         return existing, True
 
     if locked.status != OrderStatus.CLOSED or not locked.is_paid:
@@ -318,6 +330,7 @@ def record_order_refund(
                 {"restock": "Restock is allowed on the final refund when all payments have been refunded."}
             )
 
+    shift = resolve_settlement_shift(order=locked, workstation_id=workstation_id, shift_id=shift_id)
     refund = Refund.objects.create(
         tenant_id=locked.tenant_id,
         order=locked,
@@ -326,6 +339,7 @@ def record_order_refund(
         reason=(reason or "")[:255],
         idempotency_key=idempotency_key,
         recorded_by=user,
+        shift=shift,
         restocked=restock,
     )
     post_pos_refund_expense(refund=refund, order=locked, user=user)
@@ -341,6 +355,7 @@ def record_order_refund(
         entity_id=str(locked.id),
         payload={
             "refund_id": str(refund.id),
+            "shift_id": str(refund.shift_id) if refund.shift_id else None,
             "amount": str(amount),
             "restock": restock,
         },

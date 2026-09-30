@@ -13,7 +13,7 @@
   {% if selected_station %}<p><strong>{{ selected_station.name }}</strong> · {{ selected_station.code }} · {{ selected_station.outlet.name }}</p>
   <form method="post">{% csrf_token %}<input type="hidden" name="action" value="forget"><button class="staff-btn staff-btn--secondary">Clear selection</button></form>
   {% else %}<p class="staff-muted">Choose a workstation below before opening its shift.</p>{% endif %}
-  <p class="staff-muted small mt-3">Cash reconciliation currently covers one open shift per section. Contact time records use of this screen or register; it does not certify that hardware is online.</p>
+  <p class="staff-muted small mt-3">Named workstations can each run an independent shift. Close section-wide or legacy shifts before opening multiple tills. Contact time records use of this screen or register; it does not certify that hardware is online.</p>
 </div>
 {% if workstations %}<div class="staff-table-wrap"><table class="staff-table">
   <thead><tr><th>Device</th><th>Section</th><th>Hardware labels</th><th>Last contact</th><th>Status</th><th>Actions</th></tr></thead>

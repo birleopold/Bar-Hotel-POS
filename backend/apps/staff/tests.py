@@ -1616,11 +1616,11 @@ class StaffSupermarketFlowTests(TestCase):
         self.client.post(url, {"action": "open_shift", "opening_cash": "50.00"})
         shift = PosShift.objects.get(tenant=self.tenant, outlet=self.outlet, status=PosShiftStatus.OPEN)
         payment = Payment.objects.create(
-            tenant=self.tenant, order=self.order, amount=Decimal("12.00"),
+            shift=shift, tenant=self.tenant, order=self.order, amount=Decimal("12.00"),
             method=PaymentMethod.CASH, idempotency_key="shift-preview-payment",
         )
         Refund.objects.create(
-            tenant=self.tenant, order=self.order, payment=payment,
+            shift=shift, tenant=self.tenant, order=self.order, payment=payment,
             amount=Decimal("2.00"), idempotency_key="shift-preview-refund",
         )
         page = self.client.get(url)

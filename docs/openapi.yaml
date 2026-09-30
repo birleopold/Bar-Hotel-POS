@@ -3131,6 +3131,11 @@ paths:
         schema:
           type: string
           format: uuid
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        required: true
       - in: path
         name: id
         schema:
@@ -3140,6 +3145,12 @@ paths:
         required: true
       tags:
       - orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderPayRequest'
+        required: true
       security:
       - jwtAuth: []
       responses:
@@ -3147,7 +3158,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderRead'
+                $ref: '#/components/schemas/Payment'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
           description: ''
   /api/v1/orders/{id}/refunds/:
     post:
@@ -3161,6 +3178,11 @@ paths:
         schema:
           type: string
           format: uuid
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        required: true
       - in: path
         name: id
         schema:
@@ -3170,6 +3192,12 @@ paths:
         required: true
       tags:
       - orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRefundRequest'
+        required: true
       security:
       - jwtAuth: []
       responses:
@@ -3177,7 +3205,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderRead'
+                $ref: '#/components/schemas/Refund'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund'
           description: ''
   /api/v1/orders/{id}/retail-line-refunds/:
     post:
@@ -3191,6 +3225,11 @@ paths:
         schema:
           type: string
           format: uuid
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        required: true
       - in: path
         name: id
         schema:
@@ -3200,6 +3239,12 @@ paths:
         required: true
       tags:
       - orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetailLineRefundRequest'
+        required: true
       security:
       - jwtAuth: []
       responses:
@@ -3207,7 +3252,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrderRead'
+                $ref: '#/components/schemas/RetailLineReturnRead'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetailLineReturnRead'
           description: ''
   /api/v1/orders/{id}/void-line/:
     post:
@@ -3354,6 +3405,65 @@ paths:
         schema:
           type: string
           format: uuid
+  /api/v1/pos/shifts/:
+    get:
+      operationId: pos_shifts_list
+      description: Clients capture the original shift ID before recording offline
+        tenders.
+      tags:
+      - pos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RegisterShift'
+          description: ''
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+  /api/v1/pos/shifts/{id}/:
+    get:
+      operationId: pos_shifts_retrieve
+      description: Clients capture the original shift ID before recording offline
+        tenders.
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this pos shift.
+        required: true
+      tags:
+      - pos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterShift'
+          description: ''
   /api/v1/purchasing/purchase-orders/:
     get:
       operationId: purchasing_purchase_orders_list
@@ -5722,6 +5832,26 @@ components:
       - table_id
       - table_label
       - total
+    OrderPayRequest:
+      type: object
+      properties:
+        workstation_id:
+          type: string
+          format: uuid
+          nullable: true
+        shift_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        method:
+          $ref: '#/components/schemas/TenderMethod'
+      required:
+      - amount
+      - method
     OrderRead:
       type: object
       properties:
@@ -5835,6 +5965,33 @@ components:
       - tax_total
       - total
       - updated_at
+    OrderRefundRequest:
+      type: object
+      properties:
+        workstation_id:
+          type: string
+          format: uuid
+          nullable: true
+        shift_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        reason:
+          type: string
+          default: ''
+        restock:
+          type: boolean
+          default: false
+        payment_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - amount
     PasswordResetAccepted:
       type: object
       properties:
@@ -6308,6 +6465,11 @@ components:
           type: string
           format: uuid
           readOnly: true
+        shift_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
         amount:
           type: string
           format: decimal
@@ -6327,6 +6489,7 @@ components:
       - id
       - method
       - order_id
+      - shift_id
     PosOrderStatus:
       enum:
       - open
@@ -6774,6 +6937,117 @@ components:
         * `transfer_in` - Transfer in
         * `physical_count` - Physical count adjustment
         * `recipe` - Recipe / BOM consumption
+    Refund:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_id:
+          type: string
+          format: uuid
+          readOnly: true
+        shift_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        payment:
+          type: string
+          format: uuid
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        restocked:
+          type: boolean
+          readOnly: true
+          description: If true, tracked inventory was increased for this refund.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - id
+      - order_id
+      - payment
+      - reason
+      - restocked
+      - shift_id
+    RegisterShift:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        outlet_id:
+          type: string
+          format: uuid
+          readOnly: true
+        workstation_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        workstation_name:
+          type: string
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LodgingFolioStatus'
+          readOnly: true
+        opened_at:
+          type: string
+          format: date-time
+          readOnly: true
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        opening_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        expected_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        counted_cash:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        cash_attribution:
+          type: boolean
+          readOnly: true
+          description: Use explicit payment/refund links; older shifts retain time-window
+            accounting.
+      required:
+      - cash_attribution
+      - closed_at
+      - counted_cash
+      - expected_cash
+      - id
+      - opened_at
+      - opening_cash
+      - outlet_id
+      - status
+      - workstation_id
+      - workstation_name
     Reservation:
       type: object
       properties:
@@ -6895,6 +7169,76 @@ components:
         * `checked_in` - Checked in
         * `checked_out` - Checked out
         * `cancelled` - Cancelled
+    RetailLineRefundRequest:
+      type: object
+      properties:
+        workstation_id:
+          type: string
+          format: uuid
+          nullable: true
+        shift_id:
+          type: string
+          format: uuid
+          nullable: true
+        line_id:
+          type: string
+          format: uuid
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+        restock:
+          type: boolean
+          default: false
+        payment_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - amount
+      - line_id
+      - quantity
+    RetailLineReturnRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_line_id:
+          type: string
+          format: uuid
+          readOnly: true
+        quantity:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,7}(?:\.\d{0,3})?$
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        restocked:
+          type: boolean
+          readOnly: true
+        refund:
+          allOf:
+          - $ref: '#/components/schemas/Refund'
+          readOnly: true
+      required:
+      - id
+      - order_line_id
+      - quantity
+      - reason
+      - refund
+      - restocked
     Room:
       type: object
       properties:

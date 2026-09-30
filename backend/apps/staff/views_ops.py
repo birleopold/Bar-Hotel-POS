@@ -72,7 +72,7 @@ from .forms import (
 )
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
-from .workstations import selected_workstation
+from .workstations import selected_workstation, settlement_workstation_id
 from .report_csv import format_sales_summary_csv
 from .sales_summary import build_sales_summary
 from .services import (
@@ -248,6 +248,7 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
                 tenant=self.request.tenant,
                 outlet=outlet,
                 status=PosShiftStatus.OPEN,
+                workstation=selected_workstation(self.request, outlets=ctx["outlets"]),
             ).first()
         ctx["show_supermarket_lane"] = supermarket_lane
         ctx["supermarket_shift_open"] = shift_open
@@ -323,11 +324,14 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
             ctx["open_shift"] = None
             ctx["recent_shifts"] = []
             return ctx
+        station = ctx["selected_station"]
         ctx["open_shift"] = PosShift.objects.filter(
-            tenant=self.request.tenant,
-            outlet=outlet,
-            status=PosShiftStatus.OPEN,
+            tenant=self.request.tenant, outlet=outlet, status=PosShiftStatus.OPEN,
+            workstation=station,
         ).first()
+        ctx["other_open_shifts"] = PosShift.objects.filter(
+            tenant=self.request.tenant, outlet=outlet, status=PosShiftStatus.OPEN,
+        ).exclude(pk=ctx["open_shift"].pk if ctx["open_shift"] else None).select_related("workstation", "opened_by")
         ctx["cash_snapshot"] = shift_cash_snapshot(shift=ctx["open_shift"]) if ctx["open_shift"] else None
         ctx["shift_currency"] = default_currency_for_tenant(self.request.tenant)
         ctx["recent_shifts"] = list(
@@ -376,6 +380,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
                 id=form.cleaned_data["shift_id"],
                 tenant=request.tenant,
                 outlet=outlet,
+                workstation=self._selected_for_outlet(request, outlet),
             ).first()
             if shift is None:
                 messages.error(request, "Shift not found.")
@@ -413,6 +418,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 "payments",
                 "refunds",
                 "refunds__payment",
+                "supermarket_returns__order_line",
+                "supermarket_returns__refund__payment",
+                "supermarket_returns__refund__shift__workstation",
             )
         )
 
@@ -439,6 +447,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         )
         ctx["can_record_payment"] = can_pay
         ctx["payment_form"] = StaffOrderPaymentForm(initial={"amount": b}) if can_pay else None
+        ctx["settlement_station"] = selected_workstation(self.request, outlets=staff_accessible_outlets(self.request.tenant_membership))
         m = self.request.tenant_membership
         can_modify_open = (
             membership_can_modify_lodging(m)
@@ -789,6 +798,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 amount=form.cleaned_data["amount"],
                 method=form.cleaned_data["method"],
                 idempotency_key=str(uuid.uuid4()),
+                workstation_id=settlement_workstation_id(request),
             )
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
@@ -1019,6 +1029,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 amount=form.cleaned_data["amount"], reason=form.cleaned_data.get("reason") or "",
                 restock=bool(form.cleaned_data.get("restock")), user=request.user,
                 idempotency_key=str(uuid.uuid4()),
+                workstation_id=settlement_workstation_id(request),
                 payment_id=uuid.UUID(form.cleaned_data["payment_id"]) if "payment_id" in form.fields else None,
             )
         except DRFValidationError as exc:
@@ -1162,6 +1173,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 amount=form.cleaned_data["amount"],
                 reason=form.cleaned_data.get("reason") or "",
                 idempotency_key=str(uuid.uuid4()),
+                workstation_id=settlement_workstation_id(request),
                 restock=bool(form.cleaned_data.get("restock")),
                 payment_id=payment_id,
             )

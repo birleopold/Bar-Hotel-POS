@@ -28,7 +28,7 @@
           <div><span>Cash refunds</span><strong>− {{ shift_currency }} {{ cash_snapshot.cash_refunds }}</strong></div>
           <div class="staff-register-summary__total"><span>Expected cash now</span><strong>{{ shift_currency }} {{ cash_snapshot.expected }}</strong></div>
         </div>
-        <p class="staff-muted small">Expected cash includes recorded cash payments and refunds since opening. Count the physical drawer independently; unrecorded cash drops or payouts need separate reconciliation.</p>
+        <p class="staff-muted small">Expected cash includes payments received and refunds paid out by this register. Legacy shifts use their original time window. Count the physical drawer independently; unrecorded cash drops or payouts need separate reconciliation.</p>
         <form method="post" class="staff-register-form">
           {% csrf_token %}
           <input type="hidden" name="action" value="close_shift">
@@ -52,6 +52,12 @@
           <button type="submit" class="staff-btn staff-btn--primary">Start shift</button>
         </form>
       </div>
+    {% endif %}
+    {% if other_open_shifts %}
+      <div class="staff-card"><h2 class="staff-card__title">Other open registers in {{ current_outlet.name }}</h2>
+      <p class="staff-muted">Select a workstation to reconcile that device. Close a section-wide or legacy shift before starting additional tills.</p>
+      <ul>{% for shift in other_open_shifts %}<li>{{ shift.workstation.name|default:"Section register" }} · opened {{ shift.opened_at }}{% if not shift.cash_attribution %} · legacy cash calculation{% endif %}</li>{% endfor %}</ul>
+      <a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstations' %}">Choose workstation</a></div>
     {% endif %}
     {% if recent_shifts %}
       <h2 class="staff-section-title">Recent shifts</h2>

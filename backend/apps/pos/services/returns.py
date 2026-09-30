@@ -15,7 +15,7 @@ from .payments import record_order_refund
 @transaction.atomic
 def refund_retail_line(*, order: Order, line: OrderLine, quantity: Decimal,
                        amount: Decimal, reason: str, restock: bool, user,
-                       idempotency_key: str, payment_id=None) -> tuple[SupermarketLineReturn, bool]:
+                       idempotency_key: str, payment_id=None, workstation_id=None, shift_id=None) -> tuple[SupermarketLineReturn, bool]:
     locked = Order.objects.select_for_update().select_related("outlet").get(pk=order.pk)
     if locked.outlet.outlet_type not in {OutletType.RETAIL, OutletType.SUPERMARKET}:
         raise ValidationError("Line refunds are only available for retail and supermarket orders.")
@@ -32,6 +32,7 @@ def refund_retail_line(*, order: Order, line: OrderLine, quantity: Decimal,
     refund, replay = record_order_refund(
         order=locked, user=user, amount=amount, reason=reason,
         idempotency_key=idempotency_key, restock=False, payment_id=payment_id,
+        workstation_id=workstation_id, shift_id=shift_id,
     )
     if replay:
         return ret, True

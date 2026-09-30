@@ -68,7 +68,7 @@ python manage.py makemigrations --check --dry-run
 python -m pytest -q -p no:cacheprovider --basetemp=.pytest-tmp
 ```
 
-The September 30 workstation checkpoint completed with **278 passing tests and 2 PostgreSQL-only skips**. See [the full suite checklist](docs/SUITE_IMPLEMENTATION_TODO.md) for tracked work and verification limits. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
+The September 30 register-attribution checkpoint completed with **290 passing tests and 5 PostgreSQL-only skips**. See [the full suite checklist](docs/SUITE_IMPLEMENTATION_TODO.md) for tracked work and verification limits. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
 
 ## Documentation
 

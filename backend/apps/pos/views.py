@@ -1,6 +1,7 @@
 import uuid
 
 from django.db.models import Prefetch
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -131,6 +132,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             OrderReadSerializer(instance, context=self.get_serializer_context()).data
         )
 
+    @extend_schema(request=OrderPaySerializer, responses={200: PaymentSerializer, 201: PaymentSerializer},
+                   parameters=[OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=True)])
     @action(detail=True, methods=["post"], url_path="payments")
     def payments(self, request, pk=None):
         order = self.get_object()
@@ -145,6 +148,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             amount=pay_ser.validated_data["amount"],
             method=pay_ser.validated_data["method"],
             idempotency_key=idem,
+            workstation_id=pay_ser.validated_data.get("workstation_id"),
+            shift_id=pay_ser.validated_data.get("shift_id"),
         )
         order.refresh_from_db()
         return Response(
@@ -234,6 +239,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.refresh_from_db()
         return Response(OrderReadSerializer(order, context={"request": request}).data)
 
+    @extend_schema(request=OrderRefundSerializer, responses={200: RefundSerializer, 201: RefundSerializer},
+                   parameters=[OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=True)])
     @action(detail=True, methods=["post"], url_path="refunds")
     def refunds(self, request, pk=None):
         order = self.get_object()
@@ -250,12 +257,16 @@ class OrderViewSet(viewsets.ModelViewSet):
             idempotency_key=idem,
             restock=ser.validated_data.get("restock") or False,
             payment_id=ser.validated_data.get("payment_id"),
+            workstation_id=ser.validated_data.get("workstation_id"),
+            shift_id=ser.validated_data.get("shift_id"),
         )
         return Response(
             RefundSerializer(refund).data,
             status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED,
         )
 
+    @extend_schema(request=RetailLineRefundSerializer, responses={200: RetailLineReturnReadSerializer, 201: RetailLineReturnReadSerializer},
+                   parameters=[OpenApiParameter("Idempotency-Key", str, OpenApiParameter.HEADER, required=True)])
     @action(detail=True, methods=["post"], url_path="retail-line-refunds")
     def retail_line_refunds(self, request, pk=None):
         order = self.get_object()
@@ -273,6 +284,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             order=order, line=line, quantity=data["quantity"], amount=data["amount"],
             reason=data.get("reason", ""), restock=data["restock"],
             payment_id=data.get("payment_id"), user=request.user, idempotency_key=idem,
+            workstation_id=data.get("workstation_id"), shift_id=data.get("shift_id"),
         )
         return Response(RetailLineReturnReadSerializer(ret).data,
                         status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)

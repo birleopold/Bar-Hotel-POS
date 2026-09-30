@@ -238,6 +238,10 @@ class Payment(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="payments",
     )
+    shift = models.ForeignKey(
+        "pos.PosShift", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="payments",
+    )
     amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
     method = models.CharField(max_length=16, choices=PaymentMethod.choices, default=PaymentMethod.CASH)
     idempotency_key = models.CharField(max_length=128)
@@ -277,6 +281,10 @@ class Refund(TimeStampedModel):
     payment = models.ForeignKey(
         Payment,
         on_delete=models.PROTECT,
+        related_name="refunds",
+    )
+    shift = models.ForeignKey(
+        "pos.PosShift", on_delete=models.PROTECT, null=True, blank=True,
         related_name="refunds",
     )
     amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
@@ -371,6 +379,9 @@ class PosShift(TimeStampedModel):
         blank=True,
         related_name="pos_shifts_closed",
     )
+    cash_attribution = models.BooleanField(
+        default=True, help_text="Use explicit payment/refund links; older shifts retain time-window accounting.",
+    )
     opening_cash = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     expected_cash = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     counted_cash = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
@@ -380,6 +391,10 @@ class PosShift(TimeStampedModel):
 
     class Meta:
         ordering = ["-opened_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["workstation"], condition=models.Q(status="open", workstation__isnull=False), name="uniq_open_shift_workstation"),
+            models.UniqueConstraint(fields=["outlet"], condition=models.Q(status="open", workstation__isnull=True), name="uniq_open_section_shift"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.outlet.name} shift {self.status}"

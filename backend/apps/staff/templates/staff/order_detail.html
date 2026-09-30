@@ -117,6 +117,7 @@
       {% if can_record_payment and payment_form %}
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Pay</h2>
+          <p class="staff-muted small">Register: {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}Automatic when one shift is open{% endif %} · <a href="{% url 'staff-workstations' %}">Choose till</a></p>
           <p class="staff-muted staff-pos-side-hint">Due <strong>{{ order.currency }} {{ balance_due }}</strong> · Paid {{ order.currency }} {{ amount_paid }}</p>
           {% include "staff/includes/form_errors_block.html" with form=payment_form title="Fix payment details" %}
           <form method="post" class="row g-2 align-items-end">
@@ -223,6 +224,7 @@
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">{% if is_supermarket_outlet %}Other refund{% else %}Refund{% endif %}</h2>
           <p class="staff-muted staff-pos-side-hint">Max {{ refundable_remaining }}</p>
+          <p class="staff-muted small">Refunds are paid out from {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}the only open register{% endif %}. <a href="{% url 'staff-workstations' %}">Choose refund till</a></p>
           {% if is_supermarket_outlet %}<p class="staff-muted">For returned items, use “Return and refund” below to link the item, payment, and stock movement. Use this form for a price adjustment or other refund without a returned item.</p>{% endif %}
           {% include "staff/includes/form_errors_block.html" with form=refund_form title="Fix refund details" %}
           <form method="post" class="row g-2 align-items-end">

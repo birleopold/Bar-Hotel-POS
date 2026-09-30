@@ -44,3 +44,9 @@ def select_workstation(response, station):
 def forget_workstation(response):
     response.delete_cookie(COOKIE, path="/staff/", samesite="Strict")
     return response
+
+
+def settlement_workstation_id(request):
+    from .services import staff_accessible_outlets
+    selected = selected_workstation(request, outlets=staff_accessible_outlets(request.tenant_membership))
+    return selected.pk if selected else None

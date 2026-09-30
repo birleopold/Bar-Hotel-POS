@@ -31,6 +31,7 @@ from apps.pos.kds_views import KdsTicketView
 from apps.pos.catalog_sync_views import PosCatalogVersionView
 from apps.pos.offline_views import OfflineQueueBatchSubmitView, OfflineQueueSubmitView
 from apps.pos.views import OrderViewSet, TableViewSet
+from apps.pos.register_views import RegisterShiftViewSet
 from apps.purchasing.views import PurchaseOrderViewSet, SupplierViewSet
 
 from . import views
@@ -52,6 +53,7 @@ router.register(r"finance/categories", FinanceCategoryViewSet, basename="finance
 router.register(r"finance/entries", CashbookEntryViewSet, basename="finance-entry")
 router.register(r"integrations/links", IntegrationLinkViewSet, basename="integration-link")
 router.register(r"tables", TableViewSet, basename="table")
+router.register(r"pos/shifts", RegisterShiftViewSet, basename="pos-shift")
 router.register(r"orders", OrderViewSet, basename="order")
 router.register(r"stock/balances", StockBalanceViewSet, basename="stock-balance")
 router.register(r"stock/movements", StockMovementViewSet, basename="stock-movement")

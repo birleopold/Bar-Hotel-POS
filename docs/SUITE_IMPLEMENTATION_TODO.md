@@ -88,10 +88,21 @@ Baseline `afcf465` on main. Reviewed current register, PIN, outlet scope and aud
 - [x] Reject moving/disabling a workstation with an open shift; preserve outlet-level open-shift locking.
 - [x] Audited create/update/selection; throttled last-contact timestamp; optional PostgreSQL RLS migration.
 - [x] Printer/drawer/KDS labels are stored and shown honestly as configuration, not active hardware integrations.
-- [ ] Payment/refund attribution, multiple simultaneous tills, per-till cash calculation and drawer ledger.
+- [x] Payment/refund attribution, multiple named tills, per-till cash calculation and idempotent replay.
+- [ ] Drawer movement ledger for cash drops/payouts and formal handover.
 - [ ] Strong device pairing/revocation, hardware adapters, printer routing/test, formal handover.
 - [ ] PostgreSQL workstation/concurrent shift evidence, browser widths and physical devices.
 
 Verification: full local SQLite suite **278 passed, 2 PostgreSQL-only skipped**. Seven added regressions cover scope/roles, duplicate device codes, signed selection, worker handoff, shift linkage, active-shift edit protection and service scope. Django check and migration consistency pass. New migrations also passed apply → reverse to 0010 → reapply on a disposable SQLite database. Visual browser, PostgreSQL and hardware certification are not claimed. README count and obsolete PIN/modifier statements in the historical product plan were corrected; generated feature matrix remains outstanding.
 
-Next required dependency: attribute each payment/refund to the register shift before permitting multiple tills. Then complete pairing and handover and continue the numbered workspace/exception-centre roadmap. This document retains all later scope; none is silently considered complete.
+Next required dependency: complete device pairing/revocation and the drawer movement/handover workflow, then continue the numbered workspace/exception-centre roadmap. This document retains all later scope; none is silently considered complete.
+
+### Register attribution checkpoint — 2026-09-30
+
+New payments/refunds carry protected, nullable shift links. Staff, API, linked returns and offline processing share the existing settlement services and register resolver. Named tills can run separate shifts in one outlet; their cash summaries use only their own received payments and paid-out refunds. Replays preserve original links, including after close, and reject another specified register. Unspecified requests choose only an unambiguous open shift; integrations with no open shift retain unassigned behavior. Legacy and section-wide shifts block simultaneous named tills until closed.
+
+Staff register/checkout/refund screens now identify the selected device; the register page lists other open tills and closes only its selected register. Linked-return history shows the refund till. The read-only `/api/v1/pos/shifts/` endpoint lets authorized clients capture the original shift ID. The OpenAPI export now documents request bodies, idempotency headers and payment/refund/linked-return response contracts.
+
+Offline payments in workstation sections require original `shift_id`; new tenders for closed shifts are rejected for review. No complete persisted offline conflict workflow is claimed. Migration 0013 preserves old shift cash mode/amounts and leaves historical links unassigned. A disposable database probe confirmed old mode preservation, new-mode default, reverse and reapply. Backups are necessary for rollback after live attributed transactions.
+
+Verification: **290 passed, 5 PostgreSQL-only skipped** on SQLite. Twelve added attribution regressions cover concurrent-device accounting, refund drawer, tender exclusion, ambiguous/missing/disabled/closed register rollback, legacy totals, replay after close, linked-return rollback/attribution, API outlet scope, staff close scope and offline origin checks. Three added PostgreSQL-only races cover same-device open, different-device open and payment-versus-close. These tests still need a real PostgreSQL run; browser widths and physical cash/device validation remain external gates.

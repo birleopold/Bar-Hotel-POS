@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Max, Sum
+from django.db.models import Max, Sum, Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -727,13 +727,15 @@ def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, no
         ).first()
         if workstation is None:
             raise ValidationError({"workstation": "Choose an active workstation in this section."})
-    existing = PosShift.objects.select_for_update().filter(
-        tenant_id=tenant_id,
-        outlet=locked_outlet,
-        status=PosShiftStatus.OPEN,
-    ).first()
-    if existing is not None:
-        raise ValidationError("An open shift already exists for this outlet.")
+    open_shifts = PosShift.objects.select_for_update().filter(
+        tenant_id=tenant_id, outlet=locked_outlet, status=PosShiftStatus.OPEN,
+    )
+    if workstation is not None:
+        open_shifts = open_shifts.filter(
+            Q(workstation__isnull=True) | Q(cash_attribution=False) | Q(workstation=workstation)
+        )
+    if open_shifts.exists():
+        raise ValidationError("This register already has an open shift, or a section-wide shift must be closed first.")
     if opening_cash < 0:
         raise ValidationError({"opening_cash": "Opening cash cannot be negative."})
     shift = PosShift.objects.create(
@@ -759,31 +761,25 @@ def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, no
 
 def shift_cash_snapshot(*, shift: PosShift, until=None) -> dict[str, Decimal]:
     """Cash expected at a point in time, shared by the register and close command."""
-    until = until or timezone.now()
-    cash_payments = (
-        Payment.objects.filter(
-            tenant_id=shift.tenant_id,
-            order__outlet_id=shift.outlet_id,
-            method=PaymentMethod.CASH,
-            created_at__gte=shift.opened_at,
-            created_at__lte=until,
-        ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
-    ).quantize(Decimal("0.01"))
-    cash_refunds = (
-        Refund.objects.filter(
-            tenant_id=shift.tenant_id,
-            order__outlet_id=shift.outlet_id,
-            payment__method=PaymentMethod.CASH,
-            created_at__gte=shift.opened_at,
-            created_at__lte=until,
-        ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
-    ).quantize(Decimal("0.01"))
+    until = until or shift.closed_at or timezone.now()
+    payments = Payment.objects.filter(tenant_id=shift.tenant_id, order__outlet_id=shift.outlet_id, method=PaymentMethod.CASH)
+    refunds = Refund.objects.filter(tenant_id=shift.tenant_id, order__outlet_id=shift.outlet_id, payment__method=PaymentMethod.CASH)
+    if shift.cash_attribution:
+        payments = payments.filter(shift=shift)
+        refunds = refunds.filter(shift=shift)
+    else:
+        # Historical/open legacy shifts retain their original time-window totals.
+        payments = payments.filter(created_at__gte=shift.opened_at, created_at__lte=until)
+        refunds = refunds.filter(created_at__gte=shift.opened_at, created_at__lte=until)
+    cash_payments = (payments.aggregate(s=Sum("amount"))["s"] or Decimal("0")).quantize(Decimal("0.01"))
+    cash_refunds = (refunds.aggregate(s=Sum("amount"))["s"] or Decimal("0")).quantize(Decimal("0.01"))
     expected = (shift.opening_cash + cash_payments - cash_refunds).quantize(Decimal("0.01"))
     return {"cash_payments": cash_payments, "cash_refunds": cash_refunds, "expected": expected}
 
 
 @transaction.atomic
 def close_pos_shift(*, shift: PosShift, user, counted_cash: Decimal, note: str = "") -> PosShift:
+    Outlet.objects.select_for_update().get(pk=shift.outlet_id, site__tenant_id=shift.tenant_id)
     locked = PosShift.objects.select_for_update().get(pk=shift.pk)
     if locked.status != PosShiftStatus.OPEN:
         raise ValidationError("Only open shifts can be closed.")

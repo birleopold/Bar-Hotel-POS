@@ -88,3 +88,71 @@ class RegisterOpenConcurrencyTests(TransactionTestCase):
             outcomes = [future.result() for future in futures]
         self.assertCountEqual(outcomes, ["opened", "rejected"])
         self.assertEqual(PosShift.objects.filter(outlet=outlet, status=PosShiftStatus.OPEN).count(), 1)
+
+
+class RegisterSettlementConcurrencyTests(TransactionTestCase):
+    def setUp(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("PostgreSQL row locks are required")
+        from apps.pos.models import Workstation
+        self.tenant = Tenant.objects.create(name="Till race", slug="till-race")
+        self.site = Site.objects.create(tenant=self.tenant, name="Main")
+        self.outlet = Outlet.objects.create(site=self.site, name="Counter", outlet_type=OutletType.RETAIL)
+        self.user = User.objects.create_user(email="till-race@test.local", password="TestPass9!")
+        self.a = Workstation.objects.create(tenant=self.tenant, outlet=self.outlet, name="A", code="a")
+        self.b = Workstation.objects.create(tenant=self.tenant, outlet=self.outlet, name="B", code="b")
+
+    def test_simultaneous_open_same_workstation(self):
+        self._race_open((self.a.pk, self.a.pk), ["opened", "rejected"])
+
+    def test_simultaneous_open_different_workstations(self):
+        self._race_open((self.a.pk, self.b.pk), ["opened", "opened"])
+
+    def _race_open(self, identifiers, expected):
+        from apps.pos.models import Workstation
+        start = Barrier(2, timeout=10)
+
+        def perform(identifier):
+            close_old_connections()
+            try:
+                start.wait()
+                try:
+                    open_pos_shift(tenant_id=self.tenant.pk, outlet=Outlet.objects.get(pk=self.outlet.pk), user=User.objects.get(pk=self.user.pk), opening_cash=Decimal("10"), workstation=Workstation.objects.get(pk=identifier))
+                    return "opened"
+                except ValidationError:
+                    return "rejected"
+            finally:
+                connection.close()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(perform, identifiers))
+        self.assertCountEqual(outcomes, expected)
+        self.assertEqual(PosShift.objects.filter(outlet=self.outlet, status=PosShiftStatus.OPEN).count(), expected.count("opened"))
+
+    def test_payment_close_race_never_loses_attributed_cash(self):
+        from apps.pos.models import Order, Payment
+        from apps.pos.services import close_pos_shift, record_order_payment
+        shift = open_pos_shift(tenant_id=self.tenant.pk, outlet=self.outlet, user=self.user, opening_cash=Decimal("10"), workstation=self.a)
+        order = Order.objects.create(tenant=self.tenant, outlet=self.outlet, total=Decimal("50"))
+        start = Barrier(2, timeout=10)
+
+        def perform(action):
+            close_old_connections()
+            try:
+                start.wait()
+                if action == "close":
+                    close_pos_shift(shift=PosShift.objects.get(pk=shift.pk), user=User.objects.get(pk=self.user.pk), counted_cash=Decimal("10"))
+                    return "closed"
+                try:
+                    record_order_payment(order=Order.objects.get(pk=order.pk), user=User.objects.get(pk=self.user.pk), amount=Decimal("50"), method="cash", idempotency_key="payment-close-race", shift_id=shift.pk)
+                    return "paid"
+                except ValidationError:
+                    return "rejected"
+            finally:
+                connection.close()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(perform, ("pay", "close")))
+        self.assertEqual(outcomes[1], "closed")
+        self.assertIn(outcomes[0], {"paid", "rejected"})
+        shift.refresh_from_db()
+        received = sum(Payment.objects.filter(shift=shift).values_list("amount", flat=True), Decimal("0"))
+        self.assertEqual(shift.expected_cash, Decimal("10") + received)

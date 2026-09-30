@@ -36,6 +36,7 @@
   {% if retail_refund_form %}
     <div class="staff-card">
       <h2 class="staff-card__title">Return and refund</h2>
+      <p class="staff-muted small">Refund till: {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}automatic when one shift is open{% endif %} · <a href="{% url 'staff-workstations' %}">Choose till</a></p>
       <p class="staff-muted">Record the returned quantity and the customer refund together. Enter the actual amount to return, including any discount or tax adjustment. Choose the original payment when the order has split tenders. Restock only goods physically received and suitable for resale.</p>
       <form method="post" class="row g-3 align-items-end">
         {% csrf_token %}
@@ -74,8 +75,8 @@
       <h2 class="staff-card__title">Return history</h2>
       <div class="staff-table-wrap"><table class="staff-table">
         <caption class="visually-hidden">Physical returns recorded for this order</caption>
-        <thead><tr><th>Item</th><th>Qty</th><th>Stock</th><th>Customer refund</th><th>Reason</th></tr></thead>
-        <tbody>{% for ret in order.supermarket_returns.all %}<tr><td>{{ ret.order_line.label }}</td><td>{{ ret.quantity }}</td><td>{% if ret.restocked %}Restocked{% else %}Not restocked{% endif %}</td><td>{% if ret.refund %}{{ ret.refund.amount }} · {{ ret.refund.payment.get_method_display }}{% else %}None{% endif %}</td><td>{{ ret.reason|default:"—" }}</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>Item</th><th>Qty</th><th>Stock</th><th>Customer refund</th><th>Refund till</th><th>Reason</th></tr></thead>
+        <tbody>{% for ret in order.supermarket_returns.all %}<tr><td>{{ ret.order_line.label }}</td><td>{{ ret.quantity }}</td><td>{% if ret.restocked %}Restocked{% else %}Not restocked{% endif %}</td><td>{% if ret.refund %}{{ ret.refund.amount }} · {{ ret.refund.payment.get_method_display }}{% else %}None{% endif %}</td><td>{{ ret.refund.shift.workstation.name|default:"Section / unassigned" }}</td><td>{{ ret.reason|default:"—" }}</td></tr>{% endfor %}</tbody>
       </table></div>
     </div>
   {% endif %}

@@ -7,7 +7,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.accounts.models import Membership
-from apps.pos.models import Order
+from apps.pos.models import Order, Payment, Workstation
 from apps.tenants.models import Tenant
 
 from .orders import (
@@ -37,12 +37,17 @@ def _finalize_order_payment(*, obj, tenant_id, outlet, user, payload: dict):
     if not oid or not idem or not method:
         raise ValidationError("payload requires order_id, idempotency_key, method, amount.")
     order = Order.objects.get(id=oid, tenant_id=tenant_id, outlet_id=outlet.id)
+    if (Workstation.objects.filter(tenant_id=tenant_id, outlet=outlet).exists()
+            and not payload.get("shift_id")
+            and not Payment.objects.filter(tenant_id=tenant_id, idempotency_key=idem).exists()):
+        raise ValidationError({"shift_id": "Offline payments at configured workstations must carry their original shift_id. Review this action before retrying."})
     payment, _replay = record_order_payment(
         order=order,
         user=user,
         amount=amount,
         method=method,
         idempotency_key=idem,
+        workstation_id=payload.get("workstation_id"), shift_id=payload.get("shift_id"),
     )
     obj.status = OfflineQueueStatus.APPLIED
     obj.applied_payment_id = payment.id
