@@ -5,7 +5,7 @@
   <header class="staff-dash-hero">
     <div class="staff-dash-hero__panel">
       <p class="staff-dash-hero__eyebrow">Your workspace</p>
-      <h1 class="staff-dash-hero__title">Ready for service{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
+      <h1 class="staff-dash-hero__title">{{ staff_workspace_title|default:"Ready for service" }}{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
       {% if active_membership %}
         <p class="staff-dash-hero__meta">{{ active_membership.tenant.name }}</p>
       {% endif %}
@@ -100,7 +100,7 @@
       <h2 class="staff-section-head">Start here</h2>
       <div class="staff-tile-grid">
         {% for a in staff_dashboard_primary_actions %}
-          {% if a.method == "post" %}<form method="post" action="{{ a.url }}">{% csrf_token %}<button type="submit" style="width:100%;height:100%;text-align:left" class="staff-tile staff-tile--primary"><span class="staff-tile__glyph" aria-hidden="true"><i class="bi bi-{{ a.icon }}"></i></span><span class="staff-tile__label">{{ a.label }}</span></button></form>{% else %}
+          {% if a.method == "post" %}<form class="staff-tile-form" method="post" action="{{ a.url }}">{% csrf_token %}<button type="submit" class="staff-tile staff-tile--primary{% if forloop.first %} staff-tile--emphasis{% endif %}"><span class="staff-tile__glyph" aria-hidden="true"><i class="bi bi-{{ a.icon }}"></i></span><span class="staff-tile__label">{{ a.label }}</span></button></form>{% else %}
           <a
             href="{{ a.url }}"
             class="staff-tile staff-tile--primary{% if forloop.first %} staff-tile--emphasis{% endif %}"

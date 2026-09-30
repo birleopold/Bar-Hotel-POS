@@ -159,6 +159,8 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         oids = _po_outlet_ids(self.request, outlets)
         qs = _po_base_queryset(self.request).filter(outlet_id__in=oids).order_by("-created_at")
+        if self.request.GET.get("lane") == "receiving":
+            qs = qs.filter(status__in=[PurchaseOrderStatus.SENT, PurchaseOrderStatus.PARTIALLY_RECEIVED]).order_by("expected_date", "created_at")
         st = self.request.GET.get("status")
         if st and st in {c[0] for c in PurchaseOrderStatus.choices}:
             qs = qs.filter(status=st)
@@ -171,6 +173,7 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["status_filter"] = self.request.GET.get("status") or ""
+        ctx["receiving_lane"] = self.request.GET.get("lane") == "receiving"
         ctx["can_modify_purchasing"] = membership_can_modify_lodging(self.request.tenant_membership)
         return ctx
 

@@ -195,6 +195,7 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["status_filter"] = self.request.GET.get("status") or ""
         ctx["mine_filter"] = self.request.GET.get("mine") == "1"
+        ctx["returns_task"] = self.request.GET.get("task") == "returns" and ctx["status_filter"] == "closed"
         ctx["q_filter"] = (self.request.GET.get("q") or "").strip()
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])

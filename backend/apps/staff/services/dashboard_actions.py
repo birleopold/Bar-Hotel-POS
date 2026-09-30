@@ -1,5 +1,5 @@
 """
-Action-first dashboard: ordered primary tasks for the signed-in role (Phase 3 staff UX).
+Action-first dashboard: ordered primary tasks for the signed-in role and current section.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, FrozenSet
 from django.urls import NoReverseMatch, reverse
 
 from apps.accounts.models import MembershipRole
+from apps.tenants.models import OutletType
 
 if TYPE_CHECKING:
     from .modules import StaffNavVisibility
@@ -180,6 +181,7 @@ def staff_dashboard_actions(
     show_lodging_nav: bool,
     show_ops_nav: bool,
     action_overrides: dict[str, tuple[str, str]] | None = None,
+    outlet=None,
 ) -> tuple[list[StaffDashboardAction], list[StaffDashboardAction]]:
     order = _role_cap_order(membership.role)
     primary: list[StaffDashboardAction] = []
@@ -195,6 +197,25 @@ def staff_dashboard_actions(
             ("staff-lodging-reservations", "In-house", "?lane=in_house", "people", "get"),
             ("staff-lodging-rooms", "Rooms", "", "grid-3x3-gap", "get"),
             ("staff-lodging-reservation-create", "New reservation", "", "calendar-plus", "get"),
+        ]
+    elif membership.role == MembershipRole.STOREKEEPER:
+        if _cap_visible("purchasing", vis=vis, modules=modules, show_lodging_nav=show_lodging_nav, show_ops_nav=show_ops_nav):
+            tasks.append(("staff-purchasing-orders", "Receive", "?lane=receiving", "box-arrow-in-down", "get"))
+        if _cap_visible("inventory", vis=vis, modules=modules, show_lodging_nav=show_lodging_nav, show_ops_nav=show_ops_nav):
+            tasks.extend([
+                ("staff-inventory-transfer", "Transfers", "", "arrow-left-right", "get"),
+                ("staff-inventory-counts", "Counts", "", "clipboard-check", "get"),
+                ("staff-inventory-balances", "Low stock", "?low_stock=1", "exclamation-triangle", "get"),
+            ])
+        if vis.purchasing and "purchasing" in modules:
+            tasks.append(("staff-purchasing-orders", "Purchase orders", "", "bag-check", "get"))
+    elif membership.role == MembershipRole.SERVER and vis.orders and show_ops_nav and outlet and outlet.outlet_type in (OutletType.RETAIL, OutletType.SUPERMARKET):
+        tasks = [
+            ("staff-order-quick-create", "Checkout", "", "cart", "post"),
+            ("staff-orders", "Active orders", "?status=open", "receipt", "get"),
+            ("staff-orders", "Returns", "?status=closed&task=returns", "arrow-return-left", "get"),
+            ("staff-pos-shifts", "Register", "", "wallet2", "get"),
+            ("staff-terminal-lock", "Lock", "", "lock", "post"),
         ]
     elif membership.role in (MembershipRole.SERVER, MembershipRole.BARTENDER) and vis.orders and show_ops_nav:
         if vis.tables:
@@ -254,18 +275,10 @@ def staff_dashboard_actions(
             continue
         if url in seen_urls:
             continue
-        # Only show ops extras when user has relevant nav
-        if "inventory" in url_name and not vis.inventory:
+        cap = next((key for key in ("inventory", "purchasing", "lodging", "events", "finance", "workspace") if key in url_name), None)
+        if cap and not _cap_visible(cap, vis=vis, modules=modules, show_lodging_nav=show_lodging_nav, show_ops_nav=show_ops_nav):
             continue
-        if "purchasing" in url_name and not vis.purchasing:
-            continue
-        if "lodging" in url_name and not (vis.lodging and show_lodging_nav):
-            continue
-        if "events" in url_name and not vis.events:
-            continue
-        if "finance" in url_name and not vis.finance:
-            continue
-        if "workspace" in url_name and not vis.workspace:
+        if membership.role == MembershipRole.ACCOUNTANT and url_name != "staff-lodging-folios":
             continue
         seen_urls.add(url)
         secondary.append(StaffDashboardAction(label=label, url=url, variant="secondary", hint=hint))
@@ -273,3 +286,17 @@ def staff_dashboard_actions(
     secondary = overflow + secondary
 
     return top, secondary[:10]
+
+
+def staff_workspace_title(membership, outlet=None):
+    role = membership.role
+    if role == MembershipRole.SERVER and outlet and outlet.outlet_type in (OutletType.RETAIL, OutletType.SUPERMARKET):
+        return "Checkout workspace"
+    return {
+        MembershipRole.SERVER: "Floor workspace",
+        MembershipRole.BARTENDER: "Bar workspace",
+        MembershipRole.FRONT_DESK: "Front desk",
+        MembershipRole.STOREKEEPER: "Stock operations",
+        MembershipRole.KITCHEN: "Prep workspace",
+        MembershipRole.ACCOUNTANT: "Financial overview",
+    }.get(role, "Management overview")

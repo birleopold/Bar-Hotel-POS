@@ -4160,3 +4160,7 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
   .staff-terminal__panel { padding: 1.5rem; }
   .staff-terminal__foot { margin: 1.5rem 0; }
 }
+
+/* Dashboard task buttons share tile geometry and keyboard focus with links. */
+.staff-tile-form { margin: 0; min-width: 0; }
+.staff-tile-form > .staff-tile { width: 100%; height: 100%; text-align: left; font: inherit; cursor: pointer; }

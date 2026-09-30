@@ -118,3 +118,10 @@ Browser approvals now require owner/admin full-password authentication and passw
 Phase 02 now adds floor task shortcuts, scoped My orders and reception arrival/departure/in-house queues. Dashboard new-order creation uses POST; GET navigation no longer writes. Overflow actions are preserved. Cashier/storekeeper/manager workspace completion and visual evidence remain pending.
 
 Full SQLite suite: **298 passed, 5 PostgreSQL-only skipped**. Django checks/migration consistency pass. Migrations 0014/0015 apply/reverse/reapply successfully on SQLite; rollback removes approval records. PostgreSQL/RLS/concurrency, browser widths and physical devices remain unverified. Local browser launch could not run because the Chromium executable is absent.
+
+
+### September 30 — retail and stock workspace checkpoint
+
+Phase 02 now adapts the existing server role to a retail checkout workspace, adds explicit returns/register/lock tasks and gives storekeepers receiving/transfer/count/low-stock/PO tasks. Receiving filters sent and partial POs within authorized outlet scope and routes into the existing receipt workflow. Role headings and shared task-button geometry improve dashboard clarity. Supplemental links follow enabled-module visibility and omit creation shortcuts for read-only accountants.
+
+Verification: **301 passed, 5 PostgreSQL-only skipped**, with three new workspace regressions. Django checks/migration consistency pass; no schema changes. Phase 02 remains underway for management/exception/approval journeys and real-browser evidence. No production, PostgreSQL or physical-device certification is claimed.

@@ -1,6 +1,6 @@
 """Staff read models, nav, permission checks, and workspace resolution."""
 
-from .dashboard_actions import StaffDashboardAction, staff_dashboard_actions
+from .dashboard_actions import StaffDashboardAction, staff_dashboard_actions, staff_workspace_title
 from .membership import (
     LINE_ROLE_OUTLET_TYPES,
     accessible_outlets_flat,
@@ -66,6 +66,7 @@ __all__ = [
     "resolve_effective_staff_modules",
     "sites_visible_for_membership",
     "staff_dashboard_actions",
+    "staff_workspace_title",
     "staff_accessible_outlets",
     "staff_nav_capability_allowed",
     "staff_nav_visibility",

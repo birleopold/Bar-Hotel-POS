@@ -35,6 +35,7 @@ from .services import (
     sites_visible_for_membership,
     staff_accessible_outlets,
     staff_dashboard_actions,
+    staff_workspace_title,
     staff_nav_visibility_scoped,
     staff_action_overrides_for_tenant,
 )
@@ -242,8 +243,10 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
                 modules=modules,
                 show_lodging_nav=show_lodging_nav,
                 show_ops_nav=show_ops_nav,
+                outlet=current_outlet,
                 action_overrides=staff_action_overrides_for_tenant(active.tenant, outlet=current_outlet),
             )
+            ctx["staff_workspace_title"] = staff_workspace_title(active, current_outlet)
             ctx["staff_dashboard_primary_actions"] = primary
             ctx["staff_dashboard_secondary_actions"] = secondary
             can_manage_console = membership_can_manage_org_console(active)

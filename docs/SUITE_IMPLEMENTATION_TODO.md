@@ -126,3 +126,17 @@ Current phase: **02 Role workspaces**. The original roadmap remains the organizi
 Verification: full local SQLite suite **298 passed, 5 PostgreSQL-only skipped**. Eight added regressions cover pairing permissions/password checks, hashing/cookies/audit, expiry/tampering/detach, PIN handoff/revocation, policy edits and cross-tenant isolation, plus floor creation/filter scope and reception date/status/branch queues. Django system check, migration consistency and diff whitespace checks pass. Migrations 0014/0015 passed apply → reverse to 0013 → reapply on a disposable SQLite database; legacy stations retain optional approval. Reversal deletes approval records, so reapproval is necessary after a rollback/reapply. PostgreSQL RLS behavior remains unverified.
 
 Next work: continue item 02, then item 03 exception centre. Preserve every unchecked item above and gather external evidence before any production certification claim.
+
+### Phase 02 — retail and stock workspaces — 2026-09-30
+
+- [x] Retail/supermarket sections show Checkout, Active orders, Returns, Register and Lock for existing server-role staff. No new cashier role or parallel permissions engine is introduced. Switching back to hospitality restores the floor workspace.
+- [x] Checkout and Lock are CSRF-protected POST tasks. Returns opens the original closed-receipt search and explains manager authorization; existing linked-return/refund permissions and services remain authoritative. Search/pagination retain the returns task.
+- [x] Storekeepers see Receive, Transfers, Counts, Low stock and Purchase orders, restricted to enabled modules. Transfers/counts/low stock reuse existing scoped screens.
+- [x] Receiving queue shows sent and partially received purchase orders only, scoped to the worker's selected/accessible outlets. Status filters and pagination retain the queue; the delivery link opens the existing receiving detail workflow. Draft, cancelled, fully received and out-of-scope orders are excluded.
+- [x] Role/section workspace headings and consistent task-button styling/focus treatment using the existing theme.
+- [x] Supplemental dashboard links now use the same module/visibility gate as primary actions. Read-only accountants keep view links without creation shortcuts; overflowing view actions remain accessible.
+- [ ] Phase 02 remaining: manager Today/Exceptions/Approvals/Team/Reports journeys, including item 03 exception-centre and item 21 approval-workflow dependencies; responsive real-browser review for all role journeys. Do not mark item 02 complete yet.
+
+Verification: **301 passed, 5 PostgreSQL-only skipped** on SQLite. Three added regressions cover retail checkout/returns/lock behavior, storekeeper receiving/partial-order/outlet scope and working task targets, and disabled-module/read-only supplemental action filtering. The five role-workspace tests pass together. Django checks and migration consistency pass; no new migrations. Browser and PostgreSQL certification remain pending.
+
+Next dependency: continue management workspace and exception-centre implementation, reusing existing operational snapshots, audit and refund policies. Keep all other unchecked work required.

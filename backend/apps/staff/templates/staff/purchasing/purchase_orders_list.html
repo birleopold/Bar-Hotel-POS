@@ -1,12 +1,12 @@
 {% extends "staff/base.html" %}
-{% block title %}Purchase orders{% endblock %}
+{% block title %}{% if receiving_lane %}Receive stock{% else %}Purchase orders{% endif %}{% endblock %}
 {% block content %}
   <header class="staff-page-hero">
     <div class="staff-dash-hero__panel">
       <p class="staff-dash-hero__eyebrow">Purchasing</p>
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Purchase orders<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <h1 class="staff-page-title mb-0">{% if receiving_lane %}Receive stock{% else %}Purchase orders{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-dash-hero__tagline mb-0">Order stock from suppliers and record goods received.</p>
         </div>
         <div class="staff-page-hero__actions">
@@ -18,9 +18,16 @@
     </div>
   </header>
   {% include "staff/purchasing/includes/subnav.html" %}
+  <nav class="staff-chip-row mb-3" aria-label="Purchasing tasks">
+    <a class="staff-btn staff-btn--ghost" href="?lane=receiving"{% if receiving_lane %} aria-current="page"{% endif %}>Awaiting delivery</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All purchase orders</a>
+  </nav>
+  {% if receiving_lane %}<p class="staff-muted">Open a sent or partially received order to record the quantities delivered.</p>{% endif %}
   <h2 class="staff-section-head">Status</h2>
   <form class="mb-3" method="get">
-    <select class="staff-input" name="status" onchange="this.form.submit()">
+    {% if receiving_lane %}<input type="hidden" name="lane" value="receiving">{% endif %}
+    <label class="staff-label" for="purchase-order-status">Order status</label>
+    <select id="purchase-order-status" class="staff-input" name="status" onchange="this.form.submit()">
       <option value="">All statuses</option>
       <option value="draft"{% if status_filter == 'draft' %} selected{% endif %}>Draft</option>
       <option value="sent"{% if status_filter == 'sent' %} selected{% endif %}>Sent</option>
@@ -40,19 +47,19 @@
             <td>{{ po.supplier.name }}</td>
             <td>{{ po.outlet.name }}</td>
             <td>{{ po.get_status_display }}</td>
-            <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">View</a></td>
+            <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{% if receiving_lane and can_modify_purchasing %}Receive delivery{% else %}View{% endif %}</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="5" class="staff-muted">No purchase orders.</td></tr>
+          <tr><td colspan="5" class="staff-muted">{% if receiving_lane %}No purchase orders are awaiting delivery for this scope and status.{% else %}No purchase orders match this scope and status.{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% if is_paginated %}
     <nav class="staff-pager">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}">Previous</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% endif %}">Previous</a>{% endif %}
       <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% endif %}">Next</a>{% endif %}
     </nav>
   {% endif %}
 {% endblock %}
