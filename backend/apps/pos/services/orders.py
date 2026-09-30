@@ -28,6 +28,7 @@ from apps.pos.models import (
     PaymentMethod,
     PosShift,
     PosShiftStatus,
+    ShiftHandover,
     Workstation,
     Refund,
     SupermarketLineReturn,
@@ -716,7 +717,7 @@ def process_supermarket_line_return(
 
 
 @transaction.atomic
-def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, note: str = "", workstation=None) -> PosShift:
+def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, note: str = "", workstation=None, handover_id=None) -> PosShift:
     # Lock a row that exists even when there is no current shift. Otherwise two
     # concurrent opens can both observe an empty shift queryset.
     locked_outlet = Outlet.objects.select_for_update().filter(pk=outlet.pk, site__tenant_id=tenant_id).first()
@@ -728,6 +729,13 @@ def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, no
         ).first()
         if workstation is None:
             raise ValidationError({"workstation": "Choose an active workstation in this section."})
+    pending = ShiftHandover.objects.filter(
+        tenant_id=tenant_id, shift__outlet=locked_outlet, shift__workstation=workstation,
+    ).exclude(status=ShiftHandover.Status.ACCEPTED)
+    if handover_id is not None:
+        pending = pending.exclude(pk=handover_id, status=ShiftHandover.Status.APPROVED)
+    if pending.exists():
+        raise ValidationError("Complete this register's handover before opening the next shift.")
     open_shifts = PosShift.objects.select_for_update().filter(
         tenant_id=tenant_id, outlet=locked_outlet, status=PosShiftStatus.OPEN,
     )

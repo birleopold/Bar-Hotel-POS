@@ -526,3 +526,30 @@ class CashDrawerMovement(TimeStampedModel):
     class Meta:
         ordering = ["-created_at"]
         constraints = [models.UniqueConstraint(fields=["shift", "idempotency_key"], name="unique_drawer_movement_key_per_shift")]
+
+
+class ShiftHandover(TimeStampedModel):
+    class Status(models.TextChoices):
+        SUBMITTED = "submitted", "Awaiting independent count"
+        VERIFIED = "verified", "Awaiting manager approval"
+        APPROVED = "approved", "Awaiting next cashier"
+        ACCEPTED = "accepted", "Accepted"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="shift_handovers")
+    shift = models.OneToOneField(PosShift, on_delete=models.PROTECT, related_name="handover")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.SUBMITTED)
+    variance_explanation = models.CharField(max_length=512, blank=True)
+    verified_cash = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    verification_note = models.CharField(max_length=512, blank=True)
+    verified_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="verified_shift_handovers")
+    verified_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_shift_handovers")
+    approval_note = models.CharField(max_length=512, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    accepted_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="accepted_shift_handovers")
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    next_shift = models.OneToOneField(PosShift, on_delete=models.PROTECT, null=True, blank=True, related_name="prior_handover")
+
+    class Meta:
+        ordering = ["-created_at"]

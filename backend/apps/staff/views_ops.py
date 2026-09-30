@@ -15,10 +15,11 @@ from django.views.generic import CreateView, DetailView, ListView, TemplateView,
 from django.db.models import Prefetch, Q
 
 from apps.catalog.models import MenuItemModifierGroup, ModifierOption
+from apps.accounts.models import MembershipRole
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem, ServiceOffering, ServiceOfferingOption
-from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus, PosShift, PosShiftStatus, Table
+from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table
 from apps.pos.services import (
     adjust_open_order_line_quantity,
     add_line_to_open_order,
@@ -30,6 +31,10 @@ from apps.pos.services import (
     charge_order_to_folio,
     close_pos_shift,
     record_cash_drawer_movement,
+    submit_shift_handover,
+    verify_shift_handover,
+    approve_shift_handover,
+    accept_shift_handover,
     create_order_with_lines,
     default_currency_for_tenant,
     hold_open_order,
@@ -69,6 +74,7 @@ from .forms import (
     StaffOrderVoidOrderForm,
     StaffCashDrawerMovementForm,
     StaffPosShiftCloseForm,
+    StaffHandoverCountForm,
     StaffPosShiftOpenForm,
     StaffTableForm,
 )
@@ -325,11 +331,25 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         ctx["open_form"] = StaffPosShiftOpenForm()
         ctx["close_form"] = StaffPosShiftCloseForm()
         ctx["movement_form"] = StaffCashDrawerMovementForm(initial={"idempotency_key": uuid.uuid4()})
+        ctx["handover_form"] = StaffHandoverCountForm()
         if outlet is None:
             ctx["open_shift"] = None
             ctx["recent_shifts"] = []
             return ctx
         station = ctx["selected_station"]
+        ctx["pending_handover"] = ShiftHandover.objects.filter(
+            tenant=self.request.tenant, shift__outlet=outlet, shift__workstation=station,
+        ).exclude(status=ShiftHandover.Status.ACCEPTED).select_related(
+            "shift", "shift__closed_by", "verified_by", "approved_by",
+        ).first()
+        pending = ctx["pending_handover"]
+        manager = self.request.tenant_membership.role in {
+            MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+        }
+        operator = manager or self.request.tenant_membership.role in {MembershipRole.SERVER, MembershipRole.BARTENDER}
+        ctx["can_verify_handover"] = bool(pending and operator and pending.status == ShiftHandover.Status.SUBMITTED and pending.shift.closed_by_id != self.request.user.pk)
+        ctx["can_approve_handover"] = bool(pending and manager and pending.status == ShiftHandover.Status.VERIFIED and self.request.user.pk not in {pending.shift.closed_by_id, pending.verified_by_id})
+        ctx["can_accept_handover"] = bool(pending and operator and pending.status == ShiftHandover.Status.APPROVED and self.request.user.pk not in {pending.shift.closed_by_id, pending.approved_by_id})
         ctx["open_shift"] = PosShift.objects.filter(
             tenant=self.request.tenant, outlet=outlet, status=PosShiftStatus.OPEN,
             workstation=station,
@@ -414,16 +434,57 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
                 messages.error(request, "Shift not found.")
                 return redirect("staff-pos-shifts")
             try:
-                close_pos_shift(
+                submit_shift_handover(
                     shift=shift,
+                    membership=request.tenant_membership,
                     user=request.user,
                     counted_cash=form.cleaned_data["counted_cash"],
-                    note=form.cleaned_data.get("note") or "",
+                    explanation=form.cleaned_data.get("note") or "",
+                    workstation_id=selected_station.pk if selected_station else None,
                 )
             except DRFValidationError as exc:
                 _flash_drf_validation(request, exc)
             else:
-                messages.success(request, "Shift closed.")
+                messages.success(request, "Drawer submitted. Another worker must count it before manager approval.")
+            return redirect("staff-pos-shifts")
+        if action in {"verify_handover", "approve_handover", "accept_handover"}:
+            try:
+                handover_id = uuid.UUID(request.POST.get("handover_id", ""))
+            except (ValueError, TypeError):
+                messages.error(request, "Invalid handover reference.")
+                return redirect("staff-pos-shifts")
+            handover = ShiftHandover.objects.filter(
+                pk=handover_id, tenant=request.tenant,
+                shift__outlet=outlet, shift__workstation=selected_station,
+            ).select_related("shift").first()
+            if handover is None:
+                messages.error(request, "Handover not found for this register.")
+                return redirect("staff-pos-shifts")
+            try:
+                if action == "verify_handover":
+                    form = StaffHandoverCountForm(request.POST)
+                    if not form.is_valid():
+                        context = self.get_context_data()
+                        context["handover_form"] = form
+                        return self.render_to_response(context, status=400)
+                    verify_shift_handover(handover=handover, membership=request.tenant_membership,
+                        user=request.user, counted_cash=form.cleaned_data["counted_cash"], note=form.cleaned_data["note"])
+                elif action == "approve_handover":
+                    approve_shift_handover(handover=handover, membership=request.tenant_membership,
+                        user=request.user, note=request.POST.get("note", ""))
+                else:
+                    form = StaffPosShiftOpenForm(request.POST)
+                    if not form.is_valid():
+                        context = self.get_context_data()
+                        context["open_form"] = form
+                        return self.render_to_response(context, status=400)
+                    accept_shift_handover(handover=handover, membership=request.tenant_membership,
+                        user=request.user, opening_cash=form.cleaned_data["opening_cash"],
+                        workstation_id=selected_station.pk if selected_station else None)
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(request, "Handover updated." if action != "accept_handover" else "Handover accepted. Your new shift is open.")
             return redirect("staff-pos-shifts")
         messages.error(request, "Unknown shift action.")
         return redirect("staff-pos-shifts")

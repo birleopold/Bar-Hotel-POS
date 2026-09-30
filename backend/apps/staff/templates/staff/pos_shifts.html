@@ -47,11 +47,11 @@
           <input type="hidden" name="shift_id" value="{{ open_shift.id }}">
           {% if close_form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ close_form.non_field_errors }}</div>{% endif %}
           <div class="mb-3"><label class="staff-label" for="{{ close_form.counted_cash.id_for_label }}">Cash physically counted ({{ shift_currency }})</label>{{ close_form.counted_cash }}{% for error in close_form.counted_cash.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>
-          <div class="mb-3">{{ close_form.note.label_tag }}{{ close_form.note }}{% for error in close_form.note.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>
-          <button type="submit" class="staff-btn staff-btn--primary">Close and reconcile shift</button>
+          <div class="mb-3"><label for="{{ close_form.note.id_for_label }}">Variance explanation (required if cash differs)</label>{{ close_form.note }}{% for error in close_form.note.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>
+          <button type="submit" class="staff-btn staff-btn--primary">Submit counted drawer</button>
         </form>
       </div>
-    {% else %}
+    {% elif not pending_handover %}
       <div class="staff-card">
         <h2 class="staff-card__title">Start a register shift</h2>
         <p class="staff-muted">Count the opening cash float before taking the first sale.</p>
@@ -64,6 +64,36 @@
           <button type="submit" class="staff-btn staff-btn--primary">Start shift</button>
         </form>
       </div>
+    {% endif %}
+    {% if pending_handover %}
+      <section class="staff-card" aria-labelledby="handover-title">
+        <h2 class="staff-card__title" id="handover-title">Handover · {{ pending_handover.get_status_display }}</h2>
+        <p class="staff-muted">Closed by {{ pending_handover.shift.closed_by.email|default:"Former worker" }} · expected {{ shift_currency }} {{ pending_handover.shift.expected_cash }} · submitted {{ shift_currency }} {{ pending_handover.shift.counted_cash }}{% if pending_handover.variance_explanation %} · {{ pending_handover.variance_explanation }}{% endif %}</p>
+        {% if can_verify_handover %}
+          <p>Another worker must count the physical drawer independently. A different count needs an explanation.</p>
+          <form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="verify_handover"><input type="hidden" name="handover_id" value="{{ pending_handover.pk }}">
+            <div><label for="{{ handover_form.counted_cash.id_for_label }}">Independent count ({{ shift_currency }})</label>{{ handover_form.counted_cash }}{{ handover_form.counted_cash.errors }}</div>
+            <div>{{ handover_form.note.label_tag }}{{ handover_form.note }}{{ handover_form.note.errors }}</div>
+            <button class="staff-btn staff-btn--primary" type="submit">Record independent count</button>
+          </form>
+        {% elif pending_handover.status == 'verified' %}
+          <p>Verified by {{ pending_handover.verified_by.email|default:"Former worker" }} · {{ shift_currency }} {{ pending_handover.verified_cash }}{% if pending_handover.verification_note %} · {{ pending_handover.verification_note }}{% endif %}</p>
+          {% if can_approve_handover %}
+          <form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="approve_handover"><input type="hidden" name="handover_id" value="{{ pending_handover.pk }}">
+            <label for="approval-note">Manager approval note (required for variance)</label><textarea id="approval-note" name="note" maxlength="512" rows="2" class="staff-input"></textarea>
+            <button class="staff-btn staff-btn--primary" type="submit">Approve verified drawer</button>
+          </form>
+          {% endif %}
+        {% elif pending_handover.status == 'approved' %}
+          <p>Approved by {{ pending_handover.approved_by.email|default:"Former worker" }} · carry forward {{ shift_currency }} {{ pending_handover.verified_cash }}. The incoming cashier must count and accept this exact float.</p>
+          {% if can_accept_handover %}
+          <form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="accept_handover"><input type="hidden" name="handover_id" value="{{ pending_handover.pk }}">
+            <div><label for="{{ open_form.opening_cash.id_for_label }}">Counted opening float ({{ shift_currency }})</label>{{ open_form.opening_cash }}{{ open_form.opening_cash.errors }}</div>
+            <button class="staff-btn staff-btn--primary" type="submit">Accept and open my shift</button>
+          </form>
+          {% endif %}
+        {% endif %}
+      </section>
     {% endif %}
     {% if other_open_shifts %}
       <div class="staff-card"><h2 class="staff-card__title">Other open registers in {{ current_outlet.name }}</h2>

@@ -1,6 +1,7 @@
 """POS services public API (re-exported from command/query modules)."""
 
 from .cash_movements import record_cash_drawer_movement
+from .handover import accept_shift_handover, approve_shift_handover, submit_shift_handover, verify_shift_handover
 
 from .commands import (
     adjust_open_order_line_quantity,
@@ -64,6 +65,10 @@ __all__ = [
     "shift_cash_snapshot",
     "recalculate_order_totals",
     "record_cash_drawer_movement",
+    "submit_shift_handover",
+    "verify_shift_handover",
+    "approve_shift_handover",
+    "accept_shift_handover",
     "record_order_payment",
     "record_order_refund",
     "refund_retail_line",

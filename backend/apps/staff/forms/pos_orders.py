@@ -314,9 +314,16 @@ class StaffPosShiftCloseForm(forms.Form):
     )
     note = forms.CharField(
         required=False,
-        max_length=255,
-        widget=forms.TextInput(attrs={"class": "staff-input", "maxlength": 255}),
+        max_length=512,
+        widget=forms.Textarea(attrs={"class": "staff-input", "rows": 2, "placeholder": "Required if expected and counted cash differ"}),
     )
+
+
+class StaffHandoverCountForm(forms.Form):
+    counted_cash = forms.DecimalField(min_value=Decimal("0"), max_digits=14, decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.01", "min": "0"}))
+    note = forms.CharField(required=False, max_length=512,
+        widget=forms.Textarea(attrs={"class": "staff-input", "rows": 2, "placeholder": "Required when counts differ"}))
 
 
 class StaffOrderRefundForm(forms.Form):

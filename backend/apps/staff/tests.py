@@ -1630,6 +1630,7 @@ class StaffSupermarketFlowTests(TestCase):
         self.assertEqual(page.context["cash_snapshot"]["expected"], Decimal("60.00"))
         self.client.post(url, {
             "action": "close_shift", "shift_id": str(shift.id), "counted_cash": "58.00",
+            "note": "Two units short on physical count",
         })
         shift.refresh_from_db()
         self.assertEqual(shift.expected_cash, Decimal("60.00"))
