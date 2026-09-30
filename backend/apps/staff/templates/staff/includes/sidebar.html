@@ -36,6 +36,8 @@
     <div class="staff-sidebar__footer">
       <div class="staff-sidebar__user"><span aria-hidden="true">{{ user.email|slice:":1"|upper }}</span><div><strong>{{ user.email }}</strong><small>Signed in</small></div></div>
       <div class="staff-sidebar__footer-actions">
+        <a href="{% url 'staff-pin-setup' %}" title="Set terminal PIN"><i class="bi bi-shield-lock"></i><span>Set PIN</span></a>
+        <form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit" title="Lock terminal"><i class="bi bi-lock"></i><span>Lock terminal</span></button></form>
         {% if staff_show_console_entry %}<a href="{% url 'console-org' %}" title="Administration"><i class="bi bi-gear"></i><span>Console</span></a>{% endif %}
         <form method="post" action="{% url 'staff-logout' %}">{% csrf_token %}<button type="submit" title="Sign out"><i class="bi bi-box-arrow-right"></i><span>Sign out</span></button></form>
       </div>

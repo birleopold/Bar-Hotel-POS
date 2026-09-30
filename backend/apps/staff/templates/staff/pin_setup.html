@@ -1,0 +1,20 @@
+{% extends "staff/base.html" %}
+{% block title %}Set terminal PIN · Staff{% endblock %}
+{% block content %}
+  <div class="staff-pin-page">
+    <a class="staff-pin-page__back" href="{% url 'staff-dashboard' %}">← Back to workspace</a>
+    <div class="staff-card staff-pin-page__card">
+      <div class="staff-terminal__eyebrow">YOUR ACCOUNT</div>
+      <h1>{% if has_pin %}Change your terminal PIN{% else %}Set your terminal PIN{% endif %}</h1>
+      <p class="staff-muted">Use a 6 to 8 digit PIN to return to work quickly at a shared terminal. Only your account password can set or change it. Keep both private.</p>
+      <form method="post" class="staff-pin-page__form" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+          <div><label class="staff-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<div class="staff-terminal__error" role="alert">{{ field.errors }}</div>{% endif %}</div>
+        {% endfor %}
+        {% if form.non_field_errors %}<div class="staff-terminal__error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        <button type="submit" class="staff-btn staff-btn--primary">{% if has_pin %}Update PIN{% else %}Set PIN{% endif %}</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

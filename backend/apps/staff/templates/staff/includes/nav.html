@@ -80,6 +80,9 @@
         </form>
       {% endif %}
       <span class="staff-nav__email">{{ user.email }}</span>
+      <form method="post" action="{% url 'staff-terminal-lock' %}" class="d-inline">
+        {% csrf_token %}<button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Lock terminal</button>
+      </form>
       {% if staff_show_console_entry %}
         <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'console-org' %}">Console</a>
       {% endif %}

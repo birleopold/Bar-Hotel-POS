@@ -4111,3 +4111,35 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
   .staff-stay-dates { white-space: normal; }
   .staff-metric-row--folio { grid-template-columns: 1fr; }
 }
+
+/* Shared terminal: calm, high contrast handoff with comfortable touch targets. */
+.staff-terminal-body { min-height: 100vh; background: #f3f5f5; color: #172c34; }
+.staff-terminal { width: min(100% - 2rem, 68rem); min-height: 100vh; margin: auto; display: flex; flex-direction: column; }
+.staff-terminal__masthead { display: flex; align-items: center; gap: .7rem; padding: 2rem 0; font-weight: 700; letter-spacing: -.02em; }
+.staff-terminal__mark { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border-radius: .55rem; color: #fff; background: #126b69; font-size: .75rem; }
+.staff-terminal__status { margin-left: auto; border: 1px solid #bbd2d0; background: #e7f0ef; color: #295b59; padding: .35rem .8rem; border-radius: 99rem; font-size: .8rem; letter-spacing: 0; }
+.staff-terminal__panel { width: min(100%, 29rem); margin: auto; padding: 2.4rem; border: 1px solid #dce4e3; border-radius: 1.25rem; background: #fff; box-shadow: 0 22px 55px rgba(16, 42, 47, .08); }
+.staff-terminal__eyebrow { color: #126b69; font-weight: 800; letter-spacing: .11em; font-size: .72rem; }
+.staff-terminal__panel h1, .staff-pin-page h1 { margin: .65rem 0 0; color: #172c34; letter-spacing: -.045em; font-size: clamp(2rem, 5vw, 2.65rem); line-height: 1.1; }
+.staff-terminal__intro { margin: .85rem 0 1.8rem; line-height: 1.55; color: #52646b; }
+.staff-terminal__form, .staff-pin-page__form { display: grid; gap: 1.15rem; }
+.staff-terminal__form .staff-input, .staff-pin-page__form .staff-input { display: block; width: 100%; min-height: 3.25rem; margin-top: .45rem; font-size: 1rem; }
+.staff-terminal__submit { width: 100%; min-height: 3.3rem; margin-top: .35rem; font-weight: 750; }
+.staff-terminal__alternative { display: inline-flex; gap: .45rem; align-items: center; margin-top: 1.5rem; font-weight: 700; color: #126b69; text-decoration: none; }
+.staff-terminal__alternative:hover, .staff-pin-page__back:hover { text-decoration: underline; }
+.staff-terminal__empty { background: #f3f7f7; padding: 1rem; border-radius: .65rem; color: #42575d; }
+.staff-terminal__error { padding: .7rem .85rem; background: #fff2ef; border-radius: .55rem; color: #993a2f; font-size: .9rem; }
+.staff-terminal__foot { text-align: center; color: #62747b; font-size: .88rem; margin: 2rem 0; }
+.staff-terminal__login-link { margin: 1rem 0 0; }
+.staff-terminal__login-link a, .staff-pin-page__back { color: #126b69; font-weight: 700; }
+.staff-pin-page { max-width: 43rem; margin: 0 auto; }
+.staff-pin-page__back { display: inline-block; text-decoration: none; margin: .3rem 0 1.4rem; }
+.staff-pin-page__card { padding: clamp(1.4rem, 4vw, 2.5rem); }
+.staff-pin-page__card p { margin: 1rem 0 1.7rem; line-height: 1.6; }
+.staff-pin-page__form { max-width: 27rem; }
+@media (max-width: 600px) {
+  .staff-terminal { width: min(100% - 1.25rem, 32rem); }
+  .staff-terminal__masthead { padding: 1.2rem 0; }
+  .staff-terminal__panel { padding: 1.5rem; }
+  .staff-terminal__foot { margin: 1.5rem 0; }
+}

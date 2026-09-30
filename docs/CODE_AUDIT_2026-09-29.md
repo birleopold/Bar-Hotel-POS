@@ -77,3 +77,7 @@ The amount is entered by an approving manager because the order can contain disc
 ### PostgreSQL race check prepared
 
 `backend/tests/test_postgres_settlement_concurrency.py` starts two independent database connections that each try to pay the full received value of the same purchase order. On PostgreSQL, exactly one payment and one cashbook expense should survive. The test skips SQLite because it cannot verify PostgreSQL row locks. Run it on the disposable PostgreSQL test database with `pytest -q tests/test_postgres_settlement_concurrency.py`; the local SQLite pass below does **not** execute that assertion. Additional concurrent checkout, receiving, stock count, and shift-close runs still need PostgreSQL release evidence.
+
+## 2026-09-30 shared terminal authentication
+
+Staff can enroll a workspace PIN only after entering their own account password. A visible **Lock terminal** action logs out the current worker and leaves a signed, 12-hour tenant/section marker for the next worker. The next worker selects their identity and enters a PIN; a fresh session uses their own membership, outlet limits, and audit attribution. Server and browser idle limits lock PIN-enabled sessions after two minutes. Five failed guesses lock a PIN for 15 minutes. PIN sessions cannot access console or API routes; full password login remains available. The anonymous PIN screen sets the tenant context from the signed marker so PostgreSQL RLS can scope membership reads. See `docs/STAFF_SHARED_TERMINAL.md` for the operator flow and deployment checks.

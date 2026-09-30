@@ -77,6 +77,9 @@ class Membership(TimeStampedModel):
     )
     role = models.CharField(max_length=32, choices=MembershipRole.choices)
     is_active = models.BooleanField(default=True)
+    staff_pin_hash = models.CharField(max_length=255, blank=True, editable=False)
+    staff_pin_failures = models.PositiveSmallIntegerField(default=0, editable=False)
+    staff_pin_locked_until = models.DateTimeField(null=True, blank=True, editable=False)
     sites = models.ManyToManyField(
         "tenants.Site",
         blank=True,

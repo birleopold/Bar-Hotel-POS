@@ -1,0 +1,33 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Terminal locked · Staff</title>
+  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20260930.1">
+</head>
+<body class="staff-body staff-terminal-body">
+  <main class="staff-terminal" id="staff-main-content">
+    <div class="staff-terminal__masthead"><span class="staff-terminal__mark" aria-hidden="true">◼</span><span>Staff workspace</span><span class="staff-terminal__status">Terminal locked</span></div>
+    <section class="staff-terminal__panel" aria-labelledby="terminal-title">
+      <div class="staff-terminal__eyebrow">READY FOR THE NEXT WORKER</div>
+      <h1 id="terminal-title">Your turn to serve.</h1>
+      <p class="staff-terminal__intro">Choose your name and enter your PIN. Your work stays under your own account.</p>
+      {% if workers %}
+        <form method="post" action="{% url 'staff-terminal' %}" class="staff-terminal__form" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="staff-terminal__error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+          <div><label class="staff-label" for="{{ form.worker.id_for_label }}">Worker</label>{{ form.worker }}{{ form.worker.errors }}</div>
+          <div><label class="staff-label" for="{{ form.pin.id_for_label }}">PIN</label>{{ form.pin }}{{ form.pin.errors }}</div>
+          <button class="staff-btn staff-btn--primary staff-terminal__submit" type="submit">Unlock workspace</button>
+        </form>
+      {% else %}
+        <p class="staff-terminal__empty">No PIN-enabled workers are available here yet. Sign in with your account password, open Set PIN, then lock the terminal.</p>
+      {% endif %}
+      <a class="staff-terminal__alternative" href="{% url 'staff-login' %}">Sign in with email and password <span aria-hidden="true">→</span></a>
+    </section>
+    <p class="staff-terminal__foot">Finished serving? Choose <strong>Lock terminal</strong> before handing it over.</p>
+  </main>
+</body>
+</html>

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import uuid
+import time
 
 from django.contrib import messages
+from django.contrib.auth import login, logout
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpRequest, HttpResponse
@@ -10,14 +12,21 @@ from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView
+from django.views.decorators.cache import never_cache
+from django.utils.decorators import method_decorator
 
 from apps.accounts.models import Membership
+from apps.audit.services import log_audit
 from apps.console.setup_flow import build_tenant_setup_state, sync_tenant_setup_progress
 from apps.console.mixins import membership_can_manage_org_console, user_is_platform_operator
 from apps.tenants.models import TenantSetupProgress
 
-from .forms import StaffLoginForm
+from .forms import StaffLoginForm, StaffPinSetupForm, StaffTerminalUnlockForm
 from .middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_SITE_KEY, STAFF_SESSION_TENANT_KEY
+from .terminal import (
+    available_workers, clear_terminal, mark_terminal,
+    set_member_pin, terminal_scope, verify_member_pin,
+)
 from .services import (
     get_tenant_staff_modules,
     membership_queryset_for,
@@ -49,6 +58,9 @@ class StaffLoginView(LoginView):
         first = membership_queryset_for(user).first()
         if first:
             self.request.session[STAFF_SESSION_TENANT_KEY] = str(first.tenant_id)
+            if first.staff_pin_hash:
+                self.request.session["staff_pin_session"] = True
+                self.request.session["staff_pin_last_activity"] = int(time.time())
             if not getattr(first.tenant, "is_active", True):
                 return redirect("staff-pending-approval")
         return response
@@ -56,6 +68,93 @@ class StaffLoginView(LoginView):
 
 class StaffLogoutView(LogoutView):
     next_page = reverse_lazy("staff-login")
+
+    def post(self, request, *args, **kwargs):
+        return clear_terminal(super().post(request, *args, **kwargs))
+
+
+@method_decorator(never_cache, name="dispatch")
+class StaffTerminalView(View):
+    """Only an authenticated worker can establish this browser as a shared terminal."""
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect("staff-dashboard")
+        scope = terminal_scope(request)
+        workers = available_workers(*scope) if scope else []
+        form = StaffTerminalUnlockForm(workers=workers)
+        return render(request, "staff/terminal.html", {"form": form, "workers": workers})
+
+    def post(self, request):
+        if request.user.is_authenticated:
+            return redirect("staff-dashboard")
+        scope = terminal_scope(request)
+        if scope is None:
+            return redirect("staff-login")
+        workers = available_workers(*scope)
+        form = StaffTerminalUnlockForm(request.POST, workers=workers)
+        if form.is_valid() and any(m.id == form.cleaned_data["worker"] for m in workers):
+            member = verify_member_pin(
+                member_id=form.cleaned_data["worker"], tenant_id=scope[0],
+                outlet_id=scope[1], pin=form.cleaned_data["pin"],
+            )
+            if member is not None and member.tenant.is_active:
+                # login() rotates the session key; no previous worker's tenant, outlet,
+                # site, or privileges survive the switch.
+                logout(request)
+                login(request, member.user, backend="django.contrib.auth.backends.ModelBackend")
+                request.session[STAFF_SESSION_TENANT_KEY] = str(member.tenant_id)
+                if scope[1] and scope[1] != "__all__":
+                    request.session[STAFF_SESSION_OUTLET_KEY] = scope[1]
+                request.session["staff_pin_session"] = True
+                request.session["staff_pin_authenticated"] = True
+                request.session["staff_pin_last_activity"] = int(time.time())
+                request.session.set_expiry(0)
+                log_audit(tenant_id=member.tenant_id, user_id=member.user_id,
+                          action="staff.terminal_unlocked", entity_type="membership", entity_id=str(member.id), payload={})
+                return redirect("staff-dashboard")
+        form.add_error(None, "Unable to unlock. Check your name and PIN, or sign in with your password.")
+        return render(request, "staff/terminal.html", {"form": form, "workers": workers}, status=200)
+
+
+class StaffTerminalLockView(View):
+    def post(self, request):
+        membership = getattr(request, "tenant_membership", None)
+        if not request.user.is_authenticated:
+            return redirect("staff-login")
+        if membership is None:
+            logout(request)
+            return redirect("staff-login")
+        tenant_id = membership.tenant_id
+        outlet_id = request.session.get(STAFF_SESSION_OUTLET_KEY, "")
+        log_audit(tenant_id=tenant_id, user_id=request.user.id,
+                  action="staff.terminal_locked", entity_type="membership", entity_id=str(membership.id), payload={})
+        logout(request)
+        return mark_terminal(redirect("staff-terminal"), tenant_id=tenant_id, outlet_id=outlet_id)
+
+
+class StaffPinSetupView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect("staff-login")
+        if getattr(request, "tenant_membership", None) is None:
+            return redirect("staff-dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        form = StaffPinSetupForm(user=request.user)
+        return render(request, "staff/pin_setup.html", {"form": form, "has_pin": bool(request.tenant_membership.staff_pin_hash)})
+
+    def post(self, request):
+        form = StaffPinSetupForm(request.POST, user=request.user)
+        if form.is_valid():
+            set_member_pin(request.tenant_membership, form.cleaned_data["pin"])
+            log_audit(tenant_id=request.tenant.id, user_id=request.user.id,
+                      action="staff.pin_changed", entity_type="membership",
+                      entity_id=str(request.tenant_membership.id), payload={})
+            messages.success(request, "Your terminal PIN is ready. Use Lock when you finish serving.")
+            return redirect("staff-dashboard")
+        return render(request, "staff/pin_setup.html", {"form": form, "has_pin": bool(request.tenant_membership.staff_pin_hash)})
 
 
 class StaffDashboardView(LoginRequiredMixin, TemplateView):
@@ -230,6 +329,11 @@ class StaffSelectTenantView(LoginRequiredMixin, View):
             messages.error(request, "Invalid workspace.")
             return redirect("staff-dashboard")
 
+        if (request.session.get("staff_pin_authenticated")
+                and str(tenant_uuid) != request.session.get(STAFF_SESSION_TENANT_KEY)):
+            messages.error(request, "Sign in with your account password to change workspace.")
+            return redirect("staff-dashboard")
+
         ok = Membership.objects.filter(
             user=request.user,
             tenant_id=tenant_uuid,
@@ -250,6 +354,10 @@ class StaffSelectTenantView(LoginRequiredMixin, View):
         if membership is not None and not getattr(membership.tenant, "is_active", True):
             messages.info(request, "This workspace is pending platform approval.")
             return redirect("staff-pending-approval")
+
+        if membership is not None and membership.staff_pin_hash and not request.session.get("staff_pin_session"):
+            request.session["staff_pin_session"] = True
+            request.session["staff_pin_last_activity"] = int(time.time())
 
         messages.success(request, "Workspace updated.")
         return redirect("staff-dashboard")

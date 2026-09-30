@@ -16,6 +16,9 @@ from . import (
 urlpatterns = [
     path("login/", views.StaffLoginView.as_view(), name="staff-login"),
     path("logout/", views.StaffLogoutView.as_view(), name="staff-logout"),
+    path("terminal/", views.StaffTerminalView.as_view(), name="staff-terminal"),
+    path("terminal/lock/", views.StaffTerminalLockView.as_view(), name="staff-terminal-lock"),
+    path("terminal/pin/", views.StaffPinSetupView.as_view(), name="staff-pin-setup"),
     path("pending-approval/", views.StaffPendingApprovalView.as_view(), name="staff-pending-approval"),
     path("setup/prompt/dismiss/", views.StaffSetupPromptDismissView.as_view(), name="staff-setup-prompt-dismiss"),
     path("setup/prompt/resume/", views.StaffSetupPromptResumeView.as_view(), name="staff-setup-prompt-resume"),

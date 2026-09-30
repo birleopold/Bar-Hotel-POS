@@ -1,6 +1,6 @@
 """Staff Django forms (split by domain; import from ``apps.staff.forms`` as before)."""
 
-from .auth import StaffLoginForm
+from .auth import StaffLoginForm, StaffPinSetupForm, StaffTerminalUnlockForm
 from .events import StaffEventBookingForm, StaffEventSpaceForm
 from .finance import StaffCashbookEntryForm, StaffFinanceCategoryForm
 from .inventory import (
@@ -57,6 +57,8 @@ __all__ = [
     "StaffMembershipBulkActionForm",
     "StaffMembershipManageForm",
     "StaffLoginForm",
+    "StaffPinSetupForm",
+    "StaffTerminalUnlockForm",
     "StaffOrderAdjustLineQuantityForm",
     "StaffOrderAddLineForm",
     "StaffOrderAddServiceForm",

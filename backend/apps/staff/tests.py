@@ -41,6 +41,7 @@ from apps.staff.middleware import (
     STAFF_SESSION_SITE_KEY,
     STAFF_SESSION_TENANT_KEY,
 )
+from apps.staff.terminal import set_member_pin
 from apps.staff.services import membership_can_manage_workspace_settings
 from apps.staff.services.modules import STAFF_MODULE_KEYS, resolve_effective_staff_modules
 from apps.staff.sales_summary import build_sales_summary
@@ -59,6 +60,99 @@ from apps.tenants.models import (
 )
 
 User = get_user_model()
+
+
+class SharedTerminalTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.tenant = Tenant.objects.create(name="Shared Terminal", slug="shared-terminal")
+        cls.site = Site.objects.create(tenant=cls.tenant, name="Main")
+        cls.outlet = Outlet.objects.create(site=cls.site, name="Counter", outlet_type=OutletType.RETAIL)
+        cls.other_outlet = Outlet.objects.create(site=cls.site, name="Other", outlet_type=OutletType.RETAIL)
+        cls.owner = User.objects.create_user(email="owner-terminal@test.local", password="OwnerPass9!")
+        cls.worker = User.objects.create_user(email="worker-terminal@test.local", password="WorkerPass9!")
+        cls.owner_member = Membership.objects.create(user=cls.owner, tenant=cls.tenant, role=MembershipRole.OWNER)
+        cls.worker_member = Membership.objects.create(user=cls.worker, tenant=cls.tenant, role=MembershipRole.SERVER)
+        cls.worker_member.outlets.add(cls.outlet)
+
+    def _owner_at_counter(self):
+        self.client.force_login(self.owner)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.id)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.id)
+        session.save()
+
+    def test_pin_setup_requires_account_password_and_lock_switches_identity(self):
+        self._owner_at_counter()
+        url = reverse("staff-pin-setup")
+        self.client.post(url, {"password": "bad", "pin": "276419", "confirm_pin": "276419"})
+        self.owner_member.refresh_from_db()
+        self.assertFalse(self.owner_member.staff_pin_hash)
+        response = self.client.post(url, {"password": "OwnerPass9!", "pin": "276419", "confirm_pin": "276419"})
+        self.assertEqual(response.status_code, 302)
+        self.owner_member.refresh_from_db()
+        self.assertNotEqual(self.owner_member.staff_pin_hash, "276419")
+        set_member_pin(self.worker_member, "681347")
+        locked = self.client.post(reverse("staff-terminal-lock"))
+        self.assertRedirects(locked, reverse("staff-terminal"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertNotIn(STAFF_SESSION_OUTLET_KEY, self.client.session)
+        page = self.client.get(reverse("staff-terminal"))
+        self.assertContains(page, "Your turn to serve")
+        self.assertContains(page, "worker-terminal@test.local")
+        unlock = self.client.post(reverse("staff-terminal"), {"worker": str(self.worker_member.id), "pin": "681347"})
+        self.assertRedirects(unlock, reverse("staff-dashboard"))
+        self.assertEqual(self.client.session["_auth_user_id"], str(self.worker.id))
+        self.assertEqual(self.client.session[STAFF_SESSION_OUTLET_KEY], str(self.outlet.id))
+        self.assertEqual(self.client.get(reverse("staff-dashboard")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("console-org")).status_code, 403)
+        self.assertEqual(self.client.get("/api/v1/orders/").status_code, 403)
+        second_tenant = Tenant.objects.create(name="Other Workspace", slug="other-terminal-workspace")
+        Membership.objects.create(user=self.worker, tenant=second_tenant, role=MembershipRole.OWNER)
+        self.client.post(reverse("staff-select-tenant"), {"tenant_id": str(second_tenant.id)})
+        self.assertEqual(self.client.session[STAFF_SESSION_TENANT_KEY], str(self.tenant.id))
+
+    def test_wrong_pin_locks_credential_and_full_logout_clears_terminal(self):
+        self._owner_at_counter()
+        set_member_pin(self.worker_member, "681347")
+        self.client.post(reverse("staff-terminal-lock"))
+        url = reverse("staff-terminal")
+        for _ in range(5):
+            self.client.post(url, {"worker": str(self.worker_member.id), "pin": "111111"})
+        self.worker_member.refresh_from_db()
+        self.assertIsNotNone(self.worker_member.staff_pin_locked_until)
+        blocked = self.client.post(url, {"worker": str(self.worker_member.id), "pin": "681347"})
+        self.assertEqual(blocked.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        # A password sign-in is always available to recover from a locked PIN.
+        self.client.post(reverse("staff-login"), {"username": self.worker.email, "password": "WorkerPass9!"})
+        signed_out = self.client.post(reverse("staff-logout"))
+        self.assertEqual(signed_out.cookies["staff_terminal"].value, "")
+        self.assertNotContains(self.client.get(url), "worker-terminal@test.local")
+
+    def test_server_idle_timeout_ends_pin_session(self):
+        self._owner_at_counter()
+        set_member_pin(self.worker_member, "681347")
+        self.client.post(reverse("staff-terminal-lock"))
+        self.client.post(reverse("staff-terminal"), {"worker": str(self.worker_member.id), "pin": "681347"})
+        session = self.client.session
+        session["staff_pin_last_activity"] = 1
+        session.save()
+        response = self.client.get(reverse("staff-orders"))
+        self.assertRedirects(response, reverse("staff-terminal"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_terminal_limits_worker_list_to_selected_outlet(self):
+        self._owner_at_counter()
+        self.worker_member.outlets.clear()
+        self.worker_member.outlets.add(self.other_outlet)
+        set_member_pin(self.worker_member, "681347")
+        self.client.post(reverse("staff-terminal-lock"))
+        page = self.client.get(reverse("staff-terminal"))
+        self.assertNotContains(page, "worker-terminal@test.local")
+        response = self.client.post(reverse("staff-terminal"), {"worker": str(self.worker_member.id), "pin": "681347"})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
 
 
 class StaffUiTests(TestCase):

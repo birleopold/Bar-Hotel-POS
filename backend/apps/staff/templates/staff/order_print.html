@@ -53,5 +53,21 @@
     </div>
   {% endif %}
   <script>window.onload = function () { window.print(); };</script>
+  {% if request.session.staff_pin_session %}
+    <form id="staff-print-idle-lock" method="post" action="{% url 'staff-terminal-lock' %}" hidden>{% csrf_token %}</form>
+    <script>
+      (function () {
+        var timer;
+        function lock() { try { localStorage.setItem('staff-terminal-lock', String(Date.now())); } catch (e) {} document.getElementById('staff-print-idle-lock').submit(); }
+        function reset() { clearTimeout(timer); timer = setTimeout(lock, 115000); }
+        ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function (name) {
+          document.addEventListener(name, reset, { passive: true });
+        });
+        window.addEventListener('pageshow', function (event) { if (event.persisted) window.location.reload(); });
+        window.addEventListener('storage', function (event) { if (event.key === 'staff-terminal-lock') window.location.replace('{% url 'staff-terminal' %}'); });
+        reset();
+      }());
+    </script>
+  {% endif %}
 </body>
 </html>
