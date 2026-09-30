@@ -13,6 +13,8 @@ The locked screen only lists PIN-enabled active workers for the signed terminal'
 
 Five incorrect PIN attempts lock that worker's PIN for 15 minutes. The account password remains the recovery path; changing a PIN requires that password and ends older PIN sessions on their next request. PIN sessions cannot open the administration console or API routes. The terminal marker uses a signed, HTTP-only, same-site cookie and follows the deployment's secure-cookie setting. Audit events record PIN changes and terminal handoffs without recording PINs.
 
+An owner or tenant admin can see PIN readiness in **Workspace → Members**, filter for workers who have not enrolled, and revoke another worker's PIN if a device or PIN may be compromised. Revocation ends existing PIN sessions on their next staff request. The worker can then sign in with their account password and set a new PIN. Managers do not see or choose workers' PINs.
+
 ## Deployment and verification
 
 Deploy `accounts.0003_membership_staff_pin_failures_and_more` before enabling staff use. Existing workers can keep using their passwords until they choose a PIN. On a shared computer, verify lock, handoff between two roles, section restrictions, a failed PIN, browser back, and automatic idle lock. Run the full Django suite before release; a local test does not replace a real browser and production PostgreSQL check.

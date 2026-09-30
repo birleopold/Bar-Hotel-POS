@@ -15,6 +15,7 @@ from .orders import (
     hold_open_order,
     open_pos_shift,
     process_supermarket_line_return,
+    shift_cash_snapshot,
     set_open_order_folio,
     void_open_order_line,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "hold_open_order",
     "open_pos_shift",
     "process_supermarket_line_return",
+    "shift_cash_snapshot",
     "process_offline_queue_entry",
     "recalculate_order_totals",
     "record_order_payment",

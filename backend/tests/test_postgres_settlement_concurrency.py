@@ -13,6 +13,8 @@ from apps.catalog.models import MenuCategory, MenuItem
 from apps.finance.models import CashbookEntry, FinanceCategoryKind
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, SupplierPayment, Supplier
 from apps.purchasing.services import receive_purchase_order_goods, record_supplier_payment
+from apps.pos.models import PosShift, PosShiftStatus
+from apps.pos.services import open_pos_shift
 from apps.tenants.models import Outlet, OutletType, Site, Tenant
 
 
@@ -54,3 +56,35 @@ class SupplierSettlementConcurrencyTests(TransactionTestCase):
         self.assertCountEqual(outcomes, ["paid", "rejected"])
         self.assertEqual(SupplierPayment.objects.filter(purchase_order=po).count(), 1)
         self.assertEqual(CashbookEntry.objects.filter(tenant=tenant, category__kind=FinanceCategoryKind.EXPENSE).count(), 1)
+
+
+class RegisterOpenConcurrencyTests(TransactionTestCase):
+    def test_simultaneous_open_requests_create_one_shift(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("PostgreSQL row locks are required")
+        tenant = Tenant.objects.create(name="Register race", slug="register-race")
+        site = Site.objects.create(tenant=tenant, name="Main")
+        outlet = Outlet.objects.create(site=site, name="Counter", outlet_type=OutletType.RETAIL)
+        user = User.objects.create_user(email="register-race@test.local", password="TestPass9!")
+        start = Barrier(2, timeout=10)
+
+        def open_register():
+            close_old_connections()
+            try:
+                start.wait()
+                try:
+                    open_pos_shift(
+                        tenant_id=tenant.id, outlet=Outlet.objects.get(pk=outlet.pk),
+                        user=User.objects.get(pk=user.pk), opening_cash=Decimal("20"),
+                    )
+                    return "opened"
+                except ValidationError:
+                    return "rejected"
+            finally:
+                connection.close()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(open_register) for _ in range(2)]
+            outcomes = [future.result() for future in futures]
+        self.assertCountEqual(outcomes, ["opened", "rejected"])
+        self.assertEqual(PosShift.objects.filter(outlet=outlet, status=PosShiftStatus.OPEN).count(), 1)

@@ -4108,6 +4108,29 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
 .staff-print-toolbar--pos .staff-order-print-link { white-space: nowrap; }
 .staff-order-finish { display: inline-flex; }
 .staff-order-finish .staff-btn { min-height: 2.75rem; white-space: nowrap; }
+.staff-team-filters { display: grid; grid-template-columns: minmax(12rem, 1.7fr) repeat(3, minmax(9rem, 1fr)) auto; gap: .75rem; align-items: end; }
+.staff-team-filters .staff-input { display: block; width: 100%; margin-top: .3rem; }
+.staff-team-filters .staff-btn { min-height: 2.75rem; }
+.staff-team-bulk { display: flex; flex-wrap: wrap; gap: .8rem 1.2rem; align-items: end; }
+.staff-team-bulk > div { margin-right: auto; }
+.staff-team-bulk .staff-input { display: block; min-width: 10rem; margin-top: .3rem; }
+.staff-team-bulk .staff-btn { min-height: 2.75rem; }
+.staff-team-state { display: inline-block; border-radius: 99rem; padding: .25rem .65rem; background: #edf0f2; color: #485b62; font-weight: 700; font-size: .8rem; white-space: nowrap; }
+.staff-team-state--ready { background: #e5f2ee; color: #14644f; }
+.staff-team-revoke { border: 0; background: none; cursor: pointer; margin-left: .55rem; padding: .25rem; color: #a33730; }
+.staff-team-revoke:hover { text-decoration: underline; }
+.staff-register-head { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.2rem; }
+.staff-register-head .staff-card__title { margin: .5rem 0 .2rem; }
+.staff-register-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .7rem; margin-bottom: 1.25rem; }
+.staff-register-summary > div { border: 1px solid #dce5e4; border-radius: .7rem; background: #f8faf9; padding: .85rem 1rem; }
+.staff-register-summary span { display: block; color: #53666b; font-size: .82rem; }
+.staff-register-summary strong { display: block; margin-top: .4rem; font-size: 1.15rem; font-variant-numeric: tabular-nums; color: #19343a; white-space: nowrap; }
+.staff-register-summary__total { background: #e7f2ef !important; border-color: #b4d9cd !important; }
+.staff-register-variance { color: #9b3b31; }
+@media (max-width: 900px) { .staff-register-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 500px) { .staff-register-summary { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .staff-team-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .staff-team-filters .staff-btn { justify-self: start; } }
+@media (max-width: 600px) { .staff-team-filters { grid-template-columns: 1fr; } .staff-team-bulk { display: grid; grid-template-columns: 1fr; } .staff-team-bulk .staff-input { width: 100%; } }
 @media (max-width: 600px) {
   .staff-filter-select { flex: 1 1 10rem; }
   .staff-stay-dates { white-space: normal; }

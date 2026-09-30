@@ -4,7 +4,8 @@ import uuid
 
 from django.contrib import messages
 from django.contrib.auth.tokens import default_token_generator
-from django.db.models import ProtectedError
+from django.db import transaction
+from django.db.models import ProtectedError, Q
 from django.http import HttpResponse
 from django.shortcuts import resolve_url
 from django.shortcuts import get_object_or_404
@@ -185,7 +186,7 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
         )
         q = (self.request.GET.get("q") or "").strip()
         if q:
-            qs = qs.filter(user__email__icontains=q)
+            qs = qs.filter(Q(user__email__icontains=q) | Q(user__first_name__icontains=q) | Q(user__last_name__icontains=q))
         role = (self.request.GET.get("role") or "").strip()
         if role:
             qs = qs.filter(role=role)
@@ -194,6 +195,11 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
             qs = qs.filter(is_active=True)
         elif status_filter == "inactive":
             qs = qs.filter(is_active=False)
+        pin_filter = (self.request.GET.get("pin") or "").strip()
+        if pin_filter == "ready":
+            qs = qs.exclude(staff_pin_hash="")
+        elif pin_filter == "missing":
+            qs = qs.filter(staff_pin_hash="")
         site_id = (self.request.GET.get("site") or "").strip()
         if site_id:
             qs = qs.filter(sites__id=site_id)
@@ -208,9 +214,11 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
         ctx["filter_q"] = self.request.GET.get("q") or ""
         ctx["filter_role"] = self.request.GET.get("role") or ""
         ctx["filter_status"] = self.request.GET.get("status") or ""
+        ctx["filter_pin"] = self.request.GET.get("pin") or ""
         ctx["filter_site"] = self.request.GET.get("site") or ""
         ctx["filter_outlet"] = self.request.GET.get("outlet") or ""
         ctx["role_choices"] = MembershipRole.choices
+        ctx["now"] = timezone.now()
         ctx["sites"] = list(self.request.tenant.sites.order_by("name"))
         ctx["outlets"] = list(
             Outlet.objects.filter(site__tenant=self.request.tenant).select_related("site").order_by("site__name", "name")
@@ -441,4 +449,31 @@ class StaffMembershipDeactivateView(StaffTenantRequiredMixin, View):
                 payload={"email": membership.user.email},
             )
             messages.success(request, "Worker deactivated.")
+        return redirect("staff-workspace-members")
+
+
+class StaffMembershipPinRevokeView(StaffTenantRequiredMixin, View):
+    """Managers can revoke access to the shared terminal without knowing a worker's PIN."""
+
+    staff_nav_capability = "workspace"
+    http_method_names = ["post", "options"]
+
+    @transaction.atomic
+    def post(self, request, membership_id, *args, **kwargs) -> HttpResponse:
+        if not membership_can_manage_workspace_settings(request.tenant_membership):
+            messages.error(request, "Only an owner or tenant admin can revoke worker PINs.")
+            return redirect("staff-workspace-members")
+        membership = get_object_or_404(Membership.objects.select_for_update(), pk=membership_id, tenant=request.tenant)
+        if membership.user_id == request.user.id:
+            messages.error(request, "Change your own PIN from Set PIN using your account password.")
+            return redirect("staff-workspace-members")
+        if not membership.staff_pin_hash:
+            messages.info(request, "This worker does not have a terminal PIN.")
+            return redirect("staff-workspace-members")
+        membership.staff_pin_hash = ""
+        membership.staff_pin_failures = 0
+        membership.staff_pin_locked_until = None
+        membership.save(update_fields=["staff_pin_hash", "staff_pin_failures", "staff_pin_locked_until", "updated_at"])
+        _audit_membership(request, action="workspace.member.pin_revoked", membership=membership)
+        messages.success(request, "Terminal PIN revoked. The worker can set a new PIN with their account password.")
         return redirect("staff-workspace-members")

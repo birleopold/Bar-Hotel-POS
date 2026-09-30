@@ -715,9 +715,14 @@ def process_supermarket_line_return(
 
 @transaction.atomic
 def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, note: str = "") -> PosShift:
+    # Lock a row that exists even when there is no current shift. Otherwise two
+    # concurrent opens can both observe an empty shift queryset.
+    locked_outlet = Outlet.objects.select_for_update().filter(pk=outlet.pk, site__tenant_id=tenant_id).first()
+    if locked_outlet is None:
+        raise ValidationError({"outlet": "Choose an outlet in this workspace."})
     existing = PosShift.objects.select_for_update().filter(
         tenant_id=tenant_id,
-        outlet=outlet,
+        outlet=locked_outlet,
         status=PosShiftStatus.OPEN,
     ).first()
     if existing is not None:
@@ -726,7 +731,7 @@ def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, no
         raise ValidationError({"opening_cash": "Opening cash cannot be negative."})
     shift = PosShift.objects.create(
         tenant_id=tenant_id,
-        outlet=outlet,
+        outlet=locked_outlet,
         opened_by=user,
         opening_cash=opening_cash,
         expected_cash=opening_cash,
@@ -738,9 +743,34 @@ def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, no
         action="pos.shift_opened",
         entity_type="pos_shift",
         entity_id=str(shift.id),
-        payload={"outlet_id": str(outlet.id), "opening_cash": str(opening_cash)},
+        payload={"outlet_id": str(locked_outlet.id), "opening_cash": str(opening_cash)},
     )
     return shift
+
+
+def shift_cash_snapshot(*, shift: PosShift, until=None) -> dict[str, Decimal]:
+    """Cash expected at a point in time, shared by the register and close command."""
+    until = until or timezone.now()
+    cash_payments = (
+        Payment.objects.filter(
+            tenant_id=shift.tenant_id,
+            order__outlet_id=shift.outlet_id,
+            method=PaymentMethod.CASH,
+            created_at__gte=shift.opened_at,
+            created_at__lte=until,
+        ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    ).quantize(Decimal("0.01"))
+    cash_refunds = (
+        Refund.objects.filter(
+            tenant_id=shift.tenant_id,
+            order__outlet_id=shift.outlet_id,
+            payment__method=PaymentMethod.CASH,
+            created_at__gte=shift.opened_at,
+            created_at__lte=until,
+        ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    ).quantize(Decimal("0.01"))
+    expected = (shift.opening_cash + cash_payments - cash_refunds).quantize(Decimal("0.01"))
+    return {"cash_payments": cash_payments, "cash_refunds": cash_refunds, "expected": expected}
 
 
 @transaction.atomic
@@ -751,27 +781,8 @@ def close_pos_shift(*, shift: PosShift, user, counted_cash: Decimal, note: str =
     if counted_cash < 0:
         raise ValidationError({"counted_cash": "Counted cash cannot be negative."})
     closed_at = timezone.now()
-    cash_payments = (
-        Payment.objects.filter(
-            tenant_id=locked.tenant_id,
-            order__outlet_id=locked.outlet_id,
-            method=PaymentMethod.CASH,
-            created_at__gte=locked.opened_at,
-            created_at__lte=closed_at,
-        ).aggregate(s=Sum("amount"))["s"]
-        or Decimal("0")
-    )
-    cash_refunds = (
-        Refund.objects.filter(
-            tenant_id=locked.tenant_id,
-            order__outlet_id=locked.outlet_id,
-            payment__method=PaymentMethod.CASH,
-            created_at__gte=locked.opened_at,
-            created_at__lte=closed_at,
-        ).aggregate(s=Sum("amount"))["s"]
-        or Decimal("0")
-    )
-    expected = (locked.opening_cash + cash_payments - cash_refunds).quantize(Decimal("0.01"))
+    snapshot = shift_cash_snapshot(shift=locked, until=closed_at)
+    expected = snapshot["expected"]
     locked.status = PosShiftStatus.CLOSED
     locked.closed_by = user
     locked.closed_at = closed_at
@@ -798,7 +809,7 @@ def close_pos_shift(*, shift: PosShift, user, counted_cash: Decimal, note: str =
         payload={
             "expected_cash": str(expected),
             "counted_cash": str(locked.counted_cash),
-            "cash_refunds": str(cash_refunds),
+            "cash_refunds": str(snapshot["cash_refunds"]),
         },
     )
     return locked

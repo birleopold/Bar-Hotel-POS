@@ -187,6 +187,27 @@ class SharedTerminalTests(TestCase):
             "worker": str(self.worker_member.id), "pin": "458267",
         }), reverse("staff-dashboard"))
 
+    def test_manager_can_revoke_worker_pin_and_end_open_session(self):
+        self._owner_at_counter()
+        set_member_pin(self.worker_member, "681347")
+        self.client.post(reverse("staff-terminal-lock"))
+        worker_client = Client()
+        worker_client.cookies["staff_terminal"] = self.client.cookies["staff_terminal"].value
+        worker_client.post(reverse("staff-terminal"), {
+            "worker": str(self.worker_member.id), "pin": "681347",
+        })
+        self.assertEqual(worker_client.get(reverse("staff-dashboard")).status_code, 200)
+        revoke = reverse("staff-workspace-member-revoke-pin", kwargs={"membership_id": self.worker_member.id})
+        self.assertEqual(worker_client.post(revoke).status_code, 302)
+        self.worker_member.refresh_from_db()
+        self.assertTrue(self.worker_member.staff_pin_hash)
+        self._owner_at_counter()
+        self.assertRedirects(self.client.post(revoke), reverse("staff-workspace-members"))
+        self.worker_member.refresh_from_db()
+        self.assertFalse(self.worker_member.staff_pin_hash)
+        self.assertRedirects(worker_client.get(reverse("staff-dashboard")), reverse("staff-terminal"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", worker_client.session)
+
 
 class StaffUiTests(TestCase):
     def test_login_page_renders(self) -> None:
@@ -1564,6 +1585,32 @@ class StaffSupermarketFlowTests(TestCase):
         shift.refresh_from_db()
         self.assertEqual(shift.status, PosShiftStatus.CLOSED)
 
+    def test_register_preview_and_close_share_cash_calculation(self) -> None:
+        url = reverse("staff-pos-shifts")
+        self.client.post(url, {"action": "open_shift", "opening_cash": "50.00"})
+        shift = PosShift.objects.get(tenant=self.tenant, outlet=self.outlet, status=PosShiftStatus.OPEN)
+        payment = Payment.objects.create(
+            tenant=self.tenant, order=self.order, amount=Decimal("12.00"),
+            method=PaymentMethod.CASH, idempotency_key="shift-preview-payment",
+        )
+        Refund.objects.create(
+            tenant=self.tenant, order=self.order, payment=payment,
+            amount=Decimal("2.00"), idempotency_key="shift-preview-refund",
+        )
+        page = self.client.get(url)
+        self.assertContains(page, "Expected cash now")
+        self.assertEqual(page.context["cash_snapshot"]["cash_payments"], Decimal("12.00"))
+        self.assertEqual(page.context["cash_snapshot"]["cash_refunds"], Decimal("2.00"))
+        self.assertEqual(page.context["cash_snapshot"]["expected"], Decimal("60.00"))
+        self.client.post(url, {
+            "action": "close_shift", "shift_id": str(shift.id), "counted_cash": "58.00",
+        })
+        shift.refresh_from_db()
+        self.assertEqual(shift.expected_cash, Decimal("60.00"))
+        history = self.client.get(url)
+        self.assertEqual(history.context["recent_shifts"][0].cash_variance, Decimal("-2.00"))
+        self.assertContains(history, "Difference")
+
 
 class StaffOrderApplyPromotionTests(TestCase):
     @classmethod
@@ -2495,6 +2542,28 @@ class StaffWorkspaceMembersTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "member-list@test.local")
         self.assertContains(r, "Edit")
+
+    def test_team_search_and_pin_readiness_filter(self) -> None:
+        self.worker_user.first_name = "Amina"
+        self.worker_user.save(update_fields=["first_name"])
+        set_member_pin(self.worker_membership, "438176")
+        url = reverse("staff-workspace-members")
+        page = self.client.get(url, {"q": "Amina", "pin": "ready"})
+        self.assertContains(page, "Amina")
+        self.assertContains(page, 'name="member_ids"')
+        self.assertEqual([m.id for m in page.context["memberships"]], [self.worker_membership.id])
+        missing = self.client.get(url, {"pin": "missing"})
+        self.assertNotContains(missing, "worker@test.local")
+
+    def test_pin_revoke_rejects_other_workspace_member(self) -> None:
+        other = Tenant.objects.create(name="Other", slug="other-team-tenant")
+        other_user = User.objects.create_user(email="other-team@test.local", password="TestPass9!")
+        other_member = Membership.objects.create(user=other_user, tenant=other, role=MembershipRole.SERVER)
+        set_member_pin(other_member, "438176")
+        response = self.client.post(reverse("staff-workspace-member-revoke-pin", kwargs={"membership_id": other_member.id}))
+        self.assertEqual(response.status_code, 404)
+        other_member.refresh_from_db()
+        self.assertTrue(other_member.staff_pin_hash)
 
     def test_owner_can_update_worker_role_and_scope(self) -> None:
         r = self.client.post(

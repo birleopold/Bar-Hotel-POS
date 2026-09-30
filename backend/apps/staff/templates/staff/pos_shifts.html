@@ -7,7 +7,7 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Shift close &amp; cash<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Retail and supermarket lanes track an open shift before sales.</p>
+          <p class="staff-dash-hero__tagline mb-0">Open the register, track cash movement, and reconcile the drawer at close.</p>
         </div>
       </div>
     </div>
@@ -16,29 +16,36 @@
   {% if not current_outlet %}
     <div class="staff-alert staff-alert--warning">Select one section in the header — not “All sections”.</div>
   {% else %}
-    <p class="staff-muted">{{ current_outlet.name }}</p>
+    <p class="staff-muted">Register · <strong>{{ current_outlet.name }}</strong></p>
     {% if open_shift %}
       <div class="staff-card">
-        <h2 class="staff-card__title">Open shift</h2>
-        <p>Opened {{ open_shift.opened_at }} · Opening cash {{ open_shift.opening_cash }}</p>
+        <div class="staff-register-head"><div><span class="staff-team-state staff-team-state--ready">Open</span><h2 class="staff-card__title">Current shift</h2><p class="staff-muted mb-0">Opened {{ open_shift.opened_at }}{% if open_shift.opened_by %} by {{ open_shift.opened_by.get_full_name|default:open_shift.opened_by.email }}{% endif %}</p></div></div>
+        <div class="staff-register-summary" aria-label="Cash expected in the drawer">
+          <div><span>Opening float</span><strong>{{ shift_currency }} {{ open_shift.opening_cash }}</strong></div>
+          <div><span>Cash sales</span><strong>+ {{ shift_currency }} {{ cash_snapshot.cash_payments }}</strong></div>
+          <div><span>Cash refunds</span><strong>− {{ shift_currency }} {{ cash_snapshot.cash_refunds }}</strong></div>
+          <div class="staff-register-summary__total"><span>Expected cash now</span><strong>{{ shift_currency }} {{ cash_snapshot.expected }}</strong></div>
+        </div>
+        <p class="staff-muted small">Expected cash includes recorded cash payments and refunds since opening. Count the physical drawer independently; unrecorded cash drops or payouts need separate reconciliation.</p>
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="close_shift">
           <input type="hidden" name="shift_id" value="{{ open_shift.id }}">
-          <div class="mb-2">{{ close_form.counted_cash.label_tag }}{{ close_form.counted_cash }}</div>
+          <div class="mb-2"><label class="staff-label" for="{{ close_form.counted_cash.id_for_label }}">Cash physically counted ({{ shift_currency }})</label>{{ close_form.counted_cash }}</div>
           <div class="mb-2">{{ close_form.note.label_tag }}{{ close_form.note }}</div>
-          <button type="submit" class="staff-btn staff-btn--primary">Close shift</button>
+          <button type="submit" class="staff-btn staff-btn--primary">Close and reconcile shift</button>
         </form>
       </div>
     {% else %}
       <div class="staff-card">
-        <h2 class="staff-card__title">Open a shift</h2>
+        <h2 class="staff-card__title">Start a register shift</h2>
+        <p class="staff-muted">Count the opening cash float before taking the first sale.</p>
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="open_shift">
-          <div class="mb-2">{{ open_form.opening_cash.label_tag }}{{ open_form.opening_cash }}</div>
+          <div class="mb-2"><label class="staff-label" for="{{ open_form.opening_cash.id_for_label }}">Opening cash float ({{ shift_currency }})</label>{{ open_form.opening_cash }}</div>
           <div class="mb-2">{{ open_form.note.label_tag }}{{ open_form.note }}</div>
-          <button type="submit" class="staff-btn staff-btn--primary">Open shift</button>
+          <button type="submit" class="staff-btn staff-btn--primary">Start shift</button>
         </form>
       </div>
     {% endif %}
@@ -46,13 +53,16 @@
       <h2 class="staff-section-title">Recent shifts</h2>
       <div class="staff-table-wrap">
         <table class="staff-table">
-          <thead><tr><th>Opened</th><th>Closed</th><th>Status</th></tr></thead>
+          <thead><tr><th>Opened</th><th>Closed</th><th>Status</th><th>Expected</th><th>Counted</th><th>Difference</th></tr></thead>
           <tbody>
             {% for s in recent_shifts %}
               <tr>
                 <td>{{ s.opened_at }}</td>
                 <td>{{ s.closed_at|default:"—" }}</td>
                 <td>{{ s.get_status_display }}</td>
+                <td class="staff-money">{% if s.status == 'closed' %}{{ shift_currency }} {{ s.expected_cash }}{% else %}—{% endif %}</td>
+                <td class="staff-money">{% if s.counted_cash != None %}{{ shift_currency }} {{ s.counted_cash }}{% else %}—{% endif %}</td>
+                <td class="staff-money">{% if s.cash_variance != None %}<strong{% if s.cash_variance != 0 %} class="staff-register-variance"{% endif %}>{{ shift_currency }} {{ s.cash_variance }}</strong>{% else %}—{% endif %}</td>
               </tr>
             {% endfor %}
           </tbody>

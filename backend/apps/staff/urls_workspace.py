@@ -36,6 +36,11 @@ urlpatterns = [
         name="staff-workspace-member-deactivate",
     ),
     path(
+        "members/<uuid:membership_id>/revoke-pin/",
+        views_invites.StaffMembershipPinRevokeView.as_view(),
+        name="staff-workspace-member-revoke-pin",
+    ),
+    path(
         "invites/",
         views_invites.StaffInviteListView.as_view(),
         name="staff-workspace-invites",

@@ -8,7 +8,7 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Members<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Who can access this workspace and their roles.</p>
+          <p class="staff-dash-hero__tagline mb-0">Manage worker access, shared-terminal readiness, and team roles in one place.</p>
         </div>
         <div class="staff-page-hero__actions">
           {% if can_manage_members %}
@@ -26,57 +26,72 @@
       <a href="{{ worker_reset_link.url }}" target="_blank" rel="noopener">{{ worker_reset_link.url }}</a>
     </div>
   {% endif %}
-  <h2 class="staff-section-head">Filter</h2>
-  <form class="staff-toolbar staff-toolbar--tight staff-card mb-3" method="get">
-    <input class="staff-input" type="search" name="q" value="{{ filter_q }}" placeholder="Email">
-    <select class="staff-input" name="role">
+  <h2 class="staff-section-head">Find a worker</h2>
+  <form class="staff-team-filters staff-card mb-3" method="get" role="search">
+    <label class="staff-label" for="team-search">Name or email<input class="staff-input" id="team-search" type="search" name="q" value="{{ filter_q }}" placeholder="Search team"></label>
+    <label class="staff-label" for="team-role">Role<select class="staff-input" id="team-role" name="role">
       <option value="">Any role</option>
       {% for val, label in role_choices %}
         <option value="{{ val }}"{% if filter_role == val %} selected{% endif %}>{{ label }}</option>
       {% endfor %}
-    </select>
-    <select class="staff-input" name="status">
+    </select></label>
+    <label class="staff-label" for="team-status">Access<select class="staff-input" id="team-status" name="status">
       <option value="">Any status</option>
       <option value="active"{% if filter_status == 'active' %} selected{% endif %}>Active</option>
       <option value="inactive"{% if filter_status == 'inactive' %} selected{% endif %}>Inactive</option>
-    </select>
+    </select></label>
+    <label class="staff-label" for="team-pin">Terminal PIN<select class="staff-input" id="team-pin" name="pin">
+      <option value="">Any</option>
+      <option value="ready"{% if filter_pin == 'ready' %} selected{% endif %}>Set</option>
+      <option value="missing"{% if filter_pin == 'missing' %} selected{% endif %}>Not set</option>
+    </select></label>
     <button type="submit" class="staff-btn staff-btn--ghost">Filter</button>
   </form>
   {% if can_manage_members %}
-    <form method="post" action="{% url 'staff-workspace-member-bulk-action' %}" class="staff-card mb-3">
+    <form method="post" action="{% url 'staff-workspace-member-bulk-action' %}" id="staff-team-bulk">
       {% csrf_token %}
-      <h2 class="staff-card__title">Bulk actions</h2>
-      <p class="staff-muted small">Hold Ctrl/Cmd to select multiple members.</p>
-      {% for field in bulk_form %}
-        <div class="mb-2">{{ field.label_tag }}{{ field }}</div>
-      {% endfor %}
-      <button type="submit" class="staff-btn staff-btn--ghost">Apply to selection</button>
-    </form>
+      <div class="staff-team-bulk staff-card mb-3">
+        <div><strong>Selected workers</strong><span class="staff-muted small d-block">Tick the workers below, then choose an action.</span></div>
+        <label class="staff-label" for="{{ bulk_form.action.id_for_label }}">Action{{ bulk_form.action }}</label>
+        <label class="staff-label" for="{{ bulk_form.role_preset.id_for_label }}">Role preset{{ bulk_form.role_preset }}</label>
+        <button type="submit" class="staff-btn staff-btn--ghost">Apply to selected</button>
+      </div>
   {% endif %}
   <h2 class="staff-section-head">Directory</h2>
   <div class="staff-table-wrap">
     <table class="staff-table">
-      <thead><tr><th>Email</th><th>Role</th><th>Active</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <thead><tr>{% if can_manage_members %}<th><label class="visually-hidden" for="team-select-all">Select all visible workers</label><input id="team-select-all" type="checkbox" aria-label="Select all visible workers"></th>{% endif %}<th>Worker</th><th>Role</th><th>Access</th><th>Terminal PIN</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for m in memberships %}
           <tr>
-            <td>{{ m.user.email }}</td>
+            {% if can_manage_members %}<td><input class="team-member-select" type="checkbox" name="member_ids" value="{{ m.id }}" aria-label="Select {{ m.user.email }}"></td>{% endif %}
+            <td><strong>{{ m.user.get_full_name|default:m.user.email }}</strong>{% if m.user.get_full_name %}<span class="staff-muted small d-block">{{ m.user.email }}</span>{% endif %}</td>
             <td>{{ m.get_role_display }}</td>
-            <td>{% if m.is_active %}Yes{% else %}No{% endif %}</td>
+            <td>{% if m.is_active %}<span class="staff-team-state staff-team-state--ready">Active</span>{% else %}<span class="staff-team-state">Inactive</span>{% endif %}</td>
+            <td>{% if m.staff_pin_hash %}<span class="staff-team-state staff-team-state--ready">Set</span>{% if m.staff_pin_locked_until and m.staff_pin_locked_until > now %}<span class="staff-muted small d-block">Temporarily locked</span>{% endif %}{% else %}<span class="staff-muted">Not set</span>{% endif %}</td>
             <td class="staff-table__actions-cell">
               {% if can_manage_members %}
                 <a class="staff-table__action-link" href="{% url 'staff-workspace-member-edit' membership_id=m.id %}">Edit</a>
+                {% if m.staff_pin_hash and m.user_id != request.user.id %}<button type="submit" class="staff-table__action-link staff-team-revoke" formaction="{% url 'staff-workspace-member-revoke-pin' membership_id=m.id %}" formmethod="post" aria-label="Revoke terminal PIN for {{ m.user.email }}">Revoke PIN</button>{% endif %}
               {% else %}
                 <span class="staff-muted">—</span>
               {% endif %}
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="4" class="staff-muted">No members.</td></tr>
+          <tr><td colspan="{% if can_manage_members %}6{% else %}5{% endif %}" class="staff-muted">No workers match these filters.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% if can_manage_members %}</form>{% endif %}
+  {% if can_manage_members %}<script>
+    (function () {
+      var all = document.getElementById('team-select-all');
+      var rows = document.querySelectorAll('.team-member-select');
+      all.addEventListener('change', function () { rows.forEach(function (row) { row.checked = all.checked; }); });
+    }());
+  </script>{% endif %}
   {% if is_paginated %}
     <nav class="staff-pager">
       {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}

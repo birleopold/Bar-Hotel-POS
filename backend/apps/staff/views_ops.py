@@ -35,6 +35,7 @@ from apps.pos.services import (
     menu_items_for_outlet_queryset,
     open_pos_shift,
     process_supermarket_line_return,
+    shift_cash_snapshot,
     record_order_payment,
     record_order_refund,
     refund_retail_line,
@@ -319,9 +320,16 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
             outlet=outlet,
             status=PosShiftStatus.OPEN,
         ).first()
+        ctx["cash_snapshot"] = shift_cash_snapshot(shift=ctx["open_shift"]) if ctx["open_shift"] else None
+        ctx["shift_currency"] = default_currency_for_tenant(self.request.tenant)
         ctx["recent_shifts"] = list(
             PosShift.objects.filter(tenant=self.request.tenant, outlet=outlet).order_by("-opened_at")[:20]
         )
+        for shift in ctx["recent_shifts"]:
+            shift.cash_variance = (
+                shift.counted_cash - shift.expected_cash
+                if shift.status == PosShiftStatus.CLOSED and shift.counted_cash is not None else None
+            )
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
