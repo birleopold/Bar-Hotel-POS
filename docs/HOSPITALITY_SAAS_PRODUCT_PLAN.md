@@ -1,3 +1,5 @@
+> Current execution status: see [Full suite implementation checklist](SUITE_IMPLEMENTATION_TODO.md) and [code audit](CODE_AUDIT_2026-09-29.md). This March product vision is historical; its phase table is not a current release certificate. Shared-terminal PINs, modifiers, linked retail returns, supplier settlement and charge-to-room have since shipped. Named workstation configuration and device-linked shifts are the next implementation checkpoint. Device hardware labels do not imply working printer drivers or multi-till cash attribution.
+
 # Hospitality Multi-Tenant SaaS — Product Plan
 
 This document describes the vision, feature set, technical direction, UI principles, and roadmap for a unified **hospitality and retail operations** platform—**hotels, restaurants, bars, cafés, lodges**, plus **supermarkets, retail shops, and convenience / general merchandise POS**—sold as **software as a service**. The active codebase is the **Django** app in **`backend/`**; this plan extends that foundation toward full multi-tenancy, white-label branding, and operational simplicity for non-technical staff.
@@ -78,7 +80,7 @@ All transactional and master data that belongs to a customer is scoped by **`ten
 - Email (or SSO later) login; password reset; optional 2FA for managers and above.
 - **Roles** (customizable labels, fixed capabilities): e.g. owner, tenant admin, site manager, outlet manager, front desk, server, bartender, kitchen, storekeeper, accountant read-only.
 - **Outlet and site membership:** users see only assigned sites/outlets unless role is broad.
-- **Invite users** by email: **`POST /api/v1/invites/`** (returns one-time token) and **`POST /api/v1/invites/accept/`** — **API implemented**. Deactivate users, PIN/device pairing — not yet.
+- **Invite users** by email: **`POST /api/v1/invites/`** (returns one-time token) and **`POST /api/v1/invites/accept/`** — **API implemented**. Staff deactivation and workspace PIN enrollment/revocation/idle-lock are implemented. Named workstation selection and device-linked shifts are now available; strong physical-device pairing and multi-till attribution remain tracked work.
 - **Audit log:** who changed prices, performed refunds, adjusted stock, modified reservations (timestamp, user, entity).
 
 ### 5.2 Food & beverage (restaurant, bar, lounge, cafeteria)
@@ -218,9 +220,9 @@ These strengthen the product for real-world SaaS without contradicting “simple
 | **v1.3** | Recipes/BOM, KDS, offline POS queue | **Largely done (API):** recipe CRUD + optional consume on pay; KDS list + line status; offline **`order_payment`** replay only |
 | **v2 (partial)** | Events, advanced rates, integrations hub | **Partial (API):** `events/spaces` + `events/bookings`; **`RoomRateWindow`**; **`integrations/links`** registry (no marketplace billing). **Not started:** mobile apps, full v2 UX |
 
-**POS / settlement refinements shipped (API):** order-level **discount** (locked after any partial payment), **void line**, **add line**, **partial and final payments** with **`Idempotency-Key`**, **`amount_paid` / `balance_due` / `payments`** on reads, **refunds** against total paid with **`payment_id`** when split tender, optional **full restock** on first full refund, **apply-promotion**.
+**POS / settlement refinements shipped (API):** order-level **discount** (locked after any partial payment), **void line**, **add line**, **partial and final payments** with **`Idempotency-Key`**, **`amount_paid` / `balance_due` / `payments`** on reads, **refunds** against total paid with **`payment_id`** when split tender, optional **direct-sale restock** on final full refund, subtracting earlier line returns, **apply-promotion**.
 
-**Gaps vs full product vision:** staff UI is **Django templates** (`/staff/`) — not a full **PWA/offline POS** yet; **password reset** via API + HTML confirm (no **2FA** yet); no **PSP webhooks**, no **CSV/PDF job** exports, no **modifiers** model, **label printing**, or **billing** — see §9.
+**Gaps vs full product vision:** staff UI is **Django templates** (`/staff/`) — not a full **PWA/offline POS** yet; **password reset** via API + HTML confirm (no **2FA** yet); no **PSP webhooks**, no **CSV/PDF job** exports, no **label printing** or payment-provider **billing**; the modifiers model is now implemented — see §9.
 
 ---
 

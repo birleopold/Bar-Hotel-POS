@@ -9,6 +9,7 @@
           <h1 class="staff-page-title mb-0">Shift close &amp; cash<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-dash-hero__tagline mb-0">Open the register, track cash movement, and reconcile the drawer at close.</p>
         </div>
+        <a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstations' %}">Workstations</a>
       </div>
     </div>
   </header>
@@ -17,9 +18,10 @@
     <div class="staff-alert staff-alert--warning">Select one section in the header — not “All sections”.</div>
   {% else %}
     <p class="staff-muted">Register · <strong>{{ current_outlet.name }}</strong></p>
+    <p class="staff-muted">This browser: {% if selected_station %}<strong>{{ selected_station.name }}</strong> · {{ selected_station.code }}{% else %}No workstation selected{% endif %} · <a href="{% url 'staff-workstations' %}">Choose device</a></p>
     {% if open_shift %}
       <div class="staff-card">
-        <div class="staff-register-head"><div><span class="staff-team-state staff-team-state--ready">Open</span><h2 class="staff-card__title">Current shift</h2><p class="staff-muted mb-0">Opened {{ open_shift.opened_at }}{% if open_shift.opened_by %} by {{ open_shift.opened_by.get_full_name|default:open_shift.opened_by.email }}{% endif %}</p></div></div>
+        <div class="staff-register-head"><div><span class="staff-team-state staff-team-state--ready">Open</span><h2 class="staff-card__title">Current shift{% if open_shift.workstation %} · {{ open_shift.workstation.name }}{% endif %}</h2><p class="staff-muted mb-0">Opened {{ open_shift.opened_at }}{% if open_shift.opened_by %} by {{ open_shift.opened_by.get_full_name|default:open_shift.opened_by.email }}{% endif %}</p></div></div>
         <div class="staff-register-summary" aria-label="Cash expected in the drawer">
           <div><span>Opening float</span><strong>{{ shift_currency }} {{ open_shift.opening_cash }}</strong></div>
           <div><span>Cash sales</span><strong>+ {{ shift_currency }} {{ cash_snapshot.cash_payments }}</strong></div>
@@ -55,10 +57,11 @@
       <h2 class="staff-section-title">Recent shifts</h2>
       <div class="staff-table-wrap">
         <table class="staff-table">
-          <thead><tr><th>Opened</th><th>Closed</th><th>Status</th><th>Expected</th><th>Counted</th><th>Difference</th></tr></thead>
+          <thead><tr><th>Workstation</th><th>Opened</th><th>Closed</th><th>Status</th><th>Expected</th><th>Counted</th><th>Difference</th></tr></thead>
           <tbody>
             {% for s in recent_shifts %}
               <tr>
+                <td>{{ s.workstation.name|default:"Section register" }}</td>
                 <td>{{ s.opened_at }}</td>
                 <td>{{ s.closed_at|default:"—" }}</td>
                 <td>{{ s.get_status_display }}</td>

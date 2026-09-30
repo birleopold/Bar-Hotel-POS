@@ -307,6 +307,35 @@ class Refund(TimeStampedModel):
         return f"Refund {self.amount} ({self.order.bill_reference})"
 
 
+class Workstation(TimeStampedModel):
+    """Named physical device; selection alone never grants worker access."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="workstations")
+    outlet = models.ForeignKey("tenants.Outlet", on_delete=models.PROTECT, related_name="workstations")
+    name = models.CharField(max_length=80)
+    code = models.SlugField(max_length=40)
+    is_active = models.BooleanField(default=True)
+    receipt_printer = models.CharField(max_length=120, blank=True)
+    kitchen_printer = models.CharField(max_length=120, blank=True)
+    cash_drawer = models.CharField(max_length=80, blank=True)
+    kds_station = models.CharField(max_length=64, blank=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        ordering = ["outlet__name", "name"]
+        constraints = [models.UniqueConstraint(fields=["tenant", "code"], name="uniq_workstation_code_per_tenant")]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        super().clean()
+        if self.outlet_id and self.tenant_id and self.outlet.site.tenant_id != self.tenant_id:
+            raise ValidationError({"outlet": "Choose a section in this workspace."})
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
 class PosShiftStatus(models.TextChoices):
     OPEN = "open", "Open"
     CLOSED = "closed", "Closed"
@@ -323,6 +352,9 @@ class PosShift(TimeStampedModel):
         "tenants.Outlet",
         on_delete=models.CASCADE,
         related_name="pos_shifts",
+    )
+    workstation = models.ForeignKey(
+        Workstation, on_delete=models.PROTECT, null=True, blank=True, related_name="shifts",
     )
     status = models.CharField(max_length=16, choices=PosShiftStatus.choices, default=PosShiftStatus.OPEN)
     opened_by = models.ForeignKey(

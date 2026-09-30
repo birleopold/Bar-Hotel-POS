@@ -72,6 +72,7 @@ from .forms import (
 )
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
+from .workstations import selected_workstation
 from .report_csv import format_sales_summary_csv
 from .sales_summary import build_sales_summary
 from .services import (
@@ -306,11 +307,16 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         return resolve_staff_outlet(self.request, outlets), outlets
 
+    def _selected_for_outlet(self, request, outlet):
+        selected = selected_workstation(request, outlets=staff_accessible_outlets(request.tenant_membership))
+        return selected if selected and outlet and selected.outlet_id == outlet.id else None
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         outlet, outlets = self._resolve_outlet()
         ctx["outlets"] = outlets
         ctx["current_outlet"] = outlet
+        ctx["selected_station"] = self._selected_for_outlet(self.request, outlet)
         ctx["open_form"] = StaffPosShiftOpenForm()
         ctx["close_form"] = StaffPosShiftCloseForm()
         if outlet is None:
@@ -325,7 +331,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         ctx["cash_snapshot"] = shift_cash_snapshot(shift=ctx["open_shift"]) if ctx["open_shift"] else None
         ctx["shift_currency"] = default_currency_for_tenant(self.request.tenant)
         ctx["recent_shifts"] = list(
-            PosShift.objects.filter(tenant=self.request.tenant, outlet=outlet).order_by("-opened_at")[:20]
+            PosShift.objects.filter(tenant=self.request.tenant, outlet=outlet).select_related("workstation").order_by("-opened_at")[:20]
         )
         for shift in ctx["recent_shifts"]:
             shift.cash_variance = (
@@ -353,6 +359,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
                     user=request.user,
                     opening_cash=form.cleaned_data["opening_cash"],
                     note=form.cleaned_data.get("note") or "",
+                    workstation=self._selected_for_outlet(request, outlet),
                 )
             except DRFValidationError as exc:
                 _flash_drf_validation(request, exc)

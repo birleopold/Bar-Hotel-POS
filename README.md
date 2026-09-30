@@ -68,7 +68,7 @@ python manage.py makemigrations --check --dry-run
 python -m pytest -q -p no:cacheprovider --basetemp=.pytest-tmp
 ```
 
-The latest local verification completed with **230 passing tests**. Console-specific validation previously completed with **32 passing tests**. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
+The September 30 workstation checkpoint completed with **278 passing tests and 2 PostgreSQL-only skips**. See [the full suite checklist](docs/SUITE_IMPLEMENTATION_TODO.md) for tracked work and verification limits. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
 
 ## Documentation
 

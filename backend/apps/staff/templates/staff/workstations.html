@@ -1,0 +1,31 @@
+{% extends "staff/base.html" %}
+{% block title %}Workstations{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+  <p class="staff-dash-hero__eyebrow">Devices &amp; registers</p>
+  <div class="staff-page-hero__head"><div class="staff-page-hero__copy">
+    <h1 class="staff-page-title">Workstations</h1>
+    <p class="staff-dash-hero__tagline">Choose the physical till used by this browser. Each worker still signs in with their own account or PIN.</p>
+  </div>{% if can_manage %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-create' %}">Add workstation</a>{% endif %}</div>
+</div></header>
+<div class="staff-card">
+  <h2 class="staff-card__title">This browser</h2>
+  {% if selected_station %}<p><strong>{{ selected_station.name }}</strong> · {{ selected_station.code }} · {{ selected_station.outlet.name }}</p>
+  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="forget"><button class="staff-btn staff-btn--secondary">Clear selection</button></form>
+  {% else %}<p class="staff-muted">Choose a workstation below before opening its shift.</p>{% endif %}
+  <p class="staff-muted small mt-3">Cash reconciliation currently covers one open shift per section. Contact time records use of this screen or register; it does not certify that hardware is online.</p>
+</div>
+{% if workstations %}<div class="staff-table-wrap"><table class="staff-table">
+  <thead><tr><th>Device</th><th>Section</th><th>Hardware labels</th><th>Last contact</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody>{% for station in workstations %}<tr>
+    <td><strong>{{ station.name }}</strong><br><span class="staff-muted">{{ station.code }}</span></td>
+    <td>{{ station.outlet.name }}</td>
+    <td>Receipt: {{ station.receipt_printer|default:"Unassigned" }}<br>Kitchen: {{ station.kitchen_printer|default:"Unassigned" }}<br>Drawer: {{ station.cash_drawer|default:"Unassigned" }}<br>KDS: {{ station.kds_station|default:"Unassigned" }}</td>
+    <td>{{ station.last_seen_at|default:"No contact recorded" }}</td>
+    <td>{% if station.is_active %}Enabled{% else %}Disabled{% endif %}</td>
+    <td>{% if station.is_active %}{% if selected_station.id == station.id %}<span class="staff-team-state staff-team-state--ready">Selected</span>{% else %}<form method="post">{% csrf_token %}<input type="hidden" name="workstation_id" value="{{ station.id }}"><button class="staff-btn staff-btn--primary">Use this workstation</button></form>{% endif %}{% endif %}
+    {% if can_manage %}<a class="staff-btn staff-btn--secondary mt-2" href="{% url 'staff-workstation-edit' station.id %}">Configure</a>{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>{% else %}<div class="staff-card"><h2 class="staff-card__title">Name your first till</h2><p class="staff-muted">A clear device name helps staff identify their register and its printer configuration.</p>{% if can_manage %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-create' %}">Add workstation</a>{% else %}<p>Ask your workspace administrator to configure a workstation.</p>{% endif %}</div>{% endif %}
+<p class="mt-3"><a class="staff-btn staff-btn--secondary" href="{% url 'staff-pos-shifts' %}">Register &amp; cash</a></p>
+{% endblock %}

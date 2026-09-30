@@ -15,6 +15,7 @@
       {% if staff_nav.orders %}
       <li><a class="wb-nav-link{% if u == 'staff-orders' or u == 'staff-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-orders' %}">Orders &amp; tabs</a></li>
       <li><a class="wb-nav-link{% if u == 'staff-order-quick-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-order-quick-create' %}">Quick order</a></li>
+      {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-workstations' or u == 'staff-workstation-create' or u == 'staff-workstation-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workstations' %}">Workstations</a></li>{% endif %}
       {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-pos-shifts' %} wb-nav-link--active{% endif %}" href="{% url 'staff-pos-shifts' %}">Shift close</a></li>{% endif %}
       {% endif %}
       {% if staff_nav.tables %}

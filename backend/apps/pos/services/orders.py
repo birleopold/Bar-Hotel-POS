@@ -27,6 +27,7 @@ from apps.pos.models import (
     PaymentMethod,
     PosShift,
     PosShiftStatus,
+    Workstation,
     Refund,
     SupermarketLineReturn,
     Table,
@@ -714,12 +715,18 @@ def process_supermarket_line_return(
 
 
 @transaction.atomic
-def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, note: str = "") -> PosShift:
+def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, note: str = "", workstation=None) -> PosShift:
     # Lock a row that exists even when there is no current shift. Otherwise two
     # concurrent opens can both observe an empty shift queryset.
     locked_outlet = Outlet.objects.select_for_update().filter(pk=outlet.pk, site__tenant_id=tenant_id).first()
     if locked_outlet is None:
         raise ValidationError({"outlet": "Choose an outlet in this workspace."})
+    if workstation is not None:
+        workstation = Workstation.objects.select_for_update().filter(
+            pk=workstation.pk, tenant_id=tenant_id, outlet=locked_outlet, is_active=True,
+        ).first()
+        if workstation is None:
+            raise ValidationError({"workstation": "Choose an active workstation in this section."})
     existing = PosShift.objects.select_for_update().filter(
         tenant_id=tenant_id,
         outlet=locked_outlet,
@@ -733,6 +740,7 @@ def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, no
         tenant_id=tenant_id,
         outlet=locked_outlet,
         opened_by=user,
+        workstation=workstation,
         opening_cash=opening_cash,
         expected_cash=opening_cash,
         note=(note or "")[:255],
@@ -743,7 +751,8 @@ def open_pos_shift(*, tenant_id, outlet: Outlet, user, opening_cash: Decimal, no
         action="pos.shift_opened",
         entity_type="pos_shift",
         entity_id=str(shift.id),
-        payload={"outlet_id": str(locked_outlet.id), "opening_cash": str(opening_cash)},
+        payload={"outlet_id": str(locked_outlet.id), "opening_cash": str(opening_cash),
+                 "workstation_id": str(workstation.id) if workstation else None},
     )
     return shift
 
