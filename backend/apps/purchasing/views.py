@@ -102,6 +102,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             lines_payload=lines_payload,
             user=request.user,
             membership=request.tenant_membership,
+            discrepancy_note=ser.validated_data.get("discrepancy_note", ""),
             delivery_reference=ser.validated_data.get("delivery_reference", ""),
             note=ser.validated_data.get("note", ""),
         )

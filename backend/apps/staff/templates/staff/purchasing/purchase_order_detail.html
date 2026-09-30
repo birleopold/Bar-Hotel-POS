@@ -54,7 +54,7 @@
           <input type="hidden" name="action" value="receive">
           <div class="row g-3 mb-3">
             <div class="col-12 col-md-5"><label class="staff-label" for="delivery-reference">Delivery reference</label><input class="staff-input" id="delivery-reference" name="delivery_reference" maxlength="128" placeholder="Delivery note or shipment number"></div>
-            <div class="col-12 col-md-7"><label class="staff-label" for="receipt-note">Receiving note</label><input class="staff-input" id="receipt-note" name="receipt_note" maxlength="512" placeholder="Condition, shortage, or receiving notes"></div>
+            <div class="col-12 col-md-7"><label class="staff-label" for="receipt-note">Receiving note</label><input class="staff-input" id="receipt-note" name="receipt_note" maxlength="512" placeholder="Receiving notes"></div>
           </div>
           <div class="staff-table-wrap">
             <table class="staff-table">
@@ -72,6 +72,7 @@
               </tbody>
             </table>
           </div>
+          <label class="staff-label mt-3" for="delivery-discrepancy">Delivery discrepancy (optional)</label><textarea class="staff-input" name="discrepancy_note" id="delivery-discrepancy" maxlength="512" placeholder="Describe damaged, missing or incorrect goods requiring manager follow-up."></textarea>
           <button type="submit" class="staff-btn staff-btn--primary mt-2">Receive entered quantities</button>
         </form>
       </div>
@@ -88,7 +89,7 @@
             {% for receipt in po.receipts.all %}
               <tr>
                 <td>{{ receipt.created_at }}</td>
-                <td><strong>{{ receipt.delivery_reference|default:"Unreferenced delivery" }}</strong>{% if receipt.note %}<div class="staff-muted small">{{ receipt.note }}</div>{% endif %}</td>
+                <td><strong>{{ receipt.delivery_reference|default:"Unreferenced delivery" }}</strong>{% if receipt.note %}<div class="staff-muted small">{{ receipt.note }}</div>{% endif %}{% if receipt.discrepancy_note %}<div><strong>Discrepancy:</strong> {{ receipt.discrepancy_note }}</div>{% endif %}</td>
                 <td>{% for line in receipt.lines.all %}<div>{{ line.purchase_order_line.menu_item.name }} · {{ line.quantity_received }}</div>{% endfor %}</td>
                 <td>{% if receipt.received_by %}{{ receipt.received_by.email }}{% else %}<span class="staff-muted">System</span>{% endif %}</td>
               </tr>

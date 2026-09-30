@@ -20,6 +20,9 @@ from .membership import LINE_ROLE_OUTLET_TYPES, staff_accessible_outlets
 from .workspace import resolve_staff_outlet
 from .modules import get_tenant_staff_modules
 from .scoping import staff_nav_visibility_scoped
+from .exception_sources import EXTRA_KINDS, extra_exception_rows
+
+EXCEPTION_KINDS = ("cash_variance", "refund", "low_stock", "overdue_departure", *EXTRA_KINDS)
 
 MANAGER_ROLES = {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER}
 
@@ -44,11 +47,18 @@ class ExceptionRow:
     url: str
     review: object = None
     history: tuple = ()
+    scope_outlet_id: object = None
+    scope_site_id: object = None
 
 
-def _row(kind, obj, title, detail, url, version):
+def _row(kind, obj, title, detail, url, version, *, outlet_id=None, site_id=None):
     fingerprint = hashlib.sha256(str(version).encode()).hexdigest()
-    return ExceptionRow(kind, str(obj.pk), fingerprint, title, detail, url)
+    outlet_id = outlet_id or getattr(obj, "outlet_id", None)
+    if not outlet_id and getattr(obj, "order_id", None):
+        outlet_id = obj.order.outlet_id
+    if not outlet_id and getattr(obj, "purchase_order_id", None):
+        outlet_id = obj.purchase_order.outlet_id
+    return ExceptionRow(kind, str(obj.pk), fingerprint, title, detail, url, scope_outlet_id=outlet_id, scope_site_id=site_id or getattr(obj, "site_id", None))
 
 
 def exception_rows(request, *, source=None):
@@ -80,6 +90,7 @@ def exception_rows(request, *, source=None):
         stays = Reservation.objects.filter(tenant=request.tenant, site=site, status=ReservationStatus.CHECKED_IN, check_out__lt=timezone.localdate()).order_by("check_out", "pk") if site else Reservation.objects.none()
         for stay in limited(stays, "overdue_departure"):
             rows.append(_row("overdue_departure", stay, "Overdue departure", f"{stay.guest_name} · due {stay.check_out}", reverse("staff-lodging-reservation-detail", kwargs={"reservation_id": stay.pk}), (stay.check_out, stay.updated_at)))
+    rows.extend(extra_exception_rows(request, policy, outlets, modules, vis, source, _row))
     reviews = {(r.kind, r.entity_id, r.fingerprint): r for r in ExceptionReview.objects.filter(tenant=request.tenant, entity_id__in=[r.entity_id for r in rows]).select_related("reviewed_by")}
     history = AuditEvent.objects.filter(tenant=request.tenant, action="exception.reviewed", payload__source_id__in=[r.entity_id for r in rows]).select_related("user").order_by("-created_at")[:200]
     histories = {}
@@ -91,26 +102,72 @@ def exception_rows(request, *, source=None):
     return rows, policy
 
 
-@transaction.atomic
-def review_exception(request, *, kind, entity_id, fingerprint, status, note):
-    if request.tenant_membership.role not in MANAGER_ROLES:
-        raise ValidationError("Only managers can review exceptions.")
-    if status not in {"open", "reviewed"} or not note.strip() or len(note.strip()) > 1000:
+def exception_assignees(request):
+    from apps.accounts.models import User
+    users = [m.user_id for m in management_team(request) if m.role in MANAGER_ROLES]
+    return User.objects.filter(pk__in=users, is_active=True)
+
+
+def visible_cases(request):
+    outlets, modules, vis = management_scope(request)
+    from .membership import sites_visible_for_membership
+    from .workspace import resolve_staff_site
+    site = resolve_staff_site(request, sites_visible_for_membership(request.tenant_membership))
+    scope = Q(scope_outlet_id__in=[o.pk for o in outlets])
+    if site:
+        scope |= Q(scope_outlet__isnull=True, scope_site=site)
+    if request.tenant_membership.role in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}:
+        scope |= Q(scope_outlet__isnull=True, scope_site__isnull=True)
+    kinds = ["pin_failure"]
+    if "pos" in modules and vis.orders:
+        kinds += ["cash_variance", "refund", "discount", "line_discount", "void", "offline_conflict"]
+    if "inventory" in modules and vis.inventory:
+        kinds += ["low_stock", "stock_adjustment"]
+    if "purchasing" in modules and vis.purchasing:
+        kinds += ["delivery_discrepancy"]
+    if "lodging" in modules and vis.lodging:
+        kinds += ["overdue_departure"]
+    if "finance" in modules and vis.finance:
+        kinds += ["efris_failure"]
+    return ExceptionReview.objects.filter(scope, tenant=request.tenant, kind__in=kinds).select_related("reviewed_by", "assigned_to").order_by("-reviewed_at")
+
+
+def _save_assessment(request, review, *, status, note, assigned_to=None, due_date=None):
+    if status not in {"open", "reviewed", "follow_up", "resolved"} or not note.strip() or len(note.strip()) > 1000:
         raise ValidationError("Choose a review status and explain your assessment.")
+    if assigned_to is not None and not exception_assignees(request).filter(pk=assigned_to.pk).exists():
+        raise ValidationError("Choose an authorized manager in your scope.")
+    if status == "follow_up" and (assigned_to is None or due_date is None):
+        raise ValidationError("Follow-up requires an assigned manager and due date.")
+    assigned_id = assigned_to.pk if assigned_to else None
+    if review.status == status and review.note == note.strip() and review.assigned_to_id == assigned_id and review.due_date == due_date:
+        return review
+    before = review.status
+    review.status, review.note = status, note.strip()
+    review.reviewed_by, review.assigned_to, review.due_date = request.user, assigned_to, due_date
+    review.save()
+    log_audit(tenant_id=request.tenant.pk, user_id=request.user.pk, action="exception.reviewed", entity_type="exception_review", entity_id=str(review.pk), payload={"kind": review.kind, "source_id": review.entity_id, "fingerprint": review.fingerprint, "before": before, "status": status, "note": review.note, "assigned_to": str(assigned_id) if assigned_id else None, "due_date": str(due_date) if due_date else None})
+    return review
+
+
+@transaction.atomic
+def review_exception(request, *, kind, entity_id, fingerprint, status, note, assigned_to=None, due_date=None):
+    management_scope(request)
     rows, _ = exception_rows(request, source=(kind, entity_id))
     if not rows or rows[0].fingerprint != fingerprint:
         raise ValidationError("This exception changed or is no longer in your scope. Refresh before reviewing it.")
-    review, _ = ExceptionReview.objects.get_or_create(tenant=request.tenant, kind=kind, entity_id=entity_id, fingerprint=fingerprint, defaults={"status": "open", "note": ""})
+    row = rows[0]
+    review, _ = ExceptionReview.objects.get_or_create(tenant=request.tenant, kind=kind, entity_id=entity_id, fingerprint=fingerprint, defaults={"status": "open", "note": "", "scope_outlet_id": row.scope_outlet_id, "scope_site_id": row.scope_site_id, "source_url": row.url})
     review = ExceptionReview.objects.select_for_update().get(pk=review.pk)
-    if review.status == status and review.note == note.strip():
-        return review
-    before = review.status
-    review.status = status
-    review.note = note.strip()[:1000]
-    review.reviewed_by = request.user
-    review.save()
-    log_audit(tenant_id=request.tenant.pk, user_id=request.user.pk, action="exception.reviewed", entity_type="exception_review", entity_id=str(review.pk), payload={"kind": kind, "source_id": entity_id, "fingerprint": fingerprint, "before": before, "status": status, "note": review.note})
-    return review
+    return _save_assessment(request, review, status=status, note=note, assigned_to=assigned_to, due_date=due_date)
+
+
+@transaction.atomic
+def update_exception_case(request, *, case_id, status, note, assigned_to=None, due_date=None):
+    review = visible_cases(request).select_for_update(of=("self",)).filter(pk=case_id).first()
+    if review is None:
+        raise ValidationError("This review is not in your scope.")
+    return _save_assessment(request, review, status=status, note=note, assigned_to=assigned_to, due_date=due_date)
 
 
 def management_orders(request):

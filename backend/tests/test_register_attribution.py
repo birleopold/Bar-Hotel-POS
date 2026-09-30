@@ -6,8 +6,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from apps.accounts.models import User, Membership, MembershipRole
 from apps.finance.models import CashbookEntry
-from apps.pos.models import Order, Payment, PosShift, Workstation
-from apps.pos.services import open_pos_shift, close_pos_shift, record_order_payment, record_order_refund, shift_cash_snapshot
+from apps.pos.models import CashDrawerMovement, Order, Payment, PosShift, Workstation
+from apps.pos.services import open_pos_shift, close_pos_shift, record_order_payment, record_order_refund, record_cash_drawer_movement, shift_cash_snapshot
 from apps.pos.services.offline import process_offline_queue_entry
 from apps.staff.middleware import STAFF_SESSION_TENANT_KEY, STAFF_SESSION_OUTLET_KEY
 from apps.tenants.models import Tenant, Site, Outlet, OutletType
@@ -47,6 +47,29 @@ class RegisterAttributionTests(TestCase):
         close_pos_shift(shift=b, user=self.user, counted_cash=Decimal("115"))
         a.refresh_from_db(); b.refresh_from_db()
         self.assertEqual(a.expected_cash, Decimal("120")); self.assertEqual(b.expected_cash, Decimal("115"))
+
+    def test_cash_movement_ledger_replay_scope_and_close(self):
+        a, b = self.open(self.a, "20"), self.open(self.b, "30")
+        args = dict(shift=a, membership=self.membership, user=self.user, workstation_id=self.a.pk)
+        def move(direction, amount, key):
+            return record_cash_drawer_movement(**args, direction=direction, amount=amount, reason="Drawer reconciliation", idempotency_key=key)
+        entry, repeated = move("float_add", "15.00", "one")
+        self.assertFalse(repeated)
+        self.assertEqual(move("float_add", "15", "one"), (entry, True))
+        self.pay(station=self.a)
+        move("drop", "40", "two")
+        move("payout", "5", "three")
+        self.assertEqual(shift_cash_snapshot(shift=a)["expected"], Decimal("90"))
+        self.assertEqual(shift_cash_snapshot(shift=b)["expected"], Decimal("30"))
+        with self.assertRaises(ValidationError): move("drop", "91", "overdraw")
+        with self.assertRaises(ValidationError): move("float_add", "16", "one")
+        with self.assertRaises(ValidationError): record_cash_drawer_movement(**{**args, "workstation_id": self.b.pk}, direction="float_add", amount="1", reason="Wrong register", idempotency_key="wrong")
+        self.assertEqual(CashDrawerMovement.objects.count(), 3)
+        close_pos_shift(shift=a, user=self.user, counted_cash=Decimal("90"))
+        self.assertEqual(move("float_add", "15", "one"), (entry, True))
+        with self.assertRaises(ValidationError): move("drop", "1", "late")
+        a.refresh_from_db()
+        self.assertEqual(a.expected_cash, Decimal("90"))
 
     def test_ambiguous_register_rolls_back(self):
         self.open(self.a); self.open(self.b)

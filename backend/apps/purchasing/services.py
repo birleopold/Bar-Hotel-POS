@@ -23,7 +23,10 @@ def receive_purchase_order_goods(
     membership,
     delivery_reference: str = "",
     note: str = "",
+    discrepancy_note: str = "",
 ) -> PurchaseOrder:
+    if len(discrepancy_note) > 512:
+        raise ValidationError({"discrepancy_note": "Use at most 512 characters."})
     if not outlet_belongs_to_membership(membership, po.outlet_id):
         raise ValidationError({"detail": "You cannot receive stock for this outlet."})
 
@@ -41,6 +44,7 @@ def receive_purchase_order_goods(
         purchase_order=po_locked,
         delivery_reference=(delivery_reference or "")[:128],
         note=(note or "")[:512],
+        discrepancy_note=discrepancy_note.strip(),
         received_by=user,
     )
 

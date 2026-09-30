@@ -117,8 +117,11 @@ def verify_member_pin(*, member_id, tenant_id, outlet_id, pin):
         member.save(update_fields=["staff_pin_failures", "staff_pin_locked_until", "updated_at"])
         return member
     member.staff_pin_failures += 1
+    failure_count = member.staff_pin_failures
     if member.staff_pin_failures >= PIN_FAILURE_LIMIT:
         member.staff_pin_locked_until = now + timedelta(minutes=PIN_LOCK_MINUTES)
         member.staff_pin_failures = 0
     member.save(update_fields=["staff_pin_failures", "staff_pin_locked_until", "updated_at"])
+    from apps.audit.services import log_audit
+    log_audit(tenant_id=tenant_id, user_id=None, action="staff.pin_failed", entity_type="membership", entity_id=str(member.pk), payload={"outlet_id": str(outlet_id), "failure_count": failure_count, "locked": bool(member.staff_pin_locked_until)})
     return None

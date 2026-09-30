@@ -16,6 +16,7 @@ from . import (
 )
 
 urlpatterns = [
+    path("management/sources/<str:kind>/<uuid:entity_id>/", views_management.StaffManagementSourceView.as_view(), name="staff-management-source"),
     path("management/shifts/<uuid:shift_id>/", views_management.StaffManagementShiftView.as_view(), name="staff-management-shift"),
     path("management/", views_management.StaffManagementView.as_view(), name="staff-management"),
     path("login/", views.StaffLoginView.as_view(), name="staff-login"),

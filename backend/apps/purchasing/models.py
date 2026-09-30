@@ -133,6 +133,7 @@ class PurchaseReceipt(TimeStampedModel):
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name="receipts")
     delivery_reference = models.CharField(max_length=128, blank=True)
     note = models.CharField(max_length=512, blank=True)
+    discrepancy_note = models.CharField(max_length=512, blank=True)
     received_by = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,

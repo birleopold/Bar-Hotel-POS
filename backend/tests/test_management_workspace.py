@@ -218,3 +218,103 @@ class ManagementWorkspaceTests(TestCase):
         response = self.client.get(reverse("staff-management"), {"view": "team"})
         self.assertContains(response, receptionist.email)
         self.assertNotContains(response, self.worker.email)
+
+    def test_all_exception_sources_and_module_visibility(self):
+        from apps.pos.models import OrderLine, OfflineQueuedOperation
+        from apps.inventory.models import StockMovement, StockReason
+        from apps.purchasing.models import Supplier, PurchaseOrder, PurchaseReceipt
+        from apps.finance.models import FinanceCategory, CashbookEntry, FinancePostingLink
+        from apps.integrations.models import EfrisSubmission
+        from apps.audit.services import log_audit
+        self.login()
+        self.order.discount_amount = 8
+        self.order.save()
+        line = OrderLine.objects.create(order=self.order, label="Tea", quantity=1, unit_price=10, line_total=10, line_discount_amount=2, is_voided=True, void_reason="Mistake", voided_at=timezone.now())
+        another = OrderLine.objects.create(order=self.order, label="Coffee", quantity=1, unit_price=10, line_total=10, line_discount_amount=2)
+        movement = StockMovement.objects.create(tenant=self.tenant,outlet=self.outlet,menu_item=self.balance.menu_item,quantity_change=-4,reason=StockReason.ADJUST_OUT)
+        supplier = Supplier.objects.create(tenant=self.tenant,name="Source supplier")
+        po = PurchaseOrder.objects.create(tenant=self.tenant,outlet=self.outlet,supplier=supplier,status="partially_received")
+        receipt = PurchaseReceipt.objects.create(tenant=self.tenant,purchase_order=po,discrepancy_note="Two units damaged")
+        failed = OfflineQueuedOperation.objects.create(tenant=self.tenant,outlet=self.outlet,client_mutation_id="failed-op",operation_type="order_payment",status="failed",payload={"secret":"do-not-show"},error_message="do-not-show")
+        old = OfflineQueuedOperation.objects.create(tenant=self.tenant,outlet=self.outlet,client_mutation_id="old-op",operation_type="order_payment",status="pending")
+        OfflineQueuedOperation.objects.filter(pk=old.pk).update(created_at=timezone.now()-timedelta(hours=30))
+        category = FinanceCategory.objects.create(tenant=self.tenant,name="POS",kind="income")
+        entry = CashbookEntry.objects.create(tenant=self.tenant,site=self.site,category=category,amount=10,transaction_date=timezone.localdate())
+        fiscal = EfrisSubmission.objects.create(tenant=self.tenant,cashbook_entry=entry,status="failed",last_error="do-not-show")
+        FinancePostingLink.objects.create(tenant=self.tenant,cashbook_entry=entry,source_type="pos_payment",source_id=str(self.refund.payment_id))
+        hidden_order = Order.objects.create(tenant=self.tenant,outlet=self.other,total=500)
+        hidden_payment = Payment.objects.create(tenant=self.tenant,order=hidden_order,amount=500,idempotency_key="fiscal-hidden")
+        hidden_entry = CashbookEntry.objects.create(tenant=self.tenant,site=self.site,category=category,amount=500,transaction_date=timezone.localdate())
+        hidden_fiscal = EfrisSubmission.objects.create(tenant=self.tenant,cashbook_entry=hidden_entry,status="failed")
+        FinancePostingLink.objects.create(tenant=self.tenant,cashbook_entry=hidden_entry,source_type="pos_payment",source_id=str(hidden_payment.pk))
+        event = log_audit(tenant_id=self.tenant.pk,user_id=None,action="staff.pin_failed",entity_type="membership",entity_id=str(Membership.objects.get(user=self.worker).pk),payload={"outlet_id":str(self.outlet.pk),"failure_count":2,"locked":False})
+        rows = self.rows()
+        self.assertTrue({"discount","line_discount","void","stock_adjustment","delivery_discrepancy","efris_failure","offline_conflict","pin_failure"}.issubset({r.kind for r in rows}))
+        self.assertNotIn(str(hidden_fiscal.pk),{r.entity_id for r in rows})
+        self.assertNotIn("do-not-show",self.client.get(reverse("staff-management")).content.decode())
+        for kind in ("efris_failure","offline_conflict","pin_failure","stock_adjustment"):
+            source = next(r for r in rows if r.kind == kind)
+            self.assertEqual(self.client.get(source.url).status_code,200)
+        TenantSettings.objects.create(tenant=self.tenant,enabled_staff_modules=["pos"])
+        self.assertFalse({"stock_adjustment","delivery_discrepancy","efris_failure"} & {r.kind for r in self.rows()})
+
+    def test_follow_up_ownership_history_and_resolved_case_after_source_clears(self):
+        self.login()
+        row = next(r for r in self.rows() if r.kind == "low_stock")
+        response = self.client.post(reverse("staff-management"),self.review_data(row,status="follow_up",assigned_to=str(self.manager.pk),due_date=str(timezone.localdate()+timedelta(days=2))))
+        self.assertEqual(response.status_code,302)
+        review = ExceptionReview.objects.get(entity_id=str(self.balance.pk))
+        self.assertEqual(review.assigned_to,self.manager)
+        self.balance.quantity=10
+        self.balance.save()
+        self.assertNotIn(str(self.balance.pk),{r.entity_id for r in self.rows()})
+        url=reverse("staff-management")+"?view=cases"
+        response=self.client.get(url)
+        self.assertContains(response,"Checked with worker")
+        response=self.client.post(url,{"action":"case","case_id":review.pk,"status":"resolved","note":"Reorder verified"})
+        self.assertEqual(response.status_code,302)
+        review.refresh_from_db()
+        self.assertEqual(review.status,"resolved")
+        self.assertEqual(AuditEvent.objects.filter(action="exception.reviewed",entity_id=str(review.pk)).count(),2)
+        self.assertEqual(self.balance.quantity,10)
+        self.login(self.worker)
+        self.assertEqual(self.client.post(url,{"action":"case","case_id":review.pk,"status":"resolved","note":"Tamper"}).status_code,403)
+
+    def test_follow_up_requires_scoped_manager_and_due_date(self):
+        self.login()
+        row=next(r for r in self.rows() if r.kind=="refund")
+        base=self.review_data(row,status="follow_up")
+        url=reverse("staff-management")
+        for changes in ({},{"assigned_to":str(self.worker.pk),"due_date":str(timezone.localdate())},{"assigned_to":str(self.manager.pk)}):
+            self.assertIn(self.client.post(url,{**base,**changes}).status_code,{400,409})
+        self.assertFalse(ExceptionReview.objects.filter(entity_id=str(self.refund.pk)).exclude(note="").exists())
+        self.assertEqual(self.client.post(url,{**base,"assigned_to":str(self.manager.pk),"due_date":str(timezone.localdate())}).status_code,302)
+
+    def test_receiving_discrepancy_appears_from_staff_workflow(self):
+        from apps.purchasing.models import Supplier,PurchaseOrder,PurchaseOrderLine,PurchaseReceipt
+        self.login()
+        supplier=Supplier.objects.create(tenant=self.tenant,name="Receiving supplier")
+        po=PurchaseOrder.objects.create(tenant=self.tenant,outlet=self.outlet,supplier=supplier,status="sent")
+        line=PurchaseOrderLine.objects.create(purchase_order=po,menu_item=self.balance.menu_item,quantity_ordered=4,unit_cost=Decimal("2"))
+        url=reverse("staff-purchasing-order-detail",args=[po.pk])
+        response=self.client.post(url,{"action":"receive",f"recv_{line.pk}":"1","discrepancy_note":"One box damaged","delivery_reference":"DEL-1"})
+        self.assertEqual(response.status_code,302)
+        receipt=PurchaseReceipt.objects.get(purchase_order=po)
+        self.assertEqual(receipt.discrepancy_note,"One box damaged")
+        self.assertContains(self.client.get(url),"One box damaged")
+        self.assertIn(str(receipt.pk),{r.entity_id for r in self.rows() if r.kind=="delivery_discrepancy"})
+        self.assertEqual(self.balance.refresh_from_db() or self.balance.quantity,Decimal("3"))
+
+    def test_bad_pin_audited_without_credential_and_thresholds(self):
+        from apps.staff.terminal import set_member_pin,verify_member_pin
+        member=Membership.objects.get(user=self.worker)
+        set_member_pin(member,"123456")
+        self.assertIsNone(verify_member_pin(member_id=member.pk,tenant_id=self.tenant.pk,outlet_id=str(self.outlet.pk),pin="wrong"))
+        self.assertIsNone(verify_member_pin(member_id=member.pk,tenant_id=self.tenant.pk,outlet_id=str(self.outlet.pk),pin="wrong"))
+        failures=AuditEvent.objects.filter(tenant=self.tenant,action="staff.pin_failed")
+        self.assertEqual(failures.count(),2)
+        self.assertNotIn("wrong",str(list(failures.values("payload"))))
+        self.assertNotIn("123456",str(list(failures.values("payload"))))
+        ExceptionPolicy.objects.create(tenant=self.tenant,pin_failure_threshold=2)
+        self.login()
+        self.assertEqual(len([r for r in self.rows() if r.kind=="pin_failure"]),1)

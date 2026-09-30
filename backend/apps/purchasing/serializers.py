@@ -67,7 +67,7 @@ class PurchaseReceiptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseReceipt
-        fields = ("id", "delivery_reference", "note", "received_by", "received_by_email", "created_at", "lines")
+        fields = ("id", "delivery_reference", "note", "discrepancy_note", "received_by", "received_by_email", "created_at", "lines")
         read_only_fields = fields
 
 
@@ -259,6 +259,7 @@ class ReceiveLineSerializer(serializers.Serializer):
 
 class ReceivePurchaseOrderSerializer(serializers.Serializer):
     lines = ReceiveLineSerializer(many=True)
+    discrepancy_note = serializers.CharField(required=False, allow_blank=True, max_length=512, default="")
     delivery_reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
     note = serializers.CharField(required=False, allow_blank=True, max_length=512, default="")
 

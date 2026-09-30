@@ -509,3 +509,20 @@ class OfflineQueuedOperation(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.operation_type} ({self.status})"
+
+
+class CashDrawerMovement(TimeStampedModel):
+    """Immutable physical drawer movement tied to one register shift."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="cash_drawer_movements")
+    shift = models.ForeignKey(PosShift, on_delete=models.PROTECT, related_name="cash_movements")
+    direction = models.CharField(max_length=16, choices=[("float_add", "Float added"), ("drop", "Cash drop"), ("payout", "Cash payout")])
+    amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    reason = models.CharField(max_length=255)
+    idempotency_key = models.CharField(max_length=128)
+    recorded_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="cash_drawer_movements")
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [models.UniqueConstraint(fields=["shift", "idempotency_key"], name="unique_drawer_movement_key_per_shift")]

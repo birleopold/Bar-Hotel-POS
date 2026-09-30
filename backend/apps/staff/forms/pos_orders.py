@@ -296,6 +296,14 @@ class StaffPosShiftOpenForm(forms.Form):
     )
 
 
+class StaffCashDrawerMovementForm(forms.Form):
+    shift_id = forms.UUIDField(widget=forms.HiddenInput())
+    idempotency_key = forms.UUIDField(widget=forms.HiddenInput())
+    direction = forms.ChoiceField(choices=[("float_add", "Add float"), ("drop", "Cash drop"), ("payout", "Cash payout")], widget=forms.Select(attrs={"class": "staff-input"}))
+    amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=14, decimal_places=2, widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.01", "min": "0.01"}))
+    reason = forms.CharField(max_length=255, widget=forms.TextInput(attrs={"class": "staff-input", "maxlength": 255}))
+
+
 class StaffPosShiftCloseForm(forms.Form):
     shift_id = forms.UUIDField(widget=forms.HiddenInput())
     counted_cash = forms.DecimalField(

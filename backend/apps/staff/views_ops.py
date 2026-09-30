@@ -29,6 +29,7 @@ from apps.pos.services import (
     cancel_open_unpaid_order,
     charge_order_to_folio,
     close_pos_shift,
+    record_cash_drawer_movement,
     create_order_with_lines,
     default_currency_for_tenant,
     hold_open_order,
@@ -66,6 +67,7 @@ from .forms import (
     StaffOrderSetFolioForm,
     StaffOrderVoidLineForm,
     StaffOrderVoidOrderForm,
+    StaffCashDrawerMovementForm,
     StaffPosShiftCloseForm,
     StaffPosShiftOpenForm,
     StaffTableForm,
@@ -322,6 +324,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         ctx["selected_station"] = self._selected_for_outlet(self.request, outlet)
         ctx["open_form"] = StaffPosShiftOpenForm()
         ctx["close_form"] = StaffPosShiftCloseForm()
+        ctx["movement_form"] = StaffCashDrawerMovementForm(initial={"idempotency_key": uuid.uuid4()})
         if outlet is None:
             ctx["open_shift"] = None
             ctx["recent_shifts"] = []
@@ -335,6 +338,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
             tenant=self.request.tenant, outlet=outlet, status=PosShiftStatus.OPEN,
         ).exclude(pk=ctx["open_shift"].pk if ctx["open_shift"] else None).select_related("workstation", "opened_by")
         ctx["cash_snapshot"] = shift_cash_snapshot(shift=ctx["open_shift"]) if ctx["open_shift"] else None
+        ctx["cash_movements"] = ctx["open_shift"].cash_movements.select_related("recorded_by")[:30] if ctx["open_shift"] else []
         ctx["shift_currency"] = default_currency_for_tenant(self.request.tenant)
         ctx["recent_shifts"] = list(
             PosShift.objects.filter(tenant=self.request.tenant, outlet=outlet).select_related("workstation").order_by("-opened_at")[:20]
@@ -376,6 +380,23 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
                 _flash_drf_validation(request, exc)
             else:
                 messages.success(request, "Shift opened.")
+            return redirect("staff-pos-shifts")
+        if action == "cash_movement":
+            form = StaffCashDrawerMovementForm(request.POST)
+            if not form.is_valid():
+                context = self.get_context_data()
+                context["movement_form"] = form
+                return self.render_to_response(context, status=400)
+            shift = PosShift.objects.filter(pk=form.cleaned_data["shift_id"], tenant=request.tenant, outlet=outlet, workstation=selected_station).first()
+            if shift is None:
+                messages.error(request, "Shift not found for this register.")
+                return redirect("staff-pos-shifts")
+            try:
+                _, replay = record_cash_drawer_movement(shift=shift, membership=request.tenant_membership, user=request.user, workstation_id=selected_station.pk if selected_station else None, direction=form.cleaned_data["direction"], amount=form.cleaned_data["amount"], reason=form.cleaned_data["reason"], idempotency_key=str(form.cleaned_data["idempotency_key"]))
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(request, "Movement already recorded." if replay else "Drawer movement recorded.")
             return redirect("staff-pos-shifts")
         if action == "close_shift":
             form = StaffPosShiftCloseForm(request.POST)

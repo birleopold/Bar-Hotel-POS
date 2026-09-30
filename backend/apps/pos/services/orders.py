@@ -20,6 +20,7 @@ from apps.inventory.models import StockMovement, StockReason
 from apps.inventory.services import apply_manual_stock_change
 from apps.lodging.models import Folio, FolioStatus
 from apps.pos.models import (
+    CashDrawerMovement,
     Order,
     OrderLine,
     OrderStatus,
@@ -773,8 +774,12 @@ def shift_cash_snapshot(*, shift: PosShift, until=None) -> dict[str, Decimal]:
         refunds = refunds.filter(created_at__gte=shift.opened_at, created_at__lte=until)
     cash_payments = (payments.aggregate(s=Sum("amount"))["s"] or Decimal("0")).quantize(Decimal("0.01"))
     cash_refunds = (refunds.aggregate(s=Sum("amount"))["s"] or Decimal("0")).quantize(Decimal("0.01"))
-    expected = (shift.opening_cash + cash_payments - cash_refunds).quantize(Decimal("0.01"))
-    return {"cash_payments": cash_payments, "cash_refunds": cash_refunds, "expected": expected}
+    movements = CashDrawerMovement.objects.filter(tenant_id=shift.tenant_id, shift=shift, created_at__lte=until)
+    def total(direction):
+        return (movements.filter(direction=direction).aggregate(s=Sum("amount"))["s"] or Decimal("0")).quantize(Decimal("0.01"))
+    float_added, drops, payouts = total("float_add"), total("drop"), total("payout")
+    expected = (shift.opening_cash + cash_payments - cash_refunds + float_added - drops - payouts).quantize(Decimal("0.01"))
+    return {"cash_payments": cash_payments, "cash_refunds": cash_refunds, "float_added": float_added, "drops": drops, "payouts": payouts, "expected": expected}
 
 
 @transaction.atomic
@@ -815,6 +820,9 @@ def close_pos_shift(*, shift: PosShift, user, counted_cash: Decimal, note: str =
             "expected_cash": str(expected),
             "counted_cash": str(locked.counted_cash),
             "cash_refunds": str(snapshot["cash_refunds"]),
+            "float_added": str(snapshot["float_added"]),
+            "drops": str(snapshot["drops"]),
+            "payouts": str(snapshot["payouts"]),
         },
     )
     return locked

@@ -26,9 +26,21 @@
           <div><span>Opening float</span><strong>{{ shift_currency }} {{ open_shift.opening_cash }}</strong></div>
           <div><span>Cash sales</span><strong>+ {{ shift_currency }} {{ cash_snapshot.cash_payments }}</strong></div>
           <div><span>Cash refunds</span><strong>− {{ shift_currency }} {{ cash_snapshot.cash_refunds }}</strong></div>
+          <div><span>Added float</span><strong>+ {{ shift_currency }} {{ cash_snapshot.float_added }}</strong></div>
+          <div><span>Cash drops</span><strong>− {{ shift_currency }} {{ cash_snapshot.drops }}</strong></div>
+          <div><span>Cash payouts</span><strong>− {{ shift_currency }} {{ cash_snapshot.payouts }}</strong></div>
           <div class="staff-register-summary__total"><span>Expected cash now</span><strong>{{ shift_currency }} {{ cash_snapshot.expected }}</strong></div>
         </div>
         <p class="staff-muted small">Expected cash includes payments received and refunds paid out by this register. Legacy shifts use their original time window. Count the physical drawer independently; unrecorded cash drops or payouts need separate reconciliation.</p>
+        <details class="staff-card mb-3"><summary>Record drawer movement</summary>
+          <p class="staff-muted mt-2">Record added float, cash taken to a safe, or a manager-authorized payout. Payouts change the physical drawer total; record any business expense separately in the finance area.</p>
+          <form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="cash_movement"><input type="hidden" name="shift_id" value="{{ open_shift.pk }}">{{ movement_form.idempotency_key }}
+            {% if movement_form.non_field_errors %}<div role="alert">{{ movement_form.non_field_errors }}</div>{% endif %}
+            <div>{{ movement_form.direction.label_tag }}{{ movement_form.direction }}{{ movement_form.direction.errors }}</div><div>{{ movement_form.amount.label_tag }}{{ movement_form.amount }}{{ movement_form.amount.errors }}</div><div>{{ movement_form.reason.label_tag }}{{ movement_form.reason }}{{ movement_form.reason.errors }}</div>
+            <button class="staff-btn staff-btn--primary mt-2" type="submit">Record movement</button>
+          </form>
+          {% if cash_movements %}<h3 class="staff-card__title mt-3">Recent drawer movements</h3><ul>{% for m in cash_movements %}<li>{{ m.created_at }} · {{ m.get_direction_display }} · {{ shift_currency }} {{ m.amount }} · {{ m.reason }} · {{ m.recorded_by.email|default:"Former worker" }}</li>{% endfor %}</ul>{% endif %}
+        </details>
         <form method="post" class="staff-register-form">
           {% csrf_token %}
           <input type="hidden" name="action" value="close_shift">

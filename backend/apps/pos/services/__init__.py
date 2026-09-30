@@ -1,5 +1,7 @@
 """POS services public API (re-exported from command/query modules)."""
 
+from .cash_movements import record_cash_drawer_movement
+
 from .commands import (
     adjust_open_order_line_quantity,
     add_line_to_open_order,
@@ -61,6 +63,7 @@ __all__ = [
     "process_supermarket_line_return",
     "shift_cash_snapshot",
     "recalculate_order_totals",
+    "record_cash_drawer_movement",
     "record_order_payment",
     "record_order_refund",
     "refund_retail_line",

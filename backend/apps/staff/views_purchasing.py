@@ -435,6 +435,7 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     lines_payload=lines_payload,
                     user=request.user,
                     membership=request.tenant_membership,
+                    discrepancy_note=(request.POST.get("discrepancy_note") or "").strip(),
                     delivery_reference=(request.POST.get("delivery_reference") or "").strip(),
                     note=(request.POST.get("receipt_note") or "").strip(),
                 )
@@ -474,6 +475,7 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     lines_payload=lines_payload,
                     user=request.user,
                     membership=request.tenant_membership,
+                    discrepancy_note=(request.POST.get("discrepancy_note") or "").strip(),
                     delivery_reference=(request.POST.get("delivery_reference") or "").strip(),
                     note=(request.POST.get("receipt_note") or "").strip(),
                 )
