@@ -1587,6 +1587,27 @@ class StaffSupermarketFlowTests(TestCase):
         shift.refresh_from_db()
         self.assertEqual(shift.status, PosShiftStatus.CLOSED)
 
+    def test_register_invalid_amount_keeps_form_and_field_error(self) -> None:
+        url = reverse("staff-pos-shifts")
+        invalid_open = self.client.post(url, {
+            "action": "open_shift", "opening_cash": "-1", "note": "Morning count",
+        })
+        self.assertEqual(invalid_open.status_code, 400)
+        self.assertContains(invalid_open, "Morning count", status_code=400)
+        self.assertContains(invalid_open, 'class="staff-field-error"', status_code=400)
+        self.assertFalse(PosShift.objects.filter(tenant=self.tenant, outlet=self.outlet).exists())
+
+        self.client.post(url, {"action": "open_shift", "opening_cash": "50.00"})
+        shift = PosShift.objects.get(tenant=self.tenant, outlet=self.outlet, status=PosShiftStatus.OPEN)
+        invalid_close = self.client.post(url, {
+            "action": "close_shift", "shift_id": str(shift.id), "counted_cash": "-1", "note": "Evening count",
+        })
+        self.assertEqual(invalid_close.status_code, 400)
+        self.assertContains(invalid_close, "Evening count", status_code=400)
+        self.assertContains(invalid_close, 'class="staff-field-error"', status_code=400)
+        shift.refresh_from_db()
+        self.assertEqual(shift.status, PosShiftStatus.OPEN)
+
     def test_register_preview_and_close_share_cash_calculation(self) -> None:
         url = reverse("staff-pos-shifts")
         self.client.post(url, {"action": "open_shift", "opening_cash": "50.00"})
@@ -2735,6 +2756,15 @@ class StaffTableStaffTests(TestCase):
         r = self.client.get(reverse("staff-table-create"))
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r.url, reverse("staff-tables"))
+
+    def test_read_only_table_cards_are_not_fake_links(self) -> None:
+        table = Table.objects.create(outlet=self.outlet, label="Patio 1", capacity=4)
+        self._session_tenant_outlet(self.accountant)
+        response = self.client.get(reverse("staff-tables"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Patio 1")
+        self.assertContains(response, "Go to orders")
+        self.assertNotContains(response, reverse("staff-table-edit", kwargs={"table_id": table.id}))
 
 
 class StaffModuleResolutionFallbackTests(TestCase):

@@ -341,10 +341,9 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         if action == "open_shift":
             form = StaffPosShiftOpenForm(request.POST)
             if not form.is_valid():
-                for fld, err_list in form.errors.items():
-                    for err in err_list:
-                        messages.error(request, f"{fld}: {err}")
-                return redirect("staff-pos-shifts")
+                context = self.get_context_data()
+                context["open_form"] = form
+                return self.render_to_response(context, status=400)
             try:
                 open_pos_shift(
                     tenant_id=request.tenant.id,
@@ -361,10 +360,9 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         if action == "close_shift":
             form = StaffPosShiftCloseForm(request.POST)
             if not form.is_valid():
-                for fld, err_list in form.errors.items():
-                    for err in err_list:
-                        messages.error(request, f"{fld}: {err}")
-                return redirect("staff-pos-shifts")
+                context = self.get_context_data()
+                context["close_form"] = form
+                return self.render_to_response(context, status=400)
             shift = PosShift.objects.filter(
                 id=form.cleaned_data["shift_id"],
                 tenant=request.tenant,

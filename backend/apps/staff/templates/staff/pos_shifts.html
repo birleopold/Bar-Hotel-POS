@@ -27,12 +27,13 @@
           <div class="staff-register-summary__total"><span>Expected cash now</span><strong>{{ shift_currency }} {{ cash_snapshot.expected }}</strong></div>
         </div>
         <p class="staff-muted small">Expected cash includes recorded cash payments and refunds since opening. Count the physical drawer independently; unrecorded cash drops or payouts need separate reconciliation.</p>
-        <form method="post">
+        <form method="post" class="staff-register-form">
           {% csrf_token %}
           <input type="hidden" name="action" value="close_shift">
           <input type="hidden" name="shift_id" value="{{ open_shift.id }}">
-          <div class="mb-2"><label class="staff-label" for="{{ close_form.counted_cash.id_for_label }}">Cash physically counted ({{ shift_currency }})</label>{{ close_form.counted_cash }}</div>
-          <div class="mb-2">{{ close_form.note.label_tag }}{{ close_form.note }}</div>
+          {% if close_form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ close_form.non_field_errors }}</div>{% endif %}
+          <div class="mb-3"><label class="staff-label" for="{{ close_form.counted_cash.id_for_label }}">Cash physically counted ({{ shift_currency }})</label>{{ close_form.counted_cash }}{% for error in close_form.counted_cash.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>
+          <div class="mb-3">{{ close_form.note.label_tag }}{{ close_form.note }}{% for error in close_form.note.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>
           <button type="submit" class="staff-btn staff-btn--primary">Close and reconcile shift</button>
         </form>
       </div>
@@ -40,11 +41,12 @@
       <div class="staff-card">
         <h2 class="staff-card__title">Start a register shift</h2>
         <p class="staff-muted">Count the opening cash float before taking the first sale.</p>
-        <form method="post">
+        <form method="post" class="staff-register-form">
           {% csrf_token %}
           <input type="hidden" name="action" value="open_shift">
-          <div class="mb-2"><label class="staff-label" for="{{ open_form.opening_cash.id_for_label }}">Opening cash float ({{ shift_currency }})</label>{{ open_form.opening_cash }}</div>
-          <div class="mb-2">{{ open_form.note.label_tag }}{{ open_form.note }}</div>
+          {% if open_form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ open_form.non_field_errors }}</div>{% endif %}
+          <div class="mb-3"><label class="staff-label" for="{{ open_form.opening_cash.id_for_label }}">Opening cash float ({{ shift_currency }})</label>{{ open_form.opening_cash }}{% for error in open_form.opening_cash.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>
+          <div class="mb-3">{{ open_form.note.label_tag }}{{ open_form.note }}{% for error in open_form.note.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>
           <button type="submit" class="staff-btn staff-btn--primary">Start shift</button>
         </form>
       </div>

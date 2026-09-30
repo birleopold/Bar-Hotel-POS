@@ -3877,29 +3877,28 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
   flex-direction: column;
   justify-content: space-between;
   padding: 1.15rem;
-  border-radius: 1.15rem;
+  border-radius: .85rem;
   background: var(--bg-elevated, #fff);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  border: 1px solid #dce5e4;
+  box-shadow: 0 2px 8px rgba(16, 42, 47, .035);
   text-decoration: none;
   color: var(--text-strong, #0f172a);
   min-height: 7.5rem;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: box-shadow .16s ease, border-color .16s ease;
 }
 
-.staff-pos-table-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-  border-color: rgba(45, 212, 191, 0.35);
+.staff-pos-table-card--editable:hover {
+  box-shadow: 0 7px 22px rgba(16, 42, 47, .09);
+  border-color: #8bbeb7;
 }
 
-.staff-pos-table-card:active {
-  transform: translateY(1px) scale(0.98);
+.staff-pos-table-card--editable:active {
+  background: #eef6f3;
 }
 
 .staff-pos-table-card--inactive {
-  opacity: 0.6;
-  background: rgba(15, 23, 42, 0.02);
+  background: #f1f4f3;
+  border-style: dashed;
 }
 
 .staff-pos-table-card__label {
@@ -3914,13 +3913,23 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
   color: var(--text-muted);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: .2rem;
 }
+
+.staff-pos-table-card__status { margin-left: auto; padding: .15rem .5rem; border-radius: 99rem; background: #e2e9e7; color: #465f60; font-size: .75rem; font-weight: 700; }
 
 .staff-pos-table-card__chevron {
   align-self: flex-end;
   color: var(--tenant-secondary, #3b82f6);
   opacity: 0.7;
 }
+
+.staff-pos-tables-empty { grid-column: 1 / -1; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 1.4rem; border: 1px dashed #c7d8d5; border-radius: .85rem; background: #f8fbfa; }
+.staff-pos-tables-empty > i { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: .65rem; background: #e7f2ef; color: #126b69; font-size: 1.2rem; }
+.staff-pos-tables-empty > div { flex: 1 1 14rem; }
+.staff-pos-tables-empty h3 { margin: 0 0 .2rem; color: #19343a; font-size: 1rem; font-weight: 750; }
+.staff-pos-tables-empty p { margin: 0; color: #52646b; font-size: .88rem; }
 
 .staff-pos-menu-grid {
   display: flex;
@@ -4105,6 +4114,9 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
 .staff-register-summary strong { display: block; margin-top: .4rem; font-size: 1.15rem; font-variant-numeric: tabular-nums; color: #19343a; white-space: nowrap; }
 .staff-register-summary__total { background: #e7f2ef !important; border-color: #b4d9cd !important; }
 .staff-register-variance { color: #9b3b31; }
+.staff-field-error { display: block; margin-top: .35rem; color: #9b3b31; font-size: .88rem; font-weight: 650; }
+.staff-register-form .staff-input { display: block; width: min(100%, 30rem); margin-top: .35rem; }
+.staff-register-form .staff-btn { min-height: var(--staff-tap-target); }
 @media (max-width: 900px) { .staff-register-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 500px) { .staff-register-summary { grid-template-columns: 1fr; } }
 @media (max-width: 960px) { .staff-team-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .staff-team-filters .staff-btn { justify-self: start; } }
