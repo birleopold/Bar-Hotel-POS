@@ -351,3 +351,18 @@ class StaffOrderRefundForm(forms.Form):
         if amt > self._max_refund:
             raise forms.ValidationError(f"Cannot exceed remaining refundable {self._max_refund}.")
         return amt
+
+
+class StaffRetailLineRefundForm(StaffOrderRefundForm):
+    line_id = forms.UUIDField(widget=forms.Select(attrs={"class": "staff-input"}), label="Returned item")
+    quantity = forms.DecimalField(
+        min_value=Decimal("0.001"), max_digits=10, decimal_places=3,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.001", "min": "0.001"}),
+    )
+
+    def __init__(self, *args, lines=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["line_id"].widget.choices = [("", "Select an item")] + [
+            (str(line.id), f"{line.label} · {line.quantity}") for line in (lines or []) if not line.is_voided
+        ]
+        self.fields["restock"].label = "Restock received goods"

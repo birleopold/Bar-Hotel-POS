@@ -345,6 +345,15 @@ class OrderRefundSerializer(serializers.Serializer):
     payment_id = serializers.UUIDField(required=False, allow_null=True)
 
 
+class RetailLineRefundSerializer(serializers.Serializer):
+    line_id = serializers.UUIDField()
+    quantity = serializers.DecimalField(max_digits=10, decimal_places=3, min_value=Decimal("0.001"))
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=255, default="")
+    restock = serializers.BooleanField(default=False)
+    payment_id = serializers.UUIDField(required=False, allow_null=True)
+
+
 class RefundSerializer(serializers.ModelSerializer):
     order_id = serializers.UUIDField(source="order.id", read_only=True)
 
@@ -368,6 +377,15 @@ class RefundSerializer(serializers.ModelSerializer):
             "restocked",
             "created_at",
         )
+
+
+class RetailLineReturnReadSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    order_line_id = serializers.UUIDField(read_only=True)
+    quantity = serializers.DecimalField(max_digits=10, decimal_places=3, read_only=True)
+    reason = serializers.CharField(read_only=True)
+    restocked = serializers.BooleanField(read_only=True)
+    refund = RefundSerializer(read_only=True)
 
 
 class TableSerializer(serializers.ModelSerializer):

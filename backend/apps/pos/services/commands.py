@@ -19,6 +19,7 @@ from .orders import (
     void_open_order_line,
 )
 from .payments import charge_order_to_folio, record_order_payment, record_order_refund
+from .returns import refund_retail_line
 from .pricing import recalculate_order_totals
 
 __all__ = [
@@ -39,6 +40,7 @@ __all__ = [
     "recalculate_order_totals",
     "record_order_payment",
     "record_order_refund",
+    "refund_retail_line",
     "set_open_order_folio",
     "update_order_line_kds_status",
     "void_open_order_line",

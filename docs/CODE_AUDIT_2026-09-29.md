@@ -59,3 +59,17 @@ The JSON report lists paid POS orders with positive-only folio lines and legacy 
 2. Use a real browser at desktop, tablet, and phone widths for cashier, retail return/refund, room charge, folio settlement, purchasing receipt/payment, KDS, and offline replay. Check keyboard focus, scrolling, and touch targets. Template loading and HTTP tests do not certify visual layout.
 3. Validate receipt printer, scanner, payment provider, and physical devices at their deployment sites. No hardware or external payment certification is implied by the local suite.
 4. Review recipe ingredient recovery and the business policy for linking a return quantity to a specific tender refund. Automating either without that policy could create stock or cash discrepancies.
+
+## 2026-09-30 implementation: linked retail returns
+
+The retail and supermarket order screen now offers a manager-approved **Return and refund** action. It records the returned line and quantity, the actual customer refund against the selected original payment, and optional direct-sale stock receipt in one database transaction. A nullable one-to-one link on `SupermarketLineReturn.refund` preserves older physical-only return records. The same action is available at `POST /api/v1/orders/{id}/retail-line-refunds/` with `Idempotency-Key`; retries compare both the monetary refund and return details. A failed quantity or stock check rolls back the refund and its finance posting. The return history displays the linked amount and tender. Physical-only exchanges and price-adjustment refunds remain available and are labeled separately.
+
+| Files | Audit finding and treatment |
+| --- | --- |
+| `apps/pos/services/returns.py`, `services/payments.py`, `services/orders.py` | The previous independent actions could leave money and returned stock unmatched. The new transaction reuses the established tender caps, stock movement checks, and audit events, then links the successful records. |
+| `apps/pos/models.py`, `migrations/0010_supermarketlinereturn_refund.py` | A return had no reference to a refund. The optional protected link supports existing rows without rewriting historical data. |
+| `apps/pos/views.py`, `serializers.py`, `docs/openapi.yaml` | The HTTP workflow checks outlet scope, manager approval, idempotency, line ownership, quantity, amount, and tender. |
+| `apps/staff/views_ops.py`, `forms/pos_orders.py`, `templates/staff/order_detail*.html` | Staff can enter the actual refund amount for discounted/taxed sales and see the returned item and tender together. The physical-only and adjustment workflows have explicit labels. |
+| `apps/finance/tests.py`, `apps/staff/tests.py` | Service, HTTP permission and replay, posting rollback, and rendered staff action have regression coverage. |
+
+The amount is entered by an approving manager because the order can contain discounts, tax, and split payments. There is no automatic per-unit allocation or enforced equivalence between item value and tender amount. Recipe ingredient recovery, historical pairing of older independent records, production PostgreSQL concurrency, and real device/browser checks remain release work.

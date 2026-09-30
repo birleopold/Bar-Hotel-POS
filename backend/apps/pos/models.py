@@ -355,6 +355,11 @@ class PosShift(TimeStampedModel):
 
 class SupermarketLineReturn(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    refund = models.OneToOneField(
+        Refund, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="line_return",
+        help_text="Customer refund recorded with this physical return, if any.",
+    )
     tenant = models.ForeignKey(
         "tenants.Tenant",
         on_delete=models.CASCADE,

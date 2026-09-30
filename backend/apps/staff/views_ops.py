@@ -37,6 +37,7 @@ from apps.pos.services import (
     process_supermarket_line_return,
     record_order_payment,
     record_order_refund,
+    refund_retail_line,
     resolve_order_create,
     resolve_table,
     set_open_order_folio,
@@ -59,6 +60,7 @@ from .forms import (
     StaffOrderPaymentForm,
     StaffOrderReadyHandoffForm,
     StaffOrderRefundForm,
+    StaffRetailLineRefundForm,
     StaffOrderScanAddForm,
     StaffOrderSetFolioForm,
     StaffOrderVoidLineForm,
@@ -599,6 +601,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if is_supermarket_outlet and order.status == OrderStatus.CLOSED and order.is_paid
             else None
         )
+        ctx["retail_refund_form"] = (
+            StaffRetailLineRefundForm(
+                lines=list(order.lines.all()), payments=pays, max_refund=refundable,
+            ) if is_supermarket_outlet and can_refund else None
+        )
         for line in order.lines.all():
             current = line.quantity
             dec = current - Decimal("1")
@@ -646,6 +653,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_line_discount(request, order)
         if action == "line_return":
             return self._post_line_return(request, order)
+        if action == "retail_line_refund":
+            return self._post_retail_line_refund(request, order)
         if action == "hold_order":
             return self._post_hold_order(request, order)
         if action == "void_order":
@@ -967,6 +976,40 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             _flash_drf_validation(request, exc)
         else:
             messages.success(request, "Line return recorded.")
+        return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_retail_line_refund(self, request: HttpRequest, order: Order) -> HttpResponse:
+        if not membership_can_approve_refunds(request.tenant_membership):
+            messages.error(request, "Your role cannot approve refunds.")
+            return redirect("staff-order-detail", order_id=order.id)
+        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            messages.error(request, "Item refunds are only available for retail orders.")
+            return redirect("staff-order-detail", order_id=order.id)
+        form = StaffRetailLineRefundForm(
+            request.POST, lines=list(order.lines.all()), payments=list(order.payments.all()),
+            max_refund=order_refundable_remaining(order),
+        )
+        if not form.is_valid():
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+            return redirect("staff-order-detail", order_id=order.id)
+        line = order.lines.filter(id=form.cleaned_data["line_id"]).first()
+        if line is None:
+            messages.error(request, "That item is not on this order.")
+            return redirect("staff-order-detail", order_id=order.id)
+        try:
+            refund_retail_line(
+                order=order, line=line, quantity=form.cleaned_data["quantity"],
+                amount=form.cleaned_data["amount"], reason=form.cleaned_data.get("reason") or "",
+                restock=bool(form.cleaned_data.get("restock")), user=request.user,
+                idempotency_key=str(uuid.uuid4()),
+                payment_id=uuid.UUID(form.cleaned_data["payment_id"]) if "payment_id" in form.fields else None,
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(request, "Item return and customer refund recorded together.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_hold_order(self, request: HttpRequest, order: Order) -> HttpResponse:

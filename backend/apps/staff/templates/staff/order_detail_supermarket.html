@@ -33,14 +33,28 @@
       </form>
     </div>
   {% endif %}
+  {% if retail_refund_form %}
+    <div class="staff-card">
+      <h2 class="staff-card__title">Return and refund</h2>
+      <p class="staff-muted">Record the returned quantity and the customer refund together. Enter the actual amount to return, including any discount or tax adjustment. Choose the original payment when the order has split tenders. Restock only goods physically received and suitable for resale.</p>
+      <form method="post" class="row g-3 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="retail_line_refund">
+        {% for field in retail_refund_form %}
+          <div class="col-6 col-lg-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+        {% endfor %}
+        <div class="col-12"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Record return and refund</button></div>
+      </form>
+    </div>
+  {% endif %}
   {% if line_return_form %}
     <div class="staff-card">
-      <h2 class="staff-card__title">Return line</h2>
+      <h2 class="staff-card__title">Physical return only</h2>
       {% include "staff/includes/form_errors_block.html" with form=line_return_form title="Fix return details" %}
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <input type="hidden" name="action" value="line_return">
-        <p class="staff-muted col-12">This records the physical return. A customer refund is recorded separately in the Refund panel by a manager. Select restock only for direct-sale goods actually back on hand; prepared recipe ingredients are not recovered automatically.</p>
+        <p class="staff-muted col-12">Use this for an exchange or an item received without a customer refund. For a refund, use “Return and refund” above. Select restock only for direct-sale goods actually back on hand; prepared recipe ingredients are not recovered automatically.</p>
         <div class="col-md-3">
           <label class="staff-label" for="ret_line">Order item</label>
           <select class="staff-input" id="ret_line" name="line_id" required>
@@ -60,8 +74,8 @@
       <h2 class="staff-card__title">Return history</h2>
       <div class="staff-table-wrap"><table class="staff-table">
         <caption class="visually-hidden">Physical returns recorded for this order</caption>
-        <thead><tr><th>Item</th><th>Qty</th><th>Stock</th><th>Reason</th></tr></thead>
-        <tbody>{% for ret in order.supermarket_returns.all %}<tr><td>{{ ret.order_line.label }}</td><td>{{ ret.quantity }}</td><td>{% if ret.restocked %}Restocked{% else %}Not restocked{% endif %}</td><td>{{ ret.reason|default:"—" }}</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>Item</th><th>Qty</th><th>Stock</th><th>Customer refund</th><th>Reason</th></tr></thead>
+        <tbody>{% for ret in order.supermarket_returns.all %}<tr><td>{{ ret.order_line.label }}</td><td>{{ ret.quantity }}</td><td>{% if ret.restocked %}Restocked{% else %}Not restocked{% endif %}</td><td>{% if ret.refund %}{{ ret.refund.amount }} · {{ ret.refund.payment.get_method_display }}{% else %}None{% endif %}</td><td>{{ ret.reason|default:"—" }}</td></tr>{% endfor %}</tbody>
       </table></div>
     </div>
   {% endif %}

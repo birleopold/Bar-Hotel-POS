@@ -30,6 +30,8 @@ from .serializers import (
     OrderVoidLineSerializer,
     PaymentSerializer,
     RefundSerializer,
+    RetailLineRefundSerializer,
+    RetailLineReturnReadSerializer,
     TableSerializer,
 )
 from .services import (
@@ -40,6 +42,7 @@ from .services import (
     default_currency_for_tenant,
     record_order_payment,
     record_order_refund,
+    refund_retail_line,
     resolve_folio_for_order,
     resolve_order_create,
     resolve_table,
@@ -73,7 +76,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         classes = list(self.permission_classes)
-        if self.action == "refunds":
+        if self.action in {"refunds", "retail_line_refunds"}:
             classes.append(CanApproveRefunds)
         return [permission() for permission in classes]
 
@@ -252,6 +255,27 @@ class OrderViewSet(viewsets.ModelViewSet):
             RefundSerializer(refund).data,
             status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["post"], url_path="retail-line-refunds")
+    def retail_line_refunds(self, request, pk=None):
+        order = self.get_object()
+        idem, err = idempotency_header_or_error(request)
+        if err:
+            return err
+        ser = RetailLineRefundSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        data = ser.validated_data
+        line = order.lines.filter(id=data["line_id"]).first()
+        if line is None:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError({"line_id": "That line is not on this order."})
+        ret, replay = refund_retail_line(
+            order=order, line=line, quantity=data["quantity"], amount=data["amount"],
+            reason=data.get("reason", ""), restock=data["restock"],
+            payment_id=data.get("payment_id"), user=request.user, idempotency_key=idem,
+        )
+        return Response(RetailLineReturnReadSerializer(ret).data,
+                        status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
 
     def create(self, request, *args, **kwargs):
         ser = OrderCreateSerializer(data=request.data, context={"request": request})

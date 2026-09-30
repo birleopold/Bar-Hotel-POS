@@ -1675,6 +1675,27 @@ class StaffOrderRefundTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertEqual(Refund.objects.filter(order_id=self.order.id).count(), 1)
 
+    def test_retail_screen_links_item_return_and_refund(self) -> None:
+        self.outlet.outlet_type = OutletType.RETAIL
+        self.outlet.save(update_fields=["outlet_type", "updated_at"])
+        line = OrderLine.objects.create(
+            order=self.order, label="Service item", quantity=Decimal("1"),
+            unit_price=Decimal("15"), line_total=Decimal("15"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": self.order.id})
+        self.client.post(url, {"action": "record_payment", "amount": "15.00", "method": PaymentMethod.CASH})
+        page = self.client.get(url)
+        self.assertContains(page, "Return and refund")
+        self.assertContains(page, "Physical return only")
+        response = self.client.post(url, {
+            "action": "retail_line_refund", "line_id": str(line.id),
+            "quantity": "1", "amount": "15.00", "reason": "Customer return",
+        }, follow=True)
+        self.assertContains(response, "Item return and customer refund recorded together")
+        ret = SupermarketLineReturn.objects.get(order=self.order)
+        self.assertEqual(ret.refund.amount, Decimal("15"))
+        self.assertContains(response, "Customer return")
+
     def test_non_manager_cannot_record_refund(self) -> None:
         self.client.post(
             reverse("staff-order-detail", kwargs={"order_id": self.order.id}),

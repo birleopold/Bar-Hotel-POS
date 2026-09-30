@@ -15,7 +15,7 @@ from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.models import StockBalance
 from apps.lodging.models import Folio, FolioLine
 from apps.pos.models import Order, OrderLine
-from apps.pos.services import close_pos_shift, open_pos_shift, process_supermarket_line_return, record_order_payment, record_order_refund
+from apps.pos.services import close_pos_shift, open_pos_shift, process_supermarket_line_return, record_order_payment, record_order_refund, refund_retail_line
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, Supplier
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment
 from apps.tenants.models import Outlet, OutletType, Site, Tenant
@@ -165,6 +165,63 @@ class PosFinancePostingTests(TestCase):
         with self.assertRaises(ValidationError):
             process_supermarket_line_return(order=self.order, line=line, quantity=Decimal("1"), reason="", restock=True, user=self.user)
         self.assertFalse(self.order.supermarket_returns.exists())
+
+    def test_retail_refund_links_tender_quantity_and_stock_once(self) -> None:
+        self.outlet.outlet_type = OutletType.RETAIL
+        self.outlet.save(update_fields=["outlet_type", "updated_at"])
+        line, balance = self._add_tracked_sale()
+        cash, _ = record_order_payment(order=self.order, user=self.user, amount=Decimal("4"), method="cash", idempotency_key="retail-cash")
+        card, _ = record_order_payment(order=self.order, user=self.user, amount=Decimal("6"), method="card", idempotency_key="retail-card")
+        ret, replay = refund_retail_line(order=self.order, line=line, quantity=Decimal("0.5"), amount=Decimal("4"), reason="Unopened", restock=True, user=self.user, payment_id=cash.id, idempotency_key="retail-return")
+        self.assertFalse(replay)
+        self.assertEqual(ret.refund.payment_id, cash.id)
+        self.assertEqual(ret.refund.amount, Decimal("4"))
+        self.assertFalse(ret.refund.restocked)
+        again, replay = refund_retail_line(order=self.order, line=line, quantity=Decimal("0.5"), amount=Decimal("4"), reason="Unopened", restock=True, user=self.user, payment_id=cash.id, idempotency_key="retail-return")
+        self.assertTrue(replay)
+        self.assertEqual(again.id, ret.id)
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("0.5"))
+        self.assertEqual(self.order.refunds.count(), 1)
+        self.assertEqual(self.order.supermarket_returns.count(), 1)
+        with self.assertRaises(ValidationError):
+            refund_retail_line(order=self.order, line=line, quantity=Decimal("1"), amount=Decimal("4"), reason="Unopened", restock=True, user=self.user, payment_id=cash.id, idempotency_key="retail-return")
+        with self.assertRaises(ValidationError):
+            refund_retail_line(order=self.order, line=line, quantity=Decimal("1"), amount=Decimal("5"), reason="Unopened", restock=True, user=self.user, payment_id=card.id, idempotency_key="retail-invalid")
+        self.assertEqual(self.order.refunds.count(), 1)
+
+    def test_retail_refund_rolls_back_cash_when_stock_return_invalid(self) -> None:
+        self.outlet.outlet_type = OutletType.SUPERMARKET
+        self.outlet.save(update_fields=["outlet_type", "updated_at"])
+        line, _balance = self._add_tracked_sale()
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("10"), method="cash", idempotency_key="rollback-pay")
+        with self.assertRaises(ValidationError):
+            refund_retail_line(order=self.order, line=line, quantity=Decimal("2"), amount=Decimal("3"), reason="Too many", restock=True, user=self.user, idempotency_key="rollback-refund")
+        self.assertFalse(self.order.refunds.exists())
+        self.assertFalse(self.order.supermarket_returns.exists())
+        self.assertEqual(CashbookEntry.objects.filter(category__kind=FinanceCategoryKind.EXPENSE).count(), 0)
+
+    def test_retail_refund_api_requires_manager_and_replays_without_extra_posting(self) -> None:
+        self.outlet.outlet_type = OutletType.RETAIL
+        self.outlet.save(update_fields=["outlet_type", "updated_at"])
+        line, _balance = self._add_tracked_sale()
+        record_order_payment(order=self.order, user=self.user, amount=Decimal("10"), method="cash", idempotency_key="api-retail-pay")
+        member = Membership.objects.create(tenant=self.tenant, user=self.user, role=MembershipRole.SERVER)
+        client = APIClient()
+        client.force_login(self.user)
+        headers = {"HTTP_X_TENANT_ID": str(self.tenant.id), "HTTP_IDEMPOTENCY_KEY": "api-retail-refund"}
+        url = f"/api/v1/orders/{self.order.id}/retail-line-refunds/"
+        payload = {"line_id": str(line.id), "quantity": "1", "amount": "10.00", "reason": "Damaged", "restock": False}
+        self.assertEqual(client.post(url, payload, format="json", **headers).status_code, 403)
+        member.role = MembershipRole.OWNER
+        member.save(update_fields=["role", "updated_at"])
+        first = client.post(url, payload, format="json", **headers)
+        self.assertEqual(first.status_code, 201, first.data)
+        self.assertEqual(first.data["refund"]["amount"], "10.00")
+        self.assertEqual(client.post(url, payload, format="json", **headers).status_code, 200)
+        self.assertEqual(self.order.refunds.count(), 1)
+        self.assertEqual(self.order.supermarket_returns.count(), 1)
+        self.assertEqual(CashbookEntry.objects.filter(category__kind=FinanceCategoryKind.EXPENSE).count(), 1)
 
 
 class PurchaseFinancePostingTests(TestCase):

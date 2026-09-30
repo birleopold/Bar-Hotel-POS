@@ -3179,6 +3179,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/OrderRead'
           description: ''
+  /api/v1/orders/{id}/retail-line-refunds/:
+    post:
+      operationId: orders_retail_line_refunds_create
+      parameters:
+      - name: X-Tenant-Id
+        in: header
+        required: false
+        description: Active tenant UUID. Required for most authenticated, tenant-scoped
+          routes.
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderRead'
+          description: ''
   /api/v1/orders/{id}/void-line/:
     post:
       operationId: orders_void_line_create
