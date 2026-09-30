@@ -160,20 +160,21 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
     context_object_name = "orders"
     paginate_by = 50
 
-    def get_queryset(self):
+    def _orders_in_scope(self):
+        outlets = staff_accessible_outlets(self.request.tenant_membership)
         qs = (
-            Order.objects.filter(tenant=self.request.tenant)
+            Order.objects.filter(tenant=self.request.tenant, outlet_id__in=[o.id for o in outlets])
             .select_related("outlet", "table")
             .prefetch_related("payments")
             .order_by("-created_at")
         )
-        outlets = staff_accessible_outlets(self.request.tenant_membership)
         outlet = resolve_staff_outlet(self.request, outlets)
-        filter_all = self.request.session.get(STAFF_SESSION_OUTLET_KEY) is None and self.request.GET.get(
-            "all_outlets"
-        )
-        if outlet and not filter_all:
+        if outlet:
             qs = qs.filter(outlet=outlet)
+        return qs
+
+    def get_queryset(self):
+        qs = self._orders_in_scope()
         st = self.request.GET.get("status")
         if st in ("open", "closed", "cancelled"):
             qs = qs.filter(status=st)
@@ -196,7 +197,8 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         orders = list(ctx.get("object_list", []))
         attach_order_payment_display(orders)
-        quick_qs = self.get_queryset()
+        # Service lanes stay live while the history below is filtered or searched.
+        quick_qs = self._orders_in_scope()
         held_tabs = list(
             quick_qs.filter(status=OrderStatus.OPEN, is_paid=False)
             .exclude(table_label="")

@@ -4,6 +4,11 @@
     <span class="staff-nav__dot" aria-hidden="true"></span>
     {{ request.tenant.name|default:"Staff" }}
   </a>
+  {% if user.is_authenticated %}
+    <form method="post" action="{% url 'staff-terminal-lock' %}" class="staff-nav__lock">
+      {% csrf_token %}<button type="submit" class="staff-btn staff-btn--sm staff-btn--primary"><i class="bi bi-lock" aria-hidden="true"></i> Lock terminal</button>
+    </form>
+  {% endif %}
   {% if user.is_authenticated and staff_nav %}
     <nav aria-label="Primary">
       <ul class="staff-nav__links">
@@ -50,9 +55,6 @@
   {% endif %}
   <div class="staff-nav__meta">
     {% if user.is_authenticated %}
-      <form method="post" action="{% url 'staff-terminal-lock' %}" class="staff-nav__lock">
-        {% csrf_token %}<button type="submit" class="staff-btn staff-btn--sm staff-btn--primary"><i class="bi bi-lock" aria-hidden="true"></i> Lock terminal</button>
-      </form>
       {% if staff_nav_outlets %}
         <form class="staff-nav__outlet-form" method="post" action="{% url 'staff-select-outlet' %}">
           {% csrf_token %}

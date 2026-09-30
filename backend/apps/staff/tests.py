@@ -38,6 +38,7 @@ from apps.purchasing.models import (
     Supplier,
 )
 from apps.staff.middleware import (
+    STAFF_SESSION_OUTLET_ALL,
     STAFF_SESSION_OUTLET_KEY,
     STAFF_SESSION_SITE_KEY,
     STAFF_SESSION_TENANT_KEY,
@@ -255,6 +256,8 @@ class StaffUiTests(TestCase):
         self.assertContains(response, "Sales &amp; floor")
         self.assertContains(response, "Stock &amp; buying")
         self.assertContains(response, "Workspace")
+        mobile_header = response.content.split(b'<header class="staff-nav', 1)[1].split(b'</header>', 1)[0]
+        self.assertLess(mobile_header.index(b'staff-nav__lock'), mobile_header.index(b'<nav aria-label="Primary">'))
 
     def test_workspace_named_urls_reverse(self) -> None:
         self.assertEqual(reverse("staff-workspace-branding"), "/staff/settings/branding/")
@@ -2004,7 +2007,36 @@ class StaffOrdersLaneTests(TestCase):
         r = self.client.get(reverse("staff-orders"), {"q": "HOLD A1"})
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "HOLD A1")
-        self.assertNotContains(r, self.open_order.bill_reference)
+        self.assertEqual([o.id for o in r.context["orders"]], [self.held_order.id])
+        self.assertContains(r, self.open_order.bill_reference)  # Active lane stays visible.
+
+    def test_history_filters_do_not_hide_active_service_lanes(self) -> None:
+        response = self.client.get(reverse("staff-orders"), {"status": "closed", "q": "no matching bill"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "HOLD A1")
+        self.assertContains(response, self.open_order.bill_reference)
+        self.assertEqual(response.context["page_obj"].paginator.count, 0)
+        fragment = self.client.get(reverse("staff-orders"), {
+            "status": "closed", "q": "no matching bill", "fragment": "lanes",
+        })
+        self.assertContains(fragment, "HOLD A1")
+
+    def test_all_sections_only_shows_membership_outlets(self) -> None:
+        other = Outlet.objects.create(site=self.site, name="Private bar", outlet_type=OutletType.BAR)
+        hidden = Order.objects.create(tenant=self.tenant, outlet=other, status=OrderStatus.OPEN)
+        worker = User.objects.create_user(email="scoped-lane@test.local", password="TestPass9!")
+        member = Membership.objects.create(user=worker, tenant=self.tenant, role=MembershipRole.SERVER)
+        member.outlets.add(self.outlet)
+        self.client.force_login(worker)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.id)
+        session[STAFF_SESSION_OUTLET_KEY] = STAFF_SESSION_OUTLET_ALL
+        session.save()
+        response = self.client.get(reverse("staff-orders"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "HOLD A1")
+        self.assertNotContains(response, hidden.bill_reference)
+        self.assertEqual(response.context["page_obj"].paginator.count, 3)
 
     def test_orders_page_labels_manual_refresh_honestly(self) -> None:
         r = self.client.get(reverse("staff-orders"))

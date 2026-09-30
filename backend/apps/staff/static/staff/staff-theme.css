@@ -207,7 +207,7 @@ body.staff-body {
   gap: 0.75rem 1.25rem;
 }
 
-.staff-nav__lock { margin: 0; }
+.staff-nav__lock { margin: 0 0 0 auto; }
 .staff-nav__lock .staff-btn { min-height: var(--staff-tap-target); white-space: nowrap; }
 
 .staff-nav__outlet-form {
@@ -252,6 +252,9 @@ body.staff-body {
     padding-bottom: 0.5rem;
   }
 
+  .staff-nav__brand { max-width: calc(100% - 10rem); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .staff-nav__lock { flex: 0 0 auto; }
+
   .staff-nav > nav {
     width: 100%;
     min-width: 0;
@@ -270,7 +273,7 @@ body.staff-body {
   }
 
   .staff-nav__link {
-    min-height: 2.4rem;
+    min-height: var(--staff-tap-target);
     padding: 0.25rem 0.65rem;
     white-space: nowrap;
   }
@@ -283,10 +286,8 @@ body.staff-body {
     gap: 0.45rem;
   }
 
-  .staff-nav__lock { grid-column: 1 / -1; }
-  .staff-nav__lock .staff-btn { width: 100%; }
-  .staff-nav__meta > a, .staff-nav__meta > form:not(.staff-nav__outlet-form, .staff-nav__lock) { min-width: 0; }
-  .staff-nav__meta > a.staff-btn, .staff-nav__meta > form:not(.staff-nav__outlet-form, .staff-nav__lock) .staff-btn { width: 100%; }
+  .staff-nav__meta > a, .staff-nav__meta > form:not(.staff-nav__outlet-form) { min-width: 0; }
+  .staff-nav__meta > a.staff-btn, .staff-nav__meta > form:not(.staff-nav__outlet-form) .staff-btn { width: 100%; }
 
   .staff-nav__outlet-form {
     display: block;
@@ -301,6 +302,7 @@ body.staff-body {
   .staff-nav__outlet-form .staff-input {
     width: 100%;
     min-width: 0;
+    min-height: var(--staff-tap-target);
   }
 
   .staff-nav__email {
