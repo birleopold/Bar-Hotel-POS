@@ -324,6 +324,7 @@ class Workstation(TimeStampedModel):
     name = models.CharField(max_length=80)
     code = models.SlugField(max_length=40)
     is_active = models.BooleanField(default=True)
+    requires_pairing = models.BooleanField(default=False, help_text="Require administrator-approved browser pairing for staff register operations.")
     receipt_printer = models.CharField(max_length=120, blank=True)
     kitchen_printer = models.CharField(max_length=120, blank=True)
     cash_drawer = models.CharField(max_length=80, blank=True)
@@ -342,6 +343,25 @@ class Workstation(TimeStampedModel):
 
     def __str__(self):
         return f"{self.name} ({self.code})"
+
+
+class WorkstationPairing(TimeStampedModel):
+    """Revocable browser credential. Never stores the raw 256-bit secret."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="workstation_pairings")
+    workstation = models.ForeignKey(Workstation, on_delete=models.PROTECT, related_name="pairings")
+    label = models.CharField(max_length=80)
+    token_hash = models.CharField(max_length=64, editable=False)
+    approved_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="workstation_pairings_approved")
+    expires_at = models.DateTimeField()
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="workstation_pairings_revoked")
+    revocation_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 class PosShiftStatus(models.TextChoices):

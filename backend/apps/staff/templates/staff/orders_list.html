@@ -14,7 +14,7 @@
             <a class="staff-pos-orders-jump" href="#staff-orders-history"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>Past orders</a>
           </div>
           <p class="staff-pos-orders-kicker mb-1">Point of sale</p>
-          <h1 class="staff-page-title staff-page-title--pos mb-1">Orders<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <h1 class="staff-page-title staff-page-title--pos mb-1">{% if mine_filter %}My orders{% else %}Orders{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-muted mb-0 staff-pos-orders-hero__lede">{% if current_outlet %}Serving {{ current_outlet.name }} · Start a check or pick up an active tab.{% else %}Select a section to start an order, or find a past bill below.{% endif %}</p>
         </div>
         <div class="staff-pos-orders-hero__actions">
@@ -91,12 +91,14 @@
 
       <div class="staff-pos-orders-history__controls">
         <nav class="staff-pos-orders-segments" aria-label="Order status">
-          <a class="staff-pos-orders-seg{% if not status_filter %} staff-pos-orders-seg--active{% endif %}"{% if not status_filter %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}{% if q_filter %}?q={{ q_filter|urlencode }}{% endif %}">All</a>
-          <a class="staff-pos-orders-seg{% if status_filter == 'open' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'open' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=open{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Open</a>
-          <a class="staff-pos-orders-seg{% if status_filter == 'closed' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'closed' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=closed{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Closed</a>
-          <a class="staff-pos-orders-seg{% if status_filter == 'cancelled' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'cancelled' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=cancelled{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Cancelled</a>
+          <a class="staff-pos-orders-seg{% if not status_filter %} staff-pos-orders-seg--active{% endif %}"{% if not status_filter %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?{% if mine_filter %}mine=1&{% endif %}{% if q_filter %}q={{ q_filter|urlencode }}{% endif %}">All</a>
+          <a class="staff-pos-orders-seg{% if status_filter == 'open' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'open' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=open{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Open</a>
+          <a class="staff-pos-orders-seg{% if status_filter == 'closed' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'closed' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=closed{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Closed</a>
+          <a class="staff-pos-orders-seg{% if status_filter == 'cancelled' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'cancelled' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=cancelled{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Cancelled</a>
         </nav>
+        <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}{% if not mine_filter %}?mine=1{% endif %}">{% if mine_filter %}Everyone's orders{% else %}My orders{% endif %}</a>
         <form class="staff-pos-orders-search" method="get" action="{% url 'staff-orders' %}">
+          {% if mine_filter %}<input type="hidden" name="mine" value="1">{% endif %}
           {% if status_filter %}
             <input type="hidden" name="status" value="{{ status_filter }}">
           {% endif %}
@@ -139,13 +141,13 @@
     {% if is_paginated %}
       <nav class="staff-pager staff-pager--pos staff-pager--pos-footer" aria-label="Past orders pages">
         {% if page_obj.has_previous %}
-          <a class="staff-btn staff-btn--sm staff-btn--ghost" rel="prev" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}"><i class="bi bi-chevron-left me-1"></i>Newer</a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost" rel="prev" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}"><i class="bi bi-chevron-left me-1"></i>Newer</a>
         {% else %}
           <span class="staff-pager__spacer"></span>
         {% endif %}
         <span class="staff-pager__meta">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
         {% if page_obj.has_next %}
-          <a class="staff-btn staff-btn--sm staff-btn--ghost" rel="next" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Older<i class="bi bi-chevron-right ms-1"></i></a>
+          <a class="staff-btn staff-btn--sm staff-btn--ghost" rel="next" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Older<i class="bi bi-chevron-right ms-1"></i></a>
         {% else %}
           <span class="staff-pager__spacer"></span>
         {% endif %}

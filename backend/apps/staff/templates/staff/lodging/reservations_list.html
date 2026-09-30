@@ -1,12 +1,12 @@
 {% extends "staff/base.html" %}
-{% block title %}Reservations{% endblock %}
+{% block title %}{{ lane_title }}{% endblock %}
 {% block content %}
   <header class="staff-page-hero">
     <div class="staff-dash-hero__panel">
       <p class="staff-dash-hero__eyebrow">Lodging</p>
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Reservations<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <h1 class="staff-page-title mb-0">{{ lane_title }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
           <p class="staff-dash-hero__tagline mb-0">Stays, check-in, and room assignment.</p>
         </div>
@@ -19,8 +19,15 @@
     </div>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
+  <nav class="staff-chip-row mb-3" aria-label="Front desk tasks">
+    <a class="staff-btn staff-btn--ghost" href="?lane=arrivals"{% if lane_filter == 'arrivals' %} aria-current="page"{% endif %}>Arrivals</a>
+    <a class="staff-btn staff-btn--ghost" href="?lane=departures"{% if lane_filter == 'departures' %} aria-current="page"{% endif %}>Departures</a>
+    <a class="staff-btn staff-btn--ghost" href="?lane=in_house"{% if lane_filter == 'in_house' %} aria-current="page"{% endif %}>In-house</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}">All stays</a>
+  </nav>
   <h2 class="staff-section-head">Find a stay</h2>
   <form class="staff-toolbar staff-toolbar--tight" method="get">
+    {% if lane_filter %}<input type="hidden" name="lane" value="{{ lane_filter }}">{% endif %}
     <label class="staff-label" for="reservation-status">Status</label>
     <select class="staff-input staff-filter-select" id="reservation-status" name="status" onchange="this.form.submit()">
       <option value="">All statuses</option>
@@ -51,7 +58,9 @@
       </table>
     </div>
   {% else %}
-    {% if can_modify_lodging %}
+    {% if lane_filter or status_filter %}
+      {% include "staff/includes/empty_state.html" with title="No stays match this task" message="No reservations match the selected task and status in this branch." %}
+    {% elif can_modify_lodging %}
       {% url "staff-lodging-reservation-create" as reservation_create_url %}
       {% include "staff/includes/empty_state.html" with title="No reservations found" message="Create your first reservation to start front-desk operations for this branch." action_url=reservation_create_url action_label="New reservation" %}
     {% else %}
@@ -60,9 +69,9 @@
   {% endif %}
   {% if is_paginated %}
     <nav class="staff-pager" aria-label="Reservation pages">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}">Previous</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter|urlencode }}&lane={{ lane_filter }}">Previous</a>{% endif %}
       <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}&lane={{ lane_filter }}">Next</a>{% endif %}
     </nav>
   {% endif %}
 {% endblock %}

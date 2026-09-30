@@ -30,6 +30,7 @@ urlpatterns = [
     path("orders/<uuid:order_id>/", views_ops.StaffOrderDetailView.as_view(), name="staff-order-detail"),
     path("orders/<uuid:order_id>/print/", views_ops.StaffOrderPrintView.as_view(), name="staff-order-print"),
     path("pos/workstations/", views_workstations.StaffWorkstationListView.as_view(), name="staff-workstations"),
+    path("pos/workstations/<uuid:workstation_id>/browsers/", views_workstations.StaffWorkstationPairView.as_view(), name="staff-workstation-pair"),
     path("pos/workstations/new/", views_workstations.StaffWorkstationEditView.as_view(), name="staff-workstation-create"),
     path("pos/workstations/<uuid:workstation_id>/edit/", views_workstations.StaffWorkstationEditView.as_view(), name="staff-workstation-edit"),
     path("pos/shifts/", views_ops.StaffPosShiftListView.as_view(), name="staff-pos-shifts"),

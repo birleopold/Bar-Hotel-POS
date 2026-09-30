@@ -109,3 +109,12 @@ Payments and refunds now link to their own executing shift. A refund paid at Til
 Staff checkout/refund/linked-return actions use the selected workstation and show its identity. Register close is constrained to that selected device. API requests accept workstation/shift identifiers, responses expose shift identifiers, and read-only scoped shift discovery supports offline clients. Offline workstation payments require their source shift ID; closed-shift new tenders fail for review, while exact already-applied replays retain old links. Idempotency rejects another specified register. No persisted offline conflict manager, cash-drop ledger, physical pairing or formal cashier handover is implied.
 
 Full local suite: **290 passed, 5 PostgreSQL-only skipped**. Django checks, migration consistency and generated schema pass. A disposable SQLite migration probe verified legacy amount/mode preservation, new default, reverse and reapply. PostgreSQL-only tests now include same/different workstation open races and payment-versus-close consistency; no PostgreSQL execution or visual/hardware certification is claimed.
+
+
+### September 30 — device implementation complete and role workspaces begun
+
+Browser approvals now require owner/admin full-password authentication and password reconfirmation. Hash-only stored tokens, signed HttpOnly credentials, expiry, scoped history and audited remote/local revocation complete the Phase 01 implementation boundary. PIN sessions/unlock and staff register settlement enforce required approvals; legacy stations retain compatible opt-in policy. Formal handover and hardware adapters remain separate required roadmap work.
+
+Phase 02 now adds floor task shortcuts, scoped My orders and reception arrival/departure/in-house queues. Dashboard new-order creation uses POST; GET navigation no longer writes. Overflow actions are preserved. Cashier/storekeeper/manager workspace completion and visual evidence remain pending.
+
+Full SQLite suite: **298 passed, 5 PostgreSQL-only skipped**. Django checks/migration consistency pass. Migrations 0014/0015 apply/reverse/reapply successfully on SQLite; rollback removes approval records. PostgreSQL/RLS/concurrency, browser widths and physical devices remain unverified. Local browser launch could not run because the Chromium executable is absent.

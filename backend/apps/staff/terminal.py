@@ -22,16 +22,46 @@ PIN_FAILURE_LIMIT = 5
 PIN_LOCK_MINUTES = 15
 
 
-def terminal_scope(request):
+def terminal_scope(request, *, validate_pairing=True):
     try:
         payload = signing.loads(request.COOKIES.get(TERMINAL_COOKIE, ""), salt=TERMINAL_SALT, max_age=TERMINAL_SECONDS)
-        return uuid.UUID(payload["tenant"]), payload.get("outlet", "")
-    except (signing.BadSignature, KeyError, ValueError, TypeError):
+        tenant_id = uuid.UUID(payload["tenant"])
+        outlet_id = payload.get("outlet", "")
+        if validate_pairing:
+            from apps.pos.models import Workstation
+            from .workstations import active_pairing, _selection_id
+            pairing_id = payload.get("pairing")
+            if pairing_id:
+                pair = active_pairing(request, tenant_id=tenant_id)
+                if (pair is None or str(pair.pk) != pairing_id or _selection_id(request) != pair.workstation_id
+                        or outlet_id != str(pair.workstation.outlet_id)):
+                    return None
+            else:
+                required = Workstation.objects.filter(tenant_id=tenant_id, is_active=True, requires_pairing=True)
+                selected_id = _selection_id(request)
+                if selected_id:
+                    required = required.filter(pk=selected_id)
+                elif outlet_id and outlet_id != STAFF_SESSION_OUTLET_ALL:
+                    required = required.filter(outlet_id=uuid.UUID(outlet_id))
+                if required.exists():
+                    return None
+        return tenant_id, outlet_id
+    except (signing.BadSignature, KeyError, ValueError, TypeError, AttributeError):
         return None
 
 
-def mark_terminal(response, *, tenant_id, outlet_id=""):
-    value = signing.dumps({"tenant": str(tenant_id), "outlet": str(outlet_id)}, salt=TERMINAL_SALT)
+def mark_terminal(response, *, tenant_id, outlet_id="", request=None):
+    payload = {"tenant": str(tenant_id), "outlet": str(outlet_id)}
+    if request is not None:
+        from .workstations import active_pairing, _selection_id
+        pair = active_pairing(request, tenant_id=tenant_id)
+        from .workstations import PAIR_COOKIE
+        if PAIR_COOKIE in request.COOKIES and pair is None:
+            payload["pairing"] = "unavailable"
+        if pair is not None and _selection_id(request) == pair.workstation_id:
+            payload["pairing"] = str(pair.pk)
+            payload["outlet"] = str(pair.workstation.outlet_id)
+    value = signing.dumps(payload, salt=TERMINAL_SALT)
     response.set_cookie(
         TERMINAL_COOKIE, value, max_age=TERMINAL_SECONDS, httponly=True,
         secure=settings.SESSION_COOKIE_SECURE, samesite="Strict", path="/staff/",

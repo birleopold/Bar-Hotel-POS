@@ -72,7 +72,7 @@ from .forms import (
 )
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
-from .workstations import selected_workstation, settlement_workstation_id
+from .workstations import selected_workstation, settlement_workstation_id, require_staff_register_selection
 from .report_csv import format_sales_summary_csv
 from .sales_summary import build_sales_summary
 from .services import (
@@ -172,6 +172,8 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         outlet = resolve_staff_outlet(self.request, outlets)
         if outlet:
             qs = qs.filter(outlet=outlet)
+        if self.request.GET.get("mine") == "1":
+            qs = qs.filter(created_by=self.request.user)
         return qs
 
     def get_queryset(self):
@@ -192,6 +194,7 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["status_filter"] = self.request.GET.get("status") or ""
+        ctx["mine_filter"] = self.request.GET.get("mine") == "1"
         ctx["q_filter"] = (self.request.GET.get("q") or "").strip()
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
@@ -289,10 +292,8 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
         return redirect("staff-order-detail", order_id=order.id)
 
     def get(self, request: HttpRequest) -> HttpResponse:
-        # Links (dashboard, workbench) use GET; forms on orders list use POST.
-        mode = (request.GET.get("mode") or "walkin").strip() or "walkin"
-        hold_label = (request.GET.get("hold_label") or "").strip()
-        return self._quick_create(request, mode=mode, hold_label=hold_label)
+        # Browsing or prefetching a task link must never create an order.
+        return redirect("staff-orders")
 
     def post(self, request: HttpRequest) -> HttpResponse:
         mode = (request.POST.get("mode") or "").strip()
@@ -349,6 +350,11 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         if outlet is None:
             messages.error(request, "Select one outlet to manage shifts.")
             return redirect("staff-pos-shifts")
+        try:
+            selected_station = require_staff_register_selection(request, outlet=outlet)
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+            return redirect("staff-workstations")
         action = (request.POST.get("action") or "").strip()
         if action == "open_shift":
             form = StaffPosShiftOpenForm(request.POST)
@@ -363,7 +369,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
                     user=request.user,
                     opening_cash=form.cleaned_data["opening_cash"],
                     note=form.cleaned_data.get("note") or "",
-                    workstation=self._selected_for_outlet(request, outlet),
+                    workstation=selected_station,
                 )
             except DRFValidationError as exc:
                 _flash_drf_validation(request, exc)
@@ -380,7 +386,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
                 id=form.cleaned_data["shift_id"],
                 tenant=request.tenant,
                 outlet=outlet,
-                workstation=self._selected_for_outlet(request, outlet),
+                workstation=selected_station,
             ).first()
             if shift is None:
                 messages.error(request, "Shift not found.")
@@ -798,7 +804,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 amount=form.cleaned_data["amount"],
                 method=form.cleaned_data["method"],
                 idempotency_key=str(uuid.uuid4()),
-                workstation_id=settlement_workstation_id(request),
+                workstation_id=settlement_workstation_id(request, outlet=order.outlet),
             )
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
@@ -1029,7 +1035,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 amount=form.cleaned_data["amount"], reason=form.cleaned_data.get("reason") or "",
                 restock=bool(form.cleaned_data.get("restock")), user=request.user,
                 idempotency_key=str(uuid.uuid4()),
-                workstation_id=settlement_workstation_id(request),
+                workstation_id=settlement_workstation_id(request, outlet=order.outlet),
                 payment_id=uuid.UUID(form.cleaned_data["payment_id"]) if "payment_id" in form.fields else None,
             )
         except DRFValidationError as exc:
@@ -1173,7 +1179,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 amount=form.cleaned_data["amount"],
                 reason=form.cleaned_data.get("reason") or "",
                 idempotency_key=str(uuid.uuid4()),
-                workstation_id=settlement_workstation_id(request),
+                workstation_id=settlement_workstation_id(request, outlet=order.outlet),
                 restock=bool(form.cleaned_data.get("restock")),
                 payment_id=payment_id,
             )

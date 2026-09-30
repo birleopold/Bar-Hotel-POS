@@ -22,6 +22,7 @@ class StaffDashboardAction:
     variant: str  # "primary" | "secondary"
     hint: str = ""
     icon: str = "arrow-up-right"
+    method: str = "get"
 
 
 _ACTION_DEFS: dict[str, tuple[str, str, str]] = {
@@ -185,6 +186,30 @@ def staff_dashboard_actions(
     seen_urls: set[str] = set()
     overrides = action_overrides or {}
 
+    # Task lanes reuse the scoped list views and shared order creation service.
+    tasks = []
+    if membership.role == MembershipRole.FRONT_DESK and vis.lodging and show_lodging_nav:
+        tasks = [
+            ("staff-lodging-reservations", "Arrivals", "?lane=arrivals", "door-open", "get"),
+            ("staff-lodging-reservations", "Departures", "?lane=departures", "box-arrow-right", "get"),
+            ("staff-lodging-reservations", "In-house", "?lane=in_house", "people", "get"),
+            ("staff-lodging-rooms", "Rooms", "", "grid-3x3-gap", "get"),
+            ("staff-lodging-reservation-create", "New reservation", "", "calendar-plus", "get"),
+        ]
+    elif membership.role in (MembershipRole.SERVER, MembershipRole.BARTENDER) and vis.orders and show_ops_nav:
+        if vis.tables:
+            tasks.append(("staff-tables", "Floor", "", "grid-3x3-gap", "get"))
+        tasks.extend([
+            ("staff-orders", "Active orders", "?status=open", "receipt", "get"),
+            ("staff-order-quick-create", "New order", "", "plus-circle", "post"),
+            ("staff-orders", "My orders", "?mine=1&status=open", "person-check", "get"),
+            ("staff-pos-shifts", "Register", "", "wallet2", "get"),
+        ])
+    for route, label, query, icon, method in tasks:
+        url = reverse(route) + query
+        primary.append(StaffDashboardAction(label, url, "primary", icon=icon, method=method))
+        seen_urls.add(url)
+
     for cap in order:
         if cap not in _ACTION_DEFS:
             continue
@@ -245,9 +270,6 @@ def staff_dashboard_actions(
         seen_urls.add(url)
         secondary.append(StaffDashboardAction(label=label, url=url, variant="secondary", hint=hint))
 
-    for a in overflow:
-        if a.url not in seen_urls:
-            secondary.insert(0, a)
-            seen_urls.add(a.url)
+    secondary = overflow + secondary
 
     return top, secondary[:10]

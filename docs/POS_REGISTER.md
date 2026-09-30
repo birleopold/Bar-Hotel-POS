@@ -25,3 +25,12 @@ API payment, refund and linked-return requests accept optional `workstation_id` 
 Offline `order_payment` payloads from configured workstation sections must include their original `shift_id`. A new delayed tender targeting a closed shift is rejected for operator review rather than being assigned to the next cashier. The existing rejection path does not provide a complete persisted conflict-resolution workflow; that is still in the offline checklist. An already-applied action can replay after close, retaining its original link. Reusing an idempotency key with another specified workstation or shift is rejected.
 
 Migration 0013 preserves all existing shift amounts and marks existing shifts for legacy time-window accounting. Existing payments/refunds keep nullable, unassigned links; there is no speculative historical attribution. Close legacy shifts before opening concurrent named tills. New shifts use explicit links. Back up the database before upgrading. Schema reverse/reapply was checked only on disposable data; after recording new attributed transactions, rollback should restore a matching backup and code version, because reversing this migration removes the attribution fields.
+
+
+## Approved browsers
+
+Owners and tenant administrators can open **Workstations → Browser approvals**, confirm their account password and name the browser being approved. Administration requires a password-authenticated session. New workstations created through staff configuration require approval by default; existing workstations remain opt-in. Approval expires after 30 days and remains attached to the browser through worker PIN changes.
+
+Remote revocation records a reason and locks the affected PIN session on its next request. Detaching the current browser revokes its current approval and clears selection. Expired, revoked or modified credentials cannot operate required-pairing staff registers or unlock their PIN terminal. Moving/disabling a station revokes approvals; close an open shift before moving, disabling or changing its approval policy. Browser approval does not grant worker permissions or prove physical hardware identity. API clients retain authenticated account authorization and explicit shift attribution.
+
+Phase 01 source implementation is complete. Cash drops/payouts and formal handover remain checklist item 04; device adapters and printer tests remain item 15. PostgreSQL, browser and hardware evidence is tracked separately.

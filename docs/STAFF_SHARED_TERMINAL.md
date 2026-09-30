@@ -18,3 +18,8 @@ An owner or tenant admin can see PIN readiness in **Workspace → Members**, fil
 ## Deployment and verification
 
 Deploy `accounts.0003_membership_staff_pin_failures_and_more` before enabling staff use. Existing workers can keep using their passwords until they choose a PIN. On a shared computer, verify lock, handoff between two roles, section restrictions, a failed PIN, browser back, and automatic idle lock. Run the full Django suite before release; a local test does not replace a real browser and production PostgreSQL check.
+
+
+## Workstation browser approvals
+
+A password-authenticated owner/admin approves a browser for a named workstation through its Browser approvals page, reconfirming their password. Approval remains on the browser while each worker signs in with their own PIN and existing outlet permissions. Approvals expire after 30 days. Remote revocation, expiry or disabling the workstation invalidates the associated PIN session on its next staff request and prevents unlock until the browser is approved again. Detach revokes the current browser approval. Legacy workstations can retain optional approval until an administrator enables the requirement with the shift closed. Cookie credentials are HttpOnly and signed; only a token hash is stored in the approval record.

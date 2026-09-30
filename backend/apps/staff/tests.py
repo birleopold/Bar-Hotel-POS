@@ -2045,16 +2045,11 @@ class StaffOrdersLaneTests(TestCase):
         self.assertContains(r, "Refresh")
         self.assertNotContains(r, "Degraded (retrying)")
 
-    def test_quick_create_get_walkin_order_redirects_to_detail(self) -> None:
+    def test_quick_create_get_does_not_create_order(self) -> None:
         before = Order.objects.filter(tenant=self.tenant).count()
-        r = self.client.get(reverse("staff-order-quick-create"))
-        self.assertEqual(r.status_code, 302)
-        after = Order.objects.filter(tenant=self.tenant).count()
-        self.assertEqual(after, before + 1)
-        created = Order.objects.filter(tenant=self.tenant).order_by("-created_at").first()
-        assert created is not None
-        self.assertEqual(created.table_label, "")
-        self.assertIn(str(created.id), r.url)
+        response = self.client.get(reverse("staff-order-quick-create"))
+        self.assertRedirects(response, reverse("staff-orders"))
+        self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), before)
 
     def test_quick_create_new_walkin_order_redirects_to_detail(self) -> None:
         before = Order.objects.filter(tenant=self.tenant).count()

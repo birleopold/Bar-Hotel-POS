@@ -15,8 +15,8 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 ## Foundation and operational workspaces
 
-- [-] **01 Workstations/registers/devices:** named, tenant/outlet-scoped device registry; device code; enable/disable; browser selection/pairing/revocation; worker + register + outlet shift ownership; last contact; printer/drawer/KDS configuration; till-by-till payment/refund attribution and reconciliation; migration policy for outlet-only shifts; concurrent open/close checks.
-- [ ] **02 Role workspaces:** waiter Floor/Open tables/New order/My orders/Lock; cashier Checkout/Active orders/Returns/Register/Lock; reception Arrivals/Departures/In-house/Rooms/New reservation; storekeeper Receive/Transfers/Counts/Low stock/Purchase orders; manager Today/Exceptions/Approvals/Team/Reports. Complete cross-screen journeys and role-filtered navigation.
+- [x] **01 Workstations/registers/devices:** named, tenant/outlet-scoped device registry; device code; enable/disable; browser selection/pairing/revocation; worker + register + outlet shift ownership; last contact; printer/drawer/KDS configuration; till-by-till payment/refund attribution and reconciliation; migration policy for outlet-only shifts; concurrent open/close checks.
+- [-] **02 Role workspaces:** waiter Floor/Open tables/New order/My orders/Lock; cashier Checkout/Active orders/Returns/Register/Lock; reception Arrivals/Departures/In-house/Rooms/New reservation; storekeeper Receive/Transfers/Counts/Low stock/Purchase orders; manager Today/Exceptions/Approvals/Team/Reports. Complete cross-screen journeys and role-filtered navigation.
 - [ ] **03 Manager exception centre:** linked cash variances, high refunds, discounts, voids, stock adjustments, low stock, delivery discrepancies, overdue departures, EFRIS failures, offline conflicts and failed PIN attempts; configurable thresholds; resolution history and scoped access.
 - [ ] **04 Shift handover:** float, cash sales/refunds, paid outs/drops, independent count, variance explanation, manager approval and next-cashier acceptance; immutable attribution and reconciled cash ledger.
 - [ ] **05 Unified customer/guest:** shared identity and contact details across stays, POS, retail and events; merge/deduplicate safely; history, preferences, spend, credit and invoices; privacy and tenant scope.
@@ -89,13 +89,14 @@ Baseline `afcf465` on main. Reviewed current register, PIN, outlet scope and aud
 - [x] Audited create/update/selection; throttled last-contact timestamp; optional PostgreSQL RLS migration.
 - [x] Printer/drawer/KDS labels are stored and shown honestly as configuration, not active hardware integrations.
 - [x] Payment/refund attribution, multiple named tills, per-till cash calculation and idempotent replay.
-- [ ] Drawer movement ledger for cash drops/payouts and formal handover.
-- [ ] Strong device pairing/revocation, hardware adapters, printer routing/test, formal handover.
+- [ ] Drawer movement ledger, cash drops/payouts and formal handover — retained in item 04.
+- [x] Password-approved browser pairing, scoped approval history, expiry and revocation.
+- [ ] Hardware adapters, printer routing and device tests — retained in item 15.
 - [ ] PostgreSQL workstation/concurrent shift evidence, browser widths and physical devices.
 
 Verification: full local SQLite suite **278 passed, 2 PostgreSQL-only skipped**. Seven added regressions cover scope/roles, duplicate device codes, signed selection, worker handoff, shift linkage, active-shift edit protection and service scope. Django check and migration consistency pass. New migrations also passed apply → reverse to 0010 → reapply on a disposable SQLite database. Visual browser, PostgreSQL and hardware certification are not claimed. README count and obsolete PIN/modifier statements in the historical product plan were corrected; generated feature matrix remains outstanding.
 
-Next required dependency: complete device pairing/revocation and the drawer movement/handover workflow, then continue the numbered workspace/exception-centre roadmap. This document retains all later scope; none is silently considered complete.
+Checkpoint dependency at that time: browser pairing/revocation. This is now complete below. Cash movement/handover and hardware implementation remain required under items 04 and 15 respectively; neither is included in the completed device registry boundary.
 
 ### Register attribution checkpoint — 2026-09-30
 
@@ -106,3 +107,22 @@ Staff register/checkout/refund screens now identify the selected device; the reg
 Offline payments in workstation sections require original `shift_id`; new tenders for closed shifts are rejected for review. No complete persisted offline conflict workflow is claimed. Migration 0013 preserves old shift cash mode/amounts and leaves historical links unassigned. A disposable database probe confirmed old mode preservation, new-mode default, reverse and reapply. Backups are necessary for rollback after live attributed transactions.
 
 Verification: **290 passed, 5 PostgreSQL-only skipped** on SQLite. Twelve added attribution regressions cover concurrent-device accounting, refund drawer, tender exclusion, ambiguous/missing/disabled/closed register rollback, legacy totals, replay after close, linked-return rollback/attribution, API outlet scope, staff close scope and offline origin checks. Three added PostgreSQL-only races cover same-device open, different-device open and payment-versus-close. These tests still need a real PostgreSQL run; browser widths and physical cash/device validation remain external gates.
+
+### Phase 01 implementation complete; Phase 02 underway — 2026-09-30
+
+Current phase: **02 Role workspaces**. The original roadmap remains the organizing intent; the numbered 34-item checklist expands its scope. Phase 01 means device identity/configuration, browser approval/revocation, worker/register/outlet shift linkage and correct per-register money attribution. Formal handover and hardware drivers remain their own later work items (04 and 15); no scope is discarded by advancing.
+
+- [x] Full-password owner/admin device administration and password-confirmed browser approvals. New staff-created stations default to requiring approval; existing stations retain compatible opt-in behavior.
+- [x] Thirty-day signed HttpOnly browser credential; only its hash is stored. Approved browser identity survives worker PIN handoff without granting extra worker permissions.
+- [x] Scoped approval list, remote revocation with reason/actor, local detach, expiry and tamper rejection. Disabling or moving a station revokes its approvals; open shifts prevent unsafe policy changes.
+- [x] Revoked/expired approvals invalidate their PIN session on the next request and block terminal unlock. Required-pairing sections reject staff register/payment/refund attempts without approved selection. Authenticated API clients keep their existing account authorization and register attribution contract.
+- [x] Phase 02 floor shortcuts: Floor, Active orders, New order, My orders and Register. My orders respects worker, tenant and outlet scope; search/status/pagination retain that filter. Existing lock control remains available.
+- [x] Phase 02 reception shortcuts: Arrivals, Departures, In-house, Rooms and New reservation. Arrival queue includes today's held/confirmed stays; departures include checked-in stays due today or overdue. In-house includes all checked-in stays. All lanes retain branch scope and status filters; empty states describe the actual filter.
+- [x] New-order dashboard actions submit CSRF-protected POST. GET navigation no longer creates an order. Existing domain service handles creation.
+- [x] Dashboard overflow actions now remain visible rather than being accidentally discarded as duplicates.
+- [ ] Finish cashier-specific task emphasis, storekeeper receiving/transfer/count/low-stock journeys and manager workspace links as their dependencies become available. Complete responsive cross-screen evidence for all roles.
+- [ ] Phase 01 external gates: run PostgreSQL concurrency/RLS tests against a non-superuser tenant-scoped connection, inspect real browser widths and validate actual deployment/device behavior. Browser automation package is present locally but its Chromium executable is absent; no visual certification is claimed.
+
+Verification: full local SQLite suite **298 passed, 5 PostgreSQL-only skipped**. Eight added regressions cover pairing permissions/password checks, hashing/cookies/audit, expiry/tampering/detach, PIN handoff/revocation, policy edits and cross-tenant isolation, plus floor creation/filter scope and reception date/status/branch queues. Django system check, migration consistency and diff whitespace checks pass. Migrations 0014/0015 passed apply → reverse to 0013 → reapply on a disposable SQLite database; legacy stations retain optional approval. Reversal deletes approval records, so reapproval is necessary after a rollback/reapply. PostgreSQL RLS behavior remains unverified.
+
+Next work: continue item 02, then item 03 exception centre. Preserve every unchecked item above and gather external evidence before any production certification claim.

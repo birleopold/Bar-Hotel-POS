@@ -1,0 +1,13 @@
+{% extends "staff/base.html" %}
+{% block title %}Browser approvals{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Device approval</p><h1 class="staff-page-title">{{ station.name }}</h1><p class="staff-dash-hero__tagline">{{ station.code }} · {{ station.outlet.name }}</p></div></header>
+<div class="staff-card"><h2 class="staff-card__title">Approve this browser</h2><p class="staff-muted">Use this screen on the actual till or tablet. Approval lasts 30 days and survives worker handoff. Each worker still uses their own login or PIN.</p>
+<form method="post" class="staff-register-form">{% csrf_token %}{% include "staff/includes/form_errors_block.html" with form=form title="Fix browser approval" %}
+{% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}</div>{% endfor %}<button class="staff-btn staff-btn--primary">Approve this browser</button></form></div>
+{% if pairings %}<div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Browser</th><th>Approved</th><th>Expires</th><th>Last contact</th><th>Revoked</th><th>Action</th></tr></thead><tbody>
+{% for pair in pairings %}<tr><td><strong>{{ pair.label }}</strong></td><td>{{ pair.created_at }}<br>{{ pair.approved_by.get_full_name|default:pair.approved_by.email }}</td><td>{{ pair.expires_at }}</td><td>{{ pair.last_seen_at|default:"No contact" }}</td><td>{{ pair.revoked_at|default:"—" }}{% if pair.revoked_at %}<br>{{ pair.revocation_reason }}{% endif %}</td><td>{% if not pair.revoked_at %}<details><summary>Revoke approval</summary><form method="post">{% csrf_token %}<input type="hidden" name="action" value="revoke"><input type="hidden" name="pairing_id" value="{{ pair.id }}"><label class="staff-label" for="reason-{{ pair.id }}">Reason</label><input class="staff-input" name="reason" id="reason-{{ pair.id }}" maxlength="255" required><label class="staff-label" for="password-{{ pair.id }}">Your account password</label><input class="staff-input" type="password" name="password" id="password-{{ pair.id }}" autocomplete="current-password" required><button class="staff-btn staff-btn--secondary mt-2">Revoke browser</button></form></details>{% else %}Revoked{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+{% if revoke_form.errors %}<div class="staff-card" role="alert"><h2 class="staff-card__title">Revocation was not saved</h2>{{ revoke_form.errors }}</div>{% endif %}
+<p class="mt-3"><a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstations' %}">Back to workstations</a></p>
+{% endblock %}

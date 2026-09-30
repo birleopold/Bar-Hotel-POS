@@ -111,6 +111,10 @@ class StaffTerminalView(View):
                 request.session["staff_pin_authenticated"] = True
                 request.session["staff_pin_last_activity"] = int(time.time())
                 request.session["staff_pin_credential"] = member.staff_pin_hash
+                from .workstations import active_pairing
+                pair = active_pairing(request, tenant_id=member.tenant_id)
+                if pair:
+                    request.session["staff_pin_pairing"] = str(pair.pk)
                 request.session.set_expiry(0)
                 log_audit(tenant_id=member.tenant_id, user_id=member.user_id,
                           action="staff.terminal_unlocked", entity_type="membership", entity_id=str(member.id), payload={})
@@ -132,7 +136,7 @@ class StaffTerminalLockView(View):
         log_audit(tenant_id=tenant_id, user_id=request.user.id,
                   action="staff.terminal_locked", entity_type="membership", entity_id=str(membership.id), payload={})
         logout(request)
-        return mark_terminal(redirect("staff-terminal"), tenant_id=tenant_id, outlet_id=outlet_id)
+        return mark_terminal(redirect("staff-terminal"), tenant_id=tenant_id, outlet_id=outlet_id, request=request)
 
 
 class StaffPinSetupView(View):

@@ -69,9 +69,9 @@
           </div>
         </div>
         <div class="staff-property-pulse__kpis">
-          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}" class="staff-property-kpi staff-property-kpi--arrival"><strong>{{ staff_dashboard_lodging_snapshot.arrivals }}</strong><span>Arrivals</span></a>
-          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?status=checked_in" class="staff-property-kpi staff-property-kpi--inhouse"><strong>{{ staff_dashboard_lodging_snapshot.in_house }}</strong><span>In house</span></a>
-          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}" class="staff-property-kpi"><strong>{{ staff_dashboard_lodging_snapshot.departures }}</strong><span>Departures</span></a>
+          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=arrivals" class="staff-property-kpi staff-property-kpi--arrival"><strong>{{ staff_dashboard_lodging_snapshot.arrivals }}</strong><span>Arrivals</span></a>
+          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=in_house" class="staff-property-kpi staff-property-kpi--inhouse"><strong>{{ staff_dashboard_lodging_snapshot.in_house }}</strong><span>In house</span></a>
+          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=departures" class="staff-property-kpi"><strong>{{ staff_dashboard_lodging_snapshot.departures }}</strong><span>Departures</span></a>
           <a href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}" class="staff-property-kpi staff-property-kpi--ready"><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong><span>Rooms ready</span></a>
           <a href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}" class="staff-property-kpi staff-property-kpi--attention"><strong>{{ staff_dashboard_lodging_snapshot.dirty_rooms }}</strong><span>Need cleaning</span></a>
           <a href="{{ staff_dashboard_lodging_snapshot.tape_url }}" class="staff-property-kpi"><strong>{{ staff_dashboard_lodging_snapshot.occupancy_percent }}%</strong><span>Occupied</span></a>
@@ -100,6 +100,7 @@
       <h2 class="staff-section-head">Start here</h2>
       <div class="staff-tile-grid">
         {% for a in staff_dashboard_primary_actions %}
+          {% if a.method == "post" %}<form method="post" action="{{ a.url }}">{% csrf_token %}<button type="submit" style="width:100%;height:100%;text-align:left" class="staff-tile staff-tile--primary"><span class="staff-tile__glyph" aria-hidden="true"><i class="bi bi-{{ a.icon }}"></i></span><span class="staff-tile__label">{{ a.label }}</span></button></form>{% else %}
           <a
             href="{{ a.url }}"
             class="staff-tile staff-tile--primary{% if forloop.first %} staff-tile--emphasis{% endif %}"
@@ -110,6 +111,7 @@
             {% if a.hint %}<span class="staff-tile__hint">{{ a.hint }}</span>{% endif %}
             <i class="bi bi-arrow-up-right staff-tile__arrow" aria-hidden="true"></i>
           </a>
+          {% endif %}
         {% endfor %}
       </div>
     {% endif %}
@@ -153,7 +155,7 @@
       <h2 class="staff-section-head">Quick</h2>
       <div class="staff-chip-row">
         {% for a in staff_dashboard_secondary_actions %}
-          <a class="staff-btn staff-btn--ghost" href="{{ a.url }}"{% if a.hint %} title="{{ a.hint }}"{% endif %}>{{ a.label }}</a>
+          {% if a.method == "post" %}<form method="post" action="{{ a.url }}">{% csrf_token %}<button class="staff-btn staff-btn--ghost" type="submit">{{ a.label }}</button></form>{% else %}<a class="staff-btn staff-btn--ghost" href="{{ a.url }}"{% if a.hint %} title="{{ a.hint }}"{% endif %}>{{ a.label }}</a>{% endif %}
         {% endfor %}
       </div>
     {% endif %}

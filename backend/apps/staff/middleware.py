@@ -42,7 +42,13 @@ class StaffTerminalIdleMiddleware:
             now = int(time.time())
             last = request.session.get("staff_pin_last_activity", 0)
             membership = getattr(request, "tenant_membership", None)
+            pairing_valid = True
+            if request.session.get("staff_pin_pairing"):
+                from .workstations import active_pairing
+                pair = active_pairing(request, tenant_id=membership.tenant_id) if membership else None
+                pairing_valid = pair is not None and str(pair.pk) == request.session["staff_pin_pairing"]
             credential_valid = (
+                pairing_valid and
                 membership is not None
                 and bool(membership.staff_pin_hash)
                 and request.session.get("staff_pin_credential") == membership.staff_pin_hash
@@ -54,7 +60,7 @@ class StaffTerminalIdleMiddleware:
                 if request.path.startswith("/staff/"):
                     response = redirect("staff-terminal")
                     if tenant_id:
-                        response = mark_terminal(response, tenant_id=tenant_id, outlet_id=outlet_id)
+                        response = mark_terminal(response, tenant_id=tenant_id, outlet_id=outlet_id, request=request)
                     return response
                 return HttpResponseForbidden("Staff terminal locked. Unlock in the staff workspace.")
             # Background polling is not a worker interaction. It must not keep
@@ -84,7 +90,7 @@ class StaffSessionTenantMiddleware:
         if path == "/staff/terminal/" and not request.user.is_authenticated:
             from .terminal import terminal_scope
 
-            scope = terminal_scope(request)
+            scope = terminal_scope(request, validate_pairing=False)
             if scope is not None:
                 request.tenant = Tenant.objects.filter(pk=scope[0], is_active=True).first()
             return self.get_response(request)

@@ -107,6 +107,14 @@ class StaffReservationsListView(StaffTenantRequiredMixin, ListView):
             .select_related("site", "room", "room__room_type")
             .order_by("-check_in", "guest_name")
         )
+        lane = self.request.GET.get("lane")
+        today = timezone.localdate()
+        if lane == "arrivals":
+            qs = qs.filter(check_in=today, status__in=[ReservationStatus.HELD, ReservationStatus.CONFIRMED]).order_by("check_in", "guest_name")
+        elif lane == "departures":
+            qs = qs.filter(check_out__lte=today, status=ReservationStatus.CHECKED_IN).order_by("check_out", "guest_name")
+        elif lane == "in_house":
+            qs = qs.filter(status=ReservationStatus.CHECKED_IN).order_by("check_out", "guest_name")
         st = self.request.GET.get("status")
         if st and st in {c[0] for c in ReservationStatus.choices}:
             qs = qs.filter(status=st)
@@ -117,6 +125,10 @@ class StaffReservationsListView(StaffTenantRequiredMixin, ListView):
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
         ctx["status_filter"] = self.request.GET.get("status") or ""
+        lane = self.request.GET.get("lane") or ""
+        ctx["lane_filter"] = lane if lane in {"arrivals", "departures", "in_house"} else ""
+        ctx["lane_title"] = {"arrivals": "Today's arrivals", "departures": "Due departures", "in_house": "In-house guests"}.get(lane, "Reservations")
+
         ctx["can_modify_lodging"] = membership_can_modify_lodging(self.request.tenant_membership)
         return ctx
 
