@@ -15,73 +15,33 @@
           </div>
           <p class="staff-pos-orders-kicker mb-1">Point of sale</p>
           <h1 class="staff-page-title staff-page-title--pos mb-1">Orders<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-muted mb-0 staff-pos-orders-hero__lede">Keep service moving. Open a tab, start an order, or find a past bill.</p>
+          <p class="staff-muted mb-0 staff-pos-orders-hero__lede">{% if current_outlet %}Serving {{ current_outlet.name }} · Start a check or pick up an active tab.{% else %}Select a section to start an order, or find a past bill below.{% endif %}</p>
         </div>
         <div class="staff-pos-orders-hero__actions">
           {% if current_outlet %}
             <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline">
               {% csrf_token %}
               <input type="hidden" name="mode" value="">
-              <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>New order</button>
+              <button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>New order</button>
             </form>
             <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline">
               {% csrf_token %}
               <input type="hidden" name="mode" value="hold">
-              <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-plus-circle-dotted me-2"></i>Held tab</button>
+              <button type="submit" class="staff-btn staff-btn--ghost"><i class="bi bi-pause-circle me-2" aria-hidden="true"></i>Held tab</button>
             </form>
           {% endif %}
           {% if show_supermarket_lane %}
-            <a class="btn btn-outline-secondary" href="{% url 'staff-pos-shifts' %}">{% if supermarket_shift_open %}<i class="bi bi-check2-circle me-1"></i>Shift open{% else %}Shift{% endif %}</a>
+            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-pos-shifts' %}">{% if supermarket_shift_open %}<i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Shift open{% else %}Open shift{% endif %}</a>
           {% endif %}
         </div>
       </div>
 
-      <div class="staff-pos-orders-summary" aria-label="Orders summary">
-        <div class="staff-pos-orders-summary__item">
-          <div class="h-100 p-3">
-            <div class="d-flex align-items-center">
-              <div class="summary-icon me-3"><i class="bi bi-pause-circle"></i></div>
-              <div>
-                <div class="text-muted small">Held</div>
-                <div class="fs-4 fw-semibold">{{ held_tabs|length }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="staff-pos-orders-summary__item">
-          <div class="h-100 p-3">
-            <div class="d-flex align-items-center">
-              <div class="summary-icon me-3"><i class="bi bi-record-circle"></i></div>
-              <div>
-                <div class="text-muted small">Open</div>
-                <div class="fs-4 fw-semibold">{{ open_tabs|length }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="staff-pos-orders-summary__item">
-          <div class="h-100 p-3">
-            <div class="d-flex align-items-center">
-              <div class="summary-icon me-3"><i class="bi bi-check-circle"></i></div>
-              <div>
-                <div class="text-muted small">Recently closed</div>
-                <div class="fs-4 fw-semibold">{{ recent_orders|length }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="staff-pos-orders-summary__item">
-          <div class="h-100 p-3">
-            <div class="d-flex align-items-center">
-              <div class="summary-icon me-3"><i class="bi bi-funnel"></i></div>
-              <div>
-                <div class="text-muted small">Orders found</div>
-                <div class="fs-4 fw-semibold">{{ page_obj.paginator.count }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <dl class="staff-pos-orders-summary" aria-label="Orders summary">
+        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Held tabs</dt><dd class="staff-pos-orders-summary__value">{{ held_tabs|length }}</dd></div>
+        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Open checks</dt><dd class="staff-pos-orders-summary__value">{{ open_tabs|length }}</dd></div>
+        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Recently closed</dt><dd class="staff-pos-orders-summary__value">{{ recent_orders|length }}</dd></div>
+        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Orders found</dt><dd class="staff-pos-orders-summary__value">{{ page_obj.paginator.count }}</dd></div>
+      </dl>
     </section>
 
     {% if ready_handoff_count %}
@@ -97,7 +57,7 @@
               <h3 class="staff-pos-supermarket-card__title"><i class="bi bi-shop me-2"></i>Supermarket</h3>
               <p class="staff-pos-supermarket-card__status">Shift is {% if supermarket_shift_open %}<strong>Open</strong>{% else %}<strong>Closed</strong>{% endif %}</p>
             </div>
-            <a href="{% url 'staff-pos-shifts' %}" class="btn btn-sm btn-secondary">Manage shift</a>
+            <a href="{% url 'staff-pos-shifts' %}" class="staff-btn staff-btn--sm staff-btn--ghost">Manage shift</a>
           </div>
         {% endif %}
         <div class="staff-pos-orders-lanes__head">
@@ -145,7 +105,7 @@
             <i class="bi bi-search staff-pos-orders-search__icon" aria-hidden="true"></i>
             <input class="staff-input staff-pos-orders-search__input" id="q" name="q" type="search" value="{{ q_filter }}" placeholder="Bill ref, tab name, outlet…" autocomplete="off">
           </div>
-          <button type="submit" class="btn btn-primary staff-pos-orders-search__btn">Search</button>
+          <button type="submit" class="staff-btn staff-btn--primary staff-pos-orders-search__btn">Search</button>
         </form>
       </div>
 

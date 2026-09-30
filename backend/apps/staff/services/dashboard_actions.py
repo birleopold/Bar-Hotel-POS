@@ -21,6 +21,7 @@ class StaffDashboardAction:
     url: str
     variant: str  # "primary" | "secondary"
     hint: str = ""
+    icon: str = "arrow-up-right"
 
 
 _ACTION_DEFS: dict[str, tuple[str, str, str]] = {
@@ -36,6 +37,13 @@ _ACTION_DEFS: dict[str, tuple[str, str, str]] = {
     "events": ("staff-events-bookings", "Events", ""),
     "finance": ("staff-finance-entries", "Income & expenses", ""),
     "workspace": ("staff-workspace-branding", "Workspace", ""),
+}
+
+_ACTION_ICONS = {
+    "orders": "receipt", "tables": "grid-3x3-gap", "kitchen": "cup-hot",
+    "menu": "journal-text", "promotions": "tag", "sales": "graph-up",
+    "inventory": "boxes", "purchasing": "bag-check", "lodging": "door-open",
+    "events": "calendar-event", "finance": "wallet2", "workspace": "gear",
 }
 
 
@@ -198,7 +206,7 @@ def staff_dashboard_actions(
         if url in seen_urls:
             continue
         seen_urls.add(url)
-        primary.append(StaffDashboardAction(label=label, url=url, variant="primary", hint=hint))
+        primary.append(StaffDashboardAction(label=label, url=url, variant="primary", hint=hint, icon=_ACTION_ICONS[cap]))
 
     top = primary[:5]
     overflow = primary[5:]

@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -382,6 +383,7 @@ class StaffUiTests(TestCase):
         self.assertContains(r, "Team & onboarding")
         self.assertContains(r, reverse("staff-workspace-member-create"))
         self.assertContains(r, reverse("staff-workspace-members"))
+        self.assertLess(r.content.index(b"Start here"), r.content.index(b'<h2 class="staff-card__title mb-1">Administration</h2>'))
 
     def test_dashboard_owner_sees_setup_progress_message(self) -> None:
         tenant = Tenant.objects.create(name="Prog Org", slug="prog-org-dash-cta")
@@ -1962,6 +1964,13 @@ class StaffOrdersLaneTests(TestCase):
         self.assertContains(r, ">Open</h3>")
         self.assertContains(r, ">Recent</h3>")
         self.assertContains(r, "HOLD A1")
+
+    def test_empty_service_lanes_explain_next_action(self) -> None:
+        html = render_to_string("staff/includes/orders_lanes.html", {
+            "held_tabs": [], "open_tabs": [], "recent_orders": [], "current_outlet": self.outlet,
+        })
+        self.assertIn("No checks in progress", html)
+        self.assertIn("Start a new order", html)
 
     def test_orders_page_keeps_active_and_history_scroll_regions(self) -> None:
         r = self.client.get(reverse("staff-orders"))

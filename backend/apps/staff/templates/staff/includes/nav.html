@@ -50,6 +50,9 @@
   {% endif %}
   <div class="staff-nav__meta">
     {% if user.is_authenticated %}
+      <form method="post" action="{% url 'staff-terminal-lock' %}" class="staff-nav__lock">
+        {% csrf_token %}<button type="submit" class="staff-btn staff-btn--sm staff-btn--primary"><i class="bi bi-lock" aria-hidden="true"></i> Lock terminal</button>
+      </form>
       {% if staff_nav_outlets %}
         <form class="staff-nav__outlet-form" method="post" action="{% url 'staff-select-outlet' %}">
           {% csrf_token %}
@@ -80,9 +83,6 @@
         </form>
       {% endif %}
       <span class="staff-nav__email">{{ user.email }}</span>
-      <form method="post" action="{% url 'staff-terminal-lock' %}" class="d-inline">
-        {% csrf_token %}<button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Lock terminal</button>
-      </form>
       {% if staff_show_console_entry %}
         <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'console-org' %}">Console</a>
       {% endif %}
