@@ -16,8 +16,9 @@ from apps.lodging.models import (
 class StaffReservationForm(forms.ModelForm):
     class Meta:
         model = Reservation
-        fields = ["guest_name", "guest_email", "guest_phone", "check_in", "check_out", "notes"]
+        fields = ["customer", "guest_name", "guest_email", "guest_phone", "check_in", "check_out", "notes"]
         widgets = {
+            "customer": forms.Select(attrs={"class": "staff-input"}),
             "guest_name": forms.TextInput(attrs={"class": "staff-input"}),
             "guest_email": forms.EmailInput(attrs={"class": "staff-input"}),
             "guest_phone": forms.TextInput(attrs={"class": "staff-input"}),
@@ -25,6 +26,12 @@ class StaffReservationForm(forms.ModelForm):
             "check_out": forms.DateInput(attrs={"type": "date", "class": "staff-input"}),
             "notes": forms.Textarea(attrs={"class": "staff-input", "rows": 3}),
         }
+
+    def __init__(self, *args, membership=None, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.staff.services.customers import visible_customers
+        self.fields["customer"].queryset = visible_customers(membership, user) if membership and user else self.fields["customer"].queryset.none()
+        self.fields["customer"].help_text = "Optional. Confirm identity first; guest details below remain this stay's snapshot."
 
     def clean(self):
         data = super().clean()

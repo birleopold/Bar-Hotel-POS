@@ -1,0 +1,3 @@
+{% extends "staff/base.html" %}
+{% block title %}New customer{% endblock %}
+{% block content %}<header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Shared identity</p><h1 class="staff-page-title">New customer</h1><p class="staff-muted">Search before creating a record. A shared email or phone does not prove two records are the same person.</p></div></header><form method="post" class="staff-card">{% csrf_token %}{% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<button class="staff-btn staff-btn--primary" type="submit">Create customer</button> <a class="staff-btn staff-btn--ghost" href="{% url 'staff-customers' %}">Cancel</a></form>{% endblock %}

@@ -26,6 +26,7 @@ class StaffEventBookingForm(forms.ModelForm):
         model = EventBooking
         fields = [
             "space",
+            "customer",
             "title",
             "customer_name",
             "customer_email",
@@ -39,6 +40,7 @@ class StaffEventBookingForm(forms.ModelForm):
         ]
         widgets = {
             "space": forms.Select(attrs={"class": "staff-input"}),
+            "customer": forms.Select(attrs={"class": "staff-input"}),
             "title": forms.TextInput(attrs={"class": "staff-input"}),
             "customer_name": forms.TextInput(attrs={"class": "staff-input"}),
             "customer_email": forms.EmailInput(attrs={"class": "staff-input"}),
@@ -57,8 +59,11 @@ class StaffEventBookingForm(forms.ModelForm):
             "deposit_amount": forms.NumberInput(attrs={"class": "staff-input", "step": "0.01"}),
         }
 
-    def __init__(self, *args, tenant=None, event_site=None, **kwargs):
+    def __init__(self, *args, tenant=None, event_site=None, membership=None, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        from apps.staff.services.customers import visible_customers
+        self.fields["customer"].queryset = visible_customers(membership, user) if membership and user else self.fields["customer"].queryset.none()
+        self.fields["customer"].help_text = "Optional. Confirm identity first; booking contact below remains its snapshot."
         self.fields["start_at"].input_formats = list(_EVENT_DT_FORMATS)
         self.fields["end_at"].input_formats = list(_EVENT_DT_FORMATS)
         if tenant is not None and event_site is not None:

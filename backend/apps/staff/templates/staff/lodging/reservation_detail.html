@@ -16,6 +16,10 @@
     </div>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
+  <div class="staff-card mb-3"><h2 class="staff-card__title">Shared customer record</h2>
+    {% if reservation.customer %}<p><a href="{% url 'staff-customer-detail' reservation.customer.pk %}">{{ reservation.customer.name }}</a> · stay name: {{ reservation.guest_name }}</p>{% else %}<p class="staff-muted">No customer identity linked. Check the person before linking.</p>{% endif %}
+    {% if can_modify_lodging %}<form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="set_customer"><label for="reservation-customer">Customer</label><select id="reservation-customer" class="staff-input" name="customer_id"><option value="">No linked customer</option>{% for person in customer_options %}<option value="{{ person.pk }}"{% if person.pk == reservation.customer_id %} selected{% endif %}>{{ person.name }}{% if person.phone %} · {{ person.phone }}{% endif %}</option>{% endfor %}</select><button class="staff-btn staff-btn--secondary" type="submit">Save customer link</button></form>{% endif %}
+  </div>
   <h2 class="staff-section-head">Room</h2>
   <div class="staff-card mb-3">
     {% if can_modify_lodging %}

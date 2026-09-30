@@ -45,6 +45,7 @@ class EventBooking(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="event_bookings",
     )
+    customer = models.ForeignKey("customers.Customer", on_delete=models.PROTECT, null=True, blank=True, related_name="event_bookings")
     space = models.ForeignKey(
         EventSpace,
         on_delete=models.CASCADE,

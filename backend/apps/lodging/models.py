@@ -160,6 +160,7 @@ class Reservation(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="reservations",
     )
+    customer = models.ForeignKey("customers.Customer", on_delete=models.PROTECT, null=True, blank=True, related_name="reservations")
     site = models.ForeignKey(
         "tenants.Site",
         on_delete=models.CASCADE,
@@ -211,6 +212,7 @@ class Folio(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="folios",
     )
+    customer = models.ForeignKey("customers.Customer", on_delete=models.PROTECT, null=True, blank=True, related_name="folios")
     site = models.ForeignKey(
         "tenants.Site",
         on_delete=models.CASCADE,

@@ -40,6 +40,7 @@ class Order(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="orders",
     )
+    customer = models.ForeignKey("customers.Customer", on_delete=models.PROTECT, null=True, blank=True, related_name="orders")
     outlet = models.ForeignKey(
         "tenants.Outlet",
         on_delete=models.PROTECT,

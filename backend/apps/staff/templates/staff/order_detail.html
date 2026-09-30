@@ -40,7 +40,13 @@
     <span class="staff-pos-totals-row__meta">Sub {{ order.subtotal }} · Tax {{ order.tax_total }}</span>
     {% if order.applied_promotion %}<span class="staff-pos-totals-row__meta">Offer: {{ order.applied_promotion.name }}</span>{% endif %}
     {% if order.folio %}<span class="staff-pos-totals-row__meta">Folio: {{ order.folio.guest_name }}</span>{% endif %}
+    {% if order.customer %}<span class="staff-pos-totals-row__meta">Customer: {{ order.customer.name }}</span>{% endif %}
   </div>
+  <details class="staff-card mb-3"><summary>Customer record{% if order.customer %} · {{ order.customer.name }}{% endif %}</summary>
+    <p class="staff-muted mt-2">Confirm the person before linking. This changes the shared history link, not the receipt or payment.</p>
+    <form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="set_customer"><label for="order-customer">Customer</label><select id="order-customer" class="staff-input" name="customer_id"><option value="">No linked customer</option>{% for person in customer_options %}<option value="{{ person.pk }}"{% if order.customer_id == person.pk %} selected{% endif %}>{{ person.name }}{% if person.phone %} · {{ person.phone }}{% endif %}</option>{% endfor %}</select><button type="submit" class="staff-btn staff-btn--secondary">Save customer link</button></form>
+    {% if order.customer and can_view_customer_profile %}<a href="{% url 'staff-customer-detail' order.customer.pk %}">View customer history</a>{% endif %}
+  </details>
 
   {% if ready_handoff_count and can_ack_ready_handoff %}
     <div class="staff-alert staff-alert--info staff-alert--pos mb-0">{{ ready_handoff_count }} ready — ack below.</div>

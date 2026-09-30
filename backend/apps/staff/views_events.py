@@ -178,6 +178,8 @@ class StaffEventBookingCreateView(StaffTenantRequiredMixin, FormView):
         kw = super().get_form_kwargs()
         kw["tenant"] = self.request.tenant
         kw["event_site"] = self.current_site
+        kw["membership"] = self.request.tenant_membership
+        kw["user"] = self.request.user
         return kw
 
     def get_context_data(self, **kwargs):
@@ -220,6 +222,8 @@ class StaffEventBookingUpdateView(StaffTenantRequiredMixin, UpdateView):
         kw = super().get_form_kwargs()
         kw["tenant"] = self.request.tenant
         kw["event_site"] = self.current_site
+        kw["membership"] = self.request.tenant_membership
+        kw["user"] = self.request.user
         return kw
 
     def get_context_data(self, **kwargs):

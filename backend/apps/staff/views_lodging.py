@@ -29,6 +29,8 @@ from apps.lodging.models import (
     RoomStatus,
     RoomType,
 )
+from apps.audit.services import log_audit
+from .services.customers import visible_customers
 from apps.lodging.services import (
     cancel_reservation,
     check_in_reservation,
@@ -196,6 +198,11 @@ class StaffReservationCreateView(StaffTenantRequiredMixin, FormView):
     template_name = "staff/lodging/reservation_form.html"
     form_class = StaffReservationForm
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update(membership=self.request.tenant_membership, user=self.request.user)
+        return kwargs
+
     def dispatch(self, request, *args, **kwargs):
         self.sites, self.current_site = _lodging_sites_and_site(request)
         if self.current_site is None:
@@ -253,6 +260,7 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
         ctx["can_modify_lodging"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["customer_options"] = visible_customers(self.request.tenant_membership, self.request.user).order_by("name")[:100]
         ctx["room_choices"] = (
             Room.objects.filter(room_type__site_id=res.site_id, is_active=True)
             .select_related("room_type")
@@ -278,6 +286,26 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-lodging-reservation-detail", reservation_id=res.id)
 
         action = request.POST.get("action", "").strip()
+
+        if action == "set_customer":
+            raw = request.POST.get("customer_id", "").strip()
+            try:
+                customer_id = uuid.UUID(raw) if raw else None
+            except ValueError:
+                messages.error(request, "Invalid customer reference.")
+                return redirect("staff-lodging-reservation-detail", reservation_id=res.pk)
+            if customer_id and not visible_customers(request.tenant_membership, request.user).filter(pk=customer_id).exists():
+                messages.error(request, "Choose a customer visible in this workspace.")
+                return redirect("staff-lodging-reservation-detail", reservation_id=res.pk)
+            before = res.customer_id
+            if before != customer_id:
+                res.customer_id = customer_id
+                res.save(update_fields=["customer", "updated_at"])
+                Folio.objects.filter(tenant=request.tenant, reservation=res).update(customer_id=customer_id)
+                log_audit(tenant_id=request.tenant.pk, user_id=request.user.pk, action="reservation.customer_link_changed",
+                    entity_type="reservation", entity_id=str(res.pk), payload={"before": str(before) if before else None, "after": str(customer_id) if customer_id else None})
+            messages.success(request, "Customer link saved; guest details remain the original stay snapshot.")
+            return redirect("staff-lodging-reservation-detail", reservation_id=res.pk)
 
         if action == "assign_room":
             rid = request.POST.get("room_id", "").strip()
@@ -344,6 +372,7 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
             else:
                 Folio.objects.create(
                     tenant_id=res.tenant_id,
+                    customer_id=res.customer_id,
                     site_id=res.site_id,
                     reservation=res,
                     guest_name=res.guest_name,

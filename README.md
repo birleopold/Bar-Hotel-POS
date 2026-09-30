@@ -68,7 +68,7 @@ python manage.py makemigrations --check --dry-run
 python -m pytest -q -p no:cacheprovider --basetemp=.pytest-tmp
 ```
 
-The September 30 exception-centre and shift-handover checkpoint completed with **320 passing tests and 5 PostgreSQL-only skips**. See [the full suite checklist](docs/SUITE_IMPLEMENTATION_TODO.md) for tracked work and verification limits. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
+The September 30 shared-customer checkpoint completed with **323 passing tests and 5 PostgreSQL-only skips**. See [the full suite checklist](docs/SUITE_IMPLEMENTATION_TODO.md) for tracked work and verification limits. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
 
 ## Documentation
 

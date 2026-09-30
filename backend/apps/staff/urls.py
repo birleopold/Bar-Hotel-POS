@@ -13,9 +13,13 @@ from . import (
     views_purchasing,
     views_workstations,
     views_management,
+    views_customers,
 )
 
 urlpatterns = [
+    path("customers/", views_customers.StaffCustomerListView.as_view(), name="staff-customers"),
+    path("customers/new/", views_customers.StaffCustomerCreateView.as_view(), name="staff-customer-create"),
+    path("customers/<uuid:customer_id>/", views_customers.StaffCustomerDetailView.as_view(), name="staff-customer-detail"),
     path("management/sources/<str:kind>/<uuid:entity_id>/", views_management.StaffManagementSourceView.as_view(), name="staff-management-source"),
     path("management/shifts/<uuid:shift_id>/", views_management.StaffManagementShiftView.as_view(), name="staff-management-shift"),
     path("management/", views_management.StaffManagementView.as_view(), name="staff-management"),

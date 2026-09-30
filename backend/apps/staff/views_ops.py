@@ -16,6 +16,8 @@ from django.db.models import Prefetch, Q
 
 from apps.catalog.models import MenuItemModifierGroup, ModifierOption
 from apps.accounts.models import MembershipRole
+from apps.audit.services import log_audit
+from apps.customers.models import Customer
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem, ServiceOffering, ServiceOfferingOption
@@ -78,6 +80,7 @@ from .forms import (
     StaffPosShiftOpenForm,
     StaffTableForm,
 )
+from .services.customers import can_manage_customers, visible_customers
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .workstations import selected_workstation, settlement_workstation_id, require_staff_register_selection
@@ -524,6 +527,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         order: Order = ctx["order"]
         hardware = _tenant_hardware_flags(order.tenant)
         ctx["hardware"] = hardware
+        ctx["can_view_customer_profile"] = can_manage_customers(self.request.tenant_membership)
+        ctx["customer_options"] = visible_customers(self.request.tenant_membership, self.request.user).filter(
+            Q(orders__outlet_id=order.outlet_id) | Q(created_by=self.request.user) | Q(pk=order.customer_id)
+        ).distinct().order_by("name")[:100]
         p, b = order_payment_totals(order)
         ctx["amount_paid"] = p
         ctx["balance_due"] = b
@@ -740,6 +747,33 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-order-detail", order_id=order.id)
         if not staff_outlet_allowed_for_membership(m, order.outlet_id):
             messages.error(request, "You cannot modify this order for its outlet.")
+            return redirect("staff-order-detail", order_id=order.id)
+
+        if action == "set_customer":
+            if order.status != OrderStatus.OPEN and m.role not in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}:
+                messages.error(request, "Only an owner can correct a closed order's customer link.")
+                return redirect("staff-order-detail", order_id=order.id)
+            raw = request.POST.get("customer_id", "").strip()
+            try:
+                customer_id = uuid.UUID(raw) if raw else None
+            except ValueError:
+                messages.error(request, "Invalid customer reference.")
+                return redirect("staff-order-detail", order_id=order.id)
+            customer = None
+            if customer_id:
+                customer = visible_customers(m, request.user).filter(pk=customer_id).filter(
+                    Q(orders__outlet_id=order.outlet_id) | Q(created_by=request.user) | Q(pk=order.customer_id)
+                ).first()
+                if customer is None:
+                    messages.error(request, "Choose a customer visible at this register.")
+                    return redirect("staff-order-detail", order_id=order.id)
+            before = str(order.customer_id) if order.customer_id else None
+            if order.customer_id != customer_id:
+                order.customer = customer
+                order.save(update_fields=["customer", "updated_at"])
+                log_audit(tenant_id=order.tenant_id, user_id=request.user.pk, action="order.customer_link_changed",
+                    entity_type="order", entity_id=str(order.pk), payload={"before": before, "after": str(customer_id) if customer_id else None})
+            messages.success(request, "Customer link saved. Transaction amounts and receipt details were not changed.")
             return redirect("staff-order-detail", order_id=order.id)
 
         if action == "record_payment":

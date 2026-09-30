@@ -19,6 +19,7 @@
   <h2 class="staff-section-head">Booking</h2>
   <div class="staff-card mb-3">
     <p><strong>{{ booking.customer_name }}</strong>{% if booking.customer_email %} · {{ booking.customer_email }}{% endif %}</p>
+    {% if booking.customer %}<p><a href="{% url 'staff-customer-detail' booking.customer.pk %}">Shared customer: {{ booking.customer.name }}</a></p>{% endif %}
     <p class="staff-muted">Headcount {{ booking.headcount }} · Deposit {{ booking.deposit_amount }} · {{ booking.get_status_display }}</p>
     {% if booking.notes %}<p>{{ booking.notes }}</p>{% endif %}
   </div>
