@@ -24,6 +24,12 @@
           <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=a4" target="_blank" rel="noopener" aria-label="Print A4 bill">A4</a>
         </div>
       {% endif %}
+      {% if order.status == 'closed' %}
+        <form method="post" action="{% url 'staff-terminal-lock' %}" class="staff-order-finish">
+          {% csrf_token %}
+          <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Done · lock terminal</button>
+        </form>
+      {% endif %}
       <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'staff-orders' %}">All orders</a>
     </div>
   </div>

@@ -29,12 +29,25 @@ class StaffTerminalIdleMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if request.path == "/staff/logout/":
+            return self.get_response(request)
+        if (request.user.is_authenticated and request.session.get("staff_pin_authenticated")
+                and not request.path.startswith("/staff/")):
+            return HttpResponseForbidden("Use your account password for other areas.")
+        if not request.path.startswith("/staff/"):
+            return self.get_response(request)
         if request.user.is_authenticated and request.session.get("staff_pin_session"):
             from .terminal import PIN_IDLE_SECONDS, mark_terminal
 
             now = int(time.time())
             last = request.session.get("staff_pin_last_activity", 0)
-            if not isinstance(last, int) or now - last >= PIN_IDLE_SECONDS:
+            membership = getattr(request, "tenant_membership", None)
+            credential_valid = (
+                membership is not None
+                and bool(membership.staff_pin_hash)
+                and request.session.get("staff_pin_credential") == membership.staff_pin_hash
+            )
+            if not credential_valid or not isinstance(last, int) or now - last >= PIN_IDLE_SECONDS:
                 tenant_id = request.session.get(STAFF_SESSION_TENANT_KEY)
                 outlet_id = request.session.get(STAFF_SESSION_OUTLET_KEY, "")
                 logout(request)
@@ -48,9 +61,6 @@ class StaffTerminalIdleMiddleware:
             # an unattended register unlocked indefinitely.
             if request.method not in {"GET", "HEAD"} or "text/html" in request.headers.get("Accept", ""):
                 request.session["staff_pin_last_activity"] = now
-        if (request.user.is_authenticated and request.session.get("staff_pin_authenticated")
-                and not request.path.startswith("/staff/")):
-            return HttpResponseForbidden("Use your account password for other areas.")
         response = self.get_response(request)
         if request.path.startswith("/staff/"):
             response["Cache-Control"] = "private, no-store"

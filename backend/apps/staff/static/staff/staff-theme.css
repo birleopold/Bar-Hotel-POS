@@ -4106,6 +4106,8 @@ main.staff-main.staff-main--wide.staff-main--pos.staff-main--pos-bleed {
 .staff-metric-row--folio > span:last-child { border-left: 3px solid var(--tenant-primary); }
 .staff-print-toolbar--pos { flex-wrap: wrap; }
 .staff-print-toolbar--pos .staff-order-print-link { white-space: nowrap; }
+.staff-order-finish { display: inline-flex; }
+.staff-order-finish .staff-btn { min-height: 2.75rem; white-space: nowrap; }
 @media (max-width: 600px) {
   .staff-filter-select { flex: 1 1 10rem; }
   .staff-stay-dates { white-space: normal; }

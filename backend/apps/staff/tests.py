@@ -154,6 +154,39 @@ class SharedTerminalTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("_auth_user_id", self.client.session)
 
+    def test_terminal_respects_role_outlet_types(self):
+        self._owner_at_counter()
+        self.worker_member.role = MembershipRole.BARTENDER
+        self.worker_member.save(update_fields=["role", "updated_at"])
+        set_member_pin(self.worker_member, "681347")
+        self.client.post(reverse("staff-terminal-lock"))
+        self.assertNotContains(self.client.get(reverse("staff-terminal")), "worker-terminal@test.local")
+
+    def test_pin_change_invalidates_another_open_terminal_session(self):
+        self._owner_at_counter()
+        set_member_pin(self.worker_member, "681347")
+        self.client.post(reverse("staff-terminal-lock"))
+        self.client.post(reverse("staff-terminal"), {"worker": str(self.worker_member.id), "pin": "681347"})
+        other = Client()
+        other.force_login(self.worker)
+        session = other.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.id)
+        session.save()
+        changed = other.post(reverse("staff-pin-setup"), {
+            "password": "WorkerPass9!", "pin": "458267", "confirm_pin": "458267",
+        })
+        self.assertEqual(changed.status_code, 302)
+        self.assertEqual(other.get(reverse("staff-dashboard")).status_code, 200)
+        expired = self.client.get(reverse("staff-dashboard"))
+        self.assertRedirects(expired, reverse("staff-terminal"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertEqual(self.client.post(reverse("staff-terminal"), {
+            "worker": str(self.worker_member.id), "pin": "681347",
+        }).status_code, 200)
+        self.assertRedirects(self.client.post(reverse("staff-terminal"), {
+            "worker": str(self.worker_member.id), "pin": "458267",
+        }), reverse("staff-dashboard"))
+
 
 class StaffUiTests(TestCase):
     def test_login_page_renders(self) -> None:

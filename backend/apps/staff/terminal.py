@@ -10,9 +10,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounts.models import Membership
-from apps.access.outlets import outlet_belongs_to_membership
 
 from .middleware import STAFF_SESSION_OUTLET_ALL
+from .services.membership import staff_outlet_allowed_for_membership
 
 TERMINAL_COOKIE = "staff_terminal"
 TERMINAL_SALT = "staff.terminal.v1"
@@ -53,7 +53,7 @@ def available_workers(tenant_id, outlet_id):
             outlet_uuid = uuid.UUID(outlet_id)
         except ValueError:
             return []
-        members = [m for m in members if outlet_belongs_to_membership(m, outlet_uuid)]
+        members = [m for m in members if staff_outlet_allowed_for_membership(m, outlet_uuid)]
     return sorted(members, key=lambda m: m.user.email.lower())
 
 
@@ -76,7 +76,7 @@ def verify_member_pin(*, member_id, tenant_id, outlet_id, pin):
             outlet_uuid = uuid.UUID(outlet_id)
         except ValueError:
             return None
-        if not outlet_belongs_to_membership(member, outlet_uuid):
+        if not staff_outlet_allowed_for_membership(member, outlet_uuid):
             return None
     now = timezone.now()
     if member.staff_pin_locked_until and member.staff_pin_locked_until > now:

@@ -64,11 +64,11 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "apps.staff.middleware.StaffTerminalIdleMiddleware",
     "apps.api.middleware.TenantContextMiddleware",
     "apps.staff.middleware.StaffSessionTenantMiddleware",
     "apps.common.middleware.operation_context.OperationContextMiddleware",
     "apps.api.middleware.PostgresRequestTenantGucMiddleware",
+    "apps.staff.middleware.StaffTerminalIdleMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

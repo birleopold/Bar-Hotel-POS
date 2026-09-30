@@ -61,6 +61,7 @@ class StaffLoginView(LoginView):
             if first.staff_pin_hash:
                 self.request.session["staff_pin_session"] = True
                 self.request.session["staff_pin_last_activity"] = int(time.time())
+                self.request.session["staff_pin_credential"] = first.staff_pin_hash
             if not getattr(first.tenant, "is_active", True):
                 return redirect("staff-pending-approval")
         return response
@@ -109,6 +110,7 @@ class StaffTerminalView(View):
                 request.session["staff_pin_session"] = True
                 request.session["staff_pin_authenticated"] = True
                 request.session["staff_pin_last_activity"] = int(time.time())
+                request.session["staff_pin_credential"] = member.staff_pin_hash
                 request.session.set_expiry(0)
                 log_audit(tenant_id=member.tenant_id, user_id=member.user_id,
                           action="staff.terminal_unlocked", entity_type="membership", entity_id=str(member.id), payload={})
@@ -149,6 +151,9 @@ class StaffPinSetupView(View):
         form = StaffPinSetupForm(request.POST, user=request.user)
         if form.is_valid():
             set_member_pin(request.tenant_membership, form.cleaned_data["pin"])
+            request.session["staff_pin_session"] = True
+            request.session["staff_pin_last_activity"] = int(time.time())
+            request.session["staff_pin_credential"] = request.tenant_membership.staff_pin_hash
             log_audit(tenant_id=request.tenant.id, user_id=request.user.id,
                       action="staff.pin_changed", entity_type="membership",
                       entity_id=str(request.tenant_membership.id), payload={})
@@ -355,9 +360,13 @@ class StaffSelectTenantView(LoginRequiredMixin, View):
             messages.info(request, "This workspace is pending platform approval.")
             return redirect("staff-pending-approval")
 
-        if membership is not None and membership.staff_pin_hash and not request.session.get("staff_pin_session"):
+        if membership is not None and membership.staff_pin_hash:
             request.session["staff_pin_session"] = True
             request.session["staff_pin_last_activity"] = int(time.time())
+            request.session["staff_pin_credential"] = membership.staff_pin_hash
+        elif not request.session.get("staff_pin_authenticated"):
+            request.session.pop("staff_pin_session", None)
+            request.session.pop("staff_pin_credential", None)
 
         messages.success(request, "Workspace updated.")
         return redirect("staff-dashboard")
