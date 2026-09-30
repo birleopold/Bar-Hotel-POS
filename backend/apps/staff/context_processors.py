@@ -45,6 +45,8 @@ def staff_nav(request):
     out["staff_show_console_entry"] = user_is_platform_operator(request.user) or (
         m is not None and membership_can_manage_org_console(m)
     )
+    from .services.management import MANAGER_ROLES
+    out["staff_show_management"] = bool(m and m.role in MANAGER_ROLES)
     if not m or not t:
         return out
     from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY

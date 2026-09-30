@@ -1,0 +1,7 @@
+{% extends "staff/base.html" %}
+{% block title %}Register reconciliation{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Management · Register reconciliation</p><h1 class="staff-page-title">{{ shift.outlet.name }} · {{ shift.workstation.name|default:"Section register" }}</h1><p>{{ shift.get_status_display }} · {{ shift.opened_at }}{% if shift.closed_at %} → {{ shift.closed_at }}{% endif %}</p></div></header>
+<a href="{% url 'staff-management' %}" class="staff-btn staff-btn--ghost mb-3">Back to exceptions</a>
+<div class="staff-card"><dl><dt>Opened by</dt><dd>{{ shift.opened_by.email|default:"Former worker" }}</dd><dt>Closed by</dt><dd>{{ shift.closed_by.email|default:"—" }}</dd><dt>Opening float</dt><dd>{{ shift.opening_cash }}</dd><dt>Expected cash at close</dt><dd>{{ shift.expected_cash }}</dd><dt>Counted cash</dt><dd>{{ shift.counted_cash|default_if_none:"Not counted" }}</dd><dt>Variance</dt><dd>{{ variance|default_if_none:"Not counted" }}</dd><dt>Shift note</dt><dd>{{ shift.note|default:"No note" }}</dd></dl></div>
+{% endblock %}

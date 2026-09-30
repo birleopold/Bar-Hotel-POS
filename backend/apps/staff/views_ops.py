@@ -1424,7 +1424,7 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
         outlet = resolve_staff_outlet(request, outlets)
         all_outlets_mode = request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         oid = None if all_outlets_mode else (outlet.id if outlet else None)
-        body = format_sales_summary_csv(request.tenant.id, d0, d1, oid)
+        body = format_sales_summary_csv(request.tenant.id, d0, d1, oid, allowed_outlet_ids=[o.pk for o in outlets])
 
         resp = HttpResponse(body, content_type="text/csv; charset=utf-8")
         resp["Content-Disposition"] = (
@@ -1456,5 +1456,5 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
             return ctx
 
         oid = None if ctx["all_outlets_mode"] else (outlet.id if outlet else None)
-        ctx["summary"] = build_sales_summary(self.request.tenant.id, d0, d1, oid)
+        ctx["summary"] = build_sales_summary(self.request.tenant.id, d0, d1, oid, allowed_outlet_ids=[o.pk for o in outlets])
         return ctx

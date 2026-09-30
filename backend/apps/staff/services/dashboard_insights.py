@@ -5,6 +5,8 @@ low stock at or below reorder; cached sales + top items using the same rules as 
 
 from __future__ import annotations
 
+import hashlib
+
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -335,14 +337,15 @@ def dashboard_sales_snapshot(
         outlet_id = cur.id if cur else None
         scope_key = str(outlet_id) if outlet_id else "none"
 
+    allowed_key = hashlib.sha256(",".join(sorted(str(o.pk) for o in outlets)).encode()).hexdigest()[:16]
     cache_key = (
-        f"staff_dash_sales_v1:{membership.tenant_id}:{scope_key}:{d0.isoformat()}:{d1.isoformat()}"
+        f"staff_dash_sales_v2:{membership.tenant_id}:{scope_key}:{allowed_key}:{d0.isoformat()}:{d1.isoformat()}"
     )
     hit = cache.get(cache_key)
     if isinstance(hit, DashboardSalesSnapshot):
         return hit
 
-    summary = build_sales_summary(membership.tenant_id, d0, d1, outlet_id)
+    summary = build_sales_summary(membership.tenant_id, d0, d1, outlet_id, allowed_outlet_ids=[o.pk for o in outlets])
     currency = default_currency_for_tenant(membership.tenant)
     net = summary.get("net_sales") or Decimal("0")
     gross = summary.get("gross_sales") or Decimal("0")

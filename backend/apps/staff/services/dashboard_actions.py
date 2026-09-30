@@ -190,7 +190,9 @@ def staff_dashboard_actions(
 
     # Task lanes reuse the scoped list views and shared order creation service.
     tasks = []
-    if membership.role == MembershipRole.FRONT_DESK and vis.lodging and show_lodging_nav:
+    if membership.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER):
+        tasks = [("staff-management", label, "?view=" + mode, icon, "get") for mode, label, icon in [("today", "Today", "graph-up"), ("exceptions", "Exceptions", "exclamation-triangle"), ("approvals", "Approvals", "shield-check"), ("team", "Team", "people"), ("reports", "Reports", "bar-chart")]]
+    elif membership.role == MembershipRole.FRONT_DESK and vis.lodging and show_lodging_nav:
         tasks = [
             ("staff-lodging-reservations", "Arrivals", "?lane=arrivals", "door-open", "get"),
             ("staff-lodging-reservations", "Departures", "?lane=departures", "box-arrow-right", "get"),

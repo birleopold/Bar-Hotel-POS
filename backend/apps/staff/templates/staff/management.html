@@ -1,0 +1,35 @@
+{% extends "staff/base.html" %}
+{% block title %}{{ management_title }}{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Management workspace</p><h1 class="staff-page-title">{{ management_title }}</h1><p class="staff-muted">Your authorized branch and section scope applies to every task.</p></div></header>
+<nav class="staff-chip-row mb-3" aria-label="Management tasks">
+  <a class="staff-btn staff-btn--ghost" href="?view=today"{% if management_view == 'today' %} aria-current="page"{% endif %}>Today</a><a class="staff-btn staff-btn--ghost" href="?view=exceptions"{% if management_view == 'exceptions' %} aria-current="page"{% endif %}>Exceptions</a><a class="staff-btn staff-btn--ghost" href="?view=approvals"{% if management_view == 'approvals' %} aria-current="page"{% endif %}>Approvals</a><a class="staff-btn staff-btn--ghost" href="?view=team"{% if management_view == 'team' %} aria-current="page"{% endif %}>Team</a><a class="staff-btn staff-btn--ghost" href="?view=reports"{% if management_view == 'reports' %} aria-current="page"{% endif %}>Reports</a>
+</nav>
+{% if management_error %}<div class="staff-card mb-3" role="alert">{{ management_error }}</div>{% endif %}
+{% if management_view == 'exceptions' %}
+  <p class="staff-muted">Up to 50 current exceptions per category. Closed shifts and refunds cover the last {{ exception_policy.lookback_days }} days. The latest 200 assessments for displayed sources are shown in their histories. Review records your assessment; it does not correct a balance or authorize a transaction.</p>
+  {% for row in exception_rows %}<article class="staff-card mb-3">
+    <h2 class="staff-card__title">{{ row.title }} <span class="staff-tag">{% if row.review.status == 'reviewed' %}Reviewed{% else %}Open{% endif %}</span></h2>
+    <p>{{ row.detail }}</p><p><a class="staff-btn staff-btn--ghost" href="{{ row.url }}">Open source</a></p>
+    {% if row.review %}<p class="staff-muted">{{ row.review.reviewed_by.email|default:"Former worker" }} · {{ row.review.reviewed_at }} · {{ row.review.note }}</p>{% endif %}
+    {% if row.history %}<details><summary>Assessment history</summary><ul>{% for event in row.history %}<li>{{ event.created_at }} · {{ event.user.email|default:"Former worker" }} · {{ event.payload.status }} · {{ event.payload.note }}</li>{% endfor %}</ul></details>{% endif %}
+    <details><summary>Record assessment</summary><form method="post" class="mt-3">{% csrf_token %}
+      <input type="hidden" name="kind" value="{{ row.kind }}"><input type="hidden" name="entity_id" value="{{ row.entity_id }}"><input type="hidden" name="fingerprint" value="{{ row.fingerprint }}">
+      <label class="staff-label" for="status-{{ row.kind }}-{{ row.entity_id }}">Review status</label><select class="staff-input" name="status" id="status-{{ row.kind }}-{{ row.entity_id }}"><option value="reviewed">Reviewed</option><option value="open">Reopen</option></select>
+      <label class="staff-label" for="note-{{ row.kind }}-{{ row.entity_id }}">Assessment</label><textarea class="staff-input mb-3" name="note" id="note-{{ row.kind }}-{{ row.entity_id }}" required maxlength="1000"></textarea><button type="submit" class="staff-btn staff-btn--primary">Save assessment</button>
+    </form></details>
+  </article>{% empty %}<div class="staff-card"><h2 class="staff-card__title">No matching exceptions</h2><p>No cash differences, qualifying refunds, low stock or overdue departures match your current scope and thresholds.</p></div>{% endfor %}
+  {% if can_configure_exceptions %}<details class="staff-card mt-3"><summary>Exception thresholds</summary><form method="post" class="mt-3">{% csrf_token %}<input type="hidden" name="action" value="policy">{{ policy_form.as_p }}<button class="staff-btn staff-btn--primary" type="submit">Save thresholds</button></form></details>{% endif %}
+{% elif management_view == 'approvals' %}
+  <p class="staff-muted">Open a receipt to review the exact transaction before authorizing a discount, void, return or refund. Actions depend on the receipt's state and your permissions.</p>
+  <div class="staff-table-wrap"><table class="staff-table"><caption>Latest 50 scoped receipts for manager action</caption><thead><tr><th>Receipt</th><th>Section</th><th>Status</th><th>Action</th></tr></thead><tbody>{% for order in approval_orders %}<tr><td>{{ order.bill_reference|default:order.id }}</td><td>{{ order.outlet.name }}</td><td>{{ order.get_status_display }}</td><td><a href="{% url 'staff-order-detail' order_id=order.id %}">{% if order.status == 'open' %}Review discount or void{% else %}Review refund or return{% endif %}</a></td></tr>{% empty %}<tr><td colspan="4">No scoped receipts are available for review.</td></tr>{% endfor %}</tbody></table></div>
+{% elif management_view == 'team' %}
+  {% if team_manage_url %}<a class="staff-btn staff-btn--primary mb-3" href="{{ team_manage_url }}">Manage workers</a>{% endif %}
+  <div class="staff-table-wrap"><table class="staff-table"><caption>Up to 100 active workers with access to your selected sections</caption><thead><tr><th>Worker</th><th>Role</th></tr></thead><tbody>{% for member in team_members %}<tr><td>{{ member.user.get_full_name|default:member.user.email }}</td><td>{{ member.get_role_display }}</td></tr>{% empty %}<tr><td colspan="2">No active workers match this scope.</td></tr>{% endfor %}</tbody></table></div>
+{% elif management_view == 'today' %}
+  {% if today_sales_url %}<a class="staff-btn staff-btn--primary mb-3" href="{{ today_sales_url }}">Today's sales</a>{% endif %}
+  <div class="staff-tile-grid">{% for metric in management_metrics %}<a class="staff-tile" href="{{ metric.url }}"><strong>{{ metric.value }}</strong><span>{{ metric.label }}</span><small>{{ metric.detail }}</small></a>{% empty %}<p>No enabled operational queues are available in this scope.</p>{% endfor %}</div>
+{% elif management_view == 'reports' %}
+  <div class="staff-tile-grid">{% for label,url in management_reports %}<a class="staff-tile" href="{{ url }}">{{ label }}</a>{% empty %}<p>No report areas are enabled for your role and scope.</p>{% endfor %}</div>
+{% endif %}
+{% endblock %}

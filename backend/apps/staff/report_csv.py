@@ -44,8 +44,10 @@ def format_sales_summary_csv(
     d0: date,
     d1: date,
     outlet_id: UUID | None = None,
+    *,
+    allowed_outlet_ids: list[UUID] | None = None,
 ) -> str:
-    summary = build_sales_summary(tenant_id, d0, d1, outlet_id)
+    summary = build_sales_summary(tenant_id, d0, d1, outlet_id, allowed_outlet_ids=allowed_outlet_ids)
     return format_sales_summary_csv_from_summary(summary)
 
 

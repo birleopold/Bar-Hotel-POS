@@ -125,3 +125,12 @@ Full SQLite suite: **298 passed, 5 PostgreSQL-only skipped**. Django checks/migr
 Phase 02 now adapts the existing server role to a retail checkout workspace, adds explicit returns/register/lock tasks and gives storekeepers receiving/transfer/count/low-stock/PO tasks. Receiving filters sent and partial POs within authorized outlet scope and routes into the existing receipt workflow. Role headings and shared task-button geometry improve dashboard clarity. Supplemental links follow enabled-module visibility and omit creation shortcuts for read-only accountants.
 
 Verification: **301 passed, 5 PostgreSQL-only skipped**, with three new workspace regressions. Django checks/migration consistency pass; no schema changes. Phase 02 remains underway for management/exception/approval journeys and real-browser evidence. No production, PostgreSQL or physical-device certification is claimed.
+
+
+### September 30 — Phase 02 complete locally; Phase 03 started
+
+Management Today/Exceptions/Approvals/Team/Reports destinations complete role-workspace entry points. Approvals links authorized source transactions and their existing manager actions; formal pending-request/PIN workflows remain item 21. Scoped active-worker roster includes property-only sites and preserves owner/admin management permissions. Report testing found and fixed an existing All sections financial leak: HTML/CSV payment/refund aggregates now accept accessible outlet IDs, and dashboard cache keys include that set.
+
+Initial exception centre covers cash differences, qualifying refunds, low stock and overdue departures, with configurable financial thresholds/lookback, manager-only review/reopen, source-version fingerprints, idempotent identical posts, immutable audit history and bounded displays. Changed data requires a fresh assessment; review does not alter source balances. Other exception categories and full follow-up resolution remain pending under Phase 03.
+
+Full suite: **311 passed, 5 PostgreSQL-only skipped**. Ten added management regressions; Django checks/migration consistency pass. Additive audit migrations 0002/0003 apply/reverse/reapply on SQLite, preserving original audit/tenant records; rollback removes policy/review state. PostgreSQL/RLS and responsive browser evidence remain pending.

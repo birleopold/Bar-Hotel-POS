@@ -12,9 +12,12 @@ from . import (
     views_promotions,
     views_purchasing,
     views_workstations,
+    views_management,
 )
 
 urlpatterns = [
+    path("management/shifts/<uuid:shift_id>/", views_management.StaffManagementShiftView.as_view(), name="staff-management-shift"),
+    path("management/", views_management.StaffManagementView.as_view(), name="staff-management"),
     path("login/", views.StaffLoginView.as_view(), name="staff-login"),
     path("logout/", views.StaffLogoutView.as_view(), name="staff-logout"),
     path("terminal/", views.StaffTerminalView.as_view(), name="staff-terminal"),

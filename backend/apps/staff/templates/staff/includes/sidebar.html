@@ -30,6 +30,7 @@
     </div>
 
     <div class="staff-sidebar__scroll">
+      {% if staff_show_management %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-management' %}"><i class="bi bi-shield-check" aria-hidden="true"></i> Management</a>{% endif %}
       {% include "staff/includes/workbench_sidebar.html" %}
     </div>
 

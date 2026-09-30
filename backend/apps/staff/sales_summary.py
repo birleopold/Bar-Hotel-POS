@@ -50,6 +50,8 @@ def build_sales_summary(
     d0: date,
     d1: date,
     outlet_id: uuid.UUID | None = None,
+    *,
+    allowed_outlet_ids: list[uuid.UUID] | None = None,
 ) -> dict:
     start, end = utc_day_range_inclusive(d0, d1)
 
@@ -59,6 +61,8 @@ def build_sales_summary(
         created_at__lte=end,
     ).select_related("order", "order__outlet")
 
+    if allowed_outlet_ids is not None:
+        payments_qs = payments_qs.filter(order__outlet_id__in=allowed_outlet_ids)
     if outlet_id is not None:
         payments_qs = payments_qs.filter(order__outlet_id=outlet_id)
 
@@ -74,6 +78,8 @@ def build_sales_summary(
         created_at__gte=start,
         created_at__lte=end,
     ).select_related("order")
+    if allowed_outlet_ids is not None:
+        refunds_qs = refunds_qs.filter(order__outlet_id__in=allowed_outlet_ids)
     if outlet_id is not None:
         refunds_qs = refunds_qs.filter(order__outlet_id=outlet_id)
 
