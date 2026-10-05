@@ -23,7 +23,7 @@
           <button class="staff-btn staff-btn--primary staff-terminal__submit" type="submit">Unlock workspace</button>
         </form>
       {% else %}
-        <p class="staff-terminal__empty">No PIN-enabled workers are available here yet. Sign in with your account password, open Set PIN, then lock the terminal.</p>
+        <p class="staff-terminal__empty">No PIN-enabled workers are assigned to this terminal yet. Sign in with your account password to set a PIN. If you already have a PIN, ask a manager to check your site and outlet access.</p>
       {% endif %}
       <a class="staff-terminal__alternative" href="{% url 'staff-login' %}">Sign in with email and password <span aria-hidden="true">→</span></a>
     </section>

@@ -75,6 +75,7 @@ class SharedTerminalTests(TestCase):
         cls.worker = User.objects.create_user(email="worker-terminal@test.local", password="WorkerPass9!")
         cls.owner_member = Membership.objects.create(user=cls.owner, tenant=cls.tenant, role=MembershipRole.OWNER)
         cls.worker_member = Membership.objects.create(user=cls.worker, tenant=cls.tenant, role=MembershipRole.SERVER)
+        cls.worker_member.sites.add(cls.site)
         cls.worker_member.outlets.add(cls.outlet)
 
     def _owner_at_counter(self):
@@ -113,6 +114,34 @@ class SharedTerminalTests(TestCase):
         Membership.objects.create(user=self.worker, tenant=second_tenant, role=MembershipRole.OWNER)
         self.client.post(reverse("staff-select-tenant"), {"tenant_id": str(second_tenant.id)})
         self.assertEqual(self.client.session[STAFF_SESSION_TENANT_KEY], str(self.tenant.id))
+
+    def test_password_recovery_keeps_terminal_tenant_and_outlet_for_multi_tenant_worker(self):
+        earlier_tenant = Tenant.objects.create(name="A Earlier Workspace", slug="a-earlier-workspace")
+        earlier_membership = Membership.objects.create(
+            user=self.owner,
+            tenant=earlier_tenant,
+            role=MembershipRole.OWNER,
+        )
+        self._owner_at_counter()
+        self.client.post(reverse("staff-terminal-lock"))
+
+        self.client.post(reverse("staff-login"), {
+            "username": self.owner.email,
+            "password": "OwnerPass9!",
+        })
+
+        session = self.client.session
+        self.assertEqual(session[STAFF_SESSION_TENANT_KEY], str(self.tenant.id))
+        self.assertEqual(session[STAFF_SESSION_OUTLET_KEY], str(self.outlet.id))
+        self.client.post(reverse("staff-pin-setup"), {
+            "password": "OwnerPass9!",
+            "pin": "537194",
+            "confirm_pin": "537194",
+        })
+        self.owner_member.refresh_from_db()
+        earlier_membership.refresh_from_db()
+        self.assertTrue(self.owner_member.staff_pin_hash)
+        self.assertFalse(earlier_membership.staff_pin_hash)
 
     def test_wrong_pin_locks_credential_and_full_logout_clears_terminal(self):
         self._owner_at_counter()

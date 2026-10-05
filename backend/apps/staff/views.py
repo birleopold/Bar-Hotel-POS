@@ -22,7 +22,7 @@ from apps.console.mixins import membership_can_manage_org_console, user_is_platf
 from apps.tenants.models import TenantSetupProgress
 
 from .forms import StaffLoginForm, StaffPinSetupForm, StaffTerminalUnlockForm
-from .middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_SITE_KEY, STAFF_SESSION_TENANT_KEY
+from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_SITE_KEY, STAFF_SESSION_TENANT_KEY
 from .terminal import (
     available_workers, clear_terminal, mark_terminal,
     set_member_pin, terminal_scope, verify_member_pin,
@@ -38,6 +38,7 @@ from .services import (
     staff_workspace_title,
     staff_nav_visibility_scoped,
     staff_action_overrides_for_tenant,
+    staff_outlet_allowed_for_membership,
 )
 from .services.dashboard_insights import (
     dashboard_lodging_snapshot,
@@ -54,11 +55,34 @@ class StaffLoginView(LoginView):
     redirect_authenticated_user = True
 
     def form_valid(self, form) -> HttpResponse:
+        # Keep password recovery inside the workspace that opened the shared
+        # terminal. Multi-tenant users must set their PIN on that membership.
+        scope = terminal_scope(self.request)
         response = super().form_valid(form)
         user = form.get_user()
-        first = membership_queryset_for(user).first()
+        memberships = membership_queryset_for(user)
+        first = memberships.filter(tenant_id=scope[0]).first() if scope else None
+        if first is None:
+            first = memberships.first()
+            if scope:
+                response = clear_terminal(response)
         if first:
             self.request.session[STAFF_SESSION_TENANT_KEY] = str(first.tenant_id)
+            if scope and first.tenant_id == scope[0]:
+                outlet_id = scope[1]
+                if outlet_id == STAFF_SESSION_OUTLET_ALL:
+                    self.request.session[STAFF_SESSION_OUTLET_KEY] = STAFF_SESSION_OUTLET_ALL
+                elif outlet_id:
+                    try:
+                        allowed = staff_outlet_allowed_for_membership(first, uuid.UUID(outlet_id))
+                    except ValueError:
+                        allowed = False
+                    if allowed:
+                        self.request.session[STAFF_SESSION_OUTLET_KEY] = outlet_id
+                    else:
+                        self.request.session.pop(STAFF_SESSION_OUTLET_KEY, None)
+                        response = clear_terminal(response)
+                        messages.error(self.request, "Your account is not assigned to this terminal's outlet. Ask a manager to update your access.")
             if first.staff_pin_hash:
                 self.request.session["staff_pin_session"] = True
                 self.request.session["staff_pin_last_activity"] = int(time.time())
