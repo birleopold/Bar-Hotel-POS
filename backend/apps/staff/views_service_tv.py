@@ -115,11 +115,16 @@ class StaffServiceTvView(StaffTenantRequiredMixin, View):
                 food_ready = sum(1 for line in ready_lines if self._station_group(line.kds_station) == "food")
                 bar_ready = sum(1 for line in ready_lines if self._station_group(line.kds_station) == "bar")
                 card_lines = active_lines if preset != "guest" else ready_lines
+                age_seconds = max(0, int((now - timezone.localtime(order.created_at)).total_seconds()))
+                age_display = "15m+" if age_seconds >= 900 else (
+                    f"{age_seconds // 60}m {age_seconds % 60:02d}s" if age_seconds >= 60 else f"{age_seconds}s"
+                )
                 cards.append({
                     "order": order,
                     "lines": card_lines[:8],
                     "lane": lane,
-                    "age_seconds": max(0, int((now - timezone.localtime(order.created_at)).total_seconds())),
+                    "age_seconds": age_seconds,
+                    "age_display": age_display,
                     "food_ready": food_ready,
                     "bar_ready": bar_ready,
                     "ready_handoff": bool(ready_lines),

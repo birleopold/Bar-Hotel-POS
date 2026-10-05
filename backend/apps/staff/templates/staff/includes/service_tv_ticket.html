@@ -1,7 +1,10 @@
-<article class="ticket{% if card.age_seconds > 900 %} overdue{% endif %}">
-  <div class="ticket-top"><span class="ref">{{ card.order.bill_reference }}</span>{% if mode != 'guest' %}<span class="age{% if card.age_seconds > 600 %} late{% elif card.age_seconds > 300 %} warn{% endif %}" data-age="{{ card.age_seconds }}">{{ card.age_seconds|floatformat:0 }}s</span>{% endif %}</div>
-  {% if card.order.table_label %}<div class="table">{% if mode == "guest" %}TABLE{% else %}TABLE{% endif %} · {{ card.order.table_label }}</div>{% endif %}
-  {% if card.ready_handoff %}<span class="chip">{% if mode == 'guest' %}Ready{% else %}Ready for runner · {{ card.assigned_server|default:"Service team" }}{% endif %}</span>{% endif %}
-  <ul class="items">{% for line in card.lines %}<li><span class="qty">{{ line.quantity|floatformat:-3 }}×</span><span>{{ line.label }}</span></li>{% empty %}<li>Preparing your order</li>{% endfor %}</ul>
-  {% if mode != "guest" %}<div>{% if card.food_ready %}<span class="chip">Food ready {{ card.food_ready }}</span>{% endif %}{% if card.bar_ready %}<span class="chip">Bar ready {{ card.bar_ready }}</span>{% endif %}</div>{% endif %}
+<article class="ticket{% if card.age_seconds > 900 %} ticket--overdue{% endif %}">
+  <div class="ticket-top"><span class="ticket-reference">{{ card.order.bill_reference }}</span>{% if mode != 'guest' %}<span class="ticket-age{% if card.age_seconds > 600 %} ticket-age--late{% elif card.age_seconds > 300 %} ticket-age--warn{% endif %}" data-age="{{ card.age_seconds }}">{{ card.age_display }}</span>{% endif %}</div>
+  {% if card.order.table_label %}<div class="ticket-table">TABLE · {{ card.order.table_label }}</div>{% endif %}
+  <ul class="ticket-items">{% for line in card.lines %}<li class="ticket-item"><span class="ticket-quantity">{{ line.quantity|floatformat:-3 }}×</span><span>{{ line.label }}</span></li>{% empty %}<li>Preparing your order</li>{% endfor %}</ul>
+  {% if card.ready_handoff or mode != "guest" and card.food_ready or card.bar_ready %}<div class="ticket-chip-row">
+    {% if card.ready_handoff %}<span class="ticket-chip">{% if mode == 'guest' %}Ready for collection{% else %}Ready for runner · {{ card.assigned_server|default:"Service team" }}{% endif %}</span>{% endif %}
+    {% if mode != "guest" and card.food_ready %}<span class="ticket-chip">Food ready {{ card.food_ready }}</span>{% endif %}
+    {% if mode != "guest" and card.bar_ready %}<span class="ticket-chip">Bar ready {{ card.bar_ready }}</span>{% endif %}
+  </div>{% endif %}
 </article>

@@ -1,47 +1,376 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>{{ outlet.name|default:"Service display" }} · Live hospitality</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <title>{{ outlet.name|default:"Service display" }} · Live service</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{color-scheme:dark;--ink:#f4f6f3;--muted:#9aa59f;--panel:#151c1a;--line:#293430;--mint:#7ee0bd;--amber:#ffc66d;--blue:#89bcff;--danger:#ff827c}
-    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 82% -12%,#23453d 0,transparent 34%),#0c1110;color:var(--ink);font:500 16px 'DM Sans',sans-serif;min-height:100vh;padding:26px clamp(16px,2.7vw,48px)}
-    button,select,input{font:inherit}.top{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:14px}.mark{width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,#94efcf,#43b991);display:grid;place-items:center;color:#10251e;font-size:22px;font-weight:800}.eyebrow{text-transform:uppercase;letter-spacing:.16em;color:var(--mint);font-size:10px;font-weight:800}.title{font-size:clamp(23px,2.8vw,36px);font-weight:800;letter-spacing:-.04em;margin:2px 0}.sub{color:var(--muted);font-size:13px}.tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}.tool,.tools select,.tools input{background:#18211e;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 11px;font-size:12px}.tool{cursor:pointer}.live{display:flex;gap:8px;align-items:center;color:#c5d4cc;font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:#59d6a4;box-shadow:0 0 14px #59d6a4}
-    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.stat,.panel{background:linear-gradient(145deg,#18211e,#121816);border:1px solid var(--line);border-radius:17px}.stat{padding:16px 20px}.stat label{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}.stat strong{display:block;font-size:32px;line-height:1.1;margin-top:7px}.blue{color:var(--blue)}.amber{color:var(--amber)}.mint{color:var(--mint)}.layout{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:15px;align-items:start}.section-head{display:flex;justify-content:space-between;align-items:end;margin:3px 2px 11px}.section-head h2{font-size:18px;margin:0}.section-head span{color:var(--muted);font-size:11px}.lanes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.lane{min-height:280px;padding:11px;border-radius:16px;background:#101614;border:1px solid #202b27}.lane-head{display:flex;justify-content:space-between;margin:2px 2px 10px;text-transform:uppercase;letter-spacing:.08em;font-size:10px;font-weight:800}.ticket{padding:12px;margin-bottom:9px;background:var(--panel);border:1px solid var(--line);border-radius:13px;animation:appear .4s ease both}.ticket.overdue{border-color:#83514b;box-shadow:inset 3px 0 var(--danger)}.ticket-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}.ref{font-weight:800;font-size:13px}.age{font-size:10px;color:var(--muted)}.age.warn{color:var(--amber)}.age.late{color:var(--danger)}.table{color:#e7c187;font-size:10px;margin-bottom:4px}.items{margin:0;padding:0;list-style:none;color:#d5ddd8;font-size:12px;line-height:1.6}.items li{display:flex;gap:7px}.qty{color:var(--mint);font-weight:800}.chip{display:inline-flex;border-radius:20px;background:#24342e;color:#a9e7ce;padding:3px 7px;font-size:9px;margin:5px 4px 0 0}.empty{padding:22px 6px;text-align:center;color:#84938b;font-size:12px}.side{display:grid;gap:12px}.card{padding:15px}.card h2{font-size:16px;margin:0 0 3px}.hint{font-size:10px;color:var(--muted);margin-bottom:10px}.person{display:grid;grid-template-columns:25px 1fr auto;gap:7px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}.rank{font-weight:800;color:#718078}.rank.gold{color:#ffcf73}.person-name{font-size:11px;font-weight:700}.person-count{font-size:10px;color:var(--muted);margin-top:2px}.sales{text-align:right;font-size:10px;font-weight:800;color:var(--mint)}.metric-note{border-top:1px solid var(--line);padding-top:9px;margin-top:4px;font-size:9px;color:#a8b4ad;line-height:1.5}.goal-bar{height:9px;background:#28352f;border-radius:20px;overflow:hidden;margin:12px 0 7px}.goal-fill{height:100%;background:linear-gradient(90deg,#39b68a,#9af1d1);border-radius:20px;transition:width .6s}.goal-meta{display:flex;justify-content:space-between;color:#dbe6e0;font-size:11px}.spotlight{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.dish{min-height:120px;padding:13px;border-radius:14px;background:linear-gradient(145deg,#24362f,#17211d);border:1px solid #30453c;display:flex;flex-direction:column;justify-content:space-between}.dish[hidden],.promo[hidden]{display:none}.dish-name{font-size:13px;font-weight:800}.dish-desc{font-size:10px;color:#c3cec8;margin-top:6px;line-height:1.4}.dish-meta{font-size:10px;color:var(--mint);margin-top:10px}.dish-photo{width:100%;height:110px;object-fit:cover;border-radius:9px;margin-bottom:9px}.promo{padding:10px 12px;border-radius:12px;background:#2e291e;border:1px solid #544832;margin-top:8px}.promo strong{color:#ffd27c;font-size:11px}.promo small{display:block;color:#e0d5b8;font-size:9px;margin-top:3px}.no-outlet{padding:42px;text-align:center;color:var(--muted)}footer{display:flex;justify-content:space-between;color:#9aa69f;font-size:10px;margin-top:15px}
-    .guest .internal,.guest .staff-only{display:none!important}.guest .layout{grid-template-columns:1fr}.guest .lanes{grid-template-columns:repeat(2,minmax(0,1fr))}.guest-ready .lane:not(.ready-lane){display:none}.guest-ready .lanes{grid-template-columns:1fr}.kitchen .side{display:none}.kitchen .layout{grid-template-columns:1fr}.kitchen .lanes{grid-template-columns:repeat(3,minmax(0,1fr))}.kitchen .ticket{padding:15px}.kitchen .items{font-size:14px}.floor .spotlight{grid-template-columns:repeat(4,minmax(0,1fr))}.full-screen{position:fixed;z-index:10;right:18px;bottom:18px}
-    @keyframes appear{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}@media(max-width:1000px){.layout{grid-template-columns:1fr}.side{grid-template-columns:repeat(2,minmax(0,1fr))}.leader{grid-row:span 2}.spotlight{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:700px){body{padding:14px}.top{align-items:flex-start;flex-direction:column}.tools{justify-content:flex-start}.stats{gap:7px}.stat{padding:12px}.stat strong{font-size:25px}.lanes,.kitchen .lanes,.guest .lanes{grid-template-columns:1fr}.lane{min-height:120px}.side{grid-template-columns:1fr}.leader{grid-row:auto}.spotlight,.floor .spotlight{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    :root {
+      color-scheme: dark;
+      --bg: #0b1110;
+      --surface: #121a18;
+      --surface-raised: #17211e;
+      --line: #2a3833;
+      --ink: #f3f7f4;
+      --muted: #9baaa3;
+      --soft: #c3cec8;
+      --blue: #8fc2ff;
+      --amber: #ffd07e;
+      --mint: #83e2bd;
+      --red: #ff8f89;
+      --gutter: clamp(16px, 2.1vw, 38px);
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: var(--gutter);
+      color: var(--ink);
+      background: radial-gradient(ellipse at 76% -22%, #21453a 0, transparent 38%), var(--bg);
+      font: 500 16px/1.45 "DM Sans", sans-serif;
+    }
+    button, select, input { color: inherit; font: inherit; }
+    button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid #8ce4c1; outline-offset: 2px; }
+    .tv-shell { width: min(100%, 1920px); min-height: calc(100vh - var(--gutter) * 2); margin: 0 auto; display: flex; flex-direction: column; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 20px; border-bottom: 1px solid rgba(157, 185, 171, .16); }
+    .brand { display: flex; align-items: center; gap: 15px; min-width: 0; }
+    .brand-mark { display: grid; place-items: center; flex: 0 0 54px; width: 54px; height: 54px; border: 1px solid #4a8c70; border-radius: 17px; color: #10241b; background: linear-gradient(145deg, #b2f4d8, #54c99b); font-size: 25px; font-weight: 800; box-shadow: 0 8px 28px rgba(65, 193, 138, .16); }
+    .brand-copy { min-width: 0; }
+    .eyebrow { display: flex; align-items: center; gap: 8px; color: var(--mint); font-size: .72rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+    .eyebrow .separator { color: #61746a; }
+    .page-title { overflow: hidden; margin: 2px 0 0; font-size: clamp(1.45rem, 2.3vw, 2.2rem); font-weight: 800; letter-spacing: -.045em; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+    .page-subtitle { margin-top: 4px; color: var(--muted); font-size: .88rem; }
+    .toolbar { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+    .control, .toolbar select, .toolbar input { min-height: 42px; padding: 0 12px; border: 1px solid var(--line); border-radius: 11px; color: var(--soft); background: #121b18; font-size: .78rem; }
+    .toolbar select { padding-right: 32px; }
+    .toolbar input { width: 132px; }
+    .control { cursor: pointer; transition: background .16s ease, border-color .16s ease, transform .16s ease; }
+    .control:hover { transform: translateY(-1px); border-color: #526a5f; background: #1b2923; }
+    #sound-toggle[aria-pressed="true"] { border-color: #3c8c6c; color: var(--mint); background: #153126; }
+    .live-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 0 5px 0 8px; color: #c8d5ce; font-size: .76rem; white-space: nowrap; }
+    .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #5bd69e; box-shadow: 0 0 13px rgba(91, 214, 158, .75); animation: pulse 1.8s ease-in-out infinite; }
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 18px 0 20px; }
+    .stat { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 86px; padding: 15px 19px; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: linear-gradient(110deg, #17211e, #111917); }
+    .stat::after { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; content: ""; opacity: .75; background: currentColor; }
+    .stat-copy { color: var(--muted); font-size: .72rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+    .stat-number { color: var(--stat-color); font-size: clamp(2rem, 3.2vw, 3rem); font-weight: 800; letter-spacing: -.06em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .stat-icon { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid color-mix(in srgb, var(--stat-color) 30%, transparent); border-radius: 13px; color: var(--stat-color); background: color-mix(in srgb, var(--stat-color) 10%, transparent); font-size: 1.15rem; }
+    .stat--blue { --stat-color: var(--blue); color: var(--blue); }
+    .stat--amber { --stat-color: var(--amber); color: var(--amber); }
+    .stat--mint { --stat-color: var(--mint); color: var(--mint); }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 315px; align-items: start; gap: 17px; flex: 1; }
+    .main-column { min-width: 0; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin: 1px 2px 12px; }
+    .section-heading h2 { margin: 0; font-size: clamp(1.05rem, 1.55vw, 1.4rem); font-weight: 750; letter-spacing: -.025em; }
+    .section-heading p { margin: 3px 0 0; color: var(--muted); font-size: .76rem; }
+    .section-heading__meta { color: var(--muted); font-size: .75rem; text-align: right; }
+    .lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 11px; }
+    .lane { min-width: 0; min-height: 390px; padding: 11px; border: 1px solid #26332e; border-radius: 16px; background: rgba(14, 21, 19, .82); }
+    .lane-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 1px 2px 11px; padding-bottom: 10px; border-bottom: 1px solid rgba(150, 173, 159, .14); color: var(--lane-color); }
+    .lane-title { display: flex; align-items: center; gap: 8px; font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .lane-title::before { width: 8px; height: 8px; border-radius: 50%; content: ""; background: currentColor; box-shadow: 0 0 12px color-mix(in srgb, currentColor 60%, transparent); }
+    .lane-count { display: grid; place-items: center; min-width: 27px; height: 27px; padding: 0 7px; border-radius: 9px; color: var(--lane-color); background: color-mix(in srgb, var(--lane-color) 12%, #111917); font-size: .82rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .lane--received { --lane-color: var(--blue); }
+    .lane--prep { --lane-color: var(--amber); }
+    .lane--ready { --lane-color: var(--mint); }
+    .ticket { position: relative; margin-bottom: 9px; padding: 13px; overflow: hidden; border: 1px solid #2b3933; border-radius: 13px; background: linear-gradient(145deg, #19221f, #131a18); animation: ticket-in .32s ease both; }
+    .ticket::before { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; content: ""; background: var(--lane-color); opacity: .75; }
+    .ticket--overdue { border-color: #6e5149; background: linear-gradient(145deg, #2b211d, #191817); }
+    .ticket-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+    .ticket-reference { color: #f6f8f6; font-size: clamp(1rem, 1.25vw, 1.25rem); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .ticket-age { padding: 4px 7px; border: 1px solid #33413b; border-radius: 7px; color: #b2beb8; background: #121a17; font-size: .7rem; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ticket-age--warn { color: var(--amber); border-color: #725d38; }
+    .ticket-age--late { color: var(--red); border-color: #754642; }
+    .ticket-table { margin-bottom: 6px; color: #e3c590; font-size: .73rem; font-weight: 700; letter-spacing: .035em; }
+    .ticket-items { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; color: #d5ded9; font-size: .88rem; line-height: 1.35; }
+    .ticket-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 7px; }
+    .ticket-quantity { color: var(--mint); font-weight: 800; font-variant-numeric: tabular-nums; }
+    .ticket-chip-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .ticket-chip { display: inline-flex; align-items: center; min-height: 23px; padding: 2px 7px; border: 1px solid #315541; border-radius: 99px; color: #b9f0d5; background: #193126; font-size: .65rem; font-weight: 700; }
+    .empty { display: grid; place-items: center; min-height: 175px; padding: 20px 12px; color: #819188; font-size: .8rem; text-align: center; }
+    .side-column { display: grid; gap: 12px; }
+    .panel { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: linear-gradient(145deg, #17211e, #121816); }
+    .panel-title { margin: 0; font-size: 1rem; font-weight: 750; letter-spacing: -.02em; }
+    .panel-hint { margin: 3px 0 11px; color: var(--muted); font-size: .7rem; }
+    .leader-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid rgba(150, 173, 159, .13); }
+    .leader-rank { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: #b1beb7; background: #202a26; font-size: .7rem; font-weight: 800; }
+    .leader-rank--gold { color: #ffdc91; background: #3d3421; }
+    .leader-name { overflow: hidden; color: #e7ede9; font-size: .8rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .leader-orders { margin-top: 2px; color: var(--muted); font-size: .67rem; }
+    .leader-sales { color: var(--mint); font-size: .73rem; font-weight: 800; text-align: right; white-space: nowrap; }
+    .fine-print { margin: 8px 0 0; padding-top: 9px; border-top: 1px solid rgba(150, 173, 159, .13); color: #a7b4ad; font-size: .65rem; line-height: 1.5; }
+    .goal-track { height: 9px; margin: 14px 0 8px; overflow: hidden; border-radius: 99px; background: #28362f; }
+    .goal-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #3bb788, #a1efd1); transition: width .45s ease; }
+    .goal-meta { display: flex; justify-content: space-between; gap: 8px; color: #dce7e1; font-size: .73rem; }
+    .goal-meta span { color: var(--muted); text-align: right; }
+    .goal-input-wrap { margin-top: 12px; }
+    .goal-input-wrap input { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid #34433c; border-radius: 9px; background: #111816; font-size: .75rem; }
+    .handoff-number { display: block; margin-top: 5px; color: var(--mint); font-size: 2.5rem; font-weight: 800; letter-spacing: -.06em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .guest .staff-only, .guest .internal { display: none !important; }
+    .guest #mode-select, .guest #outlet-select { display: none; }
+    .guest .stat:not(.stat--mint) { display: none; }
+    .guest .stats { grid-template-columns: 1fr; }
+    .guest .workspace { grid-template-columns: minmax(0, 1.3fr) minmax(300px, .7fr); }
+    .guest .lanes { grid-template-columns: 1fr; }
+    .guest-ready .lane:not(.lane--ready) { display: none; }
+    .guest-ready .lane--ready { min-height: 310px; }
+    .guest-ready .ticket { padding: 18px; }
+    .guest-ready .ticket-reference { font-size: 1.55rem; }
+    .guest-ready .ticket-items { font-size: 1.15rem; }
+    .guest .spotlight { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kitchen .workspace { grid-template-columns: 1fr; }
+    .kitchen .side-column, .kitchen .marketing { display: none; }
+    .kitchen .lanes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .kitchen .lane { min-height: 520px; padding: 14px; }
+    .kitchen .ticket { padding: 17px; }
+    .kitchen .ticket-reference { font-size: clamp(1.2rem, 1.7vw, 1.65rem); }
+    .kitchen .ticket-items { gap: 7px; font-size: clamp(1rem, 1.15vw, 1.25rem); }
+    .kitchen .ticket-item { grid-template-columns: 42px minmax(0, 1fr); }
+    .marketing { margin-top: 22px; }
+    .spotlight { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .dish { display: flex; min-height: 102px; flex-direction: column; justify-content: space-between; padding: 12px; border: 1px solid #31443a; border-radius: 12px; background: linear-gradient(145deg, #203329, #17211c); }
+    .dish[hidden], .promo[hidden] { display: none; }
+    .dish-name { color: #f1f6f2; font-size: .86rem; font-weight: 800; }
+    .dish-desc { margin-top: 5px; color: #bac7bf; font-size: .7rem; line-height: 1.45; }
+    .dish-meta { margin-top: 9px; color: var(--mint); font-size: .7rem; font-weight: 700; }
+    .dish-photo { width: 100%; height: 135px; margin-bottom: 10px; border-radius: 8px; object-fit: cover; }
+    .promo { margin-top: 8px; padding: 10px 12px; border: 1px solid #5c4b2d; border-radius: 11px; background: #30291d; }
+    .promo strong { color: #ffdc91; font-size: .78rem; }
+    .promo small { display: block; margin-top: 3px; color: #dfd1b0; font-size: .67rem; }
+    .no-outlet { display: grid; place-items: center; flex: 1; min-height: 45vh; padding: 32px; border: 1px solid var(--line); border-radius: 17px; color: var(--muted); text-align: center; background: var(--surface); }
+    .no-outlet h2 { margin: 0; color: var(--ink); }
+    .no-outlet p { margin: 7px 0 0; }
+    .page-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 17px; color: #92a098; font-size: .68rem; }
+    .full-screen { position: fixed; z-index: 10; right: 16px; bottom: 16px; box-shadow: 0 8px 25px rgba(0, 0, 0, .3); }
+    @keyframes ticket-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 50% { opacity: .52; box-shadow: 0 0 4px rgba(91, 214, 158, .4); } }
+    @media (min-width: 1500px) {
+      .lane { min-height: 470px; padding: 14px; }
+      .ticket { padding: 17px; }
+      .ticket-items { font-size: 1rem; }
+      .ticket-age, .ticket-table { font-size: .78rem; }
+      .panel { padding: 19px; }
+    }
+    @media (max-width: 1100px) {
+      .workspace, .guest .workspace { grid-template-columns: 1fr; }
+      .side-column { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .side-column .panel:first-child { grid-row: span 2; }
+      .kitchen .side-column { display: none; }
+      .toolbar { max-width: 52%; }
+    }
+    @media (max-width: 760px) {
+      body { padding: 14px; }
+      .topbar { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .brand-mark { flex-basis: 44px; width: 44px; height: 44px; border-radius: 13px; }
+      .toolbar { max-width: 100%; justify-content: flex-start; }
+      .stats { gap: 7px; margin: 12px 0 16px; }
+      .stat { min-height: 72px; padding: 10px; }
+      .stat-icon { display: none; }
+      .stat-copy { font-size: .58rem; letter-spacing: .05em; }
+      .stat-number { font-size: 1.8rem; }
+      .lanes, .kitchen .lanes, .guest .lanes { grid-template-columns: 1fr; }
+      .lane, .kitchen .lane { min-height: 110px; }
+      .side-column { grid-template-columns: 1fr; }
+      .side-column .panel:first-child { grid-row: auto; }
+      .guest .spotlight { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .section-heading { align-items: flex-start; flex-direction: column; }
+      .section-heading__meta { text-align: left; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
   </style>
 </head>
 <body class="{{ mode }}{% if mode == 'guest' %} guest-ready{% endif %}">
-<header class="top"><div class="brand"><div class="mark">✦</div><div><div class="eyebrow">{{ daypart }} · floor pulse · live</div><h1 class="title">{{ outlet.name|default:"Service display" }}</h1><div class="sub">A live view of the service flow</div></div></div><div class="tools">
-{% if outlets|length > 1 %}<select id="outlet-select" aria-label="Choose outlet">{% for item in outlets %}<option value="{{ item.id }}"{% if item.id == outlet.id %} selected{% endif %}>{{ item.name }}</option>{% endfor %}</select>{% endif %}
-<select id="mode-select" aria-label="Display mode"><option value="floor"{% if mode == 'floor' %} selected{% endif %}>Staff floor</option><option value="kitchen"{% if mode == 'kitchen' %} selected{% endif %}>Kitchen + pass</option><option value="guest"{% if mode == 'guest' %} selected{% endif %}>Guest display</option></select>
-<input class="staff-only" id="goal-input" type="number" min="0" step="1000" placeholder="Shift goal" aria-label="Shift sales goal" value="{% if goal %}{{ goal }}{% endif %}"><button id="sound-toggle" class="tool" type="button" aria-pressed="false">Sound off</button><button id="fullscreen-toggle" class="tool" type="button">Full screen</button><span class="live"><span class="dot" id="live-dot"></span><span id="live-state">LIVE · {{ refresh_seconds }}s</span></span></div></header>
-{% if not outlet %}<section class="panel no-outlet"><h2>Choose one outlet</h2><p>Select a single outlet in your staff workspace or choose one above.</p></section>{% else %}
-<section class="stats" aria-label="Live order totals"><div class="stat"><label>New orders</label><strong class="blue">{{ orders_received }}</strong></div><div class="stat"><label>In preparation</label><strong class="amber">{{ orders_prep }}</strong></div><div class="stat"><label>Ready to serve</label><strong class="mint">{{ orders_ready }}</strong></div></section>
-<div class="layout"><main><div class="section-head"><h2>Service flow</h2><span>{{ orders|length }} active tickets · food ready {{ food_ready }} · bar ready {{ bar_ready }}</span></div><div class="lanes">
-<section class="lane"><div class="lane-head blue">Just received <span>{{ orders_received }}</span></div>{% for card in orders %}{% if card.lane == 'received' %}{% include 'staff/includes/service_tv_ticket.html' with card=card %}{% endif %}{% empty %}<div class="empty">No new orders</div>{% endfor %}</section>
-<section class="lane"><div class="lane-head amber">In preparation <span>{{ orders_prep }}</span></div>{% for card in orders %}{% if card.lane == 'prep' %}{% include 'staff/includes/service_tv_ticket.html' with card=card %}{% endif %}{% empty %}<div class="empty">Nothing in prep</div>{% endfor %}</section>
-<section class="lane ready-lane"><div class="lane-head mint">Ready to serve <span>{{ orders_ready }}</span></div>{% for card in orders %}{% if card.lane == 'ready' %}{% include 'staff/includes/service_tv_ticket.html' with card=card %}{% endif %}{% empty %}<div class="empty">No tickets at the pass</div>{% endfor %}</section></div>
-<section class="internal" style="margin-top:20px"><div class="section-head"><h2>Today’s guest favorites</h2><span>Units on recorded orders</span></div><div class="spotlight" id="popular-items">{% for item in popular_items %}<article class="dish"><div><div class="dish-name">{{ item.label }}</div><div class="dish-desc">One of today's most ordered items</div></div><div class="dish-meta">{{ item.quantity_sold|floatformat:-3 }} sold</div></article>{% empty %}<div class="empty">Popular items will show as orders are recorded.</div>{% endfor %}</div></section>
-<section style="margin-top:20px"><div class="section-head"><h2>On the menu</h2><span>Featured rotation</span></div><div class="spotlight" id="featured-rotation">{% for item in featured_items %}<article class="dish featured-card">{% if item.image_url %}<img class="dish-photo" src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy">{% endif %}<div><div class="eyebrow">{{ item.category }}</div><div class="dish-name">{{ item.name }}</div><div class="dish-desc">{{ item.description|default:'Made fresh for you.'|truncatechars:90 }}</div>{% if item.availability_note %}<div class="dish-meta">{{ item.availability_note }}</div>{% endif %}</div><div class="dish-meta">{{ currency }} {{ item.price|floatformat:0 }}</div></article>{% empty %}<div class="empty">Add active menu items to feature them here.</div>{% endfor %}</div><div id="promotions">{% for promo in promotions %}<div class="promo featured-card"><strong>✦ {{ promo.name }}</strong><small>Ask our team for today's offer details.</small></div>{% endfor %}</div></section>
-</main>{% if mode != 'guest' %}<aside class="side internal"><section class="panel card" id="leaderboard"><h2>Service leaderboard</h2><div class="hint">Today · orders opened · sales value</div>{% for person in leaderboard %}<div class="person"><div class="rank{% if forloop.first %} gold{% endif %}">0{{ forloop.counter }}</div><div><div class="person-name">{{ person.name }}</div><div class="person-count">{{ person.orders }} order{{ person.orders|pluralize }}</div></div><div class="sales">{{ currency }} {{ person.sales|floatformat:0 }}</div></div>{% empty %}<div class="empty">Activity appears as staff open orders.</div>{% endfor %}<div class="metric-note">Ranks sales value from orders opened today. It is not a guest rating or tip score.</div></section>
-<section class="panel card" id="goal-panel"><h2>Shift goal</h2><div class="hint">Sales value recorded today</div><div class="goal-bar"><div class="goal-fill" id="goal-fill" style="width:{{ goal_progress }}%"></div></div><div class="goal-meta"><strong>{{ currency }} {{ goal_sales|floatformat:0 }}</strong><span id="goal-target">{% if goal %}{{ goal_progress }}% of {{ currency }} {{ goal|floatformat:0 }}{% else %}Set a goal above{% endif %}</span></div></section>
-<section class="panel card" id="handoff-panel"><h2>Ready handoffs</h2><div class="hint">Tickets with items at the pass</div><strong class="mint" style="font-size:30px">{{ ready_handoffs }}</strong><div class="metric-note">Kitchen and bar stations use the item's configured station. Unspecified stations count as food.</div></section></aside>{% endif %}</div>
-<footer><span>Keep the pass moving. Keep the welcome warm.</span><span id="updated-at">Updated {{ last_updated|date:'H:i:s' }}</span></footer>
+<div class="tv-shell">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">✦</div>
+      <div class="brand-copy">
+        <div class="eyebrow">{{ daypart }} <span class="separator">/</span> {{ mode|title }} display</div>
+        <h1 class="page-title">{{ outlet.name|default:"Service display" }}</h1>
+        <div class="page-subtitle">{% if mode == 'guest' %}Your order, prepared with care{% elif mode == 'kitchen' %}Kitchen and bar handoff board{% else %}Live service at a glance{% endif %}</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      {% if outlets|length > 1 %}<select id="outlet-select" aria-label="Choose outlet">{% for item in outlets %}<option value="{{ item.id }}"{% if item.id == outlet.id %} selected{% endif %}>{{ item.name }}</option>{% endfor %}</select>{% endif %}
+      <select id="mode-select" aria-label="Display mode">
+        <option value="floor"{% if mode == 'floor' %} selected{% endif %}>Staff floor</option>
+        <option value="kitchen"{% if mode == 'kitchen' %} selected{% endif %}>Kitchen + pass</option>
+        <option value="guest"{% if mode == 'guest' %} selected{% endif %}>Guest display</option>
+      </select>
+      <input class="staff-only" id="goal-input" type="number" min="0" step="1000" placeholder="Shift goal" aria-label="Shift sales goal" value="{% if goal %}{{ goal }}{% endif %}">
+      <button id="sound-toggle" class="control staff-only" type="button" aria-pressed="false">Sound off</button>
+      <button id="fullscreen-toggle" class="control full-screen" type="button">Full screen</button>
+      <span class="live-indicator"><span class="live-dot" id="live-dot"></span><span id="live-state">LIVE · {{ refresh_seconds }}s</span></span>
+    </div>
+  </header>
+
+  {% if not outlet %}
+    <section class="no-outlet"><div><h2>Choose one outlet</h2><p>Select a single outlet in your staff workspace or choose one above.</p></div></section>
+  {% else %}
+    <section class="stats" aria-label="Live order totals">
+      <article class="stat stat--blue"><div><div class="stat-copy">Just received</div><strong class="stat-number">{{ orders_received }}</strong></div><span class="stat-icon" aria-hidden="true">↗</span></article>
+      <article class="stat stat--amber"><div><div class="stat-copy">In preparation</div><strong class="stat-number">{{ orders_prep }}</strong></div><span class="stat-icon" aria-hidden="true">◷</span></article>
+      <article class="stat stat--mint"><div><div class="stat-copy">Ready to serve</div><strong class="stat-number">{{ orders_ready }}</strong></div><span class="stat-icon" aria-hidden="true">✓</span></article>
+    </section>
+
+    <div class="workspace">
+      <main class="main-column">
+        <div class="section-heading">
+          <div><h2>Service flow</h2><p>Orders move across the pass as each item is prepared.</p></div>
+          <div class="section-heading__meta">{{ orders|length }} active tickets · food ready {{ food_ready }} · bar ready {{ bar_ready }}</div>
+        </div>
+        <div class="lanes">
+          <section class="lane lane--received"><div class="lane-header"><span class="lane-title">Just received</span><span class="lane-count">{{ orders_received }}</span></div>{% for card in orders %}{% if card.lane == 'received' %}{% include 'staff/includes/service_tv_ticket.html' with card=card %}{% endif %}{% empty %}<div class="empty">No new orders</div>{% endfor %}</section>
+          <section class="lane lane--prep"><div class="lane-header"><span class="lane-title">In preparation</span><span class="lane-count">{{ orders_prep }}</span></div>{% for card in orders %}{% if card.lane == 'prep' %}{% include 'staff/includes/service_tv_ticket.html' with card=card %}{% endif %}{% empty %}<div class="empty">Nothing in prep</div>{% endfor %}</section>
+          <section class="lane lane--ready"><div class="lane-header"><span class="lane-title">Ready to serve</span><span class="lane-count">{{ orders_ready }}</span></div>{% for card in orders %}{% if card.lane == 'ready' %}{% include 'staff/includes/service_tv_ticket.html' with card=card %}{% endif %}{% empty %}<div class="empty">No tickets at the pass</div>{% endfor %}</section>
+        </div>
+
+        <section class="marketing internal">
+          <div class="section-heading"><div><h2>Today’s guest favorites</h2><p>Popular choices from today’s recorded orders.</p></div><div class="section-heading__meta">Most ordered</div></div>
+          <div class="spotlight" id="popular-items">{% for item in popular_items %}<article class="dish"><div><div class="dish-name">{{ item.label }}</div><div class="dish-desc">A guest favorite today</div></div><div class="dish-meta">{{ item.quantity_sold|floatformat:-3 }} orders</div></article>{% empty %}<div class="empty">Popular items will show as orders are recorded.</div>{% endfor %}</div>
+        </section>
+        <section class="marketing">
+          <div class="section-heading"><div><h2>On the menu</h2><p>Featured picks for the current service.</p></div><div class="section-heading__meta">Featured rotation</div></div>
+          <div class="spotlight" id="featured-rotation">{% for item in featured_items %}<article class="dish featured-card">{% if item.image_url %}<img class="dish-photo" src="{{ item.image_url }}" alt="{{ item.name }}" loading="lazy">{% endif %}<div><div class="eyebrow">{{ item.category }}</div><div class="dish-name">{{ item.name }}</div><div class="dish-desc">{{ item.description|default:'Made fresh for you.'|truncatechars:90 }}</div>{% if item.availability_note %}<div class="dish-meta">{{ item.availability_note }}</div>{% endif %}</div><div class="dish-meta">{{ currency }} {{ item.price|floatformat:0 }}</div></article>{% empty %}<div class="empty">Add active menu items to feature them here.</div>{% endfor %}</div>
+          <div id="promotions">{% for promo in promotions %}<div class="promo featured-card"><strong>✦ {{ promo.name }}</strong><small>Ask our team for today’s offer details.</small></div>{% endfor %}</div>
+        </section>
+      </main>
+
+      {% if mode != 'guest' %}
+        <aside class="side-column internal">
+          <section class="panel" id="leaderboard"><h2 class="panel-title">Service leaderboard</h2><p class="panel-hint">Today · orders opened · sales value</p>{% for person in leaderboard %}<div class="leader-row"><span class="leader-rank{% if forloop.first %} leader-rank--gold{% endif %}">{{ forloop.counter|stringformat:"02d" }}</span><div><div class="leader-name">{{ person.name }}</div><div class="leader-orders">{{ person.orders }} order{{ person.orders|pluralize }}</div></div><div class="leader-sales">{{ currency }} {{ person.sales|floatformat:0 }}</div></div>{% empty %}<div class="empty">Activity appears as staff open orders.</div>{% endfor %}<p class="fine-print">Ranks sales value from orders opened today. It is not a guest rating or tip score.</p></section>
+          <section class="panel" id="goal-panel"><h2 class="panel-title">Shift goal</h2><p class="panel-hint">Sales value recorded today</p><div class="goal-track"><div class="goal-fill" id="goal-fill" style="width:{{ goal_progress }}%"></div></div><div class="goal-meta"><strong>{{ currency }} {{ goal_sales|floatformat:0 }}</strong><span id="goal-target">{% if goal %}{{ goal_progress }}% of {{ currency }} {{ goal|floatformat:0 }}{% else %}Set a goal above{% endif %}</span></div></section>
+          <section class="panel" id="handoff-panel"><h2 class="panel-title">Ready handoffs</h2><p class="panel-hint">Tickets with items at the pass</p><strong class="handoff-number">{{ ready_handoffs }}</strong><p class="fine-print">Kitchen and bar readiness follows each item’s configured preparation station.</p></section>
+        </aside>
+      {% endif %}
+    </div>
+  {% endif %}
+  <footer class="page-footer"><span>{% if mode == 'guest' %}Thank you for joining us.{% else %}Keep the pass moving. Keep the welcome warm.{% endif %}</span><span id="updated-at">Updated {{ last_updated|date:'H:i:s' }}</span></footer>
+</div>
 <script>
-(function(){'use strict';var params=new URLSearchParams(window.location.search),mode=document.getElementById('mode-select'),outlet=document.getElementById('outlet-select'),goal=document.getElementById('goal-input'),sound=document.getElementById('sound-toggle'),full=document.getElementById('fullscreen-toggle');
-function savePrefs(){try{localStorage.setItem('service-tv-sound',sound.getAttribute('aria-pressed')==='true'?'1':'0');if(goal)localStorage.setItem('service-tv-goal',goal.value||'')}catch(e){}}
-try{if(goal)goal.value=params.get('goal')||localStorage.getItem('service-tv-goal')||goal.value;if(localStorage.getItem('service-tv-sound')==='1'){sound.setAttribute('aria-pressed','true');sound.textContent='Sound on'}}catch(e){}
-function updateUrl(){params.set('mode',mode.value);if(outlet&&outlet.value)params.set('outlet',outlet.value);if(goal&&goal.value)params.set('goal',goal.value);else params.delete('goal');history.replaceState(null,'','?'+params.toString())}
-mode.addEventListener('change',function(){updateUrl();location.reload()});if(outlet)outlet.addEventListener('change',function(){updateUrl();location.reload()});if(goal)goal.addEventListener('change',function(){savePrefs();updateUrl();var g=Number(goal.value),sales=Number('{{ goal_sales|floatformat:2 }}'),pct=g>0?Math.min(100,Math.floor(sales*100/g)):0;document.getElementById('goal-fill').style.width=pct+'%';document.getElementById('goal-target').textContent=g>0?pct+'% of {{ currency }} '+Math.round(g):'Set a goal above'});
-sound.addEventListener('click',function(){var on=sound.getAttribute('aria-pressed')!=='true';sound.setAttribute('aria-pressed',String(on));sound.textContent=on?'Sound on':'Sound off';savePrefs();if(on&&window.AudioContext){try{var c=new AudioContext(),o=c.createOscillator(),v=c.createGain();o.connect(v);v.connect(c.destination);v.gain.value=.04;o.frequency.value=740;o.start();o.stop(c.currentTime+.12)}catch(e){}}});
-full.addEventListener('click',function(){if(!document.fullscreenElement)document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();else document.exitFullscreen&&document.exitFullscreen()});
-function rotate(){var cards=Array.prototype.slice.call(document.querySelectorAll('.featured-card'));cards.forEach(function(c){c.hidden=true});if(cards.length){var ix=0;cards[ix].hidden=false;if(window.serviceTvRotation)clearInterval(window.serviceTvRotation);window.serviceTvRotation=window.setInterval(function(){cards[ix].hidden=true;ix=(ix+1)%cards.length;cards[ix].hidden=false},7000)}}rotate();
-var previousReady={{ orders_ready }};window.setInterval(function(){fetch(window.location.href,{headers:{'X-Requested-With':'XMLHttpRequest'},cache:'no-store'}).then(function(r){if(!r.ok)throw new Error();return r.text()}).then(function(html){var d=new DOMParser().parseFromString(html,'text/html');['.stats','.lanes','#popular-items','#featured-rotation','#promotions','#leaderboard','#goal-panel','#handoff-panel'].forEach(function(sel){var old=document.querySelector(sel),fresh=d.querySelector(sel);if(old&&fresh)old.innerHTML=fresh.innerHTML});var n=d.querySelector('.stat .mint'),ready=n?Number(n.textContent.trim()):0;if(ready>previousReady&&sound.getAttribute('aria-pressed')==='true'){try{if(window.AudioContext){var c=new AudioContext(),o=c.createOscillator(),v=c.createGain();o.connect(v);v.connect(c.destination);v.gain.value=.05;o.frequency.value=880;o.start();o.stop(c.currentTime+.18)}}catch(e){}}previousReady=ready;rotate();document.getElementById('live-state').textContent='LIVE · refreshed';document.getElementById('updated-at').textContent='Updated '+new Date().toLocaleTimeString();document.getElementById('live-dot').style.background='#59d6a4'}).catch(function(){document.getElementById('live-state').textContent='Reconnecting…';document.getElementById('live-dot').style.background='#ff827c'})},{{ refresh_seconds }}000);
-})();
-</script>{% endif %}
-</body></html>
+(function () {
+  'use strict';
+  var params = new URLSearchParams(window.location.search);
+  var mode = document.getElementById('mode-select');
+  var outlet = document.getElementById('outlet-select');
+  var goal = document.getElementById('goal-input');
+  var sound = document.getElementById('sound-toggle');
+  var full = document.getElementById('fullscreen-toggle');
+  function savePrefs() {
+    try {
+      localStorage.setItem('service-tv-sound', sound.getAttribute('aria-pressed') === 'true' ? '1' : '0');
+      if (goal) localStorage.setItem('service-tv-goal', goal.value || '');
+    } catch (e) {}
+  }
+  try {
+    if (goal) goal.value = params.get('goal') || localStorage.getItem('service-tv-goal') || goal.value;
+    if (localStorage.getItem('service-tv-sound') === '1') {
+      sound.setAttribute('aria-pressed', 'true');
+      sound.textContent = 'Sound on';
+    }
+  } catch (e) {}
+  function updateUrl() {
+    params.set('mode', mode.value);
+    if (outlet && outlet.value) params.set('outlet', outlet.value);
+    if (goal && goal.value) params.set('goal', goal.value); else params.delete('goal');
+    history.replaceState(null, '', '?' + params.toString());
+  }
+  mode.addEventListener('change', function () { updateUrl(); location.reload(); });
+  if (outlet) outlet.addEventListener('change', function () { updateUrl(); location.reload(); });
+  if (goal) goal.addEventListener('change', function () {
+    savePrefs();
+    updateUrl();
+    var target = Number(goal.value);
+    var sales = Number('{{ goal_sales|floatformat:2 }}');
+    var percent = target > 0 ? Math.min(100, Math.floor(sales * 100 / target)) : 0;
+    document.getElementById('goal-fill').style.width = percent + '%';
+    document.getElementById('goal-target').textContent = target > 0 ? percent + '% of {{ currency }} ' + Math.round(target) : 'Set a goal above';
+  });
+  sound.addEventListener('click', function () {
+    var on = sound.getAttribute('aria-pressed') !== 'true';
+    sound.setAttribute('aria-pressed', String(on));
+    sound.textContent = on ? 'Sound on' : 'Sound off';
+    savePrefs();
+    if (on && window.AudioContext) {
+      try {
+        var context = new AudioContext();
+        var oscillator = context.createOscillator();
+        var volume = context.createGain();
+        oscillator.connect(volume); volume.connect(context.destination);
+        volume.gain.value = .04; oscillator.frequency.value = 740;
+        oscillator.start(); oscillator.stop(context.currentTime + .12);
+      } catch (e) {}
+    }
+  });
+  full.addEventListener('click', function () {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    else if (document.exitFullscreen) document.exitFullscreen();
+  });
+  function rotateFeatured() {
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.featured-card'));
+    cards.forEach(function (card) { card.hidden = true; });
+    if (!cards.length) return;
+    var index = 0;
+    cards[index].hidden = false;
+    if (window.serviceTvRotation) clearInterval(window.serviceTvRotation);
+    window.serviceTvRotation = window.setInterval(function () {
+      cards[index].hidden = true;
+      index = (index + 1) % cards.length;
+      cards[index].hidden = false;
+    }, 7000);
+  }
+  rotateFeatured();
+  window.setInterval(function () {
+    document.querySelectorAll('.ticket-age[data-age]').forEach(function (age) {
+      var seconds = Number(age.getAttribute('data-age')) + 1;
+      age.setAttribute('data-age', String(seconds));
+      age.textContent = seconds >= 900 ? '15m+' : (seconds >= 60 ? Math.floor(seconds / 60) + 'm ' + String(seconds % 60).padStart(2, '0') + 's' : seconds + 's');
+      age.classList.toggle('ticket-age--warn', seconds > 300 && seconds <= 600);
+      age.classList.toggle('ticket-age--late', seconds > 600);
+    });
+  }, 1000);
+  var previousReady = {{ orders_ready }};
+  window.setInterval(function () {
+    fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' })
+      .then(function (response) { if (!response.ok) throw new Error('Refresh failed'); return response.text(); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        ['.stats', '.lanes', '#popular-items', '#featured-rotation', '#promotions', '#leaderboard', '#goal-panel', '#handoff-panel'].forEach(function (selector) {
+          var oldElement = document.querySelector(selector);
+          var newElement = doc.querySelector(selector);
+          if (oldElement && newElement) oldElement.innerHTML = newElement.innerHTML;
+        });
+        var readyStat = doc.querySelector('.stat--mint .stat-number');
+        var ready = readyStat ? Number(readyStat.textContent.trim()) : 0;
+        if (ready > previousReady && sound.getAttribute('aria-pressed') === 'true' && window.AudioContext) {
+          try {
+            var context = new AudioContext();
+            var oscillator = context.createOscillator();
+            var volume = context.createGain();
+            oscillator.connect(volume); volume.connect(context.destination);
+            volume.gain.value = .05; oscillator.frequency.value = 880;
+            oscillator.start(); oscillator.stop(context.currentTime + .18);
+          } catch (e) {}
+        }
+        previousReady = ready;
+        rotateFeatured();
+        document.getElementById('live-state').textContent = 'LIVE · refreshed';
+        document.getElementById('updated-at').textContent = 'Updated ' + new Date().toLocaleTimeString();
+        document.getElementById('live-dot').style.background = '#5bd69e';
+      })
+      .catch(function () {
+        document.getElementById('live-state').textContent = 'Reconnecting…';
+        document.getElementById('live-dot').style.background = '#ff8f89';
+      });
+  }, {{ refresh_seconds }}000);
+}());
+</script>
+</body>
+</html>
