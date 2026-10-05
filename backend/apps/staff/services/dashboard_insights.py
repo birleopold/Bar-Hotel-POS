@@ -345,18 +345,7 @@ def dashboard_sales_snapshot(
     if isinstance(hit, DashboardSalesSnapshot):
         return hit
 
-<<<<<<< HEAD
     summary = build_sales_summary(membership.tenant_id, d0, d1, outlet_id, allowed_outlet_ids=[o.pk for o in outlets])
-=======
-    allowed_outlet_ids = [outlet.pk for outlet in outlets]
-    summary = build_sales_summary(
-        membership.tenant_id,
-        d0,
-        d1,
-        outlet_id,
-        outlet_ids=allowed_outlet_ids if outlet_id is None else None,
-    )
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
     currency = default_currency_for_tenant(membership.tenant)
     net = summary.get("net_sales") or Decimal("0")
     gross = summary.get("gross_sales") or Decimal("0")

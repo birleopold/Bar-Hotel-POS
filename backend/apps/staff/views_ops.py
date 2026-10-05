@@ -16,12 +16,8 @@ from django.db.models import Prefetch, Q
 
 from apps.catalog.models import MenuItemModifierGroup, ModifierOption
 from apps.accounts.models import MembershipRole
-<<<<<<< HEAD
 from apps.audit.services import log_audit
 from apps.customers.models import Customer
-=======
-from apps.tenants.business_lines import modules_for_business_lines
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem, ServiceOffering, ServiceOfferingOption
@@ -211,13 +207,7 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
     context_object_name = "orders"
     paginate_by = 50
 
-<<<<<<< HEAD
     def _orders_in_scope(self):
-        outlets = staff_accessible_outlets(self.request.tenant_membership)
-        qs = (
-            Order.objects.filter(tenant=self.request.tenant, outlet_id__in=[o.id for o in outlets])
-=======
-    def get_queryset(self):
         if "pos" not in get_tenant_staff_modules(self.request.tenant):
             return Order.objects.none()
         outlets = staff_accessible_outlets(self.request.tenant_membership)
@@ -226,7 +216,6 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
             return Order.objects.none()
         qs = (
             Order.objects.filter(tenant=self.request.tenant, outlet_id__in=allowed_ids)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             .select_related("outlet", "table")
             .prefetch_related("payments")
             .order_by("-created_at")
@@ -234,17 +223,12 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         outlet = resolve_staff_outlet(self.request, outlets)
         if outlet:
             qs = qs.filter(outlet=outlet)
-<<<<<<< HEAD
         if self.request.GET.get("mine") == "1":
             qs = qs.filter(created_by=self.request.user)
         return qs
 
     def get_queryset(self):
         qs = self._orders_in_scope()
-=======
-        else:
-            qs = qs.filter(outlet_id__in=[o.id for o in outlets])
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         st = self.request.GET.get("status")
         if st in ("open", "closed", "cancelled"):
             qs = qs.filter(status=st)
@@ -616,12 +600,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["can_modify_open_order"] = can_modify_open
 
         # Folio attach/clear (only for open, unpaid orders).
-<<<<<<< HEAD
-        ctx["can_set_folio"] = can_modify_open
-        ctx["can_charge_to_folio"] = can_modify_open and order.folio_id is not None and b > Decimal("0")
-=======
         ctx["can_set_folio"] = can_modify_open and _tenant_lodging_enabled(order.tenant)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
+        ctx["can_charge_to_folio"] = can_modify_open and order.folio_id is not None and b > Decimal("0")
         ctx["folio_form"] = None
         ctx["folio_choices"] = []
         if ctx["can_set_folio"]:
@@ -1691,16 +1671,9 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
 
         outlets = staff_accessible_outlets(request.tenant_membership)
         outlet = resolve_staff_outlet(request, outlets)
-<<<<<<< HEAD
         all_outlets_mode = request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         oid = None if all_outlets_mode else (outlet.id if outlet else None)
         body = format_sales_summary_csv(request.tenant.id, d0, d1, oid, allowed_outlet_ids=[o.pk for o in outlets])
-=======
-        outlet_ids = [o.id for o in outlets]
-        if request.session.get(STAFF_SESSION_OUTLET_KEY) != STAFF_SESSION_OUTLET_ALL and outlet:
-            outlet_ids = [outlet.id]
-        body = format_sales_summary_csv(request.tenant.id, d0, d1, outlet_ids=outlet_ids)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 
         resp = HttpResponse(body, content_type="text/csv; charset=utf-8")
         resp["Content-Disposition"] = (
@@ -1731,13 +1704,6 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
             ctx["summary"] = None
             return ctx
 
-<<<<<<< HEAD
         oid = None if ctx["all_outlets_mode"] else (outlet.id if outlet else None)
         ctx["summary"] = build_sales_summary(self.request.tenant.id, d0, d1, oid, allowed_outlet_ids=[o.pk for o in outlets])
-=======
-        outlet_ids = [o.id for o in outlets]
-        if not ctx["all_outlets_mode"] and outlet:
-            outlet_ids = [outlet.id]
-        ctx["summary"] = build_sales_summary(self.request.tenant.id, d0, d1, outlet_ids=outlet_ids)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         return ctx

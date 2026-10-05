@@ -50,11 +50,8 @@ class SalesSummaryView(APIView):
 
         tenant_id = request.tenant.id
         allowed_outlets = membership_outlet_ids(request.tenant_membership)
-<<<<<<< HEAD
-=======
         if oid is not None and oid not in allowed_outlets:
             return Response({"error": {"code": "outlet_forbidden", "message": "You cannot view reports for this outlet."}}, status=403)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         payments_qs = Payment.objects.filter(
             tenant_id=tenant_id,
             order__outlet_id__in=allowed_outlets,
@@ -167,11 +164,8 @@ class OperationsRollupView(APIView):
 
         tenant_id = request.tenant.id
         allowed_outlets = membership_outlet_ids(request.tenant_membership)
-<<<<<<< HEAD
-=======
         if oid is not None and oid not in allowed_outlets:
             return Response({"error": {"code": "outlet_forbidden", "message": "You cannot view reports for this outlet."}}, status=403)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 
         payments_qs = Payment.objects.filter(
             tenant_id=tenant_id,

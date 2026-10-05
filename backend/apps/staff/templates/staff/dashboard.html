@@ -9,12 +9,6 @@
       {% if active_membership %}
         <p class="staff-dash-hero__meta">{{ active_membership.tenant.name }}</p>
       {% endif %}
-<<<<<<< HEAD
-      <p class="staff-dash-hero__tagline">Pick up your work, then check what needs attention.</p>
-    </div>
-  </header>
-
-=======
       <p class="staff-dash-hero__tagline">{{ staff_product.tagline|default:"Manage sales, service, and daily operations in one workspace." }}</p>
     </div>
   </header>
@@ -26,7 +20,6 @@
     {% endfor %}
   </ul>
 
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
   {% if not active_membership %}
     <div class="staff-card staff-card--soft staff-empty-split">
       <div class="staff-empty-copy">

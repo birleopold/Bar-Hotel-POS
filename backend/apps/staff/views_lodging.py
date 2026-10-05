@@ -29,12 +29,8 @@ from apps.lodging.models import (
     RoomStatus,
     RoomType,
 )
-<<<<<<< HEAD
 from apps.audit.services import log_audit
 from .services.customers import visible_customers
-=======
-from apps.accounts.models import MembershipRole
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 from apps.lodging.services import (
     cancel_reservation,
     check_in_reservation,
@@ -145,15 +141,10 @@ class StaffReservationsListView(StaffTenantRequiredMixin, ListView):
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
         ctx["status_filter"] = self.request.GET.get("status") or ""
-<<<<<<< HEAD
         lane = self.request.GET.get("lane") or ""
         ctx["lane_filter"] = lane if lane in {"arrivals", "departures", "in_house"} else ""
         ctx["lane_title"] = {"arrivals": "Today's arrivals", "departures": "Due departures", "in_house": "In-house guests"}.get(lane, "Reservations")
-
-        ctx["can_modify_lodging"] = membership_can_modify_lodging(self.request.tenant_membership)
-=======
         ctx["can_modify_lodging"] = membership_can_manage_reservations(self.request.tenant_membership)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         return ctx
 
 
@@ -284,12 +275,8 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
         res: Reservation = ctx["reservation"]
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
-<<<<<<< HEAD
-        ctx["can_modify_lodging"] = membership_can_modify_lodging(self.request.tenant_membership)
         ctx["customer_options"] = visible_customers(self.request.tenant_membership, self.request.user).order_by("name")[:100]
-=======
         ctx["can_modify_lodging"] = membership_can_manage_reservations(self.request.tenant_membership)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         ctx["room_choices"] = (
             Room.objects.filter(room_type__site_id=res.site_id, is_active=True)
             .select_related("room_type")

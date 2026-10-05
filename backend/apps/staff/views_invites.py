@@ -245,10 +245,7 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
         ctx["filter_site"] = self.request.GET.get("site") or ""
         ctx["filter_outlet"] = self.request.GET.get("outlet") or ""
         ctx["role_choices"] = MembershipRole.choices
-<<<<<<< HEAD
         ctx["now"] = timezone.now()
-        ctx["sites"] = list(self.request.tenant.sites.order_by("name"))
-=======
         actor = self.request.tenant_membership
         from apps.staff.services.membership import staff_accessible_outlets, sites_visible_for_membership
 
@@ -263,7 +260,6 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
             if actor.outlets.exists():
                 outlets = outlets.filter(pk__in=outlet_ids)
         ctx["sites"] = list(sites)
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         ctx["outlets"] = list(
             outlets
         )

@@ -51,11 +51,8 @@ def build_sales_summary(
     d1: date,
     outlet_id: uuid.UUID | None = None,
     *,
-<<<<<<< HEAD
     allowed_outlet_ids: list[uuid.UUID] | None = None,
-=======
     outlet_ids: list[uuid.UUID] | None = None,
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 ) -> dict:
     start, end = utc_day_range_inclusive(d0, d1)
 

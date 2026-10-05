@@ -31,14 +31,10 @@ class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return StockBalance.objects.none()
         qs = (
-<<<<<<< HEAD
             StockBalance.objects.filter(
                 tenant=self.request.tenant,
                 outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
             )
-=======
-            StockBalance.objects.filter(tenant=self.request.tenant, outlet_id__in=membership_outlet_ids(self.request.tenant_membership))
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             .select_related("outlet", "menu_item")
             .order_by("outlet", "menu_item__name")
         )
@@ -66,14 +62,10 @@ class StockMovementViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, views
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return StockMovement.objects.none()
-<<<<<<< HEAD
         qs = StockMovement.objects.filter(
             tenant=self.request.tenant,
             outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
         ).select_related(
-=======
-        qs = StockMovement.objects.filter(tenant=self.request.tenant, outlet_id__in=membership_outlet_ids(self.request.tenant_membership)).select_related(
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             "outlet", "menu_item", "order", "purchase_order", "created_by"
         )
         outlet = self.request.query_params.get("outlet")
@@ -144,14 +136,10 @@ class StockCountSessionViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return StockCountSession.objects.none()
         qs = (
-<<<<<<< HEAD
             StockCountSession.objects.filter(
                 tenant=self.request.tenant,
                 outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
             )
-=======
-            StockCountSession.objects.filter(tenant=self.request.tenant, outlet_id__in=membership_outlet_ids(self.request.tenant_membership))
->>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             .select_related("outlet", "created_by")
             .prefetch_related("lines__menu_item")
         )
