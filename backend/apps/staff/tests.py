@@ -1921,11 +1921,12 @@ class StaffOrderVoidLineTests(TestCase):
             sort_order=0,
         )
         cls.accountant = User.objects.create_user(email="void-acct@test.local", password="TestPass9!")
-        Membership.objects.create(
+        cls.accountant_membership = Membership.objects.create(
             user=cls.accountant,
             tenant=cls.tenant,
             role=MembershipRole.ACCOUNTANT,
         )
+        cls.accountant_membership.sites.add(cls.site)
 
     def setUp(self) -> None:
         self.client.force_login(self.user)
@@ -2014,11 +2015,12 @@ class StaffOrderRefundTests(TestCase):
             role=MembershipRole.OWNER,
         )
         cls.server_user = User.objects.create_user(email="server-refund@test.local", password="TestPass9!")
-        Membership.objects.create(
+        cls.server_membership = Membership.objects.create(
             user=cls.server_user,
             tenant=cls.tenant,
             role=MembershipRole.SERVER,
         )
+        cls.server_membership.sites.add(cls.site)
         cls.order = Order.objects.create(
             tenant=cls.tenant,
             outlet=cls.outlet,
