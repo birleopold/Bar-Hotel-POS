@@ -2,46 +2,59 @@
   <div class="staff-sidebar__brand-wrap">
     <a class="staff-sidebar__brand" href="{% url 'staff-dashboard' %}">
       <span class="staff-sidebar__mark" aria-hidden="true">{{ request.tenant.name|default:"S"|slice:":1"|upper }}</span>
-      <span><strong>{{ request.tenant.name|default:"Staff" }}</strong><small>{{ staff_product.workspace_label|default:"Operations workspace" }}</small></span>
+      <span class="staff-sidebar__brand-copy"><strong>{{ request.tenant.name|default:"Staff workspace" }}</strong><small>{{ staff_product.workspace_label|default:"Operations workspace" }}</small></span>
+      <i class="bi bi-chevron-down staff-sidebar__brand-caret" aria-hidden="true"></i>
     </a>
   </div>
 
   {% if user.is_authenticated %}
-    <div class="staff-sidebar__scope">
-      {% if staff_nav_outlets %}
-        <form method="post" action="{% url 'staff-select-outlet' %}">
-          {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-          <label for="sidebar-outlet-select">{{ staff_product.scope_label|default:"Section" }}</label>
-          <select id="sidebar-outlet-select" name="outlet_id" onchange="this.form.submit()">
-            <option value="__all__"{% if staff_all_outlets %} selected{% endif %}>{{ staff_product.scope_all_label|default:"All sections" }}</option>
-            {% for o in staff_nav_outlets %}<option value="{{ o.id }}"{% if staff_nav_outlet and staff_nav_outlet.id == o.id and not staff_all_outlets %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
-          </select>
-        </form>
-      {% endif %}
-      {% if staff_show_housekeeping_nav and staff_lodging_sites %}
-        <form method="post" action="{% url 'staff-select-site' %}">
-          {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-          <label for="sidebar-site-select">Branch</label>
-          <select id="sidebar-site-select" name="site_id" onchange="this.form.submit()">
-            {% for s in staff_lodging_sites %}<option value="{{ s.id }}"{% if staff_lodging_site and staff_lodging_site.id == s.id %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
-          </select>
-        </form>
-      {% endif %}
-    </div>
+    {% if staff_nav_outlets or staff_show_housekeeping_nav and staff_lodging_sites %}
+      <div class="staff-sidebar__scope">
+        <span class="staff-sidebar__scope-eyebrow">Working in</span>
+        {% if staff_nav_outlets %}
+          <form method="post" action="{% url 'staff-select-outlet' %}">
+            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+            <label class="visually-hidden" for="sidebar-outlet-select">{{ staff_product.scope_label|default:"Section" }}</label>
+            <span class="staff-sidebar__scope-icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
+            <select id="sidebar-outlet-select" name="outlet_id" onchange="this.form.submit()">
+              <option value="__all__"{% if staff_all_outlets %} selected{% endif %}>{{ staff_product.scope_all_label|default:"All sections" }}</option>
+              {% for o in staff_nav_outlets %}<option value="{{ o.id }}"{% if staff_nav_outlet and staff_nav_outlet.id == o.id and not staff_all_outlets %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
+            </select>
+            <i class="bi bi-chevron-expand staff-sidebar__scope-caret" aria-hidden="true"></i>
+          </form>
+        {% endif %}
+        {% if staff_show_housekeeping_nav and staff_lodging_sites %}
+          <form method="post" action="{% url 'staff-select-site' %}">
+            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+            <label class="visually-hidden" for="sidebar-site-select">Branch</label>
+            <span class="staff-sidebar__scope-icon"><i class="bi bi-building" aria-hidden="true"></i></span>
+            <select id="sidebar-site-select" name="site_id" onchange="this.form.submit()">
+              {% for s in staff_lodging_sites %}<option value="{{ s.id }}"{% if staff_lodging_site and staff_lodging_site.id == s.id %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+            </select>
+            <i class="bi bi-chevron-expand staff-sidebar__scope-caret" aria-hidden="true"></i>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if staff_nav and staff_nav.orders %}
+      <form method="post" action="{% url 'staff-order-quick-create' %}" class="staff-sidebar__primary-action">
+        {% csrf_token %}
+        <input type="hidden" name="mode" value="">
+        <button type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>{% if staff_product.scope_label == "Register" %}New sale{% else %}New order{% endif %}</span></button>
+      </form>
+    {% endif %}
 
     <div class="staff-sidebar__scroll">
-      {% if staff_show_management %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-management' %}"><i class="bi bi-shield-check" aria-hidden="true"></i> Management</a>{% endif %}
-      {% if staff_show_management or staff_show_lodging_nav %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-customers' %}"><i class="bi bi-people" aria-hidden="true"></i> Customers &amp; guests</a>{% endif %}
       {% include "staff/includes/workbench_sidebar.html" %}
     </div>
 
     <div class="staff-sidebar__footer">
-      <div class="staff-sidebar__user"><span aria-hidden="true">{{ user.email|slice:":1"|upper }}</span><div><strong>{{ user.email }}</strong><small>Signed in</small></div></div>
+      <div class="staff-sidebar__user"><span class="staff-sidebar__avatar" aria-hidden="true">{{ user.first_name|default:user.email|slice:":1"|upper }}</span><div><strong>{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.email }}{% endif %}</strong><small>{{ active_membership.get_role_display|default:"Team member" }}</small></div></div>
       <div class="staff-sidebar__footer-actions">
-        <a href="{% url 'staff-pin-setup' %}" title="Set terminal PIN"><i class="bi bi-shield-lock"></i><span>Set PIN</span></a>
-        <form class="staff-sidebar__lock" method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit" title="Lock terminal"><i class="bi bi-lock"></i><span>Lock terminal</span></button></form>
-        {% if staff_show_console_entry %}<a href="{% url 'console-org' %}" title="Administration"><i class="bi bi-gear"></i><span>Console</span></a>{% endif %}
-        <form method="post" action="{% url 'staff-logout' %}">{% csrf_token %}<button type="submit" title="Sign out"><i class="bi bi-box-arrow-right"></i><span>Sign out</span></button></form>
+        <a href="{% url 'staff-pin-setup' %}" title="Set terminal PIN"><i class="bi bi-shield-lock" aria-hidden="true"></i><span>Set PIN</span></a>
+        <form class="staff-sidebar__lock" method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit" title="Lock terminal"><i class="bi bi-lock" aria-hidden="true"></i><span>Lock terminal</span></button></form>
+        <form method="post" action="{% url 'staff-logout' %}">{% csrf_token %}<button type="submit" title="Sign out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span>Sign out</span></button></form>
       </div>
     </div>
   {% endif %}

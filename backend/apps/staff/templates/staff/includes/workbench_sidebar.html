@@ -1,52 +1,46 @@
-{# Role- and module-aware sidebar; keep in sync with staff_nav visibility. #}
+{# Role- and module-aware navigation. Keep these gates aligned with staff_nav visibility. #}
 {% with u=request.resolver_match.url_name %}
 <nav class="wb-side-nav" aria-label="Staff sections">
   <div class="wb-nav-group">
-    <span class="wb-nav-group__label">Hub</span>
+    <span class="wb-nav-group__label">Workspace</span>
     <ul class="wb-nav-list">
-      <li><a class="wb-nav-link{% if u == 'staff-dashboard' %} wb-nav-link--active{% endif %}" href="{% url 'staff-dashboard' %}">Workbench</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-dashboard' %} wb-nav-link--active{% endif %}" href="{% url 'staff-dashboard' %}"><i class="bi bi-grid-1x2" aria-hidden="true"></i><span>Overview</span></a></li>
+      {% if staff_show_management %}<li><a class="wb-nav-link{% if u == 'staff-management' %} wb-nav-link--active{% endif %}" href="{% url 'staff-management' %}"><i class="bi bi-bar-chart-line" aria-hidden="true"></i><span>Management</span></a></li>{% endif %}
+      {% if staff_show_management or staff_show_lodging_nav %}<li><a class="wb-nav-link{% if 'customer' in u %} wb-nav-link--active{% endif %}" href="{% url 'staff-customers' %}"><i class="bi bi-people" aria-hidden="true"></i><span>Customers &amp; guests</span></a></li>{% endif %}
     </ul>
   </div>
 
   {% if staff_nav %}
+  {% if staff_nav.orders or staff_nav.tables or staff_nav.menu %}
   <div class="wb-nav-group">
-    <span class="wb-nav-group__label">Sales &amp; floor</span>
+    <span class="wb-nav-group__label">Sell &amp; serve</span>
     <ul class="wb-nav-list">
       {% if staff_nav.orders %}
-      <li><a class="wb-nav-link{% if u == 'staff-orders' or u == 'staff-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-orders' %}">Orders &amp; tabs</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-service-tv' %} wb-nav-link--active{% endif %}" href="{% url 'staff-service-tv' %}">Service TV</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-order-quick-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-order-quick-create' %}">Quick order</a></li>
-      {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-workstations' or u == 'staff-workstation-create' or u == 'staff-workstation-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workstations' %}">Workstations</a></li>{% endif %}
-      {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-pos-shifts' %} wb-nav-link--active{% endif %}" href="{% url 'staff-pos-shifts' %}">Shift close</a></li>{% endif %}
+      <li><a class="wb-nav-link{% if u == 'staff-orders' or u == 'staff-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-orders' %}"><i class="bi bi-receipt-cutoff" aria-hidden="true"></i><span>Orders &amp; tabs</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-service-tv' %} wb-nav-link--active{% endif %}" href="{% url 'staff-service-tv' %}"><i class="bi bi-display" aria-hidden="true"></i><span>Service display</span></a></li>
+      {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-workstations' or u == 'staff-workstation-create' or u == 'staff-workstation-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workstations' %}"><i class="bi bi-pc-display-horizontal" aria-hidden="true"></i><span>Registers &amp; devices</span></a></li>{% endif %}
+      {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-pos-shifts' %} wb-nav-link--active{% endif %}" href="{% url 'staff-pos-shifts' %}"><i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>Shift &amp; cash</span></a></li>{% endif %}
       {% endif %}
-      {% if staff_nav.tables %}
-      <li><a class="wb-nav-link{% if u == 'staff-tables' or u == 'staff-table-create' or u == 'staff-table-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-tables' %}">Tables</a></li>
-      {% endif %}
-      {% if staff_nav.menu %}
-      <li><a class="wb-nav-link{% if u == 'staff-menu' %} wb-nav-link--active{% endif %}" href="{% url 'staff-menu' %}">Items</a></li>
-      {% endif %}
-    </ul>
-  </div>
-
-  {% if staff_nav.kitchen %}
-  <div class="wb-nav-group">
-    <span class="wb-nav-group__label">Prep</span>
-    <ul class="wb-nav-list">
-      <li><a class="wb-nav-link{% if u == 'staff-kds' %} wb-nav-link--active{% endif %}" href="{% url 'staff-kds' %}">Prep queue</a></li>
+      {% if staff_nav.tables %}<li><a class="wb-nav-link{% if u == 'staff-tables' or u == 'staff-table-create' or u == 'staff-table-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-tables' %}"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><span>Tables &amp; areas</span></a></li>{% endif %}
+      {% if staff_nav.menu %}<li><a class="wb-nav-link{% if u == 'staff-menu' %} wb-nav-link--active{% endif %}" href="{% url 'staff-menu' %}"><i class="bi bi-journal-richtext" aria-hidden="true"></i><span>Menu &amp; items</span></a></li>{% endif %}
     </ul>
   </div>
   {% endif %}
 
-  {% if staff_nav.promotions or staff_nav.sales %}
+  {% if staff_nav.kitchen %}
   <div class="wb-nav-group">
-    <span class="wb-nav-group__label">Commercial</span>
+    <span class="wb-nav-group__label">Preparation</span>
+    <ul class="wb-nav-list"><li><a class="wb-nav-link{% if u == 'staff-kds' %} wb-nav-link--active{% endif %}" href="{% url 'staff-kds' %}"><i class="bi bi-fire" aria-hidden="true"></i><span>Kitchen &amp; bar queue</span></a></li></ul>
+  </div>
+  {% endif %}
+
+  {% if staff_nav.promotions or staff_nav.sales or staff_nav.offline_sync %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Business</span>
     <ul class="wb-nav-list">
-      {% if staff_nav.promotions %}
-      <li><a class="wb-nav-link{% if u == 'staff-promotions' or u == 'staff-promotion-detail' or u == 'staff-promotion-create' or u == 'staff-promotion-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-promotions' %}">Offers</a></li>
-      {% endif %}
-      {% if staff_nav.sales %}
-      <li><a class="wb-nav-link{% if u == 'staff-sales' %} wb-nav-link--active{% endif %}" href="{% url 'staff-sales' %}">Sales report</a></li>
-      {% endif %}
+      {% if staff_nav.promotions %}<li><a class="wb-nav-link{% if 'promotion' in u or u == 'staff-promotions' %} wb-nav-link--active{% endif %}" href="{% url 'staff-promotions' %}"><i class="bi bi-tag" aria-hidden="true"></i><span>Offers</span></a></li>{% endif %}
+      {% if staff_nav.sales %}<li><a class="wb-nav-link{% if u == 'staff-sales' %} wb-nav-link--active{% endif %}" href="{% url 'staff-sales' %}"><i class="bi bi-graph-up-arrow" aria-hidden="true"></i><span>Sales &amp; reports</span></a></li>{% endif %}
+      {% if staff_nav.offline_sync %}<li><a class="wb-nav-link{% if u == 'staff-offline-queue' %} wb-nav-link--active{% endif %}" href="{% url 'staff-offline-queue' %}"><i class="bi bi-cloud-slash" aria-hidden="true"></i><span>Offline activity</span></a></li>{% endif %}
     </ul>
   </div>
   {% endif %}
@@ -56,16 +50,15 @@
     <span class="wb-nav-group__label">Stock &amp; buying</span>
     <ul class="wb-nav-list">
       {% if staff_nav.inventory %}
-      <li><a class="wb-nav-link{% if u == 'staff-inventory-balances' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-balances' %}">On hand</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-inventory-movements' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-movements' %}">Ledger</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-inventory-movement-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-inventory-movement-upload' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-movement-upload' %}">CSV upload</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-inventory-transfer' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-transfer' %}">Transfer</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-inventory-counts' or u == 'staff-inventory-count-create' or u == 'staff-inventory-count-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-counts' %}">Stock take</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-balances' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam" aria-hidden="true"></i><span>Stock on hand</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-movements' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-movements' %}"><i class="bi bi-journal-text" aria-hidden="true"></i><span>Stock ledger</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-movement-create' or u == 'staff-inventory-movement-upload' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-movement-create' %}"><i class="bi bi-sliders" aria-hidden="true"></i><span>Adjust stock</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-transfer' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-transfer' %}"><i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>Transfer stock</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-inventory-counts' or u == 'staff-inventory-count-create' or u == 'staff-inventory-count-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-counts' %}"><i class="bi bi-clipboard-check" aria-hidden="true"></i><span>Stock takes</span></a></li>
       {% endif %}
       {% if staff_nav.purchasing %}
-      <li><a class="wb-nav-link{% if u == 'staff-purchasing-orders' or u == 'staff-purchasing-order-create' or u == 'staff-purchasing-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-purchasing-orders' %}">Purchase orders</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-purchasing-suppliers' or u == 'staff-purchasing-supplier-create' or u == 'staff-purchasing-supplier-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-purchasing-suppliers' %}">Suppliers</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-purchasing-orders' or u == 'staff-purchasing-order-create' or u == 'staff-purchasing-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-purchasing-orders' %}"><i class="bi bi-truck" aria-hidden="true"></i><span>Purchase orders</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-purchasing-suppliers' or u == 'staff-purchasing-supplier-create' or u == 'staff-purchasing-supplier-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-purchasing-suppliers' %}"><i class="bi bi-person-lines-fill" aria-hidden="true"></i><span>Suppliers</span></a></li>
       {% endif %}
     </ul>
   </div>
@@ -73,23 +66,20 @@
 
   {% if staff_show_lodging_nav %}
   <div class="wb-nav-group">
-    <span class="wb-nav-group__label">Guests &amp; rooms</span>
+    <span class="wb-nav-group__label">Property</span>
     <ul class="wb-nav-list">
-      {% if membership_can_manage_reservations %}<li><a class="wb-nav-link{% if u == 'staff-lodging-reservations' or u == 'staff-lodging-reservation-detail' or u == 'staff-lodging-reservation-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}">Reservations</a></li>{% endif %}
-      {% if membership_can_manage_folios %}<li><a class="wb-nav-link{% if u == 'staff-lodging-folios' or u == 'staff-lodging-folio-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-folios' %}">Folios</a></li>{% endif %}
-      {% if membership_can_manage_room_inventory %}<li><a class="wb-nav-link{% if u == 'staff-lodging-rooms' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-rooms' %}">Rooms</a></li>{% endif %}
-      {% if membership_can_manage_reservations %}<li><a class="wb-nav-link{% if u == 'staff-lodging-tape' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-tape' %}">Tape</a></li>{% endif %}
-      {% if membership_can_access_housekeeping %}<li><a class="wb-nav-link{% if u == 'staff-lodging-housekeeping' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a></li>{% endif %}
-      {% if membership_can_manage_housekeeping_workflows %}<li><a class="wb-nav-link{% if u == 'staff-lodging-maintenance' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-maintenance' %}">Maintenance</a></li>{% endif %}
-      {% if membership_can_manage_room_inventory %}<li><a class="wb-nav-link{% if u == 'staff-lodging-room-types' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-room-types' %}">Room types</a></li>{% endif %}
+      {% if membership_can_manage_reservations %}<li><a class="wb-nav-link{% if u == 'staff-lodging-reservations' or u == 'staff-lodging-reservation-detail' or u == 'staff-lodging-reservation-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}"><i class="bi bi-calendar2-check" aria-hidden="true"></i><span>Reservations</span></a></li>{% endif %}
+      {% if membership_can_manage_folios %}<li><a class="wb-nav-link{% if u == 'staff-lodging-folios' or u == 'staff-lodging-folio-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-folios' %}"><i class="bi bi-journal-bookmark" aria-hidden="true"></i><span>Guest accounts</span></a></li>{% endif %}
+      {% if membership_can_manage_room_inventory %}<li><a class="wb-nav-link{% if u == 'staff-lodging-rooms' or u == 'staff-lodging-room-types' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-rooms' %}"><i class="bi bi-door-open" aria-hidden="true"></i><span>Rooms</span></a></li>{% endif %}
+      {% if membership_can_manage_reservations %}<li><a class="wb-nav-link{% if u == 'staff-lodging-tape' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-tape' %}"><i class="bi bi-calendar3" aria-hidden="true"></i><span>Property calendar</span></a></li>{% endif %}
+      {% if membership_can_access_housekeeping %}<li><a class="wb-nav-link{% if u == 'staff-lodging-housekeeping' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}"><i class="bi bi-stars" aria-hidden="true"></i><span>Housekeeping</span></a></li>{% endif %}
+      {% if membership_can_manage_housekeeping_workflows %}<li><a class="wb-nav-link{% if u == 'staff-lodging-maintenance' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-maintenance' %}"><i class="bi bi-wrench-adjustable" aria-hidden="true"></i><span>Maintenance</span></a></li>{% endif %}
     </ul>
   </div>
-  {% endif %}
-
-  {% if staff_show_housekeeping_nav and not staff_show_lodging_nav %}
+  {% elif staff_show_housekeeping_nav %}
   <div class="wb-nav-group">
     <span class="wb-nav-group__label">Housekeeping</span>
-    <ul class="wb-nav-list"><li><a class="wb-nav-link{% if u == 'staff-lodging-housekeeping' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Room board</a></li></ul>
+    <ul class="wb-nav-list"><li><a class="wb-nav-link{% if u == 'staff-lodging-housekeeping' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}"><i class="bi bi-stars" aria-hidden="true"></i><span>Room board</span></a></li></ul>
   </div>
   {% endif %}
 
@@ -97,9 +87,9 @@
   <div class="wb-nav-group">
     <span class="wb-nav-group__label">Finance</span>
     <ul class="wb-nav-list">
-      <li><a class="wb-nav-link{% if u == 'staff-finance-entries' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-entries' %}">Income &amp; expenses</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-finance-entry-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-entry-create' %}">New entry</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-finance-categories-new' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-categories-new' %}">Categories</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-finance-entries' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-entries' %}"><i class="bi bi-cash-coin" aria-hidden="true"></i><span>Income &amp; expenses</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-finance-entry-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-entry-create' %}"><i class="bi bi-plus-square" aria-hidden="true"></i><span>New entry</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-finance-categories-new' %} wb-nav-link--active{% endif %}" href="{% url 'staff-finance-categories-new' %}"><i class="bi bi-collection" aria-hidden="true"></i><span>Categories</span></a></li>
     </ul>
   </div>
   {% endif %}
@@ -108,23 +98,22 @@
   <div class="wb-nav-group">
     <span class="wb-nav-group__label">Events</span>
     <ul class="wb-nav-list">
-      <li><a class="wb-nav-link{% if u == 'staff-events-bookings' or u == 'staff-events-booking-create' or u == 'staff-events-booking-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-bookings' %}">Bookings</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-events-calendar' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-calendar' %}">Calendar</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-events-spaces' or u == 'staff-events-space-create' or u == 'staff-events-space-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-spaces' %}">Spaces</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-events-bookings' or u == 'staff-events-booking-create' or u == 'staff-events-booking-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-bookings' %}"><i class="bi bi-ticket-perforated" aria-hidden="true"></i><span>Bookings</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-events-calendar' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-calendar' %}"><i class="bi bi-calendar-event" aria-hidden="true"></i><span>Calendar</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-events-spaces' or u == 'staff-events-space-create' or u == 'staff-events-space-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-events-spaces' %}"><i class="bi bi-building" aria-hidden="true"></i><span>Spaces</span></a></li>
     </ul>
   </div>
   {% endif %}
 
   {% if staff_nav.workspace %}
   <div class="wb-nav-group">
-    <span class="wb-nav-group__label">Workspace</span>
+    <span class="wb-nav-group__label">Settings</span>
     <ul class="wb-nav-list">
-      <li><a class="wb-nav-link{% if u == 'staff-workspace-branding' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-branding' %}">Branding</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-workspace-modules' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-modules' %}">Staff areas</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-workspace-integrations' or u == 'staff-workspace-integration-create' or u == 'staff-workspace-integration-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-integrations' %}">Integrations</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-workspace-members' or u == 'staff-workspace-member-create' or u == 'staff-workspace-member-edit' or u == 'staff-workspace-member-bulk-action' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-members' %}">Team</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-workspace-invites' or u == 'staff-workspace-invite-create' or u == 'staff-workspace-invite-regenerate' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-invites' %}">Invites</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-workspace-audit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-audit' %}">Activity</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-branding' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-branding' %}"><i class="bi bi-palette2" aria-hidden="true"></i><span>Branding</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-modules' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-modules' %}"><i class="bi bi-toggles" aria-hidden="true"></i><span>Staff areas</span></a></li>
+      <li><a class="wb-nav-link{% if 'integration' in u %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-integrations' %}"><i class="bi bi-plug" aria-hidden="true"></i><span>Integrations</span></a></li>
+      <li><a class="wb-nav-link{% if 'member' in u or 'invite' in u %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-members' %}"><i class="bi bi-person-gear" aria-hidden="true"></i><span>Team &amp; access</span></a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-workspace-audit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-audit' %}"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Activity log</span></a></li>
     </ul>
   </div>
   {% endif %}
@@ -133,9 +122,7 @@
   {% if staff_show_console_entry %}
   <div class="wb-nav-group">
     <span class="wb-nav-group__label">Platform</span>
-    <ul class="wb-nav-list">
-      <li><a class="wb-nav-link" href="{% url 'console-index' %}">Admin console</a></li>
-    </ul>
+    <ul class="wb-nav-list"><li><a class="wb-nav-link" href="{% url 'console-index' %}"><i class="bi bi-sliders2" aria-hidden="true"></i><span>Admin console</span></a></li></ul>
   </div>
   {% endif %}
 </nav>

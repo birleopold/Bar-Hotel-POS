@@ -2,23 +2,18 @@
 {% block title %}Operations overview{% endblock %}
 {% block main_class %}staff-main--wide staff-main--dashboard{% endblock %}
 {% block content %}
-  <header class="staff-dash-hero">
+  <header class="staff-dash-hero staff-dash-hero--modern">
     <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Your workspace</p>
-      <h1 class="staff-dash-hero__title">{{ staff_workspace_title|default:"Ready for service" }}{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
-      {% if active_membership %}
-        <p class="staff-dash-hero__meta">{{ active_membership.tenant.name }}</p>
-      {% endif %}
-      <p class="staff-dash-hero__tagline">{{ staff_product.tagline|default:"Manage sales, service, and daily operations in one workspace." }}</p>
+      <div class="staff-dash-hero__copy">
+        <p class="staff-dash-hero__eyebrow"><i class="bi bi-grid-1x2" aria-hidden="true"></i> {{ staff_product.workspace_label|default:"Operations workspace" }} <span aria-hidden="true">·</span> Overview</p>
+        <h1 class="staff-dash-hero__title">{{ staff_workspace_title|default:"Your day, at a glance" }}{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
+        <p class="staff-dash-hero__tagline">{{ staff_product.tagline|default:"Manage sales, service, and daily operations in one workspace." }}</p>
+      </div>
+      <div class="staff-dash-hero__right">
+        <span class="staff-dash-date"><i class="bi bi-calendar3" aria-hidden="true"></i>{% now "l, j F" %}</span>
+      </div>
     </div>
   </header>
-
-  <ul class="staff-intent-strip" aria-label="Typical day flow">
-    {% for step in staff_product.workflow_steps %}
-      {% if not forloop.first %}<li class="staff-intent-strip__sep" aria-hidden="true"><i class="bi bi-chevron-right"></i></li>{% endif %}
-      <li><span class="staff-intent-pill">{{ step }}</span></li>
-    {% endfor %}
-  </ul>
 
   {% if not active_membership %}
     <div class="staff-card staff-card--soft staff-empty-split">

@@ -159,15 +159,43 @@
 
       {% if can_modify_open_order and add_line_form %}
         <div class="staff-card staff-card--pos">
-          <h2 class="staff-card__title staff-card__title--pos">Add item</h2>
+          <div class="staff-pos-menu-head">
+            <div><span class="staff-pos-menu-eyebrow">ORDER MENU</span><h2 class="staff-card__title staff-card__title--pos mb-0">Add an item</h2></div>
+            <span class="staff-pos-menu-hint">Tap a tile to select</span>
+          </div>
+          {% if pos_menu_categories %}
+            <div class="staff-pos-menu-browser" data-pos-menu-browser>
+              <div class="staff-pos-menu-tools">
+                <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="Search items" autocomplete="off" data-pos-menu-search></label>
+                <span class="staff-pos-menu-count">{{ add_line_form.menu_item.field.queryset.count }} items</span>
+              </div>
+              <div class="staff-pos-menu-categories" role="group" aria-label="Filter by category">
+                <button type="button" class="staff-pos-category-filter is-active" data-pos-menu-filter="all" aria-pressed="true">All items</button>
+                {% for category in pos_menu_categories %}<button type="button" class="staff-pos-category-filter" data-pos-menu-filter="{{ category.id }}" aria-pressed="false">{{ category.name }}</button>{% endfor %}
+              </div>
+              <div class="staff-pos-menu-grid" data-pos-menu-grid>
+                {% for category in pos_menu_categories %}
+                  {% for item in category.menu_items %}
+                    <button type="button" class="staff-pos-menu-tile" data-pos-menu-tile data-item-id="{{ item.id }}" data-category-id="{{ category.id }}" data-item-name="{{ item.name|lower }}" aria-pressed="false">
+                      <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+                      <span class="staff-pos-menu-tile__name">{{ item.name }}</span>
+                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>
+                    </button>
+                  {% endfor %}
+                {% endfor %}
+              </div>
+              <p class="staff-pos-menu-empty" data-pos-menu-empty hidden>No items match that search.</p>
+              <p class="visually-hidden" aria-live="polite" data-pos-menu-selection></p>
+            </div>
+          {% endif %}
           {% include "staff/includes/form_errors_block.html" with form=add_line_form title="Fix item details" %}
-          <form method="post" class="row g-2 align-items-end">
+          <form method="post" class="staff-pos-add-item-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="add_line">
-            <div class="col-12">{{ add_line_form.menu_item.label_tag }}{{ add_line_form.menu_item }}</div>
-            <div class="col-12" id="staff-pos-add-line-modifiers" aria-live="polite"></div>
-            <div class="col-6">{{ add_line_form.quantity.label_tag }}{{ add_line_form.quantity }}</div>
-            <div class="col-6 d-flex align-items-end"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch w-100">Add</button></div>
+            <div class="staff-pos-add-item-form__selection"><label class="staff-label" for="{{ add_line_form.menu_item.id_for_label }}">Selected item</label>{{ add_line_form.menu_item }}</div>
+            <div class="staff-pos-add-item-form__quantity">{{ add_line_form.quantity.label_tag }}{{ add_line_form.quantity }}</div>
+            <div class="staff-pos-add-item-form__submit"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add to order</button></div>
+            <div class="staff-pos-add-item-form__modifiers" id="staff-pos-add-line-modifiers" aria-live="polite"></div>
           </form>
         </div>
       {% endif %}
@@ -309,6 +337,69 @@
         }
         sel.addEventListener("change", render);
         render();
+      })();
+    </script>
+    <script>
+      (function () {
+        var browser = document.querySelector("[data-pos-menu-browser]");
+        var select = document.getElementById("staff-pos-add-line-menu-item");
+        if (!browser || !select) return;
+        var search = browser.querySelector("[data-pos-menu-search]");
+        var tiles = Array.prototype.slice.call(browser.querySelectorAll("[data-pos-menu-tile]"));
+        var filters = Array.prototype.slice.call(browser.querySelectorAll("[data-pos-menu-filter]"));
+        var empty = browser.querySelector("[data-pos-menu-empty]");
+        var announcement = browser.querySelector("[data-pos-menu-selection]");
+        var activeCategory = "all";
+
+        function updateTiles() {
+          var query = (search && search.value || "").trim().toLowerCase();
+          var visibleCount = 0;
+          tiles.forEach(function (tile) {
+            var matchesCategory = activeCategory === "all" || tile.dataset.categoryId === activeCategory;
+            var matchesSearch = !query || (tile.dataset.itemName || "").indexOf(query) !== -1;
+            var visible = matchesCategory && matchesSearch;
+            tile.hidden = !visible;
+            if (visible) visibleCount += 1;
+          });
+          if (empty) empty.hidden = visibleCount !== 0;
+        }
+
+        filters.forEach(function (filter) {
+          filter.addEventListener("click", function () {
+            activeCategory = filter.dataset.posMenuFilter || "all";
+            filters.forEach(function (other) {
+              var active = other === filter;
+              other.classList.toggle("is-active", active);
+              other.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+            updateTiles();
+          });
+        });
+        if (search) search.addEventListener("input", updateTiles);
+
+        tiles.forEach(function (tile) {
+          tile.addEventListener("click", function () {
+            var itemId = tile.dataset.itemId || "";
+            select.value = itemId;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            tiles.forEach(function (other) {
+              var active = other === tile;
+              other.classList.toggle("is-selected", active);
+              other.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+            var option = select.options[select.selectedIndex];
+            if (announcement && option) announcement.textContent = option.text + " selected. Set quantity and add it to the order.";
+          });
+        });
+        select.addEventListener("change", function () {
+          var selected = tiles.find(function (tile) { return tile.dataset.itemId === select.value; });
+          tiles.forEach(function (tile) {
+            var active = tile === selected;
+            tile.classList.toggle("is-selected", active);
+            tile.setAttribute("aria-pressed", active ? "true" : "false");
+          });
+        });
+        updateTiles();
       })();
     </script>
   {% endif %}
