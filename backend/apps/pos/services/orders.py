@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.access.outlets import outlet_belongs_to_membership
-from apps.accounts.models import Membership
+from apps.accounts.models import Membership, MembershipRole
 from apps.audit.services import log_audit
 from apps.catalog.models import (
     MenuItem,
@@ -119,7 +119,7 @@ def resolve_folio_for_order(
         raise ValidationError({"folio": "Invalid folio or folio is not open."})
     if folio.site_id != outlet.site_id:
         raise ValidationError({"folio": "Folio must belong to the same site as the outlet."})
-    if membership.sites.exists():
+    if membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists():
         allowed = set(membership.sites.values_list("pk", flat=True))
         if folio.site_id not in allowed:
             raise ValidationError({"folio": "You cannot use this folio."})

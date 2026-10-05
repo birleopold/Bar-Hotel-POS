@@ -1,5 +1,8 @@
 from rest_framework import serializers
 
+from apps.accounts.models import MembershipRole
+from apps.staff.services.modules import get_tenant_staff_modules
+from apps.tenants.business_lines import normalize_business_lines
 from apps.tenants.models import Site
 
 from .models import EventBooking, EventBookingStatus, EventSpace
@@ -34,8 +37,10 @@ class EventSpaceSerializer(serializers.ModelSerializer):
         if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Site must belong to the current tenant.")
         membership = request.tenant_membership
-        if membership.sites.exists() and value.id not in membership.sites.values_list("pk", flat=True):
+        if (membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists()) and value.id not in membership.sites.values_list("pk", flat=True):
             raise serializers.ValidationError("You cannot create or update spaces for this site.")
+        if not _tenant_has_events(request.tenant):
+            raise serializers.ValidationError("Events are not enabled for this workspace.")
         return value
 
     def create(self, validated_data):
@@ -79,11 +84,19 @@ class EventBookingSerializer(serializers.ModelSerializer):
         if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Invalid event space.")
         membership = request.tenant_membership
-        if membership.sites.exists() and value.site_id not in membership.sites.values_list("pk", flat=True):
+        if (membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists()) and value.site_id not in membership.sites.values_list("pk", flat=True):
             raise serializers.ValidationError("You cannot create or update bookings for this site.")
+        if not _tenant_has_events(request.tenant):
+            raise serializers.ValidationError("Events are not enabled for this workspace.")
         return value
 
     def validate(self, attrs):
+        if "status" in self.initial_data:
+            requested_status = self.initial_data.get("status")
+            if self.instance is not None and requested_status == self.instance.status:
+                attrs.pop("status", None)
+            else:
+                raise serializers.ValidationError({"status": "Use the event workflow action to change booking status."})
         start = attrs.get("start_at") or getattr(self.instance, "start_at", None)
         end = attrs.get("end_at") or getattr(self.instance, "end_at", None)
         if start and end and end <= start:
@@ -105,3 +118,10 @@ class EventBookingSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["tenant"] = self.context["request"].tenant
         return super().create(validated_data)
+
+
+def _tenant_has_events(tenant):
+    try:
+        return "events" in normalize_business_lines(tenant.settings.business_lines) and "events" in get_tenant_staff_modules(tenant)
+    except Exception:
+        return False

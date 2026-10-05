@@ -24,11 +24,13 @@ from apps.tenants.models import (
     Site,
     SubscriptionStatus,
     Tenant,
+    TenantSettings,
     TenantFeatureEntitlement,
     TenantOutletModulePolicy,
     TenantSubscription,
     staff_module_choices,
 )
+from apps.tenants.business_lines import BUSINESS_LINES, normalize_business_lines, outlet_types_for_business_lines
 
 
 class ConsoleTenantForm(forms.ModelForm):
@@ -269,6 +271,22 @@ class ConsoleSiteForm(forms.ModelForm):
         }
 
 
+class ConsoleBusinessProfileForm(forms.Form):
+    business_lines = forms.MultipleChoiceField(
+        label="What does this business offer?",
+        required=True,
+        choices=[(key, profile.label) for key, profile in BUSINESS_LINES.items()],
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "staff-checklist"}),
+        help_text="Only the selected areas and their related setup, navigation, cards, and pages are shown.",
+    )
+
+    def clean_business_lines(self) -> list[str]:
+        lines = normalize_business_lines(list(self.cleaned_data.get("business_lines") or []))
+        if not lines:
+            raise forms.ValidationError("Choose at least one service area.")
+        return lines
+
+
 class ConsoleOutletForm(forms.ModelForm):
     class Meta:
         model = Outlet
@@ -278,6 +296,21 @@ class ConsoleOutletForm(forms.ModelForm):
             "outlet_type": forms.Select(attrs={"class": "staff-input"}),
             "is_active": forms.CheckboxInput(),
         }
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if tenant is None:
+            return
+        try:
+            lines = normalize_business_lines(tenant.settings.business_lines)
+        except TenantSettings.DoesNotExist:
+            lines = []
+        allowed = set(outlet_types_for_business_lines(lines))
+        self.fields["outlet_type"].choices = [
+            choice
+            for choice in self.fields["outlet_type"].choices
+            if str(choice[0]) in allowed
+        ]
 
 
 class ConsoleRoomTypeForm(forms.ModelForm):

@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.accounts.models import MembershipRole
 from apps.lodging.models import Folio, FolioStatus
 from apps.tenants.models import Outlet
 
@@ -288,7 +289,7 @@ class OrderUpdateSerializer(serializers.ModelSerializer):
                     {"folio": "Folio must belong to the same site as the order outlet."}
                 )
             m = self.context["request"].tenant_membership
-            if m.sites.exists() and folio.site_id not in m.sites.values_list("pk", flat=True):
+            if (m.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or m.sites.exists()) and folio.site_id not in m.sites.values_list("pk", flat=True):
                 raise serializers.ValidationError({"folio": "You cannot attach this folio."})
 
         if "discount_amount" in attrs:

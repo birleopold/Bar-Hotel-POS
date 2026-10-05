@@ -10,7 +10,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.access.outlets import outlet_belongs_to_membership
-from apps.api.permissions import HasTenantContext, NotReadOnlyRole
+from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
 from apps.tenants.models import Outlet
 
 from .services.catalog_version import catalog_version_payload
@@ -25,7 +25,8 @@ class PosCatalogVersionView(APIView):
     menu changed while offline.
     """
 
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    required_staff_module = "pos"
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "catalog_version"
 

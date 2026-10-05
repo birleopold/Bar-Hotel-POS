@@ -212,6 +212,62 @@ class SharedTerminalTests(TestCase):
 
 
 class StaffUiTests(TestCase):
+    def test_retail_home_uses_retail_language_without_hospitality_terms(self) -> None:
+        tenant = Tenant.objects.create(name="Independent Market", slug="independent-market-profile")
+        TenantSettings.objects.create(
+            tenant=tenant,
+            business_lines=["retail"],
+            enabled_staff_modules=["pos", "inventory", "purchasing", "finance", "workspace"],
+        )
+        site = Site.objects.create(tenant=tenant, name="Main shop")
+        outlet = Outlet.objects.create(site=site, name="Front register", outlet_type=OutletType.RETAIL)
+        user = User.objects.create_user(email="market-profile@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(tenant.id)
+        session[STAFF_SESSION_OUTLET_KEY] = str(outlet.id)
+        session.save()
+
+        response = self.client.get(reverse("staff-dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Retail workspace")
+        self.assertContains(response, "close the register")
+        self.assertContains(response, "Customers")
+        self.assertNotContains(response, "guest folios")
+        self.assertNotContains(response, "Housekeeping")
+        self.assertNotContains(response, "Reservations")
+
+    def test_hotel_home_uses_hotel_workflow_language(self) -> None:
+        tenant = Tenant.objects.create(name="Independent Lodge", slug="independent-lodge-profile")
+        TenantSettings.objects.create(
+            tenant=tenant,
+            business_lines=["lodging"],
+            enabled_staff_modules=["lodging", "finance", "workspace"],
+        )
+        site = Site.objects.create(tenant=tenant, name="Main property")
+        Outlet.objects.create(site=site, name="Front desk", outlet_type=OutletType.LODGING_FRONT_DESK)
+        user = User.objects.create_user(email="lodge-profile@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(tenant.id)
+        session.save()
+
+        response = self.client.get(reverse("staff-dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Hotel operations")
+        self.assertContains(response, "Housekeeping")
+        self.assertContains(response, "Guest accounts")
+
+    def test_legacy_empty_business_profile_keeps_module_access(self) -> None:
+        tenant = Tenant.objects.create(name="Legacy profile", slug="legacy-empty-profile")
+        settings_obj = TenantSettings.objects.create(tenant=tenant)
+        self.assertEqual(settings_obj.business_lines, [])
+        self.assertIn("pos", resolve_effective_staff_modules(tenant))
+
     def test_login_page_renders(self) -> None:
         r = self.client.get(reverse("staff-login"))
         self.assertEqual(r.status_code, 200)
@@ -221,6 +277,76 @@ class StaffUiTests(TestCase):
         r = self.client.get(reverse("staff-dashboard"))
         self.assertEqual(r.status_code, 302)
         self.assertIn("/staff/login", r.url)
+
+    def test_selected_business_lines_hide_and_protect_unrelated_staff_areas(self) -> None:
+        tenant = Tenant.objects.create(name="Bar Only", slug="bar-only-scope")
+        settings_obj = TenantSettings.objects.create(
+            tenant=tenant,
+            business_lines=["bar", "kitchen"],
+            enabled_staff_modules=list(STAFF_MODULE_KEYS),
+        )
+        self.assertNotIn("lodging", settings_obj.business_lines)
+        site = Site.objects.create(tenant=tenant, name="Main")
+        bar = Outlet.objects.create(site=site, name="Bar", outlet_type=OutletType.BAR)
+        Outlet.objects.create(
+            site=site,
+            name="Unused front desk",
+            outlet_type=OutletType.LODGING_FRONT_DESK,
+        )
+        user = User.objects.create_user(email="bar-scope@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(tenant.id)
+        session[STAFF_SESSION_OUTLET_KEY] = str(bar.id)
+        session.save()
+
+        dashboard = self.client.get(reverse("staff-dashboard"))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertNotContains(dashboard, "Reservations")
+        lodging = self.client.get(reverse("staff-lodging-reservations"))
+        self.assertRedirects(lodging, reverse("staff-dashboard"))
+
+    def test_service_only_order_shows_services_without_item_catalog(self) -> None:
+        tenant = Tenant.objects.create(name="Spa Only", slug="spa-only-scope")
+        TenantSettings.objects.create(
+            tenant=tenant,
+            business_lines=["services"],
+            enabled_staff_modules=["pos", "finance", "workspace"],
+        )
+        site = Site.objects.create(tenant=tenant, name="Wellness")
+        outlet = Outlet.objects.create(site=site, name="Spa", outlet_type=OutletType.SERVICE)
+        ServiceOffering.objects.create(
+            tenant=tenant,
+            name="Massage",
+            default_price=Decimal("30.00"),
+            is_active=True,
+        )
+        order = Order.objects.create(
+            tenant=tenant,
+            outlet=outlet,
+            status=OrderStatus.OPEN,
+            subtotal=Decimal("0.00"),
+            tax_total=Decimal("0.00"),
+            total=Decimal("0.00"),
+            discount_amount=Decimal("0.00"),
+            currency="USD",
+        )
+        user = User.objects.create_user(email="spa-scope@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(tenant.id)
+        session[STAFF_SESSION_OUTLET_KEY] = str(outlet.id)
+        session.save()
+
+        response = self.client.get(
+            reverse("staff-order-detail", kwargs={"order_id": order.id})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Massage")
+        self.assertNotContains(response, ">Add item</h2>")
+        self.assertNotContains(response, ">Folio</h2>")
 
     def test_login_and_dashboard(self) -> None:
         User.objects.create_user(email="staff-ui@test.local", password="TestPass9!")
@@ -235,7 +361,7 @@ class StaffUiTests(TestCase):
 
     def test_authenticated_workspace_uses_sector_aware_sidebar_shell(self) -> None:
         tenant = Tenant.objects.create(name="Multi Venue", slug="multi-venue-sidebar")
-        TenantSettings.objects.get_or_create(tenant=tenant)
+        TenantSettings.objects.create(tenant=tenant, business_lines=["retail", "bar"], enabled_staff_modules=["pos", "inventory", "purchasing", "workspace"])
         site = Site.objects.create(tenant=tenant, name="Central")
         Outlet.objects.create(site=site, name="Main supermarket", outlet_type=OutletType.SUPERMARKET)
         Outlet.objects.create(site=site, name="Terrace bar", outlet_type=OutletType.BAR)
@@ -251,7 +377,6 @@ class StaffUiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'class="staff-sidebar"')
         self.assertContains(response, "All sections")
-        self.assertContains(response, "Main supermarket")
         self.assertContains(response, "Terrace bar")
         self.assertContains(response, "Sales &amp; floor")
         self.assertContains(response, "Stock &amp; buying")
@@ -430,7 +555,7 @@ class StaffWorkspaceAccessTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.tenant = Tenant.objects.create(name="Workspace Test Org", slug="ws-test-org")
-        TenantSettings.objects.get_or_create(tenant=cls.tenant)
+        TenantSettings.objects.create(tenant=cls.tenant, business_lines=["bar", "kitchen"], enabled_staff_modules=["pos", "kitchen", "promotions", "inventory", "purchasing", "finance", "workspace"])
 
     def _login_with_tenant(self, user) -> None:
         self.client.force_login(user)
@@ -892,7 +1017,7 @@ class StaffTenantModulesAndRoleNavTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.tenant = Tenant.objects.create(name="Modules Nav Tenant", slug="modules-nav-tenant")
-        ts, _ = TenantSettings.objects.get_or_create(tenant=cls.tenant)
+        ts = TenantSettings.objects.create(tenant=cls.tenant, business_lines=["bar", "kitchen", "events"])
         ts.enabled_staff_modules = [
             "pos",
             "kitchen",
@@ -916,6 +1041,8 @@ class StaffTenantModulesAndRoleNavTests(TestCase):
             tenant=cls.tenant,
             role=MembershipRole.BARTENDER,
         )
+        cls.cleaner = User.objects.create_user(email="mod-cleaner@test.local", password="TestPass9!")
+        Membership.objects.create(user=cls.cleaner, tenant=cls.tenant, role=MembershipRole.CLEANER)
 
     def _session(self, user) -> None:
         self.client.force_login(user)
@@ -934,6 +1061,56 @@ class StaffTenantModulesAndRoleNavTests(TestCase):
         r = self.client.get(reverse("staff-promotions"))
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r.url, reverse("staff-dashboard"))
+
+    def test_cleaner_cannot_access_housekeeping_without_lodging_profile(self) -> None:
+        self._session(self.cleaner)
+        response = self.client.get(reverse("staff-lodging-housekeeping"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("staff-dashboard"))
+
+
+class StaffHousekeepingRoleTests(TestCase):
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.tenant = Tenant.objects.create(name="Housekeeping Tenant", slug="housekeeping-role-tenant")
+        TenantSettings.objects.create(tenant=cls.tenant, business_lines=["lodging"], enabled_staff_modules=["lodging", "finance", "workspace"])
+        cls.site = Site.objects.create(tenant=cls.tenant, name="Assigned Lodge")
+        Outlet.objects.create(site=cls.site, name="Front desk", outlet_type=OutletType.LODGING_FRONT_DESK)
+        cls.user = User.objects.create_user(email="cleaner-role@test.local", password="TestPass9!")
+        cls.membership = Membership.objects.create(user=cls.user, tenant=cls.tenant, role=MembershipRole.CLEANER)
+        cls.membership.sites.add(cls.site)
+
+    def setUp(self) -> None:
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.id)
+        session.save()
+
+    def test_cleaner_gets_housekeeping_only_in_assigned_branch(self) -> None:
+        from apps.lodging.models import Room, RoomType
+
+        other_site = Site.objects.create(tenant=self.tenant, name="Other Lodge")
+        Outlet.objects.create(site=other_site, name="Other desk", outlet_type=OutletType.LODGING_FRONT_DESK)
+        own_type = RoomType.objects.create(tenant=self.tenant, site=self.site, name="Standard")
+        other_type = RoomType.objects.create(tenant=self.tenant, site=other_site, name="Standard")
+        own_room = Room.objects.create(room_type=own_type, name="101")
+        Room.objects.create(room_type=other_type, name="201")
+
+        board = self.client.get(reverse("staff-lodging-housekeeping"))
+        self.assertEqual(board.status_code, 200)
+        self.assertContains(board, "Assigned Lodge")
+        self.assertContains(board, "101")
+        self.assertNotContains(board, "201")
+        self.assertNotContains(board, "Reservations</a>")
+        self.assertNotContains(board, "Folios</a>")
+
+        updated = self.client.post(reverse("staff-lodging-housekeeping"), {"room_id": str(own_room.id), "status": "dirty"})
+        self.assertEqual(updated.status_code, 302)
+        own_room.refresh_from_db()
+        self.assertEqual(own_room.status, "dirty")
+
+        reservations = self.client.get(reverse("staff-lodging-reservations"))
+        self.assertEqual(reservations.status_code, 302)
 
 
 class StaffControlPlaneEntitlementGatingTests(TestCase):
@@ -1000,7 +1177,7 @@ class StaffOutletPolicyModuleGatingTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.tenant = Tenant.objects.create(name="Outlet Policy Tenant", slug="outlet-policy-tenant")
-        ts, _ = TenantSettings.objects.get_or_create(tenant=cls.tenant)
+        ts = TenantSettings.objects.create(tenant=cls.tenant, business_lines=["bar", "supermarket"])
         ts.enabled_staff_modules = [
             "pos",
             "kitchen",
@@ -1293,6 +1470,11 @@ class StaffOrderAddLineTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.tenant = Tenant.objects.create(name="Add Line Tenant", slug="add-line-tenant")
+        TenantSettings.objects.create(
+            tenant=cls.tenant,
+            business_lines=["bar", "services"],
+            enabled_staff_modules=["pos", "kitchen", "inventory", "purchasing", "finance", "workspace"],
+        )
         cls.site = Site.objects.create(tenant=cls.tenant, name="Downtown")
         cls.outlet = Outlet.objects.create(
             site=cls.site,
@@ -2136,12 +2318,16 @@ class StaffKdsRealtimeUiTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.tenant = Tenant.objects.create(name="KDS UI Tenant", slug="kds-ui-tenant")
-        TenantSettings.objects.get_or_create(tenant=cls.tenant)
+        TenantSettings.objects.create(
+            tenant=cls.tenant,
+            business_lines=["restaurant"],
+            enabled_staff_modules=["pos", "kitchen", "promotions", "inventory", "purchasing", "finance", "workspace"],
+        )
         cls.site = Site.objects.create(tenant=cls.tenant, name="KDS Site")
         cls.outlet = Outlet.objects.create(
             site=cls.site,
             name="KDS Bar",
-            outlet_type=OutletType.BAR,
+            outlet_type=OutletType.RESTAURANT,
         )
         cls.user = User.objects.create_user(email="kds-ui@test.local", password="TestPass9!")
         Membership.objects.create(
@@ -2182,6 +2368,82 @@ class StaffKdsRealtimeUiTests(TestCase):
         self.assertContains(r, "/ws/kds/")
         self.assertContains(r, "Reconnecting...")
 
+    def test_service_tv_has_display_modes_goals_controls_and_live_sections(self) -> None:
+        url = reverse("staff-service-tv")
+        for mode in ("floor", "kitchen", "guest"):
+            r = self.client.get(url, {"mode": mode, "goal": "100"})
+            self.assertEqual(r.status_code, 200)
+            if mode == "guest":
+                self.assertNotContains(r, 'id="leaderboard"')
+                self.assertNotContains(r, 'id="goal-panel"')
+            else:
+                self.assertContains(r, "Service leaderboard")
+                self.assertContains(r, "Shift goal")
+            self.assertContains(r, "Today’s guest favorites")
+            self.assertContains(r, "On the menu")
+            self.assertContains(r, "Ready to serve")
+            self.assertContains(r, "Full screen")
+            self.assertContains(r, 'aria-label="Display mode"')
+
+    def test_service_tv_rejects_pinned_outlet_outside_membership_scope(self) -> None:
+        foreign_tenant = Tenant.objects.create(name="Foreign", slug="foreign-tv-outlet")
+        TenantSettings.objects.create(tenant=foreign_tenant, business_lines=["bar"], enabled_staff_modules=["pos"])
+        foreign_site = Site.objects.create(tenant=foreign_tenant, name="Other")
+        foreign_outlet = Outlet.objects.create(site=foreign_site, name="Other bar", outlet_type=OutletType.BAR)
+        r = self.client.get(reverse("staff-service-tv"), {"outlet": str(foreign_outlet.id)})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.url, reverse("staff-dashboard"))
+
+    def test_service_tv_guest_mode_only_renders_ready_lines_and_no_staff_scores(self) -> None:
+        self.order.created_by = self.user
+        self.order.save(update_fields=["created_by"])
+        ready_order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            status=OrderStatus.OPEN,
+            subtotal=Decimal("8.00"),
+            total=Decimal("8.00"),
+            currency="USD",
+        )
+        OrderLine.objects.create(
+            order=ready_order,
+            label="Ready salad",
+            quantity=Decimal("1"),
+            unit_price=Decimal("8.00"),
+            line_total=Decimal("8.00"),
+            kds_status=KdsLineStatus.READY,
+        )
+        r = self.client.get(reverse("staff-service-tv"), {"mode": "guest"})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Ready salad")
+        self.assertNotContains(r, "Soup")
+        self.assertNotContains(r, "Service leaderboard")
+        self.assertNotContains(r, self.user.email)
+        self.assertNotContains(r, "sold")
+
+    def test_menu_presentation_fields_can_be_saved_only_by_workspace_manager(self) -> None:
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Food")
+        item = MenuItem.objects.create(tenant=self.tenant, category=category, name="Special bowl", unit_price=Decimal("12"))
+        menu_page = self.client.get(reverse("staff-menu"))
+        self.assertEqual(menu_page.status_code, 200)
+        self.assertContains(menu_page, "Save display details")
+        r = self.client.post(reverse("staff-menu"), {
+            "action": "display_details",
+            "item_id": str(item.id),
+            "is_featured": "on",
+            "display_image_url": "https://example.com/bowl.jpg",
+            "availability_note": "Available through dinner",
+        })
+        self.assertEqual(r.status_code, 302)
+        item.refresh_from_db()
+        self.assertTrue(item.is_featured)
+        self.assertEqual(item.display_image_url, "https://example.com/bowl.jpg")
+        self.assertEqual(item.availability_note, "Available through dinner")
+        tv = self.client.get(reverse("staff-service-tv"), {"mode": "guest"})
+        self.assertContains(tv, "Special bowl")
+        self.assertContains(tv, "Available through dinner")
+        self.assertContains(tv, "https://example.com/bowl.jpg")
+
 
 class StaffKitchenHandoffFlowTests(TestCase):
     @classmethod
@@ -2198,26 +2460,29 @@ class StaffKitchenHandoffFlowTests(TestCase):
         cls.server_user = User.objects.create_user(email="server-flow@test.local", password="TestPass9!")
         cls.other_server = User.objects.create_user(email="server-other@test.local", password="TestPass9!")
         cls.bartender_user = User.objects.create_user(email="bartender-flow@test.local", password="TestPass9!")
-        Membership.objects.create(
+        cls.kitchen_membership = Membership.objects.create(
             user=cls.kitchen_user,
             tenant=cls.tenant,
             role=MembershipRole.KITCHEN,
         )
-        Membership.objects.create(
+        cls.server_membership = Membership.objects.create(
             user=cls.server_user,
             tenant=cls.tenant,
             role=MembershipRole.SERVER,
         )
-        Membership.objects.create(
+        cls.other_server_membership = Membership.objects.create(
             user=cls.other_server,
             tenant=cls.tenant,
             role=MembershipRole.SERVER,
         )
-        Membership.objects.create(
+        cls.bartender_membership = Membership.objects.create(
             user=cls.bartender_user,
             tenant=cls.tenant,
             role=MembershipRole.BARTENDER,
         )
+        cls.kitchen_membership.sites.add(cls.site)
+        cls.server_membership.sites.add(cls.site)
+        cls.bartender_membership.sites.add(cls.site)
         cls.order = Order.objects.create(
             tenant=cls.tenant,
             outlet=cls.outlet,
@@ -2339,10 +2604,8 @@ class StaffKitchenHandoffFlowTests(TestCase):
         r = self.client.post(
             reverse("staff-order-detail", kwargs={"order_id": self.order.id}),
             {"action": "ack_ready_line", "line_id": str(self.line.id)},
-            follow=True,
         )
-        self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "assigned server or a manager")
+        self.assertEqual(r.status_code, 404)
         self.line.refresh_from_db()
         self.assertEqual(self.line.kds_status, KdsLineStatus.READY)
 
@@ -2569,7 +2832,7 @@ class StaffWorkspaceMembersTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.tenant = Tenant.objects.create(name="Members UI Tenant", slug="members-ui-tenant")
-        TenantSettings.objects.get_or_create(tenant=cls.tenant)
+        TenantSettings.objects.create(tenant=cls.tenant, business_lines=["bar"], enabled_staff_modules=["pos", "workspace", "finance"])
         cls.site = Site.objects.create(tenant=cls.tenant, name="Main branch")
         cls.outlet = Outlet.objects.create(
             site=cls.site,
@@ -2814,10 +3077,9 @@ class StaffModuleResolutionFallbackTests(TestCase):
             status=SubscriptionStatus.ACTIVE,
         )
         effective = resolve_effective_staff_modules(tenant)
-        self.assertTrue(effective)
-        self.assertIn("pos", effective)
+        self.assertFalse(effective)
 
-    def test_outlet_policy_that_would_zero_modules_is_ignored(self) -> None:
+    def test_outlet_policy_that_would_zero_modules_fails_closed(self) -> None:
         tenant = Tenant.objects.create(name="Policy Zero", slug="policy-zero")
         ts, _ = TenantSettings.objects.get_or_create(tenant=tenant)
         ts.enabled_staff_modules = ["pos"]
@@ -2841,8 +3103,7 @@ class StaffModuleResolutionFallbackTests(TestCase):
             is_active=True,
         )
         effective = resolve_effective_staff_modules(tenant, outlet=outlet)
-        self.assertTrue(effective)
-        self.assertIn("pos", effective)
+        self.assertFalse(effective)
 
 
 class StaffDashboardLowStockInsightTests(TestCase):

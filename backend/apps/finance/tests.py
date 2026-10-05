@@ -17,8 +17,13 @@ from apps.lodging.models import Folio, FolioLine
 from apps.pos.models import Order, OrderLine
 from apps.pos.services import close_pos_shift, open_pos_shift, process_supermarket_line_return, record_order_payment, record_order_refund, refund_retail_line
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, Supplier
+<<<<<<< HEAD
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment
 from apps.tenants.models import Outlet, OutletType, Site, Tenant
+=======
+from apps.purchasing.services import receive_purchase_order_goods
+from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 
 from .models import CashbookEntry, FinanceCategoryKind, FinancePostingLink, FinancePostingSource
 
@@ -228,6 +233,7 @@ class PurchaseFinancePostingTests(TestCase):
     def setUp(self) -> None:
         self.tenant = Tenant.objects.create(name="Purchase Finance Tenant", slug="po-finance-tenant")
         self.site = Site.objects.create(tenant=self.tenant, name="Store Site")
+        TenantSettings.objects.create(tenant=self.tenant, business_lines=["supermarket"], enabled_staff_modules=["pos", "inventory", "purchasing", "finance", "workspace"])
         self.outlet = Outlet.objects.create(
             site=self.site,
             name="Warehouse",

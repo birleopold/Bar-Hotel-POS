@@ -29,9 +29,15 @@ def staff_nav(request):
         "staff_lodging_sites": [],
         "staff_lodging_site": None,
         "staff_show_lodging_nav": False,
+        "staff_show_housekeeping_nav": False,
         "staff_show_workspace_nav": False,
         "staff_quick_primary": None,
         "staff_show_console_entry": False,
+        "staff_product": {
+            "workspace_label": "Operations workspace",
+            "scope_label": "Section",
+            "scope_all_label": "All sections",
+        },
     }
     path = getattr(request, "path", "") or ""
     if not path.startswith("/staff"):
@@ -52,6 +58,11 @@ def staff_nav(request):
     from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
     from .services import (
         get_tenant_staff_modules,
+        membership_can_access_housekeeping,
+        membership_can_manage_folios,
+        membership_can_manage_housekeeping_workflows,
+        membership_can_manage_reservations,
+        membership_can_manage_room_inventory,
         resolve_staff_outlet,
         resolve_staff_site,
         sites_visible_for_membership,
@@ -63,8 +74,14 @@ def staff_nav(request):
     out["staff_nav_outlets"] = outlets
     current_outlet = resolve_staff_outlet(request, outlets)
     out["staff_nav_outlet"] = current_outlet
-    out["staff_all_outlets"] = request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
+    out["staff_all_outlets"] = (
+        request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
+        and m.role in ("owner", "tenant_admin", "site_manager")
+    )
     modules = get_tenant_staff_modules(t, outlet=current_outlet)
+    from .services.presentation import staff_product_presentation
+
+    out["staff_product"] = staff_product_presentation(t, current_outlet)
     vis = staff_nav_visibility_scoped(m, modules=modules, tenant=t, outlet=current_outlet)
     out["staff_nav"] = vis
 
@@ -78,6 +95,22 @@ def staff_nav(request):
     out["staff_lodging_sites"] = sites
     out["staff_lodging_site"] = resolve_staff_site(request, sites)
     out["staff_show_lodging_nav"] = bool(sites) and vis.lodging
+    out["staff_show_housekeeping_nav"] = (
+        bool(sites)
+        and "lodging" in modules
+        and membership_can_access_housekeeping(m)
+        and any(
+            site.outlets.filter(
+                outlet_type="lodging_front_desk", is_active=True
+            ).exists()
+            for site in sites
+        )
+    )
+    out["membership_can_manage_folios"] = membership_can_manage_folios(m)
+    out["membership_can_manage_room_inventory"] = membership_can_manage_room_inventory(m)
+    out["membership_can_manage_reservations"] = membership_can_manage_reservations(m)
+    out["membership_can_manage_housekeeping_workflows"] = membership_can_manage_housekeeping_workflows(m)
+    out["membership_can_access_housekeeping"] = membership_can_access_housekeeping(m)
     out["staff_show_workspace_nav"] = vis.workspace
 
     primary: str | None = None

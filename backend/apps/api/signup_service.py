@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils.text import slugify
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.tenants.business_lines import BUSINESS_LINES, DEFAULT_MODULES_ALL
+from apps.tenants.business_lines import BUSINESS_LINES, modules_for_business_lines
 from apps.tenants.models import Outlet, Site, Tenant, TenantSettings
 
 
@@ -31,7 +31,7 @@ def create_pending_workspace_signup(*, email: str, password: str, workspace_name
 
         settings_obj, _ = TenantSettings.objects.get_or_create(tenant=tenant)
         settings_obj.business_lines = business_lines
-        settings_obj.enabled_staff_modules = list(DEFAULT_MODULES_ALL)
+        settings_obj.enabled_staff_modules = modules_for_business_lines(business_lines)
         settings_obj.save(update_fields=["business_lines", "enabled_staff_modules", "updated_at"])
 
         site = Site.objects.create(tenant=tenant, name="Main site", is_active=True)

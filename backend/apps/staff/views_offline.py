@@ -24,9 +24,11 @@ class StaffOfflineQueueListView(StaffTenantRequiredMixin, ListView):
             "outlet"
         )
         m = self.request.tenant_membership
-        if m.sites.exists():
-            qs = qs.filter(outlet__site_id__in=m.sites.values_list("pk", flat=True))
         outlets = staff_accessible_outlets(m)
+        outlet_ids = [outlet.pk for outlet in outlets]
+        if not outlet_ids:
+            return OfflineQueuedOperation.objects.none()
+        qs = qs.filter(outlet_id__in=outlet_ids)
         sel = resolve_staff_outlet(self.request, outlets)
         session_mode = self.request.session.get(STAFF_SESSION_OUTLET_KEY)
         if sel is not None and session_mode != STAFF_SESSION_OUTLET_ALL:

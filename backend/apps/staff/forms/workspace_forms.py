@@ -17,6 +17,7 @@ ROLE_PRESET_CHOICES = [
     ("restaurant_server", "Restaurant server"),
     ("bar_staff", "Bar staff"),
     ("front_desk", "Front desk"),
+    ("housekeeping", "Housekeeping"),
     ("storekeeper", "Storekeeper"),
     ("branch_manager", "Branch manager"),
 ]
@@ -26,6 +27,7 @@ ROLE_PRESET_DEFAULTS: dict[str, dict[str, str]] = {
     "restaurant_server": {"role": MembershipRole.SERVER},
     "bar_staff": {"role": MembershipRole.BARTENDER},
     "front_desk": {"role": MembershipRole.FRONT_DESK},
+    "housekeeping": {"role": MembershipRole.CLEANER},
     "storekeeper": {"role": MembershipRole.STOREKEEPER},
     "branch_manager": {"role": MembershipRole.SITE_MANAGER},
 }
@@ -400,6 +402,8 @@ class StaffTeamInviteForm(forms.Form):
         initial=MembershipRole.SERVER,
         widget=forms.Select(attrs={"class": "staff-input"}),
     )
+    sites = forms.ModelMultipleChoiceField(queryset=Site.objects.none(), required=False, widget=forms.CheckboxSelectMultiple())
+    outlets = forms.ModelMultipleChoiceField(queryset=Outlet.objects.none(), required=False, widget=forms.CheckboxSelectMultiple())
     expires_days = forms.IntegerField(
         min_value=1,
         max_value=30,
@@ -407,8 +411,61 @@ class StaffTeamInviteForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": "staff-input", "min": 1, "max": 30}),
     )
 
+    def __init__(self, *args, tenant=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tenant = tenant
+        if tenant is not None:
+            from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
+            from apps.tenants.models import OutletType
+
+            try:
+                allowed_types = outlet_types_for_business_lines(normalize_business_lines(tenant.settings.business_lines))
+            except Exception:
+                allowed_types = []
+            from apps.staff.services.membership import ROLE_OUTLET_TYPES
+
+            selected_role = self.data.get("role") or self.initial.get("role") or MembershipRole.SERVER
+            role_types = ROLE_OUTLET_TYPES.get(selected_role)
+            if role_types:
+                allowed_types = list(set(allowed_types) & set(role_types))
+            if selected_role == MembershipRole.CLEANER:
+                allowed_types = list(set(allowed_types) & {OutletType.LODGING_FRONT_DESK})
+            self.fields["sites"].queryset = Site.objects.filter(tenant=tenant, is_active=True, outlets__outlet_type__in=allowed_types, outlets__is_active=True).distinct().order_by("name")
+            self.fields["outlets"].queryset = Outlet.objects.filter(site__tenant=tenant, site__is_active=True, is_active=True, outlet_type__in=allowed_types).select_related("site").order_by("site__name", "name")
+        self.fields["sites"].help_text = "Choose the branches this worker can access. Required for staff roles."
+        self.fields["outlets"].help_text = "Optional additional limit within those branches."
+
     def clean(self):
-        return apply_role_preset(super().clean())
+        data = apply_role_preset(super().clean())
+        selected_sites = data.get("sites")
+        selected_outlets = data.get("outlets")
+        if selected_sites and selected_outlets:
+            site_ids = set(selected_sites.values_list("id", flat=True))
+            if any(o.site_id not in site_ids for o in selected_outlets):
+                raise forms.ValidationError({"outlets": "Selected outlets must belong to the selected sites."})
+        if data.get("role") in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}:
+            raise forms.ValidationError("Owner and tenant admin access must be granted through workspace membership, not an invite link.")
+        if not selected_sites:
+            raise forms.ValidationError({"sites": "Assign at least one branch to this worker."})
+        from apps.staff.services.membership import ROLE_OUTLET_TYPES
+
+        allowed = ROLE_OUTLET_TYPES.get(data.get("role"))
+        if selected_sites and self._tenant is not None:
+            from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
+
+            try:
+                configured_types = set(outlet_types_for_business_lines(normalize_business_lines(self._tenant.settings.business_lines)))
+            except Exception:
+                configured_types = set()
+            role_allowed_types = configured_types if allowed is None else configured_types & set(allowed)
+            if allowed is not None and any(
+                not site.outlets.filter(is_active=True, outlet_type__in=role_allowed_types).exists()
+                for site in selected_sites
+            ):
+                raise forms.ValidationError({"sites": "Each selected branch must have an active outlet compatible with this role."})
+        if selected_outlets and allowed and any(o.outlet_type not in allowed for o in selected_outlets):
+            raise forms.ValidationError({"outlets": "Selected outlets do not match this worker's role."})
+        return data
 
 
 class StaffWorkerCreateForm(forms.Form):
@@ -442,12 +499,27 @@ class StaffWorkerCreateForm(forms.Form):
         super().__init__(*args, **kwargs)
         self._tenant = tenant
         if tenant is not None:
-            self.fields["sites"].queryset = Site.objects.filter(tenant=tenant).order_by("name")
-            self.fields["outlets"].queryset = Outlet.objects.filter(site__tenant=tenant).select_related("site").order_by(
+            from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
+            from apps.tenants.models import OutletType
+
+            try:
+                allowed_types = outlet_types_for_business_lines(normalize_business_lines(tenant.settings.business_lines))
+            except Exception:
+                allowed_types = []
+            from apps.staff.services.membership import ROLE_OUTLET_TYPES
+
+            selected_role = self.data.get("role") or self.initial.get("role") or MembershipRole.SERVER
+            role_types = ROLE_OUTLET_TYPES.get(selected_role)
+            if role_types:
+                allowed_types = list(set(allowed_types) & set(role_types))
+            if selected_role == MembershipRole.CLEANER:
+                allowed_types = list(set(allowed_types) & {OutletType.LODGING_FRONT_DESK})
+            self.fields["sites"].queryset = Site.objects.filter(tenant=tenant, is_active=True, outlets__outlet_type__in=allowed_types, outlets__is_active=True).distinct().order_by("name")
+            self.fields["outlets"].queryset = Outlet.objects.filter(site__tenant=tenant, site__is_active=True, is_active=True, outlet_type__in=allowed_types).select_related("site").order_by(
                 "site__name", "name"
             )
-        self.fields["sites"].help_text = "Leave empty for all branches."
-        self.fields["outlets"].help_text = "Leave empty for all outlets allowed by the selected branches."
+        self.fields["sites"].help_text = "Choose the branches this worker can access. Required for staff roles."
+        self.fields["outlets"].help_text = "Optionally limit access further to selected outlets."
 
     def clean_email(self):
         email = (self.cleaned_data.get("email") or "").strip().lower()
@@ -466,6 +538,15 @@ class StaffWorkerCreateForm(forms.Form):
             site_ids = set(selected_sites.values_list("id", flat=True))
             if any(o.site_id not in site_ids for o in selected_outlets):
                 raise forms.ValidationError({"outlets": "Selected outlets must belong to the selected sites."})
+        if data.get("role") in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}:
+            raise forms.ValidationError("Owner and tenant admin access must be granted through workspace membership, not a worker login.")
+        if not selected_sites:
+            raise forms.ValidationError({"sites": "Assign at least one branch to this worker."})
+        from apps.staff.services.membership import ROLE_OUTLET_TYPES
+
+        allowed = ROLE_OUTLET_TYPES.get(data.get("role"))
+        if selected_outlets and allowed and any(o.outlet_type not in allowed for o in selected_outlets):
+            raise forms.ValidationError({"outlets": "Selected outlets do not match this worker's role."})
         return data
 
 
@@ -529,15 +610,33 @@ class StaffMembershipManageForm(forms.ModelForm):
     def __init__(self, *args, tenant=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._tenant = tenant
+        if self.instance.pk and self.instance.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+            self.fields["sites"].required = False
         site_qs = Site.objects.none()
         outlet_qs = Outlet.objects.none()
         if tenant is not None:
-            site_qs = Site.objects.filter(tenant=tenant).order_by("name")
-            outlet_qs = Outlet.objects.filter(site__tenant=tenant).select_related("site").order_by("site__name", "name")
+            from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
+
+            try:
+                allowed_types = outlet_types_for_business_lines(normalize_business_lines(tenant.settings.business_lines))
+            except Exception:
+                allowed_types = []
+            selected_role = self.data.get("role") or self.initial.get("role") or (self.instance.role if self.instance.pk else MembershipRole.SERVER)
+            from apps.staff.services.membership import ROLE_OUTLET_TYPES
+
+            role_types = ROLE_OUTLET_TYPES.get(selected_role)
+            if role_types:
+                allowed_types = list(set(allowed_types) & set(role_types))
+            if selected_role == MembershipRole.CLEANER:
+                from apps.tenants.models import OutletType
+
+                allowed_types = list(set(allowed_types) & {OutletType.LODGING_FRONT_DESK})
+            site_qs = Site.objects.filter(tenant=tenant, is_active=True, outlets__outlet_type__in=allowed_types, outlets__is_active=True).distinct().order_by("name")
+            outlet_qs = Outlet.objects.filter(site__tenant=tenant, site__is_active=True, is_active=True, outlet_type__in=allowed_types).select_related("site").order_by("site__name", "name")
         self.fields["sites"].queryset = site_qs
         self.fields["outlets"].queryset = outlet_qs
-        self.fields["sites"].help_text = "Leave empty for access to all sites in this workspace."
-        self.fields["outlets"].help_text = "Leave empty for access to all outlets allowed by the selected sites."
+        self.fields["sites"].help_text = "Choose the branches this worker can access."
+        self.fields["outlets"].help_text = "Optionally limit access further to selected outlets."
 
     def clean_sites(self):
         sites = self.cleaned_data.get("sites")
@@ -562,6 +661,30 @@ class StaffMembershipManageForm(forms.ModelForm):
                 raise forms.ValidationError(
                     {"outlets": "Selected outlets must belong to the selected sites."},
                 )
+        if data.get("role") not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) and not selected_sites:
+            raise forms.ValidationError({"sites": "Assign at least one branch to this worker."})
+        from apps.staff.services.membership import ROLE_OUTLET_TYPES
+
+        allowed = ROLE_OUTLET_TYPES.get(data.get("role"))
+        if selected_sites and self._tenant is not None:
+            from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
+
+            try:
+                allowed_types = set(outlet_types_for_business_lines(normalize_business_lines(self._tenant.settings.business_lines)))
+            except Exception:
+                allowed_types = set()
+            role_allowed_types = allowed_types if allowed is None else allowed_types & set(allowed)
+            site_ids = set(selected_sites.values_list("id", flat=True))
+            if any(not site.outlets.filter(is_active=True, outlet_type__in=allowed_types).exists() for site in selected_sites):
+                raise forms.ValidationError({"sites": "Each selected branch must have an active outlet in a configured service."})
+            if allowed is not None and any(not site.outlets.filter(is_active=True, outlet_type__in=role_allowed_types).exists() for site in selected_sites):
+                raise forms.ValidationError({"sites": "Each selected branch must have an active outlet compatible with this role."})
+            if allowed is not None and any(not site.outlets.filter(is_active=True, outlet_type__in=role_allowed_types).exists() for site in selected_sites):
+                raise forms.ValidationError({"sites": "Each selected branch must have an active outlet compatible with this role."})
+            if selected_outlets and any(o.site_id not in site_ids or o.outlet_type not in role_allowed_types for o in selected_outlets):
+                raise forms.ValidationError({"outlets": "Selected outlets must belong to a selected branch and match this role and configured service."})
+        if selected_outlets and allowed and any(o.outlet_type not in allowed for o in selected_outlets):
+            raise forms.ValidationError({"outlets": "Selected outlets do not match this worker's role."})
         return data
 
     def save(self, commit=True):

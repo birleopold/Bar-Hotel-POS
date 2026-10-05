@@ -14,7 +14,8 @@ from rest_framework.views import APIView
 from apps.access.outlets import membership_outlet_ids
 from apps.pos.models import Payment, Refund
 
-from .permissions import HasTenantContext
+from apps.access.outlets import membership_outlet_ids
+from .permissions import HasTenantContext, HasTenantModule
 from .report_queries import parse_outlet_uuid_param, parse_report_dates_from_query
 
 
@@ -23,7 +24,8 @@ class SalesSummaryView(APIView):
     Aggregated payment and refund totals for a date range (UTC calendar dates on ``created_at``).
     """
 
-    permission_classes = [IsAuthenticated, HasTenantContext]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule]
+    required_staff_module = "pos"
 
     @extend_schema(
         parameters=[
@@ -48,6 +50,11 @@ class SalesSummaryView(APIView):
 
         tenant_id = request.tenant.id
         allowed_outlets = membership_outlet_ids(request.tenant_membership)
+<<<<<<< HEAD
+=======
+        if oid is not None and oid not in allowed_outlets:
+            return Response({"error": {"code": "outlet_forbidden", "message": "You cannot view reports for this outlet."}}, status=403)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         payments_qs = Payment.objects.filter(
             tenant_id=tenant_id,
             order__outlet_id__in=allowed_outlets,
@@ -134,7 +141,8 @@ class OperationsRollupView(APIView):
     Same date filters as sales summary; adds **by_day** time series.
     """
 
-    permission_classes = [IsAuthenticated, HasTenantContext]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule]
+    required_staff_module = "pos"
 
     @extend_schema(
         parameters=[
@@ -159,6 +167,11 @@ class OperationsRollupView(APIView):
 
         tenant_id = request.tenant.id
         allowed_outlets = membership_outlet_ids(request.tenant_membership)
+<<<<<<< HEAD
+=======
+        if oid is not None and oid not in allowed_outlets:
+            return Response({"error": {"code": "outlet_forbidden", "message": "You cannot view reports for this outlet."}}, status=403)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 
         payments_qs = Payment.objects.filter(
             tenant_id=tenant_id,

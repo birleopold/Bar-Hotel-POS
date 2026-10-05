@@ -16,6 +16,48 @@ class HasTenantContext(permissions.BasePermission):
         return tenant is not None and membership is not None
 
 
+class HasTenantModule(permissions.BasePermission):
+    """Gate tenant API families with the same profile/plan module resolution as staff UI."""
+
+    message = "This feature is not enabled for this workspace."
+
+    def has_permission(self, request, view) -> bool:
+        module = getattr(view, "required_staff_module", None)
+        if not module:
+            return True
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return False
+        from apps.staff.services.modules import get_tenant_staff_modules
+
+        return module in get_tenant_staff_modules(tenant)
+
+
+class CanUseKds(permissions.BasePermission):
+    message = "Kitchen prep is not enabled or your role cannot access the prep queue."
+
+    def has_permission(self, request, view) -> bool:
+        from apps.accounts.models import MembershipRole
+        from apps.staff.services.modules import get_tenant_staff_modules
+
+        membership = getattr(request, "tenant_membership", None)
+        tenant = getattr(request, "tenant", None)
+        allowed_roles = {
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+            MembershipRole.OUTLET_MANAGER,
+            MembershipRole.KITCHEN,
+            MembershipRole.BARTENDER,
+        }
+        return bool(
+            membership
+            and tenant
+            and membership.role in allowed_roles
+            and "kitchen" in get_tenant_staff_modules(tenant)
+        )
+
+
 class CanManageTenantSettings(permissions.BasePermission):
     """PATCH tenant branding/settings: owner or tenant_admin only."""
 

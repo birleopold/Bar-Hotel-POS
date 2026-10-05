@@ -50,6 +50,7 @@ ROLE_AT_WORK: dict[str, tuple[str, ...]] = {
     MembershipRole.KITCHEN: ("Kitchen — prep queue & handoff.",),
     MembershipRole.STOREKEEPER: ("Stock — receiving, stock take, POs.",),
     MembershipRole.ACCOUNTANT: ("Reports — read-only summaries.",),
+    MembershipRole.CLEANER: ("Housekeeping — update room readiness at assigned branches.",),
 }
 
 

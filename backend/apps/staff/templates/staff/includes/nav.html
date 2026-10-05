@@ -43,6 +43,8 @@
         {% endif %}
         {% if staff_show_lodging_nav and staff_nav.lodging %}
           <li><a class="staff-nav__link{% if '/staff/lodging/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}">Lodging</a></li>
+        {% elif staff_show_housekeeping_nav %}
+          <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-lodging-housekeeping' %} staff-nav__link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a></li>
         {% endif %}
         {% if staff_nav.events %}
           <li><a class="staff-nav__link{% if '/staff/events/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-events-bookings' %}">Events</a></li>
@@ -59,12 +61,12 @@
         <form class="staff-nav__outlet-form" method="post" action="{% url 'staff-select-outlet' %}">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.path }}">
-          <label class="staff-nav__field-label" for="staff-outlet-select">Section</label>
+          <label class="staff-nav__field-label" for="staff-outlet-select">{{ staff_product.scope_label|default:"Section" }}</label>
           <select class="staff-input" id="staff-outlet-select" name="outlet_id" onchange="this.form.submit()">
             {% if staff_all_outlets %}
-              <option value="__all__" selected>All sections</option>
+              <option value="__all__" selected>{{ staff_product.scope_all_label|default:"All sections" }}</option>
             {% else %}
-              <option value="__all__">All sections</option>
+              <option value="__all__">{{ staff_product.scope_all_label|default:"All sections" }}</option>
             {% endif %}
             {% for o in staff_nav_outlets %}
               <option value="{{ o.id }}"{% if staff_nav_outlet and staff_nav_outlet.id == o.id and not staff_all_outlets %} selected{% endif %}>{{ o.name }}</option>
@@ -72,7 +74,7 @@
           </select>
         </form>
       {% endif %}
-      {% if staff_show_lodging_nav and staff_lodging_sites %}
+      {% if staff_show_housekeeping_nav and staff_lodging_sites %}
         <form class="staff-nav__outlet-form" method="post" action="{% url 'staff-select-site' %}">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.path }}">

@@ -66,7 +66,7 @@ def _po_outlet_ids(request: HttpRequest, outlets: list[Outlet]) -> list[uuid.UUI
         return [o.id for o in outlets]
     if current:
         return [current.id]
-    return [o.id for o in outlets]
+    return []
 
 
 def _po_base_queryset(request) -> QuerySet:
@@ -85,6 +85,8 @@ class StaffSupplierListView(StaffTenantRequiredMixin, ListView):
     paginate_by = 40
 
     def get_queryset(self):
+        if not staff_accessible_outlets(self.request.tenant_membership):
+            return Supplier.objects.none()
         return Supplier.objects.filter(tenant=self.request.tenant).order_by("name")
 
     def get_context_data(self, **kwargs):
@@ -100,7 +102,7 @@ class StaffSupplierCreateView(StaffTenantRequiredMixin, FormView):
     success_url = reverse_lazy("staff-purchasing-suppliers")
 
     def dispatch(self, request, *args, **kwargs):
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_modify_lodging(request.tenant_membership) or not staff_accessible_outlets(request.tenant_membership):
             messages.error(request, "Your role cannot manage suppliers.")
             return redirect("staff-purchasing-suppliers")
         return super().dispatch(request, *args, **kwargs)
@@ -125,7 +127,7 @@ class StaffSupplierUpdateView(StaffTenantRequiredMixin, UpdateView):
     success_url = reverse_lazy("staff-purchasing-suppliers")
 
     def dispatch(self, request, *args, **kwargs):
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_modify_lodging(request.tenant_membership) or not staff_accessible_outlets(request.tenant_membership):
             messages.error(request, "Your role cannot manage suppliers.")
             return redirect("staff-purchasing-suppliers")
         return super().dispatch(request, *args, **kwargs)

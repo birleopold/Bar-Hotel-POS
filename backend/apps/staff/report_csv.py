@@ -45,9 +45,15 @@ def format_sales_summary_csv(
     d1: date,
     outlet_id: UUID | None = None,
     *,
+<<<<<<< HEAD
     allowed_outlet_ids: list[UUID] | None = None,
 ) -> str:
     summary = build_sales_summary(tenant_id, d0, d1, outlet_id, allowed_outlet_ids=allowed_outlet_ids)
+=======
+    outlet_ids: list[UUID] | None = None,
+) -> str:
+    summary = build_sales_summary(tenant_id, d0, d1, outlet_id, outlet_ids=outlet_ids)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
     return format_sales_summary_csv_from_summary(summary)
 
 

@@ -16,8 +16,12 @@ from django.db.models import Prefetch, Q
 
 from apps.catalog.models import MenuItemModifierGroup, ModifierOption
 from apps.accounts.models import MembershipRole
+<<<<<<< HEAD
 from apps.audit.services import log_audit
 from apps.customers.models import Customer
+=======
+from apps.tenants.business_lines import modules_for_business_lines
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem, ServiceOffering, ServiceOfferingOption
@@ -55,6 +59,7 @@ from apps.pos.services import (
 )
 from apps.tenants.models import OutletType
 from apps.tenants.models import TenantSettings
+from apps.tenants.business_lines import normalize_business_lines
 from apps.inventory.services import apply_manual_stock_change
 from apps.lodging.models import Folio, FolioStatus
 
@@ -94,10 +99,38 @@ from .services import (
     order_payment_totals,
     order_refundable_remaining,
     promotions_selectable_for_order,
+    membership_can_manage_workspace_settings,
     resolve_staff_outlet,
     staff_accessible_outlets,
     staff_outlet_allowed_for_membership,
+    get_tenant_staff_modules,
 )
+
+
+def _tenant_services_enabled(tenant) -> bool:
+    try:
+        lines = normalize_business_lines(tenant.settings.business_lines)
+    except TenantSettings.DoesNotExist:
+        return False
+    return "services" in lines
+
+
+def _tenant_item_catalog_enabled(tenant) -> bool:
+    try:
+        lines = set(normalize_business_lines(tenant.settings.business_lines))
+    except TenantSettings.DoesNotExist:
+        return False
+    return bool(
+        lines & {"bar", "lounge", "restaurant", "cafeteria", "kitchen", "retail", "supermarket"}
+    )
+
+
+def _tenant_lodging_enabled(tenant) -> bool:
+    try:
+        lines = normalize_business_lines(tenant.settings.business_lines)
+    except TenantSettings.DoesNotExist:
+        return False
+    return "lodging" in lines
 
 
 def _flash_drf_validation(request: HttpRequest, exc: DRFValidationError) -> None:
@@ -146,10 +179,16 @@ class StaffSelectOutletView(StaffTenantRequiredMixin, View):
 
     def post(self, request: HttpRequest) -> HttpResponse:
         m = request.tenant_membership
+        if "pos" not in get_tenant_staff_modules(request.tenant):
+            messages.error(request, "Point of sale is not enabled for this workspace.")
+            return redirect("staff-dashboard")
         outlets = staff_accessible_outlets(m)
         oid = request.POST.get("outlet_id", "").strip()
         nxt = request.POST.get("next", "").strip() or reverse("staff-orders")
         if oid == "__all__":
+            if m.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER):
+                messages.error(request, "Your role must be assigned to a branch before viewing combined outlet lists.")
+                return redirect(nxt)
             request.session[STAFF_SESSION_OUTLET_KEY] = STAFF_SESSION_OUTLET_ALL
             messages.success(request, "Showing all outlets for lists and reports.")
             return redirect(nxt)
@@ -172,10 +211,22 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
     context_object_name = "orders"
     paginate_by = 50
 
+<<<<<<< HEAD
     def _orders_in_scope(self):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         qs = (
             Order.objects.filter(tenant=self.request.tenant, outlet_id__in=[o.id for o in outlets])
+=======
+    def get_queryset(self):
+        if "pos" not in get_tenant_staff_modules(self.request.tenant):
+            return Order.objects.none()
+        outlets = staff_accessible_outlets(self.request.tenant_membership)
+        allowed_ids = [o.id for o in outlets]
+        if not allowed_ids:
+            return Order.objects.none()
+        qs = (
+            Order.objects.filter(tenant=self.request.tenant, outlet_id__in=allowed_ids)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             .select_related("outlet", "table")
             .prefetch_related("payments")
             .order_by("-created_at")
@@ -183,12 +234,17 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         outlet = resolve_staff_outlet(self.request, outlets)
         if outlet:
             qs = qs.filter(outlet=outlet)
+<<<<<<< HEAD
         if self.request.GET.get("mine") == "1":
             qs = qs.filter(created_by=self.request.user)
         return qs
 
     def get_queryset(self):
         qs = self._orders_in_scope()
+=======
+        else:
+            qs = qs.filter(outlet_id__in=[o.id for o in outlets])
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         st = self.request.GET.get("status")
         if st in ("open", "closed", "cancelled"):
             qs = qs.filter(status=st)
@@ -279,6 +335,9 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
     staff_nav_capability = "orders"
 
     def _quick_create(self, request: HttpRequest, *, mode: str, hold_label: str) -> HttpResponse:
+        if "pos" not in get_tenant_staff_modules(request.tenant):
+            messages.error(request, "Point of sale is not enabled for this workspace.")
+            return redirect("staff-dashboard")
         outlets = staff_accessible_outlets(request.tenant_membership)
         outlet = resolve_staff_outlet(request, outlets)
         if outlet is None:
@@ -501,8 +560,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
     http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
+        allowed_outlet_ids = [o.id for o in staff_accessible_outlets(self.request.tenant_membership)]
+        if "pos" not in get_tenant_staff_modules(self.request.tenant):
+            return Order.objects.none()
         return (
-            Order.objects.filter(tenant=self.request.tenant)
+            Order.objects.filter(tenant=self.request.tenant, outlet_id__in=allowed_outlet_ids)
             .select_related("outlet", "table", "folio", "applied_promotion")
             .prefetch_related(
                 "lines",
@@ -554,11 +616,15 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["can_modify_open_order"] = can_modify_open
 
         # Folio attach/clear (only for open, unpaid orders).
+<<<<<<< HEAD
         ctx["can_set_folio"] = can_modify_open
         ctx["can_charge_to_folio"] = can_modify_open and order.folio_id is not None and b > Decimal("0")
+=======
+        ctx["can_set_folio"] = can_modify_open and _tenant_lodging_enabled(order.tenant)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         ctx["folio_form"] = None
         ctx["folio_choices"] = []
-        if can_modify_open:
+        if ctx["can_set_folio"]:
             folio_qs = Folio.objects.filter(
                 tenant_id=order.tenant_id,
                 site_id=order.outlet.site_id,
@@ -585,14 +651,16 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["ready_handoff_count"] = len(ready_line_ids)
         ctx["is_assigned_server"] = assigned_server
         ctx["can_void_lines"] = can_modify_open
+        services_enabled = _tenant_services_enabled(order.tenant)
+        item_catalog_enabled = _tenant_item_catalog_enabled(order.tenant)
         ctx["add_line_form"] = (
             StaffOrderAddLineForm(tenant_id=order.tenant_id, outlet_id=order.outlet_id)
-            if can_modify_open
+            if can_modify_open and item_catalog_enabled
             else None
         )
         ctx["add_service_form"] = (
             StaffOrderAddServiceForm(tenant_id=order.tenant_id, outlet_id=order.outlet_id)
-            if can_modify_open
+            if can_modify_open and services_enabled
             else None
         )
         promo_qs = promotions_selectable_for_order(order) if can_modify_open else None
@@ -625,8 +693,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["pos_menu_item_modifiers"] = {}
         ctx["service_offerings"] = []
         if can_modify_open:
+            menu_qs = menu_items_for_outlet_queryset(order.tenant_id, order.outlet_id)
+            if not item_catalog_enabled:
+                menu_qs = menu_qs.none()
             menu_qs = (
-                menu_items_for_outlet_queryset(order.tenant_id, order.outlet_id)
+                menu_qs
                 .select_related("category")
                 .prefetch_related(
                     Prefetch(
@@ -680,30 +751,31 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     }
                 grouped[key]["menu_items"].append(item)
             ctx["pos_menu_categories"] = list(grouped.values())
-            ctx["service_offerings"] = list(
-                ServiceOffering.objects.filter(tenant_id=order.tenant_id, is_active=True)
-                .filter(Q(outlets__isnull=True) | Q(outlets__id=order.outlet_id))
-                .distinct()
-                .order_by("name")
-            )
-            service_options = list(
-                ServiceOfferingOption.objects.filter(
-                    service_offering__tenant_id=order.tenant_id,
-                    service_offering__is_active=True,
-                    is_active=True,
+            if services_enabled:
+                ctx["service_offerings"] = list(
+                    ServiceOffering.objects.filter(tenant_id=order.tenant_id, is_active=True)
+                    .filter(Q(outlets__isnull=True) | Q(outlets__id=order.outlet_id))
+                    .distinct()
+                    .order_by("name")
                 )
-                .filter(
-                    Q(service_offering__outlets__isnull=True)
-                    | Q(service_offering__outlets__id=order.outlet_id)
+                service_options = list(
+                    ServiceOfferingOption.objects.filter(
+                        service_offering__tenant_id=order.tenant_id,
+                        service_offering__is_active=True,
+                        is_active=True,
+                    )
+                    .filter(
+                        Q(service_offering__outlets__isnull=True)
+                        | Q(service_offering__outlets__id=order.outlet_id)
+                    )
+                    .select_related("service_offering")
+                    .order_by("service_offering__name", "sort_order", "name")
                 )
-                .select_related("service_offering")
-                .order_by("service_offering__name", "sort_order", "name")
-            )
-            options_by_service: dict[str, list[ServiceOfferingOption]] = {}
-            for opt in service_options:
-                options_by_service.setdefault(str(opt.service_offering_id), []).append(opt)
-            for svc in ctx["service_offerings"]:
-                svc.active_options = options_by_service.get(str(svc.id), [])
+                options_by_service: dict[str, list[ServiceOfferingOption]] = {}
+                for opt in service_options:
+                    options_by_service.setdefault(str(opt.service_offering_id), []).append(opt)
+                for svc in ctx["service_offerings"]:
+                    svc.active_options = options_by_service.get(str(svc.id), [])
         is_supermarket_outlet = order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
         ctx["is_supermarket_outlet"] = is_supermarket_outlet
         ctx["scan_add_form"] = (
@@ -742,11 +814,15 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         action = request.POST.get("action", "").strip()
         m = self.request.tenant_membership
 
-        if not membership_can_modify_lodging(m):
-            messages.error(request, "Your role cannot modify orders or payments.")
-            return redirect("staff-order-detail", order_id=order.id)
         if not staff_outlet_allowed_for_membership(m, order.outlet_id):
             messages.error(request, "You cannot modify this order for its outlet.")
+            return redirect("staff-order-detail", order_id=order.id)
+        if action == "ack_ready_line":
+            # A server assigned to this order may acknowledge its ready handoff;
+            # this is intentionally narrower than general order/payment edits.
+            return self._post_ack_ready_line(request, order)
+        if not membership_can_modify_lodging(m):
+            messages.error(request, "Your role cannot modify orders or payments.")
             return redirect("staff-order-detail", order_id=order.id)
 
         if action == "set_customer":
@@ -812,13 +888,13 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_void_line(request, order)
         if action == "record_refund":
             return self._post_record_refund(request, order)
-        if action == "ack_ready_line":
-            return self._post_ack_ready_line(request, order)
-
         messages.error(request, "Unknown action.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_set_folio(self, request: HttpRequest, order: Order) -> HttpResponse:
+        if not _tenant_lodging_enabled(order.tenant):
+            messages.error(request, "Lodging and folios are not enabled for this business.")
+            return redirect("staff-order-detail", order_id=order.id)
         if order.status != OrderStatus.OPEN or order.is_paid:
             messages.error(request, "Folio can only be changed on open, unpaid orders.")
             return redirect("staff-order-detail", order_id=order.id)
@@ -930,6 +1006,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_add_line(self, request: HttpRequest, order: Order) -> HttpResponse:
+        if not _tenant_item_catalog_enabled(order.tenant):
+            messages.error(request, "Items and menus are not enabled for this business.")
+            return redirect("staff-order-detail", order_id=order.id)
         if order.status != OrderStatus.OPEN or order.is_paid:
             messages.error(
                 request,
@@ -971,6 +1050,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_add_service_line(self, request: HttpRequest, order: Order) -> HttpResponse:
+        if not _tenant_services_enabled(order.tenant):
+            messages.error(request, "Services are not enabled for this business.")
+            return redirect("staff-order-detail", order_id=order.id)
         if order.status != OrderStatus.OPEN or order.is_paid:
             messages.error(
                 request,
@@ -1314,9 +1396,27 @@ class StaffOrderPrintView(StaffTenantRequiredMixin, DetailView):
     pk_url_kwarg = "order_id"
     http_method_names = ["get", "head", "options"]
 
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not getattr(request, "tenant", None):
+            return super().dispatch(request, *args, **kwargs)
+        from apps.staff.services.membership import staff_accessible_outlets
+        from apps.staff.services.modules import get_tenant_staff_modules
+
+        if (
+            not getattr(request, "tenant_membership", None)
+            or "pos" not in get_tenant_staff_modules(request.tenant)
+            or not staff_accessible_outlets(request.tenant_membership)
+        ):
+            messages.error(request, "Point of sale is not available for your role or workspace setup.")
+            return redirect("staff-dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
+        allowed_outlet_ids = [outlet.pk for outlet in staff_accessible_outlets(self.request.tenant_membership)]
+        if not allowed_outlet_ids or "pos" not in get_tenant_staff_modules(self.request.tenant):
+            return Order.objects.none()
         return (
-            Order.objects.filter(tenant=self.request.tenant)
+            Order.objects.filter(tenant=self.request.tenant, outlet_id__in=allowed_outlet_ids)
             .select_related("outlet", "table", "folio", "created_by")
             .prefetch_related(
                 "lines",
@@ -1387,6 +1487,8 @@ class StaffTablesListView(StaffTenantRequiredMixin, ListView):
     context_object_name = "tables"
 
     def get_queryset(self):
+        if "pos" not in get_tenant_staff_modules(self.request.tenant):
+            return Table.objects.none()
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         outlet = resolve_staff_outlet(self.request, outlets)
         if outlet is None:
@@ -1495,6 +1597,8 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
 
     def get_queryset(self):
         tenant_id = self.request.tenant.id
+        if "pos" not in get_tenant_staff_modules(self.request.tenant):
+            return MenuCategory.objects.none()
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         outlet = resolve_staff_outlet(self.request, outlets)
         all_outlets = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
@@ -1502,11 +1606,17 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
         if outlet and not all_outlets:
             allowed_ids = menu_items_for_outlet_queryset(tenant_id, outlet.id).values_list("pk", flat=True)
             item_qs = MenuItem.objects.filter(pk__in=allowed_ids, is_active=True).order_by("name")
+        elif all_outlets and outlets:
+            allowed_ids = set()
+            for allowed_outlet in outlets:
+                allowed_ids.update(menu_items_for_outlet_queryset(tenant_id, allowed_outlet.id).values_list("pk", flat=True))
+            item_qs = MenuItem.objects.filter(pk__in=allowed_ids, is_active=True).order_by("name")
         else:
-            item_qs = MenuItem.objects.filter(tenant_id=tenant_id, is_active=True).order_by("name")
+            item_qs = MenuItem.objects.none()
 
         return (
             MenuCategory.objects.filter(tenant=self.request.tenant, is_active=True)
+            .filter(items__in=item_qs)
             .prefetch_related(Prefetch("items", queryset=item_qs))
             .order_by("sort_order", "name")
         )
@@ -1517,7 +1627,50 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
         outlet = resolve_staff_outlet(self.request, outlets)
         ctx["menu_scope_outlet"] = outlet
         ctx["menu_all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
+        ctx["can_manage_tv_details"] = membership_can_manage_workspace_settings(self.request.tenant_membership)
         return ctx
+
+    def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        from django.core.exceptions import ValidationError
+        from .services import membership_can_manage_workspace_settings
+
+        if not membership_can_manage_workspace_settings(request.tenant_membership):
+            messages.error(request, "Your role cannot edit menu display details.")
+            return redirect("staff-menu")
+
+        outlets = staff_accessible_outlets(request.tenant_membership)
+        outlet = resolve_staff_outlet(request, outlets)
+        if not outlet or request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL:
+            messages.error(request, "Select one outlet before editing display information.")
+            return redirect("staff-menu")
+        try:
+            item_id = uuid.UUID(request.POST.get("item_id", ""))
+        except (ValueError, TypeError):
+            messages.error(request, "Select a valid menu item.")
+            return redirect("staff-menu")
+        item = MenuItem.objects.filter(
+            pk=item_id,
+            tenant=request.tenant,
+            is_active=True,
+            pk__in=menu_items_for_outlet_queryset(request.tenant.id, outlet.id).values("pk"),
+        ).first()
+        if item is None:
+            messages.error(request, "That item is not available at this outlet.")
+            return redirect("staff-menu")
+        if request.POST.get("action") != "display_details":
+            messages.error(request, "Unsupported catalog action.")
+            return redirect("staff-menu")
+        item.is_featured = request.POST.get("is_featured") == "on"
+        item.display_image_url = (request.POST.get("display_image_url") or "").strip()
+        item.availability_note = (request.POST.get("availability_note") or "").strip()[:160]
+        try:
+            item.full_clean(exclude=["tenant", "category", "unit_price"])
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+            return redirect("staff-menu")
+        item.save(update_fields=["is_featured", "display_image_url", "availability_note", "updated_at"])
+        messages.success(request, f"Display details saved for {item.name}.")
+        return redirect("staff-menu")
 
 
 class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
@@ -1538,9 +1691,16 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
 
         outlets = staff_accessible_outlets(request.tenant_membership)
         outlet = resolve_staff_outlet(request, outlets)
+<<<<<<< HEAD
         all_outlets_mode = request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         oid = None if all_outlets_mode else (outlet.id if outlet else None)
         body = format_sales_summary_csv(request.tenant.id, d0, d1, oid, allowed_outlet_ids=[o.pk for o in outlets])
+=======
+        outlet_ids = [o.id for o in outlets]
+        if request.session.get(STAFF_SESSION_OUTLET_KEY) != STAFF_SESSION_OUTLET_ALL and outlet:
+            outlet_ids = [outlet.id]
+        body = format_sales_summary_csv(request.tenant.id, d0, d1, outlet_ids=outlet_ids)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 
         resp = HttpResponse(body, content_type="text/csv; charset=utf-8")
         resp["Content-Disposition"] = (
@@ -1571,6 +1731,13 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
             ctx["summary"] = None
             return ctx
 
+<<<<<<< HEAD
         oid = None if ctx["all_outlets_mode"] else (outlet.id if outlet else None)
         ctx["summary"] = build_sales_summary(self.request.tenant.id, d0, d1, oid, allowed_outlet_ids=[o.pk for o in outlets])
+=======
+        outlet_ids = [o.id for o in outlets]
+        if not ctx["all_outlets_mode"] and outlet:
+            outlet_ids = [outlet.id]
+        ctx["summary"] = build_sales_summary(self.request.tenant.id, d0, d1, outlet_ids=outlet_ids)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         return ctx

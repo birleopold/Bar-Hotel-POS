@@ -29,8 +29,12 @@ from apps.lodging.models import (
     RoomStatus,
     RoomType,
 )
+<<<<<<< HEAD
 from apps.audit.services import log_audit
 from .services.customers import visible_customers
+=======
+from apps.accounts.models import MembershipRole
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 from apps.lodging.services import (
     cancel_reservation,
     check_in_reservation,
@@ -43,7 +47,7 @@ from apps.lodging.services import (
 from .forms import StaffFolioManualLineForm, StaffFolioPaymentForm, StaffReservationForm, StaffRoomMaintenanceForm
 from .middleware import STAFF_SESSION_SITE_KEY
 from .mixins import StaffTenantRequiredMixin
-from .services import membership_can_modify_lodging, resolve_staff_site, sites_visible_for_membership
+from .services import membership_can_access_housekeeping, membership_can_manage_folios, membership_can_manage_housekeeping_workflows, membership_can_manage_reservations, membership_can_manage_room_inventory, membership_can_modify_lodging, membership_can_update_housekeeping, resolve_staff_site, sites_visible_for_membership
 
 
 def _flash_drf_validation(request: HttpRequest, exc: DRFValidationError) -> None:
@@ -62,13 +66,26 @@ def _allowed_site_ids(request) -> set[uuid.UUID]:
 
 
 def _lodging_sites_and_site(request: HttpRequest):
-    sites = sites_visible_for_membership(request.tenant_membership)
+    membership = request.tenant_membership
+    sites = sites_visible_for_membership(membership)
+    if membership.role == MembershipRole.CLEANER:
+        from apps.tenants.models import OutletType
+
+        sites = [site for site in sites if site.outlets.filter(is_active=True, outlet_type=OutletType.LODGING_FRONT_DESK).exists()]
     site = resolve_staff_site(request, sites)
     return sites, site
 
 
+def _membership_can_manage_folios(membership) -> bool:
+    return membership_can_manage_folios(membership)
+
+
+def _membership_can_manage_room_inventory(membership) -> bool:
+    return membership_can_manage_room_inventory(membership)
+
+
 class StaffSelectSiteView(StaffTenantRequiredMixin, View):
-    staff_nav_capability = "lodging"
+    staff_nav_capability = ("lodging", "events")
 
     def post(self, request: HttpRequest) -> HttpResponse:
         sites = sites_visible_for_membership(request.tenant_membership)
@@ -85,7 +102,6 @@ class StaffSelectSiteView(StaffTenantRequiredMixin, View):
         request.session[STAFF_SESSION_SITE_KEY] = str(uid)
         messages.success(request, "Branch updated.")
         return redirect(nxt)
-
 
 class StaffReservationsListView(StaffTenantRequiredMixin, ListView):
     staff_nav_capability = "lodging"
@@ -124,14 +140,20 @@ class StaffReservationsListView(StaffTenantRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        ctx["membership_can_manage_folios"] = membership_can_manage_folios(self.request.tenant_membership)
+        ctx["membership_can_manage_room_inventory"] = membership_can_manage_room_inventory(self.request.tenant_membership)
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
         ctx["status_filter"] = self.request.GET.get("status") or ""
+<<<<<<< HEAD
         lane = self.request.GET.get("lane") or ""
         ctx["lane_filter"] = lane if lane in {"arrivals", "departures", "in_house"} else ""
         ctx["lane_title"] = {"arrivals": "Today's arrivals", "departures": "Due departures", "in_house": "In-house guests"}.get(lane, "Reservations")
 
         ctx["can_modify_lodging"] = membership_can_modify_lodging(self.request.tenant_membership)
+=======
+        ctx["can_modify_lodging"] = membership_can_manage_reservations(self.request.tenant_membership)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         return ctx
 
 
@@ -208,7 +230,7 @@ class StaffReservationCreateView(StaffTenantRequiredMixin, FormView):
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
             return redirect("staff-dashboard")
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_manage_reservations(request.tenant_membership):
             messages.error(request, "Your role cannot create reservations.")
             return redirect("staff-lodging-reservations")
         return super().dispatch(request, *args, **kwargs)
@@ -241,6 +263,9 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
             return redirect("staff-dashboard")
+        if not membership_can_manage_reservations(request.tenant_membership):
+            messages.error(request, "Your role cannot access reservations.")
+            return redirect("staff-lodging-reservations")
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -259,8 +284,12 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
         res: Reservation = ctx["reservation"]
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
+<<<<<<< HEAD
         ctx["can_modify_lodging"] = membership_can_modify_lodging(self.request.tenant_membership)
         ctx["customer_options"] = visible_customers(self.request.tenant_membership, self.request.user).order_by("name")[:100]
+=======
+        ctx["can_modify_lodging"] = membership_can_manage_reservations(self.request.tenant_membership)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         ctx["room_choices"] = (
             Room.objects.filter(room_type__site_id=res.site_id, is_active=True)
             .select_related("room_type")
@@ -281,7 +310,7 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         self.object = self.get_object()
         res: Reservation = self.object
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_manage_reservations(request.tenant_membership):
             messages.error(request, "Your role cannot change reservations.")
             return redirect("staff-lodging-reservation-detail", reservation_id=res.id)
 
@@ -427,6 +456,9 @@ class StaffRoomsListView(StaffTenantRequiredMixin, ListView):
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
             return redirect("staff-dashboard")
+        if not membership_can_manage_room_inventory(request.tenant_membership):
+            messages.error(request, "Your role cannot access room inventory.")
+            return redirect("staff-lodging-reservations")
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -455,6 +487,9 @@ class StaffLodgingRoomTypesListView(StaffTenantRequiredMixin, ListView):
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
             return redirect("staff-dashboard")
+        if not membership_can_manage_room_inventory(request.tenant_membership):
+            messages.error(request, "Your role cannot access room inventory.")
+            return redirect("staff-lodging-reservations")
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -483,6 +518,9 @@ class StaffFolioListView(StaffTenantRequiredMixin, ListView):
         self.sites, self.current_site = _lodging_sites_and_site(request)
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
+            return redirect("staff-dashboard")
+        if not membership_can_manage_folios(request.tenant_membership):
+            messages.error(request, "Your role cannot access guest folios.")
             return redirect("staff-dashboard")
         return super().dispatch(request, *args, **kwargs)
 
@@ -514,6 +552,8 @@ class StaffFolioListView(StaffTenantRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        ctx["membership_can_manage_folios"] = membership_can_manage_folios(self.request.tenant_membership)
+        ctx["membership_can_manage_room_inventory"] = membership_can_manage_room_inventory(self.request.tenant_membership)
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
         ctx["status_filter"] = self.request.GET.get("status") or ""
@@ -533,6 +573,9 @@ class StaffFolioDetailView(StaffTenantRequiredMixin, DetailView):
         self.sites, self.current_site = _lodging_sites_and_site(request)
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
+            return redirect("staff-dashboard")
+        if not membership_can_manage_folios(request.tenant_membership):
+            messages.error(request, "Your role cannot access guest folios.")
             return redirect("staff-dashboard")
         return super().dispatch(request, *args, **kwargs)
 
@@ -559,13 +602,15 @@ class StaffFolioDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["payments_total"] = paid
         ctx["balance_due"] = balance
         ctx["payment_form"] = StaffFolioPaymentForm(initial={"amount": balance if balance > 0 else None})
-        ctx["can_modify_lodging"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["membership_can_manage_folios"] = membership_can_manage_folios(self.request.tenant_membership)
+        ctx["membership_can_manage_room_inventory"] = membership_can_manage_room_inventory(self.request.tenant_membership)
+        ctx["can_modify_lodging"] = membership_can_manage_folios(self.request.tenant_membership)
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         self.object = self.get_object()
         folio: Folio = self.object
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_manage_folios(request.tenant_membership):
             messages.error(request, "Your role cannot record folio payments.")
             return redirect("staff-lodging-folio-detail", folio_id=folio.id)
         form = StaffFolioPaymentForm(request.POST)
@@ -652,7 +697,7 @@ class StaffLodgingTapeChartView(StaffTenantRequiredMixin, View):
                 "tape_rows": tape_rows,
                 "tape_prev_start": prev_start,
                 "tape_next_start": next_start,
-                "can_modify_lodging": membership_can_modify_lodging(request.tenant_membership),
+                "can_modify_lodging": membership_can_update_housekeeping(request.tenant_membership),
             },
         )
 
@@ -661,9 +706,18 @@ class StaffHousekeepingBoardView(StaffTenantRequiredMixin, View):
     """Room status board (clean / dirty / inspected / out of order) for the active property."""
 
     staff_nav_capability = "lodging"
+    housekeeping_only = True
     http_method_names = ["get", "post", "head", "options"]
 
     def dispatch(self, request: HttpRequest, *args, **kwargs):
+        from apps.staff.services.modules import get_tenant_staff_modules
+
+        if not membership_can_access_housekeeping(request.tenant_membership):
+            messages.error(request, "Your role does not have access to housekeeping.")
+            return redirect("staff-dashboard")
+        if "lodging" not in get_tenant_staff_modules(request.tenant):
+            messages.error(request, "Lodging is not enabled for this workspace.")
+            return redirect("staff-dashboard")
         self.sites, self.current_site = _lodging_sites_and_site(request)
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
@@ -685,15 +739,17 @@ class StaffHousekeepingBoardView(StaffTenantRequiredMixin, View):
             "staff/lodging/housekeeping.html",
             {
                 "sites": self.sites,
+                "membership_can_manage_folios": membership_can_manage_folios(request.tenant_membership),
+                "membership_can_manage_room_inventory": membership_can_manage_room_inventory(request.tenant_membership),
                 "current_site": self.current_site,
                 "status_columns": status_columns,
                 "room_statuses": RoomStatus.choices,
-                "can_modify_lodging": membership_can_modify_lodging(request.tenant_membership),
+                "can_modify_lodging": membership_can_update_housekeeping(request.tenant_membership),
             },
         )
 
     def post(self, request: HttpRequest) -> HttpResponse:
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_update_housekeeping(request.tenant_membership):
             messages.error(request, "Your role cannot update room status.")
             return redirect("staff-lodging-housekeeping")
         rid = request.POST.get("room_id", "").strip()
@@ -733,6 +789,9 @@ class StaffRoomMaintenanceView(StaffTenantRequiredMixin, View):
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
             return redirect("staff-dashboard")
+        if not membership_can_access_housekeeping(request.tenant_membership):
+            messages.error(request, "Your role cannot access housekeeping maintenance.")
+            return redirect("staff-dashboard")
         return super().dispatch(request, *args, **kwargs)
 
     def _context(self, form=None):
@@ -750,11 +809,14 @@ class StaffRoomMaintenanceView(StaffTenantRequiredMixin, View):
             requests = requests.exclude(status=MaintenanceStatus.RESOLVED)
         return {
             "sites": self.sites,
+            "membership_can_manage_folios": membership_can_manage_folios(self.request.tenant_membership),
+            "membership_can_manage_room_inventory": membership_can_manage_room_inventory(self.request.tenant_membership),
             "current_site": self.current_site,
             "maintenance_requests": requests,
             "maintenance_statuses": MaintenanceStatus.choices,
             "status_filter": status_filter,
-            "can_modify_lodging": membership_can_modify_lodging(self.request.tenant_membership),
+            "can_modify_lodging": membership_can_manage_housekeeping_workflows(self.request.tenant_membership),
+            "can_manage_housekeeping_workflows": membership_can_manage_housekeeping_workflows(self.request.tenant_membership),
             "form": form or StaffRoomMaintenanceForm(tenant=self.request.tenant, site=self.current_site),
         }
 
@@ -762,7 +824,7 @@ class StaffRoomMaintenanceView(StaffTenantRequiredMixin, View):
         return render(request, self.template_name, self._context())
 
     def post(self, request: HttpRequest) -> HttpResponse:
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_manage_housekeeping_workflows(request.tenant_membership):
             messages.error(request, "Your role cannot manage maintenance requests.")
             return redirect("staff-lodging-maintenance")
         action = (request.POST.get("action") or "create").strip()

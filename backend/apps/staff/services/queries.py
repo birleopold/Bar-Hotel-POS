@@ -34,6 +34,12 @@ from .permissions import (
     membership_can_manage_kitchen,
     membership_can_manage_workspace_settings,
     membership_can_modify_lodging,
+    membership_can_update_housekeeping,
+    membership_can_access_housekeeping,
+    membership_can_manage_folios,
+    membership_can_manage_housekeeping_workflows,
+    membership_can_manage_room_inventory,
+    membership_can_manage_reservations,
 )
 from .workspace import resolve_staff_outlet, resolve_staff_site
 from .workspace_setup import tenant_org_setup_incomplete
@@ -56,6 +62,12 @@ __all__ = [
     "membership_can_manage_kitchen",
     "membership_can_manage_workspace_settings",
     "membership_can_modify_lodging",
+    "membership_can_update_housekeeping",
+    "membership_can_access_housekeeping",
+    "membership_can_manage_folios",
+    "membership_can_manage_housekeeping_workflows",
+    "membership_can_manage_room_inventory",
+    "membership_can_manage_reservations",
     "membership_queryset_for",
     "order_payment_totals",
     "order_refundable_remaining",

@@ -62,17 +62,39 @@ def resolve_effective_staff_modules(
     outlet_type: str | None = None,
 ) -> FrozenSet[str]:
     """Resolve modules from tenant settings, plan defaults, entitlements, and optional outlet policy."""
-    # Base (legacy): tenant-level module list from settings.
+    # Business profile is the tenant's product boundary; module and plan grants
+    # may narrow it but must not widen it to unrelated product lines.
     try:
-        raw = tenant.settings.enabled_staff_modules
+        settings = tenant.settings
     except TenantSettings.DoesNotExist:
-        settings_modules = DEFAULT_STAFF_MODULES
+        # Older tenants can legitimately predate TenantSettings. Preserve the
+        # established defaults for those tenants; an explicitly saved invalid
+        # profile remains fail-closed below.
+        from apps.tenants.business_lines import DEFAULT_MODULES_ALL
+
+        configured_line_modules = frozenset(DEFAULT_MODULES_ALL)
+        settings_modules = configured_line_modules
     else:
-        if not isinstance(raw, list) or len(raw) == 0:
-            settings_modules = DEFAULT_STAFF_MODULES
+        from apps.tenants.business_lines import DEFAULT_MODULES_ALL, modules_for_business_lines, normalize_business_lines
+
+        raw_lines = settings.business_lines if isinstance(settings.business_lines, list) else None
+        lines = normalize_business_lines(raw_lines)
+        if raw_lines and not lines:
+            # A saved but invalid profile is a configuration error; do not grant broad access.
+            return frozenset()
+        # Empty profile predates business-line scoping and remains the documented
+        # legacy tenant state. A configured profile can never be widened by modules.
+        configured_line_modules = frozenset(
+            modules_for_business_lines(lines) if lines else DEFAULT_MODULES_ALL
+        )
+        raw = settings.enabled_staff_modules
+        if not isinstance(raw, list):
+            settings_modules = frozenset()
+        elif not raw:
+            settings_modules = configured_line_modules
         else:
-            cleaned = STAFF_MODULE_KEYS & frozenset(str(x) for x in raw)
-            settings_modules = cleaned or DEFAULT_STAFF_MODULES
+            settings_modules = STAFF_MODULE_KEYS & frozenset(str(x) for x in raw)
+        settings_modules = settings_modules & configured_line_modules
 
     # Control-plane overlays are optional; if missing, preserve legacy behavior.
     try:
@@ -86,14 +108,10 @@ def resolve_effective_staff_modules(
     raw_plan = sub.plan.included_modules if isinstance(sub.plan.included_modules, list) else []
     plan_modules = STAFF_MODULE_KEYS & frozenset(str(x) for x in raw_plan)
     if not plan_modules:
-        plan_modules = DEFAULT_STAFF_MODULES
+        return frozenset()
     effective = settings_modules & plan_modules
-    if not effective:
-        # Saved tenant modules and plan modules can be disjoint (misconfiguration). Union then
-        # clamp to known keys so the staff UI (POS, Sales, nav, quick links) is never blank.
-        effective = STAFF_MODULE_KEYS & (settings_modules | plan_modules)
-    if not effective:
-        effective = DEFAULT_STAFF_MODULES
+    # An empty intersection means the tenant's selected services are not included
+    # in its plan. Fail closed rather than unioning unrelated modules into access.
 
     # Per-module tenant entitlement overrides apply last.
     overrides = TenantFeatureEntitlement.objects.filter(tenant=tenant).values_list(
@@ -104,7 +122,9 @@ def resolve_effective_staff_modules(
         if module_key not in STAFF_MODULE_KEYS:
             continue
         if is_enabled:
-            effective = effective | {module_key}
+            # An entitlement may widen a plan, but never the configured business profile.
+            if module_key in configured_line_modules:
+                effective = effective | {module_key}
         else:
             effective = frozenset(m for m in effective if m != module_key)
     scoped_outlet_type = (outlet_type or (outlet.outlet_type if outlet is not None else "")).strip()
@@ -117,22 +137,30 @@ def resolve_effective_staff_modules(
         if policy is not None:
             raw_policy = policy.enabled_modules if isinstance(policy.enabled_modules, list) else []
             policy_modules = STAFF_MODULE_KEYS & frozenset(str(x) for x in raw_policy)
-            if policy_modules:
-                narrowed = frozenset(m for m in effective if m in policy_modules)
-                if narrowed:
-                    effective = narrowed
-    if not effective:
-        effective = DEFAULT_STAFF_MODULES
+            effective = frozenset(m for m in effective if m in policy_modules)
     return frozenset(effective)
 
 
 def initial_staff_modules_for_form(tenant: Tenant) -> list[str]:
     """Checkbox initial values: stored list or all modules in display order."""
+    try:
+        from apps.tenants.business_lines import DEFAULT_MODULES_ALL, modules_for_business_lines, normalize_business_lines
+
+        raw_lines = tenant.settings.business_lines if isinstance(tenant.settings.business_lines, list) else None
+        lines = normalize_business_lines(raw_lines)
+    except TenantSettings.DoesNotExist:
+        raw_lines = None
+        lines = []
+    line_modules = set(
+        modules_for_business_lines(lines) if lines else (DEFAULT_MODULES_ALL if raw_lines == [] else [])
+    )
     raw = tenant_stored_module_list_raw(tenant)
     if raw:
         order = [k for k, _ in STAFF_MODULE_CHOICES]
-        return sorted(raw, key=lambda x: order.index(x) if x in order else 99)
-    return [k for k, _ in STAFF_MODULE_CHOICES]
+        return sorted((k for k in raw if k in line_modules), key=lambda x: order.index(x) if x in order else 99)
+    enabled = line_modules
+    order = [k for k, _ in STAFF_MODULE_CHOICES]
+    return [k for k in order if k in enabled]
 
 
 def tenant_stored_module_list_raw(tenant: Tenant) -> list[str] | None:
@@ -147,8 +175,6 @@ def tenant_stored_module_list_raw(tenant: Tenant) -> list[str] | None:
     if not isinstance(raw, list) or len(raw) == 0:
         return None
     cleaned = [str(x) for x in raw if str(x) in STAFF_MODULE_KEYS]
-    if not cleaned:
-        return None
     return cleaned
 
 
@@ -256,6 +282,7 @@ def staff_nav_visibility(membership: Membership, modules: FrozenSet[str]) -> Sta
             M.SITE_MANAGER,
             M.FRONT_DESK,
             M.ACCOUNTANT,
+            M.OUTLET_MANAGER,
         }
 
     events = False

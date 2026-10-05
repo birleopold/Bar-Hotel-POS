@@ -5,6 +5,7 @@ import re
 from rest_framework import serializers
 
 from apps.accounts.models import Membership, User
+from apps.accounts.models import MembershipRole
 from apps.tenants.models import Outlet, Site, TenantSettings
 
 _HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -56,8 +57,10 @@ class SiteBriefSerializer(serializers.ModelSerializer):
     def get_outlets(self, site: Site) -> list[dict]:
         membership: Membership | None = self.context.get("membership")
         qs = site.outlets.filter(is_active=True)
-        if membership and membership.outlets.exists():
-            qs = qs.filter(pk__in=membership.outlets.values_list("pk", flat=True))
+        if membership is not None:
+            from apps.access.outlets import membership_outlet_ids
+
+            qs = qs.filter(pk__in=membership_outlet_ids(membership))
         return OutletBriefSerializer(qs, many=True).data
 
 
@@ -90,7 +93,7 @@ class MembershipSerializer(serializers.ModelSerializer):
 
     def get_sites(self, obj: Membership) -> list[dict]:
         qs = Site.objects.filter(tenant=obj.tenant, is_active=True)
-        if obj.sites.exists():
+        if obj.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or obj.sites.exists():
             qs = qs.filter(pk__in=obj.sites.values_list("pk", flat=True))
         qs = qs.order_by("name")
         return SiteBriefSerializer(

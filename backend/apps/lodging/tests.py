@@ -5,7 +5,8 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.tenants.models import Site, Tenant
+from apps.tenants.models import Site, Tenant, TenantSettings
+from apps.staff.services.membership import staff_accessible_outlets, sites_visible_for_membership
 
 from .models import Reservation, Room, RoomType
 from .serializers import ReservationSerializer
@@ -42,6 +43,7 @@ class ReservationSerializerScopeTests(TestCase):
         self.tenant = Tenant.objects.create(name="Tenant Scope", slug="tenant-scope-lodging")
         self.allowed_site = Site.objects.create(tenant=self.tenant, name="Allowed Site")
         self.blocked_site = Site.objects.create(tenant=self.tenant, name="Blocked Site")
+        TenantSettings.objects.create(tenant=self.tenant, business_lines=["lodging"], enabled_staff_modules=["lodging", "finance", "workspace"])
         self.user = User.objects.create_user(email="lodging-scope@test.local", password="TestPass9!")
         self.membership = Membership.objects.create(
             user=self.user,
@@ -49,6 +51,23 @@ class ReservationSerializerScopeTests(TestCase):
             role=MembershipRole.SITE_MANAGER,
         )
         self.membership.sites.add(self.allowed_site)
+
+    def test_unassigned_worker_cannot_see_or_write_any_site(self) -> None:
+        self.membership.sites.clear()
+        self.assertEqual(sites_visible_for_membership(self.membership), [])
+        self.assertEqual(staff_accessible_outlets(self.membership), [])
+
+        serializer = ReservationSerializer(
+            data={
+                "site": str(self.allowed_site.id),
+                "guest_name": "No Scope Guest",
+                "check_in": (date.today() + timedelta(days=1)).isoformat(),
+                "check_out": (date.today() + timedelta(days=2)).isoformat(),
+            },
+            context={"request": self._request()},
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("site", serializer.errors)
 
     def _request(self):
         request = self.factory.post("/api/v1/lodging/reservations/")

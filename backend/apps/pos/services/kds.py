@@ -25,6 +25,13 @@ def update_order_line_kds_status(
     ln = OrderLine.objects.select_for_update().get(pk=line.pk, order_id=locked_o.id)
     if ln.is_voided:
         raise ValidationError("Voided lines cannot be updated on KDS.")
+    allowed_next = {
+        KdsLineStatus.PENDING.value: KdsLineStatus.IN_PREP.value,
+        KdsLineStatus.IN_PREP.value: KdsLineStatus.READY.value,
+        KdsLineStatus.READY.value: KdsLineStatus.SERVED.value,
+    }
+    if allowed_next.get(ln.kds_status) != kds_status:
+        raise ValidationError({"kds_status": "Prep status must advance one step at a time."})
     ln.kds_status = kds_status
     if kds_station is not None:
         ln.kds_station = (kds_station or "")[:32]

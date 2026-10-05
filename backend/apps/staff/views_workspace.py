@@ -33,6 +33,14 @@ class StaffWorkspaceModulesView(StaffTenantRequiredMixin, FormView):
     form_class = StaffTenantModulesForm
     success_url = reverse_lazy("staff-workspace-modules")
 
+    def dispatch(self, request, *args, **kwargs):
+        from apps.staff.services.modules import get_tenant_staff_modules
+
+        if not get_tenant_staff_modules(request.tenant):
+            messages.error(request, "Choose an active business area and plan before managing staff modules.")
+            return redirect("console-org-setup")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_initial(self):
         return {"modules": initial_staff_modules_for_form(self.request.tenant)}
 

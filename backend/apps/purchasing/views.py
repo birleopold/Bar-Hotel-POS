@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.api.permissions import HasTenantContext, NotReadOnlyRole
+from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
 
 from .models import PurchaseOrder, Supplier
 from .serializers import (
@@ -22,7 +22,8 @@ from .services import confirm_missing_unit_cost, receive_purchase_order_goods, r
 
 
 class SupplierViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    required_staff_module = "purchasing"
     serializer_class = SupplierSerializer
     http_method_names = ["get", "post", "put", "patch", "head", "options"]
 
@@ -36,7 +37,8 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
 
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    required_staff_module = "purchasing"
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):

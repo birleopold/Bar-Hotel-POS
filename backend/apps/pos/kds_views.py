@@ -8,7 +8,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.api.permissions import HasTenantContext
+from apps.access.outlets import outlet_belongs_to_membership
+from apps.api.permissions import CanUseKds, HasTenantContext, HasTenantModule
 
 from .models import KdsLineStatus, Order, OrderLine, OrderStatus
 
@@ -16,7 +17,8 @@ from .models import KdsLineStatus, Order, OrderLine, OrderStatus
 class KdsTicketView(APIView):
     """Open orders with non-served lines for kitchen display."""
 
-    permission_classes = [IsAuthenticated, HasTenantContext]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, CanUseKds]
+    required_staff_module = "kitchen"
 
     @extend_schema(
         parameters=[
@@ -40,6 +42,8 @@ class KdsTicketView(APIView):
                 status=400,
             )
         station = (request.query_params.get("station") or "").strip()
+        if not outlet_belongs_to_membership(request.tenant_membership, oid):
+            return Response({"error": {"code": "outlet_forbidden", "message": "You cannot use this prep queue."}}, status=403)
 
         line_qs = (
             OrderLine.objects.filter(is_voided=False)
@@ -48,6 +52,12 @@ class KdsTicketView(APIView):
         )
         if station:
             line_qs = line_qs.filter(kds_station=station)
+        role = request.tenant_membership.role
+        bar_stations = {"bar", "drinks", "beverage", "bartender"}
+        if role == "bartender":
+            line_qs = line_qs.filter(kds_station__iregex=r"^(bar|drinks|beverage|bartender)$")
+        elif role == "kitchen":
+            line_qs = line_qs.exclude(kds_station__iregex=r"^(bar|drinks|beverage|bartender)$")
 
         orders = (
             Order.objects.filter(

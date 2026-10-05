@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.finance.models import CashbookEntry, FinanceCategory, FinanceCategoryKind
-from apps.tenants.models import Outlet, OutletType, Site, Tenant
+from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
 
 class ApiPermissionMatrixTests(TestCase):
@@ -16,6 +16,11 @@ class ApiPermissionMatrixTests(TestCase):
         self.client = APIClient()
         self.tenant = Tenant.objects.create(name="Tenant A", slug="tenant-a-phase2")
         self.other_tenant = Tenant.objects.create(name="Tenant B", slug="tenant-b-phase2")
+        TenantSettings.objects.create(
+            tenant=self.tenant,
+            business_lines=["supermarket"],
+            enabled_staff_modules=["pos", "inventory", "purchasing", "finance", "workspace"],
+        )
         self.site_allowed = Site.objects.create(tenant=self.tenant, name="HQ")
         self.site_blocked = Site.objects.create(tenant=self.tenant, name="Branch")
         self.outlet = Outlet.objects.create(
@@ -114,7 +119,8 @@ class ApiPermissionMatrixTests(TestCase):
         payload = response.json()
         rows = payload.get("results", payload) if isinstance(payload, dict) else payload
         returned_ids = {row["id"] for row in rows}
-        self.assertIn(str(self.global_entry.id), returned_ids)
+        # Tenant-wide records without a branch are outside an assigned branch scope.
+        self.assertNotIn(str(self.global_entry.id), returned_ids)
         self.assertIn(str(self.allowed_entry.id), returned_ids)
         self.assertNotIn(str(self.blocked_entry.id), returned_ids)
 

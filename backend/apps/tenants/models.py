@@ -76,7 +76,7 @@ class TenantSettings(TimeStampedModel):
         default=list,
         help_text=(
             "Business lines enabled for this workspace. "
-            "Keys: bar, lounge, restaurant, cafeteria, lodging, retail, supermarket, events."
+            "Keys: bar, lounge, restaurant, cafeteria, kitchen, lodging, retail, supermarket, events, services."
         ),
     )
     default_currency = models.CharField(max_length=3, default="USD")
@@ -143,6 +143,7 @@ class OutletType(models.TextChoices):
     RETAIL = "retail", "Retail / shop"
     SUPERMARKET = "supermarket", "Supermarket / grocery"
     EVENT_SPACE = "event_space", "Event space"
+    SERVICE = "service", "Services / appointments"
 
 
 class Outlet(TimeStampedModel):

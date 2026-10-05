@@ -49,8 +49,8 @@ class StaffCashbookEntryForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["category"].queryset = categories
         self.fields["site"].queryset = sites
-        self.fields["site"].required = False
-        self.fields["site"].empty_label = "All branches / unallocated"
+        self.fields["site"].required = True
+        self.fields["site"].empty_label = None
         self.fields["site"].label = "Branch"
         self._tenant_id = tenant_id
 

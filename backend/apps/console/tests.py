@@ -159,7 +159,7 @@ class ConsoleAccessTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.tenant = Tenant.objects.create(name="Console Org", slug="console-org")
-        TenantSettings.objects.get_or_create(tenant=cls.tenant)
+        TenantSettings.objects.create(tenant=cls.tenant, business_lines=["bar"], enabled_staff_modules=["pos", "workspace"])
 
     def _login_with_tenant(self, user) -> None:
         self.client.force_login(user)
@@ -212,6 +212,47 @@ class ConsoleAccessTests(TestCase):
         prog = TenantSetupProgress.objects.get(tenant=self.tenant)
         self.assertEqual(prog.last_completion_percent, 0)
         self.assertEqual(prog.last_next_step_key, "first_property")
+
+    def test_setup_business_profile_limits_modules_and_admin_pages(self) -> None:
+        user = User.objects.create_user(email="co-profile@test.local", password="TestPass9!")
+        Membership.objects.create(
+            user=user,
+            tenant=self.tenant,
+            role=MembershipRole.OWNER,
+        )
+        self._login_with_tenant(user)
+        response = self.client.post(
+            reverse("console-org-setup"),
+            {"business_lines": ["bar", "kitchen"]},
+        )
+        self.assertRedirects(response, reverse("console-org-setup"))
+        settings_obj = TenantSettings.objects.get(tenant=self.tenant)
+        self.assertEqual(settings_obj.business_lines, ["bar", "kitchen"])
+        self.assertIn("pos", settings_obj.enabled_staff_modules)
+        self.assertIn("kitchen", settings_obj.enabled_staff_modules)
+        self.assertNotIn("lodging", settings_obj.enabled_staff_modules)
+        self.assertNotIn("events", settings_obj.enabled_staff_modules)
+
+        setup_page = self.client.get(reverse("console-org-setup"))
+        self.assertContains(setup_page, "Kitchen / food preparation")
+        self.assertNotContains(setup_page, "Lodging setup")
+
+        rooms = self.client.get(reverse("console-org-rooms"))
+        self.assertRedirects(rooms, reverse("console-org-setup"))
+
+    def test_service_setup_is_hidden_and_protected_when_not_selected(self) -> None:
+        settings_obj = TenantSettings.objects.get(tenant=self.tenant)
+        settings_obj.business_lines = ["bar"]
+        settings_obj.enabled_staff_modules = ["pos", "inventory", "purchasing", "finance", "workspace"]
+        settings_obj.save(update_fields=["business_lines", "enabled_staff_modules", "updated_at"])
+        user = User.objects.create_user(email="co-no-services@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(user)
+
+        overview = self.client.get(reverse("console-org"))
+        self.assertNotContains(overview, "Services &amp; packages")
+        services = self.client.get(reverse("console-org-service-offerings"))
+        self.assertRedirects(services, reverse("console-org-setup"))
 
     def test_org_setup_points_to_outlet_create_when_site_exists(self) -> None:
         user = User.objects.create_user(email="co-setup-site@test.local", password="TestPass9!")
@@ -664,6 +705,7 @@ class ConsoleAccessTests(TestCase):
         self.assertTrue(MenuItem.objects.filter(tenant=self.tenant, name="Coffee").exists())
 
     def test_owner_can_create_service_offering(self) -> None:
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["bar", "services"])
         user = User.objects.create_user(email="co-services@test.local", password="TestPass9!")
         Membership.objects.create(
             user=user,
@@ -690,6 +732,7 @@ class ConsoleAccessTests(TestCase):
         self.assertTrue(ServiceOffering.objects.filter(tenant=self.tenant, name="Sauna session").exists())
 
     def test_owner_can_create_service_package(self) -> None:
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["bar", "services"])
         user = User.objects.create_user(email="co-service-package@test.local", password="TestPass9!")
         Membership.objects.create(
             user=user,
@@ -720,6 +763,7 @@ class ConsoleAccessTests(TestCase):
         self.assertTrue(ServiceOfferingOption.objects.filter(service_offering=service, name="Deep tissue 90m").exists())
 
     def test_owner_can_create_rate_window(self) -> None:
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["bar", "lodging"])
         user = User.objects.create_user(email="co-rate@test.local", password="TestPass9!")
         Membership.objects.create(
             user=user,

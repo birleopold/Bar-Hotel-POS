@@ -3,7 +3,7 @@
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
   <h1 class="staff-page-title">Organization overview<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <p class="staff-lead">{{ request.tenant.name }} — branches, sections, menu, and lodging in one place.</p>
+  <p class="staff-lead">{{ request.tenant.name }} — the setup and operations selected for this business.</p>
 
   <div class="staff-grid-2 mb-4">
     <div class="staff-card staff-card--soft">
@@ -11,9 +11,9 @@
       <ul class="mb-0">
         <li>Branches (sites): <strong>{{ site_count }}</strong></li>
         <li>Sections (outlets): <strong>{{ outlet_count }}</strong></li>
-        <li>Room types: <strong>{{ room_type_count }}</strong></li>
-        <li>Rooms: <strong>{{ room_count }}</strong></li>
-        <li>Active services: <strong>{{ service_count }}</strong></li>
+        {% if console_has_lodging %}<li>Room types: <strong>{{ room_type_count }}</strong></li>{% endif %}
+        {% if console_has_lodging %}<li>Rooms: <strong>{{ room_count }}</strong></li>{% endif %}
+        {% if console_has_services %}<li>Active services: <strong>{{ service_count }}</strong></li>{% endif %}
       </ul>
     </div>
     <div class="staff-card staff-card--soft">
@@ -39,11 +39,15 @@
   <h2 class="staff-section-title">Quick links</h2>
   <div class="staff-quick-links mb-4">
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}">Branches</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}">Menu categories</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Menu items</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-service-offerings' %}">Services</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-types' %}">Room types</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-rooms' %}">Rooms</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-rates' %}">Nightly rates</a>
+    {% if console_has_fnb or console_has_retail %}
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}">Menu categories</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Menu items</a>
+    {% endif %}
+    {% if console_has_services %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-service-offerings' %}">Services</a>{% endif %}
+    {% if console_has_lodging %}
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-types' %}">Room types</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-rooms' %}">Rooms</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-rates' %}">Nightly rates</a>
+    {% endif %}
   </div>
 {% endblock %}

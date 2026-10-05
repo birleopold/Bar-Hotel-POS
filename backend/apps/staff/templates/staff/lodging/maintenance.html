@@ -38,7 +38,7 @@
                     <td>{% if item.assigned_to %}{{ item.assigned_to.email }}{% else %}<span class="staff-muted">Unassigned</span>{% endif %}</td>
                     <td>{% if item.expected_by %}{{ item.expected_by }}{% else %}<span class="staff-muted">—</span>{% endif %}</td>
                     <td>
-                      {% if can_modify_lodging %}
+                      {% if can_manage_housekeeping_workflows %}
                         <form method="post" class="d-flex gap-1 align-items-center">
                           {% csrf_token %}<input type="hidden" name="action" value="status"><input type="hidden" name="request_id" value="{{ item.id }}">
                           <select class="staff-input staff-input--compact" name="status" aria-label="Status for {{ item.title }}">
@@ -56,7 +56,7 @@
         {% else %}<p class="staff-muted mb-0">No maintenance requests in this view.</p>{% endif %}
       </section>
     </div>
-    {% if can_modify_lodging %}
+    {% if can_manage_housekeeping_workflows %}
       <div class="col-12 col-xl-4">
         <section class="staff-card staff-card--soft">
           <h2 class="staff-card__title">New work order</h2>

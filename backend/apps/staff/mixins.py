@@ -26,16 +26,38 @@ class StaffTenantRequiredMixin(LoginRequiredMixin):
                 resolve_staff_outlet,
                 staff_accessible_outlets,
                 staff_nav_capability_allowed,
-                staff_nav_visibility,
+                staff_nav_visibility_scoped,
             )
 
             outlets = staff_accessible_outlets(request.tenant_membership)
             current_outlet = resolve_staff_outlet(request, outlets)
-            vis = staff_nav_visibility(
+            vis = staff_nav_visibility_scoped(
                 request.tenant_membership,
-                get_tenant_staff_modules(request.tenant, outlet=current_outlet),
+                modules=get_tenant_staff_modules(request.tenant, outlet=current_outlet),
+                tenant=request.tenant,
+                outlet=current_outlet,
             )
-            if not staff_nav_capability_allowed(vis, cap):
+            if (
+                request.tenant_membership.role == "cleaner"
+                and cap in {"lodging", ("lodging", "events")}
+                and not getattr(self, "housekeeping_only", False)
+            ):
+                messages.error(request, "That area is not available for your role.")
+                return redirect("staff-dashboard")
+            # Some backend pages have stricter manager-only controls even though they
+            # share a broader read-only section (for example housekeeping and team admin).
+            housekeeping_access = (
+                getattr(self, "housekeeping_only", False)
+                and request.tenant_membership.role == "cleaner"
+                and "lodging" in get_tenant_staff_modules(request.tenant)
+                and request.tenant_membership.sites.filter(
+                    tenant=request.tenant,
+                    is_active=True,
+                    outlets__outlet_type="lodging_front_desk",
+                    outlets__is_active=True,
+                ).exists()
+            )
+            if not housekeeping_access and not staff_nav_capability_allowed(vis, cap):
                 messages.error(
                     request,
                     "That area is not available for your role or your workspace plan.",

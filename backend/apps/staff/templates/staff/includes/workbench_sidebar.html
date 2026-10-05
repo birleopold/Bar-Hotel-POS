@@ -14,6 +14,7 @@
     <ul class="wb-nav-list">
       {% if staff_nav.orders %}
       <li><a class="wb-nav-link{% if u == 'staff-orders' or u == 'staff-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-orders' %}">Orders &amp; tabs</a></li>
+      <li><a class="wb-nav-link{% if u == 'staff-service-tv' %} wb-nav-link--active{% endif %}" href="{% url 'staff-service-tv' %}">Service TV</a></li>
       <li><a class="wb-nav-link{% if u == 'staff-order-quick-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-order-quick-create' %}">Quick order</a></li>
       {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-workstations' or u == 'staff-workstation-create' or u == 'staff-workstation-edit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workstations' %}">Workstations</a></li>{% endif %}
       {% if staff_show_ops_nav %}<li><a class="wb-nav-link{% if u == 'staff-pos-shifts' %} wb-nav-link--active{% endif %}" href="{% url 'staff-pos-shifts' %}">Shift close</a></li>{% endif %}
@@ -74,14 +75,21 @@
   <div class="wb-nav-group">
     <span class="wb-nav-group__label">Guests &amp; rooms</span>
     <ul class="wb-nav-list">
-      <li><a class="wb-nav-link{% if u == 'staff-lodging-reservations' or u == 'staff-lodging-reservation-detail' or u == 'staff-lodging-reservation-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}">Reservations</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-lodging-folios' or u == 'staff-lodging-folio-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-folios' %}">Folios</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-lodging-rooms' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-rooms' %}">Rooms</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-lodging-tape' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-tape' %}">Tape</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-lodging-housekeeping' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-lodging-maintenance' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-maintenance' %}">Maintenance</a></li>
-      <li><a class="wb-nav-link{% if u == 'staff-lodging-room-types' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-room-types' %}">Room types</a></li>
+      {% if membership_can_manage_reservations %}<li><a class="wb-nav-link{% if u == 'staff-lodging-reservations' or u == 'staff-lodging-reservation-detail' or u == 'staff-lodging-reservation-create' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}">Reservations</a></li>{% endif %}
+      {% if membership_can_manage_folios %}<li><a class="wb-nav-link{% if u == 'staff-lodging-folios' or u == 'staff-lodging-folio-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-folios' %}">Folios</a></li>{% endif %}
+      {% if membership_can_manage_room_inventory %}<li><a class="wb-nav-link{% if u == 'staff-lodging-rooms' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-rooms' %}">Rooms</a></li>{% endif %}
+      {% if membership_can_manage_reservations %}<li><a class="wb-nav-link{% if u == 'staff-lodging-tape' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-tape' %}">Tape</a></li>{% endif %}
+      {% if membership_can_access_housekeeping %}<li><a class="wb-nav-link{% if u == 'staff-lodging-housekeeping' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a></li>{% endif %}
+      {% if membership_can_manage_housekeeping_workflows %}<li><a class="wb-nav-link{% if u == 'staff-lodging-maintenance' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-maintenance' %}">Maintenance</a></li>{% endif %}
+      {% if membership_can_manage_room_inventory %}<li><a class="wb-nav-link{% if u == 'staff-lodging-room-types' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-room-types' %}">Room types</a></li>{% endif %}
     </ul>
+  </div>
+  {% endif %}
+
+  {% if staff_show_housekeeping_nav and not staff_show_lodging_nav %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Housekeeping</span>
+    <ul class="wb-nav-list"><li><a class="wb-nav-link{% if u == 'staff-lodging-housekeeping' %} wb-nav-link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Room board</a></li></ul>
   </div>
   {% endif %}
 

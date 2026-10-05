@@ -64,11 +64,12 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     # If business lines are not configured yet, default to showing core inventory/POS setup
     # steps so first-run flows guide the workspace correctly.
     lines_configured = bool(bl)
-    has_fnb = bool(bl & {"bar", "lounge", "restaurant", "cafeteria"})
+    has_fnb = bool(bl & {"bar", "lounge", "restaurant", "cafeteria", "kitchen"})
     has_retail = bool(bl & {"retail", "supermarket"})
     has_inventory_work = (has_fnb or has_retail) or not lines_configured
     has_lodging_line = "lodging" in bl
     has_events_line = "events" in bl
+    has_services_line = "services" in bl
 
     sites = Site.objects.filter(tenant=tenant, is_active=True).order_by("name")
     first_site = sites.first()
@@ -115,7 +116,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         SetupStep(
             key="first_outlet",
             name="Add a section under that branch",
-            description="Define bar, restaurant, front desk, retail, or other sections your team works in.",
+            description="Define the locations and work areas your team operates.",
             done=has_outlets,
             cta_label=outlet_cta_label,
             cta_url=outlet_cta_url,
@@ -125,10 +126,18 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
             name="Seed items and services",
             description="Create your first item category or add your first service.",
             done=has_menu_categories or has_services,
-            cta_label="Create item category",
-            cta_url=reverse("console-org-menu-category-create"),
-            secondary_cta_label="Create service",
-            secondary_cta_url=reverse("console-org-service-offering-create"),
+            cta_label="Create service" if has_services_line and not (has_fnb or has_retail) else "Create item category",
+            cta_url=(
+                reverse("console-org-service-offering-create")
+                if has_services_line and not (has_fnb or has_retail)
+                else reverse("console-org-menu-category-create")
+            ),
+            secondary_cta_label="Create service" if has_services_line and (has_fnb or has_retail) else None,
+            secondary_cta_url=(
+                reverse("console-org-service-offering-create")
+                if has_services_line and (has_fnb or has_retail)
+                else None
+            ),
         ),
     ]
     if has_inventory_work:
@@ -240,7 +249,11 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         {
             "label": "At least one active sellable (item or service)",
             "done": has_menu_items or has_services,
-            "fix_url": reverse("console-org-service-offering-create"),
+            "fix_url": reverse(
+                "console-org-service-offering-create"
+                if has_services_line and not (has_fnb or has_retail)
+                else "console-org-menu-categories"
+            ),
         },
         *(
             [

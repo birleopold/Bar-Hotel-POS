@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.tenants.models import Site, Tenant
+from apps.tenants.models import Site, Tenant, TenantSettings
 
 from .models import EventBooking, EventSpace
 from .serializers import EventBookingSerializer, EventSpaceSerializer
@@ -36,6 +36,7 @@ class EventSerializerScopeTests(TestCase):
     def setUp(self) -> None:
         self.factory = APIRequestFactory()
         self.tenant = Tenant.objects.create(name="Scope Tenant", slug="scope-tenant-events")
+        TenantSettings.objects.create(tenant=self.tenant, business_lines=["events"], enabled_staff_modules=["events", "finance", "workspace"])
         self.allowed_site = Site.objects.create(tenant=self.tenant, name="Allowed Site")
         self.blocked_site = Site.objects.create(tenant=self.tenant, name="Blocked Site")
         self.allowed_space = EventSpace.objects.create(

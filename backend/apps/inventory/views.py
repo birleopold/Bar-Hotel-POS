@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.api.permissions import HasTenantContext, NotReadOnlyRole
+from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
 
 from .models import StockBalance, StockCountSession, StockCountStatus, StockMovement
 from .serializers import (
@@ -23,17 +23,22 @@ from .services import complete_stock_count_session
 
 
 class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule]
+    required_staff_module = "inventory"
     serializer_class = StockBalanceSerializer
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return StockBalance.objects.none()
         qs = (
+<<<<<<< HEAD
             StockBalance.objects.filter(
                 tenant=self.request.tenant,
                 outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
             )
+=======
+            StockBalance.objects.filter(tenant=self.request.tenant, outlet_id__in=membership_outlet_ids(self.request.tenant_membership))
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             .select_related("outlet", "menu_item")
             .order_by("outlet", "menu_item__name")
         )
@@ -55,15 +60,20 @@ class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class StockMovementViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    required_staff_module = "inventory"
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return StockMovement.objects.none()
+<<<<<<< HEAD
         qs = StockMovement.objects.filter(
             tenant=self.request.tenant,
             outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
         ).select_related(
+=======
+        qs = StockMovement.objects.filter(tenant=self.request.tenant, outlet_id__in=membership_outlet_ids(self.request.tenant_membership)).select_related(
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             "outlet", "menu_item", "order", "purchase_order", "created_by"
         )
         outlet = self.request.query_params.get("outlet")
@@ -102,7 +112,8 @@ class StockMovementViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, views
 
 
 class StockTransferViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    required_staff_module = "inventory"
     serializer_class = StockTransferSerializer
 
     def get_queryset(self):
@@ -125,17 +136,22 @@ class StockTransferViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
 
 class StockCountSessionViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    required_staff_module = "inventory"
     http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return StockCountSession.objects.none()
         qs = (
+<<<<<<< HEAD
             StockCountSession.objects.filter(
                 tenant=self.request.tenant,
                 outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
             )
+=======
+            StockCountSession.objects.filter(tenant=self.request.tenant, outlet_id__in=membership_outlet_ids(self.request.tenant_membership))
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             .select_related("outlet", "created_by")
             .prefetch_related("lines__menu_item")
         )

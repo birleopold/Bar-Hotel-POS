@@ -73,6 +73,12 @@ class StaffInviteListView(StaffTenantRequiredMixin, ListView):
     context_object_name = "invites"
     paginate_by = 40
 
+    def dispatch(self, request, *args, **kwargs):
+        if not membership_can_manage_workspace_settings(request.tenant_membership):
+            messages.error(request, "Only an owner or tenant admin can view workspace invites.")
+            return redirect("staff-dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, *args, **kwargs):
         self.new_invite_token = request.session.pop("staff_invite_flash_token", None)
         self.new_invite_meta = request.session.pop("staff_invite_flash_meta", None)
@@ -98,6 +104,11 @@ class StaffInviteCreateView(StaffTenantRequiredMixin, FormView):
     template_name = "staff/settings/invite_form.html"
     success_url = reverse_lazy("staff-workspace-invites")
 
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        return kw
+
     def dispatch(self, request, *args, **kwargs):
         if not membership_can_manage_workspace_settings(request.tenant_membership):
             messages.error(
@@ -115,6 +126,9 @@ class StaffInviteCreateView(StaffTenantRequiredMixin, FormView):
             expires_days=form.cleaned_data["expires_days"],
             invited_by=self.request.user,
         )
+        # Invitations share the same branch/outlet restrictions as direct worker creation.
+        inv.sites.set(form.cleaned_data.get("sites") or [])
+        inv.outlets.set(form.cleaned_data.get("outlets") or [])
         self.request.session["staff_invite_flash_token"] = raw
         self.request.session["staff_invite_flash_meta"] = {
             "email": inv.email,
@@ -151,6 +165,8 @@ class StaffInviteRegenerateView(StaffTenantRequiredMixin, View):
             expires_days=7,
             invited_by=request.user,
         )
+        new_inv.sites.set(inv.sites.all())
+        new_inv.outlets.set(inv.outlets.all())
         request.session["staff_invite_flash_token"] = raw
         request.session["staff_invite_flash_meta"] = {
             "email": new_inv.email,
@@ -177,6 +193,12 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
     context_object_name = "memberships"
     paginate_by = 50
 
+    def dispatch(self, request, *args, **kwargs):
+        if not membership_can_manage_workspace_settings(request.tenant_membership):
+            messages.error(request, "Only an owner or tenant admin can view workspace members.")
+            return redirect("staff-dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         qs = (
             Membership.objects.filter(tenant=self.request.tenant)
@@ -184,6 +206,11 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
             .prefetch_related("sites", "outlets")
             .order_by("-is_active", "user__email")
         )
+        actor = self.request.tenant_membership
+        if actor.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+            allowed_sites = actor.sites.values_list("pk", flat=True)
+            qs = qs.filter(sites__in=allowed_sites).distinct().exclude(role__in=[MembershipRole.OWNER, MembershipRole.TENANT_ADMIN])
+            qs = qs.exclude(pk=actor.pk)
         q = (self.request.GET.get("q") or "").strip()
         if q:
             qs = qs.filter(Q(user__email__icontains=q) | Q(user__first_name__icontains=q) | Q(user__last_name__icontains=q))
@@ -218,10 +245,27 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
         ctx["filter_site"] = self.request.GET.get("site") or ""
         ctx["filter_outlet"] = self.request.GET.get("outlet") or ""
         ctx["role_choices"] = MembershipRole.choices
+<<<<<<< HEAD
         ctx["now"] = timezone.now()
         ctx["sites"] = list(self.request.tenant.sites.order_by("name"))
+=======
+        actor = self.request.tenant_membership
+        from apps.staff.services.membership import staff_accessible_outlets, sites_visible_for_membership
+
+        allowed_sites = sites_visible_for_membership(actor)
+        allowed_outlets = staff_accessible_outlets(actor)
+        sites = self.request.tenant.sites.filter(pk__in=[s.pk for s in allowed_sites], is_active=True).order_by("name")
+        outlets = Outlet.objects.filter(pk__in=[o.pk for o in allowed_outlets], is_active=True).select_related("site").order_by("site__name", "name")
+        if actor.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+            sites = sites.filter(pk__in=actor.sites.values_list("pk", flat=True))
+            outlet_ids = actor.outlets.values_list("pk", flat=True)
+            outlets = outlets.filter(site__in=sites)
+            if actor.outlets.exists():
+                outlets = outlets.filter(pk__in=outlet_ids)
+        ctx["sites"] = list(sites)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
         ctx["outlets"] = list(
-            Outlet.objects.filter(site__tenant=self.request.tenant).select_related("site").order_by("site__name", "name")
+            outlets
         )
         ctx["bulk_form"] = StaffMembershipBulkActionForm(tenant=self.request.tenant)
         ctx["worker_reset_link"] = self.request.session.pop("staff_worker_reset_link", None)
@@ -317,8 +361,21 @@ class StaffMembershipBulkActionView(StaffTenantRequiredMixin, FormView):
 
     def form_valid(self, form):
         memberships = list(form.cleaned_data["member_ids"])
+        if any(
+            membership.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN)
+            for membership in memberships
+        ):
+            form.add_error("member_ids", "Bulk actions cannot target owners or tenant admins.")
+            return self.form_invalid(form)
         action = form.cleaned_data["action"]
         preset = form.cleaned_data.get("role_preset") or ""
+        if action == "apply_preset":
+            from .forms.workspace_forms import ROLE_PRESET_DEFAULTS
+
+            target_role = ROLE_PRESET_DEFAULTS.get(preset, {}).get("role")
+            if target_role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+                form.add_error("role_preset", "Role presets cannot grant owner or tenant admin access.")
+                return self.form_invalid(form)
         updated = 0
         skipped = 0
         for membership in memberships:
@@ -388,7 +445,13 @@ class StaffMembershipUpdateView(StaffTenantRequiredMixin, UpdateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return Membership.objects.filter(tenant=self.request.tenant).select_related("user")
+        qs = Membership.objects.filter(tenant=self.request.tenant).select_related("user")
+        actor = self.request.tenant_membership
+        if actor.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+            return qs
+        return qs.filter(sites__in=actor.sites.values_list("pk", flat=True)).exclude(
+            role__in=[MembershipRole.OWNER, MembershipRole.TENANT_ADMIN]
+        ).exclude(pk=actor.pk).distinct()
 
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
@@ -401,6 +464,17 @@ class StaffMembershipUpdateView(StaffTenantRequiredMixin, UpdateView):
         return ctx
 
     def form_valid(self, form):
+        if self.object.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+            if form.cleaned_data.get("sites") or form.cleaned_data.get("outlets"):
+                form.add_error("sites", "Tenant administrators cannot be restricted using worker branch assignments.")
+                return self.form_invalid(form)
+            if not _membership_edit_would_break_admin_cover(
+                self.object,
+                new_role=form.cleaned_data["role"],
+                is_active=form.cleaned_data.get("is_active", True),
+            ) and form.cleaned_data["role"] not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+                form.add_error("role", "Keep at least one active owner or tenant admin in this workspace.")
+                return self.form_invalid(form)
         if self.object.user_id == self.request.user.id and not form.cleaned_data.get("is_active", True):
             form.add_error("is_active", "You cannot deactivate your own workspace access.")
             return self.form_invalid(form)
@@ -411,6 +485,28 @@ class StaffMembershipUpdateView(StaffTenantRequiredMixin, UpdateView):
         ):
             form.add_error("role", "Keep at least one active owner or tenant admin in this workspace.")
             return self.form_invalid(form)
+        if form.cleaned_data["role"] not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+            if not form.cleaned_data.get("sites"):
+                form.add_error("sites", "Assign at least one branch to this worker.")
+                return self.form_invalid(form)
+            if not form.cleaned_data.get("outlets") and not self.object.outlets.exists():
+                from apps.staff.services.membership import ROLE_OUTLET_TYPES
+
+                allowed_types = ROLE_OUTLET_TYPES.get(form.cleaned_data["role"])
+                configured_types = set()
+                try:
+                    from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
+
+                    configured_types = set(outlet_types_for_business_lines(normalize_business_lines(self.request.tenant.settings.business_lines)))
+                except Exception:
+                    pass
+                allowed_types = configured_types if allowed_types is None else configured_types & set(allowed_types)
+                if not any(
+                    site.outlets.filter(is_active=True, outlet_type__in=allowed_types).exists()
+                    for site in form.cleaned_data["sites"]
+                ):
+                    form.add_error("sites", "The selected branches have no active outlet compatible with this role.")
+                    return self.form_invalid(form)
         response = super().form_valid(form)
         _audit_membership(
             self.request,
@@ -429,7 +525,13 @@ class StaffMembershipDeactivateView(StaffTenantRequiredMixin, View):
         if not membership_can_manage_workspace_settings(request.tenant_membership):
             messages.error(request, "Only an owner or tenant admin can manage workspace members.")
             return redirect("staff-workspace-members")
-        membership = get_object_or_404(Membership, pk=membership_id, tenant=request.tenant)
+        actor = request.tenant_membership
+        membership_qs = Membership.objects.filter(tenant=request.tenant)
+        if actor.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+            membership_qs = membership_qs.filter(sites__in=actor.sites.values_list("pk", flat=True)).exclude(
+                role__in=[MembershipRole.OWNER, MembershipRole.TENANT_ADMIN]
+            ).exclude(pk=actor.pk).distinct()
+        membership = get_object_or_404(membership_qs, pk=membership_id)
         if membership.user_id == request.user.id:
             messages.error(request, "You cannot deactivate your own workspace access.")
             return redirect("staff-workspace-members")

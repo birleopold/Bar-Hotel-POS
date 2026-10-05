@@ -2,10 +2,13 @@ import uuid
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.api.permissions import HasTenantContext, NotReadOnlyRole
+from apps.accounts.models import MembershipRole
+from apps.tenants.models import OutletType
+from apps.tenants.business_lines import normalize_business_lines
 from apps.audit.services import log_audit
 
 from .models import Folio, FolioLine, FolioStatus, Reservation, Room, RoomRateWindow, RoomType
@@ -24,9 +27,78 @@ from .serializers import (
 from .services import cancel_reservation, check_in_reservation, check_out_reservation, close_folio, record_folio_payment
 
 
+class LodgingModuleEnabled(BasePermission):
+    message = "Lodging is not enabled for this workspace."
+
+    def has_permission(self, request, view):
+        try:
+            lines = normalize_business_lines(request.tenant.settings.business_lines)
+        except Exception:
+            return False
+        if "lodging" not in lines:
+            return False
+        from apps.staff.services.modules import get_tenant_staff_modules
+
+        return "lodging" in get_tenant_staff_modules(request.tenant)
+
+
+class CanManageLodging(BasePermission):
+    message = "Your role cannot modify lodging records."
+
+    def has_permission(self, request, view):
+        return request.tenant_membership.role in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+            MembershipRole.OUTLET_MANAGER,
+        )
+
+
+class CanManageReservations(BasePermission):
+    message = "Your role cannot manage reservations."
+
+    def has_permission(self, request, view):
+        return request.tenant_membership.role in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+            MembershipRole.OUTLET_MANAGER,
+            MembershipRole.FRONT_DESK,
+        )
+
+
+class CanManageRoomInventory(BasePermission):
+    message = "Your role cannot modify room inventory."
+
+    def has_permission(self, request, view):
+        return request.tenant_membership.role in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+        )
+
+
+class CanManageFolioPayments(BasePermission):
+    message = "Your role cannot record guest payments."
+
+    def has_permission(self, request, view):
+        return request.tenant_membership.role in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+            MembershipRole.OUTLET_MANAGER,
+            MembershipRole.FRONT_DESK,
+        )
+
+
 class RoomTypeViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
     serializer_class = RoomTypeSerializer
+
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(), LodgingModuleEnabled(), CanManageRoomInventory()]
+        return super().get_permissions()
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -37,7 +109,19 @@ class RoomTypeViewSet(viewsets.ModelViewSet):
             .order_by("site__name", "name")
         )
         membership = self.request.tenant_membership
-        if membership.sites.exists():
+        try:
+            lines = normalize_business_lines(self.request.tenant.settings.business_lines)
+        except Exception:
+            lines = []
+        if "lodging" not in lines:
+            return RoomType.objects.none()
+        qs = qs.filter(site__outlets__outlet_type=OutletType.LODGING_FRONT_DESK).distinct()
+        if membership.role == MembershipRole.SITE_MANAGER:
+            if membership.sites.exists():
+                qs = qs.filter(site_id__in=membership.sites.values_list("pk", flat=True))
+            else:
+                return RoomType.objects.none()
+        elif membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists():
             qs = qs.filter(site_id__in=membership.sites.values_list("pk", flat=True))
         return qs
 
@@ -45,6 +129,11 @@ class RoomTypeViewSet(viewsets.ModelViewSet):
 class RoomViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
     serializer_class = RoomSerializer
+
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(), LodgingModuleEnabled(), CanManageRoomInventory()]
+        return super().get_permissions()
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -55,7 +144,19 @@ class RoomViewSet(viewsets.ModelViewSet):
             .order_by("room_type", "name")
         )
         membership = self.request.tenant_membership
-        if membership.sites.exists():
+        try:
+            lines = normalize_business_lines(self.request.tenant.settings.business_lines)
+        except Exception:
+            lines = []
+        if "lodging" not in lines:
+            return Room.objects.none()
+        qs = qs.filter(room_type__site__outlets__outlet_type=OutletType.LODGING_FRONT_DESK).distinct()
+        if membership.role == MembershipRole.SITE_MANAGER:
+            if membership.sites.exists():
+                qs = qs.filter(room_type__site_id__in=membership.sites.values_list("pk", flat=True))
+            else:
+                return Room.objects.none()
+        elif membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists():
             qs = qs.filter(room_type__site_id__in=membership.sites.values_list("pk", flat=True))
         rt = self.request.query_params.get("room_type")
         if rt:
@@ -71,6 +172,11 @@ class ReservationViewSet(viewsets.ModelViewSet):
     serializer_class = ReservationSerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
 
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "check_in", "check_out", "cancel", "post_folio_charge"}:
+            return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(), LodgingModuleEnabled(), CanManageReservations()]
+        return super().get_permissions()
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Reservation.objects.none()
@@ -80,7 +186,19 @@ class ReservationViewSet(viewsets.ModelViewSet):
             .order_by("-check_in", "guest_name")
         )
         membership = self.request.tenant_membership
-        if membership.sites.exists():
+        try:
+            lines = normalize_business_lines(self.request.tenant.settings.business_lines)
+        except Exception:
+            lines = []
+        if "lodging" not in lines:
+            return Reservation.objects.none()
+        qs = qs.filter(site__outlets__outlet_type=OutletType.LODGING_FRONT_DESK).distinct()
+        if membership.role == MembershipRole.SITE_MANAGER:
+            if membership.sites.exists():
+                qs = qs.filter(site_id__in=membership.sites.values_list("pk", flat=True))
+            else:
+                return Reservation.objects.none()
+        elif membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists():
             qs = qs.filter(site_id__in=membership.sites.values_list("pk", flat=True))
         site = self.request.query_params.get("site")
         if site:
@@ -170,6 +288,11 @@ class RoomRateWindowViewSet(viewsets.ModelViewSet):
     serializer_class = RoomRateWindowSerializer
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
 
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(), LodgingModuleEnabled(), CanManageLodging()]
+        return super().get_permissions()
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return RoomRateWindow.objects.none()
@@ -177,7 +300,19 @@ class RoomRateWindowViewSet(viewsets.ModelViewSet):
             "room_type", "room_type__site"
         )
         membership = self.request.tenant_membership
-        if membership.sites.exists():
+        try:
+            lines = normalize_business_lines(self.request.tenant.settings.business_lines)
+        except Exception:
+            lines = []
+        if "lodging" not in lines:
+            return RoomRateWindow.objects.none()
+        qs = qs.filter(room_type__site__outlets__outlet_type=OutletType.LODGING_FRONT_DESK).distinct()
+        if membership.role == MembershipRole.SITE_MANAGER:
+            if membership.sites.exists():
+                qs = qs.filter(room_type__site_id__in=membership.sites.values_list("pk", flat=True))
+            else:
+                return RoomRateWindow.objects.none()
+        elif membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists():
             qs = qs.filter(room_type__site_id__in=membership.sites.values_list("pk", flat=True))
         rt = self.request.query_params.get("room_type")
         if rt:
@@ -192,6 +327,15 @@ class FolioViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
     http_method_names = ["get", "post", "patch", "head", "options"]
 
+    def get_permissions(self):
+        if self.action in {"list", "retrieve"}:
+            return [IsAuthenticated(), HasTenantContext(), LodgingModuleEnabled()]
+        if self.action in {"add_line", "add_payment"}:
+            return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(), LodgingModuleEnabled(), CanManageFolioPayments()]
+        if self.action == "partial_update":
+            return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(), LodgingModuleEnabled()]
+        return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(), LodgingModuleEnabled(), CanManageLodging()]
+
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Folio.objects.none()
@@ -202,8 +346,22 @@ class FolioViewSet(viewsets.ModelViewSet):
             .order_by("-created_at")
         )
         m = self.request.tenant_membership
-        if m.sites.exists():
+        try:
+            lines = normalize_business_lines(self.request.tenant.settings.business_lines)
+        except Exception:
+            lines = []
+        if "lodging" not in lines:
+            return Folio.objects.none()
+        qs = qs.filter(site__outlets__outlet_type=OutletType.LODGING_FRONT_DESK).distinct()
+        if m.role == MembershipRole.SITE_MANAGER:
+            if m.sites.exists():
+                qs = qs.filter(site_id__in=m.sites.values_list("pk", flat=True))
+            else:
+                return Folio.objects.none()
+        elif m.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or m.sites.exists():
             qs = qs.filter(site_id__in=m.sites.values_list("pk", flat=True))
+        if m.role == MembershipRole.CLEANER:
+            qs = qs.none()
         site = self.request.query_params.get("site")
         if site:
             try:
@@ -240,6 +398,10 @@ class FolioViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.instance
         if serializer.validated_data.get("status") == FolioStatus.CLOSED:
+            if not CanManageLodging().has_permission(self.request, self):
+                from rest_framework.exceptions import PermissionDenied
+
+                raise PermissionDenied("Only lodging managers can close a folio.")
             serializer.instance = close_folio(folio=instance, user=self.request.user)
             return
         serializer.save()

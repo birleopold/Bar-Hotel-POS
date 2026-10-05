@@ -51,6 +51,8 @@ def _caps_for_outlet_type(outlet_type: str) -> set[str]:
             "finance",
             "workspace",
         }
+    if ot == "service":
+        return {"orders", "sales", "finance", "workspace"}
     return {
         "orders",
         "tables",
@@ -70,21 +72,23 @@ def _caps_for_outlet_type(outlet_type: str) -> set[str]:
 def _caps_for_business_lines(lines: list[str]) -> set[str]:
     s = set(normalize_business_lines(lines))
     if not s:
-        # No business lines configured yet — do not hide POS/stock/etc. Outlet type (and modules)
-        # still narrow what appears when an outlet is selected.
+        # Empty profile is the legacy pre-business-lines state. Capability
+        # checks below still intersect this with the member role, enabled modules,
+        # and selected outlet policy.
         return set(_caps_for_outlet_type(""))
     caps: set[str] = {"finance", "workspace"}
     if s & {"bar", "lounge", "restaurant", "cafeteria"}:
         caps |= {
             "orders",
             "tables",
-            "kitchen",
             "menu",
             "promotions",
             "sales",
             "inventory",
             "purchasing",
         }
+    if s & {"bar", "lounge", "restaurant", "cafeteria", "kitchen"}:
+        caps |= {"kitchen", "menu", "inventory", "purchasing"}
     if s & {"retail", "supermarket"}:
         caps |= {
             "orders",
@@ -98,6 +102,8 @@ def _caps_for_business_lines(lines: list[str]) -> set[str]:
         caps |= {"lodging", "orders", "sales", "promotions"}
     if "events" in s:
         caps |= {"events", "orders", "sales", "promotions"}
+    if "services" in s:
+        caps |= {"orders", "sales"}
     return caps
 
 
@@ -113,6 +119,8 @@ def staff_nav_visibility_scoped(
     try:
         settings_obj = tenant.settings
     except TenantSettings.DoesNotExist:
+        # Pre-business-line tenants are legacy workspaces and keep the broad
+        # capability map, constrained by role, plan modules, and outlet policy.
         lines: list[str] = []
     else:
         lines = list(getattr(settings_obj, "business_lines", None) or [])
@@ -124,6 +132,37 @@ def staff_nav_visibility_scoped(
         property_caps = {"lodging", "events", "finance", "workspace"}
         outlet_caps = _caps_for_outlet_type(outlet.outlet_type)
         allowed = (allowed & outlet_caps) | (allowed & property_caps)
+        if "pos" not in modules:
+            allowed -= {"orders", "tables", "menu", "sales", "promotions", "offline_sync"}
+        if "kitchen" not in modules:
+            allowed.discard("kitchen")
+        if "inventory" not in modules:
+            allowed.discard("inventory")
+        if "purchasing" not in modules:
+            allowed.discard("purchasing")
+        if "lodging" not in modules:
+            allowed.discard("lodging")
+        if "events" not in modules:
+            allowed.discard("events")
+        if "finance" not in modules:
+            allowed.discard("finance")
+        if "workspace" not in modules:
+            allowed.discard("workspace")
+    else:
+        module_caps = set()
+        module_to_caps = {
+            "pos": {"orders", "tables", "menu", "sales", "promotions", "offline_sync"},
+            "kitchen": {"kitchen"},
+            "inventory": {"inventory"},
+            "purchasing": {"purchasing"},
+            "lodging": {"lodging"},
+            "events": {"events"},
+            "finance": {"finance"},
+            "workspace": {"workspace"},
+        }
+        for module_key in modules:
+            module_caps.update(module_to_caps.get(module_key, set()))
+        allowed &= module_caps
 
     return StaffNavVisibility(
         orders=base.orders and "orders" in allowed,

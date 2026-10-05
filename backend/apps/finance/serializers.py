@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from apps.accounts.models import MembershipRole
+from apps.staff.services.modules import get_tenant_staff_modules
 from apps.tenants.models import Site
 
 from .models import CashbookEntry, FinanceCategory
@@ -76,6 +78,8 @@ class CashbookEntrySerializer(serializers.ModelSerializer):
         request = self.context["request"]
         if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Category must belong to the current tenant.")
+        if "finance" not in get_tenant_staff_modules(request.tenant):
+            raise serializers.ValidationError("Finance is not enabled for this workspace.")
         return value
 
     def validate_site(self, value: Site | None) -> Site | None:
@@ -85,8 +89,10 @@ class CashbookEntrySerializer(serializers.ModelSerializer):
         if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Site must belong to the current tenant.")
         membership = request.tenant_membership
-        if membership.sites.exists() and value.id not in membership.sites.values_list("pk", flat=True):
+        if (membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER) or membership.sites.exists()) and value.id not in membership.sites.values_list("pk", flat=True):
             raise serializers.ValidationError("You cannot create or update entries for this site.")
+        if "finance" not in get_tenant_staff_modules(request.tenant):
+            raise serializers.ValidationError("Finance is not enabled for this workspace.")
         return value
 
     def create(self, validated_data):

@@ -15,6 +15,12 @@
       </div>
     </div>
   </header>
+  {% if menu_scope_outlet and not menu_all_outlets_mode %}
+    <section class="staff-card staff-card--soft mb-3">
+      <h2 class="staff-card__title">Service TV presentation</h2>
+      <p class="staff-muted">Feature items, add an optional photo URL, and show a short availability note on guest-facing displays.</p>
+    </section>
+  {% endif %}
   <h2 class="staff-section-head">By category</h2>
   <div class="staff-pos-menu-grid">
     {% for cat in categories %}
@@ -26,8 +32,22 @@
               <div class="staff-pos-menu-item__main">
                 <div class="staff-pos-menu-item__name">{{ item.name }}</div>
                 {% if item.sku %}<div class="staff-pos-menu-item__sku text-muted small">SKU {{ item.sku }}</div>{% endif %}
+                {% if item.is_featured %}<span class="staff-tag staff-tag--citrus">Featured on Service TV</span>{% endif %}
+                {% if item.availability_note %}<div class="staff-muted small">{{ item.availability_note }}</div>{% endif %}
               </div>
               {% if item.unit_price %}<div class="staff-pos-menu-item__price fw-bold">{{ item.unit_price }}</div>{% endif %}
+              {% if can_manage_tv_details and menu_scope_outlet and not menu_all_outlets_mode %}
+                <details class="mt-2">
+                  <summary class="staff-table__action-link">TV display details</summary>
+                  <form method="post" class="mt-2">
+                    {% csrf_token %}<input type="hidden" name="action" value="display_details"><input type="hidden" name="item_id" value="{{ item.id }}">
+                    <label class="d-block small mb-2"><input type="checkbox" name="is_featured" {% if item.is_featured %}checked{% endif %}> Include in featured rotation</label>
+                    <label class="d-block small mb-2">Public image URL<input class="staff-input w-100" type="url" name="display_image_url" maxlength="200" value="{{ item.display_image_url }}"></label>
+                    <label class="d-block small mb-2">Availability note<input class="staff-input w-100" type="text" name="availability_note" maxlength="160" value="{{ item.availability_note }}"></label>
+                    <button class="staff-btn staff-btn--sm staff-btn--primary" type="submit">Save display details</button>
+                  </form>
+                </details>
+              {% endif %}
             </div>
           {% empty %}
             <div class="staff-muted py-2 col-12">No items in this category.</div>

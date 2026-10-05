@@ -13,8 +13,15 @@ DEFAULT_MODULES_ALL: list[str] = [
     "purchasing",
     "lodging",
     "events",
+    "finance",
     "workspace",
 ]
+
+CORE_POS_MODULES = ["pos", "promotions", "inventory", "purchasing", "finance", "workspace"]
+BAR_MODULES = [*CORE_POS_MODULES, "kitchen"]
+FOOD_MODULES = [*CORE_POS_MODULES, "kitchen"]
+LODGING_MODULES = ["lodging", "finance", "workspace"]
+EVENT_MODULES = ["events", "finance", "workspace"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,56 +39,70 @@ BUSINESS_LINES: dict[str, BusinessLineProfile] = {
         label="Bar",
         default_outlet_type=OutletType.BAR,
         default_outlet_name="Main bar",
-        default_modules=DEFAULT_MODULES_ALL,
+        default_modules=BAR_MODULES,
     ),
     "lounge": BusinessLineProfile(
         key="lounge",
         label="Lounge",
         default_outlet_type=OutletType.LOUNGE,
         default_outlet_name="Main lounge",
-        default_modules=DEFAULT_MODULES_ALL,
+        default_modules=BAR_MODULES,
     ),
     "restaurant": BusinessLineProfile(
         key="restaurant",
         label="Restaurant",
         default_outlet_type=OutletType.RESTAURANT,
         default_outlet_name="Main restaurant",
-        default_modules=DEFAULT_MODULES_ALL,
+        default_modules=FOOD_MODULES,
     ),
     "cafeteria": BusinessLineProfile(
         key="cafeteria",
         label="Cafeteria",
         default_outlet_type=OutletType.CAFETERIA,
         default_outlet_name="Main cafeteria",
-        default_modules=DEFAULT_MODULES_ALL,
+        default_modules=FOOD_MODULES,
+    ),
+    "kitchen": BusinessLineProfile(
+        key="kitchen",
+        label="Kitchen / food preparation",
+        default_outlet_type=OutletType.RESTAURANT,
+        default_outlet_name="Kitchen",
+        default_modules=["kitchen", "inventory", "purchasing", "workspace"],
     ),
     "lodging": BusinessLineProfile(
         key="lodging",
         label="Lodging",
         default_outlet_type=OutletType.LODGING_FRONT_DESK,
         default_outlet_name="Front desk",
-        default_modules=DEFAULT_MODULES_ALL,
+        default_modules=LODGING_MODULES,
     ),
     "retail": BusinessLineProfile(
         key="retail",
         label="Retail / shop",
         default_outlet_type=OutletType.RETAIL,
         default_outlet_name="Main shop",
-        default_modules=DEFAULT_MODULES_ALL,
+        default_modules=CORE_POS_MODULES,
     ),
     "supermarket": BusinessLineProfile(
         key="supermarket",
         label="Supermarket / grocery",
         default_outlet_type=OutletType.SUPERMARKET,
         default_outlet_name="Main supermarket",
-        default_modules=DEFAULT_MODULES_ALL,
+        default_modules=CORE_POS_MODULES,
     ),
     "events": BusinessLineProfile(
         key="events",
         label="Events / event space",
         default_outlet_type=OutletType.EVENT_SPACE,
         default_outlet_name="Main event space",
-        default_modules=DEFAULT_MODULES_ALL,
+        default_modules=EVENT_MODULES,
+    ),
+    "services": BusinessLineProfile(
+        key="services",
+        label="Services / spa / appointments",
+        default_outlet_type=OutletType.SERVICE,
+        default_outlet_name="Services desk",
+        default_modules=["pos", "finance", "workspace"],
     ),
 }
 

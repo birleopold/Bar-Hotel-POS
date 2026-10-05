@@ -3,7 +3,19 @@
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
   <h1 class="staff-page-title">Workspace setup<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <p class="staff-lead">Complete required steps so staff can sell, prep, and (if needed) post to guest folios.</p>
+  <p class="staff-lead">{{ setup_pitch }}</p>
+
+  <section class="staff-card mb-4" aria-labelledby="business-profile-heading">
+    <h2 id="business-profile-heading" class="staff-card__title">What does this business offer?</h2>
+    <p class="staff-muted small">Choose only the areas this client uses. Navigation, setup cards, section types, and protected pages update for every staff member and administrator.</p>
+    {% include "staff/includes/form_errors_block.html" with form=business_profile_form title="Fix the business profile" %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="staff-checklist mb-3">{{ business_profile_form.business_lines }}</div>
+      {% if business_profile_form.business_lines.help_text %}<p class="staff-muted small">{{ business_profile_form.business_lines.help_text }}</p>{% endif %}
+      <button type="submit" class="staff-btn staff-btn--primary">Save service areas</button>
+    </form>
+  </section>
 
   <div class="staff-card staff-card--soft mb-4">
     <p class="mb-1"><strong>Progress:</strong> {{ setup_completion_percent }}% of required steps</p>

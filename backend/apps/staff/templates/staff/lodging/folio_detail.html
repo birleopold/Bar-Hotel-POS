@@ -53,8 +53,12 @@
         <tbody>{% for payment in folio.payments.all %}<tr><td>{{ payment.created_at }}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference|default:"—" }}</td><td class="staff-money">{{ folio.currency }} {{ payment.amount }}</td></tr>{% endfor %}</tbody>
       </table></div>
     {% else %}<p class="staff-muted">No payments recorded.</p>{% endif %}
+<<<<<<< HEAD
     {% if can_modify_lodging and folio.status == 'open' and balance_due > 0 %}
       {% include "staff/includes/form_errors_block.html" with form=payment_form title="Fix payment details" %}
+=======
+    {% if membership_can_manage_folios and folio.status == 'open' and balance_due > 0 %}
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <div class="col-md-3">{{ payment_form.amount.label_tag }}{{ payment_form.amount }}</div>

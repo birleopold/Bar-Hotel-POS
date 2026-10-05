@@ -54,12 +54,12 @@
             </div>
           {% endif %}
 
-          <div class="wb-nav-group">
+          {% if console_has_services %}<div class="wb-nav-group">
             <span class="wb-nav-group__label">Services</span>
             <ul class="wb-nav-list">
               <li><a class="wb-nav-link{% if u == 'console-org-service-offerings' or u == 'console-org-service-offering-create' or u == 'console-org-service-offering-edit' or u == 'console-org-service-offering-options' or u == 'console-org-service-offering-option-create' or u == 'console-org-service-offering-option-edit' %} wb-nav-link--active{% endif %}" href="{% url 'console-org-service-offerings' %}">Services &amp; packages</a></li>
             </ul>
-          </div>
+          </div>{% endif %}
 
           {% if console_has_lodging %}
             <div class="wb-nav-group">

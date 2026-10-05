@@ -60,7 +60,7 @@ def _outlet_filter_ids(request, outlets: list[Outlet]) -> list[uuid.UUID] | None
         return [o.id for o in outlets]
     if current:
         return [current.id]
-    return [o.id for o in outlets]
+    return []
 
 
 def _normalize_reason(value: str) -> str | None:

@@ -65,6 +65,7 @@ class MembershipRole(models.TextChoices):
     KITCHEN = "kitchen", "Kitchen"
     STOREKEEPER = "storekeeper", "Storekeeper"
     ACCOUNTANT = "accountant", "Accountant (read-only)"
+    CLEANER = "cleaner", "Housekeeping"
 
 
 class Membership(TimeStampedModel):
@@ -84,13 +85,13 @@ class Membership(TimeStampedModel):
         "tenants.Site",
         blank=True,
         related_name="memberships",
-        help_text="Empty = access to all sites for this tenant.",
+        help_text="Workers must be assigned one or more sites. Empty means no site access.",
     )
     outlets = models.ManyToManyField(
         "tenants.Outlet",
         blank=True,
         related_name="memberships",
-        help_text="Empty = access to all outlets under allowed sites.",
+        help_text="When outlets are assigned, access is limited to those outlets. Empty means all permitted outlets under assigned sites.",
     )
 
     class Meta:
@@ -125,6 +126,8 @@ class UserInvite(TimeStampedModel):
         related_name="invites_sent",
     )
     accepted_at = models.DateTimeField(null=True, blank=True)
+    sites = models.ManyToManyField("tenants.Site", blank=True, related_name="user_invites")
+    outlets = models.ManyToManyField("tenants.Outlet", blank=True, related_name="user_invites")
 
     class Meta:
         ordering = ["-created_at"]

@@ -13,6 +13,7 @@ from django.views import View
 from django.views.generic import FormView, ListView
 
 from apps.finance.models import CashbookEntry, FinanceCategory, FinanceCategoryKind
+from apps.accounts.models import MembershipRole
 from apps.tenants.models import Site
 
 from .forms import StaffCashbookEntryForm, StaffFinanceCategoryForm
@@ -80,12 +81,18 @@ class StaffFinanceEntryListView(StaffTenantRequiredMixin, ListView):
             .select_related("category", "site", "created_by")
             .order_by("-transaction_date", "-created_at")
         )
+        membership = self.request.tenant_membership
+        if membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.ACCOUNTANT):
+            qs = qs.filter(site_id__in=[site.id for site in self._membership_sites()])
         kind = (self.request.GET.get("kind") or "").strip().lower()
         if kind == "income":
             qs = qs.filter(category__kind=FinanceCategoryKind.INCOME)
         elif kind == "expense":
             qs = qs.filter(category__kind=FinanceCategoryKind.EXPENSE)
         return qs
+
+    def _membership_sites(self):
+        return sites_visible_for_membership(self.request.tenant_membership)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -101,18 +108,18 @@ class StaffFinanceEntryListView(StaffTenantRequiredMixin, ListView):
             ctx["has_categories"] = FinanceCategory.objects.filter(tenant=self.request.tenant, is_active=True).exists()
             return ctx
 
-        income = CashbookEntry.objects.filter(
+        entries = CashbookEntry.objects.filter(
             tenant=self.request.tenant,
             transaction_date__gte=self._d0,
             transaction_date__lte=self._d1,
-            category__kind=FinanceCategoryKind.INCOME,
-        ).aggregate(t=Sum("amount"))["t"] or Decimal("0")
-        expense = CashbookEntry.objects.filter(
-            tenant=self.request.tenant,
-            transaction_date__gte=self._d0,
-            transaction_date__lte=self._d1,
-            category__kind=FinanceCategoryKind.EXPENSE,
-        ).aggregate(t=Sum("amount"))["t"] or Decimal("0")
+        )
+        if self.request.tenant_membership.role not in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+        ):
+            entries = entries.filter(site_id__in=[site.id for site in sites_visible_for_membership(self.request.tenant_membership)])
+        income = entries.filter(category__kind=FinanceCategoryKind.INCOME).aggregate(t=Sum("amount"))["t"] or Decimal("0")
+        expense = entries.filter(category__kind=FinanceCategoryKind.EXPENSE).aggregate(t=Sum("amount"))["t"] or Decimal("0")
         ctx["total_income"] = income.quantize(Decimal("0.01"))
         ctx["total_expense"] = expense.quantize(Decimal("0.01"))
         ctx["net_cash"] = (income - expense).quantize(Decimal("0.01"))
@@ -147,6 +154,10 @@ class StaffFinanceEntryCreateView(StaffTenantRequiredMixin, FormView):
 
     def form_valid(self, form):
         entry = form.save(commit=False)
+        site = entry.site
+        if site and site not in self._sites:
+            form.add_error("site", "Choose a branch assigned to your role.")
+            return self.form_invalid(form)
         entry.created_by = self.request.user
         entry.save()
         messages.success(self.request, "Income or expense recorded.")

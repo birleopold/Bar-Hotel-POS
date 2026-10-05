@@ -4,10 +4,11 @@ from django.db import transaction
 
 from rest_framework import serializers
 
+from apps.accounts.models import MembershipRole
 from apps.tenants.models import Site
 
-from .models import Folio, FolioLine, FolioPayment, FolioPaymentMethod, FolioStatus, Reservation, Room, RoomRateWindow, RoomType
-from .services import folio_totals, validate_room_available_for_reservation
+from .models import Folio, FolioLine, FolioPayment, FolioPaymentMethod, FolioStatus, Reservation, ReservationStatus, Room, RoomRateWindow, RoomType
+from .services import cancel_reservation, check_in_reservation, check_out_reservation, folio_totals, validate_room_available_for_reservation
 
 
 class RoomTypeSerializer(serializers.ModelSerializer):
@@ -43,8 +44,10 @@ class RoomTypeSerializer(serializers.ModelSerializer):
         if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Site must belong to the current tenant.")
         membership = request.tenant_membership
-        if membership.sites.exists() and value.id not in membership.sites.values_list("pk", flat=True):
+        if (membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists()) and value.id not in membership.sites.values_list("pk", flat=True):
             raise serializers.ValidationError("You cannot create or update room types for this site.")
+        if not _tenant_has_lodging(request.tenant):
+            raise serializers.ValidationError("Lodging is not enabled for this workspace.")
         return value
 
     def create(self, validated_data):
@@ -84,8 +87,10 @@ class RoomSerializer(serializers.ModelSerializer):
         if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Room type must belong to the current tenant.")
         membership = request.tenant_membership
-        if membership.sites.exists() and value.site_id not in membership.sites.values_list("pk", flat=True):
+        if (membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists()) and value.site_id not in membership.sites.values_list("pk", flat=True):
             raise serializers.ValidationError("You cannot create or update rooms for this site.")
+        if not _tenant_has_lodging(request.tenant):
+            raise serializers.ValidationError("Lodging is not enabled for this workspace.")
         return value
 
 
@@ -141,6 +146,12 @@ class ReservationSerializer(serializers.ModelSerializer):
             self.fields["room"].queryset = Room.objects.filter(room_type__tenant=tenant)
 
     def validate(self, attrs: dict) -> dict:
+        if "status" in self.initial_data:
+            requested_status = self.initial_data.get("status")
+            if self.instance is not None and requested_status == self.instance.status:
+                attrs.pop("status", None)
+            else:
+                raise serializers.ValidationError({"status": "Use the check-in, check-out, or cancel action to change reservation status."})
         check_in = attrs.get("check_in") or (self.instance.check_in if self.instance else None)
         check_out = attrs.get("check_out") or (self.instance.check_out if self.instance else None)
         if check_in and check_out and check_out <= check_in:
@@ -182,8 +193,10 @@ class ReservationSerializer(serializers.ModelSerializer):
         if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Site must belong to the current tenant.")
         membership = request.tenant_membership
-        if membership.sites.exists() and value.id not in membership.sites.values_list("pk", flat=True):
+        if (membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists()) and value.id not in membership.sites.values_list("pk", flat=True):
             raise serializers.ValidationError("You cannot create or update reservations for this site.")
+        if not _tenant_has_lodging(request.tenant):
+            raise serializers.ValidationError("Lodging is not enabled for this workspace.")
         return value
 
     def validate_room(self, value: Room | None) -> Room | None:
@@ -191,6 +204,9 @@ class ReservationSerializer(serializers.ModelSerializer):
             return value
         if value.room_type.tenant_id != self.context["request"].tenant.id:
             raise serializers.ValidationError("Room must belong to the current tenant.")
+        membership = self.context["request"].tenant_membership
+        if (membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists()) and value.room_type.site_id not in membership.sites.values_list("pk", flat=True):
+            raise serializers.ValidationError("You cannot use rooms at this site.")
         return value
 
     def create(self, validated_data):
@@ -322,8 +338,10 @@ class FolioCreateSerializer(serializers.ModelSerializer):
         if value.tenant_id != req.tenant.id:
             raise serializers.ValidationError("Site must belong to the current tenant.")
         m = req.tenant_membership
-        if m.sites.exists() and value.id not in m.sites.values_list("pk", flat=True):
+        if (m.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or m.sites.exists()) and value.id not in m.sites.values_list("pk", flat=True):
             raise serializers.ValidationError("You cannot create a folio for this site.")
+        if not _tenant_has_lodging(req.tenant):
+            raise serializers.ValidationError("Lodging is not enabled for this workspace.")
         return value
 
     def validate(self, attrs: dict) -> dict:
@@ -409,9 +427,21 @@ class RoomRateWindowSerializer(serializers.ModelSerializer):
         if value.tenant_id != request.tenant.id:
             raise serializers.ValidationError("Room type must belong to the current tenant.")
         membership = request.tenant_membership
-        if membership.sites.exists() and value.site_id not in membership.sites.values_list("pk", flat=True):
+        if (membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN) or membership.sites.exists()) and value.site_id not in membership.sites.values_list("pk", flat=True):
             raise serializers.ValidationError("You cannot manage rates for this site.")
+        if not _tenant_has_lodging(request.tenant):
+            raise serializers.ValidationError("Lodging is not enabled for this workspace.")
         return value
+
+
+def _tenant_has_lodging(tenant) -> bool:
+    from apps.staff.services.modules import get_tenant_staff_modules
+    from apps.tenants.business_lines import normalize_business_lines
+
+    try:
+        return "lodging" in normalize_business_lines(tenant.settings.business_lines) and "lodging" in get_tenant_staff_modules(tenant)
+    except Exception:
+        return False
 
 
 class ReservationFolioChargeSerializer(serializers.Serializer):

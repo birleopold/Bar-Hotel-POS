@@ -51,7 +51,11 @@ def build_sales_summary(
     d1: date,
     outlet_id: uuid.UUID | None = None,
     *,
+<<<<<<< HEAD
     allowed_outlet_ids: list[uuid.UUID] | None = None,
+=======
+    outlet_ids: list[uuid.UUID] | None = None,
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 ) -> dict:
     start, end = utc_day_range_inclusive(d0, d1)
 
@@ -65,6 +69,8 @@ def build_sales_summary(
         payments_qs = payments_qs.filter(order__outlet_id__in=allowed_outlet_ids)
     if outlet_id is not None:
         payments_qs = payments_qs.filter(order__outlet_id=outlet_id)
+    elif outlet_ids is not None:
+        payments_qs = payments_qs.filter(order__outlet_id__in=outlet_ids)
 
     pay_agg = payments_qs.aggregate(
         payment_count=Count("id"),
@@ -82,6 +88,8 @@ def build_sales_summary(
         refunds_qs = refunds_qs.filter(order__outlet_id__in=allowed_outlet_ids)
     if outlet_id is not None:
         refunds_qs = refunds_qs.filter(order__outlet_id=outlet_id)
+    elif outlet_ids is not None:
+        refunds_qs = refunds_qs.filter(order__outlet_id__in=outlet_ids)
 
     ref_agg = refunds_qs.aggregate(
         refund_count=Count("id"),

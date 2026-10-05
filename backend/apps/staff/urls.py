@@ -6,6 +6,7 @@ from . import (
     views_finance,
     views_inventory,
     views_kds,
+    views_service_tv,
     views_lodging,
     views_offline,
     views_ops,
@@ -50,6 +51,7 @@ urlpatterns = [
     ),
     path("tables/", views_ops.StaffTablesListView.as_view(), name="staff-tables"),
     path("kitchen/", views_kds.StaffKdsQueueView.as_view(), name="staff-kds"),
+    path("service-tv/", views_service_tv.StaffServiceTvView.as_view(), name="staff-service-tv"),
     path("menu/", views_ops.StaffMenuListView.as_view(), name="staff-menu"),
     path("promotions/new/", views_promotions.StaffPromotionCreateView.as_view(), name="staff-promotion-create"),
     path(

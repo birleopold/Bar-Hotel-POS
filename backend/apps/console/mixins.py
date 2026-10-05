@@ -50,6 +50,35 @@ class ConsoleOrgAdminRequiredMixin(ConsoleTenantRequiredMixin):
                     "Only an owner or tenant admin can manage organization setup here.",
                 )
                 return redirect("console-index")
+            if t is not None and tm is not None:
+                from .services import console_business_line_flags
+
+                url_name = getattr(getattr(request, "resolver_match", None), "url_name", "") or ""
+                flags = console_business_line_flags(t)
+                try:
+                    configured_lines = list(t.settings.business_lines or [])
+                except Exception:
+                    configured_lines = []
+                if not configured_lines and url_name != "console-org-setup":
+                    messages.error(request, "Choose the business areas for this workspace first.")
+                    return redirect("console-org-setup")
+                url_name = getattr(getattr(request, "resolver_match", None), "url_name", "") or ""
+                lodging_page = url_name.startswith("console-org-room")
+                catalog_page = url_name.startswith("console-org-menu-") or url_name.startswith(
+                    "console-org-modifier-"
+                )
+                service_page = url_name.startswith("console-org-service-")
+                if lodging_page and not flags["console_has_lodging"]:
+                    messages.error(request, "Lodging is not enabled for this business.")
+                    return redirect("console-org-setup")
+                if catalog_page and not (
+                    flags["console_has_fnb"] or flags["console_has_retail"]
+                ):
+                    messages.error(request, "Item and menu setup is not enabled for this business.")
+                    return redirect("console-org-setup")
+                if service_page and not flags["console_has_services"]:
+                    messages.error(request, "Services are not enabled for this business.")
+                    return redirect("console-org-setup")
         return super().dispatch(request, *args, **kwargs)
 
 

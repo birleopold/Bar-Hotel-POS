@@ -7,7 +7,11 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+<<<<<<< HEAD
 from apps.api.permissions import CanApproveRefunds, HasTenantContext, NotReadOnlyRole
+=======
+from apps.api.permissions import CanApproveRefunds, CanUseKds, HasTenantContext, HasTenantModule, NotReadOnlyRole
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
 from apps.access.outlets import membership_outlet_ids
 from apps.audit.services import log_audit
 from .models import Order, OrderLine, Table
@@ -53,13 +57,19 @@ from .services import (
 
 
 class TableViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    required_staff_module = "pos"
     serializer_class = TableSerializer
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Table.objects.none()
+<<<<<<< HEAD
         qs = Table.objects.filter(outlet_id__in=membership_outlet_ids(self.request.tenant_membership)).select_related(
+=======
+        outlet_ids = membership_outlet_ids(self.request.tenant_membership)
+        qs = Table.objects.filter(outlet__site__tenant=self.request.tenant, outlet_id__in=outlet_ids).select_related(
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             "outlet", "outlet__site"
         )
         outlet = self.request.query_params.get("outlet")
@@ -72,13 +82,16 @@ class TableViewSet(viewsets.ModelViewSet):
 
 
 class OrderViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    required_staff_module = "pos"
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_permissions(self):
         classes = list(self.permission_classes)
         if self.action in {"refunds", "retail_line_refunds"}:
             classes.append(CanApproveRefunds)
+        if self.action == "kds_line":
+            classes.append(CanUseKds)
         return [permission() for permission in classes]
 
     def get_queryset(self):
@@ -87,8 +100,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         line_qs = OrderLine.objects.select_related("menu_item").order_by(
             "sort_order", "created_at"
         )
+        outlet_ids = membership_outlet_ids(self.request.tenant_membership)
         qs = (
+<<<<<<< HEAD
             Order.objects.filter(tenant=self.request.tenant, outlet_id__in=membership_outlet_ids(self.request.tenant_membership))
+=======
+            Order.objects.filter(tenant=self.request.tenant, outlet_id__in=outlet_ids)
+>>>>>>> c13650f (if i had a supermarket or retail shop, can the POS alone act as if its a quickbooks point of sale system without the client ever knowing there has ever been bar hotel attached, and vice versa for an independent hotel or bar)
             .select_related("outlet", "table")
             .prefetch_related(Prefetch("lines", queryset=line_qs), "payments")
             .order_by("-created_at")
@@ -229,6 +247,15 @@ class OrderViewSet(viewsets.ModelViewSet):
         line, err = order_line_or_error(order, ser.validated_data["line_id"])
         if err:
             return err
+        from apps.accounts.models import MembershipRole
+
+        role = request.tenant_membership.role
+        bar_stations = {"bar", "drinks", "beverage", "bartender"}
+        is_bar_line = (line.kds_station or "").strip().lower() in bar_stations
+        if role == MembershipRole.BARTENDER and not is_bar_line:
+            return Response({"error": {"code": "station_forbidden", "message": "Bar staff can only update drink prep tickets."}}, status=status.HTTP_403_FORBIDDEN)
+        if role == MembershipRole.KITCHEN and is_bar_line:
+            return Response({"error": {"code": "station_forbidden", "message": "Kitchen staff cannot update drink prep tickets."}}, status=status.HTTP_403_FORBIDDEN)
         update_order_line_kds_status(
             order=order,
             line=line,

@@ -47,6 +47,19 @@ class MenuItem(TimeStampedModel):
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    is_featured = models.BooleanField(
+        default=False,
+        help_text="Include this item in rotating Service TV menu highlights.",
+    )
+    display_image_url = models.URLField(
+        blank=True,
+        help_text="Optional public image URL used on guest-facing and Service TV displays.",
+    )
+    availability_note = models.CharField(
+        max_length=160,
+        blank=True,
+        help_text="Optional short guest-facing availability note, such as 'Available until 4 PM'.",
+    )
     sku = models.CharField(max_length=64, blank=True)
     barcode = models.CharField(
         max_length=64,
