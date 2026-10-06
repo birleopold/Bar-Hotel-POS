@@ -167,6 +167,48 @@ class ConsoleAccessTests(TestCase):
         s[STAFF_SESSION_TENANT_KEY] = str(self.tenant.id)
         s.save()
 
+    def test_platform_operator_can_switch_console_workspace_without_membership(self) -> None:
+        user = User.objects.create_superuser(
+            email="co-platform-switch@test.local",
+            password="TestPass9!",
+        )
+        second_tenant = Tenant.objects.create(name="Second Console Org", slug="second-console-org")
+        TenantSettings.objects.create(
+            tenant=second_tenant,
+            business_lines=["bar"],
+            enabled_staff_modules=["pos", "workspace"],
+        )
+        self.client.force_login(user)
+
+        home = self.client.get(reverse("console-index"))
+        self.assertEqual(home.status_code, 200)
+        self.assertContains(home, "Switch workspace")
+        self.assertContains(home, "Second Console Org")
+
+        switched = self.client.post(
+            reverse("console-select-tenant"),
+            {"tenant_id": str(second_tenant.id), "next": reverse("console-index")},
+        )
+        self.assertEqual(switched.status_code, 302)
+        self.assertEqual(self.client.session[STAFF_SESSION_TENANT_KEY], str(second_tenant.id))
+
+        home = self.client.get(reverse("console-index"))
+        self.assertEqual(home.status_code, 200)
+        self.assertEqual(home.context["active_tenant"], second_tenant)
+        self.assertContains(home, "Active workspace:</strong> Second Console Org")
+        organization = self.client.get(reverse("console-org"))
+        self.assertEqual(organization.status_code, 200)
+
+    def test_non_platform_user_cannot_switch_to_workspace_without_membership(self) -> None:
+        user = User.objects.create_user(email="co-switch-denied@test.local", password="TestPass9!")
+        self.client.force_login(user)
+        response = self.client.post(
+            reverse("console-select-tenant"),
+            {"tenant_id": str(self.tenant.id)},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn(STAFF_SESSION_TENANT_KEY, self.client.session)
+
     def test_org_overview_redirects_without_tenant_session(self) -> None:
         user = User.objects.create_user(email="co-no-tenant@test.local", password="TestPass9!")
         Membership.objects.create(

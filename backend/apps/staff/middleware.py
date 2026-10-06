@@ -117,6 +117,11 @@ class StaffSessionTenantMiddleware:
             .first()
         )
         if membership is None:
+            if path.startswith("/console/"):
+                from apps.console.mixins import user_is_platform_operator
+
+                if user_is_platform_operator(request.user):
+                    request.tenant = Tenant.objects.filter(pk=tenant_uuid, is_active=True).first()
             return self.get_response(request)
 
         request.tenant = membership.tenant

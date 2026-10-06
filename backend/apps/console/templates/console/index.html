@@ -2,7 +2,7 @@
 {% block title %}Console home{% endblock %}
 {% block content %}
   <h1 class="staff-page-title">Console<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <p class="staff-lead">Organization setup, catalog, and lodging configuration. Pick a workspace on Staff first, then open Organization.</p>
+  <p class="staff-lead">Manage organization settings and switch the workspace you are administering.</p>
   {% if active_tenant and can_org_admin %}
     <div class="staff-card staff-card--soft mb-4">
       <p class="mb-2"><strong>Active workspace:</strong> {{ active_tenant.name }}</p>
@@ -10,10 +10,25 @@
     </div>
   {% elif active_tenant and not can_org_admin %}
     <div class="staff-alert staff-alert--warning">Your role cannot manage organization setup. Use Staff for day-to-day work.</div>
+  {% elif is_platform_operator %}
+    <div class="staff-alert staff-alert--info">Choose an active workspace below to administer its organization settings.</div>
   {% else %}
     <div class="staff-alert staff-alert--info">Choose a workspace from the <a href="{% url 'staff-dashboard' %}">Staff home</a> page, then return here.</div>
   {% endif %}
-  {% if memberships|length > 1 %}
+  {% if is_platform_operator and platform_tenants %}
+    <h2 class="staff-section-title">Switch workspace</h2>
+    <form method="post" action="{% url 'console-select-tenant' %}" class="staff-card">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'console-index' %}">
+      <label class="staff-label" for="ctenant">Workspace</label>
+      <select class="staff-input mb-3" id="ctenant" name="tenant_id" required>
+        {% for tenant in platform_tenants %}
+          <option value="{{ tenant.id }}"{% if active_tenant and tenant.id == active_tenant.id %} selected{% endif %}>{{ tenant.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="staff-btn staff-btn--primary">Switch workspace</button>
+    </form>
+  {% elif memberships|length > 1 %}
     <h2 class="staff-section-title">Switch workspace</h2>
     <form method="post" action="{% url 'console-select-tenant' %}" class="staff-card">
       {% csrf_token %}
@@ -24,7 +39,7 @@
           <option value="{{ m.tenant_id }}"{% if active_tenant and m.tenant_id == active_tenant.id %} selected{% endif %}>{{ m.tenant.name }}</option>
         {% endfor %}
       </select>
-      <button type="submit" class="staff-btn staff-btn--primary">Switch</button>
+      <button type="submit" class="staff-btn staff-btn--primary">Switch workspace</button>
     </form>
   {% endif %}
   {% if is_platform_operator %}

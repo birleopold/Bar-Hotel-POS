@@ -27,7 +27,10 @@ class ConsoleTenantRequiredMixin(ConsoleLoginMixin):
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return super().dispatch(request, *args, **kwargs)
-        if not getattr(request, "tenant", None) or not getattr(request, "tenant_membership", None):
+        has_tenant_scope = bool(getattr(request, "tenant", None))
+        has_member_access = bool(getattr(request, "tenant_membership", None))
+        platform_scope = user_is_platform_operator(request.user) and has_tenant_scope
+        if not has_tenant_scope or (not has_member_access and not platform_scope):
             messages.info(
                 request,
                 "Choose a workspace on the Staff home page first, then open Console again.",
@@ -44,7 +47,12 @@ class ConsoleOrgAdminRequiredMixin(ConsoleTenantRequiredMixin):
         if request.user.is_authenticated:
             tm = getattr(request, "tenant_membership", None)
             t = getattr(request, "tenant", None)
-            if t is not None and tm is not None and not membership_can_manage_org_console(tm):
+            if (
+                t is not None
+                and tm is not None
+                and not user_is_platform_operator(request.user)
+                and not membership_can_manage_org_console(tm)
+            ):
                 messages.error(
                     request,
                     "Only an owner or tenant admin can manage organization setup here.",

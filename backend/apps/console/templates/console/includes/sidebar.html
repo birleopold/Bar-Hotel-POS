@@ -8,7 +8,20 @@
   </div>
 
   {% if request.user.is_authenticated %}
-    {% if console_memberships|length > 1 %}
+    {% if console_is_platform_operator and console_platform_tenants %}
+      <div class="staff-sidebar__scope">
+        <form method="post" action="{% url 'console-select-tenant' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <label for="console-tenant-select">Active workspace</label>
+          <select id="console-tenant-select" name="tenant_id" onchange="this.form.submit()">
+            {% for tenant in console_platform_tenants %}
+              <option value="{{ tenant.id }}"{% if console_active_tenant and tenant.id == console_active_tenant.id %} selected{% endif %}>{{ tenant.name }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+    {% elif console_memberships|length > 1 %}
       <div class="staff-sidebar__scope">
         <form method="post" action="{% url 'console-select-tenant' %}">
           {% csrf_token %}
