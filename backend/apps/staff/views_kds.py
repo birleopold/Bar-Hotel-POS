@@ -122,6 +122,7 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
                     "current_outlet": None,
                     "station_filter": station,
                     "kds_orders": [],
+                    "kds_summary": {"tickets": 0, "lines": 0, "pending": 0, "in_prep": 0, "ready": 0},
                     "can_modify_kds": membership_can_manage_kitchen(request.tenant_membership),
                     "prep_scope_label": _prep_scope_label(request.tenant_membership.role),
                 },
@@ -154,9 +155,17 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
         )
 
         kds_orders = []
+        kds_summary = {"tickets": 0, "lines": 0, "pending": 0, "in_prep": 0, "ready": 0}
         for o in orders:
             lines_out = []
             for ln in o.lines.all():
+                kds_summary["lines"] += 1
+                if ln.kds_status == KdsLineStatus.PENDING:
+                    kds_summary["pending"] += 1
+                elif ln.kds_status == KdsLineStatus.IN_PREP:
+                    kds_summary["in_prep"] += 1
+                elif ln.kds_status == KdsLineStatus.READY:
+                    kds_summary["ready"] += 1
                 lines_out.append(
                     {
                         "line": ln,
@@ -166,6 +175,7 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
                 )
             if lines_out:
                 kds_orders.append({"order": o, "lines": lines_out})
+        kds_summary["tickets"] = len(kds_orders)
 
         return render(
             request,
@@ -176,6 +186,7 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
                 "current_outlet": outlet,
                 "station_filter": station,
                 "kds_orders": kds_orders,
+                "kds_summary": kds_summary,
                 "can_modify_kds": membership_can_manage_kitchen(request.tenant_membership),
                 "prep_scope_label": _prep_scope_label(request.tenant_membership.role),
             },
