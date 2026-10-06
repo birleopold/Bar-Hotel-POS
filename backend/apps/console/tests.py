@@ -394,6 +394,59 @@ class ConsoleAccessTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Customer workspaces")
 
+    def test_platform_tenant_list_filters_and_shows_workspace_metrics(self) -> None:
+        user = User.objects.create_user(
+            email="co-platform-filter@test.local",
+            password="TestPass9!",
+            is_platform_staff=True,
+        )
+        paused = Tenant.objects.create(name="Paused Shop", slug="paused-shop", is_active=False)
+        Plan.objects.create(name="Filter Plan", code="filter-plan")
+        TenantSubscription.objects.create(
+            tenant=self.tenant,
+            plan=Plan.objects.get(code="filter-plan"),
+            status=SubscriptionStatus.ACTIVE,
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("console-platform-tenants"), {"q": "paused", "active": "paused"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Paused Shop")
+        self.assertNotContains(response, "Sync Org")
+        self.assertEqual(response.context["tenant_total"], 2)
+        self.assertEqual(response.context["tenant_active"], 1)
+        self.assertEqual(response.context["tenant_paused"], 1)
+        self.assertEqual(response.context["object_list"].count(), 1)
+        self.assertEqual(response.context["object_list"][0].id, paused.id)
+
+    def test_platform_operator_can_pause_and_restore_tenant_access_with_audit(self) -> None:
+        user = User.objects.create_user(
+            email="co-platform-pause@test.local",
+            password="TestPass9!",
+            is_platform_staff=True,
+        )
+        self.client.force_login(user)
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": self.tenant.id})
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Pause workspace")
+        paused = self.client.post(url, {"toggle_tenant_access": "1"})
+        self.assertEqual(paused.status_code, 302)
+        self.tenant.refresh_from_db()
+        self.assertFalse(self.tenant.is_active)
+        pause_event = BillingEvent.objects.get(tenant=self.tenant, metadata__action="tenant_access_changed")
+        self.assertTrue(pause_event.metadata["previous_is_active"])
+        self.assertFalse(pause_event.metadata["is_active"])
+        self.assertEqual(pause_event.actor_id, user.id)
+
+        restored = self.client.post(url, {"toggle_tenant_access": "1"})
+        self.assertEqual(restored.status_code, 302)
+        self.tenant.refresh_from_db()
+        self.assertTrue(self.tenant.is_active)
+        self.assertEqual(
+            BillingEvent.objects.filter(tenant=self.tenant, metadata__action="tenant_access_changed").count(),
+            2,
+        )
+
     def test_platform_operator_can_manage_plans(self) -> None:
         user = User.objects.create_user(
             email="co-plan@test.local",

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -47,7 +47,7 @@ class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
     paginate_by = 30
 
     def get_queryset(self):
-        return (
+        qs = (
             Tenant.objects.annotate(
                 site_count=Count("sites", distinct=True),
                 member_count=Count("memberships", distinct=True),
@@ -55,6 +55,36 @@ class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
             .select_related("subscription", "subscription__plan")
             .order_by("name")
         )
+        query = (self.request.GET.get("q") or "").strip()
+        active = (self.request.GET.get("active") or "").strip()
+        subscription_status = (self.request.GET.get("subscription") or "").strip()
+        if query:
+            qs = qs.filter(Q(name__icontains=query) | Q(slug__icontains=query))
+        if active == "active":
+            qs = qs.filter(is_active=True)
+        elif active == "paused":
+            qs = qs.filter(is_active=False)
+        if subscription_status == "none":
+            qs = qs.filter(subscription__isnull=True)
+        elif subscription_status in {value for value, _ in SubscriptionStatus.choices}:
+            qs = qs.filter(subscription__status=subscription_status)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        tenants = Tenant.objects.all()
+        ctx["tenant_total"] = tenants.count()
+        ctx["tenant_active"] = tenants.filter(is_active=True).count()
+        ctx["tenant_paused"] = tenants.filter(is_active=False).count()
+        ctx["tenant_needs_attention"] = tenants.filter(
+            Q(subscription__status__in=[SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED])
+            | Q(subscription__isnull=True),
+        ).distinct().count()
+        ctx["search_query"] = (self.request.GET.get("q") or "").strip()
+        ctx["active_filter"] = (self.request.GET.get("active") or "").strip()
+        ctx["subscription_filter"] = (self.request.GET.get("subscription") or "").strip()
+        ctx["subscription_statuses"] = SubscriptionStatus.choices
+        return ctx
 
 
 class PlatformTenantCreateView(PlatformOperatorRequiredMixin, CreateView):
@@ -330,6 +360,22 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
         )
 
     def post(self, request, *args, **kwargs):
+        if "toggle_tenant_access" in request.POST:
+            was_active = self.tenant_obj.is_active
+            self.tenant_obj.is_active = not was_active
+            self.tenant_obj.save(update_fields=["is_active", "updated_at"])
+            action = "restored" if self.tenant_obj.is_active else "paused"
+            self._event(
+                event_type=BillingEventType.NOTE,
+                message=f"Workspace access {action} by platform operator.",
+                metadata={
+                    "action": "tenant_access_changed",
+                    "previous_is_active": was_active,
+                    "is_active": self.tenant_obj.is_active,
+                },
+            )
+            messages.success(request, f"Workspace access {action}.")
+            return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
         if "provision_supermarket" in request.POST:
             self._provision_supermarket_tenant()
             messages.success(request, "Supermarket workspace baseline provisioned.")

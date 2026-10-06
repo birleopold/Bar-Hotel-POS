@@ -4,7 +4,18 @@
 {% block content %}
   <p class="staff-muted"><a href="{% url 'console-platform-tenants' %}">Workspaces</a> · <a href="{% url 'console-platform-tenant-edit' tenant_id=tenant_obj.id %}">Edit workspace</a></p>
   <h1 class="staff-page-title">{{ tenant_obj.name }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <p class="staff-muted">Slug <code>{{ tenant_obj.slug }}</code> · {% if tenant_obj.is_active %}Active{% else %}Inactive{% endif %}</p>
+  <p class="staff-muted">Slug <code>{{ tenant_obj.slug }}</code> · {% if tenant_obj.is_active %}Workspace access is active{% else %}Workspace access is paused{% endif %}</p>
+
+  <section class="staff-card mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <h2 class="h5 mb-1">Workspace access</h2>
+      <p class="staff-muted small mb-0">{% if tenant_obj.is_active %}Pausing blocks this workspace while keeping its records available for later restoration.{% else %}Restore access to let this workspace sign in and resume operations.{% endif %}</p>
+    </div>
+    <form method="post" onsubmit="return confirm('{% if tenant_obj.is_active %}Pause this workspace? Its data will be kept and access can be restored later.{% else %}Restore access for this workspace?{% endif %}');">
+      {% csrf_token %}
+      <button type="submit" name="toggle_tenant_access" value="1" class="staff-btn {% if tenant_obj.is_active %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}">{% if tenant_obj.is_active %}Pause workspace{% else %}Restore workspace{% endif %}</button>
+    </form>
+  </section>
 
   {% if has_past_due_invoice %}
     <div class="staff-card mb-3" style="border-left: 4px solid #c45c3e;">

@@ -1,51 +1,84 @@
 {% extends "console/base.html" %}
 {% block title %}Workspaces{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
+{% block extra_css %}
+<style>
+  .platform-overview { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:20px 0; }
+  .platform-metric { padding:18px 20px; border:1px solid var(--staff-border,#e5e7eb); border-radius:16px; background:var(--staff-surface,#fff); }
+  .platform-metric__label { display:block; color:var(--staff-muted,#6b7280); font-size:.82rem; }
+  .platform-metric__value { display:block; margin-top:4px; font-size:1.8rem; line-height:1.15; font-weight:700; }
+  .platform-filters { display:grid; grid-template-columns:minmax(200px,1fr) 180px 190px auto auto; gap:10px; align-items:end; }
+  .platform-table td { vertical-align:middle; }
+  .platform-actions { white-space:nowrap; }
+  .platform-pill { display:inline-flex; align-items:center; border-radius:999px; padding:4px 10px; font-size:.78rem; font-weight:650; background:#eaf7ef; color:#17653a; }
+  .platform-pill--paused { background:#fff1e8; color:#98501b; }
+  @media (max-width:900px) { .platform-overview { grid-template-columns:repeat(2,minmax(0,1fr)); } .platform-filters { grid-template-columns:1fr 1fr; } }
+  @media (max-width:560px) { .platform-overview { gap:8px; } .platform-metric { padding:13px; } .platform-filters { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
 {% block content %}
   <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Customer workspaces<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-platform-tenant-create' %}">New workspace</a>
+    <div>
+      <p class="staff-muted mb-1">PLATFORM OPERATIONS</p>
+      <h1 class="staff-page-title mb-0">Customer workspaces<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    </div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-platform-tenant-create' %}">Create workspace</a>
   </div>
+
+  <section class="platform-overview" aria-label="Workspace summary">
+    <div class="platform-metric"><span class="platform-metric__label">All workspaces</span><strong class="platform-metric__value">{{ tenant_total }}</strong></div>
+    <div class="platform-metric"><span class="platform-metric__label">Active access</span><strong class="platform-metric__value">{{ tenant_active }}</strong></div>
+    <div class="platform-metric"><span class="platform-metric__label">Paused access</span><strong class="platform-metric__value">{{ tenant_paused }}</strong></div>
+    <div class="platform-metric"><span class="platform-metric__label">Needs attention</span><strong class="platform-metric__value">{{ tenant_needs_attention }}</strong></div>
+  </section>
+
+  <section class="staff-card mb-3">
+    <form method="get" class="platform-filters">
+      <label>Search workspace
+        <input class="staff-input" type="search" name="q" value="{{ search_query }}" placeholder="Name or workspace slug">
+      </label>
+      <label>Access
+        <select class="staff-input" name="active">
+          <option value="">Any status</option>
+          <option value="active" {% if active_filter == 'active' %}selected{% endif %}>Active</option>
+          <option value="paused" {% if active_filter == 'paused' %}selected{% endif %}>Paused</option>
+        </select>
+      </label>
+      <label>Subscription
+        <select class="staff-input" name="subscription">
+          <option value="">Any subscription</option>
+          {% for value,label in subscription_statuses %}<option value="{{ value }}" {% if subscription_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          <option value="none" {% if subscription_filter == 'none' %}selected{% endif %}>No subscription</option>
+        </select>
+      </label>
+      <button class="staff-btn staff-btn--primary" type="submit">Filter</button>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-platform-tenants' %}">Reset</a>
+    </form>
+  </section>
+
   <div class="staff-table-wrap">
-    <table class="staff-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Slug</th>
-          <th>Active</th>
-          <th>Sites</th>
-          <th>Members</th>
-          <th>Plan</th>
-          <th>Subscription</th>
-          <th></th>
-        </tr>
-      </thead>
+    <table class="staff-table platform-table">
+      <thead><tr><th>Workspace</th><th>Access</th><th>Sites</th><th>Team</th><th>Plan</th><th>Subscription</th><th>Manage</th></tr></thead>
       <tbody>
         {% for t in tenants %}
           <tr>
-            <td>{{ t.name }}</td>
-            <td><code>{{ t.slug }}</code></td>
-            <td>{% if t.is_active %}Yes{% else %}No{% endif %}</td>
+            <td><strong>{{ t.name }}</strong><br><code>{{ t.slug }}</code></td>
+            <td>{% if t.is_active %}<span class="platform-pill">Active</span>{% else %}<span class="platform-pill platform-pill--paused">Paused</span>{% endif %}</td>
             <td>{{ t.site_count }}</td>
             <td>{{ t.member_count }}</td>
-            <td>{% if t.subscription and t.subscription.plan %}{{ t.subscription.plan.name }}{% else %}—{% endif %}</td>
-            <td>{% if t.subscription %}{{ t.subscription.get_status_display }}{% else %}—{% endif %}</td>
-            <td>
-              <a href="{% url 'console-platform-tenant-control-plane' tenant_id=t.id %}">Control plane</a>
-              · <a href="{% url 'console-platform-tenant-edit' tenant_id=t.id %}">Edit</a>
-            </td>
+            <td>{% if t.subscription and t.subscription.plan %}{{ t.subscription.plan.name }}{% else %}<span class="staff-muted">Unassigned</span>{% endif %}</td>
+            <td>{% if t.subscription %}{{ t.subscription.get_status_display }}{% else %}<span class="staff-muted">Not set up</span>{% endif %}</td>
+            <td class="platform-actions"><a class="staff-btn staff-btn--ghost staff-btn--sm" href="{% url 'console-platform-tenant-control-plane' tenant_id=t.id %}">Manage</a> <a href="{% url 'console-platform-tenant-edit' tenant_id=t.id %}">Edit</a></td>
           </tr>
-        {% empty %}
-          <tr><td colspan="8" class="staff-muted">No workspaces.</td></tr>
-        {% endfor %}
+        {% empty %}<tr><td colspan="7" class="staff-muted">No workspaces match these filters.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
   {% if is_paginated %}
     <nav class="staff-muted mt-3" aria-label="Pagination">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?q={{ search_query|urlencode }}&active={{ active_filter|urlencode }}&subscription={{ subscription_filter|urlencode }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
       <span class="mx-2">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?q={{ search_query|urlencode }}&active={{ active_filter|urlencode }}&subscription={{ subscription_filter|urlencode }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}
     </nav>
   {% endif %}
 {% endblock %}
