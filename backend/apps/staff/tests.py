@@ -2416,6 +2416,88 @@ class StaffKdsRealtimeUiTests(TestCase):
             self.assertContains(r, "Full screen")
             self.assertContains(r, 'aria-label="Display mode"')
 
+    def test_service_tv_employee_awards_use_net_paid_sales_and_order_count(self) -> None:
+        top_server = User.objects.create_user(
+            email="award-top@test.local",
+            password="TestPass9!",
+            first_name="Taylor",
+            last_name="Server",
+        )
+        other_server = User.objects.create_user(
+            email="award-other@test.local",
+            password="TestPass9!",
+            first_name="Alex",
+            last_name="Server",
+        )
+        Membership.objects.create(user=top_server, tenant=self.tenant, role=MembershipRole.SERVER)
+        Membership.objects.create(user=other_server, tenant=self.tenant, role=MembershipRole.SERVER)
+
+        top_order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=top_server,
+            status=OrderStatus.CLOSED,
+            is_paid=True,
+            subtotal=Decimal("100.00"),
+            total=Decimal("100.00"),
+            currency="USD",
+        )
+        top_payment = Payment.objects.create(
+            tenant=self.tenant,
+            order=top_order,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.CASH,
+            idempotency_key="award-top-payment",
+            recorded_by=top_server,
+        )
+        Refund.objects.create(
+            tenant=self.tenant,
+            order=top_order,
+            payment=top_payment,
+            amount=Decimal("15.00"),
+            idempotency_key="award-top-refund",
+            recorded_by=top_server,
+        )
+        other_order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=other_server,
+            status=OrderStatus.CLOSED,
+            is_paid=True,
+            subtotal=Decimal("70.00"),
+            total=Decimal("70.00"),
+            currency="USD",
+        )
+        Payment.objects.create(
+            tenant=self.tenant,
+            order=other_order,
+            amount=Decimal("70.00"),
+            method=PaymentMethod.CASH,
+            idempotency_key="award-other-payment",
+            recorded_by=other_server,
+        )
+        unpaid_order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=other_server,
+            status=OrderStatus.OPEN,
+            is_paid=False,
+            subtotal=Decimal("1000.00"),
+            total=Decimal("1000.00"),
+            currency="USD",
+        )
+
+        response = self.client.get(reverse("staff-service-tv"), {"mode": "floor"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Employee of the week")
+        self.assertContains(response, "Employee of the month")
+        self.assertContains(response, "Taylor Server")
+        self.assertNotContains(response, unpaid_order.bill_reference)
+        self.assertEqual(response.context["employee_of_week"]["name"], "Taylor Server")
+        self.assertEqual(response.context["employee_of_week"]["orders"], 1)
+        self.assertEqual(response.context["employee_of_week"]["sales"], Decimal("85.00"))
+        self.assertEqual(response.context["employee_of_month"]["name"], "Taylor Server")
+
     def test_service_tv_rejects_pinned_outlet_outside_membership_scope(self) -> None:
         foreign_tenant = Tenant.objects.create(name="Foreign", slug="foreign-tv-outlet")
         TenantSettings.objects.create(tenant=foreign_tenant, business_lines=["bar"], enabled_staff_modules=["pos"])
@@ -2449,6 +2531,8 @@ class StaffKdsRealtimeUiTests(TestCase):
         self.assertContains(r, "Ready salad")
         self.assertNotContains(r, "Soup")
         self.assertNotContains(r, "Service leaderboard")
+        self.assertNotContains(r, "Employee of the week")
+        self.assertNotContains(r, "Employee of the month")
         self.assertNotContains(r, self.user.email)
         self.assertNotContains(r, "sold")
 

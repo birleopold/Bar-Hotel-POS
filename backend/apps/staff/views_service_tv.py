@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import time
+from datetime import time, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db.models import Count, Q, Sum
@@ -11,7 +11,7 @@ from django.views import View
 
 from apps.accounts.models import MembershipRole
 from apps.catalog.models import MenuItem, Promotion
-from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus, Payment
+from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus, Payment, Refund
 
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
@@ -60,6 +60,9 @@ class StaffServiceTvView(StaffTenantRequiredMixin, View):
             goal = Decimal("0")
         now = timezone.localtime()
         day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = day_start - timedelta(days=now.weekday())
+        week_end = week_start + timedelta(days=6)
+        month_start = day_start.replace(day=1)
         promo_clock = timezone.localtime()
         daypart = (
             "Breakfast" if time(5) <= now.time() < time(11)
@@ -87,6 +90,11 @@ class StaffServiceTvView(StaffTenantRequiredMixin, View):
             "orders_prep_cards": [],
             "orders_ready_cards": [],
             "leaderboard": [],
+            "employee_of_week": None,
+            "employee_of_month": None,
+            "employee_week_start": week_start.date(),
+            "employee_week_end": week_end.date(),
+            "employee_month_date": now.date(),
             "popular_items": [],
             "featured_items": [],
             "promotions": [],
@@ -168,6 +176,25 @@ class StaffServiceTvView(StaffTenantRequiredMixin, View):
                 }
                 for row in ranking
             ]
+            award_roles = request.tenant.memberships.filter(
+                is_active=True,
+                role__in=[MembershipRole.SERVER, MembershipRole.BARTENDER, MembershipRole.FRONT_DESK],
+            ).values("user_id")
+            award_period_end = now + timedelta(microseconds=1)
+            context["employee_of_week"] = self._employee_award(
+                tenant_id=request.tenant.id,
+                outlet_id=outlet.id,
+                role_user_ids=award_roles,
+                period_start=week_start,
+                period_end=award_period_end,
+            )
+            context["employee_of_month"] = self._employee_award(
+                tenant_id=request.tenant.id,
+                outlet_id=outlet.id,
+                role_user_ids=award_roles,
+                period_start=month_start,
+                period_end=award_period_end,
+            )
             goal_sales = Payment.objects.filter(
                 tenant=request.tenant,
                 order__outlet=outlet,
@@ -223,8 +250,53 @@ class StaffServiceTvView(StaffTenantRequiredMixin, View):
                 context["goal_sales"] = Decimal("0")
                 context["goal_progress"] = 0
                 context["popular_items"] = []
+                context["employee_of_week"] = None
+                context["employee_of_month"] = None
 
         return render(request, "staff/service_tv.html", context)
+
+    @staticmethod
+    def _employee_award(*, tenant_id, outlet_id, role_user_ids, period_start, period_end):
+        paid_orders = Order.objects.filter(
+            tenant_id=tenant_id,
+            outlet_id=outlet_id,
+            status=OrderStatus.CLOSED,
+            is_paid=True,
+            created_by_id__in=role_user_ids,
+        )
+        payments = Payment.objects.filter(
+            tenant_id=tenant_id,
+            order__in=paid_orders,
+            created_at__gte=period_start,
+            created_at__lt=period_end,
+        )
+        sales_rows = payments.values(
+            "order__created_by_id",
+            "order__created_by__first_name",
+            "order__created_by__last_name",
+            "order__created_by__email",
+        ).annotate(orders=Count("order_id", distinct=True), gross_sales=Sum("amount"))
+        refund_rows = Refund.objects.filter(
+            tenant_id=tenant_id,
+            order__in=paid_orders,
+            created_at__gte=period_start,
+            created_at__lt=period_end,
+        ).values("order__created_by_id").annotate(refunds=Sum("amount"))
+        refunds_by_employee = {row["order__created_by_id"]: row["refunds"] for row in refund_rows}
+
+        candidates = []
+        for row in sales_rows:
+            employee_id = row["order__created_by_id"]
+            name = (
+                f"{row['order__created_by__first_name']} {row['order__created_by__last_name']}".strip()
+                or (row["order__created_by__email"] or "").split("@")[0]
+                or "Team member"
+            )
+            net_sales = (row["gross_sales"] or Decimal("0")) - refunds_by_employee.get(employee_id, Decimal("0"))
+            if net_sales > 0 and row["orders"]:
+                candidates.append({"name": name, "orders": row["orders"], "sales": net_sales})
+        candidates.sort(key=lambda person: (-person["sales"], -person["orders"], person["name"].casefold()))
+        return candidates[0] if candidates else None
 
     @staticmethod
     def _station_group(station: str) -> str:
