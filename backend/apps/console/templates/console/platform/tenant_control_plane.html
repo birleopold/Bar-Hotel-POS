@@ -45,7 +45,7 @@
                 <td><strong>{{ domain.hostname }}</strong>{% if domain.is_primary %}<br><span class="staff-muted small">Primary address</span>{% endif %}
                   {% if domain.kind == 'custom' and domain.status == 'pending' %}
                     <div class="small mt-2">Add TXT <code>_hotelnbarmgmt.{{ domain.hostname }}</code><br>Value <code>hotelnbarmgmt-domain-verification={{ domain.verification_token }}</code></div>
-                    <div class="small mt-1">Route traffic to <code>{{ domain_target|default:"your app's public ingress" }}</code> and add this hostname to production <code>ALLOWED_HOSTS</code>.</div>
+                    <div class="small mt-1">Create a CNAME from <code>{{ domain.hostname }}</code> to <code>{{ domain_target|default:"your app's public ingress" }}</code>. For an apex domain, use your DNS provider’s ALIAS/flattening or ingress instructions. Add this hostname to production <code>ALLOWED_HOSTS</code>.</div>
                   {% endif %}
                 </td>
                 <td>{{ domain.get_kind_display }}</td>

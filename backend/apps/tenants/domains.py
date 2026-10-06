@@ -83,6 +83,13 @@ def create_platform_domain(tenant: Tenant) -> TenantDomain | None:
 
 def begin_custom_domain_verification(tenant: Tenant, hostname: str) -> TenantDomain:
     hostname = normalize_hostname(hostname)
+    central_hosts = {
+        normalize_hostname(host)
+        for host in getattr(settings, "TENANT_CENTRAL_HOSTS", ())
+        if host and not host.startswith(("[", ".", "*."))
+    }
+    if hostname in central_hosts:
+        raise ValidationError("This hostname is reserved for the platform's own system address.")
     suffix = platform_domain_suffix()
     if suffix and (hostname == suffix or hostname.endswith(f".{suffix}")):
         raise ValidationError("Use the platform subdomain option for domains under the platform domain.")
@@ -112,14 +119,16 @@ def verify_custom_domain(domain: TenantDomain) -> bool:
         return False
     try:
         import dns.resolver
-
+    except ImportError as exc:
+        raise RuntimeError("Install the backend requirements to enable DNS ownership checks.") from exc
+    try:
         answers = dns.resolver.resolve(f"_hotelnbarmgmt.{domain.hostname}", "TXT", lifetime=5)
-        expected = f"hotelnbarmgmt-domain-verification={domain.verification_token}"
-        found = any(expected in "".join(
-            part.decode() if isinstance(part, bytes) else str(part) for part in answer.strings
-        ) for answer in answers)
     except Exception:
         return False
+    expected = f"hotelnbarmgmt-domain-verification={domain.verification_token}"
+    found = any(expected in "".join(
+        part.decode() if isinstance(part, bytes) else str(part) for part in answer.strings
+    ) for answer in answers)
     if not found:
         return False
     domain.status = TenantDomain.Status.VERIFIED

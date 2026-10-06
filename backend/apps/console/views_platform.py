@@ -397,7 +397,12 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
                 pk=request.POST.get("domain_id"), tenant=self.tenant_obj,
                 kind=TenantDomain.Kind.CUSTOM,
             ).first()
-            if domain and verify_custom_domain(domain):
+            try:
+                verified = bool(domain and verify_custom_domain(domain))
+            except RuntimeError as exc:
+                messages.error(request, str(exc))
+                return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+            if verified:
                 self._event(event_type=BillingEventType.NOTE, message=f"Custom domain ownership verified: {domain.hostname}.", metadata={"action": "domain_verified", "hostname": domain.hostname})
                 messages.success(request, f"Ownership verified for {domain.hostname}. Set up TLS and host routing before activating it.")
             else:
@@ -412,6 +417,8 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
                 messages.error(request, "Verify ownership before activating a custom domain.")
             elif request.POST.get("tls_confirmed") != "on":
                 messages.error(request, "Confirm that DNS routing and HTTPS are active before enabling this domain.")
+            elif domain.hostname in settings.TENANT_CENTRAL_HOSTS:
+                messages.error(request, "This hostname is reserved for the platform. Remove it from TENANT_CENTRAL_HOSTS only if it is no longer the system address.")
             elif not validate_host(domain.hostname, settings.ALLOWED_HOSTS):
                 messages.error(request, "Add this hostname to production ALLOWED_HOSTS and reload the app before activation.")
             else:

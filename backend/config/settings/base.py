@@ -28,9 +28,10 @@ TENANT_PLATFORM_DOMAIN = env("TENANT_PLATFORM_DOMAIN", default="").strip().lower
 TENANT_DOMAIN_TARGET = env("TENANT_DOMAIN_TARGET", default=TENANT_PLATFORM_DOMAIN).strip().lower().rstrip(".")
 if TENANT_PLATFORM_DOMAIN:
     ALLOWED_HOSTS = [*ALLOWED_HOSTS, f".{TENANT_PLATFORM_DOMAIN}"]
-TENANT_CENTRAL_HOSTS = env.list(
+_tenant_central_hosts = env.list(
     "TENANT_CENTRAL_HOSTS", default=[host for host in ALLOWED_HOSTS if not host.startswith(".")]
 )
+TENANT_CENTRAL_HOSTS = [host.strip().lower().rstrip(".") for host in _tenant_central_hosts]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
