@@ -8,40 +8,34 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20261006.3">
 </head>
 <body class="staff-body">
-  <div class="staff-login-split-wrap">
-    <div class="staff-login-visual" aria-hidden="true">
-      <figure class="staff-photo-hero">
-        <img src="https://images.unsplash.com/photo-1559339352-11d035aa65de?w=1200&q=80" alt="" width="1200" height="800" loading="lazy" decoding="async">
-      </figure>
+  <main class="staff-login-screen">
+    <section class="staff-login-card" aria-labelledby="staff-login-title">
+      <div class="staff-login-brand"><span class="staff-login-brand__mark" aria-hidden="true">S</span><span><strong>Staff workspace</strong><small>SECURE SIGN IN</small></span></div>
+      <div class="staff-login-intro"><p>Welcome back</p><h1 id="staff-login-title">Sign in</h1><span>Use your account to continue to your workspace.</span></div>
+      <form method="post" action="{% url 'staff-login' %}" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <div class="mb-3">
+          <label class="staff-label" for="id_username">Email</label>
+          {{ form.username }}
+          {% if form.username.errors %}<div class="staff-alert staff-alert--danger">{{ form.username.errors }}</div>{% endif %}
+        </div>
+        <div class="mb-3">
+          <label class="staff-label" for="id_password">Password</label>
+          {{ form.password }}
+          {% if form.password.errors %}<div class="staff-alert staff-alert--danger">{{ form.password.errors }}</div>{% endif %}
+        </div>
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="staff-btn staff-btn--primary">Sign in</button>
+      </form>
+      <p class="staff-terminal__login-link"><a href="{% url 'staff-terminal' %}">Use worker PIN on this terminal</a></p>
+      <p class="staff-login-secure"><span aria-hidden="true">●</span> Your account keeps your work private.</p>
     </div>
-    <div class="staff-login-form-column">
-      <div class="staff-login-card">
-        <h1>Sign in</h1>
-        <p class="staff-lead">Staff workspace</p>
-        <form method="post" action="{% url 'staff-login' %}" novalidate>
-          {% csrf_token %}
-          {% if form.non_field_errors %}
-            <div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>
-          {% endif %}
-          <div class="mb-3">
-            <label class="staff-label" for="id_username">Email</label>
-            {{ form.username }}
-            {% if form.username.errors %}<div class="staff-alert staff-alert--danger">{{ form.username.errors }}</div>{% endif %}
-          </div>
-          <div class="mb-3">
-            <label class="staff-label" for="id_password">Password</label>
-            {{ form.password }}
-            {% if form.password.errors %}<div class="staff-alert staff-alert--danger">{{ form.password.errors }}</div>{% endif %}
-          </div>
-          <input type="hidden" name="next" value="{{ next }}">
-          <button type="submit" class="staff-btn staff-btn--primary">Sign in</button>
-        </form>
-        <p class="staff-terminal__login-link"><a href="{% url 'staff-terminal' %}">Use worker PIN on this terminal</a></p>
-      </div>
-    </div>
-  </div>
+  </main>
 </body>
 </html>
