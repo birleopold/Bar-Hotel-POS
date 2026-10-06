@@ -83,6 +83,9 @@ class StaffServiceTvView(StaffTenantRequiredMixin, View):
             "bar_ready": 0,
             "ready_handoffs": 0,
             "orders": [],
+            "orders_received_cards": [],
+            "orders_prep_cards": [],
+            "orders_ready_cards": [],
             "leaderboard": [],
             "popular_items": [],
             "featured_items": [],
@@ -133,6 +136,9 @@ class StaffServiceTvView(StaffTenantRequiredMixin, View):
             if preset == "guest":
                 cards = [card for card in cards if card["lane"] == "ready"]
             context["orders"] = cards
+            context["orders_received_cards"] = [card for card in cards if card["lane"] == "received"]
+            context["orders_prep_cards"] = [card for card in cards if card["lane"] == "prep"]
+            context["orders_ready_cards"] = [card for card in cards if card["lane"] == "ready"]
             context["orders_received"] = sum(card["lane"] == "received" for card in cards)
             context["orders_prep"] = sum(card["lane"] == "prep" for card in cards)
             context["orders_ready"] = sum(card["lane"] == "ready" for card in cards)
