@@ -1,61 +1,89 @@
 {% extends "staff/base.html" %}
 {% block title %}Menu items{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block main_class %}staff-main--wide staff-main--menu-catalog{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
+  <header class="staff-page-hero staff-menu-hero">
     <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Catalog</p>
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
+          <p class="staff-dash-hero__eyebrow"><i class="bi bi-journal-richtext" aria-hidden="true"></i> Menu catalog</p>
           <h1 class="staff-page-title mb-0">Sellable items<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-dash-hero__tagline mb-0">
-            {% if menu_all_outlets_mode %}Showing catalog across sections.{% elif menu_scope_outlet %}Scoped to {{ menu_scope_outlet.name }}.{% else %}What guests can order at this workspace.{% endif %}
+            {% if menu_all_outlets_mode %}Showing items available across your sections.{% elif menu_scope_outlet %}Showing the sellable menu for {{ menu_scope_outlet.name }}.{% else %}Choose one section to view its sellable items.{% endif %}
           </p>
+        </div>
+        <div class="staff-menu-hero__summary" aria-label="Catalog summary">
+          <span class="staff-menu-hero__summary-icon"><i class="bi bi-collection" aria-hidden="true"></i></span>
+          <span><strong>{{ categories|length }}</strong><small>active categor{{ categories|length|pluralize:"y,ies" }}</small></span>
         </div>
       </div>
     </div>
   </header>
+
   {% if menu_scope_outlet and not menu_all_outlets_mode %}
-    <section class="staff-card staff-card--soft mb-3">
-      <h2 class="staff-card__title">Service TV presentation</h2>
-      <p class="staff-muted">Feature items, add an optional photo URL, and show a short availability note on guest-facing displays.</p>
+    <section class="staff-menu-tv-note" aria-label="Guest display settings">
+      <span class="staff-menu-tv-note__icon"><i class="bi bi-display" aria-hidden="true"></i></span>
+      <div><strong>Guest display</strong><p>Feature selected items, add an optional photo, or show a short availability note on the Service TV.</p></div>
+      <span class="staff-menu-tv-note__hint">Available to workspace managers</span>
     </section>
   {% endif %}
-  <h2 class="staff-section-head">By category</h2>
-  <div class="staff-pos-menu-grid">
+
+  <div class="staff-menu-catalog-heading">
+    <div><h2>Items by category</h2><p>Only active items linked to the selected section appear here.</p></div>
+  </div>
+
+  <div class="staff-menu-categories">
     {% for cat in categories %}
-      <div class="staff-card staff-card--pos staff-pos-menu-category">
-        <h2 class="staff-card__title staff-card__title--pos">{{ cat.name }}</h2>
-        <div class="staff-pos-menu-items">
+      <section class="staff-menu-category" aria-labelledby="menu-category-{{ cat.id }}">
+        <header class="staff-menu-category__head">
+          <span class="staff-menu-category__icon" aria-hidden="true"><i class="bi bi-grid" ></i></span>
+          <div class="staff-menu-category__title-wrap"><span class="staff-menu-category__eyebrow">Category</span><h3 id="menu-category-{{ cat.id }}">{{ cat.name }}</h3></div>
+          <span class="staff-menu-category__count">{{ cat.items.all|length }} item{{ cat.items.all|length|pluralize }}</span>
+        </header>
+        <div class="staff-menu-items">
           {% for item in cat.items.all %}
-            <div class="staff-pos-menu-item">
-              <div class="staff-pos-menu-item__main">
-                <div class="staff-pos-menu-item__name">{{ item.name }}</div>
-                {% if item.sku %}<div class="staff-pos-menu-item__sku text-muted small">SKU {{ item.sku }}</div>{% endif %}
-                {% if item.is_featured %}<span class="staff-tag staff-tag--citrus">Featured on Service TV</span>{% endif %}
-                {% if item.availability_note %}<div class="staff-muted small">{{ item.availability_note }}</div>{% endif %}
+            <article class="staff-menu-item-card">
+              <div class="staff-menu-item-card__identity">
+                {% if item.display_image_url %}
+                  <img class="staff-menu-item-card__image" src="{{ item.display_image_url }}" alt="" loading="lazy">
+                {% else %}
+                  <span class="staff-menu-item-card__image staff-menu-item-card__image--placeholder" aria-hidden="true"><i class="bi bi-cup-hot"></i></span>
+                {% endif %}
+                <div class="staff-menu-item-card__copy">
+                  <h4>{{ item.name }}</h4>
+                  {% if item.sku %}<span class="staff-menu-item-card__sku">SKU {{ item.sku }}</span>{% endif %}
+                  {% if item.availability_note %}<p class="staff-menu-item-card__availability"><i class="bi bi-info-circle" aria-hidden="true"></i> {{ item.availability_note }}</p>{% endif %}
+                </div>
               </div>
-              {% if item.unit_price %}<div class="staff-pos-menu-item__price fw-bold">{{ item.unit_price }}</div>{% endif %}
+              <div class="staff-menu-item-card__commercial">
+                <span>Unit price</span><strong>{{ item.unit_price }}</strong>
+                {% if item.is_featured %}<span class="staff-menu-featured"><i class="bi bi-stars" aria-hidden="true"></i> On Service TV</span>{% endif %}
+              </div>
               {% if can_manage_tv_details and menu_scope_outlet and not menu_all_outlets_mode %}
-                <details class="mt-2">
-                  <summary class="staff-table__action-link">TV display details</summary>
-                  <form method="post" class="mt-2">
-                    {% csrf_token %}<input type="hidden" name="action" value="display_details"><input type="hidden" name="item_id" value="{{ item.id }}">
-                    <label class="d-block small mb-2"><input type="checkbox" name="is_featured" {% if item.is_featured %}checked{% endif %}> Include in featured rotation</label>
-                    <label class="d-block small mb-2">Public image URL<input class="staff-input w-100" type="url" name="display_image_url" maxlength="200" value="{{ item.display_image_url }}"></label>
-                    <label class="d-block small mb-2">Availability note<input class="staff-input w-100" type="text" name="availability_note" maxlength="160" value="{{ item.availability_note }}"></label>
-                    <button class="staff-btn staff-btn--sm staff-btn--primary" type="submit">Save display details</button>
+                <details class="staff-menu-item-card__details">
+                  <summary><i class="bi bi-sliders" aria-hidden="true"></i> Guest display</summary>
+                  <form method="post" class="staff-menu-display-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="display_details">
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <label class="staff-menu-featured-toggle"><input type="checkbox" name="is_featured" {% if item.is_featured %}checked{% endif %}><span>Include in featured rotation</span></label>
+                    <label>Public image URL<input class="staff-input" type="url" name="display_image_url" maxlength="200" value="{{ item.display_image_url }}" placeholder="https://…"></label>
+                    <label>Availability note<input class="staff-input" type="text" name="availability_note" maxlength="160" value="{{ item.availability_note }}" placeholder="e.g. Available until 8 pm"></label>
+                    <button class="staff-btn staff-btn--sm staff-btn--primary" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save display details</button>
                   </form>
                 </details>
               {% endif %}
-            </div>
+            </article>
           {% empty %}
-            <div class="staff-muted py-2 col-12">No items in this category.</div>
+            <div class="staff-menu-category__empty">No sellable items in this category.</div>
           {% endfor %}
         </div>
-      </div>
+      </section>
     {% empty %}
-      <div class="staff-card staff-card--soft text-center staff-muted py-4 col-12">No categories yet.</div>
+      <div class="staff-menu-empty">
+        <span class="staff-menu-empty__icon"><i class="bi bi-journal-x" aria-hidden="true"></i></span>
+        <div><h2>No menu items in this view</h2><p>{% if menu_all_outlets_mode %}There are no active items linked to your sections.{% elif menu_scope_outlet %}Add active items to this section’s catalog to show them here.{% else %}Select one section from the workspace menu to see its items.{% endif %}</p></div>
+      </div>
     {% endfor %}
   </div>
 {% endblock %}
