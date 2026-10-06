@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import ipaddress
 from typing import Callable
 
+from django.conf import settings
 from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse
-from django.conf import settings
+from django.http.request import split_domain_port
 from django.utils.cache import patch_vary_headers
 
 from .domains import normalize_hostname, platform_domain_suffix
@@ -23,9 +25,27 @@ class TenantDomainResolutionMiddleware:
         request.domain_tenant = None
         try:
             raw_host = request.get_host()
-            if raw_host.startswith("["):
+            domain, _port = split_domain_port(raw_host)
+            if not domain:
+                return HttpResponse("Invalid host", status=400, content_type="text/plain")
+            bracketless_domain = (
+                domain[1:-1]
+                if domain.startswith("[") and domain.endswith("]")
+                else domain
+            )
+            try:
+                ip = ipaddress.ip_address(bracketless_domain)
+            except ValueError:
+                host = normalize_hostname(domain)
+            else:
+                central_host = f"[{ip.compressed}]" if ip.version == 6 else ip.compressed
+                if central_host not in settings.TENANT_CENTRAL_HOSTS:
+                    return HttpResponse(
+                        "Workspace domain is not configured",
+                        status=404,
+                        content_type="text/plain",
+                    )
                 return self.get_response(request)
-            host = normalize_hostname(raw_host.rsplit(":", 1)[0])
         except Exception:
             return HttpResponse("Invalid host", status=400, content_type="text/plain")
 
