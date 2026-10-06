@@ -2498,6 +2498,21 @@ class StaffKdsRealtimeUiTests(TestCase):
         self.assertEqual(response.context["employee_of_week"]["sales"], Decimal("85.00"))
         self.assertEqual(response.context["employee_of_month"]["name"], "Taylor Server")
 
+    def test_service_tv_uses_tenant_brand_colors_on_a_light_canvas(self) -> None:
+        settings_obj = TenantSettings.objects.get(tenant=self.tenant)
+        settings_obj.theme_primary = "#6A4AC3"
+        settings_obj.theme_secondary = "#167A67"
+        settings_obj.theme_accent = "#D69A18"
+        settings_obj.save(update_fields=["theme_primary", "theme_secondary", "theme_accent"])
+
+        response = self.client.get(reverse("staff-service-tv"), {"mode": "floor"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'content="light"')
+        self.assertContains(response, "--brand-primary: #6A4AC3")
+        self.assertContains(response, "--brand-secondary: #167A67")
+        self.assertContains(response, "--brand-accent: #D69A18")
+
     def test_service_tv_rejects_pinned_outlet_outside_membership_scope(self) -> None:
         foreign_tenant = Tenant.objects.create(name="Foreign", slug="foreign-tv-outlet")
         TenantSettings.objects.create(tenant=foreign_tenant, business_lines=["bar"], enabled_staff_modules=["pos"])

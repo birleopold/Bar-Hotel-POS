@@ -165,7 +165,7 @@ class StaffServiceTvView(StaffTenantRequiredMixin, View):
                 .exclude(status=OrderStatus.CANCELLED)
                 .values("created_by_id", "created_by__first_name", "created_by__last_name", "created_by__email")
                 .annotate(order_count=Count("id"), sales_total=Sum("total"))
-                .order_by("-sales_total", "-order_count", "created_by__first_name")[:5]
+                .order_by("-sales_total", "-order_count", "created_by__first_name")[:3]
             )
             context["leaderboard"] = [
                 {
