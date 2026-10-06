@@ -66,6 +66,40 @@ class Tenant(TimeStampedModel):
         return self.name
 
 
+class TenantDomain(TimeStampedModel):
+    """A verified hostname that selects a tenant's branded workspace."""
+
+    class Kind(models.TextChoices):
+        PLATFORM = "platform", "Platform subdomain"
+        CUSTOM = "custom", "Custom domain"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending verification"
+        VERIFIED = "verified", "Verified"
+        ACTIVE = "active", "Active"
+        DISABLED = "disabled", "Disabled"
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="domains")
+    hostname = models.CharField(max_length=253, unique=True)
+    kind = models.CharField(max_length=12, choices=Kind.choices)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    is_primary = models.BooleanField(default=False)
+    verification_token = models.CharField(max_length=64, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    tls_status = models.CharField(max_length=24, default="not_configured")
+
+    class Meta:
+        ordering = ["tenant__name", "hostname"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant"], condition=models.Q(is_primary=True), name="one_primary_domain_per_tenant"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.hostname
+
+
 class TenantSettings(TimeStampedModel):
     tenant = models.OneToOneField(
         Tenant,

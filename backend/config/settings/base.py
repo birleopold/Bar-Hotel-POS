@@ -24,6 +24,13 @@ POSTGRES_SET_REQUEST_TENANT_GUC = env.bool("POSTGRES_SET_REQUEST_TENANT_GUC", de
 SECRET_KEY = env("SECRET_KEY", default="dev-only-change-in-production")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "192.168.100.15"])
+TENANT_PLATFORM_DOMAIN = env("TENANT_PLATFORM_DOMAIN", default="").strip().lower().rstrip(".")
+TENANT_DOMAIN_TARGET = env("TENANT_DOMAIN_TARGET", default=TENANT_PLATFORM_DOMAIN).strip().lower().rstrip(".")
+if TENANT_PLATFORM_DOMAIN:
+    ALLOWED_HOSTS = [*ALLOWED_HOSTS, f".{TENANT_PLATFORM_DOMAIN}"]
+TENANT_CENTRAL_HOSTS = env.list(
+    "TENANT_CENTRAL_HOSTS", default=[host for host in ALLOWED_HOSTS if not host.startswith(".")]
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -65,6 +72,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.tenants.middleware.TenantDomainResolutionMiddleware",
     "apps.api.middleware.TenantContextMiddleware",
     "apps.staff.middleware.StaffSessionTenantMiddleware",
     "apps.common.middleware.operation_context.OperationContextMiddleware",

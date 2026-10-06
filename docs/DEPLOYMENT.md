@@ -82,3 +82,23 @@ Verify these separately:
 ## Rollback
 
 Application rollback and database rollback are separate decisions. Prefer forward-fixing schema migrations. Before reverting application code, confirm it remains compatible with the migrated schema. Restore a database only under an incident plan that accounts for transactions created after the backup.
+
+## Tenant subdomains and custom domains
+
+Tenant hostname routing is optional and disabled until `TENANT_PLATFORM_DOMAIN` is configured. Set it to the public SaaS suffix (for example `pos.example.com`), point wildcard DNS (`*.pos.example.com`) at the TLS reverse proxy, and configure a wildcard certificate. New workspaces can then reserve `<slug>.pos.example.com` from Platform → Workspaces → Manage. The application resolves active domains to a tenant; membership checks remain required for staff and API access.
+
+Use explicit host lists in production. `ALLOWED_HOSTS` must include the platform root plus every custom domain that will be served. `TENANT_CENTRAL_HOSTS` lists only the platform's own login/marketing/console hosts; keep tenant custom hosts out of that list so unknown custom hostnames fail closed. The platform suffix is added to Django's allowed hosts automatically. For custom domains, add the hostname to `ALLOWED_HOSTS` before routing traffic to the application. Do not use `ALLOWED_HOSTS=*`.
+
+For a custom hostname, the Platform → Workspaces → Manage screen displays a TXT challenge. The client publishes `hotelnbarmgmt-domain-verification=<token>` at `_hotelnbarmgmt.<hostname>`. The app verifies that proof. Configure its CNAME (or provider-supported ALIAS/flattening for an apex domain) to `TENANT_DOMAIN_TARGET`, configure the reverse proxy to route the host, and provision HTTPS. Only then confirm DNS and HTTPS in the console to activate it. Domain ownership verification does not provision DNS records or certificates by itself; those are handled by your DNS provider and TLS ingress. Keep session cookies host-only; do not set `SESSION_COOKIE_DOMAIN` to the shared parent domain.
+
+Example environment:
+
+```env
+TENANT_PLATFORM_DOMAIN=pos.example.com
+TENANT_DOMAIN_TARGET=pos.example.com
+ALLOWED_HOSTS=pos.example.com,localhost
+TENANT_CENTRAL_HOSTS=pos.example.com,localhost
+CSRF_TRUSTED_ORIGINS=https://pos.example.com,https://*.pos.example.com
+```
+
+Add custom hostnames to `ALLOWED_HOSTS` as clients connect them, while leaving them out of `TENANT_CENTRAL_HOSTS`. Wildcard DNS and wildcard TLS cover one subdomain level; deeper names and custom domains need explicit ingress and certificate support.

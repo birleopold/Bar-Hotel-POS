@@ -7,8 +7,7 @@ import time
 from typing import Callable
 
 from django.contrib.auth import logout
-from django.http import HttpRequest
-from django.http import HttpResponseForbidden
+from django.http import HttpRequest, HttpResponseForbidden, HttpResponseNotFound
 from django.shortcuts import redirect
 
 from apps.accounts.models import Membership
@@ -87,11 +86,29 @@ class StaffSessionTenantMiddleware:
         path = request.path
         if not path.startswith("/staff/") and not path.startswith("/console"):
             return self.get_response(request)
+        domain_tenant = getattr(request, "domain_tenant", None)
+        if domain_tenant is not None and request.user.is_authenticated:
+            if path.startswith("/console/platform/"):
+                return HttpResponseForbidden("Open platform operations on the platform host.")
+            from apps.console.mixins import user_is_platform_operator
+
+            membership = (
+                Membership.objects.filter(user=request.user, tenant=domain_tenant, is_active=True)
+                .select_related("tenant")
+                .first()
+            )
+            if membership is None and not user_is_platform_operator(request.user):
+                return HttpResponseForbidden("Your account has no access to this workspace.")
+            request.tenant = domain_tenant
+            request.tenant_membership = membership
+            return self.get_response(request)
         if path == "/staff/terminal/" and not request.user.is_authenticated:
             from .terminal import terminal_scope
 
             scope = terminal_scope(request, validate_pairing=False)
             if scope is not None:
+                if domain_tenant is not None and str(scope[0]) != str(domain_tenant.pk):
+                    return HttpResponseNotFound("Terminal is not available on this workspace domain.")
                 request.tenant = Tenant.objects.filter(pk=scope[0], is_active=True).first()
             return self.get_response(request)
         if path.startswith("/staff/login") or path.startswith("/staff/logout"):

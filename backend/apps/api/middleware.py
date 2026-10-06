@@ -37,7 +37,7 @@ class TenantContextMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest):
-        request.tenant = None
+        request.tenant = getattr(request, "domain_tenant", None)
         request.tenant_membership = None
 
         path = request.path
@@ -45,6 +45,8 @@ class TenantContextMiddleware:
             return self.get_response(request)
 
         raw = request.headers.get("X-Tenant-Id")
+        if not raw and request.tenant is not None:
+            raw = str(request.tenant.pk)
         if not raw or not request.user.is_authenticated:
             return self.get_response(request)
 
@@ -59,6 +61,14 @@ class TenantContextMiddleware:
                 request,
                 {"error": {"code": "invalid_tenant_header", "message": "X-Tenant-Id must be a UUID."}},
                 status_code=400,
+            )
+
+        domain_tenant = getattr(request, "domain_tenant", None)
+        if domain_tenant is not None and tenant_uuid != domain_tenant.pk:
+            return _tenant_error_response(
+                request,
+                {"error": {"code": "tenant_domain_mismatch", "message": "This hostname is assigned to a different workspace."}},
+                status_code=403,
             )
 
         membership = (

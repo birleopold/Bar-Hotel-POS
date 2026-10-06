@@ -17,6 +17,56 @@
     </form>
   </section>
 
+  <section class="staff-card mb-4">
+    <h2 class="h5 mb-2">Workspace domains</h2>
+    <p class="staff-muted small">Domains choose the workspace and its branding. Staff still need an account with membership in this workspace. A custom domain is only activated after ownership verification, DNS routing, and HTTPS are ready.</p>
+    {% if platform_domain %}
+      <form method="post" class="mb-3">
+        {% csrf_token %}
+        <button type="submit" name="create_platform_domain" value="1" class="staff-btn staff-btn--ghost">Create {{ tenant_obj.slug }}.{{ platform_domain }}</button>
+      </form>
+    {% else %}
+      <p class="small">Set <code>TENANT_PLATFORM_DOMAIN</code> on the server to enable automatic client subdomains.</p>
+    {% endif %}
+    <form method="post" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+      {% csrf_token %}
+      <label class="flex-grow-1">Custom hostname
+        <input class="staff-input" name="hostname" placeholder="pos.client.example" required maxlength="253" autocomplete="off">
+      </label>
+      <button type="submit" name="add_custom_domain" value="1" class="staff-btn staff-btn--primary">Add custom domain</button>
+    </form>
+    {% if tenant_domains %}
+      <div class="staff-table-wrap">
+        <table class="staff-table">
+          <thead><tr><th>Hostname</th><th>Type</th><th>Status</th><th>HTTPS</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for domain in tenant_domains %}
+              <tr>
+                <td><strong>{{ domain.hostname }}</strong>{% if domain.is_primary %}<br><span class="staff-muted small">Primary address</span>{% endif %}
+                  {% if domain.kind == 'custom' and domain.status == 'pending' %}
+                    <div class="small mt-2">Add TXT <code>_hotelnbarmgmt.{{ domain.hostname }}</code><br>Value <code>hotelnbarmgmt-domain-verification={{ domain.verification_token }}</code></div>
+                    <div class="small mt-1">Route traffic to <code>{{ domain_target|default:"your app's public ingress" }}</code> and add this hostname to production <code>ALLOWED_HOSTS</code>.</div>
+                  {% endif %}
+                </td>
+                <td>{{ domain.get_kind_display }}</td>
+                <td>{{ domain.get_status_display }}</td>
+                <td>{{ domain.tls_status|title }}</td>
+                <td>
+                  {% if domain.kind == 'custom' and domain.status == 'pending' %}
+                    <form method="post" class="mb-2">{% csrf_token %}<input type="hidden" name="domain_id" value="{{ domain.id }}"><button class="staff-btn staff-btn--ghost staff-btn--sm" name="verify_custom_domain" value="1">Verify DNS ownership</button></form>
+                  {% elif domain.kind == 'custom' and domain.status == 'verified' %}
+                    <form method="post" class="mb-2">{% csrf_token %}<input type="hidden" name="domain_id" value="{{ domain.id }}"><label class="small d-block mb-2"><input type="checkbox" name="tls_confirmed" required> DNS routing and HTTPS are working</label><button class="staff-btn staff-btn--primary staff-btn--sm" name="activate_custom_domain" value="1">Activate as primary</button></form>
+                  {% endif %}
+                  {% if domain.status != 'disabled' %}<form method="post" onsubmit="return confirm('Disconnect {{ domain.hostname }}?');">{% csrf_token %}<input type="hidden" name="domain_id" value="{{ domain.id }}"><button class="staff-btn staff-btn--ghost staff-btn--sm" name="disable_domain" value="1">Disconnect</button></form>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}<p class="staff-muted small mb-0">No domains configured yet.</p>{% endif %}
+  </section>
+
   {% if has_past_due_invoice %}
     <div class="staff-card mb-3" style="border-left: 4px solid #c45c3e;">
       <strong>Past-due invoice</strong> — this workspace has at least one invoice marked past due.

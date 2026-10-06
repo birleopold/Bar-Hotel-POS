@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from django.contrib import messages
+from django.conf import settings
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.http.request import validate_host
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -15,6 +19,7 @@ from apps.tenants.models import (
     Plan,
     SubscriptionStatus,
     Tenant,
+    TenantDomain,
     TenantFeatureEntitlement,
     TenantOutletModulePolicy,
     TenantSetupProgress,
@@ -39,6 +44,7 @@ from .forms import (
 )
 from .mixins import PlatformOperatorRequiredMixin
 from .setup_flow import build_tenant_setup_state, sync_tenant_setup_progress
+from apps.tenants.domains import begin_custom_domain_verification, create_platform_domain, verify_custom_domain
 
 
 class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
@@ -105,6 +111,12 @@ class PlatformTenantCreateView(PlatformOperatorRequiredMixin, CreateView):
         messages.success(self.request, f"Workspace “{form.instance.name}” created.")
         response = super().form_valid(form)
         TenantSettings.objects.get_or_create(tenant=self.object)
+        try:
+            domain = create_platform_domain(self.object)
+            if domain:
+                messages.info(self.request, f"Platform address reserved: {domain.hostname}")
+        except ValidationError as exc:
+            messages.warning(self.request, "; ".join(exc.messages))
         return response
 
 
@@ -360,6 +372,74 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
         )
 
     def post(self, request, *args, **kwargs):
+        if "create_platform_domain" in request.POST:
+            try:
+                domain = create_platform_domain(self.tenant_obj)
+                if domain:
+                    messages.success(request, f"Platform address ready: {domain.hostname}")
+                else:
+                    messages.error(request, "Set TENANT_PLATFORM_DOMAIN in the server environment first.")
+            except ValidationError as exc:
+                messages.error(request, "; ".join(exc.messages))
+            return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+        if "add_custom_domain" in request.POST:
+            try:
+                domain = begin_custom_domain_verification(
+                    self.tenant_obj, request.POST.get("hostname", "")
+                )
+                self._event(event_type=BillingEventType.NOTE, message=f"Custom domain setup started: {domain.hostname}.", metadata={"action": "domain_setup_started", "hostname": domain.hostname})
+                messages.success(request, f"Added {domain.hostname}. Add its DNS records below, then verify ownership.")
+            except ValidationError as exc:
+                messages.error(request, "; ".join(exc.messages))
+            return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+        if "verify_custom_domain" in request.POST:
+            domain = TenantDomain.objects.filter(
+                pk=request.POST.get("domain_id"), tenant=self.tenant_obj,
+                kind=TenantDomain.Kind.CUSTOM,
+            ).first()
+            if domain and verify_custom_domain(domain):
+                self._event(event_type=BillingEventType.NOTE, message=f"Custom domain ownership verified: {domain.hostname}.", metadata={"action": "domain_verified", "hostname": domain.hostname})
+                messages.success(request, f"Ownership verified for {domain.hostname}. Set up TLS and host routing before activating it.")
+            else:
+                messages.error(request, "The verification TXT record was not found. Check the exact name and value, then try again.")
+            return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+        if "activate_custom_domain" in request.POST:
+            domain = TenantDomain.objects.filter(
+                pk=request.POST.get("domain_id"), tenant=self.tenant_obj,
+                kind=TenantDomain.Kind.CUSTOM, status=TenantDomain.Status.VERIFIED,
+            ).first()
+            if not domain:
+                messages.error(request, "Verify ownership before activating a custom domain.")
+            elif request.POST.get("tls_confirmed") != "on":
+                messages.error(request, "Confirm that DNS routing and HTTPS are active before enabling this domain.")
+            elif not validate_host(domain.hostname, settings.ALLOWED_HOSTS):
+                messages.error(request, "Add this hostname to production ALLOWED_HOSTS and reload the app before activation.")
+            else:
+                TenantDomain.objects.filter(tenant=self.tenant_obj, is_primary=True).update(is_primary=False)
+                domain.status = TenantDomain.Status.ACTIVE
+                domain.tls_status = "active"
+                domain.is_primary = True
+                domain.save(update_fields=["status", "tls_status", "is_primary", "updated_at"])
+                cache.delete(f"tenant-domain:{domain.hostname}")
+                self._event(event_type=BillingEventType.NOTE, message=f"Custom domain activated: {domain.hostname}.", metadata={"action": "domain_activated", "hostname": domain.hostname})
+                messages.success(request, f"{domain.hostname} is now the primary workspace address.")
+            return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+        if "disable_domain" in request.POST:
+            domain = TenantDomain.objects.filter(pk=request.POST.get("domain_id"), tenant=self.tenant_obj).first()
+            if domain:
+                was_primary = domain.is_primary
+                domain.status = TenantDomain.Status.DISABLED
+                domain.is_primary = False
+                domain.save(update_fields=["status", "is_primary", "updated_at"])
+                cache.delete(f"tenant-domain:{domain.hostname}")
+                if was_primary:
+                    replacement = TenantDomain.objects.filter(tenant=self.tenant_obj, status=TenantDomain.Status.ACTIVE).order_by("kind", "created_at").first()
+                    if replacement:
+                        replacement.is_primary = True
+                        replacement.save(update_fields=["is_primary", "updated_at"])
+                self._event(event_type=BillingEventType.NOTE, message=f"Domain disconnected: {domain.hostname}.", metadata={"action": "domain_disabled", "hostname": domain.hostname})
+                messages.success(request, f"{domain.hostname} has been disconnected.")
+            return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
         if "toggle_tenant_access" in request.POST:
             was_active = self.tenant_obj.is_active
             self.tenant_obj.is_active = not was_active
@@ -648,6 +728,9 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
         ctx = super().get_context_data(**kwargs)
         sub = getattr(self.tenant_obj, "subscription", None)
         ctx["tenant_obj"] = self.tenant_obj
+        ctx["tenant_domains"] = list(TenantDomain.objects.filter(tenant=self.tenant_obj))
+        ctx["platform_domain"] = settings.TENANT_PLATFORM_DOMAIN
+        ctx["domain_target"] = settings.TENANT_DOMAIN_TARGET
         ctx["subscription"] = sub
         ctx["subscription_form"] = kwargs.get("subscription_form") or self._subscription_form()
         ctx["entitlements_form"] = kwargs.get("entitlements_form") or self._entitlements_form()
