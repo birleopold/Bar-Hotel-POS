@@ -14,10 +14,12 @@ from . import (
     views_purchasing,
     views_workstations,
     views_management,
+    views_business_date,
     views_customers,
 )
 
 urlpatterns = [
+    path("management/business-date/", views_business_date.StaffBusinessDateView.as_view(), name="staff-business-date"),
     path("purchasing/balances/", views_purchasing.StaffSupplierBalancesView.as_view(), name="staff-purchasing-balances"),
     path("inventory/batches/", views_inventory.StaffInventoryBatchListView.as_view(), name="staff-inventory-batches"),
     path("customers/", views_customers.StaffCustomerListView.as_view(), name="staff-customers"),
