@@ -34,6 +34,10 @@ def stock_coverage_snapshot(*, tenant, outlet, days=30):
         on_hand = balance.quantity
         days_remaining = (on_hand / daily) if daily > 0 else None
         level = balance.menu_item.reorder_level
+        # Snapshot quantities are indicators, not batch-age or supplier-lead-time data.
+        sell_through = None
+        if used > 0 and on_hand + used > 0:
+            sell_through = used / (on_hand + used)
         result.append({
             "item_id": balance.menu_item_id,
             "name": balance.menu_item.name,
@@ -41,6 +45,7 @@ def stock_coverage_snapshot(*, tenant, outlet, days=30):
             "units_sold_window": used,
             "daily_velocity": daily,
             "days_remaining": days_remaining,
+            "sell_through_proxy": sell_through,
             "below_reorder_level": level is not None and on_hand <= level,
             "no_sales_history": daily == 0,
         })
