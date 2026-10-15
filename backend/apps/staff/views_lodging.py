@@ -935,8 +935,11 @@ class StaffPropertyNightAuditView(StaffTenantRequiredMixin, View):
                 f'attachment; filename="night-audit-{night.isoformat()}.csv"'
             )
             writer = csv.writer(response)
+            def safe_csv_cell(value):
+                cell = str(value)
+                return "'" + cell if cell.lstrip().startswith(("=", "+", "-", "@")) else cell
             writer.writerow(["Night audit", "Value"])
-            writer.writerow(["Property", self.current_site.name])
+            writer.writerow(["Property", safe_csv_cell(self.current_site.name)])
             writer.writerow(["Business date", snapshot["date"]])
             writer.writerow(["Status", "Closed" if closed else "Open for review"])
             for field, label in (
@@ -958,8 +961,7 @@ class StaffPropertyNightAuditView(StaffTenantRequiredMixin, View):
             writer.writerow(["Audit blockers", len(snapshot["blockers"])])
             for issue in snapshot["blockers"]:
                 # CSV imports often treat cells starting =,+,-,@ as formulas.
-                text = str(issue)
-                writer.writerow(["Exception", "'" + text if text.lstrip().startswith(("=", "+", "-", "@")) else text])
+                writer.writerow(["Exception", safe_csv_cell(issue)])
             return response
         history = PropertyNightAudit.objects.filter(
             tenant=request.tenant, site=self.current_site,
