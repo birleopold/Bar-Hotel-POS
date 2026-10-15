@@ -1,6 +1,6 @@
 from django import forms
 
-from apps.events.models import EventBooking, EventSpace
+from apps.events.models import EventBooking, EventSpace, EventBookingStatus, EventPaymentMethod
 
 _EVENT_DT_FORMATS = (
     "%Y-%m-%dT%H:%M",
@@ -79,4 +79,39 @@ class StaffEventBookingForm(forms.ModelForm):
         end = data.get("end_at")
         if start and end and end <= start:
             raise forms.ValidationError("End time must be after start time.")
+        space = data.get("space")
+        if space and start and end:
+            overlaps = EventBooking.objects.filter(
+                tenant_id=space.tenant_id, space=space,
+                start_at__lt=end, end_at__gt=start,
+            ).exclude(status=EventBookingStatus.CANCELLED)
+            if self.instance.pk:
+                overlaps = overlaps.exclude(pk=self.instance.pk)
+            if overlaps.exists():
+                raise forms.ValidationError("This room already has an event during those times.")
+        if self.instance.pk and data.get("status") == EventBookingStatus.CANCELLED:
+            if self.instance.payments.exists():
+                raise forms.ValidationError(
+                    "This booking has customer payments. Resolve a refund before cancellation."
+                )
         return data
+
+
+class StaffEventQuoteForm(forms.Form):
+    reference = forms.CharField(max_length=128, widget=forms.TextInput(
+        attrs={"class": "staff-input", "placeholder": "EVT-Q-001"}))
+    amount = forms.DecimalField(min_value=0.01, max_digits=14, decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.01", "min": "0.01"}))
+    valid_until = forms.DateField(widget=forms.DateInput(
+        attrs={"class": "staff-input", "type": "date"}, format="%Y-%m-%d"))
+    description = forms.CharField(required=False, max_length=5000, widget=forms.Textarea(
+        attrs={"class": "staff-input", "rows": 3}))
+
+
+class StaffEventPaymentForm(forms.Form):
+    amount = forms.DecimalField(min_value=0.01, max_digits=14, decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.01", "min": "0.01"}))
+    method = forms.ChoiceField(choices=EventPaymentMethod.choices,
+        widget=forms.Select(attrs={"class": "staff-input"}))
+    reference = forms.CharField(required=False, max_length=128, widget=forms.TextInput(
+        attrs={"class": "staff-input", "placeholder": "Bank or mobile money reference"}))
