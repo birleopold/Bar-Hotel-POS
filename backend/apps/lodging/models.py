@@ -71,6 +71,7 @@ class RoomRateWindow(TimeStampedModel):
 class RoomStatus(models.TextChoices):
     CLEAN = "clean", "Clean"
     DIRTY = "dirty", "Dirty"
+    CLEANING = "cleaning", "Cleaning"
     INSPECTED = "inspected", "Inspected"
     OUT_OF_ORDER = "out_of_order", "Out of order"
 
@@ -89,6 +90,13 @@ class Room(TimeStampedModel):
         default=RoomStatus.CLEAN,
     )
     is_active = models.BooleanField(default=True)
+    assigned_housekeeper = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="housekeeping_rooms",
+    )
+    housekeeping_started_at = models.DateTimeField(null=True, blank=True)
+    housekeeping_finished_at = models.DateTimeField(null=True, blank=True)
+    housekeeping_inspected_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["room_type", "name"]
@@ -341,3 +349,19 @@ class PropertyNightAudit(TimeStampedModel):
         constraints = [
             models.UniqueConstraint(fields=["site", "business_date"], name="uniq_night_audit_site_date"),
         ]
+
+
+class RoomHousekeepingEvent(TimeStampedModel):
+    """Append-only staff action history for a room, separate from maintenance."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="room_housekeeping_events")
+    room = models.ForeignKey(Room, on_delete=models.PROTECT, related_name="housekeeping_events")
+    actor = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="room_housekeeping_actions")
+    action = models.CharField(max_length=24)
+    previous_status = models.CharField(max_length=20)
+    new_status = models.CharField(max_length=20)
+    previous_assignee_id = models.UUIDField(null=True, blank=True)
+    new_assignee_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
