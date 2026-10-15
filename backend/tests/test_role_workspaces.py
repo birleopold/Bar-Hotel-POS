@@ -108,6 +108,7 @@ class RoleWorkspaceTests(TestCase):
         user = get_user_model().objects.create_user(email="workspace-stock@test.local", password="Password9!")
         membership = Membership.objects.create(tenant=self.tenant, user=user, role=MembershipRole.STOREKEEPER)
         membership.outlets.add(self.outlet)
+        membership.sites.add(self.site)
         supplier = Supplier.objects.create(tenant=self.tenant, name="Supplier")
         def po(status, outlet=None):
             return PurchaseOrder.objects.create(tenant=self.tenant, outlet=outlet or self.outlet, supplier=supplier, status=status)
