@@ -131,6 +131,10 @@ def post_missing_room_night(*, tenant, site, night, reservation_id, user):
     """Reconcile a single omitted night without duplicating prepaid stay lines."""
     if site.tenant_id != tenant.pk:
         raise ValidationError({"site": "Property is outside your business."})
+    # Synchronize with close_night_audit on the same property lock. Both
+    # operations must decide whether the date is closed inside one transaction.
+    from apps.tenants.models import Site
+    site = Site.objects.select_for_update().get(pk=site.pk, tenant=tenant)
     if night > business_date_for(tenant=tenant, site=site):
         raise ValidationError({"date": "Future nights cannot be posted."})
     if PropertyNightAudit.objects.filter(tenant=tenant, site=site, business_date=night).exists():
