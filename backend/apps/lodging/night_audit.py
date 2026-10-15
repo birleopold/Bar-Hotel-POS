@@ -6,7 +6,7 @@ A date close records reconciliation evidence; it does not fabricate card or
 cash settlement and does not rewrite historical POS transaction dates.
 """
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -84,7 +84,7 @@ def night_audit_snapshot(*, tenant, site, night):
                 "can_post": active is not None and rate is not None,
             })
 
-    open_folios = Folio.objects.filter(tenant=tenant, site=site, status=FolioStatus.OPEN)
+    open_folios = Folio.objects.filter(tenant=tenant, site=site, status=FolioStatus.OPEN).prefetch_related('lines', 'payments')
     by_currency = defaultdict(lambda: {"charges": Decimal("0"), "payments": Decimal("0")})
     for folio in open_folios:
         for line in folio.lines.all():
@@ -179,7 +179,7 @@ def close_night_audit(*, tenant, site, night, user, note, confirm_cash, confirm_
     last = PropertyNightAudit.objects.filter(
         tenant=tenant, site=locked_site,
     ).order_by("-business_date").first()
-    if last and night != last.business_date.fromordinal(last.business_date.toordinal() + 1):
+    if last and night != last.business_date + timedelta(days=1):
         raise ValidationError({"date": "Close operating dates in order; the next date follows the last close."})
     snapshot = night_audit_snapshot(tenant=tenant, site=locked_site, night=night)
     if snapshot["blockers"]:

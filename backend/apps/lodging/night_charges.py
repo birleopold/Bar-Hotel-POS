@@ -67,10 +67,13 @@ def post_room_nights_on_check_in(*, reservation: Reservation, user) -> int:
         amt = nightly_rate_for_room_type(room_type_id=rt_id, on_date=night)
         if amt is None:
             continue
+        description = f"Room night {night.isoformat()} ({room.name})"
+        if FolioLine.objects.filter(folio=folio, description=description).exists():
+            continue
         FolioLine.objects.create(
             tenant_id=reservation.tenant_id,
             folio=folio,
-            description=f"Room night {night.isoformat()} ({room.name})",
+            description=description,
             amount=amt,
             tax_amount=Decimal("0.00"),
         )

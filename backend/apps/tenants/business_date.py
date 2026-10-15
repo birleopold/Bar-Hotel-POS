@@ -38,3 +38,23 @@ def business_date_for(*, tenant, site=None, at=None):
     local_time = timezone.localtime(when, timezone=zone)
     return (local_time.date() - timedelta(days=1)
             if local_time.hour < cutover_hour else local_time.date())
+
+
+
+def business_day_window(*, tenant, operating_date, site=None):
+    """UTC-aware half-open interval for a local business date.
+
+    Each local day boundary is localized independently, so a daylight-saving
+    switch can result in a 23- or 25-hour reporting window.
+    """
+    from datetime import datetime, time, timedelta, timezone as utc_timezone
+    if not hasattr(operating_date, "year"):
+        raise ValueError("A valid date is required")
+    zone, boundary_hour, _name = effective_business_clock(tenant=tenant, site=site)
+    start_local = datetime.combine(
+        operating_date, time(hour=boundary_hour), tzinfo=zone,
+    )
+    end_local = datetime.combine(
+        operating_date + timedelta(days=1), time(hour=boundary_hour), tzinfo=zone,
+    )
+    return start_local.astimezone(utc_timezone.utc), end_local.astimezone(utc_timezone.utc)

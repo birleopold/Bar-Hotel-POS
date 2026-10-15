@@ -883,9 +883,6 @@ class StaffPropertyNightAuditView(StaffTenantRequiredMixin, View):
         from apps.lodging.models import PropertyNightAudit
         try:
             night = self._business_date(request)
-            snapshot = night_audit_snapshot(
-                tenant=request.tenant, site=self.current_site, night=night,
-            )
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
             return redirect("staff-lodging-night-audit")
@@ -893,6 +890,9 @@ class StaffPropertyNightAuditView(StaffTenantRequiredMixin, View):
             tenant=request.tenant, site=self.current_site,
             business_date=night,
         ).first()
+        snapshot = (closed.snapshot if closed else night_audit_snapshot(
+            tenant=request.tenant, site=self.current_site, night=night,
+        ))
         history = PropertyNightAudit.objects.filter(
             tenant=request.tenant, site=self.current_site,
         ).select_related("closed_by").order_by("-business_date")[:15]
