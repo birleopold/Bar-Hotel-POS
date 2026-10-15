@@ -41,7 +41,7 @@
 <thead><tr><th>Section</th><th>Product</th><th>Batch</th><th>Remaining</th><th>Expiry</th><th>Status</th>{% if can_modify_inventory %}<th>Actions</th>{% endif %}</tr></thead>
 <tbody>
 {% for batch in batches %}
-<tr><td>{{ batch.outlet.name }}</td><td>{{ batch.menu_item.name }}</td><td>{{ batch.batch_code }}</td>
+<tr><td>{{ batch.outlet.name }}</td><td>{{ batch.menu_item.name }}</td><td><a href="?batch={{ batch.id }}">{{ batch.batch_code }}</a></td>
 <td>{{ batch.remaining_quantity }}</td><td>{{ batch.expiry_date|default:"Not recorded" }}</td>
 <td>{% if batch.quarantined %}On hold{% elif batch.expiry_date and batch.expiry_date < today %}Expired{% elif batch.expiry_date and batch.expiry_date <= expiry_horizon %}Expiring soon{% else %}Available{% endif %}</td>
 {% if can_modify_inventory %}<td>
@@ -58,10 +58,34 @@
 <label class="staff-label" for="reason-{{ batch.id }}">Reason</label>
 <input class="staff-input" id="reason-{{ batch.id }}" name="reason" maxlength="450" placeholder="Expired, damaged or recalled" required>
 <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm mt-2">Record write-off</button>
+</form></details>
+<details class="mt-2"><summary>Hold matching lot</summary>
+<form method="post" class="mt-2">{% csrf_token %}
+<input type="hidden" name="batch_id" value="{{ batch.id }}"><input type="hidden" name="action" value="recall">
+<label class="staff-label" for="recall-{{ batch.id }}">Reason</label>
+<input class="staff-input" id="recall-{{ batch.id }}" name="reason" maxlength="450" required placeholder="Supplier recall or safety concern">
+<p class="staff-muted">Holds this product and batch code across all sections you can manage. It does not remove stock.</p>
+<button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit">Hold matching batches</button>
 </form></details></td>{% endif %}</tr>
 {% endfor %}
 </tbody></table></div>
 {% else %}<p>No batches recorded for your selected sections.</p>{% endif %}
+{% if selected_batch %}
+<section class="staff-card mt-3" aria-label="Batch stock movement history">
+<h2 class="staff-section-head">History: {{ selected_batch.menu_item.name }} / {{ selected_batch.batch_code }}</h2>
+<p class="staff-muted">Stock movements linked to this batch. Older movements made before tracking was introduced may not appear here.</p>
+<div class="staff-table-wrap"><table class="staff-table">
+<thead><tr><th>When</th><th>Action</th><th>Batch quantity</th><th>Order or transfer</th></tr></thead>
+<tbody>{% for allocation in batch_history %}
+<tr><td>{{ allocation.stock_movement.created_at }}</td>
+<td>{{ allocation.stock_movement.get_reason_display }}</td>
+<td>{{ allocation.quantity }}</td>
+<td>{% if allocation.stock_movement.order_id %}Order {{ allocation.stock_movement.order_id }}{% elif allocation.stock_movement.transfer_batch %}Transfer {{ allocation.stock_movement.transfer_batch }}{% else %}—{% endif %}</td></tr>
+{% empty %}<tr><td colspan="4">No linked stock movements recorded for this batch yet.</td></tr>{% endfor %}
+</tbody></table></div>
+<a class="staff-btn staff-btn--ghost staff-btn--sm" href="{% url 'staff-inventory-batches' %}">Close history</a>
+</section>
+{% endif %}
 {% if is_paginated %}<nav class="staff-pager" aria-label="Batch pages">
 {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
 <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
