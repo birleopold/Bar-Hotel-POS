@@ -374,6 +374,14 @@ def complete_stock_count_session(
         )
         before = bal.quantity
         delta = counted - before
+        if counted < 0:
+            raise ValidationError({"lines": "A physical count cannot be negative."})
+        if delta < 0:
+            from .services_batches import consume_for_outflow_if_batched
+            consume_for_outflow_if_batched(
+                tenant_id=tenant_id, outlet_id=outlet_id,
+                menu_item_id=mi.id, quantity=-delta,
+            )
         bal.quantity = counted
         bal.save(update_fields=["quantity", "updated_at"])
         if delta != 0:
