@@ -172,3 +172,7 @@ class StockCountLine(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.menu_item.name}: {self.counted_quantity}"
+
+
+# Batch model imported here so Django registers it with the inventory app.
+from .batches import InventoryBatch  # noqa: E402,F401
