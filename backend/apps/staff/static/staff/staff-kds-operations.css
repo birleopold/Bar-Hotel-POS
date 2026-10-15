@@ -1,0 +1,22 @@
+/* Operational KDS refinements: touch-first, keyboard accessible, responsive. */
+.kds-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.8rem;padding:.85rem 1rem;margin:.8rem 0;border:1px solid var(--border,#d9e1e6);border-radius:.9rem;background:var(--surface,#fff)}
+.kds-toolbar__tools{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem}
+.kds-toolbar .staff-btn,.staff-pos-kds-line__action button{min-height:44px;padding:.6rem .95rem}
+.staff-pos-kds-card.kds-ticket--rush{border-left:5px solid #ad5e14}
+.kds-rush-tag{display:inline-flex;border:1px solid #ad5e14;border-radius:.4rem;padding:.18rem .45rem;color:#9d4d10;font-weight:700;font-size:.78rem;letter-spacing:.01em}
+.kds-age-summary{display:inline-block;font-size:.8rem;color:var(--text-muted,#606b73)}
+.kds-line-timer{display:block;margin-top:.25rem;font-size:.82rem;font-weight:650;font-variant-numeric:tabular-nums}
+.kds-line--overdue{outline:2px solid #bc5228;outline-offset:-2px;background:rgba(188,82,40,.06)}
+.kds-line--overdue .kds-line-timer{color:#a5401e}
+.kds-line--rush{border-left:3px solid #a15a13}
+.kds-modifier-list{margin:.4rem 0 .1rem;padding-left:1.25rem;color:var(--text-muted,#5f6b74);font-size:.85rem}
+.kds-recall-control{max-width:18rem;min-width:10rem}
+.kds-recall-control>summary{cursor:pointer;min-height:32px;font-weight:650}
+.kds-recall-form{display:grid;gap:.35rem;margin-top:.35rem}
+.kds-recall-form label{font-size:.82rem}
+.staff-pos-kds-line__action{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem}
+.staff-pos-kds-card:focus-within{outline:2px solid var(--tenant-secondary,#147b82);outline-offset:2px}
+#kds-fullscreen:focus-visible,#kds-sound:focus-visible{outline:3px solid #087f8c;outline-offset:3px}
+@media(max-width:720px){.kds-toolbar{padding:.75rem}.kds-toolbar__tools{width:100%}.kds-toolbar__tools>*{flex:1 1 auto}.staff-pos-kds-line__action{width:100%}.staff-pos-kds-line__action form{flex:1 1 auto}.staff-pos-kds-line__action form button{width:100%}.kds-recall-control{width:100%;max-width:100%}}
+@media(min-width:1600px){.staff-pos-kds-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.staff-pos-kds-card,.kds-rush-tag{animation:none;transition:none}}
