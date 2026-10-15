@@ -842,3 +842,103 @@ class StaffRoomMaintenanceView(StaffTenantRequiredMixin, View):
         item.save(update_fields=["status", "resolved_at", "updated_at"])
         messages.success(request, f"{item.title} is now {item.get_status_display()}.")
         return redirect("staff-lodging-maintenance")
+
+
+
+class StaffPropertyNightAuditView(StaffTenantRequiredMixin, View):
+    """Property-scoped nightly reconciliation and explicit close; staff workflow."""
+    staff_nav_capability = "lodging"
+    template_name = "staff/lodging/night_audit.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.sites, self.current_site = _lodging_sites_and_site(request)
+        if self.current_site is None:
+            messages.info(request, "Choose a property before reviewing the night audit.")
+            return redirect("staff-dashboard")
+        if not membership_can_manage_folios(request.tenant_membership):
+            messages.error(request, "Your role cannot review hotel day closing.")
+            return redirect("staff-dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _business_date(self, request):
+        from apps.tenants.business_date import business_date_for
+        today = business_date_for(tenant=request.tenant, site=self.current_site)
+        raw = (request.POST.get("business_date") if request.method == "POST"
+               else request.GET.get("business_date"))
+        if not raw:
+            return today
+        night = parse_date(raw)
+        if not night:
+            raise DRFValidationError({"business_date": "Choose a valid date."})
+        return night
+
+    def _can_close(self):
+        return self.request.tenant_membership.role in {
+            MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+        }
+
+    def get(self, request, *args, **kwargs):
+        from apps.lodging.night_audit import night_audit_snapshot
+        from apps.lodging.models import PropertyNightAudit
+        try:
+            night = self._business_date(request)
+            snapshot = night_audit_snapshot(
+                tenant=request.tenant, site=self.current_site, night=night,
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+            return redirect("staff-lodging-night-audit")
+        closed = PropertyNightAudit.objects.filter(
+            tenant=request.tenant, site=self.current_site,
+            business_date=night,
+        ).first()
+        history = PropertyNightAudit.objects.filter(
+            tenant=request.tenant, site=self.current_site,
+        ).select_related("closed_by").order_by("-business_date")[:15]
+        return render(request, self.template_name, {
+            "sites": self.sites, "current_site": self.current_site,
+            "business_date": night, "snapshot": snapshot,
+            "closed_audit": closed, "audit_history": history,
+            "can_close_audit": self._can_close(),
+            "membership_can_manage_folios": True,
+            "membership_can_manage_reservations": membership_can_manage_reservations(request.tenant_membership),
+            "membership_can_manage_room_inventory": membership_can_manage_room_inventory(request.tenant_membership),
+            "membership_can_access_housekeeping": membership_can_access_housekeeping(request.tenant_membership),
+            "membership_can_manage_housekeeping_workflows": membership_can_manage_housekeeping_workflows(request.tenant_membership),
+        })
+
+    def post(self, request, *args, **kwargs):
+        from apps.lodging.night_audit import close_night_audit, post_missing_room_night
+        from django.http import HttpResponseForbidden
+        try:
+            night = self._business_date(request)
+            action = request.POST.get("action", "")
+            if action == "post_room_night":
+                rid = uuid.UUID(request.POST.get("reservation_id", ""))
+                posted = post_missing_room_night(
+                    tenant=request.tenant, site=self.current_site, night=night,
+                    reservation_id=rid, user=request.user,
+                )
+                messages.success(request, "Room night posted to guest folio." if posted
+                                 else "That room night was already posted.")
+            elif action == "close_audit":
+                if not self._can_close():
+                    return HttpResponseForbidden("A property manager must close the night audit.")
+                close, repeated = close_night_audit(
+                    tenant=request.tenant, site=self.current_site, night=night,
+                    user=request.user, note=request.POST.get("note", ""),
+                    confirm_cash=request.POST.get("confirm_cash") == "yes",
+                    confirm_folios=request.POST.get("confirm_folios") == "yes",
+                )
+                messages.success(request, "Already closed." if repeated else
+                                 "Business day close recorded. Review its archived snapshot below.")
+            else:
+                messages.error(request, "Choose a valid night audit action.")
+        except (ValueError, TypeError, DRFValidationError) as exc:
+            if isinstance(exc, DRFValidationError):
+                _flash_drf_validation(request, exc)
+            else:
+                messages.error(request, "Choose a valid reservation and business date.")
+            return redirect("staff-lodging-night-audit")
+        return redirect(f"{reverse('staff-lodging-night-audit')}?business_date={night.isoformat()}")
