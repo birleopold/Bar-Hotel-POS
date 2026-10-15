@@ -1,4 +1,5 @@
 """Business-date configuration; safe read-only preview and scoped settings."""
+import uuid
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.contrib import messages
@@ -35,6 +36,8 @@ class StaffBusinessDateView(StaffTenantRequiredMixin, TemplateView):
         return qs.filter(pk__in=permitted)
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not getattr(request, "tenant_membership", None):
+            return super().dispatch(request, *args, **kwargs)
         if request.tenant_membership.role not in self._allowed_roles():
             return HttpResponseForbidden("Business date settings are available to property managers.")
         return super().dispatch(request, *args, **kwargs)
@@ -103,8 +106,12 @@ class StaffBusinessDateView(StaffTenantRequiredMixin, TemplateView):
                     audit_action = "operations.business_date_default_changed"
                     payload = {"timezone": name, "cutover_hour": hour}
                 elif scope == "site":
+                    try:
+                        site_id = uuid.UUID(request.POST.get("site_id", ""))
+                    except (ValueError, TypeError) as exc:
+                        raise ValueError("Choose a valid property.") from exc
                     site = self._visible_sites().select_for_update().filter(
-                        pk=request.POST.get("site_id"),
+                        pk=site_id,
                     ).first()
                     if site is None:
                         raise Http404("Property not available")
