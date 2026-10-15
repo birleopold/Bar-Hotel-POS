@@ -147,8 +147,8 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
             Order.objects.filter(
                 tenant=request.tenant,
                 outlet=outlet,
-                status=OrderStatus.OPEN,
             )
+            .filter(Q(status=OrderStatus.OPEN) | Q(status=OrderStatus.CLOSED, is_paid=True))
             .select_related("outlet", "table")
             .prefetch_related(Prefetch("lines", queryset=line_qs.order_by("sort_order", "created_at")))
             .order_by("created_at")
@@ -248,8 +248,8 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
                 pk=oid,
                 tenant_id=request.tenant.id,
                 outlet_id=outlet.id,
-                status=OrderStatus.OPEN,
             )
+            .filter(Q(status=OrderStatus.OPEN) | Q(status=OrderStatus.CLOSED, is_paid=True))
             .first()
         )
         if order is None:

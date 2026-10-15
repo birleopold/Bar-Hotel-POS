@@ -1,6 +1,6 @@
 import uuid
 
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.exceptions import ValidationError
@@ -68,8 +68,8 @@ class KdsTicketView(APIView):
             Order.objects.filter(
                 tenant=request.tenant,
                 outlet_id=oid,
-                status=OrderStatus.OPEN,
             )
+            .filter(Q(status=OrderStatus.OPEN) | Q(status=OrderStatus.CLOSED, is_paid=True))
             .select_related("outlet", "table")
             .prefetch_related(Prefetch("lines", queryset=line_qs.order_by("sort_order", "created_at")))
             .order_by("created_at")
@@ -129,8 +129,7 @@ class KdsTicketView(APIView):
             return Response({"error": {"code": "outlet_forbidden", "message": "No access to this section."}}, status=403)
         order = Order.objects.filter(
             id=order_id, tenant=request.tenant, outlet_id=outlet_id,
-            status=OrderStatus.OPEN,
-        ).first()
+        ).filter(Q(status=OrderStatus.OPEN) | Q(status=OrderStatus.CLOSED, is_paid=True)).first()
         line = OrderLine.objects.filter(order=order, id=line_id, is_voided=False).first() if order else None
         if not line:
             return Response({"error": {"code": "not_found", "message": "Prep item not found."}}, status=404)

@@ -33,8 +33,9 @@ def update_order_line_kds_status(
         raise ValidationError({"kds_status": "Invalid status."})
 
     locked_o = Order.objects.select_for_update().get(pk=order.pk)
-    if locked_o.status != OrderStatus.OPEN:
-        raise ValidationError("Kitchen line status can only change on open orders.")
+    if not (locked_o.status == OrderStatus.OPEN or
+            (locked_o.status == OrderStatus.CLOSED and locked_o.is_paid)):
+        raise ValidationError("Only open or paid orders can continue through preparation.")
     ln = OrderLine.objects.select_for_update().get(pk=line.pk, order_id=locked_o.id)
     if ln.is_voided:
         raise ValidationError("Voided lines cannot be updated on KDS.")
@@ -83,8 +84,9 @@ def manage_kds_item(*, order, line, membership, user, action, reason=""):
             or membership.tenant_id != order.tenant_id or membership.user_id != user.pk):
         raise ValidationError({"detail": "A manager must authorize a rush or recall."})
     locked = Order.objects.select_for_update().get(pk=order.pk, tenant_id=membership.tenant_id)
-    if locked.status != OrderStatus.OPEN:
-        raise ValidationError({"detail": "Only live prep items can be changed."})
+    if not (locked.status == OrderStatus.OPEN or
+            (locked.status == OrderStatus.CLOSED and locked.is_paid)):
+        raise ValidationError({"detail": "Only open or paid prep items can be changed."})
     ln = OrderLine.objects.select_for_update().get(pk=line.pk, order=locked)
     if ln.is_voided or ln.kds_status == KdsLineStatus.SERVED:
         raise ValidationError({"detail": "A voided or served item cannot be changed."})
