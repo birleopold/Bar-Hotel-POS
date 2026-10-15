@@ -687,3 +687,35 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
 
         messages.error(request, "Unknown action.")
         return redirect("staff-inventory-count-detail", session_id=sess.id)
+
+
+class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
+    """Scoped, paginated expiry and quarantine queue for staff."""
+    staff_nav_capability = "inventory"
+    template_name = "staff/inventory/batches.html"
+    context_object_name = "batches"
+    paginate_by = 50
+
+    def dispatch(self, request, *args, **kwargs):
+        bad = _inventory_requires_outlets(request)
+        if bad:
+            return bad
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        from apps.inventory.batches import InventoryBatch
+        outlets = staff_accessible_outlets(self.request.tenant_membership)
+        ids = _outlet_filter_ids(self.request, outlets)
+        return (InventoryBatch.objects.filter(
+            tenant=self.request.tenant, outlet_id__in=ids,
+            remaining_quantity__gt=0,
+        ).select_related("menu_item", "outlet")
+        .order_by("expiry_date", "batch_code"))
+
+    def get_context_data(self, **kwargs):
+        from datetime import timedelta
+        from django.utils import timezone
+        context = super().get_context_data(**kwargs)
+        context["today"] = timezone.localdate()
+        context["expiry_horizon"] = context["today"] + timedelta(days=30)
+        return context
