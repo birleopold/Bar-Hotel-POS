@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.db.models import F
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
-from django.views.generic import DetailView, FormView, ListView
+from django.views.generic import DetailView, FormView, ListView, TemplateView
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -816,3 +816,56 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
         return redirect("staff-inventory-batches")
+
+
+
+class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
+    """Advisory-only stock planning, shown for permitted outlets only."""
+    staff_nav_capability = "inventory"
+    template_name = "staff/inventory/intelligence.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        blocked = _inventory_requires_outlets(request)
+        if blocked:
+            return blocked
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        from django.core.paginator import Paginator
+        from apps.inventory.insights import build_stock_intelligence
+        ctx = super().get_context_data(**kwargs)
+        outlets = staff_accessible_outlets(self.request.tenant_membership)
+        ids = _outlet_filter_ids(self.request, outlets)
+        raw_safety = self.request.GET.get("safety_days", "3")
+        try:
+            safety_days = int(raw_safety)
+            if not 0 <= safety_days <= 30:
+                raise ValueError()
+        except ValueError:
+            safety_days = 3
+            ctx["planning_warning"] = "The stock buffer must be between 0 and 30 days; using 3."
+        low_only = self.request.GET.get("low") == "1"
+        qs = StockBalance.objects.filter(
+            tenant=self.request.tenant, outlet_id__in=ids,
+            menu_item__track_inventory=True,
+        ).select_related("menu_item", "outlet__site")
+        if low_only:
+            from django.db.models import Q
+            qs = qs.filter(menu_item__reorder_level__isnull=False,
+                           quantity__lte=F("menu_item__reorder_level"))
+        qs = qs.order_by("outlet__name", "menu_item__name", "pk")
+        page = Paginator(qs, 24).get_page(self.request.GET.get("page", "1"))
+        summaries = build_stock_intelligence(
+            tenant=self.request.tenant,
+            balances=page.object_list,
+            safety_days=safety_days,
+        )
+        ctx.update({
+            "stock_rows": summaries, "page_obj": page,
+            "safety_days": safety_days, "low_only": low_only,
+            "outlet_count": len(ids),
+            "low_stock_page_count": sum(int(row["low_stock"]) for row in summaries),
+            "inactive_page_count": sum(int(row["inactive"]) for row in summaries),
+            "unknown_age_page_count": sum(int(row["unbatched_qty"] > 0) for row in summaries),
+        })
+        return ctx
