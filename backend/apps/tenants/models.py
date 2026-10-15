@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 
 from apps.common.models import TimeStampedModel
@@ -115,6 +116,10 @@ class TenantSettings(TimeStampedModel):
     )
     default_currency = models.CharField(max_length=3, default="USD")
     default_timezone = models.CharField(max_length=64, default="UTC")
+    business_day_cutover_hour = models.PositiveSmallIntegerField(
+        default=4, validators=[MinValueValidator(0), MaxValueValidator(23)],
+        help_text="Local hour at which the next operating day begins (0–23).",
+    )
     receipt_footer = models.TextField(blank=True)
     theme_primary = models.CharField(max_length=7, default="#E85D4C", help_text="Hex color")
     theme_secondary = models.CharField(max_length=7, default="#2DD4BF", help_text="Hex color")
@@ -155,6 +160,14 @@ class Site(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="sites")
     name = models.CharField(max_length=255)
+    business_timezone = models.CharField(
+        max_length=64, blank=True,
+        help_text="Optional property timezone; blank uses the business default.",
+    )
+    business_day_cutover_hour = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(23)],
+        help_text="Optional property closing boundary; blank uses the business default.",
+    )
     address_line = models.CharField(max_length=512, blank=True)
     city = models.CharField(max_length=128, blank=True)
     country_code = models.CharField(max_length=2, blank=True)
