@@ -1654,6 +1654,20 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
 
 
 class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
+    def _business_report_site(self, request):
+        """Return a property only when operating-date reporting has a single property."""
+        if request.GET.get("date_basis") != "business":
+            return None, None
+        outlets = staff_accessible_outlets(request.tenant_membership)
+        current = resolve_staff_outlet(request, outlets)
+        chosen = (outlets if request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
+                  else ([current] if current else []))
+        site_ids = {o.site_id for o in chosen}
+        if len(site_ids) != 1:
+            return None, "Operating-date reports need exactly one property. Select a section or property."
+        from apps.tenants.models import Site
+        return Site.objects.get(pk=next(iter(site_ids)), tenant=request.tenant), None
+
     staff_nav_capability = "sales"
     template_name = "staff/sales_summary.html"
 
@@ -1673,7 +1687,14 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
         outlet = resolve_staff_outlet(request, outlets)
         all_outlets_mode = request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         oid = None if all_outlets_mode else (outlet.id if outlet else None)
-        body = format_sales_summary_csv(request.tenant.id, d0, d1, oid, allowed_outlet_ids=[o.pk for o in outlets])
+        business_site, warning = self._business_report_site(request)
+        if warning:
+            return HttpResponse(warning, status=400, content_type="text/plain")
+        body = format_sales_summary_csv(
+            request.tenant.id, d0, d1, oid,
+            allowed_outlet_ids=[o.pk for o in outlets],
+            business_date_site=business_site,
+        )
 
         resp = HttpResponse(body, content_type="text/csv; charset=utf-8")
         resp["Content-Disposition"] = (
@@ -1690,6 +1711,11 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
         ctx["date_from"] = d0
         ctx["date_to"] = d1
         ctx["date_errors"] = []
+        ctx["date_basis"] = self.request.GET.get("date_basis", "calendar")
+        business_site, warning = self._business_report_site(self.request)
+        if warning:
+            ctx["date_errors"].append(warning)
+        ctx["business_date_property"] = business_site
 
         if d0 > d1:
             ctx["date_errors"].append("Start date must be on or before end date.")
@@ -1705,5 +1731,9 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
             return ctx
 
         oid = None if ctx["all_outlets_mode"] else (outlet.id if outlet else None)
-        ctx["summary"] = build_sales_summary(self.request.tenant.id, d0, d1, oid, allowed_outlet_ids=[o.pk for o in outlets])
+        ctx["summary"] = build_sales_summary(
+            self.request.tenant.id, d0, d1, oid,
+            allowed_outlet_ids=[o.pk for o in outlets],
+            business_date_site=business_site,
+        )
         return ctx

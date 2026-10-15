@@ -11,7 +11,7 @@
           <p class="staff-dash-hero__tagline mb-0">Payments and refunds in range; kitchen / bar / service split follows line mix.</p>
         </div>
         <div class="staff-page-hero__actions">
-          <a class="staff-btn staff-btn--ghost" href="?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&format=csv">Download CSV</a>
+          <a class="staff-btn staff-btn--ghost" href="?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&date_basis={{ date_basis|urlencode }}&format=csv">Download CSV</a>
         </div>
       </div>
     </div>
@@ -28,12 +28,20 @@
         <label class="staff-label staff-label--compact" for="dt">To</label>
         <input class="staff-input w-100" style="min-height: 2.75rem; border-radius: 0.75rem;" type="date" id="dt" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
       </div>
+      <div style="flex: 1 1 13rem;">
+        <label class="staff-label staff-label--compact" for="date-basis">Date interpretation</label>
+        <select id="date-basis" class="staff-input" name="date_basis">
+          <option value="calendar"{% if date_basis != "business" %} selected{% endif %}>Calendar dates (UTC)</option>
+          <option value="business"{% if date_basis == "business" %} selected{% endif %}>Property operating dates</option>
+        </select>
+      </div>
       <div style="flex: 0 0 auto;">
         <button type="submit" class="staff-btn staff-btn--primary" style="min-height: 2.75rem; border-radius: 0.75rem;"><i class="bi bi-arrow-clockwise me-2"></i>Update</button>
       </div>
     </div>
   </form>
 
+  {% if business_date_property %}<p class="staff-muted mb-3">Operating dates use the closing boundary of {{ business_date_property.name }}. A payment after midnight can belong to the previous day.</p>{% endif %}
   {% for e in date_errors %}<div class="staff-alert staff-alert--danger mb-4">{{ e }}</div>{% endfor %}
   
   {% if summary %}

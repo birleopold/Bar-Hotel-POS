@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Sum
@@ -53,8 +53,24 @@ def build_sales_summary(
     *,
     allowed_outlet_ids: list[uuid.UUID] | None = None,
     outlet_ids: list[uuid.UUID] | None = None,
+    business_date_site=None,
 ) -> dict:
-    start, end = utc_day_range_inclusive(d0, d1)
+    if business_date_site is not None:
+        from apps.tenants.business_date import business_day_window, effective_business_clock
+        start, _ = business_day_window(
+            tenant=business_date_site.tenant, site=business_date_site, operating_date=d0,
+        )
+        _, end_exclusive = business_day_window(
+            tenant=business_date_site.tenant, site=business_date_site, operating_date=d1,
+        )
+        end = end_exclusive - timedelta(microseconds=1)
+        business_zone, cutover_hour, _ = effective_business_clock(
+            tenant=business_date_site.tenant, site=business_date_site,
+        )
+    else:
+        start, end = utc_day_range_inclusive(d0, d1)
+        business_zone = None
+        cutover_hour = 0
 
     payments_qs = Payment.objects.filter(
         tenant_id=tenant_id,
@@ -256,7 +272,12 @@ def build_sales_summary(
         lambda: {"payments_count": 0, "gross_sales": Decimal("0.00")}
     )
     for created_at, amount in payments_qs.values_list("created_at", "amount"):
-        weekday = created_at.weekday()
+        if business_zone is None:
+            weekday = created_at.weekday()
+        else:
+            local = created_at.astimezone(business_zone)
+            day = local.date() - timedelta(days=1) if local.hour < cutover_hour else local.date()
+            weekday = day.weekday()
         weekday_buckets[weekday]["payments_count"] += 1
         weekday_buckets[weekday]["gross_sales"] += amount or Decimal("0.00")
 
