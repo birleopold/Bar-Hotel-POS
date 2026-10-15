@@ -1,0 +1,58 @@
+{% extends "staff/base.html" %}
+{% block title %}Operating dates{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+  <p class="staff-dash-hero__eyebrow">Management</p>
+  <h1 class="staff-page-title">Operating dates</h1>
+  <p>Choose when a new business day begins. For example, with a 4 AM boundary, a sale at 2 AM still belongs to the previous business date.</p>
+</div></header>
+<nav class="staff-chip-row mb-3" aria-label="Management tasks">
+<a class="staff-btn staff-btn--ghost" href="{% url 'staff-management' %}">Back to management</a>
+</nav>
+{% if can_edit_global %}
+<section class="staff-card mb-3">
+<h2 class="staff-section-head">Business defaults</h2>
+<p class="staff-muted">These settings apply to properties without their own overrides.</p>
+<form class="row g-3" method="post">{% csrf_token %}
+<input type="hidden" name="scope" value="tenant">
+<div class="col-12 col-md-6">
+<label class="staff-label" for="default-timezone">Time zone</label>
+<input class="staff-input" id="default-timezone" name="timezone" maxlength="64" required value="{{ business_settings.default_timezone }}" placeholder="Africa/Kampala">
+</div>
+<div class="col-12 col-md-4">
+<label class="staff-label" for="default-hour">New day starts at (24-hour clock)</label>
+<input class="staff-input" id="default-hour" type="number" min="0" max="23" step="1" name="cutover_hour" value="{{ business_settings.business_day_cutover_hour }}" required>
+</div>
+<div class="col-12 col-md-2"><button class="staff-btn staff-btn--primary" type="submit">Save defaults</button></div>
+</form></section>
+{% endif %}
+<h2 class="staff-section-head">Property operating dates</h2>
+<p class="staff-muted">Each location can use the business default or its own time zone and day boundary. These settings do not close shifts, post room charges or change historical transactions.</p>
+{% for row in property_dates %}
+<section class="staff-card mb-3">
+<div class="row g-3">
+<div class="col-12 col-lg-5">
+<h3 class="staff-section-head mb-1">{{ row.site.name }}</h3>
+<p class="mb-1"><strong>Current business date:</strong>
+{% if row.business_date %}{{ row.business_date|date:"D, j M Y" }}{% else %}Check time zone settings{% endif %}</p>
+<p class="staff-muted mb-0">Time zone: {{ row.timezone }} · New day begins at {{ row.cutover_hour|default_if_none:"—" }}:00</p>
+</div>
+<div class="col-12 col-lg-7"><details>
+<summary>Edit property settings</summary>
+<form class="row g-2 mt-2" method="post">{% csrf_token %}
+<input type="hidden" name="scope" value="site"><input type="hidden" name="site_id" value="{{ row.site.id }}">
+<div class="col-12 col-md-7">
+<label class="staff-label" for="zone-{{ row.site.id }}">Time zone (blank uses default)</label>
+<input class="staff-input" id="zone-{{ row.site.id }}" name="timezone" maxlength="64" value="{{ row.site.business_timezone }}" placeholder="Africa/Kampala">
+</div>
+<div class="col-12 col-md-5">
+<label class="staff-label" for="hour-{{ row.site.id }}">Day starts at (blank uses default)</label>
+<input class="staff-input" id="hour-{{ row.site.id }}" name="cutover_hour" type="number" min="0" max="23" step="1" value="{{ row.site.business_day_cutover_hour|default_if_none:'' }}">
+</div>
+<div class="col-12"><button class="staff-btn staff-btn--primary" type="submit">Save property settings</button></div>
+</form></details></div>
+</div></section>
+{% empty %}
+<p class="staff-muted">No properties are available in your permitted scope.</p>
+{% endfor %}
+{% endblock %}
