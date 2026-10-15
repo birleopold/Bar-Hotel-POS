@@ -18,7 +18,7 @@ def test_invite_create_throttled_after_limit(api_client, monkeypatch):
         {**base, "invite_create": "2/minute"},
     )
     tenant = Tenant.objects.create(name="Inv Throttle", slug="invite-throttle-tenant")
-    TenantSettings.objects.get_or_create(tenant=tenant)
+    TenantSettings.objects.get_or_create(tenant=tenant, defaults={"business_lines": ["retail"]})
     user = User.objects.create_user(email="invthr@test.local", password="TestPass9!")
     Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
     site = Site.objects.create(tenant=tenant, name="Main branch")
