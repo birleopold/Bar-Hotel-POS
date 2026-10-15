@@ -86,6 +86,7 @@ class FinancePostingSource(models.TextChoices):
     FOLIO_PAYMENT = "folio_payment", "Folio payment"
     PURCHASE_RECEIVE_MOVEMENT = "purchase_receive_movement", "Purchase receive movement"
     SUPPLIER_PAYMENT = "supplier_payment", "Supplier payment"
+    EVENT_PAYMENT = "event_payment", "Event payment"
 
 
 class FinancePostingLink(TimeStampedModel):
