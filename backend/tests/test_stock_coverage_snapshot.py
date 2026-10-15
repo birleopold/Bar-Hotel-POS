@@ -35,3 +35,11 @@ class StockCoverageSnapshotTests(TestCase):
     def test_window_validation(self):
         with self.assertRaises(ValueError):
             stock_coverage_snapshot(tenant=None, outlet=None, days=0)
+
+    def test_rejects_cross_tenant_outlet(self):
+        tenant = Tenant.objects.create(name="Tenant A", slug="coverage-tenant-a")
+        other = Tenant.objects.create(name="Tenant B", slug="coverage-tenant-b")
+        other_site = Site.objects.create(tenant=other, name="Other site")
+        outlet = Outlet.objects.create(site=other_site, name="Other counter", outlet_type=OutletType.RETAIL)
+        with self.assertRaisesRegex(ValueError, "outlet must belong to tenant"):
+            stock_coverage_snapshot(tenant=tenant, outlet=outlet)
