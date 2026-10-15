@@ -320,3 +320,24 @@ class FolioPayment(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.amount} {self.method} ({self.folio.guest_name})"
+
+
+class PropertyNightAudit(TimeStampedModel):
+    """Immutable record of an explicitly closed property operating day."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="property_night_audits")
+    site = models.ForeignKey("tenants.Site", on_delete=models.PROTECT, related_name="night_audits")
+    business_date = models.DateField()
+    closed_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="property_audits_closed",
+    )
+    closed_at = models.DateTimeField(auto_now_add=True)
+    note = models.CharField(max_length=512, blank=True)
+    snapshot = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-business_date"]
+        constraints = [
+            models.UniqueConstraint(fields=["site", "business_date"], name="uniq_night_audit_site_date"),
+        ]
