@@ -14,7 +14,7 @@ from apps.inventory.services_batches import receive_tracked_batch
 from apps.inventory.batches import InventoryBatch
 from django.utils import timezone
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, SupplierPayment, SupplierPaymentMethod
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, SupplierPayment, SupplierPaymentMethod, SupplierInvoice
 
 
 @transaction.atomic
@@ -221,3 +221,60 @@ def _sync_po_status(po: PurchaseOrder) -> None:
     if po.status != new_status:
         po.status = new_status
         po.save(update_fields=["status", "updated_at"])
+
+
+
+@transaction.atomic
+def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
+                            user, membership, note=""):
+    """Record a verified supplier document; never invent a cash payment.
+
+    Multiple partial-delivery invoices are supported up to the known value of
+    received goods. Missing receipt costs require confirmation first.
+    """
+    po = PurchaseOrder.objects.select_for_update().get(pk=po.pk)
+    if not outlet_belongs_to_membership(membership, po.outlet_id):
+        raise ValidationError({"detail": "You cannot record invoices for this section."})
+    if po.status not in (PurchaseOrderStatus.PARTIALLY_RECEIVED, PurchaseOrderStatus.RECEIVED):
+        raise ValidationError({"detail": "Receive goods before adding an invoice."})
+    number = (reference or "").strip()
+    if not number or len(number) > 128:
+        raise ValidationError({"reference": "Enter a supplier invoice number, up to 128 characters."})
+    description = (note or "").strip()
+    if len(description) > 512:
+        raise ValidationError({"note": "Use at most 512 characters."})
+    if due_date < invoice_date:
+        raise ValidationError({"due_date": "Due date cannot be earlier than invoice date."})
+    if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.01")):
+        raise ValidationError({"amount": "Enter a positive amount with two decimal places."})
+    existing = SupplierInvoice.objects.filter(
+        tenant_id=po.tenant_id, purchase_order=po, reference=number,
+    ).first()
+    if existing is not None:
+        if (existing.amount, existing.invoice_date, existing.due_date, existing.note) != (
+                amount, invoice_date, due_date, description):
+            raise ValidationError({"reference": "Invoice number already used for different details."})
+        return existing, True
+    if po.lines.filter(quantity_received__gt=0, unit_cost__isnull=True).exists():
+        raise ValidationError({"detail": "Confirm unit costs of received goods before adding an invoice."})
+    value = received_goods_value(po)
+    already = po.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    if amount > value - already:
+        raise ValidationError({
+            "amount": "Invoice exceeds the unbilled value of received goods; review any tax or delivery charges separately."
+        })
+    invoice = SupplierInvoice.objects.create(
+        tenant_id=po.tenant_id, purchase_order=po, reference=number,
+        invoice_date=invoice_date, due_date=due_date, amount=amount,
+        note=description, recorded_by=user,
+    )
+    log_audit(
+        tenant_id=po.tenant_id, user_id=user.pk if user else None,
+        action="purchase.supplier_invoice_recorded",
+        entity_type="supplier_invoice", entity_id=str(invoice.pk),
+        payload={
+            "purchase_order_id": str(po.pk), "reference": number,
+            "amount": str(amount), "due_date": str(due_date),
+        },
+    )
+    return invoice, False

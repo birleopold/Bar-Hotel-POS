@@ -194,3 +194,38 @@ class SupplierPayment(TimeStampedModel):
         constraints = [
             models.UniqueConstraint(fields=["tenant", "idempotency_key"], name="uniq_supplier_payment_key_tenant"),
         ]
+
+
+class SupplierInvoice(TimeStampedModel):
+    """Supplier document against received goods; does NOT post payment or expense."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="supplier_invoices",
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder, on_delete=models.PROTECT, related_name="invoices",
+    )
+    reference = models.CharField(max_length=128)
+    invoice_date = models.DateField()
+    due_date = models.DateField()
+    amount = models.DecimalField(
+        max_digits=14, decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    note = models.CharField(max_length=512, blank=True)
+    recorded_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True,
+        related_name="supplier_invoices_recorded",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "purchase_order", "reference"],
+                name="uniq_supplier_invoice_reference_po",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0), name="supplier_invoice_amount_positive",
+            ),
+        ]
