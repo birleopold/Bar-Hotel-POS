@@ -241,3 +241,64 @@ def waste_batch_stock(*, tenant_id, batch_id, allowed_outlet_ids, quantity, user
             },
         )
         return movement
+
+
+
+def label_existing_stock_batch(*, tenant_id, outlet, menu_item, batch_code,
+                               quantity, received_at, expiry_date, user):
+    """Explicitly assign already-counted stock to a batch without re-receiving it.
+
+    The aggregate stock balance must not increase; the transaction caps the
+    allocation at quantity not already assigned to batches. This is the safe
+    manual migration path for earlier unlabeled stock.
+    """
+    from django.db import transaction
+    from django.db.models import Sum
+    from rest_framework.exceptions import ValidationError
+    from apps.audit.services import log_audit
+    from .models import StockBalance
+
+    if outlet.site.tenant_id != tenant_id or menu_item.tenant_id != tenant_id:
+        raise ValidationError({"stock": "Section and product must belong to the active business."})
+    if not menu_item.track_inventory:
+        raise ValidationError({"menu_item": "Select an inventory-tracked product."})
+    try:
+        amount = Decimal(str(quantity))
+    except (TypeError, ValueError, ArithmeticError):
+        raise ValidationError({"quantity": "Enter a valid quantity."})
+    if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.001")):
+        raise ValidationError({"quantity": "Enter a positive quantity with at most three decimal places."})
+    code = (batch_code or "").strip()
+    if not code or len(code) > 128:
+        raise ValidationError({"batch_code": "Enter a batch code up to 128 characters."})
+    if expiry_date is not None and expiry_date < received_at:
+        raise ValidationError({"expiry_date": "Expiry cannot be before the receipt date."})
+    with transaction.atomic():
+        balance = StockBalance.objects.select_for_update().filter(
+            tenant_id=tenant_id, outlet=outlet, menu_item=menu_item,
+        ).first()
+        if balance is None:
+            raise ValidationError({"quantity": "There is no existing stock to label."})
+        previous = InventoryBatch.objects.select_for_update().filter(
+            tenant_id=tenant_id, outlet=outlet, menu_item=menu_item,
+        )
+        already_assigned = previous.aggregate(total=Sum("remaining_quantity"))["total"] or Decimal("0")
+        if amount > balance.quantity - already_assigned:
+            raise ValidationError({"quantity": "Quantity exceeds stock that is not yet assigned to a batch."})
+        if previous.filter(batch_code=code).exists():
+            raise ValidationError({"batch_code": "This batch code already exists for the product in this section."})
+        batch = InventoryBatch.objects.create(
+            tenant_id=tenant_id, outlet=outlet, menu_item=menu_item,
+            batch_code=code, received_at=received_at, expiry_date=expiry_date,
+            received_quantity=amount, remaining_quantity=amount,
+        )
+        log_audit(
+            tenant_id=tenant_id, user_id=user.pk if user else None,
+            action="inventory.legacy_stock_labeled",
+            entity_type="inventory_batch", entity_id=str(batch.pk),
+            payload={
+                "outlet_id": str(outlet.pk), "menu_item_id": str(menu_item.pk),
+                "quantity": str(amount), "balance_unchanged": True,
+            },
+        )
+        return batch
