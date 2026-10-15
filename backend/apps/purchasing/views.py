@@ -96,7 +96,8 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         ser = ReceivePurchaseOrderSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         lines_payload = [
-            {"line_id": x["line_id"], "quantity": x["quantity"]}
+            {key: value for key, value in x.items()
+             if key in ("line_id", "quantity", "batch_code", "expiry_date", "received_at")}
             for x in ser.validated_data["lines"]
         ]
         receive_purchase_order_goods(
