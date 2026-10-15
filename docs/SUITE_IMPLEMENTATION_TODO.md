@@ -213,3 +213,8 @@ Remaining Phase 05: customer-linked API parity where appropriate; practical asso
 - Added `apps.staff.services.customer_finance.customer_financial_snapshot`: branch/outlet-scoped direct paid POS sales and folio charges/payments/outstanding, separated by currency; POS linked to folio excluded from standalone sales to avoid double counting.
 - Added `financial_snapshot` to customer detail view context and a regression test covering scopes, folio-linked orders, and partial payment.
 - **Phase 05 is still in progress**: customer API, invoices, complete privacy/retention policy and full UI rendering/verification are not finished; this service is not presented as full accounting or a loyalty ledger. Phase 06 is still pending. No external provider, browser or CI-green evidence is claimed.
+
+### 2026-10-15 — Phase 07 stock coverage verification checkpoint
+
+- Added `backend/tests/test_stock_coverage_snapshot.py` covering scoped inventory sale velocity, daily consumption, stock runway and low-stock thresholds. No stock mutations or purchases are triggered.
+- Phase 05–08 remain incomplete: Phase 05 APIs/invoices/retention, Phase 06 reward ledger, Phase 07 operational UI/aging/lead times, Phase 08 batch/expiry/FEFO accounting and migrations require implementation and passing CI. Do not mark them complete based on source commits alone.
