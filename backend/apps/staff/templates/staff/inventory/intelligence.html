@@ -1,0 +1,94 @@
+{% extends "staff/base.html" %}
+{% block title %}Stock planning{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+{% include "staff/inventory/includes/subnav.html" %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Inventory</p>
+    <h1 class="staff-page-title">Stock planning</h1>
+    <p>See slow-moving stock, batch ages, recent usage and suggested restocking amounts. Figures come from recorded stock movements and deliveries, not guesses.</p>
+  </div>
+</header>
+<section class="staff-card mb-3">
+  <form class="row g-3 align-items-end" method="get">
+    <div class="col-12 col-sm-5 col-lg-4">
+      <label class="staff-label" for="safety-days">Extra days of stock to keep</label>
+      <input id="safety-days" class="staff-input" name="safety_days" type="number" min="0" max="30" step="1" value="{{ safety_days }}" required>
+    </div>
+    <div class="col-12 col-sm-4 col-lg-4">
+      <label class="staff-label" for="stock-filter">Show</label>
+      <select id="stock-filter" class="staff-input" name="low">
+        <option value="0"{% if not low_only %} selected{% endif %}>All tracked stock</option>
+        <option value="1"{% if low_only %} selected{% endif %}>At or below reorder level</option>
+      </select>
+    </div>
+    <div class="col-12 col-sm-3 col-lg-4"><button class="staff-btn staff-btn--primary" type="submit">Update view</button></div>
+  </form>
+  {% if planning_warning %}<p role="alert" class="staff-alert staff-alert--info mt-2">{{ planning_warning }}</p>{% endif %}
+  <p class="staff-muted mt-3 mb-0">Suggestions use 30 days of recorded sales and recipe usage, actual supplier receipt dates when available, and your selected buffer. Without a delivery history, only your configured reorder level is used.</p>
+</section>
+<div class="staff-metric-row staff-metric-row--folio mb-3">
+  <span><strong>{{ page_obj.paginator.count }}</strong><small>Tracked stock records in selected sections</small></span>
+  <span><strong>{{ low_stock_page_count }}</strong><small>Low stock on this page</small></span>
+  <span><strong>{{ inactive_page_count }}</strong><small>Potentially idle on this page</small></span>
+  <span><strong>{{ unknown_age_page_count }}</strong><small>Unbatched stock records on this page</small></span>
+</div>
+{% if stock_rows %}
+<div class="row g-3 mb-3">
+{% for row in stock_rows %}
+<div class="col-12 col-lg-6 col-xxl-4">
+  <article class="staff-card h-100">
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+      <div><p class="staff-muted small mb-1">{{ row.outlet }}</p><h2 class="staff-card__title mb-1">{{ row.item }}</h2></div>
+      {% if row.batch_discrepancy %}<span class="staff-tag">Check batch counts</span>
+      {% elif row.low_stock %}<span class="staff-tag">Low stock</span>
+      {% elif row.inactive %}<span class="staff-tag">Possibly idle</span>{% endif %}
+    </div>
+    <p class="mb-2"><strong>{{ row.qty }}</strong> {{ row.unit }} on hand
+      {% if row.reorder_level != None %}<span class="staff-muted">· Reorder at {{ row.reorder_level }}</span>{% endif %}
+    </p>
+    <dl class="row g-2 mb-3">
+      <div class="col-6"><dt class="staff-muted small">Used in last 30 days</dt><dd class="fw-semibold">{{ row.units_consumed_30d }}</dd></div>
+      <div class="col-6"><dt class="staff-muted small">Daily usage</dt><dd class="fw-semibold">{{ row.daily_usage }}</dd></div>
+      <div class="col-6"><dt class="staff-muted small">Days of cover</dt><dd>{% if row.days_cover != None %}{{ row.days_cover }}{% else %}Unknown (no usage){% endif %}</dd></div>
+      <div class="col-6"><dt class="staff-muted small">Supplier lead time</dt><dd>{% if row.lead_days != None %}{{ row.lead_days }} days ({{ row.lead_samples }} delivery samples){% else %}Not recorded{% endif %}</dd></div>
+      <div class="col-6"><dt class="staff-muted small">Indicative movement ratio</dt><dd>{% if row.movement_ratio != None %}{{ row.movement_ratio }}%{% else %}Not enough data{% endif %}</dd></div>
+      <div class="col-6"><dt class="staff-muted small">Latest stock receipt</dt><dd>{{ row.last_received|date:"j M Y"|default:"Unknown" }}</dd></div>
+    </dl>
+    <details class="mb-3"><summary>Recorded batch ages</summary>
+      <div class="row g-2 mt-2">
+        <div class="col-6"><strong>0–30 days:</strong> {{ row.age_0_30 }}</div>
+        <div class="col-6"><strong>31–60 days:</strong> {{ row.age_31_60 }}</div>
+        <div class="col-6"><strong>61–90 days:</strong> {{ row.age_61_90 }}</div>
+        <div class="col-6"><strong>Over 90 days:</strong> {{ row.age_over_90 }}</div>
+        <div class="col-12"><strong>Age unknown:</strong> {{ row.unbatched_qty }}</div>
+      </div>
+      {% if row.batch_discrepancy %}<p class="staff-alert staff-alert--info mt-2">Batch quantities exceed the aggregate balance. Reconcile the records before using this advice.</p>{% endif %}
+    </details>
+    <section class="border-top pt-2">
+      <p class="staff-muted small mb-1">Restocking suggestion</p>
+      {% if row.suggested_order != None %}
+        <p class="mb-1"><strong>{{ row.suggested_order }}</strong> {{ row.unit }}</p>
+        <p class="staff-muted small mb-0">{{ row.planning_basis }}. This is a suggestion, not an order.</p>
+      {% else %}
+        <p class="staff-muted mb-0">Not enough information. Set a reorder level or record supplier deliveries.</p>
+      {% endif %}
+    </section>
+  </article>
+</div>
+{% endfor %}
+</div>
+{% else %}<section class="staff-card"><p class="mb-0">No tracked stock entries match the selected view.</p></section>{% endif %}
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="staff-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2" aria-label="Stock planning pages">
+  {% if page_obj.has_previous %}<a class="staff-btn staff-btn--ghost" href="?page={{ page_obj.previous_page_number }}&amp;low={% if low_only %}1{% else %}0{% endif %}&amp;safety_days={{ safety_days }}">Previous</a>{% endif %}
+  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="staff-btn staff-btn--ghost" href="?page={{ page_obj.next_page_number }}&amp;low={% if low_only %}1{% else %}0{% endif %}&amp;safety_days={{ safety_days }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+<section class="staff-card mt-4">
+  <h2 class="staff-section-head">How to read this report</h2>
+  <p class="staff-muted mb-0">Only stock with recorded batch receipt dates has a reliable age. The movement ratio is a simple 30-day usage comparison, not a formal sell-through rate. Dead-stock flags require evidence of old receiving activity and 90 days without recorded usage. Check stock counts, missing supplier prices and purchase orders before making purchasing decisions.</p>
+</section>
+{% endblock %}
