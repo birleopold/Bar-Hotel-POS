@@ -1,0 +1,27 @@
+{% extends "staff/base.html" %}
+{% block title %}Stock batches and expiry{% endblock %}
+{% block content %}
+{% include "staff/inventory/includes/subnav.html" %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+  <p class="staff-dash-hero__eyebrow">Inventory</p>
+  <h1 class="staff-page-title">Batches and expiry</h1>
+  <p>See which products expire soon or are held from sale. Stock is shown for your accessible sections only.</p>
+</div></header>
+{% if batches %}
+<div class="staff-table-wrap">
+<table class="staff-table">
+<thead><tr><th>Section</th><th>Product</th><th>Batch</th><th>Remaining</th><th>Expiry</th><th>Status</th></tr></thead>
+<tbody>
+{% for batch in batches %}
+<tr><td>{{ batch.outlet.name }}</td><td>{{ batch.menu_item.name }}</td><td>{{ batch.batch_code }}</td>
+<td>{{ batch.remaining_quantity }}</td><td>{{ batch.expiry_date|default:"Not recorded" }}</td>
+<td>{% if batch.quarantined %}On hold{% elif batch.expiry_date and batch.expiry_date < today %}Expired{% elif batch.expiry_date and batch.expiry_date <= expiry_horizon %}Expiring soon{% else %}Available{% endif %}</td></tr>
+{% endfor %}
+</tbody></table></div>
+{% else %}<p>No batches recorded for your selected sections.</p>{% endif %}
+{% if is_paginated %}<nav class="staff-pager" aria-label="Batch pages">
+{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+<span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+</nav>{% endif %}
+{% endblock %}
