@@ -723,10 +723,34 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
         context["tracked_items"] = MenuItem.objects.filter(
             tenant=self.request.tenant, is_active=True, track_inventory=True
         ).order_by("name")
+        batch_param = self.request.GET.get("batch", "")
+        if batch_param:
+            from django.http import Http404
+            from apps.inventory.batches import InventoryBatch
+            from apps.inventory.models import StockBatchAllocation
+            try:
+                bid = uuid.UUID(batch_param)
+            except ValueError:
+                raise Http404("Unknown batch")
+            accessible_ids = [o.id for o in context["stock_outlets"]]
+            selected = InventoryBatch.objects.filter(
+                pk=bid, tenant=self.request.tenant, outlet_id__in=accessible_ids,
+            ).first()
+            if selected is None:
+                raise Http404("Unknown batch")
+            context["selected_batch"] = selected
+            context["batch_history"] = (
+                StockBatchAllocation.objects.filter(
+                    tenant=self.request.tenant, batch=selected,
+                ).select_related("stock_movement", "stock_movement__created_by")
+                .order_by("-stock_movement__created_at")[:100]
+            )
         return context
 
     def post(self, request, *args, **kwargs):
-        from apps.inventory.services_batches import change_batch_hold, waste_batch_stock, label_existing_stock_batch
+        from apps.inventory.services_batches import (
+            change_batch_hold, waste_batch_stock, label_existing_stock_batch, hold_matching_lot,
+        )
         from datetime import date
         from django.http import Http404
         if not membership_can_modify_lodging(request.tenant_membership):
@@ -773,6 +797,13 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
                     user=request.user, note=request.POST.get("reason", ""),
                 )
                 messages.success(request, "Batch status updated.")
+            elif action == "recall":
+                count = hold_matching_lot(
+                    tenant_id=request.tenant.pk, batch_id=batch_id,
+                    allowed_outlet_ids=allowed, user=request.user,
+                    reason=request.POST.get("reason", ""),
+                )
+                messages.success(request, f"Placed {count} matching batch record(s) on hold.")
             elif action == "waste":
                 waste_batch_stock(
                     tenant_id=request.tenant.pk, batch_id=batch_id,
