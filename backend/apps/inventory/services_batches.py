@@ -164,3 +164,80 @@ def consume_for_outflow_if_batched(*, tenant_id, outlet_id, menu_item_id, quanti
         raise ValidationError({
             "stock": "Not enough usable batches. Check expired or held stock and reconcile older stock before proceeding."
         }) from exc
+
+
+def change_batch_hold(*, tenant_id, batch_id, allowed_outlet_ids, quarantined, user, note=""):
+    """Hold or release batch stock without changing counted quantities."""
+    from django.db import transaction
+    from django.shortcuts import get_object_or_404
+    from apps.audit.services import log_audit
+    from rest_framework.exceptions import ValidationError
+    if not allowed_outlet_ids:
+        raise ValidationError({"batch": "No permitted stock section."})
+    with transaction.atomic():
+        batch = get_object_or_404(
+            InventoryBatch.objects.select_for_update(),
+            pk=batch_id, tenant_id=tenant_id, outlet_id__in=allowed_outlet_ids,
+        )
+        old = batch.quarantined
+        if old != quarantined:
+            batch.quarantined = quarantined
+            batch.save(update_fields=["quarantined", "updated_at"])
+            log_audit(
+                tenant_id=tenant_id, user_id=user.pk if user else None,
+                action="inventory.batch_hold_changed", entity_type="inventory_batch",
+                entity_id=str(batch.pk),
+                payload={"outlet_id": str(batch.outlet_id),
+                         "before": old, "after": quarantined, "reason": note[:512]},
+            )
+        return batch
+
+
+def waste_batch_stock(*, tenant_id, batch_id, allowed_outlet_ids, quantity, user, reason):
+    """Post an explicitly selected expired/damaged batch and ledger write-off."""
+    from django.db import transaction
+    from django.shortcuts import get_object_or_404
+    from apps.audit.services import log_audit
+    from .models import StockBalance, StockMovement, StockReason
+    from rest_framework.exceptions import ValidationError
+
+    if not allowed_outlet_ids:
+        raise ValidationError({"batch": "No permitted stock section."})
+    try:
+        amount = Decimal(str(quantity))
+    except (TypeError, ValueError, ArithmeticError):
+        raise ValidationError({"quantity": "Enter a valid quantity."})
+    if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.001")):
+        raise ValidationError({"quantity": "Enter a positive quantity with up to three decimal places."})
+    note = (reason or "").strip()
+    if not note or len(note) > 450:
+        raise ValidationError({"reason": "Explain the write-off (up to 450 characters)."})
+    with transaction.atomic():
+        batch = get_object_or_404(
+            InventoryBatch.objects.select_for_update(),
+            pk=batch_id, tenant_id=tenant_id, outlet_id__in=allowed_outlet_ids,
+        )
+        balance = get_object_or_404(
+            StockBalance.objects.select_for_update(),
+            tenant_id=tenant_id, outlet_id=batch.outlet_id, menu_item_id=batch.menu_item_id,
+        )
+        if amount > batch.remaining_quantity or amount > balance.quantity:
+            raise ValidationError({"quantity": "Quantity exceeds the batch or available stock balance."})
+        batch.remaining_quantity -= amount
+        batch.save(update_fields=["remaining_quantity", "updated_at"])
+        balance.quantity -= amount
+        balance.save(update_fields=["quantity", "updated_at"])
+        movement = StockMovement.objects.create(
+            tenant_id=tenant_id, outlet_id=batch.outlet_id, menu_item_id=batch.menu_item_id,
+            quantity_change=-amount, reason=StockReason.WASTE,
+            created_by=user, note=f"Batch {batch.batch_code}: {note}"[:512],
+        )
+        log_audit(
+            tenant_id=tenant_id, user_id=user.pk if user else None,
+            action="inventory.batch_written_off", entity_type="inventory_batch",
+            entity_id=str(batch.pk), payload={
+                "outlet_id": str(batch.outlet_id), "menu_item_id": str(batch.menu_item_id),
+                "amount": str(amount), "reason": note, "movement_id": str(movement.pk),
+            },
+        )
+        return movement
