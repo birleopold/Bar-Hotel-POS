@@ -893,6 +893,40 @@ class StaffPropertyNightAuditView(StaffTenantRequiredMixin, View):
         snapshot = (closed.snapshot if closed else night_audit_snapshot(
             tenant=request.tenant, site=self.current_site, night=night,
         ))
+        if request.GET.get("format", "").lower() == "csv":
+            import csv
+            from django.http import HttpResponse
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = (
+                f'attachment; filename="night-audit-{night.isoformat()}.csv"'
+            )
+            writer = csv.writer(response)
+            writer.writerow(["Night audit", "Value"])
+            writer.writerow(["Property", self.current_site.name])
+            writer.writerow(["Business date", snapshot["date"]])
+            writer.writerow(["Status", "Closed" if closed else "Open for review"])
+            for field, label in (
+                ("occupied_count", "Occupied rooms"),
+                ("room_count", "Active rooms"),
+                ("pending_arrivals", "Pending arrivals"),
+                ("pending_departures", "Pending departures"),
+                ("open_shifts", "Open registers"),
+                ("unmatched_pos_charges", "Room charges without matching folio line"),
+                ("open_folio_count", "Open guest folios"),
+            ):
+                writer.writerow([label, snapshot[field]])
+            writer.writerow(["Missing room nights", len(snapshot["missing"])])
+            writer.writerow(["Duplicate night charges", len(snapshot["duplicates"])])
+            for row in snapshot["currency_totals"]:
+                writer.writerow([f'{row["currency"]} guest charges', row["charges"]])
+                writer.writerow([f'{row["currency"]} guest payments', row["payments"]])
+                writer.writerow([f'{row["currency"]} guest balance', row["outstanding"]])
+            writer.writerow(["Audit blockers", len(snapshot["blockers"])])
+            for issue in snapshot["blockers"]:
+                # CSV imports often treat cells starting =,+,-,@ as formulas.
+                text = str(issue)
+                writer.writerow(["Exception", "'" + text if text.lstrip().startswith(("=", "+", "-", "@")) else text])
+            return response
         history = PropertyNightAudit.objects.filter(
             tenant=request.tenant, site=self.current_site,
         ).select_related("closed_by").order_by("-business_date")[:15]
