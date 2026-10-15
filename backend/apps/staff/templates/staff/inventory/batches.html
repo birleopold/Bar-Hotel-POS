@@ -7,6 +7,34 @@
   <h1 class="staff-page-title">Batches and expiry</h1>
   <p>See expiring, expired and held stock. Hold a batch or record damaged or expired goods. All changes are recorded.</p>
 </div></header>
+{% if can_modify_inventory %}
+<details class="staff-card mb-3">
+  <summary><strong>Assign existing stock to batches</strong></summary>
+  <p class="staff-muted mt-2">Use this only for stock that was recorded before batch tracking. It labels existing quantities; it does not add stock.</p>
+  <form method="post" class="row g-3 mt-1">{% csrf_token %}
+    <input type="hidden" name="action" value="label_existing">
+    <div class="col-12 col-md-6"><label class="staff-label" for="legacy-outlet">Section</label>
+      <select class="staff-input" id="legacy-outlet" name="outlet" required>
+      <option value="">Choose a section</option>{% for outlet in stock_outlets %}
+      <option value="{{ outlet.id }}">{{ outlet.name }}</option>{% endfor %}
+      </select></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="legacy-item">Product</label>
+      <select class="staff-input" id="legacy-item" name="menu_item" required>
+      <option value="">Choose a product</option>{% for item in tracked_items %}
+      <option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}
+      </select></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="legacy-batch">Batch code</label>
+      <input class="staff-input" id="legacy-batch" name="batch_code" maxlength="128" required placeholder="Printed code or internal reference"></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="legacy-qty">Existing quantity</label>
+      <input class="staff-input" id="legacy-qty" name="quantity" type="number" min="0.001" step="0.001" required></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="legacy-date">Received date</label>
+      <input class="staff-input" id="legacy-date" name="received_at" type="date" value="{{ today|date:'Y-m-d' }}" required></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="legacy-expiry">Expiry date (if known)</label>
+      <input class="staff-input" id="legacy-expiry" name="expiry_date" type="date"></div>
+    <div class="col-12"><button type="submit" class="staff-btn staff-btn--primary">Assign existing quantity</button></div>
+  </form>
+</details>
+{% endif %}
 {% if batches %}
 <div class="staff-table-wrap">
 <table class="staff-table">
