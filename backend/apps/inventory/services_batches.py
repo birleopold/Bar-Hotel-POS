@@ -51,3 +51,34 @@ def batch_expiry_alerts(*, tenant, outlet, as_of=None, within_days=30):
             "status": status,
         })
     return result
+
+
+def consume_fefo_batches(*, tenant, outlet, menu_item, quantity, as_of=None):
+    """Atomically consume eligible batches, without changing the aggregate stock ledger.
+
+    Callers integrating this with StockBalance must lock/update both ledgers in
+    one outer transaction. Until then this operation is batch-ledger-only.
+    """
+    from django.db import transaction
+    from django.db.models import F
+    from .fefo import InsufficientBatchStock
+    with transaction.atomic():
+        if outlet.site.tenant_id != tenant.pk or menu_item.tenant_id != tenant.pk:
+            raise ValueError("Batch request must remain within one tenant")
+        batches = list(InventoryBatch.objects.select_for_update().filter(
+            tenant=tenant, outlet=outlet, menu_item=menu_item,
+            quarantined=False, remaining_quantity__gt=0,
+        ).order_by("expiry_date", "id"))
+        plan = plan_fefo_allocation(
+            ({"id": b.pk, "quantity": b.remaining_quantity, "expiry_date": b.expiry_date}
+             for b in batches), quantity, as_of=as_of or date.today(),
+        )
+        by_id = {b.pk: b for b in batches}
+        for batch_id, used in plan:
+            batch = by_id[batch_id]
+            if used > batch.remaining_quantity:
+                raise InsufficientBatchStock("Concurrent allocation exceeded batch availability")
+            InventoryBatch.objects.filter(pk=batch.pk, remaining_quantity__gte=used).update(
+                remaining_quantity=F("remaining_quantity") - used,
+            )
+        return plan
