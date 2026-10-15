@@ -1,6 +1,11 @@
 import uuid
 
 from django.db.models import Prefetch
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework.exceptions import ValidationError
+from apps.accounts.models import MembershipRole
+from apps.pos.services.kds import manage_kds_item, update_order_line_kds_status
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
@@ -71,25 +76,88 @@ class KdsTicketView(APIView):
         )
 
         out = []
+        now = timezone.now()
+        overdue_minutes = 15
         for o in orders:
-            lines = [
-                {
-                    "line_id": str(ln.id),
-                    "label": ln.label,
-                    "quantity": str(ln.quantity),
-                    "kds_station": ln.kds_station,
-                    "kds_status": ln.kds_status,
-                    "sort_order": ln.sort_order,
-                }
-                for ln in o.lines.all()
-            ]
+            lines = []
+            for ln in o.lines.all():
+                waiting = max(0, int((now - ln.created_at).total_seconds() // 60))
+                lines.append({
+                    "line_id": str(ln.id), "label": ln.label,
+                    "quantity": str(ln.quantity), "kds_station": ln.kds_station,
+                    "kds_status": ln.kds_status, "sort_order": ln.sort_order,
+                    "is_rush": ln.kds_rush,
+                    "modifiers": ln.modifiers_snapshot,
+                    "waiting_minutes": waiting,
+                    "overdue": waiting >= overdue_minutes and ln.kds_status not in (
+                        KdsLineStatus.READY, KdsLineStatus.SERVED,
+                    ),
+                    "status_changed_at": (
+                        ln.kds_status_changed_at.isoformat() if ln.kds_status_changed_at else None
+                    ),
+                })
             if lines:
-                out.append(
-                    {
-                        "order_id": str(o.id),
-                        "bill_reference": o.bill_reference,
-                        "table_label": o.table_label,
-                        "lines": lines,
-                    }
+                lines.sort(key=lambda row: (not row["is_rush"], -row["waiting_minutes"]))
+                out.append({
+                    "order_id": str(o.id), "bill_reference": o.bill_reference,
+                    "table_label": o.table_label, "rush": any(row["is_rush"] for row in lines),
+                    "oldest_wait_minutes": max(row["waiting_minutes"] for row in lines),
+                    "lines": lines,
+                })
+        out.sort(key=lambda row: (not row["rush"], -row["oldest_wait_minutes"]))
+        return Response({
+            "outlet": str(oid), "orders": out,
+            "overdue_after_minutes": overdue_minutes,
+            "counts": {
+                "tickets": len(out), "items": sum(len(row["lines"]) for row in out),
+                "overdue": sum(int(line["overdue"]) for row in out for line in row["lines"]),
+                "rush": sum(int(line["is_rush"]) for row in out for line in row["lines"]),
+            },
+        })
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses={200: OpenApiTypes.OBJECT})
+    def post(self, request: Request) -> Response:
+        """Update one line only for a permitted outlet/station and role."""
+        from apps.staff.views_kds import _line_section
+        try:
+            outlet_id = uuid.UUID(str(request.data.get("outlet") or ""))
+            order_id = uuid.UUID(str(request.data.get("order_id") or ""))
+            line_id = uuid.UUID(str(request.data.get("line_id") or ""))
+        except ValueError:
+            return Response({"error": {"code": "invalid_id", "message": "Choose valid IDs."}}, status=400)
+        membership = request.tenant_membership
+        if not membership.is_active or not outlet_belongs_to_membership(membership, outlet_id):
+            return Response({"error": {"code": "outlet_forbidden", "message": "No access to this section."}}, status=403)
+        order = Order.objects.filter(
+            id=order_id, tenant=request.tenant, outlet_id=outlet_id,
+            status=OrderStatus.OPEN,
+        ).first()
+        line = OrderLine.objects.filter(order=order, id=line_id, is_voided=False).first() if order else None
+        if not line:
+            return Response({"error": {"code": "not_found", "message": "Prep item not found."}}, status=404)
+        section = _line_section(line.kds_station)
+        if (membership.role == MembershipRole.KITCHEN and section == "bar") or (
+                membership.role == MembershipRole.BARTENDER and section != "bar"):
+            return Response({"error": {"code": "station_forbidden", "message": "Item belongs to another station."}}, status=403)
+        action = str(request.data.get("action") or "").strip()
+        try:
+            if action in {"rush", "normal", "recall"}:
+                updated, _changed = manage_kds_item(
+                    order=order, line=line, membership=membership,
+                    user=request.user, action=action,
+                    reason=request.data.get("reason", ""),
                 )
-        return Response({"outlet": str(oid), "orders": out})
+            elif action == "status":
+                next_status = str(request.data.get("kds_status") or "").strip()
+                updated = update_order_line_kds_status(
+                    order=order, line=line, user=request.user,
+                    kds_status=next_status, kds_station=None,
+                )
+            else:
+                return Response({"error": {"code": "invalid_action", "message": "Choose a valid action."}}, status=400)
+        except ValidationError as exc:
+            return Response({"error": {"code": "invalid_transition", "message": exc.detail}}, status=400)
+        return Response({
+            "line_id": str(updated.id), "status": updated.kds_status,
+            "is_rush": updated.kds_rush,
+        })
