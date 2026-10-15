@@ -30,7 +30,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 ## Hotel, kitchen and events
 
-- [ ] **10 Business date:** tenant/property timezone and configurable closing boundary; agree across shifts, daily sales, reports, restaurant close and night audit; boundary/DST tests and historical policy.
+- [-] **10 Business date:** tenant/property timezone and configurable closing boundary; agree across shifts, daily sales, reports, restaurant close and night audit; boundary/DST tests and historical policy.
 - [ ] **11 Hotel night audit:** open folios, missed arrivals/departures, idempotent nightly room posting, POS room-charge reconciliation, business date close/next date and daily property summary.
 - [ ] **12 Housekeeping/mobile:** dirty/cleaning/inspection/ready/maintenance board, assignee, Start/Complete/Inspect, mobile My rooms counts, blocked rooms and scoped actions.
 - [ ] **13 KDS/production:** new/accepted/preparing/ready/served transitions, timers, overdue alerts, kitchen/bar station routing, recall, item state/priority/modifiers/table/customer, sound preference and fullscreen touch UI.
@@ -229,3 +229,25 @@ The owner requires non-interactive implementation and a separate later verificat
 - **Still pending in 08:** returns/restock policy, targeted recall, complete historic batch-reconciliation process, deployment/concurrent PostgreSQL verification, and remaining UI refinements.
 - **Still pending in 09:** requests/quotations, supplier invoice and credit-note workflow, invoice reconciliation, supplier lead-time statistics and due-date tracking.
 - **Scope:** 34 phases remain the authoritative roadmap; no phase moved to completed on the basis of an unverified partial feature.
+
+
+### 2026-10-15 — substantial follow-on implementation (verification deferred)
+
+Phase 08 improvements:
+- Fixed a sale-stock regression in which the sale loop referred to an undefined recipe ingredient identifier. Recipe ingredients now receive their own FEFO allocation during recipe posting.
+- Added `StockBatchAllocation` as a durable stock movement ↔ inventory batch traceability ledger, with database constraints and PostgreSQL tenant isolation. Record allocations for POS sales, recipes, manual decreases/waste, physical-count shrinkage and both sides of transfers.
+- Staff batch screen now shows linked movements and order/transfer references. A manager can put matching product+lot records on hold across authorized outlets without silently discarding goods or implying a product recall has been fully resolved. Tests added.
+- Lot-level identity and traceability follow the GS1 traceability principles: https://www.gs1.org/standards/gs1-global-traceability-standard/current-standard
+
+Phase 09 improvements:
+- Added persisted supplier invoices linked to purchase orders, with invoice numbers, dates, payment deadlines and amounts. Duplicate-replay protection, received-value caps, cost-data checks, tenant/outlet authorization and audit logging are implemented.
+- Staff purchase-order detail now offers invoice recording and history; the purchasing API supports invoice recording; supplier balance reporting distinguishes received, invoiced, paid and due date amounts, without inventing a cash payment or assuming invoice-level payment allocation.
+- PostgreSQL tenant isolation migration and regression tests added.
+
+Phase 10 started:
+- Configurable business-wide time zone and operating-day cutover hour, plus per-property overrides.
+- Manager-facing configuration/preview available in the Management workspace, accessible on narrow/wide screens and with scoped edits, audit logs and validation.
+- Timezone-aware resolver handles ambiguous daylight-saving instants by converting actual instants to local wall time. Tests added.
+- Still required before Phase 10 completion: integration with POS shifts, period reports, hotel night audit, historical-date correction policy and full verification.
+
+Engineering: implementation files committed to origin/main. Automated verification remains a separate pending pass at the owner's request. Django transaction boundaries and PostgreSQL row locking are used in the inventory path; reference: https://docs.djangoproject.com/en/5.2/topics/db/transactions/ .
