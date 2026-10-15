@@ -1,0 +1,108 @@
+{% extends "staff/base.html" %}
+{% block title %}Hotel night audit{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+{% include "staff/lodging/includes/subnav.html" %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+<p class="staff-dash-hero__eyebrow">Hotel operations</p>
+<h1 class="staff-page-title">Night audit</h1>
+<p>Review room charges, arrivals, departures, guest accounts and open registers before recording a business-day close.</p>
+</div></header>
+<section class="staff-card mb-3">
+<h2 class="staff-section-head">{{ current_site.name }} · {{ business_date|date:"D, j M Y" }}</h2>
+<form method="get" class="row g-2 align-items-end">
+<div class="col-12 col-sm-6"><label class="staff-label" for="audit-date">Business date</label>
+<input class="staff-input" id="audit-date" name="business_date" type="date" value="{{ business_date|date:'Y-m-d' }}" required></div>
+<div class="col-12 col-sm-6"><button type="submit" class="staff-btn staff-btn--ghost">View date</button></div>
+</form>
+</section>
+{% if closed_audit %}
+<div class="staff-card mb-3" role="status"><strong>Closed</strong> — This day was closed by a manager at {{ closed_audit.closed_at }}.
+<p class="staff-muted">This archived close is not a payment or cash settlement transaction. Changes made later require separate review.</p>
+{% if closed_audit.note %}<p><strong>Handover:</strong> {{ closed_audit.note }}</p>{% endif %}
+</div>
+{% else %}
+<section class="staff-card mb-3">
+<h2 class="staff-section-head">Ready to close?</h2>
+{% if snapshot.blockers %}
+<p>Resolve these items before closing:</p>
+<ul>{% for reason in snapshot.blockers %}<li>{{ reason }}</li>{% endfor %}</ul>
+{% else %}<p>No blocking exceptions were found in the current records. Confirm actual cash and folio settlement separately below.</p>{% endif %}
+</section>
+{% endif %}
+<section class="mb-3">
+<h2 class="staff-section-head">Property overview</h2>
+<div class="staff-metric-row staff-metric-row--folio">
+<span><strong>{{ snapshot.occupied_count }} / {{ snapshot.room_count }}</strong><small>Occupied / active rooms</small></span>
+<span><strong>{{ snapshot.open_folio_count }}</strong><small>Open guest folios</small></span>
+<span><strong>{{ snapshot.pending_arrivals }}</strong><small>Pending arrivals</small></span>
+<span><strong>{{ snapshot.pending_departures }}</strong><small>Pending departures</small></span>
+</div>
+<div class="staff-metric-row staff-metric-row--folio mt-2">
+<span><strong>{{ snapshot.open_shifts }}</strong><small>Open cash register shifts</small></span>
+<span><strong>{{ snapshot.unmatched_pos_charges }}</strong><small>Room-charge orders needing review</small></span>
+<span><strong>{{ snapshot.missing|length }}</strong><small>Room nights needing review</small></span>
+<span><strong>{{ snapshot.duplicates|length }}</strong><small>Duplicate room nights</small></span>
+</div>
+</section>
+<section class="staff-card mb-3">
+<h2 class="staff-section-head">Guest folio amounts</h2>
+<p class="staff-muted">Open folios only. These are guest balances, not proof of bank or cash settlement. Amounts are not converted between currencies.</p>
+{% if snapshot.currency_totals %}
+<div class="staff-table-wrap"><table class="staff-table">
+<thead><tr><th>Currency</th><th>Charges</th><th>Payments</th><th>Guest balance</th></tr></thead>
+<tbody>{% for totals in snapshot.currency_totals %}
+<tr><td>{{ totals.currency }}</td><td>{{ totals.charges }}</td><td>{{ totals.payments }}</td><td>{{ totals.outstanding }}</td></tr>
+{% endfor %}</tbody>
+</table></div>
+{% else %}<p>No open guest folios in this property.</p>{% endif %}
+</section>
+<section class="staff-card mb-3">
+<h2 class="staff-section-head">Room nights to review</h2>
+<p class="staff-muted">Room nights already posted when guests checked in are detected and not charged again. A missing rate or closed folio must be fixed at the original record.</p>
+{% if snapshot.missing %}
+<div class="staff-table-wrap"><table class="staff-table">
+<thead><tr><th>Guest</th><th>Room</th><th>Issue</th><th>Rate</th><th>Action</th></tr></thead>
+<tbody>{% for row in snapshot.missing %}
+<tr><td>{{ row.guest }}</td><td>{{ row.room }}</td><td>{{ row.reason }}</td><td>{{ row.rate|default:"—" }}</td><td>
+{% if row.can_post and not closed_audit %}
+<form method="post">{% csrf_token %}
+<input type="hidden" name="action" value="post_room_night">
+<input type="hidden" name="business_date" value="{{ business_date|date:'Y-m-d' }}">
+<input type="hidden" name="reservation_id" value="{{ row.reservation_id }}">
+<button class="staff-btn staff-btn--primary staff-btn--sm" type="submit">Post missing night</button>
+</form>
+{% else %}Review guest folio or rate{% endif %}
+</td></tr>
+{% endfor %}</tbody>
+</table></div>
+{% else %}<p>No missing room nights for this operating date.</p>{% endif %}
+{% if snapshot.duplicates %}<p><strong>Duplicate room charges need manual review:</strong></p>
+<ul>{% for row in snapshot.duplicates %}<li>{{ row.guest }} — {{ row.description }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% if not closed_audit and can_close_audit %}
+<section class="staff-card mb-3">
+<h2 class="staff-section-head">Close this business day</h2>
+<p>Complete the actual till/cash reconciliation and verify guest folios before confirming. This action records a locked audit result. It does not automatically move cash, alter POS dates or settle guest debts.</p>
+<form method="post">{% csrf_token %}
+<input type="hidden" name="action" value="close_audit">
+<input type="hidden" name="business_date" value="{{ business_date|date:'Y-m-d' }}">
+<label class="staff-label mb-2"><input type="checkbox" name="confirm_cash" value="yes" required> I have reviewed and settled the relevant register shifts and cash totals.</label>
+<label class="staff-label mb-2"><input type="checkbox" name="confirm_folios" value="yes" required> I have reviewed guest folios and any room-charge exceptions.</label>
+<label class="staff-label" for="audit-note">Handover note (optional)</label>
+<textarea class="staff-input" id="audit-note" name="note" maxlength="512" rows="2" placeholder="Important items for the morning team"></textarea>
+<button type="submit" class="staff-btn staff-btn--primary mt-2"{% if snapshot.blockers %} disabled{% endif %}>Record business-day close</button>
+</form></section>
+{% endif %}
+<section class="staff-card">
+<h2 class="staff-section-head">Recently closed dates</h2>
+{% if audit_history %}<div class="staff-table-wrap"><table class="staff-table">
+<thead><tr><th>Operating date</th><th>Closed at</th><th>Closed by</th><th>Remarks</th></tr></thead>
+<tbody>{% for entry in audit_history %}
+<tr><td><a href="?business_date={{ entry.business_date|date:'Y-m-d' }}">{{ entry.business_date }}</a></td>
+<td>{{ entry.closed_at }}</td><td>{{ entry.closed_by.email|default:"System" }}</td>
+<td>{{ entry.note|default:"—" }}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>No closed business dates recorded yet.</p>{% endif %}
+</section>
+{% endblock %}
