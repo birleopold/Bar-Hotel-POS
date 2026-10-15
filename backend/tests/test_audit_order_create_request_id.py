@@ -25,7 +25,8 @@ def test_order_create_audit_payload_has_request_id_and_source_api(api_client):
         unit_price=Decimal("5.00"),
     )
     user = User.objects.create_user(email="audpos@test.local", password="TestPass9!")
-    Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.SERVER)
+    membership = Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.SERVER)
+    membership.outlets.add(outlet)
     assert api_client.login(username=user.email, password="TestPass9!")
     r = api_client.post(
         "/api/v1/orders/",
