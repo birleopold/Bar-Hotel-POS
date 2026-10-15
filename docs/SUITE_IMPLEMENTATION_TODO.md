@@ -25,8 +25,8 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 ## Stock and purchasing
 
 - [ ] **07 Inventory intelligence:** aging 0–30/31–60/61–90/90+, dead stock, sell-through, consumption velocity, days remaining, supplier lead time/safety stock reorder recommendations; explain data limitations.
-- [ ] **08 Batch/expiry/FEFO:** receiving batches, expiry/quantity tracking, earliest-expiry consumption, waste, transfers, returns, recall and legacy stock migration; expired stock policy and concurrency.
-- [ ] **09 Purchasing journey:** low stock → suggested reorder → request → quotation → PO → partial delivery → GRN/discrepancy → invoice/payable → payment/credit note → closure; supplier balances, due/overdue, spend, price changes and actual lead time. Reuse current receipt/payment services.
+- [-] **08 Batch/expiry/FEFO:** receiving batches, expiry/quantity tracking, earliest-expiry consumption, waste, transfers, returns, recall and legacy stock migration; expired stock policy and concurrency.
+- [-] **09 Purchasing journey:** low stock → suggested reorder → request → quotation → PO → partial delivery → GRN/discrepancy → invoice/payable → payment/credit note → closure; supplier balances, due/overdue, spend, price changes and actual lead time. Reuse current receipt/payment services.
 
 ## Hotel, kitchen and events
 
@@ -218,3 +218,14 @@ Remaining Phase 05: customer-linked API parity where appropriate; practical asso
 
 - Added `backend/tests/test_stock_coverage_snapshot.py` covering scoped inventory sale velocity, daily consumption, stock runway and low-stock thresholds. No stock mutations or purchases are triggered.
 - Phase 05–08 remain incomplete: Phase 05 APIs/invoices/retention, Phase 06 reward ledger, Phase 07 operational UI/aging/lead times, Phase 08 batch/expiry/FEFO accounting and migrations require implementation and passing CI. Do not mark them complete based on source commits alone.
+
+
+### 2026-10-15 — integrated inventory and purchasing implementation
+
+The owner requires non-interactive implementation and a separate later verification pass. Status remains in-progress until the listed features and end-user workflow are complete.
+
+- **Phase 08:** PO receiving now accepts optional batch code and expiry date via staff UI and REST serializer, saves the linked receipt batch, and updates aggregate inventory once. Sales, recipe consumption, manual decreases and transfers now use FEFO for items with recorded batch history while retaining the legacy process for items with no batch history. Batch UI supports hold/release, explicit write-offs (posting both ledgers), and operator-controlled labeling of older counted stock without posting a second receipt. Database migration and PostgreSQL tenant RLS added. Domain regression tests authored.
+- **Phase 09:** Existing PO/partial receipt/payment flows retained; repeated delivery references blocked; new staff Supplier balances screen displays received value, actual payment and known unpaid amount, scoped to permitted outlets, with missing cost values flagged. Purchasing navigation links to the screen.
+- **Still pending in 08:** returns/restock policy, targeted recall, complete historic batch-reconciliation process, deployment/concurrent PostgreSQL verification, and remaining UI refinements.
+- **Still pending in 09:** requests/quotations, supplier invoice and credit-note workflow, invoice reconciliation, supplier lead-time statistics and due-date tracking.
+- **Scope:** 34 phases remain the authoritative roadmap; no phase moved to completed on the basis of an unverified partial feature.
