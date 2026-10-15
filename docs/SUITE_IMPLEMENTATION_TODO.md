@@ -31,8 +31,8 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 ## Hotel, kitchen and events
 
 - [-] **10 Business date:** tenant/property timezone and configurable closing boundary; agree across shifts, daily sales, reports, restaurant close and night audit; boundary/DST tests and historical policy.
-- [ ] **11 Hotel night audit:** open folios, missed arrivals/departures, idempotent nightly room posting, POS room-charge reconciliation, business date close/next date and daily property summary.
-- [ ] **12 Housekeeping/mobile:** dirty/cleaning/inspection/ready/maintenance board, assignee, Start/Complete/Inspect, mobile My rooms counts, blocked rooms and scoped actions.
+- [-] **11 Hotel night audit:** open folios, missed arrivals/departures, idempotent nightly room posting, POS room-charge reconciliation, business date close/next date and daily property summary.
+- [-] **12 Housekeeping/mobile:** dirty/cleaning/inspection/ready/maintenance board, assignee, Start/Complete/Inspect, mobile My rooms counts, blocked rooms and scoped actions.
 - [ ] **13 KDS/production:** new/accepted/preparing/ready/served transitions, timers, overdue alerts, kitchen/bar station routing, recall, item state/priority/modifiers/table/customer, sound preference and fullscreen touch UI.
 - [ ] **14 Events:** lead → quotation → booking → deposit → package/services/menu/room allocation → delivery → final invoice → settlement, unified customer account and reservation conflict checks.
 
@@ -251,3 +251,30 @@ Phase 10 started:
 - Still required before Phase 10 completion: integration with POS shifts, period reports, hotel night audit, historical-date correction policy and full verification.
 
 Engineering: implementation files committed to origin/main. Automated verification remains a separate pending pass at the owner's request. Django transaction boundaries and PostgreSQL row locking are used in the inventory path; reference: https://docs.djangoproject.com/en/5.2/topics/db/transactions/ .
+
+
+### 2026-10-15 — Phase 10, 11 and 12 end-user implementation batch
+
+**Phase 10 property operating dates:**
+- Added `business_day_window` to map a property's local date and configured closing boundary into timezone-aware reporting timestamps, with daylight-saving tests.
+- Sales summary page and CSV exports now offer a visible **Property operating dates** basis in addition to the legacy UTC calendar basis. Multi-property selections are explicitly rejected for that mode instead of pretending different timezones share one business day.
+- The hotel night audit now uses the same property-date boundaries to evaluate open till shifts and paid room-charge orders.
+
+**Phase 11 hotel night audit:**
+- Added tenant-scoped `PropertyNightAudit` with a unique property/date constraint, PostgreSQL RLS and immutable close snapshot.
+- Read-only preview computes occupied rooms, overdue arrivals/departures, open shifts, folio currency totals, missing/duplicate room nights and unmatched paid room-charge orders.
+- Single-night recovery posting can fill a missing room line under a transaction and row lock without duplicating a legacy upfront charge. Existing check-in nightly charges now skip already-posted room descriptions.
+- The manager-only close requires no live exceptions and explicit reviews of cash and folios, prevents a future-date close, closes sequential dates after the initial close, records attribution and returns the same close on retry. This does **not** fabricate external bank/cash settlement or rewrite prior payment dates.
+- The lodging subnavigation exposes **Night audit**, with mobile-responsive review/close controls, archived close history and a CSV summary without guest personal identifiers.
+- Regression tests authored for duplicate prevention, rate/folio conditions, date scope, manager confirmations and repeat close.
+- **Still incomplete:** automatic scheduled audit, historical corrections/late-entry adjustment policy, payment-provider settlement confirmation, real-browser and PostgreSQL concurrency evidence.
+
+**Phase 12 mobile housekeeping:**
+- Extended existing Room status with **Cleaning**, responsible housekeeper, start/finish/inspect timestamps, and append-only RoomHousekeepingEvent history with PostgreSQL RLS.
+- Existing Housekeeping page now has **My rooms**, **Unassigned**, and **All rooms** queues; mobile-accessible Claim/Start/Finish/Inspect actions; manager assignment and room availability actions; and scoped activity history.
+- Workflows require active staff, tenant/property access, permissions and transactional room locking. Open maintenance blocks completion/inspection/check-in.
+- Checkout resets the room to dirty, clears stale assignments, and records the handover event, ready for the next guest.
+- Tests authored for assignment, cleaner-only access, manager inspection, maintenance blockers and property isolation.
+- **Still incomplete:** scheduled cleaning, configurable mandatory inspection policy, task duration analytics and cross-device browser verification.
+
+**Verification status:** Owner requested implementation before the separate verification pass. All above are committed to `origin/main` but are **not** certified green; this checkpoint does not mark any of these phases complete. Follow the remaining 34-phase roadmap, then run the staged test, browser, PostgreSQL and release checks before production.
