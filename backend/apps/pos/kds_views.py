@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework.exceptions import ValidationError
 from apps.accounts.models import MembershipRole
-from apps.pos.services.kds import manage_kds_item, update_order_line_kds_status
+from apps.pos.services.kds import manage_kds_item, update_order_line_kds_status, kds_station_section
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
@@ -118,7 +118,6 @@ class KdsTicketView(APIView):
     @extend_schema(request=OpenApiTypes.OBJECT, responses={200: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         """Update one line only for a permitted outlet/station and role."""
-        from apps.staff.views_kds import _line_section
         try:
             outlet_id = uuid.UUID(str(request.data.get("outlet") or ""))
             order_id = uuid.UUID(str(request.data.get("order_id") or ""))
@@ -135,7 +134,7 @@ class KdsTicketView(APIView):
         line = OrderLine.objects.filter(order=order, id=line_id, is_voided=False).first() if order else None
         if not line:
             return Response({"error": {"code": "not_found", "message": "Prep item not found."}}, status=404)
-        section = _line_section(line.kds_station)
+        section = kds_station_section(line.kds_station)
         if (membership.role == MembershipRole.KITCHEN and section == "bar") or (
                 membership.role == MembershipRole.BARTENDER and section != "bar"):
             return Response({"error": {"code": "station_forbidden", "message": "Item belongs to another station."}}, status=403)

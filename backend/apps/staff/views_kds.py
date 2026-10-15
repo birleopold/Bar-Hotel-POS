@@ -58,12 +58,8 @@ def _kds_next_label(current: str) -> str | None:
 
 
 def _line_section(station: str) -> str:
-    token = (station or "").strip().lower()
-    if token in {"bar", "drinks", "beverage", "bartender"}:
-        return "bar"
-    if token in {"service", "spa", "steam", "sauna", "lodging", "frontdesk", "front_desk"}:
-        return "service"
-    return "kitchen"
+    from apps.pos.services.kds import kds_station_section
+    return kds_station_section(station)
 
 
 def _prep_scope_label(role: str) -> str:

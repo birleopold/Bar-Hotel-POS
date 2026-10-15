@@ -7,6 +7,17 @@ from apps.audit.services import log_audit
 from apps.pos.models import Order, OrderLine, OrderStatus
 
 
+def kds_station_section(station: str) -> str:
+    token = (station or "").strip().lower()
+    if token in {"bar", "drinks", "beverage", "bartender"}:
+        return "bar"
+    if token in {"service", "spa", "steam", "sauna", "lodging", "frontdesk", "front_desk"}:
+        return "service"
+    return "kitchen"
+
+
+
+
 @transaction.atomic
 def update_order_line_kds_status(
     *,
