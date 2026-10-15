@@ -24,7 +24,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 ## Stock and purchasing
 
-- [ ] **07 Inventory intelligence:** aging 0–30/31–60/61–90/90+, dead stock, sell-through, consumption velocity, days remaining, supplier lead time/safety stock reorder recommendations; explain data limitations.
+- [-] **07 Inventory intelligence:** aging 0–30/31–60/61–90/90+, dead stock, sell-through, consumption velocity, days remaining, supplier lead time/safety stock reorder recommendations; explain data limitations.
 - [-] **08 Batch/expiry/FEFO:** receiving batches, expiry/quantity tracking, earliest-expiry consumption, waste, transfers, returns, recall and legacy stock migration; expired stock policy and concurrency.
 - [-] **09 Purchasing journey:** low stock → suggested reorder → request → quotation → PO → partial delivery → GRN/discrepancy → invoice/payable → payment/credit note → closure; supplier balances, due/overdue, spend, price changes and actual lead time. Reuse current receipt/payment services.
 
@@ -299,3 +299,15 @@ Engineering: implementation files committed to origin/main. Automated verificati
 - Still outstanding before full Phase 14 completion: service/package itemization and final invoices, equipment/room allocations, event delivery milestones, partial refunds/credit notes, customer communication delivery and full stage/role/browser certification.
 
 Verification deferred at owner's direction. Status is implementation-in-progress rather than released or certified. The authoritative roadmap remains exactly **34 phases**.
+
+
+### 2026-10-15 — Phase 07 stock intelligence implementation
+
+- Added scoped `apps.inventory.insights.build_stock_intelligence` to analyze recorded sale and recipe consumption over a rolling 30-day interval, actual supplier delivery lead times (up to a one-year sample window), on-hand quantities and explicitly dated batches.
+- Age groups cover **0–30**, **31–60**, **61–90**, **over 90 days**, plus **unknown age** for remaining unbatched stock. Reports flag a batch/aggregate quantity disagreement rather than silently treating bad quantities as valid.
+- Derived advisory **daily usage**, estimated days of cover, a clearly labeled *indicative movement ratio* rather than a falsely precise formal sell-through rate, cautious idle-stock warnings requiring historical receiving evidence, and restocking suggestions.
+- Restocking target uses observed demand × (observed lead time + user-selected days of buffer). If there is no trustworthy delivery history, suggestions fall back to the SKU's explicitly configured reorder level; when neither input exists the UI says there is insufficient information. No fabricated supplier lead times or automatic orders.
+- New responsive **Inventory → Stock planning** page with 24-item pagination, low-stock filter, adjustable stock buffer (0–30 days), batch-age breakdown, supplier delivery sample count and explanation of what data is missing. Tenant/outlet filtering respects the active staff section selection.
+- Regression tests authored for recorded rolling usage, batch aging, supplier delivery timing, permissions and invalid planning parameters.
+- Research: https://stockoutinventory.com/guides/reorder-point-safety-stock (Sept 2026) and https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum .
+- Remains in progress until formal sell-through can be reconciled from opening, receipt and return inventories, seasonality and stockout biases are addressed, accessible reporting exports/aggregates are integrated, and owner-deferred verification is completed.
