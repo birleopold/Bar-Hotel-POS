@@ -1,6 +1,9 @@
 import uuid
 
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import BasePermission, IsAuthenticated
 
 from apps.accounts.models import MembershipRole
@@ -8,8 +11,11 @@ from apps.api.permissions import HasTenantContext, NotReadOnlyRole
 from apps.staff.services.modules import get_tenant_staff_modules
 from apps.tenants.business_lines import normalize_business_lines
 
-from .models import EventBooking, EventSpace
-from .serializers import EventBookingSerializer, EventSpaceSerializer
+from .models import EventBooking, EventSpace, EventQuote
+from .serializers import (EventBookingSerializer, EventSpaceSerializer,
+    CreateEventQuoteSerializer, ChangeEventQuoteSerializer, CreateEventPaymentSerializer,
+    EventQuoteSerializer, EventPaymentSerializer)
+from .services_journey import create_event_quote, change_event_quote_status, record_event_payment
 
 
 class EventSpaceViewSet(viewsets.ModelViewSet):
@@ -47,8 +53,10 @@ class EventBookingViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_permissions(self):
-        if self.action in {"create", "update", "partial_update"}:
-            return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(), EventsModuleEnabled(), CanManageEvents()]
+        if self.action in {"create", "update", "partial_update",
+                           "create_quote", "change_quote", "record_payment"}:
+            return [IsAuthenticated(), HasTenantContext(), NotReadOnlyRole(),
+                    EventsModuleEnabled(), CanManageEvents()]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -72,6 +80,48 @@ class EventBookingViewSet(viewsets.ModelViewSet):
         if st:
             qs = qs.filter(status=st.strip())
         return qs.order_by("start_at")
+
+    @action(detail=True, methods=["post"], url_path="quotes")
+    def create_quote(self, request, pk=None):
+        booking = self.get_object()
+        form = CreateEventQuoteSerializer(data=request.data)
+        form.is_valid(raise_exception=True)
+        quote = create_event_quote(
+            booking=booking, membership=request.tenant_membership,
+            user=request.user, **form.validated_data,
+        )
+        return Response(EventQuoteSerializer(quote).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="quote-status")
+    def change_quote(self, request, pk=None):
+        booking = self.get_object()
+        form = ChangeEventQuoteSerializer(data=request.data)
+        form.is_valid(raise_exception=True)
+        quote = EventQuote.objects.filter(
+            tenant=request.tenant, booking=booking,
+            id=form.validated_data["quote_id"],
+        ).first()
+        if quote is None:
+            raise ValidationError({"quote_id": "Quotation not found for this event."})
+        updated = change_event_quote_status(
+            quote=quote, membership=request.tenant_membership, user=request.user,
+            action=form.validated_data["action"],
+        )
+        return Response(EventQuoteSerializer(updated).data)
+
+    @action(detail=True, methods=["post"], url_path="payments")
+    def record_payment(self, request, pk=None):
+        booking = self.get_object()
+        form = CreateEventPaymentSerializer(data=request.data)
+        form.is_valid(raise_exception=True)
+        payment, repeated = record_event_payment(
+            booking=booking, membership=request.tenant_membership,
+            user=request.user, **form.validated_data,
+        )
+        return Response(
+            EventPaymentSerializer(payment).data,
+            status=status.HTTP_200_OK if repeated else status.HTTP_201_CREATED,
+        )
 
 
 def _events_enabled(tenant) -> bool:
