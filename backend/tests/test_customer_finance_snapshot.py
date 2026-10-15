@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.template.loader import render_to_string
 
 from apps.customers.models import Customer
 from apps.lodging.models import Folio, FolioLine, FolioPayment
@@ -39,3 +40,16 @@ class CustomerFinanceSnapshotTests(TestCase):
             "outstanding": Decimal("7000"),
         }
         assert len(report) == 1
+
+    def test_customer_financial_table_renders_currency_without_converting(self):
+        html = render_to_string("staff/customers/detail.html", {
+            "customer": {"name": "Guest", "email": "", "phone": ""},
+            "financial_snapshot": {
+                "UGX": {"direct_pos_sales": Decimal("10000"), "folio_charges": Decimal("5000"),
+                        "folio_payments": Decimal("2000"), "outstanding": Decimal("3000")}
+            },
+            "can_merge": False,
+        })
+        self.assertIn("Financial summary by currency", html)
+        self.assertIn("UGX", html)
+        self.assertIn("10,000", html.replace(",", ","))
