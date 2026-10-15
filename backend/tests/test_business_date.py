@@ -3,7 +3,7 @@ from datetime import datetime, date, timezone as datetime_timezone
 
 from django.test import TestCase
 
-from apps.tenants.business_date import business_date_for, effective_business_clock
+from apps.tenants.business_date import business_date_for, business_day_window, effective_business_clock
 from apps.tenants.models import Site, Tenant, TenantSettings
 
 
@@ -56,3 +56,19 @@ class BusinessDateTests(TestCase):
     def test_naive_timestamp_rejected(self):
         with self.assertRaises(ValueError):
             business_date_for(tenant=self.tenant, at=datetime(2026, 10, 15, 0, 30))
+
+    def test_local_operating_day_window_covers_the_right_instants(self):
+        start, end = business_day_window(
+            tenant=self.tenant, site=self.site, operating_date=date(2026, 10, 15),
+        )
+        self.assertEqual(start, datetime(2026, 10, 15, 1, tzinfo=datetime_timezone.utc))
+        self.assertEqual(end, datetime(2026, 10, 16, 1, tzinfo=datetime_timezone.utc))
+
+    def test_dst_fall_back_operating_day_has_twenty_five_hours(self):
+        self.settings.default_timezone = "America/New_York"
+        self.settings.business_day_cutover_hour = 0
+        self.settings.save(update_fields=["default_timezone", "business_day_cutover_hour"])
+        start, end = business_day_window(
+            tenant=self.tenant, site=self.site, operating_date=date(2026, 11, 1),
+        )
+        self.assertEqual((end - start).total_seconds(), 25 * 3600)
