@@ -48,6 +48,7 @@
     </div>
     {% if can_receive %}
       <h2 class="staff-section-head">Partial goods received</h2>
+      <p class="staff-muted">For dated products, enter the batch code and expiry date alongside the delivered quantity. Products already tracked by batch require a batch code. A batch code can only be received once per item and section.</p>
       <div class="staff-card">
         <form method="post">
           {% csrf_token %}
@@ -58,14 +59,16 @@
           </div>
           <div class="staff-table-wrap">
             <table class="staff-table">
-              <thead><tr><th>Item</th><th>Remaining</th><th>Qty to receive</th></tr></thead>
+              <thead><tr><th>Item</th><th>Remaining</th><th>Qty to receive</th><th>Batch code</th><th>Expiry date</th></tr></thead>
               <tbody>
                 {% for line in po.lines.all %}
                   {% if line.quantity_remaining > 0 %}
                     <tr>
                       <td>{{ line.menu_item.name }}</td>
                       <td>{{ line.quantity_remaining }}</td>
-                      <td><input class="staff-input" type="number" step="0.001" min="0" name="recv_{{ line.id }}" placeholder="0"></td>
+                      <td><label class="visually-hidden" for="recv-{{ line.id }}">Quantity for {{ line.menu_item.name }}</label><input id="recv-{{ line.id }}" class="staff-input" type="number" step="0.001" min="0" max="{{ line.quantity_remaining }}" name="recv_{{ line.id }}" placeholder="0"></td>
+                      <td><label class="visually-hidden" for="batch-{{ line.id }}">Batch code for {{ line.menu_item.name }}</label><input id="batch-{{ line.id }}" class="staff-input" name="batch_{{ line.id }}" maxlength="128" placeholder="Optional for new stock"></td>
+                      <td><label class="visually-hidden" for="expiry-{{ line.id }}">Expiry for {{ line.menu_item.name }}</label><input id="expiry-{{ line.id }}" class="staff-input" name="expiry_{{ line.id }}" type="date"></td>
                     </tr>
                   {% endif %}
                 {% endfor %}
@@ -90,7 +93,7 @@
               <tr>
                 <td>{{ receipt.created_at }}</td>
                 <td><strong>{{ receipt.delivery_reference|default:"Unreferenced delivery" }}</strong>{% if receipt.note %}<div class="staff-muted small">{{ receipt.note }}</div>{% endif %}{% if receipt.discrepancy_note %}<div><strong>Discrepancy:</strong> {{ receipt.discrepancy_note }}</div>{% endif %}</td>
-                <td>{% for line in receipt.lines.all %}<div>{{ line.purchase_order_line.menu_item.name }} · {{ line.quantity_received }}</div>{% endfor %}</td>
+                <td>{% for line in receipt.lines.all %}<div>{{ line.purchase_order_line.menu_item.name }} · {{ line.quantity_received }}{% if line.inventory_batch %} · Batch {{ line.inventory_batch.batch_code }}{% if line.inventory_batch.expiry_date %} · Expires {{ line.inventory_batch.expiry_date }}{% endif %}{% endif %}</div>{% endfor %}</td>
                 <td>{% if receipt.received_by %}{{ receipt.received_by.email }}{% else %}<span class="staff-muted">System</span>{% endif %}</td>
               </tr>
             {% endfor %}

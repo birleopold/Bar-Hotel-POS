@@ -133,3 +133,34 @@ def receive_tracked_batch(*, tenant, outlet, menu_item, batch_code, quantity,
             purchase_order=purchase_order,
         )
     return batch, movement
+
+
+
+def consume_for_outflow_if_batched(*, tenant_id, outlet_id, menu_item_id, quantity):
+    """Use FEFO alongside an existing negative aggregate stock posting.
+
+    Items with no batch history retain the legacy stock process. Once any batch
+    is received for an item/outlet, every further outflow needs eligible batch
+    quantity; unknown, held or expired quantities cannot quietly be sold.
+    Call from the SAME transaction that holds the StockBalance row lock.
+    """
+    from rest_framework.exceptions import ValidationError
+    from .fefo import InsufficientBatchStock
+
+    if not InventoryBatch.objects.filter(
+        tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=menu_item_id,
+    ).exists():
+        return []
+    from apps.tenants.models import Tenant, Outlet
+    from apps.catalog.models import MenuItem
+    try:
+        return consume_fefo_batches(
+            tenant=Tenant.objects.get(pk=tenant_id),
+            outlet=Outlet.objects.select_related("site").get(pk=outlet_id),
+            menu_item=MenuItem.objects.get(pk=menu_item_id),
+            quantity=quantity,
+        )
+    except InsufficientBatchStock as exc:
+        raise ValidationError({
+            "stock": "Not enough usable batches. Check expired or held stock and reconcile older stock before proceeding."
+        }) from exc

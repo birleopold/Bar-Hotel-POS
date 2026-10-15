@@ -14,7 +14,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
-from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, ConfirmMissingUnitCostSerializer
+from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, ConfirmMissingUnitCostSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, received_goods_value, has_legacy_receipt_expenses
 from apps.tenants.models import Outlet, TenantSettings
 
@@ -464,17 +464,31 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 except InvalidOperation:
                     messages.error(request, f"Invalid quantity for line {line.menu_item.name}.")
                     return redirect("staff-purchasing-order-detail", po_id=po.id)
+                if not qty.is_finite() or qty < 0:
+                    messages.error(request, f"Enter a valid positive quantity for {line.menu_item.name}.")
+                    return redirect("staff-purchasing-order-detail", po_id=po.id)
                 if qty > 0:
-                    lines_payload.append({"line_id": line.id, "quantity": qty})
+                    entry = {"line_id": line.id, "quantity": qty}
+                    code = (request.POST.get(f"batch_{line.id}") or "").strip()
+                    expiry_raw = (request.POST.get(f"expiry_{line.id}") or "").strip()
+                    if code:
+                        entry["batch_code"] = code
+                    if expiry_raw:
+                        entry["expiry_date"] = expiry_raw
+                    lines_payload.append(entry)
 
             if not lines_payload:
                 messages.error(request, "Enter at least one quantity to receive.")
                 return redirect("staff-purchasing-order-detail", po_id=po.id)
 
+            ser = ReceivePurchaseOrderSerializer(data={"lines": lines_payload})
+            if not ser.is_valid():
+                _flash_serializer_errors(request, ser.errors)
+                return redirect("staff-purchasing-order-detail", po_id=po.id)
             try:
                 receive_purchase_order_goods(
                     po=po,
-                    lines_payload=lines_payload,
+                    lines_payload=ser.validated_data["lines"],
                     user=request.user,
                     membership=request.tenant_membership,
                     discrepancy_note=(request.POST.get("discrepancy_note") or "").strip(),

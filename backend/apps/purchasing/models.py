@@ -158,6 +158,10 @@ class PurchaseReceiptLine(TimeStampedModel):
         decimal_places=3,
         validators=[MinValueValidator(Decimal("0.001"))],
     )
+    inventory_batch = models.ForeignKey(
+        "inventory.InventoryBatch", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="purchase_receipt_lines",
+    )
 
     class Meta:
         ordering = ["receipt", "purchase_order_line__menu_item__name"]

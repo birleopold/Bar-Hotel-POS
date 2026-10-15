@@ -10,6 +10,9 @@ from apps.finance.models import FinancePostingLink, FinancePostingSource
 from apps.finance.services import post_supplier_payment_expense
 from apps.inventory.models import StockMovement, StockReason
 from apps.inventory.services import apply_manual_stock_change
+from apps.inventory.services_batches import receive_tracked_batch
+from apps.inventory.batches import InventoryBatch
+from django.utils import timezone
 
 from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, SupplierPayment, SupplierPaymentMethod
 
@@ -70,22 +73,42 @@ def receive_purchase_order_goods(
                     )
                 }
             )
-        apply_manual_stock_change(
-            tenant_id=po_locked.tenant_id,
-            outlet=po_locked.outlet,
+        batch_code = str(row.get("batch_code") or "").strip()
+        if row.get("expiry_date") and not batch_code:
+            raise ValidationError({"batch_code": "Enter a batch code when setting an expiry date."})
+        if not batch_code and InventoryBatch.objects.filter(
+            tenant_id=po_locked.tenant_id, outlet=po_locked.outlet,
             menu_item=line.menu_item,
-            quantity_change=qty,
-            reason=StockReason.RECEIVE,
-            user=user,
-            note=(f"PO {po_locked.reference or po_locked.pk}")[:512],
-            purchase_order=po_locked,
-        )
+        ).exists():
+            raise ValidationError({"batch_code": f"Enter a batch code for {line.menu_item.name}; this product is batch-tracked."})
+        batch = None
+        if batch_code:
+            batch, _ = receive_tracked_batch(
+                tenant=po_locked.tenant,
+                outlet=po_locked.outlet, menu_item=line.menu_item,
+                batch_code=batch_code, quantity=qty,
+                received_at=row.get("received_at") or timezone.localdate(),
+                expiry_date=row.get("expiry_date"),
+                user=user, purchase_order=po_locked,
+            )
+        else:
+            apply_manual_stock_change(
+                tenant_id=po_locked.tenant_id,
+                outlet=po_locked.outlet,
+                menu_item=line.menu_item,
+                quantity_change=qty,
+                reason=StockReason.RECEIVE,
+                user=user,
+                note=(f"PO {po_locked.reference or po_locked.pk}")[:512],
+                purchase_order=po_locked,
+            )
         line.quantity_received += qty
         line.save(update_fields=["quantity_received", "updated_at"])
         PurchaseReceiptLine.objects.create(
             receipt=receipt,
             purchase_order_line=line,
             quantity_received=qty,
+            inventory_batch=batch,
         )
 
     if not any_positive:

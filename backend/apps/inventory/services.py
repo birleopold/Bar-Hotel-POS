@@ -50,6 +50,12 @@ def apply_manual_stock_change(
         raise ValidationError(
             {"quantity_change": f"Would make on-hand negative (currently {bal.quantity})."}
         )
+    if quantity_change < 0:
+        from .services_batches import consume_for_outflow_if_batched
+        consume_for_outflow_if_batched(
+            tenant_id=tenant_id, outlet_id=outlet.id, menu_item_id=menu_item.id,
+            quantity=-quantity_change,
+        )
     bal.quantity = new_qty
     bal.save(update_fields=["quantity", "updated_at"])
 
@@ -126,6 +132,16 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
         bal = StockBalance.objects.select_for_update().get(
             outlet_id=outlet_id,
             menu_item_id=item_id,
+        )
+        from .services_batches import consume_for_outflow_if_batched
+        consume_for_outflow_if_batched(
+            tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=item_id,
+            quantity=need,
+        )
+        from .services_batches import consume_for_outflow_if_batched
+        consume_for_outflow_if_batched(
+            tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=ing_id,
+            quantity=need,
         )
         bal.quantity -= need
         bal.save(update_fields=["quantity", "updated_at"])
@@ -235,6 +251,11 @@ def execute_stock_transfer(
                 )
             }
         )
+    from .services_batches import consume_for_outflow_if_batched
+    source_batches = consume_for_outflow_if_batched(
+        tenant_id=tenant_id, outlet_id=from_outlet.id,
+        menu_item_id=menu_item.id, quantity=quantity,
+    )
     bal_from.quantity -= quantity
     bal_from.save(update_fields=["quantity", "updated_at"])
 
@@ -256,6 +277,30 @@ def execute_stock_transfer(
     )
     bal_to.quantity += quantity
     bal_to.save(update_fields=["quantity", "updated_at"])
+    if source_batches:
+        from .batches import InventoryBatch
+        from django.utils import timezone
+        from django.db.models import F
+        for source_batch_id, used in source_batches:
+            source = InventoryBatch.objects.get(pk=source_batch_id)
+            destination, created = InventoryBatch.objects.get_or_create(
+                tenant_id=tenant_id, outlet=to_outlet, menu_item=menu_item,
+                batch_code=source.batch_code,
+                defaults={
+                    "received_at": timezone.localdate(),
+                    "expiry_date": source.expiry_date,
+                    "received_quantity": used,
+                    "remaining_quantity": used,
+                    "quarantined": source.quarantined,
+                },
+            )
+            if not created:
+                if destination.expiry_date != source.expiry_date or destination.quarantined:
+                    raise ValidationError({"stock": "Destination has an incompatible or held batch with the same code."})
+                InventoryBatch.objects.filter(pk=destination.pk).update(
+                    received_quantity=F("received_quantity") + used,
+                    remaining_quantity=F("remaining_quantity") + used,
+                )
 
     mov_in = StockMovement.objects.create(
         tenant_id=tenant_id,
