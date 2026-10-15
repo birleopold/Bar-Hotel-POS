@@ -7,10 +7,10 @@ from rest_framework.exceptions import ValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.batches import InventoryBatch
-from apps.inventory.models import StockBalance, StockMovement, StockReason
+from apps.inventory.models import StockBalance, StockMovement, StockReason, StockBatchAllocation
 from apps.inventory.services import apply_manual_stock_change
 from apps.inventory.services_batches import (
-    label_existing_stock_batch, waste_batch_stock, change_batch_hold,
+    label_existing_stock_batch, waste_batch_stock, change_batch_hold, hold_matching_lot,
 )
 from apps.tenants.models import Outlet, OutletType, Site, Tenant
 
@@ -113,3 +113,35 @@ class BatchStockLedgerTests(TestCase):
         )
         self.balance.refresh_from_db()
         self.assertEqual(self.balance.quantity, Decimal("7"))
+
+    def test_exact_batch_allocation_is_linked_to_stock_movement(self):
+        early = self.batch("EARLY", Decimal("3"), date(2030, 1, 1))
+        later = self.batch("LATER", Decimal("5"), date(2031, 1, 1))
+        movement = apply_manual_stock_change(
+            tenant_id=self.tenant.pk, outlet=self.outlet, menu_item=self.item,
+            quantity_change=Decimal("-4"), reason=StockReason.WASTE, user=None,
+        )
+        allocations = {
+            row.batch_id: row.quantity
+            for row in StockBatchAllocation.objects.filter(stock_movement=movement)
+        }
+        self.assertEqual(allocations, {
+            early.pk: Decimal("3"), later.pk: Decimal("1"),
+        })
+
+    def test_recall_holds_matching_lot_without_discarding_or_changing_balances(self):
+        matching = self.batch("RECALL-L1", Decimal("3"), date(2030, 1, 1))
+        other = self.batch("RECALL-L2", Decimal("5"), date(2031, 1, 1))
+        count = hold_matching_lot(
+            tenant_id=self.tenant.pk, batch_id=matching.pk,
+            allowed_outlet_ids=[self.outlet.pk],
+            user=None, reason="Supplier safety notice",
+        )
+        matching.refresh_from_db()
+        other.refresh_from_db()
+        self.balance.refresh_from_db()
+        self.assertEqual(count, 1)
+        self.assertTrue(matching.quarantined)
+        self.assertFalse(other.quarantined)
+        self.assertEqual(self.balance.quantity, Decimal("8"))
+        self.assertEqual(matching.remaining_quantity, Decimal("3"))
