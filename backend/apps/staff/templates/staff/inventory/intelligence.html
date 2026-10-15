@@ -74,6 +74,9 @@
       {% else %}
         <p class="staff-muted mb-0">Not enough information. Set a reorder level or record supplier deliveries.</p>
       {% endif %}
+      {% if can_create_purchasing and row.suggested_order > 0 %}
+      <a class="staff-btn staff-btn--ghost mt-3" href="{% url 'staff-purchasing-order-create' %}?outlet={{ row.outlet_id }}&amp;menu_item={{ row.menu_item_id }}&amp;quantity={{ row.suggested_order }}">Prepare purchase order</a>
+      {% endif %}
     </section>
   </article>
 </div>
