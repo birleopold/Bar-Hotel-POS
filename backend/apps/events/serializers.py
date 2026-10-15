@@ -5,7 +5,7 @@ from apps.staff.services.modules import get_tenant_staff_modules
 from apps.tenants.business_lines import normalize_business_lines
 from apps.tenants.models import Site
 
-from .models import EventBooking, EventBookingStatus, EventSpace
+from .models import EventBooking, EventBookingStatus, EventSpace, EventQuote, EventPayment, EventPaymentMethod
 
 
 class EventSpaceSerializer(serializers.ModelSerializer):
@@ -48,7 +48,43 @@ class EventSpaceSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class EventQuoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventQuote
+        fields = ("id", "reference", "amount", "description", "valid_until",
+                  "status", "accepted_at", "created_at")
+        read_only_fields = fields
+
+
+class EventPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventPayment
+        fields = ("id", "amount", "method", "reference", "created_at")
+        read_only_fields = fields
+
+
+class CreateEventQuoteSerializer(serializers.Serializer):
+    reference = serializers.CharField(max_length=128)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
+    valid_until = serializers.DateField()
+    description = serializers.CharField(required=False, allow_blank=True, max_length=5000, default="")
+
+
+class ChangeEventQuoteSerializer(serializers.Serializer):
+    quote_id = serializers.UUIDField()
+    action = serializers.ChoiceField(choices=("send", "accept"))
+
+
+class CreateEventPaymentSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
+    method = serializers.ChoiceField(choices=EventPaymentMethod.choices)
+    reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
+    idempotency_key = serializers.CharField(max_length=128)
+
+
 class EventBookingSerializer(serializers.ModelSerializer):
+    quotes = EventQuoteSerializer(many=True, read_only=True)
+    payments = EventPaymentSerializer(many=True, read_only=True)
     space = serializers.PrimaryKeyRelatedField(queryset=EventSpace.objects.none())
 
     class Meta:
@@ -67,6 +103,8 @@ class EventBookingSerializer(serializers.ModelSerializer):
             "headcount",
             "notes",
             "deposit_amount",
+            "quotes",
+            "payments",
             "created_at",
             "updated_at",
         ]
