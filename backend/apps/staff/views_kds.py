@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from django.utils import timezone
 
 from django.contrib import messages
 from django.db.models import Q
@@ -15,6 +16,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from apps.accounts.models import MembershipRole
 from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus
 from apps.pos.services import update_order_line_kds_status
+from apps.pos.services.kds import manage_kds_item
 
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
@@ -40,6 +42,7 @@ def _flash_drf_validation(request: HttpRequest, exc: DRFValidationError) -> None
 def _kds_next_status(current: str) -> str | None:
     nxt = {
         KdsLineStatus.PENDING.value: KdsLineStatus.IN_PREP.value,
+        KdsLineStatus.ACCEPTED.value: KdsLineStatus.IN_PREP.value,
         KdsLineStatus.IN_PREP.value: KdsLineStatus.READY.value,
     }
     return nxt.get(current)
@@ -48,6 +51,7 @@ def _kds_next_status(current: str) -> str | None:
 def _kds_next_label(current: str) -> str | None:
     labels = {
         KdsLineStatus.PENDING.value: "Start prep",
+        KdsLineStatus.ACCEPTED.value: "Start prep",
         KdsLineStatus.IN_PREP.value: "Ready for serving",
     }
     return labels.get(current)
@@ -155,26 +159,51 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
         )
 
         kds_orders = []
-        kds_summary = {"tickets": 0, "lines": 0, "pending": 0, "in_prep": 0, "ready": 0}
+        kds_summary = {
+            "tickets": 0, "lines": 0, "pending": 0, "accepted": 0,
+            "in_prep": 0, "ready": 0, "overdue": 0, "rush": 0,
+        }
+        current_time = timezone.now()
+        overdue_minutes = 15
         for o in orders:
             lines_out = []
+            rush_ticket = False
+            oldest_age = 0
             for ln in o.lines.all():
+                age_seconds = max(0, (current_time - ln.created_at).total_seconds())
+                age_minutes = int(age_seconds // 60)
+                oldest_age = max(oldest_age, age_minutes)
+                overdue = age_minutes >= overdue_minutes and ln.kds_status not in (
+                    KdsLineStatus.READY, KdsLineStatus.SERVED,
+                )
                 kds_summary["lines"] += 1
                 if ln.kds_status == KdsLineStatus.PENDING:
                     kds_summary["pending"] += 1
+                elif ln.kds_status == KdsLineStatus.ACCEPTED:
+                    kds_summary["accepted"] += 1
                 elif ln.kds_status == KdsLineStatus.IN_PREP:
                     kds_summary["in_prep"] += 1
                 elif ln.kds_status == KdsLineStatus.READY:
                     kds_summary["ready"] += 1
-                lines_out.append(
-                    {
-                        "line": ln,
-                        "next_status": _kds_next_status(ln.kds_status),
-                        "next_label": _kds_next_label(ln.kds_status),
-                    }
-                )
+                if overdue:
+                    kds_summary["overdue"] += 1
+                if ln.kds_rush:
+                    kds_summary["rush"] += 1
+                    rush_ticket = True
+                lines_out.append({
+                    "line": ln,
+                    "next_status": _kds_next_status(ln.kds_status),
+                    "next_label": _kds_next_label(ln.kds_status),
+                    "minutes_waiting": age_minutes,
+                    "overdue": overdue,
+                })
             if lines_out:
-                kds_orders.append({"order": o, "lines": lines_out})
+                lines_out.sort(key=lambda r: (not r["line"].kds_rush, r["line"].created_at))
+                kds_orders.append({
+                    "order": o, "lines": lines_out,
+                    "is_rush": rush_ticket, "oldest_minutes": oldest_age,
+                })
+        kds_orders.sort(key=lambda pack: (not pack["is_rush"], -pack["oldest_minutes"]))
         kds_summary["tickets"] = len(kds_orders)
 
         return render(
@@ -189,6 +218,11 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
                 "kds_summary": kds_summary,
                 "can_modify_kds": membership_can_manage_kitchen(request.tenant_membership),
                 "prep_scope_label": _prep_scope_label(request.tenant_membership.role),
+                "kds_overdue_minutes": overdue_minutes,
+                "can_manage_kds_priority": request.tenant_membership.role in {
+                    MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+                    MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+                },
             },
         )
 
@@ -239,7 +273,24 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
             messages.error(request, "Bar staff can only update bar prep items.")
             return redirect(self._queue_url(station))
 
-        if next_st != _kds_next_status(line.kds_status):
+        action = (request.POST.get("action") or "").strip()
+        if action in {"rush", "normal", "recall"}:
+            try:
+                ln, _ = manage_kds_item(
+                    order=order, line=line, membership=request.tenant_membership,
+                    user=request.user, action=action,
+                    reason=request.POST.get("reason", ""),
+                )
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(request, f"Updated: {ln.label}")
+            return redirect(self._queue_url(station))
+
+        accepted_targets = {
+            KdsLineStatus.ACCEPTED.value
+        } if line.kds_status == KdsLineStatus.PENDING else set()
+        if next_st not in ({_kds_next_status(line.kds_status)} | accepted_targets):
             messages.error(request, "That step is not valid for the current line status.")
             return redirect(self._queue_url(station))
 
