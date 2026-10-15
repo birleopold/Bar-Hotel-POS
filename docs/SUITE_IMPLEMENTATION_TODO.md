@@ -201,3 +201,9 @@ Remaining Phase 05: customer-linked API parity where appropriate; practical asso
 - **Explicitly exclude non-Uganda country readiness** from active research, implementation and release dependencies. Do not implement Kenya eTIMS, Rwanda EBM, Tanzania EFD/EFDMS, foreign-country payment adapters, localization or certifications. Preserve architectural extensibility without building these features now.
 - **All other existing 34 roadmap items remain in scope**, especially Uganda EFRIS, MTN MoMo/Airtel Money reconciliation, PDPO privacy controls, financial integrity, POS/hotel/retail workflows, hardware, offline resilience, premium UI, CI, backups and commercial readiness.
 - Latest GitHub Actions suite on prior commit `b9cce6e`: **325 passed, 24 failed, 5 skipped**. Do not merge or certify until the remaining failures are addressed. No foreign-country work is a prerequisite.
+
+### 2026-10-15 — Merged implementation checkpoint
+
+- Merged pull request #1 into `main` as `00ebc3489bec7458711c400b92abce09261fffa4`: Uganda-first research/roadmap, GitHub Actions quality gate, central-host regression, outlet-derived branch permissions and customer-visibility restrictions with focused tests.
+- Latest completed pull-request CI before merge: **341 passed, 14 failed, 5 skipped**, improved from 325 passed and 24 failed. These 14 failures remain outstanding and must not be represented as passing; verify main CI separately.
+- Continue Phase 05 and test stabilization, while retaining all other Uganda-first checklist items. Kenya, Rwanda and Tanzania country-specific adapters remain excluded.
