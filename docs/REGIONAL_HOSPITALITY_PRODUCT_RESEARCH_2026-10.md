@@ -1,12 +1,12 @@
-# Regional Hospitality Product Research — Uganda & East Africa
+# Regional Hospitality Product Research — Uganda-first
 
 **Research date:** 15 October 2026  
 **Repository reviewed:** `birleopold/Bar-Hotel-POS`, `main` at `917aba6a123e45bba537b10d4dddc3b32f7d870b` (6 October 2026)  
-**Purpose:** Translate current regulatory guidance, public market signals, regional product patterns, and the source repository into a practical improvement and verification plan. This is product/engineering research, not legal or tax advice.
+**Purpose:** Translate current regulatory guidance, public market signals, Ugandan product patterns, and the source repository into a practical improvement and verification plan. This is product/engineering research, not legal or tax advice.
 
 ## Executive conclusion
 
-The strongest route to a trusted Uganda-first, East Africa-ready hospitality platform is **operational reliability and provable control**, not simply a larger feature list. The product already has meaningful foundations: a Django modular monolith, server-rendered staff workspaces, tenant/branch/outlet scoping, POS and lodging domains, register attribution, cash movement and handover controls, an exception centre, and a shared customer identity foundation.
+The strongest route to a trusted Uganda-first hospitality platform is **operational reliability and provable control**, not simply a larger feature list. The product already has meaningful foundations: a Django modular monolith, server-rendered staff workspaces, tenant/branch/outlet scoping, POS and lodging domains, register attribution, cash movement and handover controls, an exception centre, and a shared customer identity foundation.
 
 The next gains should come from completing those workflows end to end and proving them against real operating conditions:
 
@@ -86,13 +86,10 @@ Sources: [Data Protection and Privacy Act (ULII)](https://ulii.org/en/akn/ug/act
 - Reduce free-text collection, warn staff not to record sensitive information unnecessarily, scope customer visibility to authorized branches/outlets, and redact personal data from logs and exports.
 - Define data residency/cross-border hosting and backup retention deliberately; document subprocessors and breach-response responsibilities.
 
-### East Africa: country-specific fiscal adapters, not one generic tax toggle
+### Explicitly excluded from the active roadmap: East African country expansion
 
-- **Kenya:** KRA describes eTIMS system-to-system integration through an API using Virtual Sales Control Unit (VSCU) or Online Sales Control Unit (OSCU), with a development, testing, vetting and certification process for third-party integrators. [KRA eTIMS](https://www.kra.go.ke/online-services/etims), [KRA system-to-system integration](https://www.kra.go.ke/business/etims-electronic-tax-invoice-management-system/learn-about-etims/etims-system-to-system-integration).
-- **Rwanda:** RRA publishes EBM options for supported desktop/tablet and Android use, and describes approval/certification for integration. [RRA — About EBM](https://www.rra.gov.rw/en/about-ebm).
-- **Tanzania:** the National Audit Office of Tanzania's April 2025 performance audit discusses the administration of electronic fiscal devices and EFDMS, including gaps in registration and stock/transaction coverage. This is a reminder that regional rollout needs country-specific technical and operational discovery, not a claim that Tanzania uses the same integration contract as Uganda. [NAOT — Electronic Fiscal Devices audit](https://www.nao.go.tz/reports/view/performance-audit-report-on-the-administration-of-electronic-fiscal-devices).
+At the owner's direction (15 October 2026), **Kenya, Rwanda, Tanzania, and other non-Uganda fiscal, payment, tax, localization, country-launch, and certification adapters are out of scope**. Focus current development on Uganda: URA EFRIS, Ugandan mobile-money reconciliation, PDPO privacy requirements, core hospitality/POS/retail operations, performance, design, and commercial release evidence. Existing modular architecture can remain extensible, but no work item or release gate should depend on foreign-country integration.
 
-**Architecture recommendation:** keep a shared fiscal-document domain and separate country adapters, credentials, document formats, offline rules, cancellation/correction workflows and certification evidence. Do not implement Kenya, Rwanda or Tanzania by copying Uganda's EFRIS payloads or merely changing a country code.
 
 ## 3. Engineering standards and verification
 
@@ -191,4 +188,4 @@ Establish a baseline from instrumented pilot venues, then set targets with real 
 
 ## Sources and research limits
 
-Primary sources used: Uganda Revenue Authority, Bank of Uganda, Uganda Personal Data Protection Office, Ministry of Tourism, Kenya Revenue Authority, Rwanda Revenue Authority, National Audit Office of Tanzania, and OWASP. Vendor pages were used only to identify publicly advertised buyer expectations. Regulations and provider specifications can change; verify current requirements with the relevant authority and provider before go-live.
+Primary sources used: Uganda Revenue Authority, Bank of Uganda, Uganda Personal Data Protection Office, Ministry of Tourism, and OWASP. Vendor pages were used only to identify publicly advertised buyer expectations. Regulations and provider specifications can change; verify current requirements with the relevant authority and provider before go-live.
