@@ -3,6 +3,14 @@
 {% block content %}
   <header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Customer &amp; guest</p><div class="staff-page-hero__head"><div><h1 class="staff-page-title mb-0">{{ customer.name }}</h1><p class="staff-muted mb-0">{{ customer.email|default:"No email" }} · {{ customer.phone|default:"No phone" }}</p></div><a class="staff-btn staff-btn--secondary" href="{% url 'staff-customers' %}">Directory</a></div></div></header>
   <div class="staff-card mb-3"><h2 class="staff-card__title">Contact &amp; preferences</h2><form method="post">{% csrf_token %}{% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<button class="staff-btn staff-btn--primary" type="submit">Save details</button></form></div>
+  <section class="staff-card mb-3" aria-labelledby="customer-finance-heading"><h2 class="staff-card__title" id="customer-finance-heading">Financial summary by currency</h2>
+    <p class="staff-muted">Amounts reflect linked transactions in your authorized branches and outlets. Folio-linked POS orders are counted under folio charges, not again as direct sales. No currency conversion is performed.</p>
+    {% if financial_snapshot %}
+      <div class="table-responsive"><table class="table"><thead><tr><th scope="col">Currency</th><th scope="col">Direct POS sales</th><th scope="col">Folio charges</th><th scope="col">Folio payments</th><th scope="col">Folio balance</th></tr></thead><tbody>
+      {% for currency, amounts in financial_snapshot.items %}<tr><th scope="row">{{ currency }}</th><td>{{ amounts.direct_pos_sales|floatformat:2 }}</td><td>{{ amounts.folio_charges|floatformat:2 }}</td><td>{{ amounts.folio_payments|floatformat:2 }}</td><td>{{ amounts.outstanding|floatformat:2 }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    {% else %}<p>No linked paid sales or folio amounts in your accessible workspace.</p>{% endif %}
+  </section>
   <div class="staff-card mb-3"><h2 class="staff-card__title">Linked history in your workspace</h2>
     <h3>Stays</h3><ul>{% for row in reservations %}<li><a href="{% url 'staff-lodging-reservation-detail' row.pk %}">{{ row.check_in }} → {{ row.check_out }}</a> · {{ row.guest_name }} · {{ row.get_status_display }}</li>{% empty %}<li>No linked stays.</li>{% endfor %}</ul>
     <h3>Events</h3><ul>{% for row in bookings %}<li><a href="{% url 'staff-events-booking-detail' row.pk %}">{{ row.start_at }} · {{ row.title }}</a> · {{ row.customer_name }}</li>{% empty %}<li>No linked events.</li>{% endfor %}</ul>
