@@ -1,0 +1,27 @@
+{% extends "staff/base.html" %}
+{% block title %}Supplier balances{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+  <p class="staff-dash-hero__eyebrow">Purchasing</p>
+  <h1 class="staff-page-title">Supplier balances</h1>
+  <p>Goods received, actual payments and unpaid balances for your sections. Missing unit costs are clearly marked.</p>
+</div></header>
+{% include "staff/purchasing/includes/subnav.html" %}
+<section class="staff-card mb-3">
+  <p class="mb-1"><strong>{{ purchase_currency }} {{ known_supplier_due|floatformat:2 }}</strong> <span class="staff-muted">Known amount due for received goods</span></p>
+  {% if missing_cost_count %}<p class="staff-muted">{{ missing_cost_count }} order(s) need cost information before their balance can be calculated.</p>{% endif %}
+</section>
+{% if exposure_rows %}
+<div class="staff-table-wrap"><table class="staff-table">
+  <thead><tr><th>Supplier</th><th>Section</th><th>Order</th><th>Received value</th><th>Paid</th><th>Outstanding</th><th>Cost status</th></tr></thead>
+  <tbody>{% for row in exposure_rows %}
+  <tr><td>{{ row.supplier }}</td><td>{{ row.outlet }}</td>
+    <td><a href="{% url 'staff-purchasing-order-detail' po_id=row.order_id %}">View order</a></td>
+    <td>{% if row.missing_cost_data %}Needs costs{% else %}{{ purchase_currency }} {{ row.received_value|floatformat:2 }}{% endif %}</td>
+    <td>{{ purchase_currency }} {{ row.paid_amount|floatformat:2 }}</td>
+    <td>{% if row.missing_cost_data %}—{% else %}{{ purchase_currency }} {{ row.unpaid_received_value|floatformat:2 }}{% endif %}</td>
+    <td>{% if row.missing_cost_data %}Incomplete{% else %}Confirmed{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p class="staff-muted">No purchase orders for the selected sections.</p>{% endif %}
+{% endblock %}
