@@ -36,7 +36,16 @@ def _profile_outlet_types(membership: Membership) -> set[str] | None:
 def sites_visible_for_membership(membership: Membership) -> list[Site]:
     qs = Site.objects.filter(tenant=membership.tenant, is_active=True)
     if membership.role not in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
-        qs = qs.filter(pk__in=membership.sites.values_list("pk", flat=True))
+        # A branch assignment is an explicit scope. Legacy outlet-scoped
+        # memberships can derive their branch from the assigned outlets.
+        # With neither assignment, line roles must not see every branch.
+        assigned_sites = membership.sites.values_list("pk", flat=True)
+        if membership.sites.exists():
+            qs = qs.filter(pk__in=assigned_sites)
+        elif membership.outlets.exists():
+            qs = qs.filter(outlets__in=membership.outlets.all()).distinct()
+        else:
+            qs = qs.none()
     elif membership.sites.exists():
         qs = qs.filter(pk__in=membership.sites.values_list("pk", flat=True))
     allowed_types = _profile_outlet_types(membership)
