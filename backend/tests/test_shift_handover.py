@@ -89,6 +89,7 @@ class ShiftHandoverTests(TestCase):
             verify_shift_handover(handover=handover, user=viewer, membership=membership, counted_cash="50")
         verifier, membership = self.workers["verifier"]
         other = Outlet.objects.create(site=self.site, name="Other", outlet_type=OutletType.BAR)
+        membership.outlets.clear()
         membership.outlets.add(other)
         with self.assertRaises(ValidationError):
             verify_shift_handover(handover=handover, user=verifier, membership=membership, counted_cash="50")
