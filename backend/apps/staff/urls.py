@@ -18,6 +18,7 @@ from . import (
 )
 
 urlpatterns = [
+    path("inventory/batches/", views_inventory.StaffInventoryBatchListView.as_view(), name="staff-inventory-batches"),
     path("customers/", views_customers.StaffCustomerListView.as_view(), name="staff-customers"),
     path("customers/new/", views_customers.StaffCustomerCreateView.as_view(), name="staff-customer-create"),
     path("customers/<uuid:customer_id>/", views_customers.StaffCustomerDetailView.as_view(), name="staff-customer-detail"),
