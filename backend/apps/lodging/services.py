@@ -8,7 +8,11 @@ from rest_framework.exceptions import ValidationError
 
 from apps.audit.services import log_audit
 
-from .models import Folio, FolioPayment, FolioStatus, Reservation, ReservationStatus, Room, RoomStatus
+from .models import (
+    Folio, FolioPayment, FolioStatus, Reservation, ReservationStatus,
+    Room, RoomStatus, RoomMaintenanceRequest, RoomHousekeepingEvent,
+    MaintenanceStatus,
+)
 from .night_charges import post_room_nights_on_check_in
 
 
@@ -127,6 +131,10 @@ def check_in_reservation(*, reservation: Reservation, user) -> Reservation:
         raise ValidationError({"room": "This room is inactive and cannot be checked in."})
     if room.status not in (RoomStatus.CLEAN, RoomStatus.INSPECTED):
         raise ValidationError({"room": "Room must be clean or inspected before check-in."})
+    if RoomMaintenanceRequest.objects.filter(
+        tenant_id=reservation.tenant_id, room=room,
+    ).exclude(status=MaintenanceStatus.RESOLVED).exists():
+        raise ValidationError({"room": "Resolve outstanding room maintenance before check-in."})
 
     validate_room_available_for_reservation(reservation=reservation, room=room)
 
@@ -182,8 +190,23 @@ def check_out_reservation(*, reservation: Reservation, user) -> Reservation:
 
     if reservation.room_id:
         room = Room.objects.select_for_update().get(pk=reservation.room_id)
+        old_status = room.status
+        old_worker = room.assigned_housekeeper_id
         room.status = RoomStatus.DIRTY
-        room.save(update_fields=["status", "updated_at"])
+        room.assigned_housekeeper = None
+        room.housekeeping_started_at = None
+        room.housekeeping_finished_at = None
+        room.housekeeping_inspected_at = None
+        room.save(update_fields=[
+            "status", "assigned_housekeeper", "housekeeping_started_at",
+            "housekeeping_finished_at", "housekeeping_inspected_at", "updated_at",
+        ])
+        RoomHousekeepingEvent.objects.create(
+            tenant_id=reservation.tenant_id, room=room, actor=user,
+            action="checkout_dirty", previous_status=old_status,
+            new_status=RoomStatus.DIRTY,
+            previous_assignee_id=old_worker, new_assignee_id=None,
+        )
 
     log_audit(
         tenant_id=reservation.tenant_id,
