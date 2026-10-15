@@ -82,3 +82,54 @@ def consume_fefo_batches(*, tenant, outlet, menu_item, quantity, as_of=None):
                 remaining_quantity=F("remaining_quantity") - used,
             )
         return plan
+
+
+def receive_tracked_batch(*, tenant, outlet, menu_item, batch_code, quantity,
+                          received_at, expiry_date=None, user=None, purchase_order=None):
+    """Receive a named batch and post the same quantity into aggregate inventory.
+
+    Both writes use one transaction. Existing unlabeled legacy stock stays
+    outside batch tracking until explicitly reconciled. Duplicate codes fail
+    without adding stock a second time.
+    """
+    from django.db import IntegrityError, transaction
+    from rest_framework.exceptions import ValidationError
+    from .models import StockReason
+    from .services import apply_manual_stock_change
+
+    if outlet.site.tenant_id != tenant.pk or menu_item.tenant_id != tenant.pk:
+        raise ValidationError({"batch": "Outlet and product must belong to the tenant."})
+    if purchase_order is not None and (
+        purchase_order.tenant_id != tenant.pk or purchase_order.outlet_id != outlet.pk
+    ):
+        raise ValidationError({"purchase_order": "Purchase order scope mismatch."})
+    try:
+        amount = Decimal(str(quantity))
+    except (ValueError, TypeError, ArithmeticError):
+        raise ValidationError({"quantity": "Enter a valid positive quantity."})
+    if not amount.is_finite() or amount <= 0:
+        raise ValidationError({"quantity": "Enter a positive finite quantity."})
+    if not batch_code or len(batch_code.strip()) > 128:
+        raise ValidationError({"batch_code": "A batch code of at most 128 characters is required."})
+    if expiry_date is not None and expiry_date < received_at:
+        raise ValidationError({"expiry_date": "Expiry date cannot precede receipt."})
+    with transaction.atomic():
+        # This lock protects the normal stock balance while the unique
+        # batch constraint rejects duplicate receipts.
+        if InventoryBatch.objects.filter(
+            outlet=outlet, menu_item=menu_item, batch_code=batch_code.strip()
+        ).exists():
+            raise ValidationError({"batch_code": "This batch code already exists at this outlet."})
+        batch = InventoryBatch.objects.create(
+            tenant=tenant, outlet=outlet, menu_item=menu_item,
+            batch_code=batch_code.strip(), received_at=received_at,
+            expiry_date=expiry_date, received_quantity=amount,
+            remaining_quantity=amount,
+        )
+        movement = apply_manual_stock_change(
+            tenant_id=tenant.pk, outlet=outlet, menu_item=menu_item,
+            quantity_change=amount, reason=StockReason.RECEIVE,
+            user=user, note=f"Batch {batch.batch_code}",
+            purchase_order=purchase_order,
+        )
+    return batch, movement
