@@ -15,6 +15,8 @@ from apps.inventory.models import StockBalance, StockMovement, StockReason
 def stock_coverage_snapshot(*, tenant, outlet, days=30):
     if not isinstance(days, int) or not 1 <= days <= 365:
         raise ValueError("days must be between 1 and 365")
+    if outlet.site.tenant_id != tenant.pk:
+        raise ValueError("outlet must belong to tenant")
     cutoff = timezone.now() - timedelta(days=days)
     consumed = dict(
         StockMovement.objects.filter(
