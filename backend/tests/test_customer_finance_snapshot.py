@@ -52,4 +52,4 @@ class CustomerFinanceSnapshotTests(TestCase):
         })
         self.assertIn("Financial summary by currency", html)
         self.assertIn("UGX", html)
-        self.assertIn("10,000", html.replace(",", ","))
+        self.assertIn("10000.00", html)
