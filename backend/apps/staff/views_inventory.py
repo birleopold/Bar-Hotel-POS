@@ -833,6 +833,7 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         from django.core.paginator import Paginator
         from apps.inventory.insights import build_stock_intelligence
+        from .services.modules import get_tenant_staff_modules
         ctx = super().get_context_data(**kwargs)
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ids = _outlet_filter_ids(self.request, outlets)
@@ -866,9 +867,7 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
             "outlet_count": len(ids),
             "can_create_purchasing": (
                 membership_can_modify_lodging(self.request.tenant_membership)
-                and "purchasing" in __import__(
-                    "apps.staff.services.modules", fromlist=["get_tenant_staff_modules"]
-                ).get_tenant_staff_modules(self.request.tenant)
+                and "purchasing" in get_tenant_staff_modules(self.request.tenant)
             ),
             "low_stock_page_count": sum(int(row["low_stock"]) for row in summaries),
             "inactive_page_count": sum(int(row["inactive"]) for row in summaries),
