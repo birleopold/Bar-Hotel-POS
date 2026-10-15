@@ -129,6 +129,7 @@ class Order(TimeStampedModel):
 
 class KdsLineStatus(models.TextChoices):
     PENDING = "pending", "Pending"
+    ACCEPTED = "accepted", "Accepted"
     IN_PREP = "in_prep", "In prep"
     READY = "ready", "Ready"
     SERVED = "served", "Served"
@@ -206,6 +207,8 @@ class OrderLine(TimeStampedModel):
         choices=KdsLineStatus.choices,
         default=KdsLineStatus.PENDING,
     )
+    kds_rush = models.BooleanField(default=False, help_text="Show this prep item first.")
+    kds_status_changed_at = models.DateTimeField(null=True, blank=True)
     modifiers_snapshot = models.JSONField(
         default=list,
         blank=True,
