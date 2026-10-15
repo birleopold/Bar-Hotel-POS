@@ -116,6 +116,10 @@ class TestCriticalWorkflowGuards:
             check_in=date(2026, 9, 21),
             check_out=date(2026, 9, 22),
         )
+        # Reservation management requires a property-scoped front-desk role.
+        self.member.role = MembershipRole.FRONT_DESK
+        self.member.save(update_fields=["role"])
+        self.member.sites.add(self.site)
         self.client.force_login(self.user)
         response = self.client.patch(
             f"/api/v1/lodging/reservations/{reservation.pk}/",
