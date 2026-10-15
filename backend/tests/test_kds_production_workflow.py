@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import User, Membership, MembershipRole
-from apps.pos.models import Order, OrderLine, KdsLineStatus
+from apps.pos.models import Order, OrderLine, OrderStatus, KdsLineStatus
 from apps.pos.services.kds import update_order_line_kds_status, manage_kds_item
 from apps.tenants.models import Tenant, Site, Outlet, OutletType
 
@@ -88,3 +88,19 @@ class KdsProductionWorkflowTests(TestCase):
             )
         self.line.refresh_from_db()
         self.assertFalse(self.line.kds_rush)
+
+    def test_paid_closed_order_remains_in_prep_until_served(self):
+        self.order.status = OrderStatus.CLOSED
+        self.order.is_paid = True
+        self.order.save(update_fields=["status", "is_paid"])
+        self.step(KdsLineStatus.IN_PREP)
+        self.step(KdsLineStatus.READY)
+        self.step(KdsLineStatus.SERVED)
+        self.line.refresh_from_db()
+        self.assertEqual(self.line.kds_status, KdsLineStatus.SERVED)
+
+    def test_cancelled_order_cannot_enter_prep(self):
+        self.order.status = OrderStatus.CANCELLED
+        self.order.save(update_fields=["status"])
+        with self.assertRaises(ValidationError):
+            self.step(KdsLineStatus.IN_PREP)
