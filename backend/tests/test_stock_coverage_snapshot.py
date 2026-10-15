@@ -31,6 +31,7 @@ class StockCoverageSnapshotTests(TestCase):
         self.assertEqual(rows[0]["daily_velocity"], Decimal("1"))
         self.assertEqual(rows[0]["days_remaining"], Decimal("6"))
         self.assertTrue(rows[0]["below_reorder_level"])
+        self.assertEqual(rows[0]["sell_through_proxy"], Decimal("30") / Decimal("36"))
 
     def test_window_validation(self):
         with self.assertRaises(ValueError):
