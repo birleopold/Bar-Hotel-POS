@@ -3,6 +3,7 @@
 {% block title %}Prep queue{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
 {% block main_class %}staff-main--wide staff-main--pos staff-main--pos-bleed{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/staff-kds-operations.css' %}">{% endblock %}
 {% block content %}
   <div class="staff-pos-kds-page">
     <div class="staff-pos-kds-head staff-pos-kds-head--with-live staff-pos-orders-hero">
@@ -25,14 +26,29 @@
         <span class="staff-kds-live__label" data-kds-live-label>Connecting…</span>
       </div>
     </div>
+    {% if not kds_blocked %}
+    <nav class="kds-toolbar" aria-label="Kitchen display controls">
+      <div class="kds-toolbar__tools">
+        <button class="staff-btn staff-btn--ghost" id="kds-fullscreen" type="button" aria-label="Enter full screen">Full screen</button>
+        <button class="staff-btn staff-btn--ghost" id="kds-sound" type="button" aria-pressed="false">Sound off</button>
+        <a class="staff-btn staff-btn--ghost" href="{% url 'staff-kds' %}">All stations</a>
+        <a class="staff-btn staff-btn--ghost" href="?station=bar">Bar station</a>
+        <a class="staff-btn staff-btn--ghost" href="?station=kitchen">Kitchen station</a>
+      </div>
+      <p class="staff-muted mb-0">Oldest first; rush tickets move to the front. Waiting {{ kds_overdue_minutes }} minutes or more is flagged.</p>
+    </nav>
+    {% endif %}
     {% if kds_blocked %}
       <div class="staff-alert staff-alert--warning staff-alert--pos">Select one section in the header (not “All sections”).</div>
     {% else %}
-      <section class="staff-kds-summary" aria-label="Preparation queue summary">
+      <section id="staff-kds-summary" class="staff-kds-summary" aria-label="Preparation queue summary">
         <div class="staff-kds-summary__intro"><span class="staff-kds-summary__eyebrow">Live queue</span><strong>{{ kds_summary.tickets }} ticket{{ kds_summary.tickets|pluralize }}</strong><span>{{ kds_summary.lines }} open item{{ kds_summary.lines|pluralize }}</span></div>
         <div class="staff-kds-summary__metric staff-kds-summary__metric--pending"><span>Waiting</span><strong>{{ kds_summary.pending }}</strong></div>
+        <div class="staff-kds-summary__metric staff-kds-summary__metric--working"><span>Accepted</span><strong>{{ kds_summary.accepted }}</strong></div>
         <div class="staff-kds-summary__metric staff-kds-summary__metric--working"><span>In preparation</span><strong>{{ kds_summary.in_prep }}</strong></div>
         <div class="staff-kds-summary__metric staff-kds-summary__metric--ready"><span>Ready for service</span><strong>{{ kds_summary.ready }}</strong></div>
+        <div class="staff-kds-summary__metric"><span>Overdue</span><strong>{{ kds_summary.overdue }}</strong></div>
+        <div class="staff-kds-summary__metric"><span>Rush</span><strong>{{ kds_summary.rush }}</strong></div>
       </section>
       <div id="staff-kds-queue-region" class="staff-kds-queue-region">
       {% if not kds_orders %}
@@ -41,23 +57,37 @@
       <div class="staff-pos-kds-scroll staff-pos-grow">
         <div class="staff-pos-kds-grid">
         {% for pack in kds_orders %}
-          <article class="staff-card staff-card--pos staff-pos-kds-card mb-0">
+          <article class="staff-card staff-card--pos staff-pos-kds-card mb-0{% if pack.is_rush %} kds-ticket--rush{% endif %}" data-kds-ticket-id="{{ pack.order.id }}">
             <header class="staff-pos-kds-card__head">
               <div><span class="staff-pos-kds-card__eyebrow">Ticket</span><h2 class="staff-pos-kds-card__title"><a class="staff-pos-kds-card__link" href="{% url 'staff-order-detail' order_id=pack.order.id %}">{{ pack.order.bill_reference }}</a></h2></div>
+              {% if pack.is_rush %}<span class="kds-rush-tag">Rush order</span>{% endif %}
+              <span class="kds-age-summary">Oldest: {{ pack.oldest_minutes }} min</span>
               {% if pack.order.table_label %}<span class="staff-pos-kds-card__table"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> {{ pack.order.table_label }}</span>{% endif %}
             </header>
             <div class="staff-pos-kds-lines">
               {% for row in pack.lines %}
                 {% with ln=row.line %}
-                  <div class="staff-pos-kds-line{% if ln.kds_status == 'ready' %} staff-pos-kds-line--ready{% elif ln.kds_status == 'in_prep' %} staff-pos-kds-line--working{% endif %}">
+                  <div class="staff-pos-kds-line{% if ln.kds_status == 'ready' %} staff-pos-kds-line--ready{% elif ln.kds_status == 'in_prep' %} staff-pos-kds-line--working{% endif %}{% if row.overdue %} kds-line--overdue{% endif %}{% if ln.kds_rush %} kds-line--rush{% endif %}" data-kds-created-at="{{ ln.created_at|date:'c' }}">
                     <div class="staff-pos-kds-line__main">
                       <div class="staff-pos-kds-line__qty">{{ ln.quantity }}×</div>
                       <div class="staff-pos-kds-line__name">
                         {{ ln.label }}
+                        {% if ln.kds_rush %}<strong class="kds-rush-tag">Rush</strong>{% endif %}
+                        <span class="kds-line-timer"{% if row.overdue %} data-kds-overdue="true"{% endif %} data-kds-age-seconds="{{ row.minutes_waiting|default:0 }}">{{ row.minutes_waiting }} min waiting{% if row.overdue %} · Overdue{% endif %}</span>
+                        {% if ln.modifiers_snapshot %}<ul class="kds-modifier-list">{% for modifier in ln.modifiers_snapshot %}<li>{{ modifier.name|default:"Option" }}</li>{% endfor %}</ul>{% endif %}
                         <div class="staff-pos-kds-line__details"><span class="staff-pos-kds-status staff-pos-kds-status--{{ ln.kds_status }}">{{ ln.get_kds_status_display }}</span>{% if ln.kds_station %}<span class="staff-pos-kds-line__station"><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ ln.kds_station }}</span>{% endif %}</div>
                       </div>
                     </div>
                     <div class="staff-pos-kds-line__action">
+                      {% if can_modify_kds and ln.kds_status == 'pending' %}
+                        <form method="post" class="m-0">{% csrf_token %}
+                          <input type="hidden" name="order_id" value="{{ pack.order.id }}">
+                          <input type="hidden" name="line_id" value="{{ ln.id }}">
+                          <input type="hidden" name="kds_status" value="accepted">
+                          {% if station_filter %}<input type="hidden" name="station" value="{{ station_filter }}">{% endif %}
+                          <button type="submit" class="staff-btn staff-btn--ghost">Accept</button>
+                        </form>
+                      {% endif %}
                       {% if can_modify_kds and row.next_status %}
                         <form method="post" class="m-0">
                           {% csrf_token %}
@@ -69,6 +99,28 @@
                         </form>
                       {% else %}
                         <span class="badge {% if ln.kds_status == 'ready' %}bg-success{% else %}bg-secondary{% endif %}">{{ ln.get_kds_status_display }}</span>
+                      {% endif %}
+                      {% if can_manage_kds_priority %}
+                      <form method="post" class="m-0">{% csrf_token %}
+                        <input type="hidden" name="order_id" value="{{ pack.order.id }}">
+                        <input type="hidden" name="line_id" value="{{ ln.id }}">
+                        <input type="hidden" name="action" value="{% if ln.kds_rush %}normal{% else %}rush{% endif %}">
+                        {% if station_filter %}<input type="hidden" name="station" value="{{ station_filter }}">{% endif %}
+                        <button type="submit" class="staff-btn staff-btn--ghost">{% if ln.kds_rush %}Normal priority{% else %}Mark rush{% endif %}</button>
+                      </form>
+                      {% if ln.kds_status == 'ready' %}
+                      <details class="kds-recall-control"><summary>Recall item</summary>
+                        <form method="post" class="kds-recall-form">{% csrf_token %}
+                          <input type="hidden" name="order_id" value="{{ pack.order.id }}">
+                          <input type="hidden" name="line_id" value="{{ ln.id }}">
+                          <input type="hidden" name="action" value="recall">
+                          {% if station_filter %}<input type="hidden" name="station" value="{{ station_filter }}">{% endif %}
+                          <label for="recall-{{ ln.id }}">Why prepare again?</label>
+                          <input id="recall-{{ ln.id }}" class="staff-input" name="reason" maxlength="255" placeholder="e.g. wrong preparation" required>
+                          <button type="submit" class="staff-btn staff-btn--ghost">Send back to prep</button>
+                        </form>
+                      </details>
+                      {% endif %}
                       {% endif %}
                     </div>
                   </div>
