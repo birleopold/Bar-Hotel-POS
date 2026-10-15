@@ -68,7 +68,7 @@ python manage.py makemigrations --check --dry-run
 python -m pytest -q -p no:cacheprovider --basetemp=.pytest-tmp
 ```
 
-The September 30 shared-customer checkpoint completed with **323 passing tests and 5 PostgreSQL-only skips**. See [the full suite checklist](docs/SUITE_IMPLEMENTATION_TODO.md) for tracked work and verification limits. These checks establish source and local application correctness; they do not prove a production deployment, external EFRIS acceptance, or physical device behavior.
+The last documented local SQLite checkpoint (September 30, 2026) reported **323 passing tests and 5 PostgreSQL-only skips**; that count is historical, not the current main-branch result. GitHub Actions now runs the Django checks, migration-drift check, and automated SQLite suite for pull requests and pushes to `main`. See the [current workflow](.github/workflows/quality.yml) and [full suite checklist](docs/SUITE_IMPLEMENTATION_TODO.md). SQLite success does not prove PostgreSQL/RLS concurrency, browser layouts, production deployment, external EFRIS acceptance, or physical device behavior.
 
 ## Documentation
 
@@ -89,6 +89,7 @@ The September 30 shared-customer checkpoint completed with **323 passing tests a
 - [Product requirements](docs/PRODUCT_REQUIREMENTS_UGANDA.md)
 - [Hospitality SaaS product plan](docs/HOSPITALITY_SAAS_PRODUCT_PLAN.md)
 - [Staff and API parity](docs/STAFF_API_PARITY.md)
+- [Regional hospitality product research — Uganda and East Africa (October 2026)](docs/REGIONAL_HOSPITALITY_PRODUCT_RESEARCH_2026-10.md)
 - [UI terminology guide](docs/UI_TERMINOLOGY_GUIDE.md)
 
 ### Audit and compliance
