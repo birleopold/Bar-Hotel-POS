@@ -46,6 +46,7 @@ def stock_coverage_snapshot(*, tenant, outlet, days=30):
             "daily_velocity": daily,
             "days_remaining": days_remaining,
             "sell_through_proxy": sell_through,
+            "stockout_risk": ("no_demand_data" if daily == 0 else "at_or_below_reorder" if level is not None and on_hand <= level else "less_than_7_days" if days_remaining < 7 else "covered"),
             "below_reorder_level": level is not None and on_hand <= level,
             "no_sales_history": daily == 0,
         })
