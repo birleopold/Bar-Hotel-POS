@@ -864,6 +864,12 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
             "stock_rows": summaries, "page_obj": page,
             "safety_days": safety_days, "low_only": low_only,
             "outlet_count": len(ids),
+            "can_create_purchasing": (
+                membership_can_modify_lodging(self.request.tenant_membership)
+                and "purchasing" in __import__(
+                    "apps.staff.services.modules", fromlist=["get_tenant_staff_modules"]
+                ).get_tenant_staff_modules(self.request.tenant)
+            ),
             "low_stock_page_count": sum(int(row["low_stock"]) for row in summaries),
             "inactive_page_count": sum(int(row["inactive"]) for row in summaries),
             "unknown_age_page_count": sum(int(row["unbatched_qty"] > 0) for row in summaries),
