@@ -719,20 +719,52 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
         context["today"] = timezone.localdate()
         context["expiry_horizon"] = context["today"] + timedelta(days=30)
         context["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
+        context["stock_outlets"] = staff_accessible_outlets(self.request.tenant_membership)
+        context["tracked_items"] = MenuItem.objects.filter(
+            tenant=self.request.tenant, is_active=True, track_inventory=True
+        ).order_by("name")
         return context
 
     def post(self, request, *args, **kwargs):
-        from apps.inventory.services_batches import change_batch_hold, waste_batch_stock
+        from apps.inventory.services_batches import change_batch_hold, waste_batch_stock, label_existing_stock_batch
+        from datetime import date
         from django.http import Http404
         if not membership_can_modify_lodging(request.tenant_membership):
             messages.error(request, "Your role cannot change inventory batches.")
+            return redirect("staff-inventory-batches")
+        allowed = [o.pk for o in staff_accessible_outlets(request.tenant_membership)]
+        action = request.POST.get("action", "")
+        if action == "label_existing":
+            try:
+                outlet = Outlet.objects.select_related("site").get(
+                    pk=uuid.UUID(request.POST.get("outlet", "")),
+                    pk__in=allowed,
+                    site__tenant=request.tenant,
+                )
+                item = MenuItem.objects.get(
+                    pk=uuid.UUID(request.POST.get("menu_item", "")),
+                    tenant=request.tenant, track_inventory=True,
+                )
+                received = date.fromisoformat(request.POST.get("received_at", ""))
+                expiry_raw = (request.POST.get("expiry_date") or "").strip()
+                expiry = date.fromisoformat(expiry_raw) if expiry_raw else None
+                label_existing_stock_batch(
+                    tenant_id=request.tenant.pk, outlet=outlet, menu_item=item,
+                    batch_code=request.POST.get("batch_code", ""),
+                    quantity=request.POST.get("quantity", ""),
+                    received_at=received, expiry_date=expiry, user=request.user,
+                )
+            except (Outlet.DoesNotExist, MenuItem.DoesNotExist, ValueError):
+                messages.error(request, "Select a permitted section, product and valid dates.")
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(request, "Existing stock assigned to batch; stock balance unchanged.")
             return redirect("staff-inventory-batches")
         try:
             batch_id = uuid.UUID(request.POST.get("batch_id", ""))
         except (ValueError, TypeError):
             raise Http404("Invalid batch")
-        allowed = [o.pk for o in staff_accessible_outlets(request.tenant_membership)]
-        action = request.POST.get("action", "")
         try:
             if action in ("hold", "release"):
                 change_batch_hold(
