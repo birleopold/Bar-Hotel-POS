@@ -692,7 +692,7 @@ class StaffLodgingTapeChartView(StaffTenantRequiredMixin, View):
 
 
 class StaffHousekeepingBoardView(StaffTenantRequiredMixin, View):
-    """Room status board (clean / dirty / inspected / out of order) for the active property."""
+    """Mobile-friendly assigned cleaning queue and manager room-status board."""
 
     staff_nav_capability = "lodging"
     housekeeping_only = True
@@ -700,7 +700,8 @@ class StaffHousekeepingBoardView(StaffTenantRequiredMixin, View):
 
     def dispatch(self, request: HttpRequest, *args, **kwargs):
         from apps.staff.services.modules import get_tenant_staff_modules
-
+        if not getattr(request, "tenant_membership", None):
+            return super().dispatch(request, *args, **kwargs)
         if not membership_can_access_housekeeping(request.tenant_membership):
             messages.error(request, "Your role does not have access to housekeeping.")
             return redirect("staff-dashboard")
@@ -713,60 +714,93 @@ class StaffHousekeepingBoardView(StaffTenantRequiredMixin, View):
             return redirect("staff-dashboard")
         return super().dispatch(request, *args, **kwargs)
 
+    def _lane(self, request):
+        suggested = "mine" if request.tenant_membership.role == MembershipRole.CLEANER else "all"
+        lane = (request.GET.get("lane") or suggested).strip()
+        return lane if lane in {"all", "mine", "unassigned"} else suggested
+
     def get(self, request: HttpRequest) -> HttpResponse:
-        rooms = (
+        from apps.lodging.housekeeping import MANAGER_ROLES, cleaners_for_site
+        from apps.lodging.models import RoomHousekeepingEvent
+
+        rooms = list(
             Room.objects.filter(room_type__site=self.current_site, is_active=True)
-            .select_related("room_type")
+            .select_related("room_type", "assigned_housekeeper")
             .order_by("room_type__name", "name")
         )
+        lane = self._lane(request)
+        visible_rooms = [
+            room for room in rooms
+            if lane == "all"
+            or (lane == "mine" and room.assigned_housekeeper_id == request.user.pk)
+            or (lane == "unassigned" and room.assigned_housekeeper_id is None
+                and room.status == RoomStatus.DIRTY)
+        ]
         by_status: dict[str, list[Room]] = {k: [] for k, _ in RoomStatus.choices}
-        for r in rooms:
-            by_status.setdefault(r.status, []).append(r)
-        status_columns = [(label, by_status.get(key, [])) for key, label in RoomStatus.choices]
-        return render(
-            request,
-            "staff/lodging/housekeeping.html",
-            {
-                "sites": self.sites,
-                "membership_can_manage_folios": membership_can_manage_folios(request.tenant_membership),
-                "membership_can_manage_room_inventory": membership_can_manage_room_inventory(request.tenant_membership),
-                "current_site": self.current_site,
-                "status_columns": status_columns,
-                "room_statuses": RoomStatus.choices,
-                "can_modify_lodging": membership_can_update_housekeeping(request.tenant_membership),
-            },
-        )
+        for room in visible_rooms:
+            by_status.setdefault(room.status, []).append(room)
+        columns = [(code, label, by_status.get(code, [])) for code, label in RoomStatus.choices]
+        counts = {
+            "all": len(rooms),
+            "mine": sum(room.assigned_housekeeper_id == request.user.pk for room in rooms),
+            "unassigned": sum(
+                room.assigned_housekeeper_id is None and room.status == RoomStatus.DIRTY
+                for room in rooms
+            ),
+        }
+        manager = request.tenant_membership.role in MANAGER_ROLES
+        cleaners = list(cleaners_for_site(tenant=request.tenant, site=self.current_site)) if manager else []
+        events = RoomHousekeepingEvent.objects.filter(
+            tenant=request.tenant, room__room_type__site=self.current_site,
+        ).select_related("room", "actor").order_by("-created_at")[:30]
+        return render(request, "staff/lodging/housekeeping.html", {
+            "sites": self.sites, "current_site": self.current_site,
+            "membership_can_manage_folios": membership_can_manage_folios(request.tenant_membership),
+            "membership_can_manage_room_inventory": membership_can_manage_room_inventory(request.tenant_membership),
+            "membership_can_manage_reservations": membership_can_manage_reservations(request.tenant_membership),
+            "membership_can_manage_housekeeping_workflows": membership_can_manage_housekeeping_workflows(request.tenant_membership),
+            "membership_can_access_housekeeping": True,
+            "lane": lane, "counts": counts, "status_columns": columns,
+            "cleaners": cleaners, "is_housekeeping_manager": manager,
+            "can_modify_lodging": membership_can_update_housekeeping(request.tenant_membership),
+            "room_history": events,
+        })
 
     def post(self, request: HttpRequest) -> HttpResponse:
+        from apps.lodging.housekeeping import change_housekeeping_room
+        from rest_framework.exceptions import ValidationError
+
         if not membership_can_update_housekeeping(request.tenant_membership):
             messages.error(request, "Your role cannot update room status.")
             return redirect("staff-lodging-housekeeping")
-        rid = request.POST.get("room_id", "").strip()
-        new_status = (request.POST.get("status") or "").strip()
+        lane = (request.POST.get("lane") or "").strip()
+        if lane not in {"all", "mine", "unassigned"}:
+            lane = "all"
+        action = (request.POST.get("action") or "").strip()
+        if not action:
+            legacy = (request.POST.get("status") or "").strip()
+            action = {
+                RoomStatus.DIRTY: "reopen", RoomStatus.CLEANING: "start",
+                RoomStatus.CLEAN: "finish", RoomStatus.INSPECTED: "inspect",
+                RoomStatus.OUT_OF_ORDER: "unavailable",
+            }.get(legacy, "")
         try:
-            uid = uuid.UUID(rid)
-        except ValueError:
-            messages.error(request, "Invalid room.")
-            return redirect("staff-lodging-housekeeping")
-        if new_status not in {c[0] for c in RoomStatus.choices}:
-            messages.error(request, "Invalid status.")
-            return redirect("staff-lodging-housekeeping")
-        room = (
-            Room.objects.filter(
-                id=uid,
-                room_type__site=self.current_site,
-                room_type__tenant_id=request.tenant.id,
+            rid = uuid.UUID(request.POST.get("room_id", ""))
+            assigned = (request.POST.get("assigned_user_id") or "").strip()
+            assigned_id = uuid.UUID(assigned) if assigned else None
+            room, changed = change_housekeeping_room(
+                tenant=request.tenant, site=self.current_site,
+                room_id=rid, membership=request.tenant_membership,
+                action=action, user=request.user, assigned_user_id=assigned_id,
             )
-            .select_related("room_type")
-            .first()
-        )
-        if room is None:
-            messages.error(request, "Room not found.")
-            return redirect("staff-lodging-housekeeping")
-        room.status = new_status
-        room.save(update_fields=["status", "updated_at"])
-        messages.success(request, f"{room.name} is now {room.get_status_display()}.")
-        return redirect("staff-lodging-housekeeping")
+        except (ValueError, TypeError):
+            messages.error(request, "Choose a valid room and worker.")
+        except ValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(request, f"{room.name}: updated." if changed else
+                             f"{room.name}: already up to date.")
+        return redirect(f"{reverse('staff-lodging-housekeeping')}?lane={lane}")
 
 
 class StaffRoomMaintenanceView(StaffTenantRequiredMixin, View):
