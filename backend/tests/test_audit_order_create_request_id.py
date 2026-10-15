@@ -27,6 +27,7 @@ def test_order_create_audit_payload_has_request_id_and_source_api(api_client):
     user = User.objects.create_user(email="audpos@test.local", password="TestPass9!")
     membership = Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.SERVER)
     membership.outlets.add(outlet)
+    membership.sites.add(site)
     assert api_client.login(username=user.email, password="TestPass9!")
     r = api_client.post(
         "/api/v1/orders/",
