@@ -200,11 +200,35 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
         oids = [o.id for o in outlets]
         kw["tenant"] = self.request.tenant
         kw["outlets_qs"] = Outlet.objects.filter(pk__in=oids, is_active=True).select_related("site")
+        if self.request.method == "GET":
+            try:
+                chosen = uuid.UUID(self.request.GET.get("outlet", ""))
+            except (ValueError, TypeError):
+                chosen = None
+            if chosen in oids:
+                kw.setdefault("initial", {})["outlet"] = chosen
         return kw
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["line_slots"] = range(PO_LINE_SLOTS)
+        ctx["prefill_menu_item"] = None
+        ctx["prefill_qty"] = ""
+        if self.request.method == "GET":
+            try:
+                item_id = uuid.UUID(self.request.GET.get("menu_item", ""))
+                quantity = Decimal(self.request.GET.get("quantity", ""))
+            except (ValueError, TypeError, InvalidOperation):
+                item_id, quantity = None, None
+            if (item_id is not None and quantity is not None
+                    and quantity.is_finite() and 0 < quantity <= Decimal("999999")):
+                item = MenuItem.objects.filter(
+                    pk=item_id, tenant=self.request.tenant,
+                    is_active=True, track_inventory=True,
+                ).first()
+                if item is not None:
+                    ctx["prefill_menu_item"] = item.pk
+                    ctx["prefill_qty"] = str(quantity)
         ctx["menu_items"] = MenuItem.objects.filter(
             tenant=self.request.tenant,
             is_active=True,
