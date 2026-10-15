@@ -26,7 +26,10 @@ class ShiftHandoverTests(TestCase):
                             ("manager", MembershipRole.OUTLET_MANAGER), ("incoming", MembershipRole.SERVER),
                             ("viewer", MembershipRole.ACCOUNTANT)):
             user = User.objects.create_user(email=f"{label}@handover.test", password="TestPass9!")
-            cls.workers[label] = (user, Membership.objects.create(tenant=cls.tenant, user=user, role=role))
+            membership = Membership.objects.create(tenant=cls.tenant, user=user, role=role)
+            membership.outlets.add(cls.outlet)
+            membership.sites.add(cls.site)
+            cls.workers[label] = (user, membership)
 
     def shift(self):
         return open_pos_shift(tenant_id=self.tenant.pk, outlet=self.outlet,
