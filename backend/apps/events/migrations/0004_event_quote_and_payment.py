@@ -1,5 +1,7 @@
 import uuid
 from django.db import migrations, models
+import django.core.validators
+from decimal import Decimal
 import django.db.models.deletion
 
 
@@ -14,7 +16,7 @@ class Migration(migrations.Migration):
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
                 ("reference", models.CharField(max_length=128)),
-                ("amount", models.DecimalField(max_digits=14, decimal_places=2)),
+                ("amount", models.DecimalField(max_digits=14, decimal_places=2, validators=[django.core.validators.MinValueValidator(Decimal('0.01'))])),
                 ("description", models.TextField(blank=True)),
                 ("valid_until", models.DateField()),
                 ("status", models.CharField(max_length=16, default="draft", choices=[("draft", "Draft"), ("sent", "Sent"), ("accepted", "Accepted")])),
@@ -33,7 +35,7 @@ class Migration(migrations.Migration):
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("id", models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ("amount", models.DecimalField(max_digits=14, decimal_places=2)),
+                ("amount", models.DecimalField(max_digits=14, decimal_places=2, validators=[django.core.validators.MinValueValidator(Decimal('0.01'))])),
                 ("method", models.CharField(max_length=16, choices=[
                     ("cash", "Cash"), ("card", "Card"), ("mobile_money", "Mobile money"),
                     ("bank", "Bank transfer"), ("other", "Other"),
