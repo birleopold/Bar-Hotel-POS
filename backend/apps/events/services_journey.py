@@ -113,11 +113,13 @@ def change_event_quote_status(*, quote, membership, user, action):
         if overlapping.exists():
             raise ValidationError({"date": "Another event already holds this space during those times."})
         quote.accepted_at = timezone.now()
-        quote.save(update_fields=["status", "accepted_at", "updated_at"] if False else ["accepted_at", "updated_at"])
         booking.status = EventBookingStatus.CONFIRMED
         booking.save(update_fields=["status", "updated_at"])
     quote.status = next_state
-    quote.save(update_fields=["status", "updated_at"])
+    quote.save(update_fields=(
+        ["status", "accepted_at", "updated_at"] if action == "accept"
+        else ["status", "updated_at"]
+    ))
     log_audit(
         tenant_id=booking.tenant_id, user_id=user.pk,
         action="events.quote_status_changed", entity_type="event_quote",
