@@ -2,7 +2,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    dependencies = [("finance", "0008_financepostinglink_source_type")]
+    dependencies = [("finance", "0005_alter_financepostinglink_source_type")]
 
     operations = [
         migrations.AlterField(
