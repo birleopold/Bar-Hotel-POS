@@ -33,13 +33,25 @@ class TenantDomainResolutionMiddleware:
                 if domain.startswith("[") and domain.endswith("]")
                 else domain
             )
+            central_hosts = {
+                str(value).strip().lower().rstrip(".")
+                for value in getattr(settings, "TENANT_CENTRAL_HOSTS", ())
+                if value
+            }
             try:
                 ip = ipaddress.ip_address(bracketless_domain)
             except ValueError:
+                # Configured central hosts may be single-label names such as
+                # "localhost" or Django's "testserver". They are not tenant
+                # DNS names and must bypass tenant-hostname validation.
+                if domain.strip().lower().rstrip(".") in central_hosts:
+                    return self.get_response(request)
                 host = normalize_hostname(domain)
             else:
-                central_host = f"[{ip.compressed}]" if ip.version == 6 else ip.compressed
-                if central_host not in settings.TENANT_CENTRAL_HOSTS:
+                ip_hosts = {ip.compressed}
+                if ip.version == 6:
+                    ip_hosts.add(f"[{ip.compressed}]")
+                if not ip_hosts.intersection(central_hosts):
                     return HttpResponse(
                         "Workspace domain is not configured",
                         status=404,
