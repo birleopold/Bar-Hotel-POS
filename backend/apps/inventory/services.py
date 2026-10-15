@@ -50,9 +50,10 @@ def apply_manual_stock_change(
         raise ValidationError(
             {"quantity_change": f"Would make on-hand negative (currently {bal.quantity})."}
         )
+    batch_allocations = []
     if quantity_change < 0:
         from .services_batches import consume_for_outflow_if_batched
-        consume_for_outflow_if_batched(
+        batch_allocations = consume_for_outflow_if_batched(
             tenant_id=tenant_id, outlet_id=outlet.id, menu_item_id=menu_item.id,
             quantity=-quantity_change,
         )
@@ -69,6 +70,11 @@ def apply_manual_stock_change(
         note=note[:512],
         purchase_order=purchase_order,
     )
+    if batch_allocations:
+        from .services_batches import record_batch_allocations
+        record_batch_allocations(
+            tenant_id=tenant_id, movement=movement, allocations=batch_allocations,
+        )
     payload = {
         "reason": reason,
         "menu_item_id": str(menu_item.id),
@@ -133,19 +139,14 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
             outlet_id=outlet_id,
             menu_item_id=item_id,
         )
-        from .services_batches import consume_for_outflow_if_batched
-        consume_for_outflow_if_batched(
+        from .services_batches import consume_for_outflow_if_batched, record_batch_allocations
+        batch_allocations = consume_for_outflow_if_batched(
             tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=item_id,
-            quantity=need,
-        )
-        from .services_batches import consume_for_outflow_if_batched
-        consume_for_outflow_if_batched(
-            tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=ing_id,
             quantity=need,
         )
         bal.quantity -= need
         bal.save(update_fields=["quantity", "updated_at"])
-        StockMovement.objects.create(
+        movement = StockMovement.objects.create(
             tenant_id=tenant_id,
             outlet_id=outlet_id,
             menu_item_id=item_id,
@@ -154,6 +155,10 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
             order=order,
             created_by=user,
         )
+        if batch_allocations:
+            record_batch_allocations(
+                tenant_id=tenant_id, movement=movement, allocations=batch_allocations,
+            )
 
     ingredient_need: dict = {}
     for line in (
@@ -190,16 +195,21 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
                 }
             )
 
-    for ing_id, need in ingredient_need.items():
+    for ing_id, need in sorted(ingredient_need.items(), key=lambda pair: str(pair[0])):
         if need <= 0:
             continue
         bal = StockBalance.objects.select_for_update().get(
             outlet_id=outlet_id,
             menu_item_id=ing_id,
         )
+        from .services_batches import consume_for_outflow_if_batched, record_batch_allocations
+        batch_allocations = consume_for_outflow_if_batched(
+            tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=ing_id,
+            quantity=need,
+        )
         bal.quantity -= need
         bal.save(update_fields=["quantity", "updated_at"])
-        StockMovement.objects.create(
+        movement = StockMovement.objects.create(
             tenant_id=tenant_id,
             outlet_id=outlet_id,
             menu_item_id=ing_id,
@@ -208,6 +218,10 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
             order=order,
             created_by=user,
         )
+        if batch_allocations:
+            record_batch_allocations(
+                tenant_id=tenant_id, movement=movement, allocations=batch_allocations,
+            )
 
 
 @transaction.atomic
@@ -269,6 +283,11 @@ def execute_stock_transfer(
         created_by=user,
         note=note_text,
     )
+    from .services_batches import record_batch_allocations
+    if source_batches:
+        record_batch_allocations(
+            tenant_id=tenant_id, movement=mov_out, allocations=source_batches,
+        )
 
     bal_to, _ = StockBalance.objects.select_for_update().get_or_create(
         outlet=to_outlet,
@@ -277,6 +296,7 @@ def execute_stock_transfer(
     )
     bal_to.quantity += quantity
     bal_to.save(update_fields=["quantity", "updated_at"])
+    destination_allocations = []
     if source_batches:
         from .batches import InventoryBatch
         from django.utils import timezone
@@ -301,6 +321,7 @@ def execute_stock_transfer(
                     received_quantity=F("received_quantity") + used,
                     remaining_quantity=F("remaining_quantity") + used,
                 )
+            destination_allocations.append((destination.pk, used))
 
     mov_in = StockMovement.objects.create(
         tenant_id=tenant_id,
@@ -313,6 +334,10 @@ def execute_stock_transfer(
         note=note_text,
     )
 
+    if destination_allocations:
+        record_batch_allocations(
+            tenant_id=tenant_id, movement=mov_in, allocations=destination_allocations,
+        )
     log_audit(
         tenant_id=tenant_id,
         user_id=user.id if user else None,
@@ -376,16 +401,17 @@ def complete_stock_count_session(
         delta = counted - before
         if counted < 0:
             raise ValidationError({"lines": "A physical count cannot be negative."})
+        count_allocations = []
         if delta < 0:
             from .services_batches import consume_for_outflow_if_batched
-            consume_for_outflow_if_batched(
+            count_allocations = consume_for_outflow_if_batched(
                 tenant_id=tenant_id, outlet_id=outlet_id,
                 menu_item_id=mi.id, quantity=-delta,
             )
         bal.quantity = counted
         bal.save(update_fields=["quantity", "updated_at"])
         if delta != 0:
-            StockMovement.objects.create(
+            movement = StockMovement.objects.create(
                 tenant_id=tenant_id,
                 outlet_id=outlet_id,
                 menu_item=mi,
@@ -394,6 +420,11 @@ def complete_stock_count_session(
                 created_by=user,
                 note=f"stock count {session.id}"[:512],
             )
+            if count_allocations:
+                from .services_batches import record_batch_allocations
+                record_batch_allocations(
+                    tenant_id=tenant_id, movement=movement, allocations=count_allocations,
+                )
         StockCountLine.objects.create(
             session=session,
             menu_item=mi,

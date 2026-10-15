@@ -232,6 +232,7 @@ def waste_batch_stock(*, tenant_id, batch_id, allowed_outlet_ids, quantity, user
             quantity_change=-amount, reason=StockReason.WASTE,
             created_by=user, note=f"Batch {batch.batch_code}: {note}"[:512],
         )
+        record_batch_allocations(tenant_id=tenant_id, movement=movement, allocations=[(batch.pk, amount)])
         log_audit(
             tenant_id=tenant_id, user_id=user.pk if user else None,
             action="inventory.batch_written_off", entity_type="inventory_batch",
@@ -302,3 +303,19 @@ def label_existing_stock_batch(*, tenant_id, outlet, menu_item, batch_code,
             },
         )
         return batch
+
+
+def record_batch_allocations(*, tenant_id, movement, allocations):
+    """Attach the exact batch quantities used by a stock ledger movement."""
+    from .models import StockBatchAllocation
+    if movement.tenant_id != tenant_id:
+        raise ValueError("Stock movement tenant does not match")
+    for batch_id, quantity in allocations:
+        batch = InventoryBatch.objects.get(pk=batch_id)
+        if (batch.tenant_id != tenant_id or batch.outlet_id != movement.outlet_id
+                or batch.menu_item_id != movement.menu_item_id or quantity <= 0):
+            raise ValueError("Stock movement and batch scope mismatch")
+        StockBatchAllocation.objects.create(
+            tenant_id=tenant_id, stock_movement=movement,
+            batch=batch, quantity=quantity,
+        )

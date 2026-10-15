@@ -176,3 +176,32 @@ class StockCountLine(TimeStampedModel):
 
 # Batch model imported here so Django registers it with the inventory app.
 from .batches import InventoryBatch  # noqa: E402,F401
+
+
+class StockBatchAllocation(TimeStampedModel):
+    """Permanent movement-to-batch traceability for sale, waste and transfers."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="stock_batch_allocations",
+    )
+    stock_movement = models.ForeignKey(
+        StockMovement, on_delete=models.PROTECT, related_name="batch_allocations",
+    )
+    batch = models.ForeignKey(
+        "inventory.InventoryBatch", on_delete=models.PROTECT, related_name="movement_allocations",
+    )
+    quantity = models.DecimalField(
+        max_digits=14, decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["stock_movement", "batch"], name="uniq_stock_movement_batch_link",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0), name="stock_batch_allocation_positive",
+            ),
+        ]
