@@ -207,3 +207,9 @@ Remaining Phase 05: customer-linked API parity where appropriate; practical asso
 - Merged pull request #1 into `main` as `00ebc3489bec7458711c400b92abce09261fffa4`: Uganda-first research/roadmap, GitHub Actions quality gate, central-host regression, outlet-derived branch permissions and customer-visibility restrictions with focused tests.
 - Latest completed pull-request CI before merge: **341 passed, 14 failed, 5 skipped**, improved from 325 passed and 24 failed. These 14 failures remain outstanding and must not be represented as passing; verify main CI separately.
 - Continue Phase 05 and test stabilization, while retaining all other Uganda-first checklist items. Kenya, Rwanda and Tanzania country-specific adapters remain excluded.
+
+### 2026-10-15 — Phase 05 financial summary implementation
+
+- Added `apps.staff.services.customer_finance.customer_financial_snapshot`: branch/outlet-scoped direct paid POS sales and folio charges/payments/outstanding, separated by currency; POS linked to folio excluded from standalone sales to avoid double counting.
+- Added `financial_snapshot` to customer detail view context and a regression test covering scopes, folio-linked orders, and partial payment.
+- **Phase 05 is still in progress**: customer API, invoices, complete privacy/retention policy and full UI rendering/verification are not finished; this service is not presented as full accounting or a loyalty ledger. Phase 06 is still pending. No external provider, browser or CI-green evidence is claimed.
