@@ -3,6 +3,9 @@
 {% block content %}
 <header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Management workspace</p><h1 class="staff-page-title">{{ management_title }}</h1><p class="staff-muted">Your authorized branch and section scope applies to every task.</p></div></header>
 <nav class="staff-chip-row mb-3" aria-label="Management tasks">
+  {% if request.tenant_membership.role == "owner" or request.tenant_membership.role == "tenant_admin" or request.tenant_membership.role == "site_manager" %}
+  <a class="staff-btn staff-btn--ghost" href="{% url 'staff-business-date' %}">Operating dates</a>
+  {% endif %}
   <a class="staff-btn staff-btn--ghost" href="?view=cases">Follow-up and history</a>
   <a class="staff-btn staff-btn--ghost" href="?view=today"{% if management_view == 'today' %} aria-current="page"{% endif %}>Today</a><a class="staff-btn staff-btn--ghost" href="?view=exceptions"{% if management_view == 'exceptions' %} aria-current="page"{% endif %}>Exceptions</a><a class="staff-btn staff-btn--ghost" href="?view=approvals"{% if management_view == 'approvals' %} aria-current="page"{% endif %}>Approvals</a><a class="staff-btn staff-btn--ghost" href="?view=team"{% if management_view == 'team' %} aria-current="page"{% endif %}>Team</a><a class="staff-btn staff-btn--ghost" href="?view=reports"{% if management_view == 'reports' %} aria-current="page"{% endif %}>Reports</a>
 </nav>
