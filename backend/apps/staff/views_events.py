@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from decimal import Decimal
+import uuid
+from django.db.models import Sum
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
@@ -10,10 +14,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.generic import FormView, ListView, TemplateView, UpdateView
 
-from apps.events.models import EventBooking, EventBookingStatus, EventSpace
+from apps.events.models import EventBooking, EventBookingStatus, EventSpace, EventQuote
 
-from .forms import StaffEventBookingForm, StaffEventSpaceForm
+from .forms import StaffEventBookingForm, StaffEventSpaceForm, StaffEventQuoteForm, StaffEventPaymentForm
 from .mixins import StaffTenantRequiredMixin
+from apps.events.services_journey import create_event_quote, change_event_quote_status, record_event_payment
 from .services import membership_can_modify_lodging, resolve_staff_site, sites_visible_for_membership
 
 
@@ -232,6 +237,22 @@ class StaffEventBookingUpdateView(StaffTenantRequiredMixin, UpdateView):
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
         ctx["can_modify_events"] = can
+        ctx["quotes"] = self.object.quotes.order_by("-created_at")
+        ctx["customer_payments"] = self.object.payments.order_by("-created_at")
+        ctx["accepted_quote"] = self.object.quotes.filter(status="accepted").first()
+        ctx["received_amount"] = self.object.payments.aggregate(
+            value=Sum("amount")
+        )["value"] or Decimal("0")
+        ctx["quoted_due"] = (
+            max(Decimal("0"), ctx["accepted_quote"].amount - ctx["received_amount"])
+            if ctx["accepted_quote"] else None
+        )
+        ctx["quote_form"] = StaffEventQuoteForm()
+        ctx["event_payment_form"] = StaffEventPaymentForm()
+        ctx["event_payment_key"] = uuid.uuid4()
+        ctx["purchase_currency"] = getattr(
+            getattr(self.request.tenant, "settings", None), "default_currency", "UGX",
+        )
         if not can:
             ctx.pop("form", None)
         return ctx
@@ -240,7 +261,52 @@ class StaffEventBookingUpdateView(StaffTenantRequiredMixin, UpdateView):
         if not membership_can_modify_lodging(request.tenant_membership):
             messages.error(request, "Your role cannot edit bookings.")
             return redirect("staff-events-booking-detail", booking_id=kwargs[self.pk_url_kwarg])
-        return super().post(request, *args, **kwargs)
+        action = request.POST.get("event_action", "")
+        if not action:
+            return super().post(request, *args, **kwargs)
+        booking = self.get_object()
+        try:
+            if action == "quote_create":
+                form = StaffEventQuoteForm(request.POST)
+                if not form.is_valid():
+                    raise ValueError("; ".join(
+                        str(item) for errors in form.errors.values() for item in errors
+                    ))
+                create_event_quote(
+                    booking=booking, membership=request.tenant_membership,
+                    user=request.user, **form.cleaned_data,
+                )
+                messages.success(request, "Event quotation saved.")
+            elif action in {"quote_send", "quote_accept"}:
+                quote_id = uuid.UUID(request.POST.get("quote_id", ""))
+                quote = EventQuote.objects.filter(
+                    tenant=request.tenant, booking=booking, pk=quote_id,
+                ).first()
+                if not quote:
+                    raise ValueError("Quotation not found.")
+                change_event_quote_status(
+                    quote=quote, membership=request.tenant_membership,
+                    user=request.user, action=action.removeprefix("quote_"),
+                )
+                messages.success(request, "Quotation updated.")
+            elif action == "payment":
+                form = StaffEventPaymentForm(request.POST)
+                if not form.is_valid():
+                    raise ValueError("; ".join(
+                        str(item) for errors in form.errors.values() for item in errors
+                    ))
+                payment, repeated = record_event_payment(
+                    booking=booking, membership=request.tenant_membership,
+                    user=request.user,
+                    idempotency_key=request.POST.get("idempotency_key", ""),
+                    **form.cleaned_data,
+                )
+                messages.success(request, "Payment already recorded." if repeated else "Payment received and recorded.")
+            else:
+                raise ValueError("Choose a supported event action.")
+        except (ValueError, DRFValidationError) as exc:
+            messages.error(request, str(exc))
+        return redirect("staff-events-booking-detail", booking_id=booking.pk)
 
     def form_valid(self, form):
         messages.success(self.request, "Booking saved.")
