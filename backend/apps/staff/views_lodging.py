@@ -17,6 +17,8 @@ from django.views.generic import DetailView, FormView, ListView
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from apps.accounts.models import MembershipRole
+
 from apps.lodging.models import (
     Folio,
     FolioLine,
