@@ -319,3 +319,47 @@ def record_batch_allocations(*, tenant_id, movement, allocations):
             tenant_id=tenant_id, stock_movement=movement,
             batch=batch, quantity=quantity,
         )
+
+
+
+def hold_matching_lot(*, tenant_id, batch_id, allowed_outlet_ids, user, reason):
+    """Hold matching product/lot stock at every accessible outlet.
+
+    A recall hold is not a refund, write-off, notification, or a claim that all
+    already-sold goods have been recovered.
+    """
+    from django.db import transaction
+    from rest_framework.exceptions import ValidationError
+    from django.shortcuts import get_object_or_404
+    from apps.audit.services import log_audit
+
+    note = (reason or "").strip()
+    if not note or len(note) > 450:
+        raise ValidationError({"reason": "State why this lot is being held (up to 450 characters)."})
+    if not allowed_outlet_ids:
+        raise ValidationError({"batch": "No permitted stock section."})
+    with transaction.atomic():
+        original = get_object_or_404(
+            InventoryBatch.objects.select_for_update(),
+            pk=batch_id, tenant_id=tenant_id, outlet_id__in=allowed_outlet_ids,
+        )
+        matched = list(InventoryBatch.objects.select_for_update().filter(
+            tenant_id=tenant_id, outlet_id__in=allowed_outlet_ids,
+            menu_item_id=original.menu_item_id, batch_code=original.batch_code,
+        ).order_by("pk"))
+        for batch in matched:
+            if not batch.quarantined:
+                batch.quarantined = True
+                batch.save(update_fields=["quarantined", "updated_at"])
+        log_audit(
+            tenant_id=tenant_id, user_id=user.pk if user else None,
+            action="inventory.lot_recall_hold", entity_type="inventory_batch",
+            entity_id=str(original.pk),
+            payload={
+                "menu_item_id": str(original.menu_item_id),
+                "batch_code": original.batch_code,
+                "affected_batch_ids": [str(batch.pk) for batch in matched],
+                "reason": note,
+            },
+        )
+        return len(matched)
