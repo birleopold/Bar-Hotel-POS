@@ -19,6 +19,7 @@ from apps.pos.models import Order
 from .forms.customers import StaffCustomerForm
 from .mixins import StaffTenantRequiredMixin
 from .services.customers import can_manage_customers, visible_customers
+from .services.customer_finance import customer_financial_snapshot
 from .services.membership import sites_visible_for_membership, staff_accessible_outlets
 
 
@@ -83,6 +84,7 @@ class StaffCustomerDetailView(CustomerAccessMixin, TemplateView):
         site_ids = [site.pk for site in sites_visible_for_membership(membership)]
         outlet_ids = [outlet.pk for outlet in staff_accessible_outlets(membership)]
         ctx["customer"] = customer
+        ctx["financial_snapshot"] = customer_financial_snapshot(\n            tenant=self.request.tenant, customer=customer,\n            site_ids=site_ids, outlet_ids=outlet_ids,\n        )
         ctx["form"] = kwargs.get("form") or StaffCustomerForm(instance=customer)
         ctx["reservations"] = Reservation.objects.filter(tenant=self.request.tenant, customer=customer, site_id__in=site_ids).order_by("-check_in")[:20]
         ctx["folios"] = Folio.objects.filter(tenant=self.request.tenant, customer=customer, site_id__in=site_ids).order_by("-created_at")[:20]
