@@ -718,4 +718,38 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["today"] = timezone.localdate()
         context["expiry_horizon"] = context["today"] + timedelta(days=30)
+        context["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
         return context
+
+    def post(self, request, *args, **kwargs):
+        from apps.inventory.services_batches import change_batch_hold, waste_batch_stock
+        from django.http import Http404
+        if not membership_can_modify_lodging(request.tenant_membership):
+            messages.error(request, "Your role cannot change inventory batches.")
+            return redirect("staff-inventory-batches")
+        try:
+            batch_id = uuid.UUID(request.POST.get("batch_id", ""))
+        except (ValueError, TypeError):
+            raise Http404("Invalid batch")
+        allowed = [o.pk for o in staff_accessible_outlets(request.tenant_membership)]
+        action = request.POST.get("action", "")
+        try:
+            if action in ("hold", "release"):
+                change_batch_hold(
+                    tenant_id=request.tenant.pk, batch_id=batch_id,
+                    allowed_outlet_ids=allowed, quarantined=(action == "hold"),
+                    user=request.user, note=request.POST.get("reason", ""),
+                )
+                messages.success(request, "Batch status updated.")
+            elif action == "waste":
+                waste_batch_stock(
+                    tenant_id=request.tenant.pk, batch_id=batch_id,
+                    allowed_outlet_ids=allowed, quantity=request.POST.get("quantity", ""),
+                    user=request.user, reason=request.POST.get("reason", ""),
+                )
+                messages.success(request, "Write-off recorded in the stock ledger.")
+            else:
+                messages.error(request, "Unknown batch action.")
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        return redirect("staff-inventory-batches")
