@@ -8,7 +8,7 @@ from django.db.models import QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
-from django.views.generic import DetailView, FormView, ListView, UpdateView
+from django.views.generic import DetailView, FormView, ListView, UpdateView, TemplateView
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -503,3 +503,29 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
 
         messages.error(request, "Unknown action.")
         return redirect("staff-purchasing-order-detail", po_id=po.id)
+
+
+
+class StaffSupplierBalancesView(StaffTenantRequiredMixin, TemplateView):
+    """Purchase-order supplier payables for the member's permitted outlets."""
+    staff_nav_capability = "purchasing"
+    template_name = "staff/purchasing/supplier_balances.html"
+
+    def get_context_data(self, **kwargs):
+        from apps.purchasing.services_exposure import purchase_order_exposure
+        ctx = super().get_context_data(**kwargs)
+        outlets = staff_accessible_outlets(self.request.tenant_membership)
+        ids = _po_outlet_ids(self.request, outlets)
+        ctx["exposure_rows"] = purchase_order_exposure(
+            tenant=self.request.tenant, outlet_ids=ids,
+        )
+        settings = TenantSettings.objects.filter(tenant=self.request.tenant).first()
+        ctx["purchase_currency"] = settings.default_currency if settings else "UGX"
+        ctx["missing_cost_count"] = sum(
+            int(row["missing_cost_data"]) for row in ctx["exposure_rows"]
+        )
+        ctx["known_supplier_due"] = sum(
+            (row["unpaid_received_value"] or Decimal("0") for row in ctx["exposure_rows"]),
+            Decimal("0"),
+        )
+        return ctx
