@@ -8,7 +8,7 @@ from .models import PurchaseOrder, PurchaseOrderStatus
 
 
 def purchase_order_exposure(*, tenant, outlet=None, outlet_ids=None):
-    qs = PurchaseOrder.objects.filter(tenant=tenant).select_related("supplier", "outlet").prefetch_related("lines", "payments")
+    qs = PurchaseOrder.objects.filter(tenant=tenant).select_related("supplier", "outlet").prefetch_related("lines", "payments", "invoices")
     if outlet is not None:
         if outlet.site.tenant_id != tenant.pk:
             raise ValueError("outlet must belong to tenant")
@@ -32,6 +32,9 @@ def purchase_order_exposure(*, tenant, outlet=None, outlet_ids=None):
             if complete_received_costs else None
         )
         paid = sum((payment.amount for payment in order.payments.all()), Decimal("0"))
+        invoices = list(order.invoices.all())
+        invoiced = sum((inv.amount for inv in invoices), Decimal("0"))
+        next_due = min((inv.due_date for inv in invoices), default=None)
         result.append({
             "order_id": order.pk,
             "outlet": order.outlet.name,
@@ -40,6 +43,9 @@ def purchase_order_exposure(*, tenant, outlet=None, outlet_ids=None):
             "ordered_value": ordered,
             "received_value": received,
             "paid_amount": paid,
+            "invoiced_value": invoiced,
+            "earliest_invoice_due_date": next_due,
+            "unbilled_received_value": max(Decimal("0"), received - invoiced) if received is not None else None,
             "unpaid_received_value": max(Decimal("0"), received - paid) if received is not None else None,
             "missing_cost_data": not complete_received_costs,
             "missing_order_cost_data": not full_order_costs,
