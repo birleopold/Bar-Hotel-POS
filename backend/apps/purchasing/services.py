@@ -34,6 +34,10 @@ def receive_purchase_order_goods(
         raise ValidationError({"detail": "You cannot receive stock for this outlet."})
 
     po_locked = PurchaseOrder.objects.select_for_update().get(pk=po.pk)
+    if delivery_reference and PurchaseReceipt.objects.filter(
+        purchase_order=po_locked, delivery_reference=delivery_reference.strip()[:128]
+    ).exists():
+        raise ValidationError({"delivery_reference": "A delivery with this reference has already been recorded for the purchase order."})
     if po_locked.status not in (PurchaseOrderStatus.SENT, PurchaseOrderStatus.PARTIALLY_RECEIVED):
         raise ValidationError(
             {"detail": "Purchase order must be sent or partially received to receive goods."}
