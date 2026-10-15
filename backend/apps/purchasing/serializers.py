@@ -7,7 +7,7 @@ from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
 from apps.tenants.models import Outlet
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -84,6 +84,21 @@ class RecordSupplierPaymentSerializer(serializers.Serializer):
     reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
 
 
+class RecordSupplierInvoiceSerializer(serializers.Serializer):
+    reference = serializers.CharField(max_length=128, trim_whitespace=True)
+    invoice_date = serializers.DateField()
+    due_date = serializers.DateField()
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
+    note = serializers.CharField(required=False, allow_blank=True, max_length=512, default="")
+
+
+class SupplierInvoiceReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupplierInvoice
+        fields = ("id", "reference", "invoice_date", "due_date", "amount", "note", "created_at")
+        read_only_fields = fields
+
+
 class ConfirmMissingUnitCostSerializer(serializers.Serializer):
     line_id = serializers.UUIDField()
     unit_cost = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
@@ -95,6 +110,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
     outlet_name = serializers.CharField(source="outlet.name", read_only=True)
     receipts = PurchaseReceiptSerializer(many=True, read_only=True)
     payments = SupplierPaymentSerializer(many=True, read_only=True)
+    invoices = SupplierInvoiceReadSerializer(many=True, read_only=True)
 
     class Meta:
         model = PurchaseOrder
@@ -113,6 +129,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             "lines",
             "receipts",
             "payments",
+            "invoices",
             "created_at",
             "updated_at",
         ]

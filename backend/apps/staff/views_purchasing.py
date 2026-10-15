@@ -14,8 +14,8 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
-from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, ConfirmMissingUnitCostSerializer, ReceivePurchaseOrderSerializer
-from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, received_goods_value, has_legacy_receipt_expenses
+from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, ReceivePurchaseOrderSerializer
+from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, record_supplier_invoice, received_goods_value, has_legacy_receipt_expenses
 from apps.tenants.models import Outlet, TenantSettings
 
 from .forms import StaffPOHeaderForm, StaffSupplierForm
@@ -330,6 +330,7 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         )
         ctx["received_value"] = received_goods_value(self.object)
         ctx["supplier_paid"] = self.object.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        ctx["supplier_invoiced"] = self.object.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
         ctx["supplier_due"] = ctx["received_value"] - ctx["supplier_paid"]
         ctx["legacy_receipt_expenses"] = has_legacy_receipt_expenses(self.object)
         ctx["uncosted_received"] = self.object.lines.filter(quantity_received__gt=0, unit_cost__isnull=True).exists()
@@ -363,6 +364,22 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     _flash_drf_validation(request, exc)
                 else:
                     messages.success(request, "Unit cost confirmed.")
+            return redirect("staff-purchasing-order-detail", po_id=po.id)
+
+        if action == "supplier_invoice":
+            ser = RecordSupplierInvoiceSerializer(data=request.POST)
+            if not ser.is_valid():
+                _flash_serializer_errors(request, ser.errors)
+            else:
+                try:
+                    _, replay = record_supplier_invoice(
+                        po=po, user=request.user, membership=request.tenant_membership,
+                        **ser.validated_data,
+                    )
+                except DRFValidationError as exc:
+                    _flash_drf_validation(request, exc)
+                else:
+                    messages.success(request, "Invoice already recorded." if replay else "Supplier invoice recorded.")
             return redirect("staff-purchasing-order-detail", po_id=po.id)
 
         if action == "supplier_payment":

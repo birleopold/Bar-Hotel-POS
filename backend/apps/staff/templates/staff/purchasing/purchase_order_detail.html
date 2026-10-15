@@ -103,6 +103,29 @@
     {% else %}<p class="staff-muted mb-0">No deliveries have been received against this purchase order.</p>{% endif %}
   </section>
 
+  <h2 class="staff-section-head">Supplier invoices</h2>
+  <section class="staff-card mb-3" aria-label="Supplier invoices">
+    <p class="staff-muted">Record the supplier invoice after receiving goods. This records the document and due date; it does not send money or post a new expense.</p>
+    <p><strong>{{ purchase_currency }} {{ supplier_invoiced }}</strong> invoiced against received goods.</p>
+    {% if po.invoices.all %}
+    <div class="staff-table-wrap"><table class="staff-table">
+      <thead><tr><th>Invoice</th><th>Invoice date</th><th>Payment due</th><th>Amount</th></tr></thead>
+      <tbody>{% for invoice in po.invoices.all %}
+        <tr><td>{{ invoice.reference }}</td><td>{{ invoice.invoice_date }}</td><td>{{ invoice.due_date }}</td><td>{{ purchase_currency }} {{ invoice.amount }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>{% endif %}
+    {% if can_modify_purchasing and not uncosted_received and received_value > supplier_invoiced %}
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}<input type="hidden" name="action" value="supplier_invoice">
+      <div class="col-12 col-md-4"><label for="supplier-invoice-ref" class="staff-label">Invoice number</label><input id="supplier-invoice-ref" class="staff-input" name="reference" maxlength="128" required></div>
+      <div class="col-12 col-md-4"><label for="supplier-invoice-date" class="staff-label">Invoice date</label><input id="supplier-invoice-date" class="staff-input" type="date" name="invoice_date" required></div>
+      <div class="col-12 col-md-4"><label for="supplier-invoice-due" class="staff-label">Payment due</label><input id="supplier-invoice-due" class="staff-input" type="date" name="due_date" required></div>
+      <div class="col-12 col-md-4"><label for="supplier-invoice-amount" class="staff-label">Amount</label><input id="supplier-invoice-amount" class="staff-input" type="number" step="0.01" min="0.01" name="amount" required></div>
+      <div class="col-12 col-md-6"><label for="supplier-invoice-note" class="staff-label">Note (optional)</label><input id="supplier-invoice-note" class="staff-input" name="note" maxlength="512"></div>
+      <div class="col-12 col-md-2"><button type="submit" class="staff-btn staff-btn--primary">Save invoice</button></div>
+    </form>{% endif %}
+  </section>
+
   <h2 class="staff-section-head">Supplier settlement</h2>
   <section class="staff-card" aria-label="Supplier settlement">
     <div class="staff-metric-row staff-metric-row--folio mb-3">
