@@ -6,6 +6,7 @@
     <a class="staff-btn {% if n == 'staff-lodging-availability' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-availability' %}">Availability</a>
     <a class="staff-btn {% if n == 'staff-lodging-tape' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-tape' %}">Tape</a>
   {% endif %}
+  {% if membership_can_manage_folios %}<a class="staff-btn {% if n == 'staff-lodging-night-audit' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-night-audit' %}">Night audit</a>{% endif %}
   {% if membership_can_manage_folios %}<a class="staff-btn {% if n == 'staff-lodging-folios' or n == 'staff-lodging-folio-detail' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-folios' %}">Folios</a>{% endif %}
   {% if membership_can_manage_room_inventory %}<a class="staff-btn {% if n == 'staff-lodging-rooms' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-rooms' %}">Rooms</a>{% endif %}
   {% if membership_can_access_housekeeping %}<a class="staff-btn {% if n == 'staff-lodging-housekeeping' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a>{% endif %}
