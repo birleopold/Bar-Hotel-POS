@@ -15,7 +15,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.audit.services import log_audit
-from apps.tenants.business_date import business_date_for
+from apps.tenants.business_date import business_date_for, business_day_window
 from apps.pos.models import Order, PosShift, PosShiftStatus
 
 from .models import (
@@ -47,17 +47,23 @@ def night_audit_snapshot(*, tenant, site, night):
         tenant=tenant, site=site, check_out__lte=night,
         status=ReservationStatus.CHECKED_IN,
     ).count()
+    window_start, window_end = business_day_window(
+        tenant=tenant, site=site, operating_date=night,
+    )
     open_shifts = PosShift.objects.filter(
         tenant=tenant, outlet__site=site, status=PosShiftStatus.OPEN,
+        opened_at__lt=window_end,
     ).count()
     paid_room_orders = Order.objects.filter(
         tenant=tenant, outlet__site=site, folio__site=site, is_paid=True,
+        created_at__gte=window_start, created_at__lt=window_end,
     ).values_list("pk", flat=True)
     linked_order_ids = FolioLine.objects.filter(
         tenant=tenant, folio__site=site, source_order_id__in=paid_room_orders,
     ).values_list("source_order_id", flat=True)
     unmatched_pos_charges = Order.objects.filter(
         tenant=tenant, outlet__site=site, folio__site=site, is_paid=True,
+        created_at__gte=window_start, created_at__lt=window_end,
     ).exclude(pk__in=linked_order_ids).count()
 
     missing = []
