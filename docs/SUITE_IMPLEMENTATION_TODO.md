@@ -33,8 +33,8 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 - [-] **10 Business date:** tenant/property timezone and configurable closing boundary; agree across shifts, daily sales, reports, restaurant close and night audit; boundary/DST tests and historical policy.
 - [-] **11 Hotel night audit:** open folios, missed arrivals/departures, idempotent nightly room posting, POS room-charge reconciliation, business date close/next date and daily property summary.
 - [-] **12 Housekeeping/mobile:** dirty/cleaning/inspection/ready/maintenance board, assignee, Start/Complete/Inspect, mobile My rooms counts, blocked rooms and scoped actions.
-- [ ] **13 KDS/production:** new/accepted/preparing/ready/served transitions, timers, overdue alerts, kitchen/bar station routing, recall, item state/priority/modifiers/table/customer, sound preference and fullscreen touch UI.
-- [ ] **14 Events:** lead → quotation → booking → deposit → package/services/menu/room allocation → delivery → final invoice → settlement, unified customer account and reservation conflict checks.
+- [-] **13 KDS/production:** new/accepted/preparing/ready/served transitions, timers, overdue alerts, kitchen/bar station routing, recall, item state/priority/modifiers/table/customer, sound preference and fullscreen touch UI.
+- [-] **14 Events:** lead → quotation → booking → deposit → package/services/menu/room allocation → delivery → final invoice → settlement, unified customer account and reservation conflict checks.
 
 ## Hardware, offline and integrations
 
@@ -278,3 +278,24 @@ Engineering: implementation files committed to origin/main. Automated verificati
 - **Still incomplete:** scheduled cleaning, configurable mandatory inspection policy, task duration analytics and cross-device browser verification.
 
 **Verification status:** Owner requested implementation before the separate verification pass. All above are committed to `origin/main` but are **not** certified green; this checkpoint does not mark any of these phases complete. Follow the remaining 34-phase roadmap, then run the staged test, browser, PostgreSQL and release checks before production.
+
+
+### 2026-10-15 — Phases 13 and 14 implementation checkpoint (separate verification later)
+
+**Phase 13 Kitchen & Bar Production**
+- Extended the existing KDS line status system with optional **Accepted** while preserving the existing one-tap **Start prep** path. In-prep, ready and served transitions remain in the existing workflow.
+- Added persisted **rush** priority, per-line status transition timestamps, and manager-authorized **recall from Ready to In prep** requiring a reason. Existing order locks, station and role scopes and audit logging remain enforced.
+- Improved the kitchen/bar staff queue with overdue elapsed-time alerts (initial 15-minute threshold), rush tickets first, modifier details, totals for accepted/rush/overdue items and optional accepted actions. Added a responsive touch-friendly design with accessible button dimensions, fullscreen control and opt-in per-device notification sound.
+- Live WebSocket queue refresh now updates summary metrics alongside tickets and recalculates timers; the KDS API exposes rush, modifiers, wait duration and guarded actions. Station classification is shared between API and staff views.
+- Backend workflow regression tests authored for status transitions, priority changes, recall and authorization. Layout design referenced: https://squareup.com/help/us/en/article/8168-prioritize-orders-with-square-kds ; https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum .
+- Still outstanding before full Phase 13 completion: overdue thresholds configurable by station, production-time analytics, sound accessibility across hardware, ticket-level recall, scheduled/multi-device browser evidence and complete real-time contract certification.
+
+**Phase 14 Events**
+- Preserved the existing customer-linked event space and booking system and added tenant-scoped **EventQuote** records (draft/sent/accepted, amount, validity and description) and immutable, idempotent **EventPayment** records (actual amount received, method and reference). Database migrations and PostgreSQL RLS included.
+- Added a controlled, audited event journey: create quotation, mark sent, accept quotation under event-space lock and overlapping booking checks, confirm the booking, record customer deposit/settlement and post real money to the cashbook once using the existing finance posting bridge. Planned deposit on the booking remains separate from actual customer payments.
+- Extended the existing event detail page with quotes, acceptance, payments, remaining approved balance and edit forms, responsive using existing staff layout. Added corresponding API actions and regression tests for accepted quote, payment replay, conflict, overpayment and cashbook linkage.
+- Staff event booking form now blocks conflicting space bookings and prevents direct cancellation when recorded customer payments require financial resolution. No outbound quotation delivery is claimed; **mark sent** is a human confirmation.
+- Event payment receipts are **not automatically placed in EFRIS** because deposit tax-point treatment must be verified against applicable Uganda fiscal rules.
+- Still outstanding before full Phase 14 completion: service/package itemization and final invoices, equipment/room allocations, event delivery milestones, partial refunds/credit notes, customer communication delivery and full stage/role/browser certification.
+
+Verification deferred at owner's direction. Status is implementation-in-progress rather than released or certified. The authoritative roadmap remains exactly **34 phases**.
