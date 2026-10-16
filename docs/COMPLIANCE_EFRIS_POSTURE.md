@@ -25,3 +25,11 @@ Official references (verify current requirements before go-live):
 - Map responses to a documented error taxonomy where URA publishes stable codes.
 - Evidence export (submission id, payload hash, response body redacted) for audits.
 - Explicit distinction between **EFD-mandatory** flows and **API-only** flows per tenant category.
+
+
+## 2026-10-16 reliability safeguard (pending live certification)
+
+- Automatic submission attempts are capped at **three**. Exhausted rows remain visible with their error and require operator assessment; they are not silently discarded or re-sent by the scheduler.
+- If the adapter raises an unexpected exception (including a transport timeout where the provider may already have accepted the document), the row is **quarantined** after one attempted request with the message “Provider outcome unknown”. The automatic queue will not repeat the request.
+- These safeguards are defensive engineering controls, **not** proof that the current generic adapter implements URA's certified transaction envelope. Prior to enabling real EFRIS submissions, reconcile any ambiguous outcome using the provider's fiscal reference/status lookup and URA-approved integration protocol. Do not manually re-enqueue until the outcome is known.
+- URA's public handbook distinguishes e-invoices, e-receipts, credit notes and debit notes with fiscal identifiers and verification features. The current cashbook-linked integration shell does **not** establish that those document requirements, tax classifications or synchronous obligations are satisfied; provider sandbox evidence is required.
