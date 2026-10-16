@@ -21,7 +21,8 @@
   <tbody>{% for station in workstations %}<tr>
     <td><strong>{{ station.name }}</strong><br><span class="staff-muted">{{ station.code }}</span></td>
     <td>{{ station.outlet.name }}</td>
-    <td>Receipt: {{ station.receipt_printer|default:"Unassigned" }}<br>Kitchen: {{ station.kitchen_printer|default:"Unassigned" }}<br>Drawer: {{ station.cash_drawer|default:"Unassigned" }}<br>KDS: {{ station.kds_station|default:"Unassigned" }}</td>
+    <td>Receipt: {{ station.receipt_printer|default:"Unassigned" }}<br>Drawer: {{ station.cash_drawer|default:"Unassigned" }}
+    {% if staff_nav.kitchen %}<br>Kitchen: {{ station.kitchen_printer|default:"Unassigned" }}<br>KDS: {{ station.kds_station|default:"Unassigned" }}{% endif %}</td>
     <td>{{ station.last_seen_at|default:"No contact recorded" }}</td>
     <td>{% if station.is_active %}Enabled{% else %}Disabled{% endif %}<br><span class="staff-muted">{% if station.requires_pairing %}Browser approval required{% else %}Legacy selection allowed{% endif %}</span></td>
     <td>{% if station.is_active %}{% if selected_station.id == station.id %}<span class="staff-team-state staff-team-state--ready">Selected</span>{% else %}<form method="post">{% csrf_token %}<input type="hidden" name="workstation_id" value="{{ station.id }}"><button class="staff-btn staff-btn--primary">{% if station.requires_pairing %}Use approved browser{% else %}Use this workstation{% endif %}</button></form>{% endif %}{% endif %}
