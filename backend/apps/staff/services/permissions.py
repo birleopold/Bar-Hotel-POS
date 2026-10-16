@@ -1,6 +1,16 @@
 from apps.accounts.models import Membership, MembershipRole
 
 
+def membership_can_modify_inventory(membership: Membership) -> bool:
+    return membership.is_active and membership.role in (
+        MembershipRole.OWNER,
+        MembershipRole.TENANT_ADMIN,
+        MembershipRole.SITE_MANAGER,
+        MembershipRole.OUTLET_MANAGER,
+        MembershipRole.STOREKEEPER,
+    )
+
+
 def membership_can_modify_lodging(membership: Membership) -> bool:
     return membership.role in (
         MembershipRole.OWNER,

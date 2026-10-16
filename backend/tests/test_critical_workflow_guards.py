@@ -106,6 +106,8 @@ class TestCriticalWorkflowGuards:
         }
 
     def test_reservation_status_patch_cannot_bypass_checkin(self):
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["bar", "lodging"])
+        Outlet.objects.create(site=self.site, name="Reception", outlet_type="lodging_front_desk")
         room_type = RoomType.objects.create(tenant=self.tenant, site=self.site, name="Standard")
         room = Room.objects.create(room_type=room_type, name="101")
         reservation = Reservation.objects.create(
@@ -127,7 +129,8 @@ class TestCriticalWorkflowGuards:
             format="json",
             **self.headers,
         )
-        assert response.status_code == 200
+        assert response.status_code == 400
+        assert "status" in response.data["error"]["details"]
         reservation.refresh_from_db()
         assert reservation.status == "confirmed"
 

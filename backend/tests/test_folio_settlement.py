@@ -190,8 +190,9 @@ def test_unpaid_folio_blocks_checkout_then_payment_closes_stay_and_posts_income(
 @pytest.mark.django_db
 def test_api_cannot_close_unsettled_folio_and_can_record_payment():
     tenant = Tenant.objects.create(name="API Settlement", slug="api-settlement")
-    TenantSettings.objects.create(tenant=tenant, default_currency="UGX")
+    TenantSettings.objects.create(tenant=tenant, default_currency="UGX", business_lines=["lodging"])
     site = Site.objects.create(tenant=tenant, name="Main")
+    Outlet.objects.create(site=site, name="Reception", outlet_type="lodging_front_desk")
     user = User.objects.create_user(email="api-frontdesk@example.invalid", password="TestPass9!")
     membership = Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.FRONT_DESK)
     membership.sites.add(site)
@@ -201,6 +202,11 @@ def test_api_cannot_close_unsettled_folio_and_can_record_payment():
     client.force_login(user)
     headers = {"HTTP_X_TENANT_ID": str(tenant.id)}
 
+    # Reception takes payments; manual folio closure requires a lodging manager.
+    denied = client.patch(f"/api/v1/lodging/folios/{folio.pk}/", {"status": "closed"}, format="json", **headers)
+    assert denied.status_code == 403
+    membership.role = MembershipRole.SITE_MANAGER
+    membership.save(update_fields=["role"])
     blocked = client.patch(
         f"/api/v1/lodging/folios/{folio.pk}/",
         {"status": "closed"},
@@ -231,6 +237,7 @@ def test_dashboard_property_pulse_uses_scoped_live_lodging_counts():
     tenant = Tenant.objects.create(name="Pulse Hotel", slug="pulse-hotel")
     TenantSettings.objects.create(tenant=tenant, default_currency="UGX", business_lines=["lodging"])
     site = Site.objects.create(tenant=tenant, name="Entebbe Property")
+    Outlet.objects.create(site=site, name="Reception", outlet_type="lodging_front_desk")
     user = User.objects.create_user(email="pulse-owner@example.invalid", password="TestPass9!")
     Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
     room_type = RoomType.objects.create(tenant=tenant, site=site, name="Deluxe")
@@ -264,6 +271,7 @@ def test_room_maintenance_work_order_can_be_created_assigned_and_resolved():
     tenant = Tenant.objects.create(name="Maintenance Hotel", slug="maintenance-hotel")
     TenantSettings.objects.create(tenant=tenant, business_lines=["lodging"])
     site = Site.objects.create(tenant=tenant, name="Main Property")
+    Outlet.objects.create(site=site, name="Reception", outlet_type="lodging_front_desk")
     owner = User.objects.create_user(email="maintenance-owner@example.invalid", password="TestPass9!")
     technician = User.objects.create_user(email="technician@example.invalid", password="TestPass9!")
     Membership.objects.create(user=owner, tenant=tenant, role=MembershipRole.OWNER)

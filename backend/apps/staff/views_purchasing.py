@@ -22,6 +22,7 @@ from .forms import StaffPOHeaderForm, StaffSupplierForm
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets, membership_can_modify_lodging, resolve_staff_outlet
+from .services.permissions import membership_can_modify_inventory
 
 PO_LINE_SLOTS = 8
 
@@ -184,6 +185,7 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["status_filter"] = self.request.GET.get("status") or ""
         ctx["receiving_lane"] = self.request.GET.get("lane") == "receiving"
+        ctx["can_receive_stock"] = membership_can_modify_inventory(self.request.tenant_membership)
         ctx["can_modify_purchasing"] = membership_can_modify_lodging(self.request.tenant_membership)
         return ctx
 
@@ -356,7 +358,7 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["can_modify_purchasing"] = membership_can_modify_lodging(self.request.tenant_membership)
-        ctx["can_receive"] = self.object.status in (
+        ctx["can_receive"] = membership_can_modify_inventory(self.request.tenant_membership) and self.object.status in (
             PurchaseOrderStatus.SENT,
             PurchaseOrderStatus.PARTIALLY_RECEIVED,
         )
@@ -376,11 +378,13 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         self.object = self.get_object()
         po: PurchaseOrder = self.object
 
-        if not membership_can_modify_lodging(request.tenant_membership):
+        action = request.POST.get("action", "").strip()
+        receiving = action in {"receive", "receive_all"}
+        permitted = (membership_can_modify_inventory(request.tenant_membership) if receiving
+                     else membership_can_modify_lodging(request.tenant_membership))
+        if not permitted:
             messages.error(request, "Your role cannot change purchase orders.")
             return redirect("staff-purchasing-order-detail", po_id=po.id)
-
-        action = request.POST.get("action", "").strip()
 
         if action == "confirm_cost":
             ser = ConfirmMissingUnitCostSerializer(data=request.POST)

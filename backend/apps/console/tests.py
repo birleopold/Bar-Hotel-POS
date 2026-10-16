@@ -20,6 +20,7 @@ from apps.catalog.models import (
 )
 from apps.console.menu_sync import sync_menu_item_modifier_groups, sync_menu_item_outlet_links
 from apps.inventory.models import StockMovement, StockReason
+from apps.pos.models import Workstation
 from apps.lodging.models import RoomRateWindow, RoomType
 from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import (
@@ -252,7 +253,7 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(r, "Create your first branch")
         self.assertContains(r, reverse("console-org-site-create"))
         prog = TenantSetupProgress.objects.get(tenant=self.tenant)
-        self.assertEqual(prog.last_completion_percent, 0)
+        self.assertEqual(prog.last_completion_percent, 16)  # Business profile is already configured.
         self.assertEqual(prog.last_next_step_key, "first_property")
 
     def test_setup_business_profile_limits_modules_and_admin_pages(self) -> None:
@@ -311,9 +312,9 @@ class ConsoleAccessTests(TestCase):
             r,
             reverse("console-org-outlet-create", kwargs={"site_id": site.id}),
         )
-        self.assertContains(r, "Record first stock receive")
-        self.assertContains(r, reverse("staff-purchasing-order-create"))
-        self.assertContains(r, reverse("staff-inventory-movement-create"))
+        # Opening stock is required only after an inventory-tracked item exists.
+        self.assertNotContains(r, "Record first stock receive")
+        self.assertContains(r, "Add at least one sellable item or service")
         prog = TenantSetupProgress.objects.get(tenant=self.tenant)
         self.assertEqual(prog.last_next_step_key, "first_outlet")
 
@@ -327,23 +328,23 @@ class ConsoleAccessTests(TestCase):
         self._login_with_tenant(user)
         skip = self.client.post(
             reverse("console-org-setup-step-state"),
-            {"step_key": "first_property", "state": "skipped"},
+            {"step_key": "first_team_invite", "state": "skipped"},
         )
         self.assertEqual(skip.status_code, 302)
         prog = TenantSetupProgress.objects.get(tenant=self.tenant)
-        self.assertEqual(prog.step_state_overrides.get("first_property"), "skipped")
+        self.assertEqual(prog.step_state_overrides.get("first_team_invite"), "skipped")
         r = self.client.get(reverse("console-org-setup"))
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Skipped")
         prog.refresh_from_db()
-        self.assertEqual(prog.last_next_step_key, "first_outlet")
+        self.assertEqual(prog.last_next_step_key, "first_property")
         reset = self.client.post(
             reverse("console-org-setup-step-state"),
-            {"step_key": "first_property", "state": "reset"},
+            {"step_key": "first_team_invite", "state": "reset"},
         )
         self.assertEqual(reset.status_code, 302)
         prog.refresh_from_db()
-        self.assertNotIn("first_property", prog.step_state_overrides)
+        self.assertNotIn("first_team_invite", prog.step_state_overrides)
         r2 = self.client.get(reverse("console-org-setup"))
         self.assertContains(r2, "Pending")
         prog.refresh_from_db()
@@ -358,6 +359,7 @@ class ConsoleAccessTests(TestCase):
         )
         site = Site.objects.create(tenant=self.tenant, name="Site B")
         outlet = Outlet.objects.create(site=site, name="Bar 1", outlet_type=OutletType.BAR)
+        Workstation.objects.create(tenant=self.tenant, outlet=outlet, name="Main till", code="MAIN")
         cat = MenuCategory.objects.create(tenant=self.tenant, name="Food")
         item = MenuItem.objects.create(
             tenant=self.tenant,

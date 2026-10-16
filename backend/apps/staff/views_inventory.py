@@ -29,7 +29,8 @@ from .forms import (
 )
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
-from .services import staff_accessible_outlets, membership_can_modify_lodging, resolve_staff_outlet
+from .services import staff_accessible_outlets, resolve_staff_outlet
+from .services.permissions import membership_can_modify_inventory, membership_can_modify_lodging
 
 UPLOAD_ERROR_REPORT_SESSION_KEY = "staff_inventory_upload_error_rows"
 
@@ -121,7 +122,7 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["low_stock"] = self.request.GET.get("low_stock", "").lower() in ("1", "true", "yes")
         ctx["stock_q"] = self.request.GET.get("q", "").strip()[:80]
-        ctx["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
         return ctx
 
 
@@ -151,7 +152,7 @@ class StaffStockMovementListView(StaffTenantRequiredMixin, ListView):
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
-        ctx["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
         ctx["has_upload_error_report"] = bool(self.request.session.get(UPLOAD_ERROR_REPORT_SESSION_KEY))
         return ctx
 
@@ -165,7 +166,7 @@ class StaffStockMovementCreateView(StaffTenantRequiredMixin, FormView):
         bad = _inventory_requires_outlets(request)
         if bad:
             return bad
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_modify_inventory(request.tenant_membership):
             messages.error(request, "Your role cannot record stock movements.")
             return redirect("staff-inventory-movements")
         return super().dispatch(request, *args, **kwargs)
@@ -275,7 +276,7 @@ class StaffStockMovementUploadView(StaffTenantRequiredMixin, FormView):
         bad = _inventory_requires_outlets(request)
         if bad:
             return bad
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_modify_inventory(request.tenant_membership):
             messages.error(request, "Your role cannot upload stock movements.")
             return redirect("staff-inventory-movements")
         return super().dispatch(request, *args, **kwargs)
@@ -452,7 +453,7 @@ class StaffStockTransferView(StaffTenantRequiredMixin, FormView):
         bad = _inventory_requires_outlets(request)
         if bad:
             return bad
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_modify_inventory(request.tenant_membership):
             messages.error(request, "Your role cannot transfer stock.")
             return redirect("staff-inventory-balances")
         return super().dispatch(request, *args, **kwargs)
@@ -521,7 +522,7 @@ class StaffStockCountListView(StaffTenantRequiredMixin, ListView):
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
-        ctx["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
         return ctx
 
 
@@ -534,7 +535,7 @@ class StaffStockCountCreateView(StaffTenantRequiredMixin, FormView):
         bad = _inventory_requires_outlets(request)
         if bad:
             return bad
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_modify_inventory(request.tenant_membership):
             messages.error(request, "Your role cannot start stock counts.")
             return redirect("staff-inventory-counts")
         return super().dispatch(request, *args, **kwargs)
@@ -601,7 +602,7 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
-        ctx["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
         rows = []
         if sess.status == StockCountStatus.DRAFT:
             items = (
@@ -626,7 +627,7 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         self.object = self.get_object()
         sess: StockCountSession = self.object
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_modify_inventory(request.tenant_membership):
             messages.error(request, "Your role cannot change stock counts.")
             return redirect("staff-inventory-count-detail", session_id=sess.id)
 
@@ -782,7 +783,7 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
         context["expiry_horizon"] = context["today"] + timedelta(days=30)
         context["batch_status"] = self.request.GET.get("status", "all")
         context["batch_query"] = self.request.GET.get("q", "").strip()[:80]
-        context["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
+        context["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
         context["stock_outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         context["tracked_items"] = MenuItem.objects.filter(
             tenant=self.request.tenant, is_active=True, track_inventory=True
@@ -818,7 +819,7 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
         )
         from datetime import date
         from django.http import Http404
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_can_modify_inventory(request.tenant_membership):
             messages.error(request, "Your role cannot change inventory batches.")
             return redirect("staff-inventory-batches")
         allowed = [o.pk for o in staff_accessible_outlets(request.tenant_membership)]

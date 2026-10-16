@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -148,3 +149,75 @@ class RoleWorkspaceTests(TestCase):
             self.assertNotIn("/new/", action.url)
             self.assertEqual(action.method, "get")
         self.assertTrue(secondary)  # Overflow view links remain available.
+
+    def test_storekeeper_can_transfer_and_count_only_assigned_stock(self):
+        from apps.catalog.models import MenuCategory, MenuItem
+        from apps.inventory.models import StockBalance, StockCountSession, StockMovement
+
+        user = get_user_model().objects.create_user(email="stock-writes@test.local", password="Password9!")
+        membership = Membership.objects.create(tenant=self.tenant, user=user, role=MembershipRole.STOREKEEPER)
+        destination = Outlet.objects.create(site=self.site, name="Kitchen", outlet_type=OutletType.RESTAURANT)
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet, destination)
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Ingredients")
+        item = MenuItem.objects.create(tenant=self.tenant, category=category, name="Rice", unit_price=1, track_inventory=True)
+        StockBalance.objects.create(tenant=self.tenant, outlet=self.outlet, menu_item=item, quantity=10)
+        self.login(user)
+        transfer = {"from_outlet": str(self.outlet.pk), "to_outlet": str(destination.pk),
+                    "menu_item": str(item.pk), "quantity": "2", "note": "Kitchen replenishment"}
+        response = self.client.post(reverse("staff-inventory-transfer"), transfer)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(StockBalance.objects.get(outlet=self.outlet, menu_item=item).quantity, Decimal("8"))
+        self.assertEqual(StockBalance.objects.get(outlet=destination, menu_item=item).quantity, Decimal("2"))
+        movements = StockMovement.objects.count()
+        response = self.client.post(reverse("staff-inventory-transfer"), {**transfer, "to_outlet": str(self.other_outlet.pk)})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].errors)
+        self.assertEqual(StockMovement.objects.count(), movements)
+
+        response = self.client.post(reverse("staff-inventory-count-create"), {"outlet": str(self.outlet.pk), "note": "Daily count"})
+        self.assertEqual(response.status_code, 302)
+        count = StockCountSession.objects.get(created_by=user)
+        detail = reverse("staff-inventory-count-detail", kwargs={"session_id": count.pk})
+        response = self.client.post(detail, {"action": "complete", f"counted_{item.pk}": "7"})
+        self.assertEqual(response.status_code, 302)
+        count.refresh_from_db()
+        self.assertEqual(count.status, "completed")
+        self.assertEqual(StockBalance.objects.get(outlet=self.outlet, menu_item=item).quantity, Decimal("7"))
+        hidden = StockCountSession.objects.create(tenant=self.tenant, outlet=self.other_outlet, created_by=user)
+        self.assertEqual(self.client.post(reverse("staff-inventory-count-detail", kwargs={"session_id": hidden.pk}), {"action": "cancel"}).status_code, 404)
+
+        membership.role = MembershipRole.ACCOUNTANT
+        membership.save(update_fields=["role"])
+        before = StockMovement.objects.count()
+        self.assertEqual(self.client.post(reverse("staff-inventory-transfer"), transfer).status_code, 302)
+        self.assertEqual(StockMovement.objects.count(), before)
+
+    def test_storekeeper_receives_goods_without_purchase_finance_permissions(self):
+        from apps.catalog.models import MenuCategory, MenuItem
+        from apps.inventory.models import StockBalance
+        from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, Supplier
+
+        user = get_user_model().objects.create_user(email="stock-receive@test.local", password="Password9!")
+        membership = Membership.objects.create(tenant=self.tenant, user=user, role=MembershipRole.STOREKEEPER)
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet)
+        supplier = Supplier.objects.create(tenant=self.tenant, name="Rice supplier")
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Dry goods")
+        item = MenuItem.objects.create(tenant=self.tenant, category=category, name="Rice", unit_price=2, track_inventory=True)
+        po = PurchaseOrder.objects.create(tenant=self.tenant, outlet=self.outlet, supplier=supplier, status="sent")
+        line = PurchaseOrderLine.objects.create(purchase_order=po, menu_item=item, quantity_ordered=10, unit_cost=1)
+        self.login(user)
+        path = reverse("staff-purchasing-order-detail", kwargs={"po_id": po.pk})
+        page = self.client.get(path)
+        self.assertContains(page, 'value="receive"')
+        self.assertNotContains(page, 'value="supplier_payment"')
+        self.assertNotContains(page, 'value="cancel"')
+        response = self.client.post(path, {"action": "receive", f"recv_{line.pk}": "3", "delivery_reference": "DEL-1"})
+        self.assertEqual(response.status_code, 302)
+        line.refresh_from_db()
+        self.assertEqual(line.quantity_received, Decimal("3"))
+        self.assertEqual(StockBalance.objects.get(outlet=self.outlet, menu_item=item).quantity, Decimal("3"))
+        self.client.post(path, {"action": "cancel"})
+        po.refresh_from_db()
+        self.assertEqual(po.status, "partially_received")

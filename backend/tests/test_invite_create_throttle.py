@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.throttling import ScopedRateThrottle
 
 from apps.accounts.models import Membership, MembershipRole
-from apps.tenants.models import Site, Tenant, TenantSettings
+from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
 User = get_user_model()
 
@@ -22,18 +22,19 @@ def test_invite_create_throttled_after_limit(api_client, monkeypatch):
     user = User.objects.create_user(email="invthr@test.local", password="TestPass9!")
     Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
     site = Site.objects.create(tenant=tenant, name="Main branch")
+    outlet = Outlet.objects.create(site=site, name="Shop", outlet_type=OutletType.RETAIL)
     assert api_client.login(username=user.email, password="TestPass9!")
     for i in range(2):
         resp = api_client.post(
             "/api/v1/invites/",
-            {"email": f"e{i}@x.test", "site_ids": [str(site.id)]},
+            {"email": f"e{i}@x.test", "site_ids": [str(site.id)], "outlet_ids": [str(outlet.id)]},
             format="json",
             HTTP_X_TENANT_ID=str(tenant.id),
         )
         assert resp.status_code == 201, resp.content
     blocked = api_client.post(
         "/api/v1/invites/",
-        {"email": "e3@x.test", "site_ids": [str(site.id)]},
+        {"email": "e3@x.test", "site_ids": [str(site.id)], "outlet_ids": [str(outlet.id)]},
         format="json",
         HTTP_X_TENANT_ID=str(tenant.id),
     )

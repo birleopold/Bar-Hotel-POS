@@ -35,13 +35,15 @@
       </table>
     </div>
   </div>
-  {% if can_modify_purchasing %}
+  {% if can_modify_purchasing or can_receive %}
     <h2 class="staff-section-head">Status</h2>
     <div class="staff-toolbar staff-toolbar--tight flex-wrap mb-3">
+      {% if can_modify_purchasing %}
       {% if po.status == 'draft' %}
         <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="send"><button type="submit" class="staff-btn staff-btn--primary">Mark sent</button></form>
       {% endif %}
       <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button type="submit" class="staff-btn staff-btn--ghost">Cancel PO</button></form>
+      {% endif %}
       {% if can_receive %}
         <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="receive_all"><button type="submit" class="staff-btn staff-btn--primary">Receive all outstanding</button></form>
       {% endif %}

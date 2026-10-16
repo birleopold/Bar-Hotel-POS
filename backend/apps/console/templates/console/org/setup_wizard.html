@@ -68,6 +68,7 @@
     {% for step in setup_optional_steps %}
       <div class="staff-card mb-3">
         <h3 class="staff-card__title">{{ step.name }}</h3>
+        <span class="staff-tag">{{ step.status|title }}</span>
         <p class="staff-muted small">{{ step.description }}</p>
         <div class="d-flex flex-wrap gap-2">
           <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.cta_url }}">{{ step.cta_label }}</a>
@@ -80,6 +81,7 @@
           <input type="hidden" name="step_key" value="{{ step.key }}">
           <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
           <button type="submit" name="state" value="skipped" class="staff-btn staff-btn--sm staff-btn--ghost">Skip for now</button>
+          {% if step.manual_state %}<button type="submit" name="state" value="reset" class="staff-btn staff-btn--sm staff-btn--ghost">Reset</button>{% endif %}
         </form>
       </div>
     {% endfor %}

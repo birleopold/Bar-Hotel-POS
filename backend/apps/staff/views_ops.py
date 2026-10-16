@@ -822,6 +822,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             # A server assigned to this order may acknowledge its ready handoff;
             # this is intentionally narrower than general order/payment edits.
             return self._post_ack_ready_line(request, order)
+        if action == "record_refund":
+            # The refund handler supplies its own manager check and actionable
+            # feedback, including for workers who cannot edit settled orders.
+            return self._post_record_refund(request, order)
         if not membership_can_modify_lodging(m):
             messages.error(request, "Your role cannot modify orders or payments.")
             return redirect("staff-order-detail", order_id=order.id)
@@ -898,8 +902,6 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_apply_promotion(request, order)
         if action == "void_line":
             return self._post_void_line(request, order)
-        if action == "record_refund":
-            return self._post_record_refund(request, order)
         messages.error(request, "Unknown action.")
         return redirect("staff-order-detail", order_id=order.id)
 

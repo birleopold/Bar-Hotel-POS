@@ -480,9 +480,11 @@ class StaffUiTests(TestCase):
 
     def test_dashboard_owner_hides_property_setup_cta_when_required_steps_complete(self) -> None:
         tenant = Tenant.objects.create(name="Setup Done Org", slug="setup-done-org-dash-cta")
-        TenantSettings.objects.get_or_create(tenant=tenant)
+        TenantSettings.objects.get_or_create(tenant=tenant, defaults={"business_lines": ["bar"]})
         site = Site.objects.create(tenant=tenant, name="S1")
         outlet = Outlet.objects.create(site=site, name="O1", outlet_type=OutletType.BAR)
+        from apps.pos.models import Workstation
+        Workstation.objects.create(tenant=tenant, outlet=outlet, name="Main till", code="MAIN")
         category = MenuCategory.objects.create(tenant=tenant, name="Food")
         item = MenuItem.objects.create(
             tenant=tenant,
@@ -1020,7 +1022,7 @@ class StaffWorkspaceAuditLogTests(TestCase):
         Membership.objects.create(
             user=cls.user,
             tenant=cls.tenant,
-            role=MembershipRole.ACCOUNTANT,
+            role=MembershipRole.OWNER,
         )
 
     def test_audit_log_renders(self) -> None:
@@ -1122,7 +1124,7 @@ class StaffHousekeepingRoleTests(TestCase):
         Outlet.objects.create(site=other_site, name="Other desk", outlet_type=OutletType.LODGING_FRONT_DESK)
         own_type = RoomType.objects.create(tenant=self.tenant, site=self.site, name="Standard")
         other_type = RoomType.objects.create(tenant=self.tenant, site=other_site, name="Standard")
-        own_room = Room.objects.create(room_type=own_type, name="101")
+        own_room = Room.objects.create(room_type=own_type, name="101", status="dirty", assigned_housekeeper=self.user)
         Room.objects.create(room_type=other_type, name="201")
 
         board = self.client.get(reverse("staff-lodging-housekeeping"))
@@ -1133,10 +1135,10 @@ class StaffHousekeepingRoleTests(TestCase):
         self.assertNotContains(board, "Reservations</a>")
         self.assertNotContains(board, "Folios</a>")
 
-        updated = self.client.post(reverse("staff-lodging-housekeeping"), {"room_id": str(own_room.id), "status": "dirty"})
+        updated = self.client.post(reverse("staff-lodging-housekeeping"), {"room_id": str(own_room.id), "action": "start"})
         self.assertEqual(updated.status_code, 302)
         own_room.refresh_from_db()
-        self.assertEqual(own_room.status, "dirty")
+        self.assertEqual(own_room.status, "cleaning")
 
         reservations = self.client.get(reverse("staff-lodging-reservations"))
         self.assertEqual(reservations.status_code, 302)
@@ -3142,11 +3144,14 @@ class StaffTableStaffTests(TestCase):
             role=MembershipRole.OWNER,
         )
         cls.accountant = User.objects.create_user(email="tbl-acct@test.local", password="TestPass9!")
-        Membership.objects.create(
+        accountant_membership = Membership.objects.create(
             user=cls.accountant,
             tenant=cls.tenant,
             role=MembershipRole.ACCOUNTANT,
         )
+
+        accountant_membership.sites.add(cls.outlet.site)
+        accountant_membership.outlets.add(cls.outlet)
 
     def _session_tenant_outlet(self, user) -> None:
         self.client.force_login(user)

@@ -14,6 +14,8 @@ from tests.test_phase1_isolation_and_idempotency import _seed_tenant_bundle
 
 
 def login_workspace(user, tenant):
+    # Console setup requires an explicit business profile before catalog work.
+    TenantSettings.objects.filter(tenant=tenant, business_lines=[]).update(business_lines=["bar"])
     client = Client()
     assert client.login(username=user.email, password="TestPass9!")
     session = client.session
@@ -87,7 +89,7 @@ def test_no_payment_practice_checkout_uses_configured_price():
         "quantity": "2",
     })
     assert result.status_code == 200, result.content[:700]
-    ctx = result.context[-1] if isinstance(result.context, list) else result.context
+    ctx = result.context
     assert ctx["result"]["subtotal"] == Decimal("20000.00")
     assert ctx["result"]["tax"] == Decimal("3600.00")
     assert ctx["result"]["total"] == Decimal("23600.00")

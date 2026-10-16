@@ -115,7 +115,11 @@ def test_catalog_stale_retries_only_allow_new_catalog_version(api_client):
         tenant=a["tenant"], client_mutation_id="stale-id-safety-1",
     )
     assert original.status == OfflineQueueStatus.APPLIED
-    assert original.payload["lines"][0]["quantity"] == "1"
+    # The serializer stores decimal quantities at the model's three-place precision.
+    assert Decimal(original.payload["lines"][0]["quantity"]) == Decimal("1")
+    replay = api_client.post("/api/v1/pos/offline-sync/", allowed, **kwargs)
+    assert replay.status_code == 200, replay.content
+    assert Order.objects.filter(tenant=a["tenant"]).count() == 1
 
 
 @pytest.mark.django_db

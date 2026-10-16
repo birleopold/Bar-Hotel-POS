@@ -47,7 +47,7 @@
             <td>{{ po.supplier.name }}</td>
             <td>{{ po.outlet.name }}</td>
             <td>{{ po.get_status_display }}</td>
-            <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{% if receiving_lane and can_modify_purchasing %}Receive delivery{% else %}View{% endif %}</a></td>
+            <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{% if receiving_lane and can_receive_stock %}Receive delivery{% else %}View{% endif %}</a></td>
           </tr>
         {% empty %}
           <tr><td colspan="5" class="staff-muted">{% if receiving_lane %}No purchase orders are awaiting delivery for this scope and status.{% else %}No purchase orders match this scope and status.{% endif %}</td></tr>
