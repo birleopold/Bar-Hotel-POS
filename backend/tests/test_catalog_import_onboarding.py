@@ -290,6 +290,4 @@ def test_bulk_price_update_rejects_ambiguous_existing_sku():
     )
     sheet = "sku,old_price,new_price\nSAME-SKU,1100.00,1200.00\n"
     with pytest.raises(CatalogImportProblem, match="Multiple products"):
-        parse_price_update_csv(
-            tenant=a["tenant"], uploaded=file_of(sheet.replace("\\\n", "\n")),
-        )
+        parse_price_update_csv(tenant=a["tenant"], uploaded=file_of(sheet))
