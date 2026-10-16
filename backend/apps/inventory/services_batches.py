@@ -144,6 +144,27 @@ def receive_tracked_batch(*, tenant, outlet, menu_item, batch_code, quantity,
             user=user, note=f"Batch {batch.batch_code}",
             purchase_order=purchase_order,
         )
+        # Show receipts as well as outflows in each batch's traceability screen.
+        record_batch_allocations(
+            tenant_id=tenant.pk, movement=movement,
+            allocations=[(batch.pk, amount)],
+        )
+        from apps.audit.services import log_audit
+        log_audit(
+            tenant_id=tenant.pk, user_id=user.pk if user else None,
+            action="inventory.batch_received",
+            entity_type="inventory_batch", entity_id=str(batch.pk),
+            payload={
+                "outlet_id": str(outlet.pk),
+                "menu_item_id": str(menu_item.pk),
+                "batch_code": batch.batch_code,
+                "quantity": str(amount),
+                "expiry_date": expiry_date.isoformat() if expiry_date else None,
+                "quarantined": batch.quarantined,
+                "movement_id": str(movement.pk),
+                "purchase_order_id": str(purchase_order.pk) if purchase_order else None,
+            },
+        )
     return batch, movement
 
 
