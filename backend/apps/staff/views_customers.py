@@ -2,6 +2,7 @@ import uuid
 
 from django.contrib import messages
 from django.db.models import Q, Count, Sum, Subquery
+from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -66,7 +67,12 @@ class StaffCustomerListView(CustomerAccessMixin, TemplateView):
         ctx["points_review"] = needs_review and owner
         if q:
             qs = qs.filter(Q(name__icontains=q) | Q(email__icontains=q) | Q(phone__icontains=q))
-        ctx.update(customers=qs.order_by("name", "id")[:50], search=q)
+        page = Paginator(qs.order_by("name", "id"), 50).get_page(
+            self.request.GET.get("page")
+        )
+        ctx.update(
+            customers=page.object_list, customers_page=page, search=q,
+        )
         if owner:
             summary = {}
             ledger = LoyaltyLedgerEntry.objects.filter(
