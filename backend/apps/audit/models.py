@@ -71,3 +71,43 @@ class ExceptionReview(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["tenant", "kind", "entity_id", "fingerprint"], name="unique_exception_review_version")]
+
+
+
+class StaffNotification(models.Model):
+    """Private inbox notification; source key deduplicates repeated alerts."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE,
+        related_name="staff_notifications",
+    )
+    recipient = models.ForeignKey(
+        "accounts.Membership", on_delete=models.CASCADE,
+        related_name="staff_notifications",
+    )
+    source_type = models.CharField(max_length=32)
+    source_id = models.CharField(max_length=128)
+    priority = models.CharField(
+        max_length=10, choices=(
+            ("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"),
+        ), default="normal",
+    )
+    title = models.CharField(max_length=160)
+    body = models.CharField(max_length=400, blank=True)
+    url = models.CharField(max_length=300, blank=True)
+    active = models.BooleanField(default=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "recipient", "source_type", "source_id"],
+                name="uniq_staff_alert_recipient_source",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "recipient", "active", "read_at"],
+                         name="staff_alert_inbox_idx"),
+        ]
