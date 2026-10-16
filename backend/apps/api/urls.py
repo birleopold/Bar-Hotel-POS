@@ -18,6 +18,7 @@ from apps.catalog.views import (
     PromotionViewSet,
 )
 from apps.events.views import EventBookingViewSet, EventSpaceViewSet
+from apps.customers.views import CustomerDirectoryViewSet
 from apps.finance.views import CashbookEntryViewSet, FinanceCategoryViewSet
 from apps.integrations.views import IntegrationLinkViewSet
 from apps.lodging.views import (
@@ -42,6 +43,7 @@ from .report_views import OperationsRollupView, SalesSummaryView
 from .signup_views import PublicSignupView
 
 router = DefaultRouter()
+router.register(r"customers", CustomerDirectoryViewSet, basename="customer")
 router.register(r"menu/categories", MenuCategoryViewSet, basename="menu-category")
 router.register(r"menu/items", MenuItemViewSet, basename="menu-item")
 router.register(r"menu/promotions", PromotionViewSet, basename="promotion")
