@@ -135,7 +135,7 @@
           <p class="staff-muted small">Register: {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}Automatic when one shift is open{% endif %} · <a href="{% url 'staff-workstations' %}">Choose till</a></p>
           <p class="staff-muted staff-pos-side-hint">Due <strong>{{ order.currency }} {{ balance_due }}</strong> · Paid {{ order.currency }} {{ amount_paid }}</p>
           {% include "staff/includes/form_errors_block.html" with form=payment_form title="Fix payment details" %}
-          <form method="post" class="row g-2 align-items-end">
+          <form method="post" class="row g-2 align-items-end" data-pos-payment-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="record_payment">
             <input type="hidden" name="payment_request_key" value="{{ payment_request_key }}">
