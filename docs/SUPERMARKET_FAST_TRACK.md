@@ -103,3 +103,8 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 
 - Expanded the **existing** supplier balances report with three distinct, scope-filtered figures: unpaid received-goods value, unpaid recorded-invoice value and received-goods value awaiting invoices. The report deliberately does not invent an allocation of purchase-order payments to individual invoice dates; that reconciliation still requires explicit invoice-linked settlement records.
 - Updated the staff-facing report labels/columns and regression assertions. The current amount is a read-only decision aid, not new accounting postings, full credit-note capability or a completed margin/drill-down package. Exact-head automated CI, production PostgreSQL and mobile/browser acceptance remain separate gates.
+
+### F3/F4 physically verified shortcut — 16 October 2026
+
+- The existing **Receive all outstanding** staff shortcut now requires an explicit, visible checkbox confirming every outstanding item was counted and accepted; the server validates the confirmation before any receipt/stock work. Short deliveries, damages and batch/expiry deliveries must use the existing quantity-entry workflow, not the shortcut. An unconfirmed request cannot silently book entire outstanding stock.
+- Hide the Cancel action for partially/fully received purchase orders, matching the existing backend status policy. Added full staff GET/POST tests for denied unconfirmed receipt (no ledger or receipt) and confirmed receipt. Scanner, inventory reconciliation, two-till concurrency and production evidence remain separate release gates.

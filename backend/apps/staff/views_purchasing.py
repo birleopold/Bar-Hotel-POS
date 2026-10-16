@@ -468,6 +468,9 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-purchasing-order-detail", po_id=po.id)
 
         if action == "receive_all":
+            if request.POST.get("verified_physical_delivery") != "yes":
+                messages.error(request, "Confirm that every outstanding item was physically counted before receiving all.")
+                return redirect("staff-purchasing-order-detail", po_id=po.id)
             if not _purchase_order_can_receive(po):
                 messages.error(
                     request,

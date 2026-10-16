@@ -42,10 +42,21 @@
       {% if po.status == 'draft' %}
         <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="send"><button type="submit" class="staff-btn staff-btn--primary">Mark sent</button></form>
       {% endif %}
-      <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button type="submit" class="staff-btn staff-btn--ghost">Cancel PO</button></form>
+      {% if po.status == 'draft' or po.status == 'sent' %}
+        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button type="submit" class="staff-btn staff-btn--ghost">Cancel PO</button></form>
+      {% endif %}
       {% endif %}
       {% if can_receive %}
-        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="receive_all"><button type="submit" class="staff-btn staff-btn--primary">Receive all outstanding</button></form>
+        <form method="post" class="staff-card w-100 mt-2" data-confirm-receive-all>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="receive_all">
+          <label class="staff-label d-flex gap-2 align-items-start" for="receive-all-confirm">
+            <input id="receive-all-confirm" type="checkbox" name="verified_physical_delivery" value="yes" required>
+            <span>I physically counted and accepted every outstanding item on this purchase order.</span>
+          </label>
+          <p class="staff-muted small mb-2">Only use this when everything outstanding was delivered. For shortages, damages, batch codes or expiry dates, use Partial goods received below.</p>
+          <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Receive verified outstanding</button>
+        </form>
       {% endif %}
     </div>
     {% if can_receive %}
