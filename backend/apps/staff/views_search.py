@@ -6,6 +6,8 @@ from django.views import View
 
 from .mixins import StaffTenantRequiredMixin
 from .services.search import staff_global_search
+from .services.membership import staff_accessible_outlets
+from .services.workspace import resolve_staff_outlet
 
 
 class StaffGlobalSearchView(StaffTenantRequiredMixin, View):
@@ -43,6 +45,9 @@ class StaffGlobalSearchView(StaffTenantRequiredMixin, View):
             user=request.user, query=query,
             per_group=5 if wants_json else 8,
             page=1 if wants_json else page_number,
+            current_outlet=resolve_staff_outlet(
+                request, staff_accessible_outlets(request.tenant_membership),
+            ),
         )
         if wants_json:
             response = JsonResponse({"groups": groups, "query": query})
