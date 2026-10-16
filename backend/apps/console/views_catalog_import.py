@@ -14,7 +14,8 @@ from django.views.generic import FormView
 from apps.audit.services import log_audit
 from apps.catalog.models import MenuItem
 
-from .catalog_import import CatalogImportProblem, import_catalog_items, parse_catalog_csv
+from .catalog_import import (CatalogImportProblem, import_catalog_items, parse_catalog_csv,
+    parse_price_update_csv, apply_price_updates)
 from .mixins import ConsoleOrgAdminRequiredMixin
 
 
@@ -52,6 +53,19 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
+        if request.GET.get("price_template") == "1":
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = 'attachment; filename="price-updates.csv"'
+            response["Cache-Control"] = "private, no-store"
+            writer = csv.writer(response)
+            writer.writerow(["sku", "old_price", "new_price"])
+            for item in MenuItem.objects.filter(
+                tenant=request.tenant,
+            ).exclude(sku="").order_by("sku").iterator(chunk_size=500):
+                writer.writerow([
+                    _spreadsheet_safe(item.sku), item.unit_price, item.unit_price,
+                ])
+            return response
         if request.GET.get("export") == "1":
             # Owner-only, tenant-scoped export for review before catalog changes.
             # Export product metadata only, never stock quantities or sales.
@@ -99,6 +113,31 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
         return super().get(request, *args, **kwargs)
 
     def form_valid(self, form):
+        action = (self.request.POST.get("action") or "").strip()
+        if action in {"preview_prices", "apply_prices"}:
+            try:
+                rows = parse_price_update_csv(
+                    tenant=self.request.tenant, uploaded=form.cleaned_data["file"],
+                )
+                if action == "preview_prices":
+                    return self.render_to_response(self.get_context_data(
+                        form=CatalogUploadForm(),
+                        price_preview_count=len(rows),
+                        price_preview_rows=rows[:25],
+                        price_preview_more=max(0, len(rows) - 25),
+                    ))
+                changed = apply_price_updates(
+                    tenant=self.request.tenant, rows=rows, user=self.request.user,
+                )
+            except CatalogImportProblem as exc:
+                return self.render_to_response(self.get_context_data(
+                    form=CatalogUploadForm(), import_issues=exc.issues,
+                ))
+            messages.success(
+                self.request,
+                f"Updated {changed} base prices. Stock and past receipts were not changed.",
+            )
+            return redirect("console-org-menu-items")
         try:
             rows = parse_catalog_csv(
                 tenant=self.request.tenant, uploaded=form.cleaned_data["file"],
