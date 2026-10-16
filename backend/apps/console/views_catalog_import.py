@@ -18,6 +18,14 @@ from .catalog_import import CatalogImportProblem, import_catalog_items, parse_ca
 from .mixins import ConsoleOrgAdminRequiredMixin
 
 
+def _spreadsheet_safe(value):
+    """Prevent imported product text from executing as a spreadsheet formula."""
+    text = str(value or "")
+    if text.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + text
+    return text
+
+
 class CatalogUploadForm(forms.Form):
     file = forms.FileField(
         label="CSV file",
@@ -61,12 +69,12 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
             ).select_related("category").order_by("name", "pk")
             for item in items.iterator(chunk_size=500):
                 writer.writerow([
-                    item.category.name, item.name, item.unit_price, item.sku,
-                    item.barcode, "yes" if item.track_inventory else "no",
+                    _spreadsheet_safe(item.category.name), _spreadsheet_safe(item.name), item.unit_price,
+                    _spreadsheet_safe(item.sku), _spreadsheet_safe(item.barcode), "yes" if item.track_inventory else "no",
                     item.reorder_level if item.reorder_level is not None else "",
                     item.unit_of_measure,
                     item.tax_rate_percent if item.tax_rate_percent is not None else "",
-                    item.description,
+                    _spreadsheet_safe(item.description),
                 ])
             return response
         if request.GET.get("sample") == "1":
