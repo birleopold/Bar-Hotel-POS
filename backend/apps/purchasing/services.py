@@ -206,6 +206,14 @@ def record_supplier_payment(
     *, po: PurchaseOrder, amount: Decimal, method: str, reference: str,
     idempotency_key: str, user, membership,
 ) -> tuple[SupplierPayment, bool]:
+    try:
+        amount = Decimal(str(amount))
+    except (TypeError, ValueError, ArithmeticError, InvalidOperation) as exc:
+        raise ValidationError({"amount": "Enter a valid supplier payment amount."}) from exc
+    if (not amount.is_finite() or amount <= 0
+            or amount > Decimal("999999999999.99")
+            or amount != amount.quantize(Decimal("0.01"))):
+        raise ValidationError({"amount": "Enter a positive amount with at most two decimal places."})
     key = (idempotency_key or "").strip()
     if not key or len(key) > 128:
         raise ValidationError({"idempotency_key": "A key of at most 128 characters is required."})
