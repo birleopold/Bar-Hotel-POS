@@ -42,7 +42,7 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
         for obj in limited(movements,"stock_adjustment"):
             result.append(row("stock_adjustment",obj,"Stock adjustment",f"{obj.menu_item.name} · {obj.quantity_change:+} · {obj.get_reason_display()}",source_url("stock_adjustment",obj),(obj.quantity_change,obj.created_at)))
     if "purchasing" in modules and vis.purchasing:
-        receipts = PurchaseReceipt.objects.filter(tenant=request.tenant, purchase_order__tenant=request.tenant, purchase_order__outlet_id__in=ids).exclude(discrepancy_note="").select_related("purchase_order").order_by("-created_at")
+        receipts = PurchaseReceipt.objects.filter(tenant=request.tenant, purchase_order__tenant=request.tenant, purchase_order__outlet_id__in=ids, created_at__gte=cutoff).exclude(discrepancy_note="").select_related("purchase_order").order_by("-created_at")
         for obj in limited(receipts,"delivery_discrepancy"):
             result.append(row("delivery_discrepancy",obj,"Delivery discrepancy",obj.discrepancy_note,reverse("staff-purchasing-order-detail",kwargs={"po_id":obj.purchase_order_id}),(obj.discrepancy_note,obj.updated_at)))
     if "finance" in modules and vis.finance:
