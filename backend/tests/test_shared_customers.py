@@ -118,6 +118,20 @@ class SharedCustomerTests(TestCase):
             tenant=self.tenant, name="Not linked at this branch",
         ).exists())
 
+    def test_edit_rejects_visible_duplicate_contact_without_changing_identity(self):
+        primary = Customer.objects.create(tenant=self.tenant, name="Primary", email="primary@example.test")
+        secondary = Customer.objects.create(tenant=self.tenant, name="Secondary", email="secondary@example.test")
+        self.login()
+        result = self.client.post(
+            reverse("staff-customer-detail", args=[secondary.pk]),
+            {"name": "Secondary", "email": "PRIMARY@EXAMPLE.TEST"},
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertContains(result, "already uses this email or phone", status_code=400)
+        secondary.refresh_from_db()
+        self.assertEqual(secondary.email, "secondary@example.test")
+        self.assertEqual(primary.email, "primary@example.test")
+
     def test_reservation_and_event_forms_reject_other_tenant_customer(self):
         from apps.staff.forms.events import StaffEventBookingForm
         from apps.staff.forms.lodging import StaffReservationForm
