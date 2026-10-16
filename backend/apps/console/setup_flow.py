@@ -36,7 +36,7 @@ class SetupStep:
                 status = "blocked"
             else:
                 status = "pending"
-        effective_done = self.done or self.manual_state == "skipped"
+        effective_done = self.done or (not self.required and self.manual_state == "skipped")
         return {
             "key": self.key,
             "name": self.name,
@@ -378,10 +378,12 @@ def set_tenant_setup_step_state(tenant, *, step_key: str, state: str) -> TenantS
     progress, _ = TenantSetupProgress.objects.get_or_create(tenant=tenant)
     overrides = dict(progress.step_state_overrides or {})
     current_state = build_tenant_setup_state(tenant, progress=progress)
-    valid_keys = {s["key"] for s in current_state.get("all_steps", [])}
-    if step_key not in valid_keys:
+    valid_steps = {s["key"]: s for s in current_state.get("all_steps", [])}
+    if step_key not in valid_steps:
         raise ValueError("Unknown setup step key.")
     normalized = str(state or "").strip().lower()
+    if normalized == "skipped" and valid_steps[step_key]["required"]:
+        raise ValueError("Required setup steps cannot be skipped. Complete the action or mark it blocked.")
     if normalized in {"", "reset", "pending", "done"}:
         overrides.pop(step_key, None)
     elif normalized in {"skipped", "blocked"}:
