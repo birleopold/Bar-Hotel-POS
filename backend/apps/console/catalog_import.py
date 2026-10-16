@@ -107,8 +107,14 @@ def parse_catalog_csv(*, tenant, uploaded):
         try:
             if not isinstance(values, dict) or None in values:
                 raise ValueError("Use the supplied CSV columns; too many values were found.")
+            # DictReader pads short rows with None. Never silently turn a
+            # missing required cell into a valid empty field.
+            if any(values.get(key) is None for key in REQUIRED):
+                raise ValueError("CSV row is missing a required column value.")
             row = {str(key): str(value or "").strip()
                    for key, value in values.items()}
+            if any("\\x00" in value or "\\r" in value or "\\n" in value for value in row.values()):
+                raise ValueError("Fields may not contain embedded control characters or line breaks.")
             cat = row.get("category", "")
             name = row.get("name", "")
             sku = row.get("sku", "")
