@@ -576,3 +576,9 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Extended the same scoped duplicate-contact check to edits of existing customer profiles. When an employee changes email or phone, conflicting visible active identities are rejected with a clear form error, without altering either record; cross-branch records outside their scope are not disclosed.
 - Added an end-to-end regression covering rejection, case-insensitive email matching and preservation of stored contact details. No automatic merge or historical correction occurs.
 - Phase 05 is still in progress. CI and full browser/PostgreSQL workflow evidence are required before marking it complete.
+
+### 2026-10-16 — Phase 05 acceptance repair following failing CI
+
+- The exact CI run `38928319358` failed **2 customer duplicate-warning tests**, with **532 passed, 5 skipped**. Root cause: both customer create/edit templates omitted `form.non_field_errors`, hiding a backend duplicate-contact validation message. Added accessible alert rendering to both pages.
+- Corrected restricted staff customer creation: the create flow no longer redirects to a forbidden detail page when that customer has no accessible site/outlet link; instead it returns to the directory with a clear manager-link instruction. Preserves the existing creator-does-not-bypass-scope privacy rule. Added a browser-response regression to cover this.
+- These changes are committed to main but **not yet verified** on the latest CI SHA. Phase 05 cannot responsibly be called finished until CI and the remaining linkage/privacy/invoice acceptance criteria are demonstrated; do not close it on the strength of changed source alone.
