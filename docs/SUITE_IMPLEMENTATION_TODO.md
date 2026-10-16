@@ -38,8 +38,8 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 ## Hardware, offline and integrations
 
-- [ ] **15 Hardware service layer:** workstation receipt/kitchen printers, scanner, drawer, customer display and scale; device configuration/test workflow; receipt format/routing/retry; adapter boundary and real-device evidence.
-- [ ] **16 Offline operating policy/UI:** online/offline, queued count, last sync, synced/waiting/review/failed; retries/conflict resolution, queue age/value limits, allowed tenders, inventory/stale catalog policy, device identity, worker handoff and shared-terminal privacy.
+- [-] **15 Hardware service layer:** workstation receipt/kitchen printers, scanner, drawer, customer display and scale; device configuration/test workflow; receipt format/routing/retry; adapter boundary and real-device evidence.
+- [-] **16 Offline operating policy/UI:** online/offline, queued count, last sync, synced/waiting/review/failed; retries/conflict resolution, queue age/value limits, allowed tenders, inventory/stale catalog policy, device identity, worker handoff and shared-terminal privacy.
 - [ ] **17 EFRIS:** fiscal queue, submission/accept/reject/reference, safe retry/correction and failure dashboard; credential and sandbox evidence; externally required synchronous behavior must follow verified requirements.
 
 ## Management, permissions and discovery
@@ -63,7 +63,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 - [-] **31 Release certification command:** commit-bound evidence for migrations, checks, tests, PostgreSQL/concurrency/RLS, schema, security, browser workflows, static files and rollback review; certificate with actual database/browser versions and timestamp; fail on absent mandatory evidence.
 - [ ] **32 Financial/historical policies:** review positive-only historical POS folios and legacy receiving expenses; recipe recovery policy; discounted/taxed split-tender return allocation; no duplicate stock/cash posting; linked-return amount validation and authorized corrections.
 - [ ] **33 Deployment/operations:** direct-VPS instructions, database backup/restore drill, worker/scheduler health, rollback, static assets, observability and successful exact-commit release verification.
-- [ ] **34 Commercial source policy:** document repository visibility and proprietary-license choices for the owner; do not silently change repository visibility or grant a license. Track the actual chosen policy.
+- [-] **34 Commercial source policy:** document repository visibility and proprietary-license choices for the owner; do not silently change repository visibility or grant a license. Track the actual chosen policy.
 
 ## Excluded as recommended
 
@@ -344,3 +344,18 @@ Verification deferred at owner's direction. Status is implementation-in-progress
 - The command **has not been run**, per the owner's deferred verification instructions. Supplied evidence is self-reported and must be corroborated by the release operator.
 
 **Status:** These features have been committed to `origin/main` for implementation progress only. They have not completed CI, database, browser, safety or production certification. The complete remaining 34-phase roadmap is not finished, and phase checkboxes remain in progress until all acceptance items are delivered.
+
+
+### 2026-10-16 — new user-facing stock, offline, hardware and documentation work
+
+**Phase 08:** Inventory → Batches & expiry now includes direct stock-batch receiving with tenant/outlet/product authorization, duplicate-lot protection, stock-balance locking and one underlying receipt movement. Receipt movements are linked to batch history. Quantities require three-decimal precision; future receipt dates are disallowed; expired-at-receipt stock is placed on hold and cannot be released as saleable stock. Staff can search/filter batches (available/held/expired/expiring), retain filters while paging and export a bounded, spreadsheet-safe CSV. Direct receipt is explicitly separate from purchase-order receiving, which remains the proper supplier-payable path. Tests authored for duplication, stock/lot history, expired quarantine, scope and validation. Missing: linked returns by original lot, full stock-count batch reconciliation and physical recall evidence.
+
+**Phase 15:** Existing Workstations navigation now links to a scoped **Test equipment** page with a nonfinancial browser print slip, local keyboard-wedge barcode scanner diagnostics and honest unsupported-device messages. Retail-only tenants do not see unrelated kitchen printer/KDS controls. No direct printer routing, drawer or scale adapter is claimed, and physical tests are not complete.
+
+**Phase 16:** Existing Offline activity page now distinguishes server-received replay rows from device-local operations not yet delivered; shows waiting/applied/failed/stale counts, last server-applied activity, connection test and safe catalog-conflict guidance. The concurrent origin/main work also contains separate offline safety and manager-review improvements; their exact acceptance and certification are not assumed here. Multi-device offline conflict testing and complete local terminal queue behavior remain outstanding.
+
+**Phase 30:** Added a reproducible source-filename matrix generator and initial `docs/CAPABILITY_MATRIX.md` for all 34 items. These are conservative file-presence signals, not behavioral test claims; no PostgreSQL, browser or hardware result is invented. Run `python tools/generate_capability_matrix.py` whenever the roadmap/source changes. Full source/route/test contract reconciliation is still pending.
+
+**Phase 34:** Added `docs/COMMERCIAL_SOURCE_POLICY.md` explaining current absence of a root license, public-source copyright, distribution options, dependency licensing and contract decisions. Neither a new license nor a repository-visibility change was made. Owner-selected commercial policy remains pending.
+
+**Status:** Implementation committed to origin/main, with verification intentionally deferred per owner's instructions. No assertion of 50% phase completion, passing CI, release certification or live-device readiness.
