@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.db.models import QuerySet, Sum
+from django.db.models import Q, QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
