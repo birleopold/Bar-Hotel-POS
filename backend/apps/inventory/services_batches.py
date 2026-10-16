@@ -179,6 +179,16 @@ def consume_for_outflow_if_batched(*, tenant_id, outlet_id, menu_item_id, quanti
     """
     from rest_framework.exceptions import ValidationError
     from .fefo import InsufficientBatchStock
+    # Only strictly positive, finite quantities can be allocated to batches.
+    # Reject invalid requests even when an item has no batch history.
+    try:
+        amount = Decimal(str(quantity))
+    except (TypeError, ValueError, ArithmeticError) as exc:
+        raise ValidationError({"quantity": "Enter a valid stock-out quantity."}) from exc
+    if (not amount.is_finite() or amount <= 0
+            or amount > Decimal("99999999999.999")
+            or amount != amount.quantize(Decimal("0.001"))):
+        raise ValidationError({"quantity": "Stock-out quantity must be positive with up to three decimal places."})
 
     if not InventoryBatch.objects.filter(
         tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=menu_item_id,
