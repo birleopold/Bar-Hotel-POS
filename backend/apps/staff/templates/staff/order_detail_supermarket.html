@@ -20,7 +20,7 @@
     <div class="staff-card">
       <h2 class="staff-card__title">Sale completed</h2>
       <p class="staff-muted">Print the receipt using the links above. Start a new basket when the next customer is ready.</p>
-      <a class="staff-btn staff-btn--primary staff-btn--touch" href="{% url 'staff-order-create' %}">Next customer · new sale</a>
+      <a class="staff-btn staff-btn--primary staff-btn--touch" href="{% url 'staff-order-quick-create' %}">Next customer · new sale</a>
     </div>
   {% endif %}
   {% if can_modify_open_order and line_discount_form %}
