@@ -438,3 +438,11 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - The functions never rewrite historical records, turn points into cash value, or treat a legitimate post-refund negative balance as an automatic correction.
 - This is a **backend foundation, not a completed reconciliation user journey**: owner/staff access, links, exports, anomaly resolution, transaction-level/source integrity checks, direct unit tests, database/tenant RLS evidence and browser verification are still required. Neither Phase 06 nor any other unfinished phase is marked complete.
 - Code committed to `origin/main` as an implementation-first checkpoint; verification is intentionally not represented as performed.
+
+
+### 2026-10-16 — Phase 06 reconciliation scale and regression contracts
+
+- Updated the existing `apps.customers.loyalty_reconciliation` module so tenant negative-balance account counts are computed by grouped SQL rather than fetching each account into Python. Historical point entries remain untouched.
+- Added focused `SimpleTestCase` contracts for no-entry defaults, negative balances after reversals, cross-tenant/merged-account rejection, source breakdown, and read-only grouped tenant summaries.
+- Research basis: Django 5.2 aggregation documentation, https://docs.djangoproject.com/en/5.2/topics/db/aggregation/ . No external points-to-currency treatment or accounting liability was inferred.
+- **Unverified implementation checkpoint**: tests were authored and committed, not executed. Staff-visible reconciliation, real database regressions, audit source tracing, API scopes and responsive browser certification remain pending; Phase 06 stays in progress.
