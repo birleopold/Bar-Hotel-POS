@@ -110,75 +110,79 @@
 (function () {
   "use strict";
   var form = document.querySelector("[data-retail-scan-form]");
-  if (!form) return;
-  var input = form.querySelector('input[name="code"]');
-  var quantity = form.querySelector('input[name="quantity"]');
-  var button = form.querySelector("[data-retail-scan-submit]");
-  var status = document.querySelector("[data-retail-scan-status]");
-  if (!input || !button) return;
-  input.setAttribute("aria-label", "Barcode or product lookup code");
-  input.setAttribute("enterkeyhint", "done");
-  if (document.activeElement === document.body || document.activeElement === null) input.focus();
-  document.addEventListener("keydown", function (event) {
-    if (event.key !== "/" || event.ctrlKey || event.altKey || event.metaKey || event.repeat) return;
-    var target = event.target;
-    if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-    event.preventDefault();
-    input.focus();
-    input.select();
-  });
+  if (form) {
+    var input = form.querySelector('input[name="code"]');
+    var quantity = form.querySelector('input[name="quantity"]');
+    var button = form.querySelector("[data-retail-scan-submit]");
+    var status = document.querySelector("[data-retail-scan-status]");
+    if (input && button) {
+      input.setAttribute("aria-label", "Barcode or product lookup code");
+      input.setAttribute("enterkeyhint", "done");
+      if (document.activeElement === document.body || document.activeElement === null) input.focus();
+      document.addEventListener("keydown", function (event) {
+        if (event.key !== "/" || event.ctrlKey || event.altKey || event.metaKey || event.repeat) return;
+        var target = event.target;
+        if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+        event.preventDefault();
+        input.focus();
+        input.select();
+      });
+      var submitted = false;
+      form.addEventListener("submit", function (event) {
+        if (submitted) { event.preventDefault(); return; }
+        if (!input.value.trim()) {
+          event.preventDefault();
+          input.focus();
+          if (status) status.textContent = "Scan a barcode or type a PLU first.";
+          return;
+        }
+        var qty = quantity ? Number(quantity.value) : 1;
+        if (!Number.isFinite(qty) || qty <= 0 || Math.round(qty * 1000) !== qty * 1000) {
+          event.preventDefault();
+          if (quantity) quantity.focus();
+          if (status) status.textContent = "Enter a positive quantity with at most three decimal places.";
+          return;
+        }
+        submitted = true;
+        button.disabled = true;
+        if (status) status.textContent = "Adding item to basket…";
+      });
+    }
+  }
   var cashPanel = document.querySelector("[data-retail-cash-panel]");
   if (cashPanel) {
     var received = cashPanel.querySelector("[data-retail-cash-received]");
     var change = cashPanel.querySelector("[data-retail-change]");
     var tenderStatus = cashPanel.querySelector("[data-retail-tender-status]");
-    var paymentForm = document.querySelector('form input[name="action"][value="record_payment"]');
-    paymentForm = paymentForm && paymentForm.form;
+    var paymentAction = document.querySelector('form input[name="action"][value="record_payment"]');
+    var paymentForm = paymentAction && paymentAction.form;
     var paymentAmount = paymentForm && paymentForm.querySelector('input[name="amount"]');
     var paymentMethod = paymentForm && paymentForm.querySelector('select[name="method"]');
-    var due = Number(cashPanel.getAttribute("data-balance-due"));
+    var dueRaw = Number(cashPanel.getAttribute("data-balance-due"));
+    var dueCents = Math.round(dueRaw * 100);
     function calculateChange() {
-      var tender = received.value.trim() === "" ? NaN : Number(received.value);
+      var raw = received.value.trim();
+      var tender = raw === "" ? NaN : Number(raw);
+      var cents = Math.round(tender * 100);
       change.textContent = "—";
-      if (!Number.isFinite(due) || !Number.isFinite(tender) || tender < 0) {
-        tenderStatus.textContent = "Enter a valid non-negative cash amount.";
+      if (!Number.isFinite(dueRaw) || !Number.isFinite(tender) || tender < 0 ||
+          !Number.isSafeInteger(cents) || Math.abs(tender * 100 - cents) > 0.000001) {
+        tenderStatus.textContent = "Enter a valid cash amount with at most two decimal places.";
         return;
       }
-      if (tender < due) {
+      if (cents < dueCents) {
         tenderStatus.textContent = "Cash is less than the amount due. Use the payment form for a partial payment.";
         return;
       }
-      change.textContent = (Math.round((tender - due) * 100) / 100).toFixed(2);
+      change.textContent = ((cents - dueCents) / 100).toFixed(2);
       tenderStatus.textContent = "Change shown above. Record the due amount, not the cash tendered.";
       if (paymentAmount && paymentMethod && paymentMethod.value === "cash") {
-        paymentAmount.value = due.toFixed(2);
+        paymentAmount.value = (dueCents / 100).toFixed(2);
       }
     }
     received.addEventListener("input", calculateChange);
     if (paymentMethod) paymentMethod.addEventListener("change", calculateChange);
   }
-  var submitted = false;
-  form.addEventListener("submit", function (event) {
-    if (submitted) {
-      event.preventDefault();
-      return;
-    }
-    if (!input.value.trim()) {
-      event.preventDefault();
-      input.focus();
-      if (status) status.textContent = "Scan a barcode or type a PLU first.";
-      return;
-    }
-    if (quantity && (!quantity.value || Number(quantity.value) <= 0)) {
-      event.preventDefault();
-      quantity.focus();
-      if (status) status.textContent = "Enter a quantity greater than zero.";
-      return;
-    }
-    submitted = true;
-    button.disabled = true;
-    if (status) status.textContent = "Adding item to basket…";
-  });
 })();
 </script>
 {% endblock %}
