@@ -1,4 +1,5 @@
 import uuid
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from django.contrib import messages
 from django.db.models import Q
@@ -10,7 +11,8 @@ from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import MembershipRole
 from apps.audit.services import log_audit
-from apps.customers.models import Customer
+from apps.customers.models import Customer, LoyaltyLedgerEntry
+from apps.customers.loyalty import adjust_points, points_balance
 from apps.customers.services import merge_customers
 from apps.events.models import EventBooking
 from apps.lodging.models import Folio, Reservation
@@ -84,6 +86,14 @@ class StaffCustomerDetailView(CustomerAccessMixin, TemplateView):
         site_ids = [site.pk for site in sites_visible_for_membership(membership)]
         outlet_ids = [outlet.pk for outlet in staff_accessible_outlets(membership)]
         ctx["customer"] = customer
+        ctx["loyalty_balance"] = points_balance(tenant=self.request.tenant, customer=customer)
+        ctx["loyalty_entries"] = LoyaltyLedgerEntry.objects.filter(
+            tenant=self.request.tenant, customer=customer,
+        ).select_related("recorded_by").order_by("-created_at")[:15]
+        ctx["loyalty_request_key"] = uuid.uuid4()
+        ctx["can_adjust_loyalty"] = membership.role in {
+            MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+        }
         ctx["financial_snapshot"] = customer_financial_snapshot(
             tenant=self.request.tenant, customer=customer,
             site_ids=site_ids, outlet_ids=outlet_ids,
@@ -107,6 +117,25 @@ class StaffCustomerDetailView(CustomerAccessMixin, TemplateView):
         customer = self.customer(kwargs["customer_id"])
         if customer is None:
             raise Http404
+        if request.POST.get("action") == "loyalty_adjust":
+            if request.tenant_membership.role not in {
+                MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+            }:
+                raise Http404
+            try:
+                number = int(request.POST.get("points", ""))
+                key = uuid.UUID(request.POST.get("request_key", ""))
+                _entry, repeated = adjust_points(
+                    tenant=request.tenant, customer_id=customer.pk,
+                    membership=request.tenant_membership, user=request.user,
+                    points=number, reason=request.POST.get("reason", ""),
+                    source_key=str(key),
+                )
+            except (ValueError, TypeError, ValidationError) as exc:
+                messages.error(request, str(getattr(exc, "detail", exc)))
+            else:
+                messages.success(request, "Already recorded." if repeated else "Points adjustment recorded.")
+            return redirect("staff-customer-detail", customer_id=customer.pk)
         if request.POST.get("action") == "merge":
             if request.tenant_membership.role not in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}:
                 raise Http404
