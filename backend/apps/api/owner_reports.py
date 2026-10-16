@@ -246,6 +246,14 @@ def deliver_owner_report(*, schedule, at=None):
         return None
     delivery = OwnerReportDelivery.objects.get(pk=delivery_id)
     try:
+        backend = str(getattr(settings, "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"))
+        if backend in {
+            "django.core.mail.backends.console.EmailBackend",
+            "django.core.mail.backends.locmem.EmailBackend",
+            "django.core.mail.backends.dummy.EmailBackend",
+            "django.core.mail.backends.filebased.EmailBackend",
+        }:
+            raise RuntimeError("SMTP email backend is not configured for real delivery.")
         summary = _summary_for_schedule(schedule, period)
         csv_body = format_sales_summary_csv_from_summary(summary)
         pdf_body = build_pdf_summary(schedule=schedule, period=period, summary=summary)
