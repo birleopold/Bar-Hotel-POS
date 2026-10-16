@@ -588,3 +588,11 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Customer-level financial snapshot now distinguishes **direct POS gross sales**, **actual POS refunds** and **net direct POS sales**, keeping folio-linked orders excluded from standalone totals. The customer-facing table displays the three amounts in each recorded currency. No backfill or mutation of payments or folio history.
 - Added regression coverage for a paid retail order with a partial refund; retained checks on existing folio balances and branch isolation.
 - Earlier customer error-rendering CI and the new financial reconciliation changes must pass the exact-commit CI run before Phase 05 can be declared locally verified. PostgreSQL/browser/privacy/credit/invoice policy remain independent acceptance gates.
+
+### 2026-10-16 — Phase 05 full functional closeout candidate (CI evidence required)
+
+- Implemented a **read-only** `/api/v1/customers/` list/detail endpoint using the existing staff membership, tenant, branch and outlet visibility policy. Server applies filtered queryset before detail resolution; POST/PATCH/DELETE are unavailable. Added tests for cross-tenant/branch denial, role denial and write rejection.
+- Customer directory now has properly paginated 50-row pages with search and review-filter preservation rather than silently truncating results, with end-to-end test covering more than 50 customers.
+- Linked visible customer folio history directly to the existing guest folio page; customers' per-currency financial summaries now show direct paid sales, refunds, and net receipts separately without re-counting folio-linked POS.
+- Documented safe merging, contact normalization, financial classification, retention and privacy procedures in `docs/CUSTOMER_IDENTITY_POLICY.md`. No automatic data erasure, credit issuance, tax invoice creation, cross-tenant disclosure or financial backfill has been introduced.
+- This is a **Phase 05 implementation closeout candidate**, not yet certified. Mark `[x]` only after the exact head SHA passes checks and the defined local functional workflows are verified. Browser, PostgreSQL isolation and actual customer privacy/legal sign-off remain independent external gates.
