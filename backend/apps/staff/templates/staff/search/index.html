@@ -1,0 +1,43 @@
+{% extends "staff/base.html" %}
+{% block title %}Find anything{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Workspace search</p>
+    <h1 class="staff-page-title">Find anything</h1>
+    <p>Search orders, reservations, rooms, customers, stock, suppliers and other records you have permission to view.</p>
+  </div>
+</header>
+<section class="staff-card mb-4">
+  <form action="{% url 'staff-search' %}" method="get" role="search">
+    <label class="staff-label" for="staff-full-search">Search by name, reference, SKU or receipt number</label>
+    <div class="d-flex flex-wrap gap-2">
+      <input id="staff-full-search" class="staff-input flex-grow-1" name="q" value="{{ query }}"
+        autocomplete="off" minlength="2" maxlength="80" placeholder="Try an order number or guest name"
+        style="min-width:13rem" required>
+      <button class="staff-btn staff-btn--primary" type="submit">Search</button>
+    </div>
+  </form>
+</section>
+{% if query|length < 2 %}
+<section class="staff-card"><p class="staff-muted mb-0">Type at least two characters to start. You can also press Ctrl+K (or Cmd+K on a Mac) from anywhere in the staff workspace.</p></section>
+{% elif search_groups %}
+  {% for group in search_groups %}
+  <section class="staff-card mb-3" aria-label="{{ group.name }}">
+    <h2 class="staff-section-head">{{ group.name }}</h2>
+    <div class="list-group list-group-flush">
+    {% for item in group.items %}
+      <a class="list-group-item list-group-item-action" href="{{ item.url }}">
+        <strong>{{ item.title }}</strong>
+        <span class="staff-muted ms-2">{{ item.subtitle }}</span>
+      </a>
+    {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+{% else %}
+  <section class="staff-card"><h2 class="staff-section-head">No matches found</h2>
+    <p class="staff-muted mb-0">Try a different name or reference. Results only include records in your permitted business locations.</p>
+  </section>
+{% endif %}
+{% endblock %}
