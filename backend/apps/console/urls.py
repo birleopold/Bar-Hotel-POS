@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_catalog, views_org, views_platform, views_rates
+from . import views, views_catalog, views_catalog_import, views_org, views_platform, views_rates
 
 urlpatterns = [
     path("", views.ConsoleIndexView.as_view(), name="console-index"),
@@ -42,6 +42,7 @@ urlpatterns = [
     ),
     path("org/", views_org.OrgOverviewView.as_view(), name="console-org"),
     path("org/setup/", views_org.OrgSetupWizardView.as_view(), name="console-org-setup"),
+    path("org/menu/import/", views_catalog_import.OrgCatalogImportView.as_view(), name="console-org-catalog-import"),
     path("org/setup/step-state/", views_org.OrgSetupStepStateView.as_view(), name="console-org-setup-step-state"),
     path("org/sites/", views_org.OrgSiteListView.as_view(), name="console-org-sites"),
     path("org/sites/new/", views_org.OrgSiteCreateView.as_view(), name="console-org-site-create"),

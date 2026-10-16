@@ -26,6 +26,13 @@
     {% endif %}
   </div>
 
+  {% if show_catalog_import %}
+    <section class="staff-card mb-4" aria-label="Bulk item import">
+      <h2 class="staff-card__title">Already have your products in a spreadsheet?</h2>
+      <p class="staff-muted">Import up to 250 items at a time from CSV. The importer checks rows before saving and never changes cash or stock balances.</p>
+      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-catalog-import' %}">Import product CSV</a>
+    </section>
+  {% endif %}
   <h2 class="staff-section-title">Required steps</h2>
   {% for step in setup_steps %}
     <div class="staff-card mb-3">
