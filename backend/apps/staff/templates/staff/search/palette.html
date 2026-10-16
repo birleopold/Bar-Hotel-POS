@@ -1,0 +1,24 @@
+{% load static %}
+<dialog id="staff-command-dialog" class="staff-command-dialog" aria-labelledby="staff-command-title">
+  <div class="staff-command-head">
+    <div>
+      <h2 id="staff-command-title">Find a record</h2>
+      <p>Search the areas you are allowed to use.</p>
+    </div>
+    <form method="dialog"><button class="staff-command-close" type="submit" aria-label="Close search">Close <span aria-hidden="true">×</span></button></form>
+  </div>
+  <div class="staff-command-field">
+    <label class="visually-hidden" for="staff-command-input">Search workspace records</label>
+    <input id="staff-command-input" type="search" role="combobox" aria-autocomplete="list"
+      aria-expanded="false" aria-controls="staff-command-results"
+      autocomplete="off" maxlength="80" placeholder="Order, guest, room, item, supplier…">
+    <kbd>ESC</kbd>
+  </div>
+  <p id="staff-command-feedback" class="staff-command-feedback" role="status" aria-live="polite">Type two or more characters to search.</p>
+  <div id="staff-command-results" class="staff-command-results" role="listbox" aria-label="Matching workspace records"></div>
+  <footer class="staff-command-footer">
+    <span>↑ ↓ to select · Enter to open</span>
+    <a href="{% url 'staff-search' %}">Open full search</a>
+  </footer>
+</dialog>
+<script src="{% static 'staff/staff-command.js' %}?v=20261016.1" defer></script>
