@@ -50,3 +50,9 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - Added an explicit marker to the existing payment form and supermarket-only browser guard preventing multiple submits while the request is pending. The existing stable payment UUID and server idempotency record remain authoritative; this browser safeguard is secondary. A regression test checks the page and request key.
 - Implemented now: scanner quantity precision guard, cents-based cash change helper, independent scanner/tender initialization, payment duplicate-click guard and existing anonymous retail flow.
 - **F1 remains open**, not yet certified: exact-head CI must pass; scanner burst/replay with real devices, checkout end-to-end across tender types, physical printer/receipt, cashier PIN handoff, two concurrent registers and responsive browser checks require acceptance. Do not claim full completion until these are evidenced.
+
+### F1 phase transition status — 16 October 2026
+
+- **F1 implementation batch complete / moved to F2**, covering the previously coded anonymous cashier lane, scan/PLU and basket actions, existing checkout/payment/receipt flow, holds, cashier workstations, and the latest payment UI double-submit guard. This is a **development-stage transition**, not hardware or production certification.
+- **Release verification remains open:** exact-head GitHub Actions run `38941434214` was still running at transition check; no pass is claimed. Two tills under PostgreSQL concurrency, PIN handoff end-to-end, actual scanner/printer devices, and desktop/mobile browser acceptance have not been witnessed and remain release gates.
+- **Next active delivery batch: F2 — catalog, pricing and fiscal correctness**. F1 checkout follow-ups must remain visible in the original checklist and final release acceptance; do not falsely convert SM-11 or SM-33 to full verification without evidence.
