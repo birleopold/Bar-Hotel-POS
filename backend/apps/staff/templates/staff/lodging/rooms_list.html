@@ -14,6 +14,15 @@
     </div>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
+  <form action="{% url 'staff-lodging-rooms' %}" method="get" class="staff-card mb-3" role="search">
+    <input type="hidden" name="site" value="{{ current_site.pk }}">
+    <label class="staff-label" for="room-directory-search">Find a room in {{ current_site.name }}</label>
+    <div class="d-flex flex-wrap gap-2">
+      <input class="staff-input flex-grow-1" id="room-directory-search" name="q" value="{{ room_search_q }}" maxlength="80"
+        placeholder="Room number or type" style="min-width:12rem">
+      <button type="submit" class="staff-btn staff-btn--primary">Find room</button>
+    </div>
+  </form>
   <h2 class="staff-section-head">Directory</h2>
   <div class="staff-table-wrap">
     <table class="staff-table">
