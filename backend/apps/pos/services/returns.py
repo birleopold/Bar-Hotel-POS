@@ -36,6 +36,19 @@ def refund_retail_line(*, order: Order, line: OrderLine, quantity: Decimal,
         raise ValidationError("Line refunds are only available for retail and supermarket orders.")
     if line.order_id != locked.id:
         raise ValidationError({"line_id": "That line is not on this order."})
+    # A return cannot refund more than the sold line's recorded net amount
+    # and tax, proportioned to the quantity being returned. This uses the
+    # immutable order line snapshot, not today's potentially changed price.
+    # Final total/payment caps continue to be enforced by record_order_refund.
+    line_snapshot = OrderLine.objects.select_for_update().get(pk=line.pk, order_id=locked.pk)
+    remaining_return_value = (
+        (line_snapshot.line_total + line_snapshot.tax_amount)
+        * quantity / line_snapshot.quantity
+    ).quantize(Decimal("0.01"))
+    if amount > remaining_return_value:
+        raise ValidationError({
+            "amount": "Refund exceeds the original amount for the returned quantity."
+        })
     # A replay must verify the physical return as well as the tender refund.
     existing = Refund.objects.filter(tenant_id=locked.tenant_id, idempotency_key=idempotency_key.strip()).first() if idempotency_key else None
     if existing is not None:
