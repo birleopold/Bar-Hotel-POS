@@ -145,3 +145,26 @@ class BatchStockLedgerTests(TestCase):
         self.assertFalse(other.quarantined)
         self.assertEqual(self.balance.quantity, Decimal("8"))
         self.assertEqual(matching.remaining_quantity, Decimal("3"))
+
+    def test_manual_stock_rejects_invalid_quantity_without_posting(self):
+        for invalid in (Decimal("NaN"), Decimal("Infinity"), Decimal("1.0005")):
+            with self.subTest(invalid=str(invalid)):
+                with self.assertRaises(ValidationError):
+                    apply_manual_stock_change(
+                        tenant_id=self.tenant.pk, outlet=self.outlet,
+                        menu_item=self.item, quantity_change=invalid,
+                        reason=StockReason.RECEIVE, user=None,
+                    )
+        self.balance.refresh_from_db()
+        self.assertEqual(self.balance.quantity, Decimal("8"))
+        self.assertFalse(StockMovement.objects.exists())
+
+    def test_manual_stock_rejects_cross_tenant_source_objects(self):
+        other = Tenant.objects.create(name="Other Ledger", slug="other-ledger-scope")
+        with self.assertRaises(ValidationError):
+            apply_manual_stock_change(
+                tenant_id=other.pk, outlet=self.outlet,
+                menu_item=self.item, quantity_change=Decimal("1"),
+                reason=StockReason.RECEIVE, user=None,
+            )
+        self.assertFalse(StockMovement.objects.exists())
