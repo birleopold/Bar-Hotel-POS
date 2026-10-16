@@ -12,7 +12,6 @@ from .models import Customer, LoyaltyLedgerEntry
 
 MANAGER_ROLES = {
     MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
-    MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
 }
 
 
