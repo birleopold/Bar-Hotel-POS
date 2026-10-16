@@ -3,6 +3,49 @@
 {% block content %}
   <header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Customer &amp; guest</p><div class="staff-page-hero__head"><div><h1 class="staff-page-title mb-0">{{ customer.name }}</h1><p class="staff-muted mb-0">{{ customer.email|default:"No email" }} · {{ customer.phone|default:"No phone" }}</p></div><a class="staff-btn staff-btn--secondary" href="{% url 'staff-customers' %}">Directory</a></div></div></header>
   <div class="staff-card mb-3"><h2 class="staff-card__title">Contact &amp; preferences</h2><form method="post">{% csrf_token %}{% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<button class="staff-btn staff-btn--primary" type="submit">Save details</button></form></div>
+  <section class="staff-card mb-3" aria-label="Customer loyalty">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div>
+        <h2 class="staff-card__title">Customer points</h2>
+        <p class="staff-muted mb-0">Recorded points balance; these are not cash or a customer credit balance.</p>
+      </div>
+      <strong style="font-size:1.6rem;font-variant-numeric:tabular-nums">{{ loyalty_balance }} points</strong>
+    </div>
+    <p class="staff-muted small mt-2">Automatic earning and rewards are not enabled yet. Owner-entered adjustments require a reason and cannot make the balance negative.</p>
+    {% if can_adjust_loyalty %}
+    <details class="mt-3"><summary><strong>Adjust customer points</strong></summary>
+      <form class="row g-3 mt-2" method="post">{% csrf_token %}
+        <input type="hidden" name="action" value="loyalty_adjust">
+        <input type="hidden" name="request_key" value="{{ loyalty_request_key }}">
+        <div class="col-12 col-md-3">
+          <label class="staff-label" for="loyalty-adjust-points">Points (+ / −)</label>
+          <input class="staff-input" type="number" id="loyalty-adjust-points" name="points"
+            min="-100000" max="100000" step="1" placeholder="e.g. 100 or -50" required>
+        </div>
+        <div class="col-12 col-md-7">
+          <label class="staff-label" for="loyalty-adjust-reason">Reason for change</label>
+          <textarea class="staff-input" id="loyalty-adjust-reason" name="reason"
+            minlength="12" maxlength="300" rows="2" required
+            placeholder="Explain the original customer reward or correction"></textarea>
+        </div>
+        <div class="col-12 col-md-2 align-self-end"><button class="staff-btn staff-btn--primary" type="submit">Save adjustment</button></div>
+      </form>
+    </details>
+    {% endif %}
+    <h3 class="staff-section-head mt-4">Recent point activity</h3>
+    <div class="staff-table-wrap"><table class="staff-table">
+      <thead><tr><th>Date</th><th>Change</th><th>Why</th><th>Recorded by</th></tr></thead>
+      <tbody>
+        {% for entry in loyalty_entries %}
+        <tr><td>{{ entry.created_at|date:"j M Y H:i" }}</td>
+          <td><strong>{% if entry.points > 0 %}+{% endif %}{{ entry.points }}</strong></td>
+          <td>{{ entry.reason }}</td>
+          <td>{{ entry.recorded_by.email|default:"Former worker" }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="staff-muted">No points have been recorded.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
   <section class="staff-card mb-3" aria-labelledby="customer-finance-heading"><h2 class="staff-card__title" id="customer-finance-heading">Financial summary by currency</h2>
     <p class="staff-muted">Amounts reflect linked transactions in your authorized branches and outlets. Folio-linked POS orders are counted under folio charges, not again as direct sales. No currency conversion is performed.</p>
     {% if financial_snapshot %}
