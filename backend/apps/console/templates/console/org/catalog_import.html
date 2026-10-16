@@ -25,6 +25,7 @@
         {% csrf_token %}
         <label class="staff-label" for="price-update-file">Updated prices CSV</label>
         <input id="price-update-file" class="staff-input" type="file" name="file" accept=".csv,text/csv" required>
+        <label class="d-flex align-items-start gap-2 mt-3"><input type="checkbox" name="confirm_price_changes" value="yes"><span>I reviewed this price sheet and understand that applying it changes current base selling prices.</span></label>
         <div class="d-flex flex-wrap gap-2 mt-2">
           <button class="staff-btn staff-btn--ghost" type="submit" name="action" value="preview_prices">Check price changes</button>
           <button class="staff-btn staff-btn--primary" type="submit" name="action" value="apply_prices">Apply verified prices</button>
