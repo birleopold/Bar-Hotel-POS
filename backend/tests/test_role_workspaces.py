@@ -179,11 +179,28 @@ class RoleWorkspaceTests(TestCase):
         self.assertEqual(response.status_code, 302)
         count = StockCountSession.objects.get(created_by=user)
         detail = reverse("staff-inventory-count-detail", kwargs={"session_id": count.pk})
-        response = self.client.post(detail, {"action": "complete", f"counted_{item.pk}": "7"})
+        response = self.client.post(detail, {"action": "submit", f"counted_{item.pk}": "7"})
+        self.assertEqual(response.status_code, 302)
+        count.refresh_from_db()
+        self.assertEqual(count.status, "review")
+        self.assertEqual(StockBalance.objects.get(outlet=self.outlet, menu_item=item).quantity, Decimal("8"))
+        self.assertEqual(StockMovement.objects.count(), movements)
+        manager_user = get_user_model().objects.create_user(
+            email="stock-approver@test.local", password="Password9!",
+        )
+        manager_membership = Membership.objects.create(
+            tenant=self.tenant, user=manager_user, role=MembershipRole.SITE_MANAGER,
+        )
+        manager_membership.sites.add(self.site)
+        manager_membership.outlets.add(self.outlet)
+        self.login(manager_user)
+        response = self.client.post(detail, {"action": "approve"})
         self.assertEqual(response.status_code, 302)
         count.refresh_from_db()
         self.assertEqual(count.status, "completed")
+        self.assertEqual(count.approved_by_id, manager_user.pk)
         self.assertEqual(StockBalance.objects.get(outlet=self.outlet, menu_item=item).quantity, Decimal("7"))
+        self.login(user)
         hidden = StockCountSession.objects.create(tenant=self.tenant, outlet=self.other_outlet, created_by=user)
         self.assertEqual(self.client.post(reverse("staff-inventory-count-detail", kwargs={"session_id": hidden.pk}), {"action": "cancel"}).status_code, 404)
 

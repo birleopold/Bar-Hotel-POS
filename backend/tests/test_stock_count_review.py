@@ -23,6 +23,8 @@ def test_stock_count_requires_a_different_manager_to_post_and_cannot_replay():
     counter = Membership.objects.create(
         tenant=data["tenant"], user=worker, role=MembershipRole.STOREKEEPER,
     )
+    counter.sites.add(data["site"])
+    counter.outlets.add(data["outlet"])
     manager = Membership.objects.get(tenant=data["tenant"], user=data["user"])
     bal = StockBalance.objects.create(
         tenant=data["tenant"], outlet=data["outlet"], menu_item=data["item"],
