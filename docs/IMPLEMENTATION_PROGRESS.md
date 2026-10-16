@@ -98,3 +98,11 @@ Refresh this ledger from actual GitHub Actions evidence with every delivery chec
 - Research baseline: Shopify's official product CSV guide recommends small test batches, strict CSV formatting and explicit overwrite semantics; all three inform the safe create-only policy until verified update rules are implemented.
 - **SM-P0.2 is not complete:** stable upsert/price-change approvals, 1,000-row UI and performance checks, cross-branch product assignments, precise import history and production PostgreSQL/browser acceptance remain.
 - CI status must be recorded for the **exact head commit**, not from a superseded cancelled run.
+
+## 2026-10-16 — SM-P0.2 catalog operations delivery
+
+- Raised create-only CSV import to **1,000 items / 1 MB** and preserved preview, tenant isolation, SKU/barcode duplication checks, atomicity, and separation of stock from item definitions.
+- Added tenant-scoped owner export of catalog fields and protected spreadsheet text; rejects malformed/truncated input rather than silently creating incomplete records.
+- Added owner-accessible **Bulk base price updates** on the existing Catalog import page: download a current price sheet, edit `new_price`, preview, re-upload and apply. SKU and `old_price` must match current data; ambiguous duplicate SKUs or stale values reject the whole batch. One atomic transaction updates prices and writes a before/after audit event without rewriting receipts or stock.
+- Added regression tests for large batches, malformed CSV, protected export, stale and cross-tenant price rows, duplicate SKUs, unchanged stock, and auditable price changes. **Exact-head CI is not yet certified** and production PostgreSQL/browser/data-volume tests remain required.
+- Baseline research: Shopify official guidance on CSV overwrite risks and test imports, plus Odoo official barcode and item configuration references. No automatic cost/stock edits or product deletions were introduced.
