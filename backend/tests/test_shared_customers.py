@@ -57,7 +57,7 @@ class SharedCustomerTests(TestCase):
         merged, counts = merge_customers(source=source, target=target, tenant_id=self.tenant.pk,
             user=self.user, reason="Identity confirmed by customer")
         self.assertEqual(merged.pk, target.pk)
-        self.assertEqual(counts, {"reservations": 1, "folios": 1, "orders": 1, "events": 1})
+        self.assertEqual(counts, {"reservations": 1, "folios": 1, "orders": 1, "events": 1, "loyalty_entries": 0})
         source.refresh_from_db(); reservation.refresh_from_db(); folio.refresh_from_db(); order.refresh_from_db(); booking.refresh_from_db()
         self.assertEqual(source.merged_into_id, target.pk)
         self.assertEqual({reservation.customer_id, folio.customer_id, order.customer_id, booking.customer_id}, {target.pk})

@@ -1,7 +1,7 @@
-"""Conservative loyalty foundation: immutable source-ledger and safe balance checks.
+"""Optional tenant loyalty program with audited sale awards and refund reversals.
 
-No automatic points on sale or customer discounts until rate, currency,
-redemption and refund policies are explicitly configured for a tenant.
+Redemption is not enabled until rewards have a defined monetary/benefit policy.
+Refunds must remain possible even if points were already spent elsewhere.
 """
 from decimal import Decimal, ROUND_FLOOR
 from django.db import transaction

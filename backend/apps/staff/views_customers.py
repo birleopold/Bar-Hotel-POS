@@ -12,6 +12,7 @@ from rest_framework.exceptions import ValidationError
 from apps.accounts.models import MembershipRole
 from apps.audit.services import log_audit
 from apps.customers.models import Customer, LoyaltyLedgerEntry
+from apps.tenants.models import TenantSettings
 from apps.customers.loyalty import adjust_points, points_balance
 from apps.customers.services import merge_customers
 from apps.events.models import EventBooking
@@ -86,6 +87,9 @@ class StaffCustomerDetailView(CustomerAccessMixin, TemplateView):
         site_ids = [site.pk for site in sites_visible_for_membership(membership)]
         outlet_ids = [outlet.pk for outlet in staff_accessible_outlets(membership)]
         ctx["customer"] = customer
+        ctx["loyalty_policy"] = TenantSettings.objects.filter(
+            tenant=self.request.tenant,
+        ).only("loyalty_enabled", "loyalty_spend_per_point", "default_currency").first()
         ctx["loyalty_balance"] = points_balance(tenant=self.request.tenant, customer=customer)
         ctx["loyalty_entries"] = LoyaltyLedgerEntry.objects.filter(
             tenant=self.request.tenant, customer=customer,

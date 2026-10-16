@@ -825,6 +825,17 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     return redirect("staff-order-detail", order_id=order.id)
             before = str(order.customer_id) if order.customer_id else None
             if order.customer_id != customer_id:
+                from apps.customers.models import LoyaltyLedgerEntry
+                if LoyaltyLedgerEntry.objects.filter(
+                    tenant_id=order.tenant_id,
+                    source_type="sale", source_key=str(order.pk),
+                ).exists():
+                    messages.error(
+                        request,
+                        "This sale has earned customer points. Its customer cannot be relinked directly; "
+                        "review the original transaction or use the verified customer merge."
+                    )
+                    return redirect("staff-order-detail", order_id=order.pk)
                 order.customer = customer
                 order.save(update_fields=["customer", "updated_at"])
                 log_audit(tenant_id=order.tenant_id, user_id=request.user.pk, action="order.customer_link_changed",

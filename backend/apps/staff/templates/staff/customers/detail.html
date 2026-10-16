@@ -7,11 +7,22 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
       <div>
         <h2 class="staff-card__title">Customer points</h2>
-        <p class="staff-muted mb-0">Recorded points balance; these are not cash or a customer credit balance.</p>
+        <p class="staff-muted mb-0">Recorded reward points, separate from money or customer credit.</p>
       </div>
       <strong style="font-size:1.6rem;font-variant-numeric:tabular-nums">{{ loyalty_balance }} points</strong>
     </div>
-    <p class="staff-muted small mt-2">Automatic earning and rewards are not enabled yet. Owner-entered adjustments require a reason and cannot make the balance negative.</p>
+    {% if loyalty_balance < 0 %}
+      <p class="staff-muted mt-2"><strong>Points to recover:</strong> {{ loyalty_balance }}. A refund reversed points earned on the original sale; the customer has no points available to redeem until the balance becomes positive. The refund itself is not blocked.</p>
+    {% endif %}
+    {% if loyalty_policy and loyalty_policy.loyalty_enabled %}
+      <p class="staff-muted small mt-2">Earning is active: each {{ loyalty_policy.default_currency }} {{ loyalty_policy.loyalty_spend_per_point }} of eligible, discount-adjusted spending before tax earns 1 whole point when a linked POS order is fully paid. Earlier orders are not awarded retrospectively.</p>
+    {% else %}
+      <p class="staff-muted small mt-2">Automatic earning is switched off for this workspace. Previously earned points and refund corrections remain recorded.</p>
+    {% endif %}
+    <p class="staff-muted small mt-2">Reward checkout/redemption rules are not yet enabled. Only owners and administrators may make manual corrections, with a reason and transaction history.</p>
+    {% if can_adjust_loyalty %}
+      <a class="staff-btn staff-btn--ghost staff-btn--sm" href="{% url 'staff-workspace-branding' %}#loyalty-settings">Set earning rules</a>
+    {% endif %}
     {% if can_adjust_loyalty %}
     <details class="mt-3"><summary><strong>Adjust customer points</strong></summary>
       <form class="row g-3 mt-2" method="post">{% csrf_token %}
