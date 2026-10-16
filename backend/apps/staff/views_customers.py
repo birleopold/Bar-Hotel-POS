@@ -121,8 +121,18 @@ class StaffCustomerCreateView(CustomerAccessMixin, TemplateView):
         customer.save()
         log_audit(tenant_id=request.tenant.pk, user_id=request.user.pk, action="customer.created",
             entity_type="customer", entity_id=str(customer.pk), payload={"name": customer.name})
-        messages.success(request, "Customer created. Link an existing stay, booking or order only after confirming identity.")
-        return redirect("staff-customer-detail", customer_id=customer.pk)
+        if visible_customers(request.tenant_membership, request.user).filter(pk=customer.pk).exists():
+            messages.success(request, "Customer created. Link an existing stay, booking or order only after confirming identity.")
+            return redirect("staff-customer-detail", customer_id=customer.pk)
+        # Restricted workers cannot read unlinked profiles from other scopes,
+        # including profiles they just created. Never redirect to a forbidden
+        # detail page or temporarily widen directory permissions.
+        messages.success(
+            request,
+            "Customer created. Ask an authorized manager to link this profile "
+            "to a stay, booking or order before opening it here.",
+        )
+        return redirect("staff-customers")
 
 
 class StaffCustomerDetailView(CustomerAccessMixin, TemplateView):
