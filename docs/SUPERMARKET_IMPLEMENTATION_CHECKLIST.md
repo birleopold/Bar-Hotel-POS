@@ -53,7 +53,7 @@
 | SM-35 | [ ] | Loss-prevention reports | manager exceptions and refund events exist | Suspicious refunds, repeated voids, no-sale drawer opens, price overrides, shrink heat map and actionable audit | 03, 18, 22 |
 | SM-36 | [ ] | Stock receiving invoice matching and electronic supplier documents | PO invoice/receipt basis | Three-way match PO–GRN–invoice, discrepancy approvals, duplicate supplier invoice protection and credit notes | 09, 32 |
 
-**Current inventory (code-evidence only):** 10 existing foundations `[x]`, 15 partial `[-]`, 11 not evidenced `[ ]` (36 items). This does **not** mean 10 workflows passed physical/browser certification. Refresh counts whenever a checkbox changes.
+**Current inventory (code-evidence only):** 10 existing foundations `[x]`, 13 partial `[-]`, 13 not evidenced `[ ]` (36 items). This does **not** mean 10 workflows passed physical/browser certification. Refresh counts whenever a checkbox changes.
 
 ## Supermarket priority and implementation order
 
