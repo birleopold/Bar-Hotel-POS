@@ -57,6 +57,13 @@
   {% endif %}
   <div class="staff-nav__meta">
     {% if user.is_authenticated and staff_nav %}
+      <a href="{% url 'staff-notifications' %}" class="staff-command-launch"
+        {% if request.resolver_match.url_name == 'staff-notifications' %}aria-current="page"{% endif %}>
+        <i class="bi bi-bell" aria-hidden="true"></i><span>Alerts</span>
+        {% if staff_notification_unread %}
+          <strong aria-label="{{ staff_notification_unread }} unread alerts">{{ staff_notification_unread }}</strong>
+        {% endif %}
+      </a>
       <button type="button" class="staff-command-launch" data-staff-command-open
         data-search-url="{% url 'staff-search' %}" aria-controls="staff-command-dialog"
         aria-haspopup="dialog" title="Search workspace (Ctrl+K)">
