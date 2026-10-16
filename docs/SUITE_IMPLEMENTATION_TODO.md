@@ -570,3 +570,9 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - This makes duplicate-contact review more consistent for **new or updated staff-entered** customers. Existing database records are deliberately not rewritten, preserving historical contact identity and transaction snapshots.
 - Added tests for Ugandan local/international-style numbers, optional contact, and invalid input. No contact-based automatic merge is performed.
 - Phase 05 remains **in progress** pending historic phone-matching review, scoped end-user create/link flows and full certification. Follow-on commits must pass fresh CI.
+
+### 2026-10-16 — Phase 05 edit-time duplicate identity protection
+
+- Extended the same scoped duplicate-contact check to edits of existing customer profiles. When an employee changes email or phone, conflicting visible active identities are rejected with a clear form error, without altering either record; cross-branch records outside their scope are not disclosed.
+- Added an end-to-end regression covering rejection, case-insensitive email matching and preservation of stored contact details. No automatic merge or historical correction occurs.
+- Phase 05 is still in progress. CI and full browser/PostgreSQL workflow evidence are required before marking it complete.
