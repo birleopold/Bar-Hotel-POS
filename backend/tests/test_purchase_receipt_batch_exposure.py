@@ -118,3 +118,59 @@ class GroceryReceivingServicePreflightTests(TestCase):
                 lines_payload=[{"line_id": line.pk, "quantity": "1"}],
             )
         self.assertFalse(PurchaseReceipt.objects.filter(purchase_order=po).exists())
+
+
+    def test_partial_delivery_audited_and_duplicate_supplier_reference_blocked(self):
+        from apps.accounts.models import Membership, MembershipRole, User
+        from apps.audit.models import AuditEvent
+        from apps.inventory.models import StockBalance
+        from apps.purchasing.models import PurchaseReceipt
+        from apps.purchasing.services import receive_purchase_order_goods
+        from rest_framework.exceptions import ValidationError
+
+        tenant = Tenant.objects.create(name="Grocery Delivery Audit", slug="grocery-delivery-audit")
+        site = Site.objects.create(tenant=tenant, name="Store")
+        outlet = Outlet.objects.create(site=site, name="Receiving", outlet_type=OutletType.SUPERMARKET)
+        category = MenuCategory.objects.create(tenant=tenant, name="Food")
+        item = MenuItem.objects.create(
+            tenant=tenant, category=category, name="Flour",
+            unit_price=Decimal("3200"), track_inventory=True,
+        )
+        supplier = Supplier.objects.create(tenant=tenant, name="Mill")
+        po = PurchaseOrder.objects.create(
+            tenant=tenant, supplier=supplier, outlet=outlet, status=PurchaseOrderStatus.SENT,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=item, quantity_ordered=Decimal("20"),
+            unit_cost=Decimal("2000"),
+        )
+        user = User.objects.create_user(email="delivery-audit@example.test", password="TestPass9!")
+        membership = Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+        receive_purchase_order_goods(
+            po=po, membership=membership, user=user,
+            delivery_reference=" Truck-001 ", discrepancy_note="12 units still with supplier",
+            lines_payload=[{"line_id": line.pk, "quantity": "8"}],
+        )
+        receipt = PurchaseReceipt.objects.get(purchase_order=po)
+        self.assertEqual(receipt.delivery_reference, "Truck-001")
+        self.assertEqual(receipt.discrepancy_note, "12 units still with supplier")
+        self.assertEqual(
+            StockBalance.objects.get(outlet=outlet, menu_item=item).quantity,
+            Decimal("8"),
+        )
+        audit = AuditEvent.objects.get(
+            tenant=tenant, action="purchase.goods_received",
+            entity_id=str(receipt.pk),
+        )
+        self.assertEqual(audit.payload["lines"][0]["quantity_received"], "8")
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po, membership=membership, user=user,
+                delivery_reference="truck-001",
+                lines_payload=[{"line_id": line.pk, "quantity": "1"}],
+            )
+        self.assertEqual(PurchaseReceipt.objects.filter(purchase_order=po).count(), 1)
+        self.assertEqual(
+            StockBalance.objects.get(outlet=outlet, menu_item=item).quantity,
+            Decimal("8"),
+        )
