@@ -56,3 +56,8 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - **F1 implementation batch complete / moved to F2**, covering the previously coded anonymous cashier lane, scan/PLU and basket actions, existing checkout/payment/receipt flow, holds, cashier workstations, and the latest payment UI double-submit guard. This is a **development-stage transition**, not hardware or production certification.
 - **Release verification remains open:** exact-head GitHub Actions run `38941434214` was still running at transition check; no pass is claimed. Two tills under PostgreSQL concurrency, PIN handoff end-to-end, actual scanner/printer devices, and desktop/mobile browser acceptance have not been witnessed and remain release gates.
 - **Next active delivery batch: F2 — catalog, pricing and fiscal correctness**. F1 checkout follow-ups must remain visible in the original checklist and final release acceptance; do not falsely convert SM-11 or SM-33 to full verification without evidence.
+
+### F2 start — owner bulk-price safeguard
+
+- An explicit checkbox is now required both in the catalog import UI and server-side before applying bulk base-price changes. Preview and catalog creation do not require this confirmation; stale-price, tenant-scope, SKU uniqueness and audit validations remain in force.
+- Added a regression check for both the visible confirmation control and backend enforcement. **F2 is active and not yet complete**: fiscal receipt calculations, tax/refund precision, labels and complete catalog UX remain subject to tests and acceptance.
