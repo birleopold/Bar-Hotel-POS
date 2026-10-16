@@ -47,7 +47,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 - [-] **18 Executive analytics:** today/yesterday/week/month/custom, revenue, gross profit/cost quality, transactions/basket, occupancy/RevPAR, refunds/discounts/variance, top items, low stock, supplier payables and guest folios; group → branch → outlet → register → employee → transaction drilldown.
 - [-] **19 Scheduled owner reports:** configurable daily/weekly/monthly timezone schedules, email and PDF, scoped recipients, retry/deduplication and delivery history; optional messaging only after supported integration exists.
 - [-] **20 Capability permissions:** extend existing policy layer with sale/discount/refund/void/reopen, inventory view/adjust/transfer, check-in/rate override, finance view/expense and staff manage; role presets, UI/service/API parity.
-- [ ] **21 Approval workflows:** request → authorized manager PIN → exact action → audit for discounts/refunds/voids/write-offs/reopens/settled changes/withdrawals/price overrides; expiry, scoped approver, replay and segregation rules.
+- [-] **21 Approval workflows:** request → authorized manager PIN → exact action → audit for discounts/refunds/voids/write-offs/reopens/settled changes/withdrawals/price overrides; expiry, scoped approver, replay and segregation rules.
 - [-] **22 Owner-readable audit:** actor/time/action/value/before→after/reason/approver and linked entity; filter/export, scoped visibility, sensitive-data redaction.
 - [-] **23 UI density:** accessible Floor touch controls and Office dense tables using shared tokens; persisted preference; responsive widths, focus, scroll and touch target evidence.
 - [-] **24 Command palette:** Ctrl/Cmd+K, keyboard navigation, authorized actions and entity lookup; order, reservation, guest/customer, stock, supplier/PO, room, employee and receipt.
@@ -525,3 +525,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Added a responsive server-rendered report section with useful zero-data and invalid-date states. Report uses management's role and outlet access restrictions.
 - Added a regression test for manager access, invalid report windows, empty data and denial to non-manager. These new commits require fresh CI evidence.
 - Phase 18 moves from **pending** to **in progress**. Still missing: occupancy/RevPAR, verified cost and margin, supplier balances/folios, arbitrary drill-down to register/employee/transaction, data currency separation, and complete browser/PostgreSQL certification. Do not mark this phase complete.
+
+### 2026-10-16 — Phase 21 first manager action-eligibility enforcement
+
+- Added a shared, fail-closed role-eligibility policy for named sensitive actions (refund, retail-line refund, discount, void, reopen, inventory write-off, price override and cash withdrawal), reusing existing manager roles and the current refund permission wrapper. Applied the action-specific check in retail-line refund handling.
+- Added tests for inactive actors, disallowed roles, unsupported actions, and existing refund authority compatibility.
+- **This is not an approval workflow**: request creation, a different authorized manager's PIN, single-use exact-action token, expiry, replay safety, segregation and immutable approval audit are *not implemented yet*. Do not imply any named action is manager-PIN approved merely because its role is listed.
+- Phase 21 advances from **pending to in progress**, not complete. The new commits require their own CI confirmation. Prior Phase 18 CI was still running when last checked.
