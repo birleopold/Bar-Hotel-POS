@@ -6,7 +6,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.db.models import F
+from django.db.models import F, Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.views.generic import DetailView, FormView, ListView, TemplateView
@@ -105,6 +105,13 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
                 menu_item__track_inventory=True,
                 menu_item__reorder_level__isnull=False,
             ).filter(quantity__lte=F("menu_item__reorder_level"))
+        query = self.request.GET.get("q", "").strip()[:80]
+        if query:
+            qs = qs.filter(
+                Q(menu_item__name__icontains=query)
+                | Q(menu_item__sku__icontains=query)
+                | Q(menu_item__barcode__icontains=query)
+            )
         return qs
 
     def get_context_data(self, **kwargs):
@@ -113,6 +120,7 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["low_stock"] = self.request.GET.get("low_stock", "").lower() in ("1", "true", "yes")
+        ctx["stock_q"] = self.request.GET.get("q", "").strip()[:80]
         ctx["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
         return ctx
 
