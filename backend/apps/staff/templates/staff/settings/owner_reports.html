@@ -1,0 +1,111 @@
+{% extends "staff/base.html" %}
+{% block title %}Scheduled owner reports{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Management · Reports</p>
+    <h1 class="staff-page-title">Scheduled owner reports</h1>
+    <p>Choose when approved owners receive the sales overview by email. Every message includes a PDF summary and CSV attachment.</p>
+  </div>
+</header>
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="staff-btn staff-btn--ghost" href="{% url 'staff-sales' %}">Back to sales</a>
+  <a class="staff-btn staff-btn--ghost" href="?preview=pdf">Download example PDF</a>
+  <a class="staff-btn staff-btn--ghost" href="?preview=csv">Download example CSV</a>
+</div>
+<div class="row g-3">
+  <div class="col-12 col-xl-7">
+    <section class="staff-card">
+      <h2 class="staff-section-head">Email preferences</h2>
+      <p class="staff-muted">Reports are off until you enable them. Only active owners and administrators can receive business totals, and this page requires an account password rather than a shared till PIN.</p>
+      {% if form.non_field_errors %}
+        <div class="staff-alert staff-alert--warning" role="alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <form method="post" class="row g-3">
+        {% csrf_token %}
+        <div class="col-12">
+          <div class="form-check">
+            {{ form.is_enabled }}
+            <label class="form-check-label" for="{{ form.is_enabled.id_for_label }}">Send these reports automatically</label>
+          </div>
+          {% if form.is_enabled.errors %}<p class="staff-field-error">{{ form.is_enabled.errors }}</p>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="staff-label" for="{{ form.site.id_for_label }}">Business location</label>
+          {{ form.site }}
+          {% if form.site.errors %}<p class="staff-field-error">{{ form.site.errors }}</p>{% endif %}
+          <p class="staff-muted small">One property uses its local operating-day boundaries; all sections uses UTC calendar dates.</p>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="staff-label" for="{{ form.frequency.id_for_label }}">How often?</label>
+          {{ form.frequency }}
+          {% if form.frequency.errors %}<p class="staff-field-error">{{ form.frequency.errors }}</p>{% endif %}
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="staff-label" for="{{ form.local_send_hour.id_for_label }}">Send hour (0–23)</label>
+          {{ form.local_send_hour }}
+          <p class="staff-muted small">Local business/property timezone, 24-hour clock.</p>
+          {% if form.local_send_hour.errors %}<p class="staff-field-error">{{ form.local_send_hour.errors }}</p>{% endif %}
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="staff-label" for="{{ form.send_weekday.id_for_label }}">Weekly day (0–6)</label>
+          {{ form.send_weekday }}
+          <p class="staff-muted small">0 = Monday, 6 = Sunday. Used only for weekly reports.</p>
+          {% if form.send_weekday.errors %}<p class="staff-field-error">{{ form.send_weekday.errors }}</p>{% endif %}
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="staff-label" for="{{ form.send_monthday.id_for_label }}">Monthly delivery date</label>
+          {{ form.send_monthday }}
+          <p class="staff-muted small">1–28. Used only for monthly reports.</p>
+          {% if form.send_monthday.errors %}<p class="staff-field-error">{{ form.send_monthday.errors }}</p>{% endif %}
+        </div>
+        <div class="col-12">
+          <fieldset>
+            <legend class="staff-label">Recipients</legend>
+            {% if form.recipients.field.queryset.exists %}
+              <div class="d-grid gap-2">{{ form.recipients }}</div>
+              {% if form.recipients.errors %}<p class="staff-field-error">{{ form.recipients.errors }}</p>{% endif %}
+            {% else %}
+              <p class="staff-muted">Invite an owner or administrator before enabling automatic reports.</p>
+            {% endif %}
+          </fieldset>
+        </div>
+        <div class="col-12">
+          <button class="staff-btn staff-btn--primary" type="submit">Save schedule</button>
+        </div>
+      </form>
+    </section>
+  </div>
+  <div class="col-12 col-xl-5">
+    <section class="staff-card mb-3">
+      <h2 class="staff-section-head">How reports work</h2>
+      <p>Daily reports cover the previous local date. Weekly reports cover the previous seven days. Monthly reports cover the previous calendar month.</p>
+      <p class="staff-muted">The scheduler checks every hour. It keeps one record for each scheduled period and retries recorded failures up to three times. If email acceptance is uncertain, a separate administrator should check the mail system before any manual resend.</p>
+      <p class="staff-muted mb-0">The PDF and CSV summarize recorded payments and refunds; neither confirms cash drawer balances, bank settlement, Uganda tax filings, or stock valuation.</p>
+    </section>
+    <section class="staff-card">
+      <h2 class="staff-section-head">Recent deliveries</h2>
+      <div class="staff-table-wrap">
+        <table class="staff-table">
+          <thead><tr><th>Period</th><th>Status</th><th>Attempts</th></tr></thead>
+          <tbody>
+            {% for delivery in history %}
+              <tr>
+                <td>{{ delivery.period_start }}–{{ delivery.period_end }}
+                  <div class="staff-muted small">{{ delivery.created_at|date:"j M Y, H:i" }}</div>
+                  {% if delivery.error_message %}<details><summary>Delivery error</summary>{{ delivery.error_message }}</details>{% endif %}
+                </td>
+                <td>{{ delivery.get_status_display }}</td>
+                <td>{{ delivery.attempts }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="staff-muted">No report emails have been recorded. Reports stay disabled until enabled here.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
