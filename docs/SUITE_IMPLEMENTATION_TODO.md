@@ -603,3 +603,11 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Linked visible customer folio history directly to the existing guest folio page; customers' per-currency financial summaries now show direct paid sales, refunds, and net receipts separately without re-counting folio-linked POS.
 - Documented safe merging, contact normalization, financial classification, retention and privacy procedures in `docs/CUSTOMER_IDENTITY_POLICY.md`. No automatic data erasure, credit issuance, tax invoice creation, cross-tenant disclosure or financial backfill has been introduced.
 - This is a **Phase 05 implementation closeout candidate**, not yet certified. Mark `[x]` only after the exact head SHA passes checks and the defined local functional workflows are verified. Browser, PostgreSQL isolation and actual customer privacy/legal sign-off remain independent external gates.
+
+
+### 2026-10-16 — F3 reviewed stock counts (software checkpoint)
+
+- Reused the existing count sessions and stock ledger. Storekeepers record physical quantities, skip uncounted items, and submit immutable audit snapshots for a different manager to approve or return with a reason. Posting rejects changed or net-zero-moved stock instead of overwriting intervening sales, receipts or transfers. A separate approval queue is accessible through the inventory UI and API.
+- The existing direct completion domain service is now manager-only, with a regression test proving an authorized storekeeper cannot bypass approval. No duplicate stock ledger or new sale/customer/table dependency was introduced.
+- Exact prior green source checkpoint: ed449b03359a0a2f2f2a0062c94bad3f46494a46 — https://github.com/birleopold/Bar-Hotel-POS/actions/runs/38956165341 — 592 passed, 5 skipped, 20 subtests; Django checks and migration-drift checks passed. This final permission guard/documentation commit requires its own CI.
+- F3, Phase 07 and Phase 08 stay IN PROGRESS: carton/unit conversions, in-transit transfers, original-lot reconciliation, PostgreSQL two-till races, mobile/browser workflows and physical devices remain unverified.

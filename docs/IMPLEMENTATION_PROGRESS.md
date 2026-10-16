@@ -106,3 +106,11 @@ Refresh this ledger from actual GitHub Actions evidence with every delivery chec
 - Added owner-accessible **Bulk base price updates** on the existing Catalog import page: download a current price sheet, edit `new_price`, preview, re-upload and apply. SKU and `old_price` must match current data; ambiguous duplicate SKUs or stale values reject the whole batch. One atomic transaction updates prices and writes a before/after audit event without rewriting receipts or stock.
 - Added regression tests for large batches, malformed CSV, protected export, stale and cross-tenant price rows, duplicate SKUs, unchanged stock, and auditable price changes. **Exact-head CI is not yet certified** and production PostgreSQL/browser/data-volume tests remain required.
 - Baseline research: Shopify official guidance on CSV overwrite risks and test imports, plus Odoo official barcode and item configuration references. No automatic cost/stock edits or product deletions were introduced.
+
+
+### 2026-10-16 — F3 reviewed stock counts (software checkpoint)
+
+- Reused the existing count sessions and stock ledger. Storekeepers record physical quantities, skip uncounted items, and submit immutable audit snapshots for a different manager to approve or return with a reason. Posting rejects changed or net-zero-moved stock instead of overwriting intervening sales, receipts or transfers. A separate approval queue is accessible through the inventory UI and API.
+- The existing direct completion domain service is now manager-only, with a regression test proving an authorized storekeeper cannot bypass approval. No duplicate stock ledger or new sale/customer/table dependency was introduced.
+- Exact prior green source checkpoint: ed449b03359a0a2f2f2a0062c94bad3f46494a46 — https://github.com/birleopold/Bar-Hotel-POS/actions/runs/38956165341 — 592 passed, 5 skipped, 20 subtests; Django checks and migration-drift checks passed. This final permission guard/documentation commit requires its own CI.
+- F3, Phase 07 and Phase 08 stay IN PROGRESS: carton/unit conversions, in-transit transfers, original-lot reconciliation, PostgreSQL two-till races, mobile/browser workflows and physical devices remain unverified.

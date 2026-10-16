@@ -380,7 +380,11 @@ def complete_stock_count_session(
     user,
     membership: Membership,
 ) -> StockCountSession:
+    from apps.staff.services.permissions import membership_has_inventory_capability
+
     session = StockCountSession.objects.select_for_update().get(pk=session.pk)
+    if not membership_has_inventory_capability(membership, "approve_count"):
+        raise ValidationError("Only an authorized manager can finalize stock count adjustments.")
     if session.status != StockCountStatus.DRAFT:
         raise ValidationError("Only draft sessions can be completed.")
     if not outlet_belongs_to_membership(membership, session.outlet_id):

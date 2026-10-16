@@ -142,3 +142,39 @@ def test_net_zero_stock_movements_still_invalidate_review_snapshot():
     assert not StockMovement.objects.filter(
         tenant=data["tenant"], reason=StockReason.PHYSICAL_COUNT,
     ).exists()
+
+
+
+@pytest.mark.django_db
+def test_storekeeper_cannot_bypass_review_using_direct_completion_service():
+    from apps.inventory.services import complete_stock_count_session
+    data = _seed_tenant_bundle(
+        name="Count Approval Guard", slug="count-approval-guard",
+        user_email="count-approval-guard@example.test",
+    )
+    counter_user = get_user_model().objects.create_user(
+        email="guard-counter@example.test", password="TestPassword99!",
+    )
+    counter = Membership.objects.create(
+        tenant=data["tenant"], user=counter_user, role=MembershipRole.STOREKEEPER,
+    )
+    counter.sites.add(data["site"])
+    counter.outlets.add(data["outlet"])
+    balance = StockBalance.objects.create(
+        tenant=data["tenant"], outlet=data["outlet"], menu_item=data["item"],
+        quantity=Decimal("6"),
+    )
+    session = StockCountSession.objects.create(
+        tenant=data["tenant"], outlet=data["outlet"], created_by=counter_user,
+    )
+    with pytest.raises(ValidationError, match="authorized manager"):
+        complete_stock_count_session(
+            session=session, user=counter_user, membership=counter,
+            resolved_lines=[{"menu_item": data["item"], "counted_quantity": "1"}],
+        )
+    balance.refresh_from_db()
+    session.refresh_from_db()
+    assert balance.quantity == Decimal("6")
+    assert session.status == StockCountStatus.DRAFT
+    assert not session.lines.exists()
+    assert not StockMovement.objects.filter(tenant=data["tenant"]).exists()

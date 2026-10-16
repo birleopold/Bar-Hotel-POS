@@ -84,3 +84,11 @@ Do not change tests only to make green. Understand intended business behavior, f
 ## Handback reporting
 
 After each coherent batch: commit to origin main (no force push); record exact SHA, touched workflow, source/test evidence, what remains, and any failed or unavailable certification gate. Commit the phase checklist changes. Do not state a phase is complete just because files or tests were authored.
+
+
+### 2026-10-16 — F3 reviewed stock counts (software checkpoint)
+
+- Reused the existing count sessions and stock ledger. Storekeepers record physical quantities, skip uncounted items, and submit immutable audit snapshots for a different manager to approve or return with a reason. Posting rejects changed or net-zero-moved stock instead of overwriting intervening sales, receipts or transfers. A separate approval queue is accessible through the inventory UI and API.
+- The existing direct completion domain service is now manager-only, with a regression test proving an authorized storekeeper cannot bypass approval. No duplicate stock ledger or new sale/customer/table dependency was introduced.
+- Exact prior green source checkpoint: ed449b03359a0a2f2f2a0062c94bad3f46494a46 — https://github.com/birleopold/Bar-Hotel-POS/actions/runs/38956165341 — 592 passed, 5 skipped, 20 subtests; Django checks and migration-drift checks passed. This final permission guard/documentation commit requires its own CI.
+- F3, Phase 07 and Phase 08 stay IN PROGRESS: carton/unit conversions, in-transit transfers, original-lot reconciliation, PostgreSQL two-till races, mobile/browser workflows and physical devices remain unverified.
