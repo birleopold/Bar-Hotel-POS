@@ -304,6 +304,11 @@ def process_offline_queue_entry(
     obj.payload = payload
     obj.status = OfflineQueueStatus.PENDING
     obj.error_message = ""
+    # Reopening an allowed stale-catalog retry invalidates any earlier
+    # manager assessment. A new failure must be reviewed on its own merits.
+    obj.review_note = ""
+    obj.reviewed_at = None
+    obj.reviewed_by = None
     obj.save(
         update_fields=[
             "outlet",
@@ -311,6 +316,9 @@ def process_offline_queue_entry(
             "payload",
             "status",
             "error_message",
+            "review_note",
+            "reviewed_at",
+            "reviewed_by",
             "updated_at",
         ]
     )
