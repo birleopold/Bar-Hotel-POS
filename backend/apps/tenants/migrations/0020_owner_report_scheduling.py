@@ -28,13 +28,13 @@ class Migration(migrations.Migration):
                     ],
                 )),
                 ("send_weekday", models.PositiveSmallIntegerField(
-                    default=0, validators=[
+                    default=0, help_text="Monday=0 through Sunday=6.", validators=[
                         django.core.validators.MinValueValidator(0),
                         django.core.validators.MaxValueValidator(6),
                     ],
                 )),
                 ("send_monthday", models.PositiveSmallIntegerField(
-                    default=1, validators=[
+                    default=1, help_text="Use days 1–28, supported in all calendar months.", validators=[
                         django.core.validators.MinValueValidator(1),
                         django.core.validators.MaxValueValidator(28),
                     ],
@@ -46,6 +46,7 @@ class Migration(migrations.Migration):
                 ("site", models.ForeignKey(
                     to="tenants.site", on_delete=django.db.models.deletion.PROTECT,
                     null=True, blank=True, related_name="owner_report_schedules",
+                    help_text="Optional single-property operating-date scope. Blank is a UTC-calendar tenant report.",
                 )),
                 ("recipients", models.ManyToManyField(
                     to="accounts.membership", blank=True,
