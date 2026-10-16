@@ -51,7 +51,7 @@
 <button id="hardware-scan-clear" class="staff-btn staff-btn--ghost mt-2" type="button">Clear scan</button>
 <p id="hardware-scan-feedback" class="staff-muted mt-2" role="status" aria-live="polite">No test barcode received.</p>
 </section>
-{% if staff_nav.kitchen %}
+{% if has_kitchen %}
 <section class="staff-card hardware-check-card">
 <h2 class="staff-section-head">Kitchen printer / display</h2>
 <p><strong>Kitchen printer:</strong> {{ station.kitchen_printer|default:"Not configured" }}</p>
@@ -80,6 +80,64 @@
 <p>CHECK PRINT ALIGNMENT</p>
 <p>NOT A SALE / NOT A TAX INVOICE</p>
 </div>
+{% if can_record_check %}
+<section class="staff-card my-4">
+  <h2 class="staff-section-head">Record an observed equipment check</h2>
+  <p>Use the browser print or scanner controls above, or inspect locally installed equipment. This form records only what you observed; it does not trigger a printer, drawer or scale command.</p>
+  <form method="post" class="row g-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="record_hardware_check">
+    <div class="col-12 col-md-4">
+      <label class="staff-label" for="device-check-type">Equipment</label>
+      <select class="staff-input" name="test_type" id="device-check-type" required>
+        <option value="receipt_printer">Receipt printer</option>
+        <option value="barcode_scanner">Barcode scanner</option>
+        {% if has_kitchen %}<option value="kitchen_display">Kitchen printer/display</option>{% endif %}
+        <option value="cash_drawer">Cash drawer</option>
+        <option value="weighing_scale">Weighing scale</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-4">
+      <label class="staff-label" for="device-check-result">What did you observe?</label>
+      <select class="staff-input" name="result" id="device-check-result" required>
+        <option value="not_tested">Not tested</option>
+        <option value="pass">Working when checked</option>
+        <option value="fail">A problem was observed</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-4">
+      <label class="staff-label" for="device-check-note">Evidence or problem (required for failures)</label>
+      <textarea class="staff-input" id="device-check-note" name="note" maxlength="500" rows="2"
+        placeholder="For example: test barcode scanned successfully"></textarea>
+    </div>
+    <div class="col-12"><button type="submit" class="staff-btn staff-btn--primary">Save observed check</button></div>
+  </form>
+</section>
+{% elif can_manage %}
+<section class="staff-card my-4">
+  <p class="staff-muted mb-0">To record equipment checks, sign in with your administrator account password rather than a shared terminal PIN.</p>
+</section>
+{% endif %}
+<section class="staff-card my-4">
+  <h2 class="staff-section-head">Recent observed checks</h2>
+  <p class="staff-muted small">These are staff-reported observations, not independent hardware diagnostics or proof of an automatic print driver.</p>
+  <div class="staff-table-wrap"><table class="staff-table">
+    <thead><tr><th>Recorded</th><th>Equipment</th><th>Observed outcome</th><th>Operator</th><th>Notes</th></tr></thead>
+    <tbody>
+      {% for check in check_history %}
+      <tr>
+        <td>{{ check.created_at|date:"j M Y, H:i" }}</td>
+        <td>{{ check.get_test_type_display }}{% if check.configured_device %}<div class="staff-muted small">{{ check.configured_device }}</div>{% endif %}</td>
+        <td>{{ check.get_result_display }}</td>
+        <td>{{ check.checked_by.email|default:"Former worker" }}</td>
+        <td>{{ check.note|default:"—" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="staff-muted">No recorded checks yet. Browser printing and scanner input above are available without saving a record.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</section>
 {% endblock %}
 {% block extra_js %}
 <script>
