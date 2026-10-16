@@ -230,6 +230,11 @@ class TenantSetupProgress(TimeStampedModel):
         help_text="Optional per-step manual states (e.g. skipped, blocked).",
     )
     completed_at = models.DateTimeField(null=True, blank=True)
+    practice_sale_checked_at = models.DateTimeField(null=True, blank=True)
+    practice_sale_checked_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="practice_sale_checks",
+    )
 
     class Meta:
         ordering = ["tenant__name"]
