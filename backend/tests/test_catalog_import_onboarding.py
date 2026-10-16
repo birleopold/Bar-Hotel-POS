@@ -205,3 +205,10 @@ def test_catalog_export_is_tenant_scoped_and_available_from_owner_screen():
     assert any(row["sku"] == "EXPORT-SUGAR" for row in records)
     assert all(row["name"] != b["item"].name or row["sku"] != b["item"].sku for row in records)
     assert response["Cache-Control"] == "private, no-store"
+
+
+def test_catalog_export_spreadsheet_formula_safety():
+    from apps.console.views_catalog_import import _spreadsheet_safe
+    assert _spreadsheet_safe("=1+1") == "'=1+1"
+    assert _spreadsheet_safe("  @SUM(A1)") == "'  @SUM(A1)"
+    assert _spreadsheet_safe("Sugar 1kg") == "Sugar 1kg"
