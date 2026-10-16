@@ -22,7 +22,7 @@ from .forms import StaffPOHeaderForm, StaffSupplierForm
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets, membership_can_modify_lodging, resolve_staff_outlet
-from .services.permissions import membership_can_modify_inventory
+from .services.permissions import membership_has_purchasing_capability
 
 PO_LINE_SLOTS = 8
 
@@ -99,7 +99,7 @@ class StaffSupplierListView(StaffTenantRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["can_modify_purchasing"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["can_modify_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "manage")
         ctx["supplier_search_q"] = self.request.GET.get("q", "").strip()[:80]
         return ctx
 
@@ -111,7 +111,7 @@ class StaffSupplierCreateView(StaffTenantRequiredMixin, FormView):
     success_url = reverse_lazy("staff-purchasing-suppliers")
 
     def dispatch(self, request, *args, **kwargs):
-        if not membership_can_modify_lodging(request.tenant_membership) or not staff_accessible_outlets(request.tenant_membership):
+        if not membership_has_purchasing_capability(request.tenant_membership, "manage") or not staff_accessible_outlets(request.tenant_membership):
             messages.error(request, "Your role cannot manage suppliers.")
             return redirect("staff-purchasing-suppliers")
         return super().dispatch(request, *args, **kwargs)
@@ -136,7 +136,7 @@ class StaffSupplierUpdateView(StaffTenantRequiredMixin, UpdateView):
     success_url = reverse_lazy("staff-purchasing-suppliers")
 
     def dispatch(self, request, *args, **kwargs):
-        if not membership_can_modify_lodging(request.tenant_membership) or not staff_accessible_outlets(request.tenant_membership):
+        if not membership_has_purchasing_capability(request.tenant_membership, "manage") or not staff_accessible_outlets(request.tenant_membership):
             messages.error(request, "Your role cannot manage suppliers.")
             return redirect("staff-purchasing-suppliers")
         return super().dispatch(request, *args, **kwargs)
@@ -185,8 +185,8 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["status_filter"] = self.request.GET.get("status") or ""
         ctx["receiving_lane"] = self.request.GET.get("lane") == "receiving"
-        ctx["can_receive_stock"] = membership_can_modify_inventory(self.request.tenant_membership)
-        ctx["can_modify_purchasing"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["can_receive_stock"] = membership_has_purchasing_capability(self.request.tenant_membership, "receive")
+        ctx["can_modify_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "manage")
         return ctx
 
 
@@ -199,7 +199,7 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
         bad = _purchasing_requires_outlets(request)
         if bad:
             return bad
-        if not membership_can_modify_lodging(request.tenant_membership):
+        if not membership_has_purchasing_capability(request.tenant_membership, "manage"):
             messages.error(request, "Your role cannot create purchase orders.")
             return redirect("staff-purchasing-orders")
         return super().dispatch(request, *args, **kwargs)
@@ -357,8 +357,8 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["outlets"] = outlets
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
-        ctx["can_modify_purchasing"] = membership_can_modify_lodging(self.request.tenant_membership)
-        ctx["can_receive"] = membership_can_modify_inventory(self.request.tenant_membership) and self.object.status in (
+        ctx["can_modify_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "manage")
+        ctx["can_receive"] = membership_has_purchasing_capability(self.request.tenant_membership, "receive") and self.object.status in (
             PurchaseOrderStatus.SENT,
             PurchaseOrderStatus.PARTIALLY_RECEIVED,
         )
@@ -380,8 +380,8 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
 
         action = request.POST.get("action", "").strip()
         receiving = action in {"receive", "receive_all"}
-        permitted = (membership_can_modify_inventory(request.tenant_membership) if receiving
-                     else membership_can_modify_lodging(request.tenant_membership))
+        permitted = (membership_has_purchasing_capability(request.tenant_membership, "receive") if receiving
+                     else membership_has_purchasing_capability(request.tenant_membership, "manage"))
         if not permitted:
             messages.error(request, "Your role cannot change purchase orders.")
             return redirect("staff-purchasing-order-detail", po_id=po.id)
