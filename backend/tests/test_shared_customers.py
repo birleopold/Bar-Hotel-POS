@@ -118,6 +118,24 @@ class SharedCustomerTests(TestCase):
             tenant=self.tenant, name="Not linked at this branch",
         ).exists())
 
+    def test_restricted_worker_customer_creation_does_not_redirect_to_hidden_record(self):
+        self.login(self.worker)
+        response = self.client.post(
+            reverse("staff-customer-create"),
+            {"name": "New unlinked guest", "email": "unlinked-guest@example.test"},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.resolver_match.view_name, "staff-customers")
+        self.assertContains(response, "Ask an authorized manager to link this profile")
+        customer = Customer.objects.get(
+            tenant=self.tenant, email="unlinked-guest@example.test",
+        )
+        self.assertEqual(
+            self.client.get(reverse("staff-customer-detail", args=[customer.pk])).status_code,
+            404,
+        )
+
     def test_edit_rejects_visible_duplicate_contact_without_changing_identity(self):
         primary = Customer.objects.create(tenant=self.tenant, name="Primary", email="primary@example.test")
         secondary = Customer.objects.create(tenant=self.tenant, name="Secondary", email="secondary@example.test")
