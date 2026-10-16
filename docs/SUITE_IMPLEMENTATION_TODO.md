@@ -359,3 +359,25 @@ Verification deferred at owner's direction. Status is implementation-in-progress
 **Phase 34:** Added `docs/COMMERCIAL_SOURCE_POLICY.md` explaining current absence of a root license, public-source copyright, distribution options, dependency licensing and contract decisions. Neither a new license nor a repository-visibility change was made. Owner-selected commercial policy remains pending.
 
 **Status:** Implementation committed to origin/main, with verification intentionally deferred per owner's instructions. No assertion of 50% phase completion, passing CI, release certification or live-device readiness.
+
+
+### 2026-10-16 — Phase 15/16 continuation: physical-device observations and offline sync protection
+
+**Phase 15: Hardware capability boundary and observable checks (still in progress)**
+- Reused the existing **Workstations → Test equipment** page, browser print sample, barcode input test and device configuration instead of creating a duplicate hardware system.
+- Added an explicit `apps.pos.services.hardware` boundary distinguishing supported browser printing / keyboard-wedge scanning from direct kitchen printer, drawer and scale functions, which remain **unavailable without approved hardware adapters**.
+- Added `WorkstationHardwareCheck` records with operator, workstation, tenant, observed device type, outcome, configured device label snapshot and note; append-only observation history and PostgreSQL RLS. Owner/administrator password login is required to save a check. A failure needs a reason, and no test triggers payments, drawer opening or inventory changes.
+- The **existing** equipment test page now has a staff-observed check form and recent history; kitchen choices remain hidden when the current section lacks kitchen entitlement. Service and UI regression tests authored.
+- Unfinished: physical receipt/kitchen printer adapter implementations, routed retries, actual drawer/scale/customer display integration, approved local drivers and independent real-hardware certification.
+
+**Phase 16: Offline operating policy and manager conflict workflow (still in progress)**
+- Patched both single-operation and batch sync APIs to verify staff's authorized **outlet before writing** a rejected stale-catalog queue entry. The audit path rejects a reused ID associated with a different section or operation.
+- Hardened request-ID replay across **pending, applied and failed** states. An applied operation cannot be modified; a catalog-stale retry can replace **only** the catalog-version fingerprint with the same ID. Other altered payload content is rejected. Added a 64 KiB server mutation-payload bound.
+- The generic browser replay is now **cash-tender only**. Card, mobile money and bank transfers require online provider verification before recording; none can be falsely posted as offline-settled. This follows the cautious provider-specific approach documented in `docs/OFFLINE_POS_POLICY.md`.
+- Extended the existing **POS → Offline** staff page with waiting/applied/failed/unreviewed metrics, configurable pending-hour warnings from the existing exception policy, corrected table headings, explicit tender instructions, responsive conflict review forms and retained original request IDs.
+- Added manager-only, transactional **Record review** with a required note, reviewer and timestamp. This does not retry, change stock or mark payments paid. The existing notification inbox can surface unreviewed failures and overdue server syncs to appropriately scoped managers.
+- Database migration `0022_offline_review` and regression tests authored for rejected electronic tender replay, stale-ID safety, unauthorized outlet stale writes and manager-only review.
+- Still unfinished: durable client-side/offline browser queue, authenticated device age limits and total risk limits, per-device worker handoff, background sync attempts, true receipt/provider reconciliation, full offline privacy controls and tested disconnected hardware behavior.
+- Research basis: https://squareup.com/help/us/en/article/7777-process-card-payments-with-offline-mode and https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum .
+
+**Verification status:** Owner requested implementation first. Code and tests are committed to `origin/main`; no claim of full CI, PostgreSQL concurrency, offline-browser device or hardware certification is made. The 34-phase completion count remains based on **fully accepted** phases, not partially implemented features.
