@@ -30,7 +30,7 @@ from .forms import (
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets, resolve_staff_outlet
-from .services.permissions import membership_can_modify_inventory, membership_can_modify_lodging
+from .services.permissions import membership_can_modify_inventory, membership_has_inventory_capability, membership_can_modify_lodging
 
 UPLOAD_ERROR_REPORT_SESSION_KEY = "staff_inventory_upload_error_rows"
 
@@ -453,7 +453,7 @@ class StaffStockTransferView(StaffTenantRequiredMixin, FormView):
         bad = _inventory_requires_outlets(request)
         if bad:
             return bad
-        if not membership_can_modify_inventory(request.tenant_membership):
+        if not membership_has_inventory_capability(request.tenant_membership, "transfer"):
             messages.error(request, "Your role cannot transfer stock.")
             return redirect("staff-inventory-balances")
         return super().dispatch(request, *args, **kwargs)
@@ -535,7 +535,7 @@ class StaffStockCountCreateView(StaffTenantRequiredMixin, FormView):
         bad = _inventory_requires_outlets(request)
         if bad:
             return bad
-        if not membership_can_modify_inventory(request.tenant_membership):
+        if not membership_has_inventory_capability(request.tenant_membership, "count"):
             messages.error(request, "Your role cannot start stock counts.")
             return redirect("staff-inventory-counts")
         return super().dispatch(request, *args, **kwargs)
@@ -627,7 +627,7 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         self.object = self.get_object()
         sess: StockCountSession = self.object
-        if not membership_can_modify_inventory(request.tenant_membership):
+        if not membership_has_inventory_capability(request.tenant_membership, "count"):
             messages.error(request, "Your role cannot change stock counts.")
             return redirect("staff-inventory-count-detail", session_id=sess.id)
 
