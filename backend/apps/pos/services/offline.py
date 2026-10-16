@@ -7,7 +7,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.accounts.models import Membership
-from apps.pos.models import Order, Payment, Workstation
+from apps.pos.models import Order, Payment, PaymentMethod, Workstation
 from apps.tenants.models import Tenant
 
 from .orders import (
@@ -36,6 +36,13 @@ def _finalize_order_payment(*, obj, tenant_id, outlet, user, payload: dict):
     method = payload.get("method")
     if not oid or not idem or not method:
         raise ValidationError("payload requires order_id, idempotency_key, method, amount.")
+    if method != PaymentMethod.CASH:
+        raise ValidationError({
+            "method": (
+                "Only cash recorded at a till can be safely queued offline. "
+                "Card, mobile money and bank payments must be verified online before posting."
+            )
+        })
     order = Order.objects.get(id=oid, tenant_id=tenant_id, outlet_id=outlet.id)
     if (Workstation.objects.filter(tenant_id=tenant_id, outlet=outlet).exists()
             and not payload.get("shift_id")
@@ -180,12 +187,23 @@ def record_catalog_stale_rejection(
     cid = (client_mutation_id or "").strip()[:128]
     if not cid:
         return
-    if OfflineQueuedOperation.objects.filter(
-        tenant_id=tenant_id,
-        client_mutation_id=cid,
-        status=OfflineQueueStatus.APPLIED,
-    ).exists():
-        return
+    existing = OfflineQueuedOperation.objects.select_for_update().filter(
+        tenant_id=tenant_id, client_mutation_id=cid,
+    ).first()
+    if existing is not None:
+        if existing.status == OfflineQueueStatus.APPLIED:
+            return
+        if existing.outlet_id != outlet.id or existing.operation_type != operation_type:
+            raise ValidationError({
+                "client_mutation_id": "This request ID is already assigned to a different operation."
+            })
+        # Only a previously rejected catalog version can be updated with a
+        # refreshed fingerprint. Never overwrite an unrelated failed payment
+        # or a still-pending mutation.
+        if existing.status != OfflineQueueStatus.FAILED or not existing.error_message.startswith("catalog_stale"):
+            raise ValidationError({
+                "client_mutation_id": "This operation is already waiting or needs manager review."
+            })
 
     payload_safe = _payload_json_safe(dict(payload))
     err = error_payload.get("error") if isinstance(error_payload, dict) else {}
@@ -227,6 +245,14 @@ def process_offline_queue_entry(
         raise ValidationError({"outlet": "You cannot sync for this outlet."})
 
     payload = _payload_json_safe(dict(payload))
+    if not client_mutation_id or not client_mutation_id.strip():
+        raise ValidationError({"client_mutation_id": "Every offline action needs a unique request ID."})
+    if len(json.dumps(payload, separators=(",", ":")).encode("utf-8")) > 65536:
+        raise ValidationError({"payload": "Offline transaction is too large. Split the operation."})
+    if operation_type == "order_payment" and payload.get("method") != PaymentMethod.CASH:
+        raise ValidationError({
+            "method": "Non-cash tenders cannot be confirmed by offline replay. Verify them online."
+        })
 
     obj, _created = OfflineQueuedOperation.objects.get_or_create(
         tenant_id=tenant_id,
@@ -239,12 +265,30 @@ def process_offline_queue_entry(
         },
     )
     obj = OfflineQueuedOperation.objects.select_for_update().get(pk=obj.pk)
-    if obj.status == OfflineQueueStatus.APPLIED and (
-        obj.outlet_id != outlet.id or obj.operation_type != operation_type or obj.payload != payload
-    ):
-        raise ValidationError({"client_mutation_id": "This mutation ID was already used for a different operation."})
+    mismatched_scope = obj.outlet_id != outlet.id or obj.operation_type != operation_type
+    if mismatched_scope:
+        raise ValidationError({
+            "client_mutation_id": "This request ID is already assigned to another section or action."
+        })
     if obj.status == OfflineQueueStatus.APPLIED:
+        if obj.payload != payload:
+            raise ValidationError({
+                "client_mutation_id": "An applied request ID cannot be reused with changed details."
+            })
         return obj, True
+    if obj.payload != payload:
+        if obj.status != OfflineQueueStatus.FAILED or not obj.error_message.startswith("catalog_stale"):
+            raise ValidationError({
+                "client_mutation_id": "Reuse of a request ID with changed details is not permitted."
+            })
+        original = dict(obj.payload)
+        submitted = dict(payload)
+        original.pop("catalog_version", None)
+        submitted.pop("catalog_version", None)
+        if original != submitted:
+            raise ValidationError({
+                "client_mutation_id": "Only the catalog version may change during a stale-catalog retry."
+            })
 
     obj.outlet = outlet
     obj.operation_type = operation_type
