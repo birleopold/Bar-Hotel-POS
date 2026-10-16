@@ -183,23 +183,74 @@ class StaffWorkstationPairView(StaffWorkstationEditView):
 
 
 class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
-    """Safe, read-only browser equipment test; never charges or opens drawers."""
+    """Browser-assisted device check with manually recorded observations only."""
 
     staff_nav_capability = "orders"
-    http_method_names = ["get", "head", "options"]
+    http_method_names = ["get", "post", "head", "options"]
 
-    def get(self, request, workstation_id):
+    def _station(self, request, workstation_id):
         outlets = staff_accessible_outlets(request.tenant_membership)
         station = get_object_or_404(
             Workstation.objects.select_related("outlet"),
             tenant=request.tenant, outlet__in=outlets, pk=workstation_id,
         )
+        return station, outlets
+
+    def get(self, request, workstation_id):
+        from apps.pos.models import WorkstationHardwareCheck
+        from apps.pos.services.hardware import browser_device_capabilities
+        from .services.modules import get_tenant_staff_modules
+
+        station, outlets = self._station(request, workstation_id)
         selected = selected_workstation(request, outlets=outlets)
+        allowed_manager = membership_can_manage_workspace_settings(
+            request.tenant_membership,
+        )
+        can_record = allowed_manager and not request.session.get(
+            "staff_pin_authenticated",
+        )
+        history = WorkstationHardwareCheck.objects.filter(
+            tenant=request.tenant, workstation=station,
+        ).select_related("checked_by").order_by("-created_at")[:15]
         response = render(request, "staff/workstation_test.html", {
             "station": station,
             "selected_station": selected,
             "is_current_station": bool(selected and selected.pk == station.pk),
-            "can_manage": membership_can_manage_workspace_settings(request.tenant_membership),
+            "can_manage": allowed_manager,
+            "can_record_check": can_record,
+            "has_kitchen": "kitchen" in get_tenant_staff_modules(
+                request.tenant, outlet=station.outlet,
+            ),
+            "device_capabilities": browser_device_capabilities(station),
+            "check_history": history,
         })
         response["Cache-Control"] = "private, no-store"
         return response
+
+    def post(self, request, workstation_id):
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        from apps.pos.services.hardware import record_hardware_check
+        station, _outlets = self._station(request, workstation_id)
+        if (not membership_can_manage_workspace_settings(request.tenant_membership)
+                or request.session.get("staff_pin_authenticated")):
+            return HttpResponseForbidden(
+                "Sign in as a workspace administrator with your account password to record checks."
+            )
+        if request.POST.get("action") != "record_hardware_check":
+            return HttpResponseBadRequest("Choose a device check action.")
+        try:
+            record_hardware_check(
+                tenant=request.tenant, workstation_id=station.pk,
+                membership=request.tenant_membership, user=request.user,
+                test_type=(request.POST.get("test_type") or "").strip(),
+                result=(request.POST.get("result") or "").strip(),
+                note=request.POST.get("note", ""),
+            )
+        except DRFValidationError as exc:
+            messages.error(request, str(exc.detail))
+        else:
+            messages.success(
+                request,
+                "Your observed check was recorded. Physical certification is still separate.",
+            )
+        return redirect("staff-workstation-test", workstation_id=station.pk)
