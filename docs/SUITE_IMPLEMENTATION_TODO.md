@@ -462,3 +462,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Committed both forward-only migrations with existing prior migration dependencies and fields matching current models. No historical stock, invoice, payment or supplier data is backfilled.
 - GitHub Actions was newly queued at the time of this checkpoint. Passing CI, PostgreSQL/RLS, real browser and financial correctness are not claimed. Both phases remain in progress until their complete acceptance journeys and verification pass.
 - This repair is prioritized ahead of more broad modifications so new changes do not hide a known broken release gate.
+
+### 2026-10-16 — 9/34 milestone: actual CI triage
+
+- Reviewed GitHub Actions run `38902175104` on main. Django migrations and system checks passed, but the automated suite ended with **456 passed, 25 failed and 5 skipped**; this is **not** a green release and **not** evidence for marking phases 05–09 complete.
+- The traceback identified a deterministic crash in `apps.console.setup_flow.build_tenant_setup_state`: `has_services_line` and `has_events_line` were referenced before initialization. Reordered the business-line assignments before deriving `has_pos_work`, preserving existing setup and role rules.
+- The change is committed to origin/main, and a follow-on CI run was in progress at the time of inspection. Existing dashboard/onboarding tests cover the affected path; no claim of a passing rerun is made.
+- The other failing tests and all remaining customer, loyalty, inventory, batch and purchasing acceptance gaps still require fixes before any additional phase can be checked complete. Release certification must fail closed until all required external evidence exists.
