@@ -24,7 +24,7 @@ class SupermarketCashierLaneTests(TestCase):
         )
         self.user = User.objects.create_user(email="cashier-grocery@test.local", password="TestPass9!")
         membership = Membership.objects.create(
-            user=self.user, tenant=self.tenant, role=MembershipRole.CASHIER,
+            user=self.user, tenant=self.tenant, role=MembershipRole.OUTLET_MANAGER,
         )
         membership.sites.add(site)
         membership.outlets.add(self.outlet)
