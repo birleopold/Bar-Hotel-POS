@@ -120,6 +120,14 @@ class TenantSettings(TimeStampedModel):
         default=4, validators=[MinValueValidator(0), MaxValueValidator(23)],
         help_text="Local hour at which the next operating day begins (0–23).",
     )
+    loyalty_enabled = models.BooleanField(
+        default=False, help_text="Award points for fully paid linked sales in the default currency."
+    )
+    loyalty_spend_per_point = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("10000.00"),
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Eligible spending needed for one whole loyalty point."
+    )
     receipt_footer = models.TextField(blank=True)
     theme_primary = models.CharField(max_length=7, default="#E85D4C", help_text="Hex color")
     theme_secondary = models.CharField(max_length=7, default="#2DD4BF", help_text="Hex color")

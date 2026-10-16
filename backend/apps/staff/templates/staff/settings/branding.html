@@ -17,7 +17,16 @@
     <form method="post" class="staff-card">
       {% csrf_token %}
       {% for field in form %}
-        <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+        {% if field.name == "loyalty_enabled" %}
+          <section id="loyalty-settings" class="staff-card mb-3">
+            <h2 class="staff-section-head">Customer points</h2>
+            <p class="staff-muted">Optional rewards for linked customers. Earn one whole point for each configured amount of eligible spending, excluding tax. Uses only the workspace default currency. Changing the rate affects future paid orders, not past points.</p>
+        {% endif %}
+        <div class="mb-3">
+          {{ field.label_tag }} {{ field }} {{ field.errors }}
+          {% if field.help_text %}<div class="staff-muted small">{{ field.help_text }}</div>{% endif %}
+        </div>
+        {% if field.name == "loyalty_spend_per_point" %}</section>{% endif %}
       {% endfor %}
       <button type="submit" class="staff-btn staff-btn--primary">Save workspace settings</button>
     </form>

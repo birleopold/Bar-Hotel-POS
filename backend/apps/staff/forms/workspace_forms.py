@@ -69,6 +69,8 @@ class StaffTenantBrandingForm(forms.ModelForm):
         fields = [
             "default_currency",
             "default_timezone",
+            "loyalty_enabled",
+            "loyalty_spend_per_point",
             "receipt_footer",
             "theme_primary",
             "theme_secondary",
@@ -82,6 +84,10 @@ class StaffTenantBrandingForm(forms.ModelForm):
         widgets = {
             "default_currency": forms.TextInput(attrs={"class": "staff-input", "maxlength": 3}),
             "default_timezone": forms.TextInput(attrs={"class": "staff-input"}),
+            "loyalty_enabled": forms.CheckboxInput(),
+            "loyalty_spend_per_point": forms.NumberInput(attrs={
+                "class": "staff-input", "min": "0.01", "step": "0.01"
+            }),
             "receipt_footer": forms.Textarea(attrs={"class": "staff-input", "rows": 3}),
             "theme_primary": forms.TextInput(attrs={"class": "staff-input", "type": "color"}),
             "theme_secondary": forms.TextInput(attrs={"class": "staff-input", "type": "color"}),
