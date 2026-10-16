@@ -23,6 +23,8 @@ def process_efris_submission_queue() -> int:
         EfrisSubmission.objects.filter(
             status__in=[EfrisSubmissionStatus.PENDING, EfrisSubmissionStatus.FAILED]
         ).filter(
+            attempts__lt=3,
+        ).filter(
             Q(next_retry_at__isnull=True) | Q(next_retry_at__lte=now)
         )
         .order_by("created_at")
