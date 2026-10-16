@@ -464,6 +464,43 @@ class SupermarketLineReturn(TimeStampedModel):
         return f"{self.order.bill_reference} return {self.quantity}"
 
 
+class WorkstationHardwareCheck(models.Model):
+    """Append-only, operator-observed hardware test result (not telemetry)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE,
+        related_name="hardware_checks",
+    )
+    workstation = models.ForeignKey(
+        Workstation, on_delete=models.PROTECT,
+        related_name="hardware_checks",
+    )
+    checked_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="hardware_checks",
+    )
+    test_type = models.CharField(
+        max_length=20, choices=[
+            ("receipt_printer", "Receipt printer"),
+            ("barcode_scanner", "Barcode scanner"),
+            ("kitchen_display", "Kitchen printer or display"),
+            ("cash_drawer", "Cash drawer"),
+            ("weighing_scale", "Weighing scale"),
+        ],
+    )
+    result = models.CharField(
+        max_length=12, choices=[
+            ("pass", "Observed working"), ("fail", "Observed failure"),
+            ("not_tested", "Not tested"),
+        ],
+    )
+    note = models.CharField(max_length=500, blank=True)
+    configured_device = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
 class OfflineQueueStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     APPLIED = "applied", "Applied"
