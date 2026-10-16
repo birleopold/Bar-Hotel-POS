@@ -206,6 +206,15 @@ def record_catalog_stale_rejection(
             })
 
     payload_safe = _payload_json_safe(dict(payload))
+    if existing is not None:
+        prior = dict(existing.payload)
+        revised = dict(payload_safe)
+        prior.pop("catalog_version", None)
+        revised.pop("catalog_version", None)
+        if prior != revised:
+            raise ValidationError({
+                "client_mutation_id": "Only the catalog version may change for this request ID."
+            })
     err = error_payload.get("error") if isinstance(error_payload, dict) else {}
     if isinstance(err, dict):
         server_cv = err.get("server_catalog_version", "")
