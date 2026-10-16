@@ -1,4 +1,8 @@
+from datetime import timedelta
+
 from django import forms
+from django.utils.dateparse import parse_date
+from apps.staff.sales_summary import build_sales_summary
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpResponseForbidden, Http404
@@ -105,6 +109,29 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
             if enabled:
                 reports.append((label, reverse(route)))
         ctx["management_reports"] = reports
+        if mode == "reports" and vis.sales and outlets:
+            # Always respect the same section scope as the current management view.
+            # Reject malformed/oversized ranges rather than executing expensive reports.
+            end = timezone.localdate()
+            start = end
+            raw_from = request.GET.get("date_from", "")
+            raw_to = request.GET.get("date_to", "")
+            requested = bool(raw_from or raw_to)
+            if requested:
+                parsed_from, parsed_to = parse_date(raw_from), parse_date(raw_to)
+                if (not parsed_from or not parsed_to or parsed_from > parsed_to
+                        or (parsed_to - parsed_from).days > 30 or parsed_to > end):
+                    ctx["executive_error"] = "Choose valid past dates, up to 31 days per report."
+                else:
+                    start, end = parsed_from, parsed_to
+            if not ctx.get("executive_error"):
+                ctx["executive_start"] = start.isoformat()
+                ctx["executive_end"] = end.isoformat()
+                ctx["executive_sales"] = build_sales_summary(
+                    request.tenant.pk, start, end,
+                    allowed_outlet_ids=[o.pk for o in outlets],
+                )
+
         return render(request, "staff/management.html", ctx, status=status)
 
     def _assignee(self, request, data):
