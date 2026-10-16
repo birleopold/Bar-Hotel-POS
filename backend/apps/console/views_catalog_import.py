@@ -6,6 +6,8 @@ from django.contrib import messages
 from django.db import IntegrityError
 from django.http import HttpResponse
 from django.shortcuts import redirect
+from django.http import Http404
+from apps.tenants.business_lines import normalize_business_lines
 from django.urls import reverse
 from django.views.generic import FormView
 
@@ -26,6 +28,19 @@ class CatalogUploadForm(forms.Form):
 class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
     template_name = "console/org/catalog_import.html"
     form_class = CatalogUploadForm
+
+    def dispatch(self, request, *args, **kwargs):
+        from apps.tenants.models import TenantSettings
+        try:
+            lines = normalize_business_lines(request.tenant.settings.business_lines)
+        except TenantSettings.DoesNotExist:
+            lines = []
+        if lines and not set(lines) & {
+            "retail", "supermarket", "bar", "lounge", "restaurant",
+            "cafeteria", "kitchen",
+        }:
+            raise Http404("Product catalog import is not enabled for this business type.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         if request.GET.get("sample") == "1":
