@@ -82,6 +82,7 @@ from .forms import (
     StaffTableForm,
 )
 from .services.customers import can_manage_customers, visible_customers
+from .services.permissions import membership_can_approve_sensitive_action
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .workstations import selected_workstation, settlement_workstation_id, require_staff_register_selection
@@ -1223,7 +1224,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_retail_line_refund(self, request: HttpRequest, order: Order) -> HttpResponse:
-        if not membership_can_approve_refunds(request.tenant_membership):
+        if not membership_can_approve_sensitive_action(request.tenant_membership, "retail_line_refund"):
             messages.error(request, "Your role cannot approve refunds.")
             return redirect("staff-order-detail", order_id=order.id)
         if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
