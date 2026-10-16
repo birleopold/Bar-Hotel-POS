@@ -102,3 +102,18 @@ CSRF_TRUSTED_ORIGINS=https://pos.example.com,https://*.pos.example.com
 ```
 
 Add custom hostnames to `ALLOWED_HOSTS` as clients connect them, while leaving them out of `TENANT_CENTRAL_HOSTS`. Wildcard DNS and wildcard TLS cover one subdomain level; deeper names and custom domains need explicit ingress and certificate support.
+
+
+## Release preflight (Phase 33)
+
+From `backend/`, with the intended environment configured, run **before traffic switch**:
+
+```bash
+python manage.py verify_release_readiness --require-production
+```
+
+This read-only command emits a JSON checklist and exits nonzero when a required gate fails. It verifies DB connectivity, unapplied migrations, PostgreSQL, production settings, DEBUG, configured secret length, restricted hosts, and secure session/CSRF cookies. It **does not** run migrations, write finance data, contact providers or prove that the app is production-ready on its own. Run it after migrations and before routing clients to the release.
+
+For local developer verification only, `python manage.py verify_release_readiness` checks database connectivity and applied migrations without requiring PostgreSQL or production settings.
+
+This gate does not replace backup restoration, reverse-proxy/TLS checks, worker health, PostgreSQL RLS and concurrency tests, browser coverage, authorized real-device checkout testing or URA integration certification.
