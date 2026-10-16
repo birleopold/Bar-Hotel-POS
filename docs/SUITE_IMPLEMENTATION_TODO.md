@@ -20,7 +20,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 - [x] **03 Manager exception centre:** linked cash variances, high refunds, discounts, voids, stock adjustments, low stock, delivery discrepancies, overdue departures, EFRIS failures, offline conflicts and failed PIN attempts; configurable thresholds; resolution history and scoped access.
 - [x] **04 Shift handover:** float, cash sales/refunds, paid outs/drops, independent count, variance explanation, manager approval and next-cashier acceptance; immutable attribution and reconciled cash ledger.
 - [-] **05 Unified customer/guest:** shared identity and contact details across stays, POS, retail and events; merge/deduplicate safely; history, preferences, spend, credit and invoices; privacy and tenant scope.
-- [ ] **06 Loyalty/customer account:** shared points ledger, rewards, tiers, birthday/visit/spend offers, coupons and customer discounts; accrual/redemption/reversal idempotency, refund handling and staff UI.
+- [-] **06 Loyalty/customer account:** shared points ledger, rewards, tiers, birthday/visit/spend offers, coupons and customer discounts; accrual/redemption/reversal idempotency, refund handling and staff UI.
 
 ## Stock and purchasing
 
@@ -403,3 +403,13 @@ Verification deferred at owner's direction. Status is implementation-in-progress
 - Remaining: staging mail-provider evidence, PDF rendering across fonts and devices, alternate financial KPIs and recipient scope variations, operations monitoring of stuck Sending records, actual time/date and PostgreSQL verification.
 
 **Verification status:** Per owner instruction, staged verification is deferred. The code is committed to `origin/main` but is **not** certified for production. Neither Phase 19 nor Phase 27 is marked fully complete until its remaining acceptance requirements are met.
+
+
+### 2026-10-16 — Phase 06 loyalty ledger implementation (not phase completion)
+
+- Extended the existing shared customer record with an append-only **LoyaltyLedgerEntry** for whole-point earnings, redemptions, reversals and manual corrections. Added tenant/source uniqueness and nonzero-point constraints, database migrations `0003_loyalty_ledger` and `0004_loyalty_rls`, including PostgreSQL tenant isolation.
+- Implemented `apps.customers.loyalty.points_balance` and a transactional, replay-safe manager correction service. Tenant owners/administrators must provide a unique request ID and a documented 12–300 character reason; a correction cannot take the balance below zero.
+- The existing **Customers → Profile** page now includes a points balance, the recent point ledger, and an owner-only correction form. The UI explicitly states that these points are not monetary credit and do not yet automatically earn or redeem.
+- Regression tests authored covering duplicate requests, insufficient balance, cross-tenant customers and unauthorized staff. These changes have not undergone the owner-deferred verification pass.
+- **Still required**: tenant-configured accrual rates, points on fully paid sales, provider/payment-specific refund reversals, purchase reward redemption during checkout, tiers/visit and birthday campaigns, coupons, promotion precedence, merged-customer ledger transfer, API parity, comprehensive reconciliation and end-user browser certification.
+- No claims of a fully functioning commercial loyalty program or automatic reward accrual are made.
