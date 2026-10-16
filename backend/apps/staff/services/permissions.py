@@ -134,3 +134,25 @@ def membership_has_inventory_capability(membership: Membership | None, capabilit
     """Fail closed on unknown actions or inactive users; not a scope check."""
     roles = INVENTORY_CAPABILITY_ROLES.get(capability)
     return bool(roles is not None and membership is not None and membership.is_active and membership.role in roles)
+
+
+# Phase 20: purchasing actions share one role policy. This does not replace
+# tenant/module/site/outlet authorization at individual views and services.
+PURCHASING_CAPABILITY_ROLES = {
+    "view": INVENTORY_CAPABILITY_ROLES["view"],
+    "receive": INVENTORY_CAPABILITY_ROLES["adjust"],
+    "manage": frozenset({
+        MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+        MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+    }),
+    "supplier_payment": frozenset({
+        MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+        MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+    }),
+}
+
+
+def membership_has_purchasing_capability(membership: Membership | None, capability: str) -> bool:
+    """Fail closed on missing/inactive membership or unsupported action."""
+    roles = PURCHASING_CAPABILITY_ROLES.get(capability)
+    return bool(roles is not None and membership is not None and membership.is_active and membership.role in roles)
