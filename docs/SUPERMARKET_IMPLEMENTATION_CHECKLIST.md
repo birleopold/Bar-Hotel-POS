@@ -6,7 +6,7 @@
 
 ## Read this before changing a checkbox
 
-- **[x] Existing and code/test-backed:** a usable feature has a visible staff route, shared service and existing test coverage. It still needs the release's PostgreSQL/browser/hardware acceptance separately. Do not infer all edge cases are solved.
+- **[x] Existing working foundation (code-evidenced):** a corresponding model/service and staff path exist; tests and external acceptance may be partial, so the broader end-to-end workflow must still meet its linked delivery item. It still needs the release's PostgreSQL/browser/hardware acceptance separately. Do not infer all edge cases are solved.
 - **[-] Exists but needs completion:** some working code/screens exist, but a core end-user step, reconciliation path, authorization or acceptance evidence is missing.
 - **[ ] Not implemented or not evidenced:** do not advertise the feature. If code is discovered later, inspect it and update status with evidence instead of building a duplicate.
 - Each ID is stable. A phase is complete only when its **Definition of Done**, functional tests and user-facing workflows pass. Record exact-commit CI and external certification separately.
