@@ -89,6 +89,9 @@ The last documented local SQLite checkpoint (September 30, 2026) reported **323 
 - [Product requirements](docs/PRODUCT_REQUIREMENTS_UGANDA.md)
 - [Hospitality SaaS product plan](docs/HOSPITALITY_SAAS_PRODUCT_PLAN.md)
 - [Staff and API parity](docs/STAFF_API_PARITY.md)
+- [34-phase capability matrix (source signals, not certification)](docs/CAPABILITY_MATRIX.md)
+- [Commercial source and license options](docs/COMMERCIAL_SOURCE_POLICY.md)
+- [Release certification evidence contract](docs/RELEASE_CERTIFICATION.md)
 - [Regional hospitality product research — Uganda and East Africa (October 2026)](docs/REGIONAL_HOSPITALITY_PRODUCT_RESEARCH_2026-10.md)
 - [UI terminology guide](docs/UI_TERMINOLOGY_GUIDE.md)
 
