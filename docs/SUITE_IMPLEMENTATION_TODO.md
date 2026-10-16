@@ -2,6 +2,13 @@
 
 Authoritative execution plan · requested 30 September 2026.
 
+## Live delivery and progress boards
+
+- **[Implementation progress overview](IMPLEMENTATION_PROGRESS.md)** — all 34 phases, dependencies, evidence states and completion rules. Update when any phase changes.
+- **[Supermarket and retail checklist](SUPERMARKET_IMPLEMENTATION_CHECKLIST.md)** — 36 supermarket capabilities, verified foundations, unfinished journeys, P0/P1/P2 priorities and acceptance. This is a required workstream, not an optional appendix. A retail-related phase cannot be completed without checking its linked supermarket IDs.
+- For every SM-ID update the supermarket tracker, corresponding numbered phase and commit/test evidence. Record **implemented**, **CI-verified** and **hardware/browser certified** separately.
+- Supermarket order of execution: reliable scan-to-checkout, catalog integrity, accurate tax/returns, trustworthy stock, cashier control and tenant separation before cosmetic dashboards.
+
 ## Rules to follow at every checkpoint
 
 - Inspect current code, services, UI, API and audit before each item. Extend existing functionality; never introduce a second implementation of the same operation.
