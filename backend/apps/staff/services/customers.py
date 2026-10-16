@@ -27,4 +27,5 @@ def visible_customers(membership, user):
         Q(reservations__site_id__in=site_ids)
         | Q(folios__site_id__in=site_ids) | Q(event_bookings__space__site_id__in=site_ids)
         | Q(orders__outlet_id__in=outlet_ids)
+        | Q(created_by=user)
     ).distinct()
