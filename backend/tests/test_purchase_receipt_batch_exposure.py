@@ -111,3 +111,10 @@ class GroceryReceivingServicePreflightTests(TestCase):
                 ],
             )
         self.assertFalse(PurchaseReceipt.objects.filter(purchase_order=po).exists())
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po, membership=membership, user=user,
+                delivery_reference="A" * 129,
+                lines_payload=[{"line_id": line.pk, "quantity": "1"}],
+            )
+        self.assertFalse(PurchaseReceipt.objects.filter(purchase_order=po).exists())
