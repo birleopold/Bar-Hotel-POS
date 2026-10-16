@@ -17,7 +17,8 @@ from apps.pos.models import Order
 from apps.purchasing.models import PurchaseOrder, Supplier
 from .customers import can_manage_customers, visible_customers
 from .membership import sites_visible_for_membership, staff_accessible_outlets
-from .modules import get_tenant_staff_modules, staff_nav_visibility_scoped
+from .modules import get_tenant_staff_modules
+from .scoping import staff_nav_visibility_scoped
 
 CATEGORIES = (
     "Orders", "Reservations", "Rooms", "Customers", "Items",
