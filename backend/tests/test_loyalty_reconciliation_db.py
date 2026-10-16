@@ -72,3 +72,40 @@ def test_reconciliation_never_includes_another_business_or_merged_accounts():
         reconcile_loyalty_account(tenant=a["tenant"], customer=foreign)
     with pytest.raises(ValueError):
         reconcile_loyalty_account(tenant=a["tenant"], customer=merged)
+
+
+@pytest.mark.django_db
+def test_owner_directory_uses_active_account_totals_not_merged_legacy_entries():
+    from django.test import Client
+    from django.urls import reverse
+    from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
+
+    a = _seed_tenant_bundle(
+        name="Owner Rewards Review", slug="owner-rewards-review",
+        user_email="owner-rewards-review@test.local",
+    )
+    active = Customer.objects.create(tenant=a["tenant"], name="Active account")
+    merged = Customer.objects.create(
+        tenant=a["tenant"], name="Merged account", merged_into=active,
+    )
+    LoyaltyLedgerEntry.objects.create(
+        tenant=a["tenant"], customer=active, source_type="sale",
+        points=12, source_key="directory-active-sale",
+        reason="Original paid purchase",
+    )
+    LoyaltyLedgerEntry.objects.create(
+        tenant=a["tenant"], customer=merged, source_type="adjustment",
+        points=-5, source_key="directory-old-merged",
+        reason="Legacy pre-merge adjustment",
+    )
+    client = Client()
+    assert client.login(username=a["user"].email, password="TestPass9!")
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(a["tenant"].pk)
+    session.save()
+    response = client.get(reverse("staff-customers"))
+    assert response.status_code == 200
+    assert response.context["loyalty_net_issued"] == 12
+    assert response.context["loyalty_summary"]["sale"]["total"] == 12
+    assert response.context["loyalty_summary"].get("adjustment") is None
+    assert response.context["loyalty_reconciliation"]["accounts_with_negative_points"] == 0
