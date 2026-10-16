@@ -8,18 +8,39 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Transfer stock<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Move quantity from one section to another.</p>
+          <p class="staff-dash-hero__tagline mb-0">Move stock between sections. Confirm the physical handover first: this action changes both stock balances immediately.</p>
         </div>
       </div>
     </div>
   </header>
   <h2 class="staff-section-head">Transfer</h2>
-  <form method="post" class="staff-card">
+  <form method="post" class="staff-card" data-transfer-form>
     {% csrf_token %}
     {% for field in form %}
       <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
     {% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Transfer</button>
+    <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-transfer-submit>Transfer stock</button>
+    <p class="staff-muted small mt-2" role="status" aria-live="polite" data-transfer-status></p>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Cancel</a>
   </form>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+  var form = document.querySelector("[data-transfer-form]");
+  if (!form) return;
+  var inFlight = false;
+  form.addEventListener("submit", function (event) {
+    if (inFlight) { event.preventDefault(); return; }
+    if (!form.checkValidity()) return;
+    inFlight = true;
+    var button = form.querySelector("[data-transfer-submit]");
+    var status = form.querySelector("[data-transfer-status]");
+    if (button) { button.disabled = true; button.textContent = "Transferring…"; }
+    if (status) status.textContent = "Saving this transfer. Do not submit it again.";
+  });
+}());
+</script>
 {% endblock %}
