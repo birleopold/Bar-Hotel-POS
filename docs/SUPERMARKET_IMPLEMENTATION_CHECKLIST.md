@@ -158,3 +158,10 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - This check prevents fields with embedded line breaks from being accepted as ordinary product names or codes; existing atomic import and duplicate identity controls remain unchanged.
 - Reference: [Shopify's current CSV import guidance](https://help.shopify.com/en/manual/products/import-export/import-products/) emphasizes format checks, safe handling of existing records and validating files before applying changes.
 - Do not mark SM-P0.2 complete until the corrected exact-head CI passes and browser/PostgreSQL import and price-change journeys are verified.
+
+## 2026-10-16 — SM-P0.4 minimum stock signal
+
+- Preserved the existing inventory and stock-planning services. Extended `stock_coverage_snapshot` with `out_of_stock` and `reorder_shortfall` based strictly on recorded on-hand quantity and the SKU's configured minimum. A zero-stock/no-sales-history item remains **unknown demand**, not a fabricated replenishment forecast.
+- Added focused tests for stocked-but-below-minimum items and a zero-stock grocery item; branch/tenant filtering remains intact.
+- Research: [Odoo reordering rules](https://www.odoo.com/documentation/18.0/applications/inventory_and_mrp/inventory/warehouses_storage/replenishment/reordering_rules.html) distinguish configured reorder levels, current/forecasted stock and vendor lead time. This checkpoint intentionally calculates minimum-level shortfall only; supplier lead-time replenishment remains in the existing staff planning screen.
+- This is one stock-intelligence service improvement, **not a completed SM-P0.4 or Phase 07**. The remaining stock acceptance covers count discrepancy, FEFO, receipts, multi-unit conversion, mobile stocktake and concurrent till stock deduction. Exact-head CI and browser/PostgreSQL proof are still required.
