@@ -212,3 +212,61 @@ def test_catalog_export_spreadsheet_formula_safety():
     assert _spreadsheet_safe("=1+1") == "'=1+1"
     assert _spreadsheet_safe("  @SUM(A1)") == "'  @SUM(A1)"
     assert _spreadsheet_safe("Sugar 1kg") == "Sugar 1kg"
+
+
+@pytest.mark.django_db
+def test_bulk_base_price_update_is_audited_and_does_not_rewrite_stock():
+    from apps.console.catalog_import import parse_price_update_csv, apply_price_updates
+    from apps.audit.models import AuditEvent
+    a = _seed_tenant_bundle(
+        name="Price Store", slug="price-store-update",
+        user_email="price-store@example.test",
+    )
+    item = a["item"]
+    item.sku = "PRICE-SUGAR"
+    item.unit_price = "2500.00"
+    item.save(update_fields=["sku", "unit_price"])
+    rows = parse_price_update_csv(
+        tenant=a["tenant"],
+        uploaded=file_of("sku,old_price,new_price\nPRICE-SUGAR,2500.00,2600.00\n", "prices.csv"),
+    )
+    assert len(rows) == 1
+    assert apply_price_updates(tenant=a["tenant"], rows=rows, user=a["user"]) == 1
+    item.refresh_from_db()
+    assert item.unit_price == 2600
+    event = AuditEvent.objects.filter(
+        tenant=a["tenant"], action="catalog.bulk_base_prices_updated",
+    ).latest("created_at")
+    assert event.payload["changes"][0]["before"] == "2500.00"
+    assert event.payload["changes"][0]["after"] == "2600.00"
+    from apps.inventory.models import StockMovement
+    assert not StockMovement.objects.filter(tenant=a["tenant"], menu_item=item).exists()
+
+
+@pytest.mark.django_db
+def test_bulk_price_update_rejects_stale_cross_tenant_and_duplicate_rows_atomically():
+    from apps.console.catalog_import import parse_price_update_csv, apply_price_updates
+    a = _seed_tenant_bundle(
+        name="Pricing A", slug="price-stale-a",
+        user_email="price-stale-a@example.test",
+    )
+    b = _seed_tenant_bundle(
+        name="Pricing B", slug="price-stale-b",
+        user_email="price-stale-b@example.test",
+    )
+    item = a["item"]
+    item.sku = "ONLY-STORE-A"
+    item.unit_price = "1200.00"
+    item.save(update_fields=["sku", "unit_price"])
+    sheet = "sku,old_price,new_price\nONLY-STORE-A,1200.00,1300.00\n"
+    with pytest.raises(CatalogImportProblem, match="not found"):
+        parse_price_update_csv(tenant=b["tenant"], uploaded=file_of(sheet))
+    with pytest.raises(CatalogImportProblem, match="unique"):
+        parse_price_update_csv(tenant=a["tenant"], uploaded=file_of(sheet + sheet.split("\n")[1] + "\n"))
+    rows = parse_price_update_csv(tenant=a["tenant"], uploaded=file_of(sheet))
+    item.unit_price = "1250.00"
+    item.save(update_fields=["unit_price"])
+    with pytest.raises(CatalogImportProblem, match="Price changed"):
+        apply_price_updates(tenant=a["tenant"], rows=rows, user=a["user"])
+    item.refresh_from_db()
+    assert item.unit_price == 1250
