@@ -151,3 +151,10 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - Restricted this path to the existing tenant-owner/admin console. No stock, tax, inventory receipt, historical order, customer or branch-level price overrides are rewritten.
 - Added regression tests for stale prices, duplicates, cross-tenant attempts, stock invariance and audit evidence. CI must pass on the exact commit before changing SM-P0.2 to completed.
 - Research: Shopify's official CSV overwrite guidance cautions that included empty fields may erase existing values, so this feature uses explicit old/new fields and preserves a create-only ordinary import. https://help.shopify.com/en/manual/products/import-export/import-products/
+
+## 2026-10-16 — CSV control-character regression repair
+
+- Exact-head run `38936601021` found **550 passed, 1 failed, 5 skipped**. The failed malformed-CSV test revealed that the importer checked written backslash sequences instead of actual embedded NUL/newline/carriage-return characters. Corrected the parser's detection in commit `038a55793fa2128b45816e6eb2686d49f8dfc6e9`.
+- This check prevents fields with embedded line breaks from being accepted as ordinary product names or codes; existing atomic import and duplicate identity controls remain unchanged.
+- Reference: [Shopify's current CSV import guidance](https://help.shopify.com/en/manual/products/import-export/import-products/) emphasizes format checks, safe handling of existing records and validating files before applying changes.
+- Do not mark SM-P0.2 complete until the corrected exact-head CI passes and browser/PostgreSQL import and price-change journeys are verified.
