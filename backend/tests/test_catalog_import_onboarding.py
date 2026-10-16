@@ -291,3 +291,12 @@ def test_bulk_price_update_rejects_ambiguous_existing_sku():
     sheet = "sku,old_price,new_price\nSAME-SKU,1100.00,1200.00\n"
     with pytest.raises(CatalogImportProblem, match="Multiple products"):
         parse_price_update_csv(tenant=a["tenant"], uploaded=file_of(sheet))
+
+
+def test_bulk_price_confirmation_is_exposed_on_catalog_page():
+    import inspect
+    from apps.console.views_catalog_import import OrgCatalogImportView
+    from pathlib import Path
+    template = Path(__file__).resolve().parents[1] / "apps" / "console" / "templates" / "console" / "org" / "catalog_import.html"
+    assert 'name="confirm_price_changes"' in template.read_text(encoding="utf-8")
+    assert 'self.request.POST.get("confirm_price_changes") != "yes"' in inspect.getsource(OrgCatalogImportView.form_valid)
