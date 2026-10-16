@@ -2,13 +2,7 @@ from apps.accounts.models import Membership, MembershipRole
 
 
 def membership_can_modify_inventory(membership: Membership) -> bool:
-    return membership.is_active and membership.role in (
-        MembershipRole.OWNER,
-        MembershipRole.TENANT_ADMIN,
-        MembershipRole.SITE_MANAGER,
-        MembershipRole.OUTLET_MANAGER,
-        MembershipRole.STOREKEEPER,
-    )
+    return membership_has_inventory_capability(membership, "adjust")
 
 
 def membership_can_modify_lodging(membership: Membership) -> bool:
@@ -124,3 +118,19 @@ def membership_can_approve_refunds(membership: Membership) -> bool:
 def membership_can_manage_workspace_settings(membership: Membership) -> bool:
     """Only explicit tenant administrators can change tenant-wide settings/team."""
     return membership.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN)
+
+
+# Phase 20: action-level permissions. The calling view/service must additionally
+# enforce enabled modules and its tenant/site/outlet scope.
+INVENTORY_CAPABILITY_ROLES = {
+    "view": frozenset({MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER, MembershipRole.STOREKEEPER, MembershipRole.ACCOUNTANT}),
+    "adjust": frozenset({MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER, MembershipRole.STOREKEEPER}),
+    "transfer": frozenset({MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER, MembershipRole.STOREKEEPER}),
+    "count": frozenset({MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER, MembershipRole.STOREKEEPER}),
+}
+
+
+def membership_has_inventory_capability(membership: Membership | None, capability: str) -> bool:
+    """Fail closed on unknown actions or inactive users; not a scope check."""
+    roles = INVENTORY_CAPABILITY_ROLES.get(capability)
+    return bool(roles is not None and membership is not None and membership.is_active and membership.role in roles)
