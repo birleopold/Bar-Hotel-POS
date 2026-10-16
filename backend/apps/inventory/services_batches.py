@@ -92,13 +92,19 @@ def receive_tracked_batch(*, tenant, outlet, menu_item, batch_code, quantity,
     outside batch tracking until explicitly reconciled. Duplicate codes fail
     without adding stock a second time.
     """
-    from django.db import IntegrityError, transaction
+    from django.db import transaction
+    from django.utils import timezone
     from rest_framework.exceptions import ValidationError
-    from .models import StockReason
+    from .models import StockBalance, StockReason
     from .services import apply_manual_stock_change
 
     if outlet.site.tenant_id != tenant.pk or menu_item.tenant_id != tenant.pk:
         raise ValidationError({"batch": "Outlet and product must belong to the tenant."})
+    if not menu_item.track_inventory:
+        raise ValidationError({"menu_item": "Enable inventory tracking before receiving a batch."})
+    today = timezone.localdate()
+    if not isinstance(received_at, date) or received_at > today:
+        raise ValidationError({"received_at": "Use an actual receipt date, not a future date."})
     if purchase_order is not None and (
         purchase_order.tenant_id != tenant.pk or purchase_order.outlet_id != outlet.pk
     ):
@@ -107,15 +113,20 @@ def receive_tracked_batch(*, tenant, outlet, menu_item, batch_code, quantity,
         amount = Decimal(str(quantity))
     except (ValueError, TypeError, ArithmeticError):
         raise ValidationError({"quantity": "Enter a valid positive quantity."})
-    if not amount.is_finite() or amount <= 0:
-        raise ValidationError({"quantity": "Enter a positive finite quantity."})
+    if (not amount.is_finite() or amount <= 0
+            or amount != amount.quantize(Decimal("0.001"))):
+        raise ValidationError({"quantity": "Enter a positive quantity with up to three decimal places."})
     if not batch_code or len(batch_code.strip()) > 128:
         raise ValidationError({"batch_code": "A batch code of at most 128 characters is required."})
     if expiry_date is not None and expiry_date < received_at:
         raise ValidationError({"expiry_date": "Expiry date cannot precede receipt."})
     with transaction.atomic():
-        # This lock protects the normal stock balance while the unique
-        # batch constraint rejects duplicate receipts.
+        # Serialize intake with POS/stock outflow; the existing unique batch
+        # key also prevents two concurrent receipts using the same lot code.
+        StockBalance.objects.select_for_update().get_or_create(
+            tenant_id=tenant.pk, outlet=outlet, menu_item=menu_item,
+            defaults={"quantity": Decimal("0")},
+        )
         if InventoryBatch.objects.filter(
             outlet=outlet, menu_item=menu_item, batch_code=batch_code.strip()
         ).exists():
@@ -125,6 +136,7 @@ def receive_tracked_batch(*, tenant, outlet, menu_item, batch_code, quantity,
             batch_code=batch_code.strip(), received_at=received_at,
             expiry_date=expiry_date, received_quantity=amount,
             remaining_quantity=amount,
+            quarantined=bool(expiry_date is not None and expiry_date < today),
         )
         movement = apply_manual_stock_change(
             tenant_id=tenant.pk, outlet=outlet, menu_item=menu_item,
@@ -180,6 +192,8 @@ def change_batch_hold(*, tenant_id, batch_id, allowed_outlet_ids, quarantined, u
             pk=batch_id, tenant_id=tenant_id, outlet_id__in=allowed_outlet_ids,
         )
         old = batch.quarantined
+        if not quarantined and batch.expiry_date is not None and batch.expiry_date < date.today():
+            raise ValidationError({"batch": "Expired batches cannot be released for sale. Record a write-off or return instead."})
         if old != quarantined:
             batch.quarantined = quarantined
             batch.save(update_fields=["quarantined", "updated_at"])
@@ -292,6 +306,7 @@ def label_existing_stock_batch(*, tenant_id, outlet, menu_item, batch_code,
             tenant_id=tenant_id, outlet=outlet, menu_item=menu_item,
             batch_code=code, received_at=received_at, expiry_date=expiry_date,
             received_quantity=amount, remaining_quantity=amount,
+            quarantined=bool(expiry_date is not None and expiry_date < date.today()),
         )
         log_audit(
             tenant_id=tenant_id, user_id=user.pk if user else None,

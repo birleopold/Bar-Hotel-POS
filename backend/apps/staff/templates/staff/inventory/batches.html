@@ -7,7 +7,53 @@
   <h1 class="staff-page-title">Batches and expiry</h1>
   <p>See expiring, expired and held stock. Hold a batch or record damaged or expired goods. All changes are recorded.</p>
 </div></header>
+<section class="staff-card mb-3">
+  <h2 class="staff-section-head">Find and review batches</h2>
+  <form method="get" class="row g-2 align-items-end" role="search">
+    <div class="col-12 col-md-5"><label class="staff-label" for="batch-search">Product, SKU or lot code</label>
+      <input class="staff-input" id="batch-search" name="q" value="{{ batch_query }}" maxlength="80" placeholder="e.g. BATCH-27"></div>
+    <div class="col-12 col-md-4"><label class="staff-label" for="batch-status">Stock status</label>
+      <select class="staff-input" id="batch-status" name="status">
+        <option value="all"{% if batch_status == 'all' %} selected{% endif %}>All batches</option>
+        <option value="expiring"{% if batch_status == 'expiring' %} selected{% endif %}>Expiring within 30 days</option>
+        <option value="expired"{% if batch_status == 'expired' %} selected{% endif %}>Expired</option>
+        <option value="held"{% if batch_status == 'held' %} selected{% endif %}>On hold</option>
+        <option value="available"{% if batch_status == 'available' %} selected{% endif %}>Available for FEFO</option>
+      </select></div>
+    <div class="col-12 col-md-3 d-flex flex-wrap gap-2">
+      <button type="submit" class="staff-btn staff-btn--primary">Apply</button>
+      <a class="staff-btn staff-btn--ghost" href="?q={{ batch_query|urlencode }}&amp;status={{ batch_status|urlencode }}&amp;format=csv">Export CSV</a>
+    </div>
+  </form>
+  <p class="staff-muted small mt-2 mb-0">Expiry and held stock cannot be consumed by FEFO. CSV export includes up to 2,000 matching batch records from your permitted sections.</p>
+</section>
 {% if can_modify_inventory %}
+<details class="staff-card mb-3">
+  <summary><strong>Receive a new stock batch</strong></summary>
+  <p class="staff-muted mt-2">Use this when receiving goods directly without a purchase order. If receiving against an existing purchase order, use Purchasing → Receive instead to keep the supplier receipt linked.</p>
+  <form method="post" class="row g-3 mt-1">{% csrf_token %}
+    <input type="hidden" name="action" value="receive_batch">
+    <div class="col-12 col-md-6"><label class="staff-label" for="receive-outlet">Section</label>
+      <select class="staff-input" id="receive-outlet" name="outlet" required>
+        <option value="">Choose a section</option>
+        {% for outlet in stock_outlets %}<option value="{{ outlet.id }}">{{ outlet.name }}</option>{% endfor %}
+      </select></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="receive-item">Tracked product</label>
+      <select class="staff-input" id="receive-item" name="menu_item" required>
+        <option value="">Choose a product</option>
+        {% for item in tracked_items %}<option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}
+      </select></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="receive-code">Batch or lot number</label>
+      <input class="staff-input" id="receive-code" name="batch_code" maxlength="128" required placeholder="Printed lot or unique reference"></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="receive-qty">Quantity received</label>
+      <input class="staff-input" id="receive-qty" name="quantity" type="number" min="0.001" step="0.001" required></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="receive-date">Received on</label>
+      <input class="staff-input" id="receive-date" name="received_at" type="date" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" required></div>
+    <div class="col-12 col-md-6"><label class="staff-label" for="receive-expiry">Expires on (optional)</label>
+      <input class="staff-input" id="receive-expiry" name="expiry_date" type="date"></div>
+    <div class="col-12"><button class="staff-btn staff-btn--primary" type="submit">Receive and add stock</button></div>
+  </form>
+</details>
 <details class="staff-card mb-3">
   <summary><strong>Assign existing stock to batches</strong></summary>
   <p class="staff-muted mt-2">Use this only for stock that was recorded before batch tracking. It labels existing quantities; it does not add stock.</p>
@@ -48,7 +94,7 @@
 <form method="post" class="mb-2">{% csrf_token %}
 <input type="hidden" name="batch_id" value="{{ batch.id }}">
 <input type="hidden" name="action" value="{% if batch.quarantined %}release{% else %}hold{% endif %}">
-<button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm">{% if batch.quarantined %}Release hold{% else %}Hold batch{% endif %}</button>
+<button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm"{% if batch.quarantined and batch.expiry_date and batch.expiry_date < today %} disabled title="Expired stock cannot be released"{% endif %}>{% if batch.quarantined %}Release hold{% else %}Hold batch{% endif %}</button>
 </form>
 <details><summary>Write off stock</summary>
 <form method="post" class="mt-2">{% csrf_token %}
@@ -87,8 +133,8 @@
 </section>
 {% endif %}
 {% if is_paginated %}<nav class="staff-pager" aria-label="Batch pages">
-{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;q={{ batch_query|urlencode }}&amp;status={{ batch_status|urlencode }}">Previous</a>{% endif %}
 <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ batch_query|urlencode }}&amp;status={{ batch_status|urlencode }}">Next</a>{% endif %}
 </nav>{% endif %}
 {% endblock %}

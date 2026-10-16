@@ -711,14 +711,68 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
+        from datetime import timedelta
+        from django.db.models import Q
+        from django.utils import timezone
         from apps.inventory.batches import InventoryBatch
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ids = _outlet_filter_ids(self.request, outlets)
-        return (InventoryBatch.objects.filter(
+        today = timezone.localdate()
+        horizon = today + timedelta(days=30)
+        qs = InventoryBatch.objects.filter(
             tenant=self.request.tenant, outlet_id__in=ids,
             remaining_quantity__gt=0,
         ).select_related("menu_item", "outlet")
-        .order_by("expiry_date", "batch_code"))
+        status = self.request.GET.get("status", "all").strip()
+        if status == "held":
+            qs = qs.filter(quarantined=True)
+        elif status == "expired":
+            qs = qs.filter(expiry_date__lt=today)
+        elif status == "expiring":
+            qs = qs.filter(quarantined=False, expiry_date__gte=today, expiry_date__lte=horizon)
+        elif status == "available":
+            qs = qs.filter(quarantined=False).filter(
+                Q(expiry_date__isnull=True) | Q(expiry_date__gte=today)
+            )
+        query = self.request.GET.get("q", "").strip()[:80]
+        if query:
+            qs = qs.filter(
+                Q(batch_code__icontains=query)
+                | Q(menu_item__name__icontains=query)
+                | Q(menu_item__sku__icontains=query)
+            )
+        return qs.order_by("expiry_date", "batch_code", "pk")
+
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("format") == "csv":
+            import csv
+            from django.http import HttpResponse
+            from django.utils import timezone
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = 'attachment; filename="inventory-batches.csv"'
+            response["Cache-Control"] = "private, no-store"
+            writer = csv.writer(response)
+            writer.writerow(["Section", "Product", "Lot code", "Received", "Expires", "On hand", "Held", "Status"])
+            today = timezone.localdate()
+            rows = self.get_queryset()[:2000]
+            for batch in rows:
+                status = (
+                    "Held" if batch.quarantined else
+                    "Expired" if batch.expiry_date and batch.expiry_date < today else
+                    "Available"
+                )
+                def safe(value):
+                    cell = str(value or "")
+                    return "'" + cell if cell.lstrip().startswith(("=", "+", "-", "@")) else cell
+                writer.writerow([
+                    safe(batch.outlet.name), safe(batch.menu_item.name),
+                    safe(batch.batch_code), batch.received_at.isoformat(),
+                    batch.expiry_date.isoformat() if batch.expiry_date else "",
+                    str(batch.remaining_quantity),
+                    "Yes" if batch.quarantined else "No", status,
+                ])
+            return response
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         from datetime import timedelta
@@ -726,6 +780,8 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["today"] = timezone.localdate()
         context["expiry_horizon"] = context["today"] + timedelta(days=30)
+        context["batch_status"] = self.request.GET.get("status", "all")
+        context["batch_query"] = self.request.GET.get("q", "").strip()[:80]
         context["can_modify_inventory"] = membership_can_modify_lodging(self.request.tenant_membership)
         context["stock_outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         context["tracked_items"] = MenuItem.objects.filter(
@@ -757,7 +813,8 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
 
     def post(self, request, *args, **kwargs):
         from apps.inventory.services_batches import (
-            change_batch_hold, waste_batch_stock, label_existing_stock_batch, hold_matching_lot,
+            change_batch_hold, waste_batch_stock, label_existing_stock_batch,
+            hold_matching_lot, receive_tracked_batch,
         )
         from datetime import date
         from django.http import Http404
@@ -766,6 +823,35 @@ class StaffInventoryBatchListView(StaffTenantRequiredMixin, ListView):
             return redirect("staff-inventory-batches")
         allowed = [o.pk for o in staff_accessible_outlets(request.tenant_membership)]
         action = request.POST.get("action", "")
+        if action == "receive_batch":
+            try:
+                outlet = Outlet.objects.select_related("site").get(
+                    pk=uuid.UUID(request.POST.get("outlet", "")),
+                    pk__in=allowed, site__tenant=request.tenant,
+                )
+                item = MenuItem.objects.get(
+                    pk=uuid.UUID(request.POST.get("menu_item", "")),
+                    tenant=request.tenant, track_inventory=True,
+                )
+                received = date.fromisoformat(request.POST.get("received_at", ""))
+                raw_expiry = (request.POST.get("expiry_date") or "").strip()
+                expiry = date.fromisoformat(raw_expiry) if raw_expiry else None
+                batch, _movement = receive_tracked_batch(
+                    tenant=request.tenant, outlet=outlet, menu_item=item,
+                    batch_code=request.POST.get("batch_code", ""),
+                    quantity=request.POST.get("quantity", ""),
+                    received_at=received, expiry_date=expiry, user=request.user,
+                )
+            except (Outlet.DoesNotExist, MenuItem.DoesNotExist, ValueError, TypeError):
+                messages.error(request, "Select an authorized section, tracked product and valid receipt dates.")
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                if batch.quarantined:
+                    messages.warning(request, "Expired batch recorded on hold. It cannot be sold.")
+                else:
+                    messages.success(request, "Batch received and stock increased once.")
+            return redirect("staff-inventory-batches")
         if action == "label_existing":
             try:
                 outlet = Outlet.objects.select_related("site").get(
