@@ -44,7 +44,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 ## Management, permissions and discovery
 
-- [ ] **18 Executive analytics:** today/yesterday/week/month/custom, revenue, gross profit/cost quality, transactions/basket, occupancy/RevPAR, refunds/discounts/variance, top items, low stock, supplier payables and guest folios; group → branch → outlet → register → employee → transaction drilldown.
+- [-] **18 Executive analytics:** today/yesterday/week/month/custom, revenue, gross profit/cost quality, transactions/basket, occupancy/RevPAR, refunds/discounts/variance, top items, low stock, supplier payables and guest folios; group → branch → outlet → register → employee → transaction drilldown.
 - [-] **19 Scheduled owner reports:** configurable daily/weekly/monthly timezone schedules, email and PDF, scoped recipients, retry/deduplication and delivery history; optional messaging only after supported integration exists.
 - [-] **20 Capability permissions:** extend existing policy layer with sale/discount/refund/void/reopen, inventory view/adjust/transfer, check-in/rate override, finance view/expense and staff manage; role presets, UI/service/API parity.
 - [ ] **21 Approval workflows:** request → authorized manager PIN → exact action → audit for discounts/refunds/voids/write-offs/reopens/settled changes/withdrawals/price overrides; expiry, scoped approver, replay and segregation rules.
@@ -518,3 +518,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Bounded automatic retries at three attempts, including scheduler and direct-processing paths. Unexpected provider exceptions now quarantine ambiguous outcomes without blindly retrying a document that may already have been accepted. Added two regression tests to cover unknown outcomes and exhausting retry limits.
 - Updated `docs/COMPLIANCE_EFRIS_POSTURE.md` with explicit operator caution and certification gaps.
 - Phase 17 advances from **pending** to **in progress** only. Fiscal-specific payload, receipt/credit-note lifecycle, status reconciliation, synchronous obligations, real sandbox credentials, end-to-end provider response evidence and user-facing correction workflow remain outstanding. These new changes need fresh CI confirmation; no production certification is claimed.
+
+### 2026-10-16 — Phase 18 first management-facing report
+
+- Reused `build_sales_summary` and `management_scope` in the existing Management → Reports screen. Added a date-bounded (maximum 31-day, past dates) owner/manager executive sales overview, showing actual payment/refund aggregates, net receipts, payment transaction count, top-selling items and accessible section totals with links to sales details. No separate revenue ledger or invented gross-profit number.
+- Added a responsive server-rendered report section with useful zero-data and invalid-date states. Report uses management's role and outlet access restrictions.
+- Added a regression test for manager access, invalid report windows, empty data and denial to non-manager. These new commits require fresh CI evidence.
+- Phase 18 moves from **pending** to **in progress**. Still missing: occupancy/RevPAR, verified cost and margin, supplier balances/folios, arbitrary drill-down to register/employee/transaction, data currency separation, and complete browser/PostgreSQL certification. Do not mark this phase complete.
