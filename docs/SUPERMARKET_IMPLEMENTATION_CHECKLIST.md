@@ -135,3 +135,11 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - Updated existing batch-limit regression and added a **300-item import** test, confirming unique created SKUs and counts. No existing SKU overwrite or silent price change has been enabled.
 - Research: Shopify advises validating CSV format before import, using a test subset, and treating overwrites cautiously because blank fields may replace existing data. https://help.shopify.com/en/manual/products/import-export/import-products
 - **SM-14 / SM-P0.2 remain open** until end-user stock catalog assignment, safe update/upsert policy, larger-file performance, duplicate concurrency, full exact-head CI and browser review are checked. Physical store inventory must be received via stock ledger, not CSV product creation.
+
+## 2026-10-16 — SM-P0.2 catalog integrity and tenant backup
+
+- Verified the existing catalog importer against current official Shopify CSV import guidance and Odoo barcode documentation. Preserved a create-only import model rather than silently overwriting product identity, historical prices, or stock.
+- Added validation for truncated required CSV fields and embedded multiline/control-character fields; malformed rows fail the entire import without creating earlier rows. Added regression tests.
+- Added **Export my current products** to the tenant owner/administrator catalog-import screen. It exports only that business's catalog metadata (category, name, price, SKU, barcode, tracking, reorder level, UoM, tax and description); it never exports customer data or inventory quantities and uses a private, no-store response. Regression coverage confirms tenant scoping.
+- Standardized CSV size-limit messages to **1 MB** and maintained the 1,000-row per-batch limit. Export is for owner review/backup before changes; imported records still cannot overwrite existing SKUs, and exports exceeding 1,000 rows require splitting before reimport.
+- **Outstanding SM-P0.2:** approved upsert/price-change workflow, change audit/history and rollback policy, catalog-to-outlet availability management, PostgreSQL large-batch performance and full end-user verification. Do not mark complete until exact-commit CI passes.
