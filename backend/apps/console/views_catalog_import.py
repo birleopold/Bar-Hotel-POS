@@ -126,6 +126,8 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
                         price_preview_rows=rows[:25],
                         price_preview_more=max(0, len(rows) - 25),
                     ))
+                if self.request.POST.get("confirm_price_changes") != "yes":
+                    raise CatalogImportProblem(["Confirm that you reviewed the new prices before applying them."])
                 changed = apply_price_updates(
                     tenant=self.request.tenant, rows=rows, user=self.request.user,
                 )
