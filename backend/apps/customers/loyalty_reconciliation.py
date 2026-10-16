@@ -43,23 +43,20 @@ def reconcile_loyalty_account(*, tenant, customer):
 
 def reconcile_loyalty_tenant(*, tenant):
     """Read-only, tenant-scoped summary; no names, contacts or ledger mutation."""
-    customer_ids = Customer.objects.filter(
+    # The ledger is authoritative. Grouped SQL avoids loading one customer
+    # or one ledger entry at a time into application memory.
+    active_customers = Customer.objects.filter(
         tenant=tenant, merged_into__isnull=True,
-    ).values_list("id", flat=True)
+    ).values_list("pk", flat=True)
     entries = LoyaltyLedgerEntry.objects.filter(
-        tenant=tenant, customer_id__in=customer_ids,
-    ).values("source_type").annotate(net=Sum("points"))
-    totals = {row["source_type"]: row["net"] for row in entries}
-    accounts_with_negative_points = 0
-    # Per-account results are intentionally used here; do not derive a
-    # business-wide overdraft from the aggregate (credits mask deficits).
-    balances = (
-        LoyaltyLedgerEntry.objects.filter(tenant=tenant, customer_id__in=customer_ids)
-        .values("customer_id").annotate(net=Sum("points"))
+        tenant=tenant, customer_id__in=active_customers,
     )
-    for item in balances.iterator(chunk_size=500):
-        if item["net"] < 0:
-            accounts_with_negative_points += 1
+    totals = {
+        row["source_type"]: row["net"]
+        for row in entries.values("source_type").annotate(net=Sum("points"))
+    }
+    balances = entries.values("customer_id").annotate(net=Sum("points"))
+    accounts_with_negative_points = balances.filter(net__lt=0).count()
     net = sum(totals.values())
     return {
         "earned": totals.get("sale", 0),
