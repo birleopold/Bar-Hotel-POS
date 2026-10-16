@@ -248,8 +248,14 @@ def execute_stock_transfer(
     user,
     note: str = "",
 ) -> tuple[uuid.UUID, StockMovement, StockMovement]:
-    if quantity <= 0:
-        raise ValidationError({"quantity": "Must be positive."})
+    try:
+        quantity = Decimal(str(quantity))
+    except (TypeError, ValueError, ArithmeticError, InvalidOperation) as exc:
+        raise ValidationError({"quantity": "Enter a valid transfer quantity."}) from exc
+    if (not quantity.is_finite() or quantity <= 0
+            or quantity > Decimal("99999999999.999")
+            or quantity != quantity.quantize(Decimal("0.001"))):
+        raise ValidationError({"quantity": "Transfer quantity must be positive with up to three decimal places."})
     if from_outlet.id == to_outlet.id:
         raise ValidationError({"to_outlet": "Destination must differ from source."})
     if from_outlet.site.tenant_id != tenant_id or to_outlet.site.tenant_id != tenant_id:
