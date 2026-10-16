@@ -18,6 +18,15 @@
     </div>
   </header>
   {% include "staff/purchasing/includes/subnav.html" %}
+  <form method="get" class="staff-card mb-3" role="search">
+    <label class="staff-label" for="supplier-directory-search">Find a supplier</label>
+    <div class="d-flex flex-wrap gap-2">
+      <input id="supplier-directory-search" class="staff-input flex-grow-1" name="q"
+        value="{{ supplier_search_q }}" maxlength="80" placeholder="Supplier name, email or phone"
+        style="min-width:12rem">
+      <button type="submit" class="staff-btn staff-btn--primary">Find supplier</button>
+    </div>
+  </form>
   <h2 class="staff-section-head">Directory</h2>
   <div class="staff-table-wrap">
     <table class="staff-table">
@@ -43,9 +52,9 @@
   </div>
   {% if is_paginated %}
     <nav class="staff-pager">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;q={{ supplier_search_q|urlencode }}">Previous</a>{% endif %}
       <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ supplier_search_q|urlencode }}">Next</a>{% endif %}
     </nav>
   {% endif %}
 {% endblock %}
