@@ -213,6 +213,17 @@ class StaffCustomerDetailView(CustomerAccessMixin, TemplateView):
         form = StaffCustomerForm(request.POST, instance=customer)
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form=form, **kwargs), status=400)
+        if {"email", "phone"} & set(form.changed_data):
+            matches = Q()
+            email = (form.cleaned_data.get("email") or "").strip()
+            phone = (form.cleaned_data.get("phone") or "").strip()
+            if email:
+                matches |= Q(email__iexact=email)
+            if phone:
+                matches |= Q(phone=phone)
+            if matches and self.customers().exclude(pk=customer.pk).filter(matches).exists():
+                form.add_error(None, "Another accessible customer already uses this email or phone.")
+                return self.render_to_response(self.get_context_data(form=form, **kwargs), status=400)
         changes = list(form.changed_data)
         form.save()
         if changes:
