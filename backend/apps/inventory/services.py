@@ -388,8 +388,28 @@ def complete_stock_count_session(
     outlet_id = session.outlet_id
 
     rows = sorted(resolved_lines, key=lambda r: str(r["menu_item"].id))
+    seen_items = set()
     for row in rows:
         mi = row["menu_item"]
+        # Preflight every count before changing the first balance. The model
+        # permits one count line per item; reject duplicate and malformed
+        # values here with a clear error instead of an IntegrityError or a
+        # partially changed inventory ledger.
+        if mi.id in seen_items:
+            raise ValidationError({"lines": f'Duplicate count for "{mi.name}".'})
+        seen_items.add(mi.id)
+        try:
+            counted = Decimal(str(row["counted_quantity"]))
+        except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
+            raise ValidationError({"lines": f'Invalid count for "{mi.name}".'}) from exc
+        if (
+            not counted.is_finite()
+            or counted < 0
+            or counted > Decimal("99999999999.999")
+            or counted != counted.quantize(Decimal("0.001"))
+        ):
+            raise ValidationError({"lines": f'Invalid count for "{mi.name}": use a non-negative quantity with up to 3 decimals.'})
+        row["counted_quantity"] = counted
         if mi.tenant_id != tenant_id:
             raise ValidationError({"lines": "Invalid menu item for this tenant."})
         if not mi.track_inventory:
