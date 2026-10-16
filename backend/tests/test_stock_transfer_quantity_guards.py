@@ -35,3 +35,16 @@ def test_transfer_rejects_invalid_quantity_before_moving_stock(bad):
     stock.refresh_from_db()
     assert stock.quantity == Decimal("15")
     assert not StockMovement.objects.filter(tenant=data["tenant"]).exists()
+
+
+def test_transfer_screen_discloses_immediate_stock_posting_and_has_submission_guard():
+    from pathlib import Path
+    template = (
+        Path(__file__).resolve().parents[1]
+        / "apps" / "staff" / "templates" / "staff" / "inventory"
+        / "transfer_form.html"
+    ).read_text(encoding="utf-8")
+    assert "changes both stock balances immediately" in template
+    assert "data-transfer-form" in template
+    assert "inFlight" in template
+    assert 'aria-live="polite"' in template
