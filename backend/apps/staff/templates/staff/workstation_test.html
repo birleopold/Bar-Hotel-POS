@@ -51,6 +51,7 @@
 <button id="hardware-scan-clear" class="staff-btn staff-btn--ghost mt-2" type="button">Clear scan</button>
 <p id="hardware-scan-feedback" class="staff-muted mt-2" role="status" aria-live="polite">No test barcode received.</p>
 </section>
+{% if staff_nav.kitchen %}
 <section class="staff-card hardware-check-card">
 <h2 class="staff-section-head">Kitchen printer / display</h2>
 <p><strong>Kitchen printer:</strong> {{ station.kitchen_printer|default:"Not configured" }}</p>
@@ -58,6 +59,7 @@
 <p>Use the existing prep queue to check kitchen display routing. Browser printing alone cannot verify direct thermal routing or automatic kitchen tickets.</p>
 <a class="staff-btn staff-btn--ghost" href="{% url 'staff-kds' %}">Open preparation queue</a>
 </section>
+{% endif %}
 <section class="staff-card hardware-check-card">
 <h2 class="staff-section-head">Cash drawer / scales</h2>
 <p><strong>Cash drawer:</strong> {{ station.cash_drawer|default:"Not configured" }}</p>
