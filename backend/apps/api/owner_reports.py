@@ -60,10 +60,15 @@ def scheduled_period(schedule: OwnerReportSchedule, *, at: datetime):
     if schedule.site_id:
         tz_name = (schedule.site.business_timezone or "").strip()
     if not tz_name:
-        try:
-            tz_name = (schedule.tenant.settings.default_timezone or "").strip()
-        except TenantSettings.DoesNotExist:
-            tz_name = "UTC"
+        # Do not rely on a cached tenant.settings relation: report schedules
+        # must respect the most recently saved owner timezone preference.
+        current_settings = TenantSettings.objects.filter(
+            tenant_id=schedule.tenant_id,
+        ).only("default_timezone").first()
+        tz_name = (
+            (current_settings.default_timezone or "").strip()
+            if current_settings is not None else "UTC"
+        )
     try:
         zone = ZoneInfo(tz_name or "UTC")
     except ZoneInfoNotFoundError:
