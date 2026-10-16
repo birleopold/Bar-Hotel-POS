@@ -96,3 +96,11 @@
 | 2026-10-16 | Roadmap baseline | Supermarket evidence assessment and prioritized backlog | Earlier suite runs existed; exact-head verification must be checked before certifying | Not established by this document | Tracking established; no new feature falsely certified |
 
 When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, and the matching numbered phase in `SUITE_IMPLEMENTATION_TODO.md`. Report **implemented, tested, and production-certified** separately. Avoid claiming percentages based only on a commit.
+
+## 2026-10-16 — SM-P0.1 scan-first cashier implementation checkpoint
+
+- Extended the **existing** supermarket order detail rather than adding a second POS. Open retail/supermarket orders now show a focused scanner form, quantity input, one-submit guard, scan status, and `/` hotkey to focus the barcode field. The backend still uses `StaffOrderScanAddForm` and `add_supermarket_line_by_code` for server-side validation, price and stock policy.
+- On completed paid supermarket orders, the cashier can press **Next customer · new sale**. It submits an explicit CSRF-protected POST to the existing quick-create endpoint; visiting its URL by GET never creates an order. Existing receipt links remain on the order.
+- Added staff integration tests checking scan page visibility, barcode-based line insertion and GET-vs-POST new sale behavior. These require the exact-commit CI run before verification.
+- **SM-11 / SM-P0.1 remain `[-]` / `[ ]` respectively**. A production cashier lane still needs settled tender/change display, fast scanner loop under real hardware, hold/resume, large baskets, focused flow order, and device/browser regression. This checkpoint is meaningful end-user UI implementation, **not completion**.
+- Next supermarket work targets catalog reliability and cashier throughput without changing any bar/hotel staff screen.
