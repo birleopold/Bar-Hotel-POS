@@ -9,6 +9,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
+from apps.access.outlets import outlet_belongs_to_membership
 from apps.tenants.models import Outlet
 
 from .serializers import (
@@ -74,6 +75,11 @@ class OfflineQueueSubmitView(APIView):
             return Response(
                 {"error": {"code": "invalid_outlet", "message": "Invalid outlet."}},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not outlet_belongs_to_membership(request.tenant_membership, outlet.id):
+            return Response(
+                {"error": {"code": "outlet_forbidden", "message": "You cannot sync for this section."}},
+                status=status.HTTP_403_FORBIDDEN,
             )
         if vd["operation_type"] in ("order_create", "order_add_lines"):
             stale = catalog_stale_response_if_needed(
@@ -203,6 +209,19 @@ class OfflineQueueBatchSubmitView(APIView):
                         "error": {"code": "invalid_outlet", "message": "Invalid outlet."},
                     }
                 )
+                continue
+
+            if not outlet_belongs_to_membership(request.tenant_membership, outlet.id):
+                results.append({
+                    "index": idx,
+                    "client_mutation_id": mid,
+                    "ok": False,
+                    "status_code": status.HTTP_403_FORBIDDEN,
+                    "error": {
+                        "code": "outlet_forbidden",
+                        "message": "You cannot sync for this section.",
+                    },
+                })
                 continue
 
             if vd_op["operation_type"] in ("order_create", "order_add_lines"):
