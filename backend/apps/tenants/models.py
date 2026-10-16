@@ -435,3 +435,83 @@ class BillingEvent(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.tenant.name}: {self.event_type}"
+
+
+class OwnerReportFrequency(models.TextChoices):
+    DAILY = "daily", "Daily"
+    WEEKLY = "weekly", "Weekly"
+    MONTHLY = "monthly", "Monthly"
+
+
+class OwnerReportDeliveryStatus(models.TextChoices):
+    SENDING = "sending", "Sending"
+    SENT = "sent", "Sent"
+    FAILED = "failed", "Failed"
+
+
+class OwnerReportSchedule(TimeStampedModel):
+    """Opt-in, one configurable recurring owner digest per business."""
+    tenant = models.OneToOneField(
+        Tenant, on_delete=models.CASCADE, related_name="owner_report_schedule",
+    )
+    site = models.ForeignKey(
+        Site, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="owner_report_schedules",
+        help_text="Optional single-property operating-date scope. Blank is a UTC-calendar tenant report.",
+    )
+    is_enabled = models.BooleanField(default=False)
+    frequency = models.CharField(
+        max_length=8, choices=OwnerReportFrequency.choices,
+        default=OwnerReportFrequency.DAILY,
+    )
+    local_send_hour = models.PositiveSmallIntegerField(
+        default=8, validators=[MinValueValidator(0), MaxValueValidator(23)],
+    )
+    send_weekday = models.PositiveSmallIntegerField(
+        default=0, validators=[MinValueValidator(0), MaxValueValidator(6)],
+        help_text="Monday=0 through Sunday=6.",
+    )
+    send_monthday = models.PositiveSmallIntegerField(
+        default=1, validators=[MinValueValidator(1), MaxValueValidator(28)],
+        help_text="Use days 1–28, supported in all calendar months.",
+    )
+    recipients = models.ManyToManyField(
+        "accounts.Membership", blank=True, related_name="owner_report_preferences",
+    )
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.site_id and self.site.tenant_id != self.tenant_id:
+            raise ValidationError({"site": "Select a property in this business."})
+
+
+class OwnerReportDelivery(TimeStampedModel):
+    """One delivery per configured reporting period; no duplicate SMTP retry loops."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="owner_report_deliveries",
+    )
+    schedule = models.ForeignKey(
+        OwnerReportSchedule, on_delete=models.CASCADE,
+        related_name="deliveries",
+    )
+    period_start = models.DateField()
+    period_end = models.DateField()
+    recipient_snapshot = models.JSONField(default=list)
+    status = models.CharField(
+        max_length=8, choices=OwnerReportDeliveryStatus.choices,
+        default=OwnerReportDeliveryStatus.SENDING,
+    )
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["schedule", "period_start", "period_end"],
+                name="uniq_owner_report_delivery_period",
+            ),
+        ]
