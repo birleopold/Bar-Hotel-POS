@@ -54,6 +54,7 @@ class CustomerFinanceSnapshotTests(TestCase):
         )
         payment = Payment.objects.create(
             tenant=tenant, order=order, amount=Decimal("25000"), method="cash",
+            idempotency_key="direct-customer-payment-1",
         )
         Refund.objects.create(
             tenant=tenant, order=order, payment=payment, amount=Decimal("5000"),
