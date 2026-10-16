@@ -1,23 +1,5 @@
 {% extends "staff/base.html" %}
-{% block title %}PO {{ po.reference|default:po.id }}{% block extra_js %}
-  {{ block.super }}
-  <script>
-  (function () {
-    var form = document.querySelector("[data-goods-receive-form]");
-    if (!form) return;
-    var button = form.querySelector("[data-goods-receive-submit]");
-    var status = form.querySelector("[data-goods-receive-status]");
-    var submitting = false;
-    form.addEventListener("submit", function (event) {
-      if (submitting) { event.preventDefault(); return; }
-      if (!form.checkValidity()) return;
-      submitting = true;
-      if (button) { button.disabled = true; button.textContent = "Recording delivery…"; }
-      if (status) status.textContent = "Recording this supplier delivery. Please do not submit it again.";
-    });
-  }());
-  </script>
-{% endblock %}
+{% block title %}PO {{ po.reference|default:po.id }}{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
   <header class="staff-page-hero">
@@ -186,4 +168,23 @@
       </table></div>
     {% else %}<p class="staff-muted mb-0">No supplier payments recorded.</p>{% endif %}
   </section>
+{% endblock %}
+{% block extra_js %}
+  {{ block.super }}
+  <script>
+  (function () {
+    var form = document.querySelector("[data-goods-receive-form]");
+    if (!form) return;
+    var button = form.querySelector("[data-goods-receive-submit]");
+    var status = form.querySelector("[data-goods-receive-status]");
+    var submitting = false;
+    form.addEventListener("submit", function (event) {
+      if (submitting) { event.preventDefault(); return; }
+      if (!form.checkValidity()) return;
+      submitting = true;
+      if (button) { button.disabled = true; button.textContent = "Recording delivery…"; }
+      if (status) status.textContent = "Recording this supplier delivery. Please do not submit it again.";
+    });
+  }());
+  </script>
 {% endblock %}
