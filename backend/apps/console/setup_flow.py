@@ -8,7 +8,7 @@ from apps.accounts.models import Membership, UserInvite
 from apps.catalog.models import MenuCategory, MenuItem, ServiceOffering
 from apps.inventory.models import StockMovement, StockReason
 from apps.lodging.models import Room, RoomType
-from apps.pos.models import Order, Payment
+from apps.pos.models import Order, Payment, Workstation, WorkstationHardwareCheck
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus
 from apps.tenants.business_lines import normalize_business_lines
 from apps.tenants.models import Outlet, Site, TenantSettings, TenantSetupProgress
@@ -67,6 +67,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     has_fnb = bool(bl & {"bar", "lounge", "restaurant", "cafeteria", "kitchen"})
     has_retail = bool(bl & {"retail", "supermarket"})
     has_inventory_work = (has_fnb or has_retail) or not lines_configured
+    has_pos_work = has_inventory_work or has_services_line or has_events_line
     has_lodging_line = "lodging" in bl
     has_events_line = "events" in bl
     has_services_line = "services" in bl
@@ -77,6 +78,9 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     has_outlets = Outlet.objects.filter(site__tenant=tenant, site__is_active=True, is_active=True).exists()
     has_menu_categories = MenuCategory.objects.filter(tenant=tenant, is_active=True).exists()
     has_menu_items = MenuItem.objects.filter(tenant=tenant, is_active=True).exists()
+    has_tracked_stock = MenuItem.objects.filter(
+        tenant=tenant, is_active=True, track_inventory=True,
+    ).exists()
     has_services = ServiceOffering.objects.filter(tenant=tenant, is_active=True).exists()
     has_stock_receive = StockMovement.objects.filter(tenant=tenant, reason=StockReason.RECEIVE).exists()
     has_team_invite_or_member = (
@@ -96,6 +100,15 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         and Room.objects.filter(room_type__tenant=tenant).exists()
     )
     has_tables = has_outlets and tenant.sites.filter(outlets__tables__is_active=True).exists()
+    named_stations = Workstation.objects.filter(
+        tenant=tenant, is_active=True, outlet__site__is_active=True,
+        outlet__is_active=True,
+    )
+    has_workstation = named_stations.exists()
+    has_device_check = WorkstationHardwareCheck.objects.filter(
+        tenant=tenant, workstation__in=named_stations,
+        result="pass",
+    ).exists()
 
     outlet_cta_url = (
         reverse("console-org-outlet-create", kwargs={"site_id": first_site.id})
@@ -105,6 +118,14 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     outlet_cta_label = "Create first section" if first_site else "Create a branch first"
 
     required_steps = [
+        SetupStep(
+            key="business_profile",
+            name="Choose your business type",
+            description="Select retail, hotel, bar, restaurant, events or services so irrelevant screens stay hidden.",
+            done=lines_configured,
+            cta_label="Choose business type",
+            cta_url=reverse("console-org-setup") + "#business-profile-heading",
+        ),
         SetupStep(
             key="first_property",
             name="Create your first branch",
@@ -140,7 +161,34 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
             ),
         ),
     ]
-    if has_inventory_work:
+    required_steps.append(
+        SetupStep(
+            key="first_sellable",
+            name="Add at least one sellable item or service",
+            description="A category alone cannot be sold. Create an item with a price or a service offering.",
+            done=has_menu_items or has_services,
+            cta_label="Add first service" if has_services_line and not has_inventory_work else "Add first item",
+            cta_url=(
+                reverse("console-org-service-offering-create")
+                if has_services_line and not has_inventory_work
+                else reverse("console-org-menu-item-create")
+            ),
+        )
+    )
+    if has_pos_work:
+        required_steps.append(
+            SetupStep(
+                key="first_workstation",
+                name="Set up the counter or device",
+                description="Name the staff till or workstation and assign it to a section. Browser pairing can be required.",
+                done=has_workstation,
+                cta_label="Set up workstation",
+                cta_url=reverse("staff-workstation-create"),
+                secondary_cta_label="View devices",
+                secondary_cta_url=reverse("staff-workstations"),
+            )
+        )
+    if has_inventory_work and has_tracked_stock:
         required_steps.append(
             SetupStep(
                 key="first_stock_receive",
@@ -181,10 +229,21 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
             if has_inventory_work
             else []
         ),
+        *(
+            [SetupStep(
+                key="device_test",
+                name="Check the actual equipment",
+                description="Use the device test page and record a real print or scanner observation. A label alone is not proof.",
+                done=has_device_check,
+                cta_label="Open equipment checks",
+                cta_url=reverse("staff-workstations"),
+                required=False,
+            )] if has_pos_work else []
+        ),
         SetupStep(
             key="first_paid_order",
-            name="Close your first paid order",
-            description="Complete one real or demo sale so settlement/audit flows are proven.",
+            name="Review your first actual sale",
+            description="After opening, inspect a real paid sale and its receipt. Setup never creates a fake financial transaction.",
             done=has_paid_order,
             cta_label="Open orders",
             cta_url=reverse("staff-orders"),
@@ -231,13 +290,13 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     required_steps = [_apply_override(s) for s in required_steps]
     optional_steps = [_apply_override(s) for s in optional_steps]
 
-    required_done = sum(1 for s in required_steps if s.done or s.manual_state == "skipped")
+    required_done = sum(1 for s in required_steps if s.done)
     required_total = len(required_steps) or 1
     required_completion_percent = int((required_done * 100) / required_total)
-    setup_complete = all(s.done or s.manual_state == "skipped" for s in required_steps)
+    setup_complete = all(s.done for s in required_steps)
     all_steps = required_steps + optional_steps
     next_step = next(
-        (s for s in required_steps if not (s.done or s.manual_state == "skipped")),
+        (s for s in required_steps if not s.done),
         None,
     ) or next(
         (s for s in optional_steps if not (s.done or s.manual_state == "skipped")),
@@ -245,6 +304,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     )
 
     go_live_checks = [
+        {"label": "Business type selected", "done": lines_configured, "fix_url": reverse("console-org-setup") + "#business-profile-heading"},
         {"label": "Active section exists", "done": has_outlets, "fix_url": reverse("console-org-sites")},
         {
             "label": "At least one active sellable (item or service)",
@@ -266,10 +326,15 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
             if has_fnb
             else []
         ),
+        *(
+            [{"label": "Named workstation configured",
+              "done": has_workstation, "fix_url": reverse("staff-workstations")}]
+            if has_pos_work else []
+        ),
         {
-            "label": "At least one paid order completed",
-            "done": has_paid_order,
-            "fix_url": reverse("staff-orders"),
+            "label": "Ready for first sale (staff and payment provider checks still required)",
+            "done": has_outlets and (has_menu_items or has_services) and lines_configured,
+            "fix_url": reverse("console-org-setup"),
         },
     ]
 
@@ -282,6 +347,8 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         "next_step": next_step.as_dict() if next_step else None,
         "go_live_checks": go_live_checks,
         "go_live_ready": all(c["done"] for c in go_live_checks),
+        "show_catalog_import": has_inventory_work,
+        "hardware_check_done": has_device_check,
     }
 
 
