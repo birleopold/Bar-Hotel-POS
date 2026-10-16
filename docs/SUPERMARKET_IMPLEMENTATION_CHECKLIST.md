@@ -172,3 +172,11 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - Added `test_stock_count_preflight.py` coverage for duplicates and malformed counts, asserting the original balance and stock movement ledger remain unchanged when invalid counts are rejected. Existing outlet authorization and tenant scoping remain enforced.
 - This protects existing supermarket/grocery stocktake workflows and does not bypass batch-aware stock posting. It is not full stocktaking certification: physical count variance approval, mobile scanning, concurrent close/count and PostgreSQL locking must still be exercised.
 - Current work was committed to `origin/main` and must pass full exact-head CI. Do not close SM-P0.4 solely from source edits.
+
+## 2026-10-16 — Batched supermarket stocktake and goods-receiving integrity
+
+- Prior supermarket stock-count head `468c5aebb29a` **passed GitHub Actions** (run `38938674809`). The current batch builds on that green foundation.
+- Existing stock-count completion now validates duplicate item IDs and malformed, negative, non-finite and over-precision quantities **before posting any item**. New `test_stock_count_preflight.py` exercises rejection without stock/ledger changes.
+- Purchase-order receiving now validates *all delivery-line quantities* up front, rejecting malformed, negative, non-finite, over-precision and duplicate positive line IDs before a receipt is created; delivery references are normalized, capped at 128 characters and compared without case sensitivity to reduce accidentally repeated supplier deliveries. New service tests assert rejected deliveries leave no receipt, stock balance or movement.
+- Reused the existing authenticated, outlet-scoped `receive_purchase_order_goods` / `complete_stock_count_session` domain services. Both continue using atomic transactions and existing batch allocations; no parallel receiving system introduced.
+- **Hardware and certification boundary:** exact-head CI for this batch, PostgreSQL concurrent receiving/counting, physical scanner and full mobile receiving workflows remain separate gates. SM-P0.4, SM-17, SM-36 and Phase 09 are **not fully closed** by this work alone.
