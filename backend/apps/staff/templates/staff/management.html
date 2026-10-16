@@ -40,6 +40,34 @@
   {% if today_sales_url %}<a class="staff-btn staff-btn--primary mb-3" href="{{ today_sales_url }}">Today's sales</a>{% endif %}
   <div class="staff-tile-grid">{% for metric in management_metrics %}<a class="staff-tile" href="{{ metric.url }}"><strong>{{ metric.value }}</strong><span>{{ metric.label }}</span><small>{{ metric.detail }}</small></a>{% empty %}<p>No enabled operational queues are available in this scope.</p>{% endfor %}</div>
 {% elif management_view == 'reports' %}
+  {% if executive_sales or executive_error %}
+  <section class="staff-card mb-3" aria-label="Executive sales overview">
+    <h2 class="staff-card__title">Executive sales overview</h2>
+    <p class="staff-muted">Amounts are recorded transaction currency and are not converted. Gross is received payments; net is payments less refunds, not accounting profit. Figures cover only your accessible sections.</p>
+    <form method="get" class="staff-toolbar mb-3">
+      <input type="hidden" name="view" value="reports">
+      <label>From <input class="staff-input" name="date_from" type="date" required value="{{ executive_start }}"></label>
+      <label>To <input class="staff-input" name="date_to" type="date" required value="{{ executive_end }}"></label>
+      <button class="staff-btn staff-btn--primary" type="submit">Update report</button>
+    </form>
+    {% if executive_error %}<p role="alert" class="staff-alert staff-alert--warning">{{ executive_error }}</p>{% endif %}
+    {% if executive_sales %}
+      <div class="staff-tile-grid">
+        <div class="staff-tile"><strong>{{ executive_sales.gross_sales }}</strong><span>Gross payments</span></div>
+        <div class="staff-tile"><strong>{{ executive_sales.refunds_total }}</strong><span>Refunds</span></div>
+        <div class="staff-tile"><strong>{{ executive_sales.net_sales }}</strong><span>Net payments</span></div>
+        <div class="staff-tile"><strong>{{ executive_sales.payments_count }}</strong><span>Payment transactions</span></div>
+      </div>
+      <div class="staff-table-wrap mt-3"><table class="staff-table"><caption>Payments by section</caption><thead><tr><th>Section</th><th>Payment count</th><th>Amount</th><th>Drill down</th></tr></thead><tbody>
+      {% for row in executive_sales.by_outlet %}<tr><td>{{ row.outlet_name }}</td><td>{{ row.count }}</td><td>{{ row.amount }}</td><td><a href="{% url 'staff-sales' %}?date_from={{ executive_start }}&amp;date_to={{ executive_end }}">Sales details</a></td></tr>
+      {% empty %}<tr><td colspan="4">No payments recorded for the chosen dates and sections.</td></tr>{% endfor %}
+      </tbody></table></div>
+      <div class="staff-table-wrap mt-3"><table class="staff-table"><caption>Top-selling items</caption><thead><tr><th>Item</th><th>Quantity</th><th>Line revenue</th></tr></thead><tbody>
+      {% for item in executive_sales.top_items %}<tr><td>{{ item.item_name }}</td><td>{{ item.quantity_sold }}</td><td>{{ item.revenue }}</td></tr>{% empty %}<tr><td colspan="3">No item sales found.</td></tr>{% endfor %}
+      </tbody></table></div>
+    {% endif %}
+  </section>
+  {% endif %}
   <div class="staff-tile-grid">{% for label,url in management_reports %}<a class="staff-tile" href="{{ url }}">{{ label }}</a>{% empty %}<p>No report areas are enabled for your role and scope.</p>{% endfor %}</div>
 {% endif %}
 {% endblock %}
