@@ -176,3 +176,32 @@ def test_catalog_import_is_tenant_scoped():
     import_catalog_items(tenant=a["tenant"], rows=rows)
     assert MenuItem.objects.filter(tenant=a["tenant"], sku="BREAD-A").exists()
     assert not MenuItem.objects.filter(tenant=b["tenant"], sku="BREAD-A").exists()
+
+@pytest.mark.django_db
+def test_catalog_export_is_tenant_scoped_and_available_from_owner_screen():
+    import csv
+    import io
+    from django.test import RequestFactory
+    from apps.console.views_catalog_import import OrgCatalogImportView
+    a = _seed_tenant_bundle(
+        name="Export A", slug="catalog-export-a",
+        user_email="catalog-export-a@example.test",
+    )
+    b = _seed_tenant_bundle(
+        name="Export B", slug="catalog-export-b",
+        user_email="catalog-export-b@example.test",
+    )
+    MenuItem.objects.create(
+        tenant=a["tenant"], category=a["item"].category,
+        name="Export Sugar", unit_price="1000.00",
+        sku="EXPORT-SUGAR", barcode="1234509876543",
+    )
+    request = RequestFactory().get("/console/org/menu/import/?export=1")
+    request.tenant = a["tenant"]
+    response = OrgCatalogImportView().get(request)
+    assert response.status_code == 200
+    assert "attachment" in response["Content-Disposition"]
+    records = list(csv.DictReader(io.StringIO(response.content.decode("utf-8"))))
+    assert any(row["sku"] == "EXPORT-SUGAR" for row in records)
+    assert all(row["name"] != b["item"].name or row["sku"] != b["item"].sku for row in records)
+    assert response["Cache-Control"] == "private, no-store"
