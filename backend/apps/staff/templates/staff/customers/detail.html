@@ -2,7 +2,7 @@
 {% block title %}{{ customer.name }}{% endblock %}
 {% block content %}
   <header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Customer &amp; guest</p><div class="staff-page-hero__head"><div><h1 class="staff-page-title mb-0">{{ customer.name }}</h1><p class="staff-muted mb-0">{{ customer.email|default:"No email" }} · {{ customer.phone|default:"No phone" }}</p></div><a class="staff-btn staff-btn--secondary" href="{% url 'staff-customers' %}">Directory</a></div></div></header>
-  <div class="staff-card mb-3"><h2 class="staff-card__title">Contact &amp; preferences</h2><form method="post">{% csrf_token %}{% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<button class="staff-btn staff-btn--primary" type="submit">Save details</button></form></div>
+  <div class="staff-card mb-3"><h2 class="staff-card__title">Contact &amp; preferences</h2><form method="post">{% csrf_token %}{% if form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ form.non_field_errors }}</div>{% endif %}{% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<button class="staff-btn staff-btn--primary" type="submit">Save details</button></form></div>
   <section class="staff-card mb-3" aria-label="Customer loyalty">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
       <div>
