@@ -21,7 +21,9 @@
     <span><strong>{{ offline_counts.pending }}</strong><small>Waiting on server</small></span>
     <span><strong>{{ offline_counts.applied }}</strong><small>Successfully applied</small></span>
     <span><strong>{{ offline_counts.failed }}</strong><small>Needs review</small></span>
-    <span><strong>{{ offline_stale }}</strong><small>Waiting over 24 hours</small></span>
+    <span><strong>{{ offline_stale }}</strong><small>Waiting over {{ offline_warning_hours }} hours</small></span>
+    <span><strong>{{ offline_needs_review }}</strong><small>Unreviewed conflicts</small></span>
+    <span><strong>{{ offline_reviewed }}</strong><small>Reviewed conflicts</small></span>
   </div>
   <p class="staff-muted small mb-2">Latest applied operation: {{ offline_counts.last_applied|default:"None recorded" }}.</p>
   <div class="d-flex flex-wrap align-items-center gap-2">
@@ -30,6 +32,7 @@
     <span id="offline-server-check-result" role="status" aria-live="polite"></span>
   </div>
   <p class="staff-muted small mt-2 mb-0">A browser connection indicator is not proof that the register has fully synchronized. Review all failed or waiting transactions before closing a till.</p>
+  <p class="staff-muted small mt-2 mb-0">Only cash tenders can be queued through this offline replay workflow. Card, mobile money and bank transfers need online verification. The system never assumes an offline electronic payment has settled.</p>
 </section>
 <div class="staff-card mb-3">
   <h2 class="staff-section-head">When sync shows <code class="staff-code">409 catalog_stale</code></h2>
@@ -40,6 +43,14 @@
     <li>The <strong>Server (now)</strong> column below is the fingerprint at page load—use it to confirm the device is behind after menu edits.</li>
   </ul>
 </div>
+<section class="staff-card mb-3" aria-label="Offline handling policy">
+  <h2 class="staff-section-head">What can be handled offline?</h2>
+  <div class="row g-3">
+    <div class="col-12 col-md-4"><strong>Allowed</strong><p class="staff-muted mb-0">Capture an order and cash tender for later server validation, while keeping its unique request ID.</p></div>
+    <div class="col-12 col-md-4"><strong>Needs internet</strong><p class="staff-muted mb-0">Mobile money, cards, bank transfers, supplier settlement and fiscal submissions must be verified online.</p></div>
+    <div class="col-12 col-md-4"><strong>On reconnection</strong><p class="staff-muted mb-0">The device syncs requests to the server. Check catalog changes and review failures before attempting correction.</p></div>
+  </div>
+</section>
 <h2 class="staff-section-head">Filter</h2>
 <form method="get" class="staff-toolbar staff-toolbar--tight staff-card mb-3 flex-wrap">
   <div>
@@ -49,6 +60,7 @@
       <option value="applied"{% if filter_status == "applied" %} selected{% endif %}>Applied</option>
       <option value="failed"{% if filter_status == "failed" %} selected{% endif %}>Failed</option>
       <option value="pending"{% if filter_status == "pending" %} selected{% endif %}>Waiting</option>
+      <option value="review"{% if filter_status == "review" %} selected{% endif %}>Needs manager review</option>
     </select>
   </div>
   <div class="flex-grow-1" style="min-width: 12rem;">
@@ -69,9 +81,11 @@
         <th>Section</th>
         <th>Type</th>
         <th>Status</th>
-        <th>Mutation id</th>
-        <th>Applied ids</th>
-        <th>Error</th>
+        <th>Catalog snapshot</th>
+        <th>Request ID</th>
+        <th>Applied IDs</th>
+        <th>Problem / next action</th>
+        <th>Manager review</th>
       </tr>
     </thead>
     <tbody>
@@ -114,6 +128,30 @@
           {% elif e.status == "pending" %}
           <span>Awaiting server processing. Do not re-enter the sale manually.</span>
           {% endif %}
+        </td>
+        <td class="small">
+          {% if e.status == "failed" %}
+            {% if e.reviewed_at %}
+              <strong>Reviewed</strong>
+              <div class="staff-muted">{{ e.reviewed_at|date:"j M Y H:i" }}</div>
+              <div class="staff-muted">{{ e.reviewed_by.email|default:"Former manager" }}</div>
+              <details><summary>Review note</summary><p class="mt-2">{{ e.review_note }}</p></details>
+            {% else %}
+              <strong>Needs review</strong>
+            {% endif %}
+            {% if can_review_offline %}
+            <details class="mt-2"><summary>{% if e.reviewed_at %}Update review{% else %}Record review{% endif %}</summary>
+              <form method="post" class="mt-2 d-grid gap-2" style="min-width:13rem">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="review">
+                <input type="hidden" name="operation_id" value="{{ e.pk }}">
+                <label class="staff-label" for="offline-review-{{ e.pk }}">What did you verify?</label>
+                <textarea class="staff-input" id="offline-review-{{ e.pk }}" name="note" required maxlength="500" rows="3" placeholder="Checked receipt, inventory and payment status">{{ e.review_note }}</textarea>
+                <button class="staff-btn staff-btn--primary" type="submit">Save review only</button>
+              </form>
+            </details>
+            {% endif %}
+          {% else %}<span class="staff-muted">—</span>{% endif %}
         </td>
       </tr>
       {% endfor %}
