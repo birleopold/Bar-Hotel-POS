@@ -270,3 +270,26 @@ def test_bulk_price_update_rejects_stale_cross_tenant_and_duplicate_rows_atomica
         apply_price_updates(tenant=a["tenant"], rows=rows, user=a["user"])
     item.refresh_from_db()
     assert item.unit_price == 1250
+
+
+@pytest.mark.django_db
+def test_bulk_price_update_rejects_ambiguous_existing_sku():
+    from apps.console.catalog_import import parse_price_update_csv
+    a = _seed_tenant_bundle(
+        name="Ambiguous Prices", slug="ambiguous-price-sku",
+        user_email="ambiguous-price-sku@example.test",
+    )
+    item = a["item"]
+    item.sku = "SAME-SKU"
+    item.unit_price = "1100.00"
+    item.save(update_fields=["sku", "unit_price"])
+    MenuItem.objects.create(
+        tenant=a["tenant"], category=a["category"],
+        name="Duplicate imported manually", sku="same-sku",
+        unit_price="1100.00",
+    )
+    sheet = "sku,old_price,new_price\nSAME-SKU,1100.00,1200.00\n"
+    with pytest.raises(CatalogImportProblem, match="Multiple products"):
+        parse_price_update_csv(
+            tenant=a["tenant"], uploaded=file_of(sheet.replace("\\\n", "\n")),
+        )
