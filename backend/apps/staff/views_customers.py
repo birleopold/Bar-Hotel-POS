@@ -14,6 +14,7 @@ from apps.audit.services import log_audit
 from apps.customers.models import Customer, LoyaltyLedgerEntry
 from apps.tenants.models import TenantSettings
 from apps.customers.loyalty import adjust_points, points_balance
+from apps.customers.loyalty_reconciliation import reconcile_loyalty_account, reconcile_loyalty_tenant
 from apps.customers.services import merge_customers
 from apps.events.models import EventBooking
 from apps.lodging.models import Folio, Reservation
@@ -55,7 +56,7 @@ class StaffCustomerListView(CustomerAccessMixin, TemplateView):
             MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
         }:
             from django.db.models import Sum
-             summary = {}
+            summary = {}
             ledger = LoyaltyLedgerEntry.objects.filter(
                 tenant=self.request.tenant,
             ).values("source_type").annotate(total=Sum("points"), count=Count("pk"))
@@ -65,6 +66,7 @@ class StaffCustomerListView(CustomerAccessMixin, TemplateView):
             ctx["loyalty_net_issued"] = sum(
                 int(row["total"] or 0) for row in summary.values()
             )
+            ctx["loyalty_reconciliation"] = reconcile_loyalty_tenant(tenant=self.request.tenant)
             ctx["loyalty_policy_summary"] = TenantSettings.objects.filter(
                 tenant=self.request.tenant,
             ).only("loyalty_enabled", "loyalty_spend_per_point", "default_currency").first()
@@ -108,6 +110,7 @@ class StaffCustomerDetailView(CustomerAccessMixin, TemplateView):
             tenant=self.request.tenant,
         ).only("loyalty_enabled", "loyalty_spend_per_point", "default_currency").first()
         ctx["loyalty_balance"] = points_balance(tenant=self.request.tenant, customer=customer)
+        ctx["loyalty_reconciliation"] = reconcile_loyalty_account(tenant=self.request.tenant, customer=customer)
         ctx["loyalty_entries"] = LoyaltyLedgerEntry.objects.filter(
             tenant=self.request.tenant, customer=customer,
         ).select_related("recorded_by").order_by("-created_at")[:15]
