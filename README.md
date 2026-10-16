@@ -36,6 +36,10 @@ Permissions, reporting, and operational visibility are scoped through this hiera
 - drf-spectacular for OpenAPI schema generation
 - pytest and Django TestCase coverage
 
+## Resume development with Codex
+
+Local coding agents should read [AGENTS.md](AGENTS.md) and the [October 16 Codex handoff](docs/CODEX_HANDOFF_2026-10-16.md) before editing. The [34-phase implementation checklist](docs/SUITE_IMPLEMENTATION_TODO.md) is the source of truth for completion status, including unfinished phases and external certification gates. Pull `main`, inspect CI, and run checks against a disposable local database; do not infer a green release from a merged commit.
+
 ## Quick start
 
 ```powershell
