@@ -1,0 +1,72 @@
+{% extends "console/base.html" %}
+{% block title %}Import products{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Workspace setup · Catalog</p>
+    <h1 class="staff-page-title">Import products from CSV</h1>
+    <p>Bring your existing items into this business without entering them one at a time. You can review the file before importing.</p>
+  </div>
+</header>
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a href="{% url 'console-org-setup' %}" class="staff-btn staff-btn--ghost">Back to setup</a>
+  <a href="{% url 'console-org-menu-items' %}" class="staff-btn staff-btn--ghost">View catalog</a>
+  <a href="?sample=1" class="staff-btn staff-btn--primary">Download example CSV</a>
+</div>
+<div class="row g-3">
+  <div class="col-12 col-xl-7">
+    <section class="staff-card">
+      <h2 class="staff-section-head">Upload your file</h2>
+      <p class="staff-muted">The importer checks all rows first. If one row has an error, no items will be saved. Existing SKUs and barcodes are never silently overwritten.</p>
+      {% if import_issues %}
+      <div class="staff-alert staff-alert--warning" role="alert">
+        <strong>Please correct these CSV rows:</strong>
+        <ul class="mb-0 mt-2">
+          {% for issue in import_issues %}<li>{{ issue }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% if form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label for="{{ form.file.id_for_label }}" class="staff-label">{{ form.file.label }}</label>
+        {{ form.file }}
+        {% if form.file.errors %}<p class="staff-field-error">{{ form.file.errors }}</p>{% endif %}
+        <p class="staff-muted small">{{ form.file.help_text }}</p>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="staff-btn staff-btn--ghost" type="submit" name="action" value="preview">Check file</button>
+          <button class="staff-btn staff-btn--primary" type="submit" name="action" value="import">Import items</button>
+        </div>
+      </form>
+      {% if preview_count %}
+        <div class="staff-alert staff-alert--info mt-3" role="status">{{ preview_count }} rows passed validation. No items were saved. To import, choose the same file again and select Import items.</div>
+        <div class="staff-table-wrap">
+          <table class="staff-table">
+            <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>SKU</th><th>Track inventory</th></tr></thead>
+            <tbody>{% for row in preview_rows %}
+              <tr><td>{{ row.name }}</td><td>{{ row.category_name }}</td><td>{{ row.unit_price }}</td>
+                <td>{{ row.sku|default:"—" }}</td><td>{% if row.track_inventory %}Yes{% else %}No{% endif %}</td></tr>
+            {% endfor %}</tbody>
+          </table>
+        </div>
+        {% if preview_more %}<p class="staff-muted small mt-2">And {{ preview_more }} more rows passed validation.</p>{% endif %}
+      {% endif %}
+    </section>
+  </div>
+  <div class="col-12 col-xl-5">
+    <section class="staff-card mb-3">
+      <h2 class="staff-section-head">Required columns</h2>
+      <p><code>category</code>, <code>name</code> and <code>unit_price</code>.</p>
+      <h3 class="staff-card__title">Optional columns</h3>
+      <p class="small"><code>sku</code>, <code>barcode</code>, <code>track_inventory</code>, <code>reorder_level</code>, <code>unit_of_measure</code>, <code>tax_rate_percent</code>, <code>description</code>.</p>
+      <p class="staff-muted mb-0">Use <strong>yes/no</strong> for tracking stock. Price supports two decimal places. Quantity reorder levels support three. Unit options: each, kg, lb or liter. New categories are created automatically.</p>
+    </section>
+    <section class="staff-card">
+      <h2 class="staff-section-head">Before going live</h2>
+      <p class="staff-muted">Importing products does not create inventory, affect accounting or charge customers. Record opening stock through your existing Stock or Receiving workflow, then review prices, tax settings and staff permissions.</p>
+      <p class="staff-muted mb-0">This tool is restricted to workspace owners and administrators. Keep your CSV files free of customer personal information.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
