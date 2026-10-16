@@ -28,11 +28,17 @@ class WorkstationForm(forms.ModelForm):
             self.initial.setdefault("requires_pairing", True)
         self.fields["outlet"].queryset = Outlet.objects.filter(pk__in=[o.pk for o in outlets], site__tenant=tenant)
         self.fields["code"].help_text = "Unique device code, for example bar-till-01."
+        from .services.modules import get_tenant_staff_modules
+        if "kitchen" not in get_tenant_staff_modules(tenant):
+            # A retail-only customer should never see irrelevant kitchen setup.
+            self.fields.pop("kitchen_printer", None)
+            self.fields.pop("kds_station", None)
         for name, field in self.fields.items():
             if name not in {"is_active", "requires_pairing"}:
                 field.widget.attrs["class"] = "staff-input"
         for name in ("receipt_printer", "kitchen_printer", "cash_drawer", "kds_station"):
-            self.fields[name].help_text = "Configuration label for this device."
+            if name in self.fields:
+                self.fields[name].help_text = "Configuration label for this device."
 
     def clean_code(self):
         code = self.cleaned_data["code"].lower()
