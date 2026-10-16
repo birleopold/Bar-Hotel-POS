@@ -484,3 +484,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Corrected a real Phase 06 owner UI inconsistency: the per-source loyalty totals and net issued points now use active customer accounts only and the same reconciliation authority. Old merged-account ledger entries are not silently included in one total while omitted from another. No historical entries or financial transactions are modified.
 - Added a database-backed regression for owner directory rendering where an archived merged account retains a legacy adjustment, ensuring the UI total and active-account reconciliation agree. Committed code and test to main; **these follow-on commits have not inherited the prior green test evidence** and require their own run.
 - Phase 05–09 acceptance gaps remain. Do not mark additional phases complete solely from an overall green SQLite suite. Continue with end-user workflows, tenant permissions, PostgreSQL locking/RLS, responsive browser and provider evidence.
+
+### 2026-10-16 — Phase 06 negative points recovery workflow
+
+- Verified GitHub Actions run `38909467988` for main `7da92e40f57f`: **484 passed, 5 skipped, 4 warnings** and Django checks/migration-drift passed. This is SQLite evidence only.
+- Extended the **existing** customer directory with an owner/admin-only `points_review=1` drilldown for customers with negative net ledger points; the filtered customer list preserves search and links to each existing account breakdown. Non-owner requests for the report return 404 to avoid tenant-wide loyalty disclosure.
+- Existing owner summary links directly to this queue. Negative points remain an informational review signal, not an automatic charge, money balance or blocked refund. No ledger writes or changes to redemption policy.
+- Added a database-backed test verifying filtered results and frontend role denial. New commits require their own CI run. Phase 06 remains **in progress** pending the documented remaining reward/checkout/coupon scope and external test gates.
