@@ -44,3 +44,9 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - **Already present, to retain:** Anonymous walk-in checkout, barcode/PLU scan service, hold/resume via Orders, existing idempotent payment service, payment method and partial payment choices, receipts, workstations and shifts.
 - **Outstanding before F1 close:** repeat-scan and two-register concurrency integration, browser/end-user walkthrough, verified cashier handoff/auto-lock, receipt/printer and keyboard/device testing. Do not mark F1 complete from these UX changes alone.
 - **Research principle:** money credited to a sale is not the total tendered by a customer; explicit cash-change computation must never mutate the ledger or overpay a closed sale. Actual calculation of payments remains server-side.
+
+### F1 cashier payment submission protection — 16 October 2026
+
+- Added an explicit marker to the existing payment form and supermarket-only browser guard preventing multiple submits while the request is pending. The existing stable payment UUID and server idempotency record remain authoritative; this browser safeguard is secondary. A regression test checks the page and request key.
+- Implemented now: scanner quantity precision guard, cents-based cash change helper, independent scanner/tender initialization, payment duplicate-click guard and existing anonymous retail flow.
+- **F1 remains open**, not yet certified: exact-head CI must pass; scanner burst/replay with real devices, checkout end-to-end across tender types, physical printer/receipt, cashier PIN handoff, two concurrent registers and responsive browser checks require acceptance. Do not claim full completion until these are evidenced.
