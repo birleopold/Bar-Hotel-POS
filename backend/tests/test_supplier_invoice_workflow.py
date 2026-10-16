@@ -76,3 +76,43 @@ class SupplierInvoiceTests(TestCase):
                     amount=Decimal("100"), user=None, membership=object(),
                 )
         self.assertFalse(SupplierInvoice.objects.filter(purchase_order=self.po).exists())
+
+    def test_recorded_invoice_caps_payment_but_not_received_balance(self):
+        """A partial invoice cannot authorize paying the uninvoiced receipt remainder."""
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services import record_supplier_payment
+
+        self.record(amount=Decimal("1500"))
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense") as post_expense:
+                with self.assertRaisesRegex(ValidationError, "unpaid recorded supplier invoices"):
+                    record_supplier_payment(
+                        po=self.po, amount=Decimal("1500.01"),
+                        method=SupplierPaymentMethod.CASH, reference="paid-overshoot",
+                        idempotency_key="payment-overshoot", user=None, membership=object(),
+                    )
+                self.assertFalse(SupplierPayment.objects.filter(purchase_order=self.po).exists())
+                post_expense.assert_not_called()
+                payment, replay = record_supplier_payment(
+                    po=self.po, amount=Decimal("1500.00"),
+                    method=SupplierPaymentMethod.CASH, reference="paid-invoice",
+                    idempotency_key="payment-invoice", user=None, membership=object(),
+                )
+                self.assertFalse(replay)
+                self.assertEqual(payment.amount, Decimal("1500.00"))
+                post_expense.assert_called_once()
+
+    def test_receipt_backed_payment_without_invoices_remains_available(self):
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services import record_supplier_payment
+
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense") as post_expense:
+                payment, replay = record_supplier_payment(
+                    po=self.po, amount=Decimal("2000.00"),
+                    method=SupplierPaymentMethod.BANK, reference="legacy-receipt",
+                    idempotency_key="legacy-no-invoice", user=None, membership=object(),
+                )
+        self.assertFalse(replay)
+        self.assertEqual(payment.amount, Decimal("2000.00"))
+        post_expense.assert_called_once()

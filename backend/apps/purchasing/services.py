@@ -245,6 +245,17 @@ def record_supplier_payment(
         received_total = received_goods_value(po)
         paid = po.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
         due = (received_total - paid).quantize(Decimal("0.01"))
+        # Recorded invoices create a narrower settlement ceiling. If no invoice
+        # exists, preserve the established receipt-backed payment workflow.
+        invoiced = po.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        if invoiced > 0 and amount > (invoiced - paid).quantize(Decimal("0.01")):
+            raise ValidationError({
+                "amount": (
+                    "Payment exceeds the unpaid recorded supplier invoices "
+                    f"({max(Decimal('0'), invoiced - paid):.2f}). "
+                    "Record and verify the remaining invoice before paying more."
+                )
+            })
         if amount > due:
             raise ValidationError({"amount": f"Payment exceeds the unpaid value of received goods ({due})."})
         payment = SupplierPayment.objects.create(

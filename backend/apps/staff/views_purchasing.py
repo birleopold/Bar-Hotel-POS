@@ -366,6 +366,12 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["supplier_paid"] = self.object.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
         ctx["supplier_invoiced"] = self.object.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
         ctx["supplier_due"] = ctx["received_value"] - ctx["supplier_paid"]
+        # Match the effective backend payment ceiling when supplier invoices exist.
+        ctx["supplier_invoice_due"] = max(Decimal("0"), ctx["supplier_invoiced"] - ctx["supplier_paid"])
+        ctx["supplier_payment_limit"] = min(
+            ctx["supplier_due"],
+            ctx["supplier_invoice_due"] if ctx["supplier_invoiced"] > 0 else ctx["supplier_due"],
+        )
         ctx["legacy_receipt_expenses"] = has_legacy_receipt_expenses(self.object)
         ctx["uncosted_received"] = self.object.lines.filter(quantity_received__gt=0, unit_cost__isnull=True).exists()
         ctx["supplier_payment_methods"] = SupplierPaymentMethod.choices
