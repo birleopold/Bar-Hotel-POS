@@ -114,6 +114,9 @@
       <li><a class="wb-nav-link{% if 'integration' in u %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-integrations' %}"><i class="bi bi-plug" aria-hidden="true"></i><span>Integrations</span></a></li>
       <li><a class="wb-nav-link{% if 'member' in u or 'invite' in u %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-members' %}"><i class="bi bi-person-gear" aria-hidden="true"></i><span>Team &amp; access</span></a></li>
       <li><a class="wb-nav-link{% if u == 'staff-workspace-audit' %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-audit' %}"><i class="bi bi-clock-history" aria-hidden="true"></i><span>Activity log</span></a></li>
+      {% if active_membership.role == 'owner' or active_membership.role == 'tenant_admin' %}
+      <li><a class="wb-nav-link{% if u == 'staff-owner-report-settings' %} wb-nav-link--active{% endif %}" href="{% url 'staff-owner-report-settings' %}"><i class="bi bi-envelope-paper" aria-hidden="true"></i><span>Owner email reports</span></a></li>
+      {% endif %}
     </ul>
   </div>
   {% endif %}

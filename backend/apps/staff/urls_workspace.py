@@ -2,9 +2,14 @@
 
 from django.urls import path
 
-from . import views_audit, views_invites, views_workspace
+from . import views_audit, views_invites, views_workspace, views_owner_reports
 
 urlpatterns = [
+    path(
+        "owner-reports/",
+        views_owner_reports.StaffOwnerReportSettingsView.as_view(),
+        name="staff-owner-report-settings",
+    ),
     path(
         "activity/",
         views_audit.StaffAuditLogListView.as_view(),
