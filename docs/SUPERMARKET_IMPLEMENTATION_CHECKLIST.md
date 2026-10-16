@@ -127,3 +127,11 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - In the shared order detail, supermarket/retail outlets now hide the hotel/bar tab label and customer-record controls unless the order already has an explicitly linked customer. Hospitality outlets retain their existing table/customer behavior. The orders list labels held retail transactions as **baskets**, not tables/tabs.
 - Added integration assertions for anonymous checkout and supermarket basket terminology. Explicit customer linking is optional for identified loyalty/credit cases and must respect permissions; it is never a prerequisite for normal sale.
 - This is a software/UI separation, not proof of physical hardware certification. Exact-head CI verification remains necessary before closing SM-P0.1.
+
+## 2026-10-16 — SM-P0.2 larger safeguarded catalog import
+
+- Reused existing `apps.console.catalog_import` (preview, UTF-8 checking, per-row diagnostics, tenant SKU/barcode duplicate detection, atomic all-or-nothing creation and no stock posting).
+- Increased bounded batch size from **250 to 1,000 items**, maximum upload **1 MB**. The owner-facing form displays the new limits. Large shops can submit successive batches without overwhelming one web transaction; this does not support 10,000 rows in a single request.
+- Updated existing batch-limit regression and added a **300-item import** test, confirming unique created SKUs and counts. No existing SKU overwrite or silent price change has been enabled.
+- Research: Shopify advises validating CSV format before import, using a test subset, and treating overwrites cautiously because blank fields may replace existing data. https://help.shopify.com/en/manual/products/import-export/import-products
+- **SM-14 / SM-P0.2 remain open** until end-user stock catalog assignment, safe update/upsert policy, larger-file performance, duplicate concurrency, full exact-head CI and browser review are checked. Physical store inventory must be received via stock ledger, not CSV product creation.
