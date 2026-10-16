@@ -21,7 +21,7 @@ class CatalogUploadForm(forms.Form):
     file = forms.FileField(
         label="CSV file",
         widget=forms.ClearableFileInput(attrs={"class": "staff-input", "accept": ".csv,text/csv"}),
-        help_text="UTF-8 CSV, up to 256 KB and 250 products per import.",
+        help_text="UTF-8 CSV, up to 1 MB and 1,000 products per import.",
     )
 
 
