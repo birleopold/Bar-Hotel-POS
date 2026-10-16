@@ -17,6 +17,29 @@
 </div>
 <div class="row g-3">
   <div class="col-12 col-xl-7">
+    <section class="staff-card mb-3" aria-labelledby="bulk-prices-heading">
+      <h2 id="bulk-prices-heading" class="staff-section-head">Bulk base price updates</h2>
+      <p class="staff-muted">Download current prices, change only the <code>new_price</code> column, then check the file before applying it. A price changed by another worker will block the whole file; no partial updates.</p>
+      <p><a class="staff-btn staff-btn--ghost" href="?price_template=1">Download current price sheet</a></p>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label class="staff-label" for="price-update-file">Updated prices CSV</label>
+        <input id="price-update-file" class="staff-input" type="file" name="file" accept=".csv,text/csv" required>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          <button class="staff-btn staff-btn--ghost" type="submit" name="action" value="preview_prices">Check price changes</button>
+          <button class="staff-btn staff-btn--primary" type="submit" name="action" value="apply_prices">Apply verified prices</button>
+        </div>
+      </form>
+      {% if price_preview_count %}
+        <p class="staff-alert staff-alert--info mt-3" role="status">{{ price_preview_count }} price rows validated. No prices were changed. Re-upload the same file to apply.</p>
+        <div class="staff-table-wrap"><table class="staff-table">
+          <thead><tr><th>SKU</th><th>Product</th><th>Current price</th><th>Proposed price</th></tr></thead>
+          <tbody>{% for row in price_preview_rows %}<tr><td>{{ row.sku }}</td><td>{{ row.name }}</td><td>{{ row.old_price }}</td><td>{{ row.new_price }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% if price_preview_more %}<p class="staff-muted small">{{ price_preview_more }} additional price rows verified.</p>{% endif %}
+      {% endif %}
+      <p class="staff-muted small mt-3">This edits base item prices only. Branch-level price overrides, historical sales, stock counts and payments are never rewritten.</p>
+    </section>
     <section class="staff-card">
       <h2 class="staff-section-head">Upload your file</h2>
       <p class="staff-muted">The importer checks all rows first. If one row has an error, no items will be saved. Existing SKUs and barcodes are never silently overwritten.</p>
