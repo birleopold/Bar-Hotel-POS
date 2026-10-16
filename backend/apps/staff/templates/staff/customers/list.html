@@ -15,7 +15,8 @@
         <span><strong>{{ loyalty_summary.refund.total|default:"0" }}</strong><small>Points reversed on refunds</small></span>
         <span><strong>{{ loyalty_summary.adjustment.total|default:"0" }}</strong><small>Manual corrections</small></span>
       </div>
-      <p class="staff-muted small mt-2 mb-0">Counts reflect point-ledger entries, not monetary balances, financial liabilities or automatically redeemed rewards.</p>
+      <p class="staff-muted small mt-2">Accounts with points to recover: <strong>{{ loyalty_reconciliation.accounts_with_negative_points }}</strong>. This figure flags accounts for review; it does not represent money owed or block a refund.</p>
+      <p class="staff-muted small mt-2 mb-0">Read-only ledger totals, not cash, financial liabilities or automatically redeemed rewards. Corrections must be reviewed on each customer profile.</p>
     </section>
   {% endif %}
   <form method="get" class="staff-card mb-3"><label for="customer-search">Find by name, email or phone</label><div class="staff-register-form"><input id="customer-search" class="staff-input" name="q" maxlength="100" value="{{ search }}"><button class="staff-btn staff-btn--secondary" type="submit">Search</button></div></form>
