@@ -120,3 +120,10 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - The cashier payment form now carries a stable UUID on the rendered form and passes it to the existing idempotent settlement service. Reusing the same form/request identity no longer generates a new key on each submission. Missing keys from older forms still follow the previous code path. Tests cover form identity persistence.
 - The existing hold and resume cards on **Orders** and tender/method choices on **Order details** remain authoritative; no duplicate register/payment service introduced. Cash change remains an on-screen calculator, not a money movement.
 - **Completion criteria not silently waived:** exact-head CI success, browser/device scan-to-tender performance, actual receipt printing, two-till concurrency, backend transaction consistency and tender audit remain separate acceptance gates. Do not claim hardware certification merely because the UI renders.
+
+## 2026-10-16 — retail identity is anonymous and table-free
+
+- The **default retail/supermarket transaction is an anonymous walk-in sale**: no customer profile, phone, name, guest folio, room or table is required to open, scan, pay or print a receipt. The transaction is identified by order/receipt and register, not a hospitality table number.
+- In the shared order detail, supermarket/retail outlets now hide the hotel/bar tab label and customer-record controls unless the order already has an explicitly linked customer. Hospitality outlets retain their existing table/customer behavior. The orders list labels held retail transactions as **baskets**, not tables/tabs.
+- Added integration assertions for anonymous checkout and supermarket basket terminology. Explicit customer linking is optional for identified loyalty/credit cases and must respect permissions; it is never a prerequisite for normal sale.
+- This is a software/UI separation, not proof of physical hardware certification. Exact-head CI verification remains necessary before closing SM-P0.1.
