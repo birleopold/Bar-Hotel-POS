@@ -109,3 +109,42 @@ def test_owner_directory_uses_active_account_totals_not_merged_legacy_entries():
     assert response.context["loyalty_summary"]["sale"]["total"] == 12
     assert response.context["loyalty_summary"].get("adjustment") is None
     assert response.context["loyalty_reconciliation"]["accounts_with_negative_points"] == 0
+
+
+@pytest.mark.django_db
+def test_points_review_drilldown_only_shows_negative_accounts_for_owner():
+    from django.test import Client
+    from django.urls import reverse
+    from apps.accounts.models import Membership, MembershipRole
+    from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
+
+    a = _seed_tenant_bundle(
+        name="Points Review", slug="points-review-drilldown",
+        user_email="points-review-drilldown@test.local",
+    )
+    negative = Customer.objects.create(tenant=a["tenant"], name="Refund review")
+    positive = Customer.objects.create(tenant=a["tenant"], name="Healthy balance")
+    for customer, points, key in [
+        (negative, -4, "review-negative"),
+        (positive, 9, "review-positive"),
+    ]:
+        LoyaltyLedgerEntry.objects.create(
+            tenant=a["tenant"], customer=customer, source_type="adjustment",
+            points=points, source_key=key, reason="Previously recorded correction",
+        )
+    client = Client()
+    assert client.login(username=a["user"].email, password="TestPass9!")
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(a["tenant"].pk)
+    session.save()
+    url = reverse("staff-customers")
+    response = client.get(url, {"points_review": "1"})
+    assert response.status_code == 200
+    assert [row.pk for row in response.context["customers"]] == [negative.pk]
+    assert b"Accounts with points to recover" in response.content
+
+    member = Membership.objects.get(tenant=a["tenant"], user=a["user"])
+    member.role = MembershipRole.FRONT_DESK
+    member.save(update_fields=["role"])
+    denied = client.get(url, {"points_review": "1"})
+    assert denied.status_code == 404
