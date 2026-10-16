@@ -31,7 +31,28 @@ class StockCoverageSnapshotTests(TestCase):
         self.assertEqual(rows[0]["daily_velocity"], Decimal("1"))
         self.assertEqual(rows[0]["days_remaining"], Decimal("6"))
         self.assertTrue(rows[0]["below_reorder_level"])
+        self.assertEqual(rows[0]["reorder_shortfall"], Decimal("2"))
+        self.assertFalse(rows[0]["out_of_stock"])
         self.assertEqual(rows[0]["sell_through_proxy"], Decimal("30") / Decimal("36"))
+
+    def test_zero_stock_is_explicit_and_does_not_invent_demand(self):
+        tenant = Tenant.objects.create(name="Grocery stockout", slug="grocery-stockout")
+        site = Site.objects.create(tenant=tenant, name="Store")
+        outlet = Outlet.objects.create(site=site, name="Main till", outlet_type=OutletType.SUPERMARKET)
+        category = MenuCategory.objects.create(tenant=tenant, name="Groceries")
+        item = MenuItem.objects.create(
+            tenant=tenant, category=category, name="Rice",
+            unit_price=Decimal("3500"), track_inventory=True,
+            reorder_level=Decimal("15"),
+        )
+        StockBalance.objects.create(
+            tenant=tenant, outlet=outlet, menu_item=item, quantity=Decimal("0"),
+        )
+        row = stock_coverage_snapshot(tenant=tenant, outlet=outlet)[0]
+        self.assertTrue(row["out_of_stock"])
+        self.assertTrue(row["no_sales_history"])
+        self.assertIsNone(row["days_remaining"])
+        self.assertEqual(row["reorder_shortfall"], Decimal("15"))
 
     def test_window_validation(self):
         with self.assertRaises(ValueError):
