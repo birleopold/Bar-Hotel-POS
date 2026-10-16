@@ -574,6 +574,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         order: Order = ctx["order"]
         hardware = _tenant_hardware_flags(order.tenant)
         ctx["hardware"] = hardware
+        ctx["payment_request_key"] = uuid.uuid4()
         from apps.customers.models import LoyaltyLedgerEntry
         from apps.customers.loyalty import eligible_spend_for_order
         from apps.tenants.models import TenantSettings
@@ -987,6 +988,17 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             messages.success(request, f"Handoff acknowledged: {line.label}")
         return redirect("staff-order-detail", order_id=order.id)
 
+    @staticmethod
+    def _payment_request_key(request: HttpRequest) -> str:
+        # A rendered payment form carries one stable key. Retries of the same
+        # form use the same domain idempotency identity, not a fresh UUID.
+        # Old API/integration forms without it retain backwards compatibility.
+        raw = (request.POST.get("payment_request_key") or "").strip()
+        try:
+            return str(uuid.UUID(raw)) if raw else str(uuid.uuid4())
+        except (TypeError, ValueError):
+            raise DRFValidationError("Invalid payment request identity.")
+
     def _post_record_payment(self, request: HttpRequest, order: Order) -> HttpResponse:
         _, bal = order_payment_totals(order)
         if (
@@ -1011,7 +1023,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 user=request.user,
                 amount=form.cleaned_data["amount"],
                 method=form.cleaned_data["method"],
-                idempotency_key=str(uuid.uuid4()),
+                idempotency_key=self._payment_request_key(request),
                 workstation_id=settlement_workstation_id(request, outlet=order.outlet),
             )
         except DRFValidationError as exc:
