@@ -67,3 +67,10 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - Hardened the existing `refund_retail_line` domain service so return quantities and money amounts are finite, positive and within their three-/two-decimal database precision before any order, cash, loyalty or inventory records are changed.
 - Added parameterized regression cases for NaN, infinity, negative and over-precision amounts and quantities. No duplicate refund service was introduced.
 - F2 remains in progress: real tax/refund allocation, fiscal receipt acceptance, printable shelf labels, complete import/upsert policy and external integration/browser verification remain separate gates. Exact-head CI must pass before crediting full verification.
+
+### F2 software handoff / F3 activation — 16 October 2026
+
+- Delivered the existing guarded product create/import/export and bulk base-price review/apply workflow; added server-side acknowledgement of changed prices. Retail returns now validate decimal money and quantities and cap a proposed **partial-line refund** by the original historical discounted line subtotal plus recorded line tax, proportioned by returned quantity. The separate payment-ledger refund cap still applies.
+- Added a targeted over-refund regression test alongside malformed-value tests. **Exact-head CI remains a release gate** and is not yet certified green.
+- **F2 software handoff recorded; F3 is the next active engineering batch.** Do not mark F2 as fully accepted: URA EFRIS fiscal integration, physical shelf printers, tax-inclusive policy, per-line allocation of order-level discounts, exchanges, full refund/browser tests and bulk catalog operational throughput have not been independently certified.
+- Next F3 priorities: concurrent tills/negative-stock defense, count variance approvals, FEFO/expiry holds, reliable unit conversions and branch transfer discrepancy handling. Reuse the existing stock ledger, batch and receiving services.
