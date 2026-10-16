@@ -32,3 +32,37 @@ def test_invalid_retail_return_values_fail_before_touching_order(qty, amount):
             user=None,
             idempotency_key="return-invalid-test",
         )
+
+
+@pytest.mark.django_db
+def test_partial_return_cannot_refund_more_than_original_line_value():
+    from decimal import Decimal
+    from apps.pos.models import Order, OrderLine, OrderStatus
+    from apps.pos.services.returns import refund_retail_line
+    from tests.test_phase1_isolation_and_idempotency import _seed_tenant_bundle
+    from apps.tenants.models import OutletType
+
+    setup = _seed_tenant_bundle(
+        name="Refund Price Integrity", slug="refund-price-integrity",
+        user_email="refund-price-integrity@example.test",
+    )
+    setup["outlet"].outlet_type = OutletType.SUPERMARKET
+    setup["outlet"].save(update_fields=["outlet_type"])
+    order = Order.objects.create(
+        tenant=setup["tenant"], outlet=setup["outlet"],
+        created_by=setup["user"], status=OrderStatus.CLOSED,
+        is_paid=True, total=Decimal("110.00"), subtotal=Decimal("100.00"),
+        tax_total=Decimal("10.00"),
+    )
+    line = OrderLine.objects.create(
+        order=order, menu_item=setup["item"], label="Rice",
+        quantity=Decimal("2"), unit_price=Decimal("60.00"),
+        line_discount_amount=Decimal("20.00"),
+        line_total=Decimal("100.00"), tax_amount=Decimal("10.00"),
+    )
+    with pytest.raises(ValidationError, match="exceeds the original amount"):
+        refund_retail_line(
+            order=order, line=line, quantity=Decimal("1"),
+            amount=Decimal("55.01"), reason="Test",
+            restock=False, user=setup["user"], idempotency_key="overprice-line",
+        )
