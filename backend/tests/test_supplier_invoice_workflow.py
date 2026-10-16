@@ -55,6 +55,7 @@ class SupplierInvoiceTests(TestCase):
         rows = purchase_order_exposure(tenant=self.tenant, outlet_ids=[self.outlet.pk])
         self.assertEqual(rows[0]["invoiced_value"], Decimal("1500"))
         self.assertEqual(rows[0]["unbilled_received_value"], Decimal("500"))
+        self.assertEqual(rows[0]["unpaid_invoiced_value"], Decimal("1500"))
         self.assertEqual(rows[0]["earliest_invoice_due_date"], date(2026, 10, 30))
 
     def test_prevent_duplicate_reference_with_changed_amount(self):
@@ -101,6 +102,9 @@ class SupplierInvoiceTests(TestCase):
                 self.assertFalse(replay)
                 self.assertEqual(payment.amount, Decimal("1500.00"))
                 post_expense.assert_called_once()
+                exposure = purchase_order_exposure(tenant=self.tenant, outlet_ids=[self.outlet.pk])
+                self.assertEqual(exposure[0]["unpaid_invoiced_value"], Decimal("0"))
+                self.assertEqual(exposure[0]["unbilled_received_value"], Decimal("500"))
 
     def test_receipt_backed_payment_without_invoices_remains_available(self):
         from apps.purchasing.models import SupplierPaymentMethod

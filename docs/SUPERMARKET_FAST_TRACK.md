@@ -98,3 +98,8 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - Updated the existing staff PO detail screen to show recorded invoice balance, restrict the payment amount to the backend-authorized limit, explain why settlement is blocked once recorded invoices are paid, and prevent rapid double-click submissions in the browser. The server-side idempotency key remains authoritative.
 - Added tests for invoice-limited payments and the invoice-free compatibility path. Research baseline: Odoo received-quantity vendor-bill and three-way matching guidance (https://www.odoo.com/documentation/18.0/applications/inventory_and_mrp/purchase/manage_deals/manage.html). This is a guarded **partial matching step**, not a completed vendor credit-note, PO price variance or full 3-way reconciliation flow.
 - Release and UI/browser/PostgreSQL acceptance remain pending until the new exact-commit CI and external verification are available.
+
+### F5 supplier manager insight — 16 October 2026
+
+- Expanded the **existing** supplier balances report with three distinct, scope-filtered figures: unpaid received-goods value, unpaid recorded-invoice value and received-goods value awaiting invoices. The report deliberately does not invent an allocation of purchase-order payments to individual invoice dates; that reconciliation still requires explicit invoice-linked settlement records.
+- Updated the staff-facing report labels/columns and regression assertions. The current amount is a read-only decision aid, not new accounting postings, full credit-note capability or a completed margin/drill-down package. Exact-head automated CI, production PostgreSQL and mobile/browser acceptance remain separate gates.

@@ -587,4 +587,12 @@ class StaffSupplierBalancesView(StaffTenantRequiredMixin, TemplateView):
             (row["unpaid_received_value"] or Decimal("0") for row in ctx["exposure_rows"]),
             Decimal("0"),
         )
+        ctx["known_unbilled_received"] = sum(
+            (row["unbilled_received_value"] or Decimal("0") for row in ctx["exposure_rows"]),
+            Decimal("0"),
+        )
+        ctx["known_unpaid_invoiced"] = sum(
+            (row["unpaid_invoiced_value"] for row in ctx["exposure_rows"]),
+            Decimal("0"),
+        )
         return ctx

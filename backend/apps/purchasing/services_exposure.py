@@ -46,6 +46,8 @@ def purchase_order_exposure(*, tenant, outlet=None, outlet_ids=None):
             "invoiced_value": invoiced,
             "earliest_invoice_due_date": next_due,
             "unbilled_received_value": max(Decimal("0"), received - invoiced) if received is not None else None,
+            # A PO-level balance only: payments are not linked to individual invoice lines.
+            "unpaid_invoiced_value": max(Decimal("0"), invoiced - paid),
             "unpaid_received_value": max(Decimal("0"), received - paid) if received is not None else None,
             "missing_cost_data": not complete_received_costs,
             "missing_order_cost_data": not full_order_costs,
