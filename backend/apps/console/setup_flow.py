@@ -67,10 +67,10 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     has_fnb = bool(bl & {"bar", "lounge", "restaurant", "cafeteria", "kitchen"})
     has_retail = bool(bl & {"retail", "supermarket"})
     has_inventory_work = (has_fnb or has_retail) or not lines_configured
-    has_pos_work = has_inventory_work or has_services_line or has_events_line
     has_lodging_line = "lodging" in bl
     has_events_line = "events" in bl
     has_services_line = "services" in bl
+    has_pos_work = has_inventory_work or has_services_line or has_events_line
 
     sites = Site.objects.filter(tenant=tenant, is_active=True).order_by("name")
     first_site = sites.first()
