@@ -68,7 +68,10 @@ def test_disabled_schedule_never_attempts_email():
 
 
 @pytest.mark.django_db
-@override_settings(DEFAULT_FROM_EMAIL="reports@example.test")
+@override_settings(
+    DEFAULT_FROM_EMAIL="reports@example.test",
+    EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+)
 def test_scheduled_digest_sends_one_pdf_and_csv_and_deduplicates():
     a, schedule = schedule_fixture("sent-owner-report")
     schedule.is_enabled = True
@@ -88,7 +91,10 @@ def test_scheduled_digest_sends_one_pdf_and_csv_and_deduplicates():
 
 
 @pytest.mark.django_db
-@override_settings(DEFAULT_FROM_EMAIL="reports@example.test")
+@override_settings(
+    DEFAULT_FROM_EMAIL="reports@example.test",
+    EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+)
 def test_failed_email_can_retry_without_creating_duplicate_delivery():
     a, schedule = schedule_fixture("retry-owner-report")
     schedule.is_enabled = True
