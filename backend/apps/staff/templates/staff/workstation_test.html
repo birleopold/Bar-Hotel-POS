@@ -1,0 +1,115 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Equipment check · {{ station.name }}{% endblock %}
+{% block extra_css %}
+<style>
+.hardware-check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:1rem}
+.hardware-check-card{min-width:0}
+.hardware-check-card input{width:100%;min-height:48px}
+.hardware-check-slip{max-width:300px;margin:1rem auto;padding:16px;border:1px dashed #666;background:#fff;color:#111;font:13px monospace}
+.hardware-check-slip h2{font:bold 17px monospace;text-align:center}
+.hardware-check-slip p{margin:6px 0}
+@media print{
+  body *{visibility:hidden!important}
+  #hardware-test-slip,#hardware-test-slip *{visibility:visible!important}
+  #hardware-test-slip{display:block!important;position:absolute;top:0;left:0;
+    width:70mm;max-width:70mm;margin:0;padding:4mm;border:0!important;
+    background:#fff!important;color:#000!important}
+  @page{size:80mm 150mm;margin:0}
+}
+</style>
+{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+<p class="staff-dash-hero__eyebrow">Workstations</p>
+<h1 class="staff-page-title">Equipment check: {{ station.name }}</h1>
+<p>{{ station.outlet.name }} · {{ station.code }}</p>
+</div></header>
+<div class="d-flex flex-wrap gap-2 mb-3">
+<a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">Back to workstations</a>
+{% if can_manage %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-edit' station.pk %}">Edit device configuration</a>{% endif %}
+</div>
+<section class="staff-card mb-3">
+<h2 class="staff-section-head">Before testing</h2>
+<p>This page works in this browser and does not create sales, payments, stock movements or cash-drawer commands.
+{% if is_current_station %}This browser currently uses this workstation.{% else %}This workstation is not the one currently selected in this browser. Confirm the physical device you are testing.{% endif %}</p>
+<p class="staff-muted mb-0">Stored device names are configuration labels only; they do not prove printers, scanners or cash drawers are connected. A local printer driver, supported hardware adapter and on-site checks are still required for unattended printing or drawer opening.</p>
+</section>
+<div class="hardware-check-grid">
+<section class="staff-card hardware-check-card">
+<h2 class="staff-section-head">Receipt printer</h2>
+<p><strong>Configured:</strong> {{ station.receipt_printer|default:"No printer label entered" }}</p>
+<p>Press Print sample. Choose your actual connected receipt printer in the browser's print dialog. This does not open a cash drawer.</p>
+<button id="hardware-print" class="staff-btn staff-btn--primary" type="button">Print sample receipt</button>
+<p id="hardware-print-status" role="status" class="staff-muted mt-2">Nothing printed yet.</p>
+</section>
+<section class="staff-card hardware-check-card">
+<h2 class="staff-section-head">Barcode scanner</h2>
+<p>Most basic USB/Bluetooth scanners act like a keyboard. Place the cursor here and scan a test barcode. It stays on this device and is not added to a sale.</p>
+<label for="hardware-scan-input" class="staff-label">Scan result</label>
+<input class="staff-input" id="hardware-scan-input" type="text" maxlength="128" autocomplete="off" placeholder="Tap here, then scan">
+<button id="hardware-scan-clear" class="staff-btn staff-btn--ghost mt-2" type="button">Clear scan</button>
+<p id="hardware-scan-feedback" class="staff-muted mt-2" role="status" aria-live="polite">No test barcode received.</p>
+</section>
+<section class="staff-card hardware-check-card">
+<h2 class="staff-section-head">Kitchen printer / display</h2>
+<p><strong>Kitchen printer:</strong> {{ station.kitchen_printer|default:"Not configured" }}</p>
+<p><strong>Display station:</strong> {{ station.kds_station|default:"Not configured" }}</p>
+<p>Use the existing prep queue to check kitchen display routing. Browser printing alone cannot verify direct thermal routing or automatic kitchen tickets.</p>
+<a class="staff-btn staff-btn--ghost" href="{% url 'staff-kds' %}">Open preparation queue</a>
+</section>
+<section class="staff-card hardware-check-card">
+<h2 class="staff-section-head">Cash drawer / scales</h2>
+<p><strong>Cash drawer:</strong> {{ station.cash_drawer|default:"Not configured" }}</p>
+<p>Automatic cash-drawer control and weighing-scale readings require an installed, approved hardware adapter. This page deliberately has no drawer-opening or financial action.</p>
+<p class="staff-muted mb-0">Confirm any device operation with local equipment after an authorized installation.</p>
+</section>
+</div>
+<div class="hardware-check-slip" id="hardware-test-slip" aria-label="Non-financial printer test slip">
+<h2>DEVICE TEST ONLY</h2>
+<p>Not a receipt · No payment</p>
+<hr>
+<p>Business: {{ request.tenant.name }}</p>
+<p>Section: {{ station.outlet.name }}</p>
+<p>Workstation: {{ station.code }}</p>
+<p>ITEM TEST ......... 1</p>
+<p>Subtotal ........ 0</p>
+<hr>
+<p>CHECK PRINT ALIGNMENT</p>
+<p>NOT A SALE / NOT A TAX INVOICE</p>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+  "use strict";
+  var button=document.getElementById("hardware-print");
+  var status=document.getElementById("hardware-print-status");
+  if(button)button.addEventListener("click",function(){
+    status.textContent="Opening browser print dialog. Confirm the actual printout.";
+    window.print();
+  });
+  var scanner=document.getElementById("hardware-scan-input");
+  var info=document.getElementById("hardware-scan-feedback");
+  var clear=document.getElementById("hardware-scan-clear");
+  if(scanner){
+    scanner.addEventListener("input",function(){
+      var value=scanner.value.trim();
+      info.textContent=value?"Characters received: "+value.length+" (scanner connection not yet certified)":"No test barcode received.";
+    });
+    scanner.addEventListener("keydown",function(event){
+      if(event.key==="Enter"){
+        event.preventDefault();
+        var value=scanner.value.trim();
+        info.textContent=value?
+          "Scan complete. "+value.length+" characters received; compare with your printed barcode.":
+          "No barcode detected; check focus and scanner settings.";
+      }
+    });
+  }
+  if(clear)clear.addEventListener("click",function(){
+    scanner.value="";info.textContent="Cleared. Scan a new test barcode.";scanner.focus();
+  });
+}());
+</script>
+{% endblock %}

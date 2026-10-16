@@ -174,3 +174,26 @@ class StaffWorkstationPairView(StaffWorkstationEditView):
             return self._render(request, station, form=form, status=400)
         messages.success(request, "This browser is approved. Workers can now sign in individually and use this register.")
         return set_pairing_cookie(redirect("staff-workstations"), pair, secret)
+
+
+class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
+    """Safe, read-only browser equipment test; never charges or opens drawers."""
+
+    staff_nav_capability = "orders"
+    http_method_names = ["get", "head", "options"]
+
+    def get(self, request, workstation_id):
+        outlets = staff_accessible_outlets(request.tenant_membership)
+        station = get_object_or_404(
+            Workstation.objects.select_related("outlet"),
+            tenant=request.tenant, outlet__in=outlets, pk=workstation_id,
+        )
+        selected = selected_workstation(request, outlets=outlets)
+        response = render(request, "staff/workstation_test.html", {
+            "station": station,
+            "selected_station": selected,
+            "is_current_station": bool(selected and selected.pk == station.pk),
+            "can_manage": membership_can_manage_workspace_settings(request.tenant_membership),
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
