@@ -3,6 +3,7 @@
 No automatic points on sale or customer discounts until rate, currency,
 redemption and refund policies are explicitly configured for a tenant.
 """
+from decimal import Decimal, ROUND_FLOOR
 from django.db import transaction
 from django.db.models import Sum
 from rest_framework.exceptions import ValidationError
@@ -65,3 +66,128 @@ def adjust_points(*, tenant, customer_id, membership, user, points, reason, sour
         payload={"points": points, "customer_id": str(customer.pk), "reason": reason},
     )
     return entry, False
+
+
+_MAX_POINTS_PER_SALE = 1_000_000
+
+
+def eligible_spend_for_order(order):
+    """Discount-adjusted subtotal excluding tax, never above the sale total."""
+    subtotal = max(Decimal("0.00"), order.subtotal - order.discount_amount)
+    return min(subtotal, max(Decimal("0.00"), order.total))
+
+
+def award_paid_order_points(*, order, user):
+    """Award once for a fully paid linked sale, in the payment transaction."""
+    from apps.tenants.models import TenantSettings
+
+    if not order.is_paid or not order.customer_id:
+        return None
+    policy = TenantSettings.objects.filter(tenant_id=order.tenant_id).only(
+        "loyalty_enabled", "loyalty_spend_per_point", "default_currency",
+    ).first()
+    if (policy is None or not policy.loyalty_enabled
+            or order.currency != policy.default_currency
+            or not policy.loyalty_spend_per_point or policy.loyalty_spend_per_point <= 0):
+        return None
+
+    existing = LoyaltyLedgerEntry.objects.filter(
+        tenant_id=order.tenant_id, source_type="sale", source_key=str(order.pk),
+    ).first()
+    if existing:
+        return existing
+
+    customer = Customer.objects.select_for_update().filter(
+        tenant_id=order.tenant_id, pk=order.customer_id, merged_into__isnull=True,
+    ).first()
+    if customer is None:
+        return None
+    spend = eligible_spend_for_order(order)
+    if spend <= 0:
+        return None
+    raw_points = int((spend / policy.loyalty_spend_per_point).to_integral_value(
+        rounding=ROUND_FLOOR,
+    ))
+    points = min(_MAX_POINTS_PER_SALE, raw_points)
+    if points <= 0:
+        return None
+
+    entry = LoyaltyLedgerEntry.objects.create(
+        tenant_id=order.tenant_id, customer=customer, points=points,
+        source_type="sale", source_key=str(order.pk),
+        reason=(
+            f"Paid order {order.bill_reference}: {order.currency} {spend:.2f} "
+            f"eligible at {policy.loyalty_spend_per_point:.2f} per point"
+        )[:300],
+        recorded_by=user,
+    )
+    log_audit(
+        tenant_id=order.tenant_id, user_id=user.pk if user else None,
+        action="customer.loyalty_earned", entity_type="loyalty_entry",
+        entity_id=str(entry.pk), payload={
+            "outlet_id": str(order.outlet_id),
+            "order_id": str(order.pk), "points": points,
+        },
+    )
+    return entry
+
+
+def reverse_refunded_order_points(*, order, refund, user):
+    """Reverse original points proportionally, regardless of today's earn rate.
+
+    Called under the POS order lock and refund transaction. A return never
+    fails because previously earned points were already redeemed.
+    """
+    from apps.pos.models import Refund
+
+    award = LoyaltyLedgerEntry.objects.filter(
+        tenant_id=order.tenant_id, source_type="sale", source_key=str(order.pk),
+    ).first()
+    if not award:
+        return None
+    already = LoyaltyLedgerEntry.objects.filter(
+        tenant_id=order.tenant_id, source_type="refund", source_key=str(refund.pk),
+    ).first()
+    if already:
+        return already
+    customer = Customer.objects.select_for_update().filter(
+        tenant_id=order.tenant_id, pk=award.customer_id,
+    ).first()
+    if customer is None:
+        raise ValidationError({"loyalty": "Original customer loyalty account missing."})
+    previous_ids = [str(pk) for pk in Refund.objects.filter(
+        tenant_id=order.tenant_id, order=order,
+    ).exclude(pk=refund.pk).values_list("pk", flat=True)]
+    prior = -(LoyaltyLedgerEntry.objects.filter(
+        tenant_id=order.tenant_id, customer=customer, source_type="refund",
+        source_key__in=previous_ids,
+    ).aggregate(total=Sum("points"))["total"] or 0)
+    refunded_amount = Refund.objects.filter(
+        tenant_id=order.tenant_id, order=order,
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    if order.total <= 0:
+        return None
+    fraction = min(Decimal("1"), refunded_amount / order.total)
+    target = int((Decimal(award.points) * fraction).to_integral_value(
+        rounding=ROUND_FLOOR,
+    ))
+    delta = max(0, target - prior)
+    if not delta:
+        return None
+
+    entry = LoyaltyLedgerEntry.objects.create(
+        tenant_id=order.tenant_id, customer=customer, points=-delta,
+        source_type="refund", source_key=str(refund.pk),
+        reason=f"Refund on order {order.bill_reference}"[:300],
+        recorded_by=user,
+    )
+    log_audit(
+        tenant_id=order.tenant_id, user_id=user.pk if user else None,
+        action="customer.loyalty_refund_reversed",
+        entity_type="loyalty_entry", entity_id=str(entry.pk),
+        payload={
+            "outlet_id": str(order.outlet_id), "order_id": str(order.pk),
+            "refund_id": str(refund.pk), "points": -delta,
+        },
+    )
+    return entry
