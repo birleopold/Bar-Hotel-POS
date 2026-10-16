@@ -454,3 +454,11 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Added database-backed tests covering two accounts with opposing balances, tenant isolation and merged-account exclusion. Existing unverified mocked reconciliation contracts remain separately authored.
 - No checkout reward redemption or monetary benefit has been enabled, and nothing mutates historical financial transactions. Existing staff shell/nav, responsive card/table styles and per-customer permissions are reused.
 - **Status**: work pushed to origin/main, not verified by a local Django runtime, PostgreSQL, browser or CI. Phase 06 is **still in progress**. No additional phase is marked complete by this checkpoint.
+
+
+### 2026-10-16 — CI migration-drift repair for Phase 08/09
+
+- Observed the actual GitHub Actions failure on main: Django system checks passed, while migration drift blocked the test suite before execution. Django requested `inventory.0009` for StockBatchAllocation.quantity validators and `purchasing.0010` for SupplierInvoice amount validators and recorded_by optionality.
+- Committed both forward-only migrations with existing prior migration dependencies and fields matching current models. No historical stock, invoice, payment or supplier data is backfilled.
+- GitHub Actions was newly queued at the time of this checkpoint. Passing CI, PostgreSQL/RLS, real browser and financial correctness are not claimed. Both phases remain in progress until their complete acceptance journeys and verification pass.
+- This repair is prioritized ahead of more broad modifications so new changes do not hide a known broken release gate.
