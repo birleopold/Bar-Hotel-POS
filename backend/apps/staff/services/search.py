@@ -36,7 +36,8 @@ MANAGEMENT_ROLES = frozenset({
 })
 
 
-def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1):
+def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1,
+                        current_outlet=None):
     if not membership or not membership.is_active or membership.tenant_id != tenant.pk:
         return []
     query = (query or "").strip()[:80]
@@ -49,8 +50,19 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
     outlet_ids = [outlet.pk for outlet in current_outlets]
     sites = sites_visible_for_membership(membership)
     site_ids = [site.pk for site in sites]
-    modules = get_tenant_staff_modules(tenant)
-    nav = staff_nav_visibility_scoped(membership, modules=modules, tenant=tenant)
+    if current_outlet is not None and current_outlet.pk not in outlet_ids:
+        current_outlet = None
+    modules = get_tenant_staff_modules(tenant, outlet=current_outlet)
+    nav = staff_nav_visibility_scoped(
+        membership, modules=modules, tenant=tenant, outlet=current_outlet,
+    )
+    outlet_modules = {
+        outlet.pk: get_tenant_staff_modules(tenant, outlet=outlet)
+        for outlet in current_outlets
+    }
+    pos_outlet_ids = [oid for oid in outlet_ids if "pos" in outlet_modules[oid]]
+    stock_outlet_ids = [oid for oid in outlet_ids if "inventory" in outlet_modules[oid]]
+    buying_outlet_ids = [oid for oid in outlet_ids if "purchasing" in outlet_modules[oid]]
     groups = []
     try:
         record_id = uuid.UUID(query)
@@ -67,8 +79,8 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
     def exact_pk():
         return Q(pk=record_id) if record_id else Q(pk__isnull=True)
 
-    if nav.orders and outlet_ids:
-        qs = Order.objects.filter(tenant=tenant, outlet_id__in=outlet_ids).filter(
+    if nav.orders and pos_outlet_ids:
+        qs = Order.objects.filter(tenant=tenant, outlet_id__in=pos_outlet_ids).filter(
             Q(bill_reference__icontains=query)
             | Q(table_label__icontains=query) | exact_pk()
         ).select_related("outlet").order_by("-created_at")[offset:offset+per_group+1]
@@ -123,13 +135,15 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
             "url": reverse("staff-customer-detail", kwargs={"customer_id": cust.pk}),
         } for cust in customers])
 
-    if (nav.menu or nav.inventory) and outlet_ids:
+    if (nav.menu or nav.inventory) and (pos_outlet_ids or stock_outlet_ids):
         # A product is accessible when offered in a permitted outlet, or when
         # no outlet restrictions were configured for that product.
         from django.db.models import Exists, OuterRef
         from apps.catalog.models import MenuItemOutlet
         links = MenuItemOutlet.objects.filter(menu_item_id=OuterRef("pk"))
-        allowed_links = links.filter(outlet_id__in=outlet_ids)
+        allowed_links = links.filter(
+            outlet_id__in=pos_outlet_ids if nav.menu else stock_outlet_ids
+        )
         items = MenuItem.objects.filter(tenant=tenant).alias(
             any_link=Exists(links), permitted_link=Exists(allowed_links),
         ).filter(Q(any_link=False) | Q(permitted_link=True)).filter(
@@ -143,7 +157,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
             "url": destination,
         } for item in items])
 
-    if nav.purchasing and outlet_ids:
+    if nav.purchasing and buying_outlet_ids:
         # Suppliers are tenant-level (not section restricted) in existing UI;
         # POs must always be limited to accessible receiving outlets.
         suppliers = Supplier.objects.filter(tenant=tenant).filter(
@@ -154,7 +168,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
             "url": reverse("staff-purchasing-suppliers") + "?" + urlencode({"q": supplier.name}),
         } for supplier in suppliers])
         pos = PurchaseOrder.objects.filter(
-            tenant=tenant, outlet_id__in=outlet_ids,
+            tenant=tenant, outlet_id__in=buying_outlet_ids,
         ).filter(Q(reference__icontains=query) | Q(supplier__name__icontains=query)
                  | exact_pk()).select_related("supplier", "outlet").order_by(
             "-created_at"
