@@ -31,7 +31,7 @@ def test_customer_api_read_only_and_tenant_branch_isolated():
             check_in=date.today(), check_out=date.today() + timedelta(days=1),
         )
     client = APIClient()
-    client.force_authenticate(user)
+    client.force_login(user)  # Middleware must resolve tenant membership before DRF.
     headers = {"HTTP_X_TENANT_ID": str(tenant.pk)}
     response = client.get("/api/v1/customers/", **headers)
     assert response.status_code == 200, response.content
