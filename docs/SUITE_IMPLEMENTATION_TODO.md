@@ -58,7 +58,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 - [-] **27 Onboarding:** business type → details → branch/outlets → catalog add/import → invite staff → configure/test device → test sale → go live, resumable checklist without Django admin.
 - [-] **28 Demo/training:** populated Hotel/Bar/Restaurant/Supermarket demos, isolated tenant/training data and explicit mode, safe reset and no live provider side effects.
-- [ ] **29 Subscription entitlements:** consistent template/view/service/API enforcement, sensible disabled-module behavior, tenant isolation and module bypass regression tests.
+- [-] **29 Subscription entitlements:** consistent template/view/service/API enforcement, sensible disabled-module behavior, tenant isolation and module bypass regression tests.
 - [-] **30 Documentation/feature matrix:** reconcile README/product plan/audit with source; generated capability matrix separating backend/UI/API/tests/PostgreSQL/browser/hardware; no stale test counts or claims of certification.
 - [-] **31 Release certification command:** commit-bound evidence for migrations, checks, tests, PostgreSQL/concurrency/RLS, schema, security, browser workflows, static files and rollback review; certificate with actual database/browser versions and timestamp; fail on absent mandatory evidence.
 - [ ] **32 Financial/historical policies:** review positive-only historical POS folios and legacy receiving expenses; recipe recovery policy; discounted/taxed split-tender return allocation; no duplicate stock/cash posting; linked-return amount validation and authorized corrections.
@@ -539,3 +539,9 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Command is **fail closed** unless `DEBUG=True`, default database engine is SQLite, and the tenant slug begins with `training-`. Existing tenant slugs are never overwritten, and the command is transactional. This prevents casual execution on production deployments, not a substitute for protecting access to production database credentials.
 - Added tests for all four demo types, duplicate tenant rejection, production denial and slug guard. These edits need a complete CI run.
 - Phase 28 changes **pending → in progress**, not complete. No onboarding UI, explicit training banner in staff pages, populated simulated stays/stock/payments, isolated staff PIN setup or safe reset are implemented yet. Never call these local fixtures a production-ready training mode.
+
+### 2026-10-16 — Phase 29 subscription entitlement precedence
+
+- Corrected `resolve_effective_staff_modules`: explicit per-module entitlement grants can extend a plan only when that module is also enabled in the owner's tenant configuration and permitted by its business profile. A billing entitlement must not silently undo an owner-disabled feature.
+- Added database-backed tests for owner-disabled purchasing and cross-business lodging grant isolation, while still permitting inventory module plan extension when enabled by the owner.
+- Phase 29 is **in progress** only. Remaining work: explicit trial/grace and account-limit rules, consistent API/service and paid-module enforcement, transparent owner subscription UI, billing lifecycle, downgrade data safety, migrations and full release certification. The new commits require fresh CI confirmation.
