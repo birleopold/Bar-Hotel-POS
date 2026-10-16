@@ -149,6 +149,20 @@
       });
     }
   }
+  var paymentSubmitForm = document.querySelector("[data-pos-payment-form]");
+  if (paymentSubmitForm) {
+    var paymentPending = false;
+    paymentSubmitForm.addEventListener("submit", function (event) {
+      if (paymentPending) { event.preventDefault(); return; }
+      if (!paymentSubmitForm.checkValidity()) return;
+      paymentPending = true;
+      var submitButton = paymentSubmitForm.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = "Recording payment…";
+      }
+    });
+  }
   var cashPanel = document.querySelector("[data-retail-cash-panel]");
   if (cashPanel) {
     var received = cashPanel.querySelector("[data-retail-cash-received]");
