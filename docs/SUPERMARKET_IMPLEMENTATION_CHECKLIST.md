@@ -104,3 +104,11 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - Added staff integration tests checking scan page visibility, barcode-based line insertion and GET-vs-POST new sale behavior. These require the exact-commit CI run before verification.
 - **SM-11 / SM-P0.1 remain `[-]` / `[ ]` respectively**. A production cashier lane still needs settled tender/change display, fast scanner loop under real hardware, hold/resume, large baskets, focused flow order, and device/browser regression. This checkpoint is meaningful end-user UI implementation, **not completion**.
 - Next supermarket work targets catalog reliability and cashier throughput without changing any bar/hotel staff screen.
+
+## 2026-10-16 — SM-P0.1 cash tender and change checkpoint
+
+- Inspected the existing staff payment service: it records the **amount applied to the sale**, not total notes handed to the cashier. Preserved the payment ledger and full/partial tender accounting rules rather than posting overpayments or inventing change transactions.
+- Added a supermarket-only, accessible cash tender calculator alongside the existing payment form. The cashier can enter cash physically received, see change due, and automatically populate the actual outstanding amount when Cash is selected. Short cash prompts the operator to use normal partial payment; card/mobile money tender rules are unchanged.
+- Added an integration assertion for checkout page rendering and the calculator, conditional on the existing server permission to collect payments. This is **not** a certified overpayment/change workflow: physically tendered cash is not persisted and the helper is browser-side only.
+- Research basis: current Odoo POS checkout documentation distinguishes cash tender requiring change from exact payment, while receipt specifications require reliable paid-method disclosure. Sources: https://www.odoo.com/documentation/20.0/applications/sales/point_of_sale/payment_methods.html and https://www.odoo.com/documentation/19.0/applications/sales/point_of_sale/use/receipts.html .
+- **SM-P0.1 remains open** until scanner performance, exact settlement, server-side tender audit, real receipt printing, hold/resume, narrow-screen/browser testing and full-CI sign-off are demonstrated.
