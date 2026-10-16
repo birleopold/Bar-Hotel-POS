@@ -9,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 from apps.accounts.models import MembershipRole
 from apps.audit.services import log_audit
 from apps.pos.models import Workstation, WorkstationHardwareCheck
+from apps.tenants.models import Tenant
 from apps.staff.services.membership import staff_accessible_outlets
 from apps.staff.services.modules import get_tenant_staff_modules
 
@@ -70,8 +71,10 @@ def record_hardware_check(*, tenant, workstation_id, membership, user,
         raise ValidationError({"workstation": "This workstation is not assigned to your workspace."})
     if test_type not in DEVICE_TYPES or result not in RESULTS:
         raise ValidationError({"result": "Choose an equipment type and test outcome."})
+    # Resolve a fresh business configuration: a previously accessed tenant.settings
+    # relation can be stale after an administrator disables a business line.
     if test_type == "kitchen_display" and "kitchen" not in get_tenant_staff_modules(
-        tenant, outlet=station.outlet,
+        Tenant.objects.get(pk=tenant.pk), outlet=station.outlet,
     ):
         raise ValidationError({"test_type": "Kitchen hardware is not enabled for this section."})
     note = (note or "").strip()
