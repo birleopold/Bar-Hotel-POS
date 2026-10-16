@@ -2,7 +2,7 @@ import uuid
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -51,6 +51,23 @@ class StaffCustomerListView(CustomerAccessMixin, TemplateView):
         if q:
             qs = qs.filter(Q(name__icontains=q) | Q(email__icontains=q) | Q(phone__icontains=q))
         ctx.update(customers=qs.order_by("name", "id")[:50], search=q)
+        if self.request.tenant_membership.role in {
+            MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+        }:
+            from django.db.models import Sum
+             summary = {}
+            ledger = LoyaltyLedgerEntry.objects.filter(
+                tenant=self.request.tenant,
+            ).values("source_type").annotate(total=Sum("points"), count=Count("pk"))
+            for row in ledger:
+                summary[row["source_type"]] = row
+            ctx["loyalty_summary"] = summary
+            ctx["loyalty_net_issued"] = sum(
+                int(row["total"] or 0) for row in summary.values()
+            )
+            ctx["loyalty_policy_summary"] = TenantSettings.objects.filter(
+                tenant=self.request.tenant,
+            ).only("loyalty_enabled", "loyalty_spend_per_point", "default_currency").first()
         return ctx
 
 
