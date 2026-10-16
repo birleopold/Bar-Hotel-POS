@@ -122,3 +122,11 @@ docs/                    Architecture, product, operations, and compliance docum
 ## License
 
 No open-source license has been granted yet. Until a license is added, the repository remains copyright-protected and reuse requires the owner's permission.
+
+## Implementation tracking and supermarket roadmap
+
+- [Live progress by phase](docs/IMPLEMENTATION_PROGRESS.md) — 34 phases with delivery state, remaining acceptance and evidence.
+- [Supermarket and retail backlog](docs/SUPERMARKET_IMPLEMENTATION_CHECKLIST.md) — 36 practical supermarket capabilities, existing features, important missing features, and P0/P1/P2 implementation order.
+- [Authoritative full implementation checklist](docs/SUITE_IMPLEMENTATION_TODO.md) — chronological decisions, test evidence and release requirements.
+
+The existing supermarket foundation is **not** a certified full supermarket solution. Track UI, real barcode/scale/printer tests, PostgreSQL isolation, fast checkout and inventory accuracy before claiming a feature fully shipped.
