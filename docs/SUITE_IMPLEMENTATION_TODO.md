@@ -57,7 +57,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 ## Commercial readiness and engineering evidence
 
 - [-] **27 Onboarding:** business type → details → branch/outlets → catalog add/import → invite staff → configure/test device → test sale → go live, resumable checklist without Django admin.
-- [ ] **28 Demo/training:** populated Hotel/Bar/Restaurant/Supermarket demos, isolated tenant/training data and explicit mode, safe reset and no live provider side effects.
+- [-] **28 Demo/training:** populated Hotel/Bar/Restaurant/Supermarket demos, isolated tenant/training data and explicit mode, safe reset and no live provider side effects.
 - [ ] **29 Subscription entitlements:** consistent template/view/service/API enforcement, sensible disabled-module behavior, tenant isolation and module bypass regression tests.
 - [-] **30 Documentation/feature matrix:** reconcile README/product plan/audit with source; generated capability matrix separating backend/UI/API/tests/PostgreSQL/browser/hardware; no stale test counts or claims of certification.
 - [-] **31 Release certification command:** commit-bound evidence for migrations, checks, tests, PostgreSQL/concurrency/RLS, schema, security, browser workflows, static files and rollback review; certificate with actual database/browser versions and timestamp; fail on absent mandatory evidence.
@@ -532,3 +532,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Added tests for inactive actors, disallowed roles, unsupported actions, and existing refund authority compatibility.
 - **This is not an approval workflow**: request creation, a different authorized manager's PIN, single-use exact-action token, expiry, replay safety, segregation and immutable approval audit are *not implemented yet*. Do not imply any named action is manager-PIN approved merely because its role is listed.
 - Phase 21 advances from **pending to in progress**, not complete. The new commits require their own CI confirmation. Prior Phase 18 CI was still running when last checked.
+
+### 2026-10-16 — Phase 28 local training fixture groundwork
+
+- Introduced a `create_training_demo` management command supporting `bar`, `restaurant`, `lodging` and `supermarket` sample tenants with product-specific outlets, UGX defaults and simple catalog examples. It creates no payment, POS order, users, EFRIS links, integration credentials or live transactions.
+- Command is **fail closed** unless `DEBUG=True`, default database engine is SQLite, and the tenant slug begins with `training-`. Existing tenant slugs are never overwritten, and the command is transactional. This prevents casual execution on production deployments, not a substitute for protecting access to production database credentials.
+- Added tests for all four demo types, duplicate tenant rejection, production denial and slug guard. These edits need a complete CI run.
+- Phase 28 changes **pending → in progress**, not complete. No onboarding UI, explicit training banner in staff pages, populated simulated stays/stock/payments, isolated staff PIN setup or safe reset are implemented yet. Never call these local fixtures a production-ready training mode.
