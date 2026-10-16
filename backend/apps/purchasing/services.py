@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import Sum
@@ -42,6 +42,23 @@ def receive_purchase_order_goods(
         raise ValidationError(
             {"detail": "Purchase order must be sent or partially received to receive goods."}
         )
+    # Validate the complete delivery before creating a receipt or changing stock.
+    # This is a server-side boundary, regardless of API/form serializers.
+    if not lines_payload:
+        raise ValidationError({"lines": "Enter at least one delivery line."})
+    normalized = []
+    for row in lines_payload:
+        try:
+            qty = Decimal(str(row["quantity"]))
+            line_id = row["line_id"]
+        except (KeyError, TypeError, ValueError, InvalidOperation) as exc:
+            raise ValidationError({"lines": "Every delivery line needs an item and valid quantity."}) from exc
+        if not qty.is_finite() or qty < 0 or qty > Decimal("99999999999.999"):
+            raise ValidationError({"lines": "Delivery quantity must be finite and non-negative."})
+        if qty != qty.quantize(Decimal("0.001")):
+            raise ValidationError({"lines": "Delivery quantity allows at most three decimal places."})
+        normalized.append({**row, "line_id": line_id, "quantity": qty})
+    lines_payload = normalized
     positive_ids = [row["line_id"] for row in lines_payload if row["quantity"] > 0]
     if len(positive_ids) != len(set(positive_ids)):
         raise ValidationError({"lines": "Each purchase order line may be received only once per delivery."})
