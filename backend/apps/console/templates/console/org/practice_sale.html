@@ -1,0 +1,61 @@
+{% extends "console/base.html" %}
+{% block title %}Practice checkout{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Setup · Training</p>
+    <h1 class="staff-page-title">Practice a checkout</h1>
+    <p>Preview the item price, tax and total using the same calculation helpers as the live POS, without taking payment.</p>
+  </div>
+</header>
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-setup' %}">Back to setup</a>
+  <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Edit item prices</a>
+</div>
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+    <section class="staff-card">
+      <h2 class="staff-section-head">Choose a test item</h2>
+      <form method="post" class="d-grid gap-3">
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="staff-alert staff-alert--warning">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form %}
+          <div>
+            <label for="{{ field.id_for_label }}" class="staff-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="staff-field-error" role="alert">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="staff-btn staff-btn--primary">Preview checkout total</button>
+      </form>
+      {% if practice_checked_at %}
+        <p class="staff-muted small mt-3 mb-0">Last practice check: {{ practice_checked_at|date:"j M Y, H:i" }}{% if practice_checked_by %} by {{ practice_checked_by.email }}{% endif %}.</p>
+      {% endif %}
+    </section>
+  </div>
+  <div class="col-12 col-lg-6">
+    {% if result %}
+      <section class="staff-card" aria-label="Practice checkout result">
+        <span class="staff-tag staff-tag--teal">Practice preview — not a sale</span>
+        <h2 class="staff-section-head mt-3">{{ result.item.name }}</h2>
+        <p class="staff-muted">{{ result.outlet.name }}</p>
+        <dl class="row g-2">
+          <dt class="col-7">Quantity</dt><dd class="col-5 text-end">{{ result.quantity }}</dd>
+          <dt class="col-7">Unit price</dt><dd class="col-5 text-end">{{ result.unit_price }}</dd>
+          <dt class="col-7">Subtotal</dt><dd class="col-5 text-end">{{ result.subtotal }}</dd>
+          <dt class="col-7">Calculated item tax</dt><dd class="col-5 text-end">{{ result.tax }}</dd>
+          <dt class="col-7"><strong>Example total</strong></dt><dd class="col-5 text-end"><strong>{{ result.total }}</strong></dd>
+        </dl>
+        <p class="staff-alert staff-alert--info">No order, payment, shift, inventory movement, tax invoice or customer record was created. You still need to check real hardware, payment provider setup and the end-to-end live sale process separately.</p>
+      </section>
+    {% else %}
+      <section class="staff-card">
+        <h2 class="staff-section-head">What gets checked?</h2>
+        <p>This rehearsal reads the live catalog price for your selected section, checks whether the item is available there, applies the allowed quantity format and calculates its item-level tax.</p>
+        <p class="staff-muted mb-0">It does not simulate cash collection, discounts, modifiers, printer connectivity, shift reconciliation or fiscal reporting. Those require separate reviews.</p>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
