@@ -1,5 +1,5 @@
 {% extends "staff/base.html" %}
-{% load staff_tags %}
+{% load staff_tags static %}
 {% block title %}Offline sync · {{ request.tenant.name }}{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
@@ -14,6 +14,23 @@
     </div>
   </div>
 </header>
+<section class="staff-card mb-3">
+  <h2 class="staff-section-head">Sync health</h2>
+  <p class="staff-muted">This report shows requests the server has received. Work still queued on a disconnected phone or till will appear only after that device sends it.</p>
+  <div class="staff-metric-row staff-metric-row--folio mb-3" aria-label="Server replay queue status">
+    <span><strong>{{ offline_counts.pending }}</strong><small>Waiting on server</small></span>
+    <span><strong>{{ offline_counts.applied }}</strong><small>Successfully applied</small></span>
+    <span><strong>{{ offline_counts.failed }}</strong><small>Needs review</small></span>
+    <span><strong>{{ offline_stale }}</strong><small>Waiting over 24 hours</small></span>
+  </div>
+  <p class="staff-muted small mb-2">Latest applied operation: {{ offline_counts.last_applied|default:"None recorded" }}.</p>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <span id="offline-browser-status" role="status">Checking this browser's connection…</span>
+    <button class="staff-btn staff-btn--ghost" type="button" id="offline-server-check">Check server connection</button>
+    <span id="offline-server-check-result" role="status" aria-live="polite"></span>
+  </div>
+  <p class="staff-muted small mt-2 mb-0">A browser connection indicator is not proof that the register has fully synchronized. Review all failed or waiting transactions before closing a till.</p>
+</section>
 <div class="staff-card mb-3">
   <h2 class="staff-section-head">When sync shows <code class="staff-code">409 catalog_stale</code></h2>
   <p class="staff-muted mb-2">The device sent a menu fingerprint (<code class="staff-code">payload.catalog_version</code>) that no longer matches the server outlet catalog (prices, items, promos, etc. changed). The API rejects the mutation and records a <strong>failed</strong> row here so you can see it.</p>
@@ -31,7 +48,7 @@
       <option value=""{% if not filter_status %} selected{% endif %}>All</option>
       <option value="applied"{% if filter_status == "applied" %} selected{% endif %}>Applied</option>
       <option value="failed"{% if filter_status == "failed" %} selected{% endif %}>Failed</option>
-      <option value="pending"{% if filter_status == "pending" %} selected{% endif %}>Pending</option>
+      <option value="pending"{% if filter_status == "pending" %} selected{% endif %}>Waiting</option>
     </select>
   </div>
   <div class="flex-grow-1" style="min-width: 12rem;">
@@ -80,13 +97,24 @@
             {% endif %}
           {% endwith %}
         </td>
-        <td class="text-break small">{{ e.client_mutation_id }}</td>
+        <td class="text-break small"><code>{{ e.client_mutation_id|truncatechars:24 }}</code><details>
+          <summary>Full request ID</summary><code class="text-break">{{ e.client_mutation_id }}</code>
+        </details></td>
         <td class="small">
           {% if e.applied_order_id %}order {{ e.applied_order_id|truncatechars:8 }}{% endif %}
           {% if e.applied_payment_id %} pay {{ e.applied_payment_id|truncatechars:8 }}{% endif %}
           {% if not e.applied_order_id and not e.applied_payment_id %}—{% endif %}
         </td>
-        <td class="small text-break staff-muted">{{ e.error_message|truncatechars:120 }}</td>
+        <td class="small text-break staff-muted">
+          {% if e.error_message %}{{ e.error_message|truncatechars:120 }}{% else %}—{% endif %}
+          {% if e.status == "failed" %}
+          <details><summary>What to do</summary>
+            <p>Refresh this device's catalog, confirm the order and payment history, and ask a manager to review any conflict before retrying. Keep the original request ID; don't start another payment blindly.</p>
+          </details>
+          {% elif e.status == "pending" %}
+          <span>Awaiting server processing. Do not re-enter the sale manually.</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -106,4 +134,38 @@
 {% else %}
 <p class="staff-muted">No offline queue rows yet.</p>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+  "use strict";
+  var indicator = document.getElementById("offline-browser-status");
+  var button = document.getElementById("offline-server-check");
+  var result = document.getElementById("offline-server-check-result");
+  function showNetwork() {
+    if (indicator) {
+      indicator.textContent = navigator.onLine
+        ? "This browser reports a network connection"
+        : "This browser is offline";
+    }
+  }
+  window.addEventListener("online", showNetwork);
+  window.addEventListener("offline", showNetwork);
+  showNetwork();
+  if (button && result) button.addEventListener("click", function () {
+    button.disabled = true;
+    result.textContent = "Checking…";
+    fetch(window.location.href, {
+      method: "HEAD", credentials: "same-origin",
+      cache: "no-store", redirect: "follow"
+    }).then(function (response) {
+      result.textContent = response.ok ? "Server reachable" : "Server returned an error";
+    }).catch(function () {
+      result.textContent = "Server not reachable from this browser";
+    }).finally(function () { button.disabled = false; });
+  });
+}());
+</script>
 {% endblock %}

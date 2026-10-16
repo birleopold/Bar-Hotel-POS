@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from django.db.models import Q
+from datetime import timedelta
+from django.db.models import Q, Count, Max
+from django.utils import timezone
 from django.views.generic import ListView
 
 from apps.pos.models import OfflineQueuedOperation
@@ -19,7 +21,7 @@ class StaffOfflineQueueListView(StaffTenantRequiredMixin, ListView):
     context_object_name = "entries"
     paginate_by = 50
 
-    def get_queryset(self):
+    def _permitted_queue(self):
         qs = OfflineQueuedOperation.objects.filter(tenant=self.request.tenant).select_related(
             "outlet"
         )
@@ -33,10 +35,14 @@ class StaffOfflineQueueListView(StaffTenantRequiredMixin, ListView):
         session_mode = self.request.session.get(STAFF_SESSION_OUTLET_KEY)
         if sel is not None and session_mode != STAFF_SESSION_OUTLET_ALL:
             qs = qs.filter(outlet_id=sel.id)
+        return qs
+
+    def get_queryset(self):
+        qs = self._permitted_queue()
         st = (self.request.GET.get("status") or "").strip()
-        if st:
+        if st in {"pending", "applied", "failed"}:
             qs = qs.filter(status=st)
-        op = (self.request.GET.get("q") or "").strip()
+        op = (self.request.GET.get("q") or "").strip()[:80]
         if op:
             qs = qs.filter(
                 Q(client_mutation_id__icontains=op)
@@ -48,7 +54,19 @@ class StaffOfflineQueueListView(StaffTenantRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["filter_status"] = (self.request.GET.get("status") or "").strip()
-        ctx["filter_q"] = (self.request.GET.get("q") or "").strip()
+        ctx["filter_q"] = (self.request.GET.get("q") or "").strip()[:80]
+        qs = self._permitted_queue()
+        stats = qs.aggregate(
+            pending=Count("pk", filter=Q(status="pending")),
+            applied=Count("pk", filter=Q(status="applied")),
+            failed=Count("pk", filter=Q(status="failed")),
+            last_applied=Max("updated_at", filter=Q(status="applied")),
+        )
+        ctx["offline_counts"] = stats
+        ctx["offline_stale"] = qs.filter(
+            status="pending",
+            created_at__lt=timezone.now() - timedelta(hours=24),
+        ).count()
         tenant_id = self.request.tenant.id
         catalog_by_outlet: dict[str, dict] = {}
         for o in staff_accessible_outlets(self.request.tenant_membership):
