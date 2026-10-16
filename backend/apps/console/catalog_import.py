@@ -113,7 +113,7 @@ def parse_catalog_csv(*, tenant, uploaded):
                 raise ValueError("CSV row is missing a required column value.")
             row = {str(key): str(value or "").strip()
                    for key, value in values.items()}
-            if any("\\x00" in value or "\\r" in value or "\\n" in value for value in row.values()):
+            if any("\x00" in value or "\r" in value or "\n" in value for value in row.values()):
                 raise ValueError("Fields may not contain embedded control characters or line breaks.")
             cat = row.get("category", "")
             name = row.get("name", "")
