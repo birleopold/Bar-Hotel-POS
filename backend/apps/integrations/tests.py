@@ -190,3 +190,54 @@ class EfrisQueueTests(TestCase):
         self.assertIn("data", captured["data"])
         decoded = base64.b64decode(captured["data"]["data"].encode("utf-8")).decode("utf-8")
         self.assertIn('"reference":"BILL-5"', decoded)
+
+
+    @override_settings(EFRIS_INTEGRATION_ENABLED=True)
+    @patch("apps.integrations.services.get_efris_adapter")
+    def test_unknown_provider_outcome_is_quarantined_without_resubmission(self, adapter_factory):
+        self.tenant_settings.efris_enabled = True
+        self.tenant_settings.save(update_fields=["efris_enabled"])
+        entry, _ = post_cashbook_for_source(
+            tenant_id=self.tenant.id, source_type=FinancePostingSource.POS_PAYMENT,
+            source_id="unknown-outcome", kind=FinanceCategoryKind.INCOME,
+            amount=Decimal("42.00"), reference="TEST-UNKNOWN", note="test",
+        )
+        submission = EfrisSubmission.objects.get(cashbook_entry=entry)
+        adapter_factory.return_value.submit_receipt.side_effect = TimeoutError("connection lost")
+        self.assertEqual(process_efris_submission_queue(), 1)
+        submission.refresh_from_db()
+        self.assertEqual(submission.status, EfrisSubmissionStatus.FAILED)
+        self.assertEqual(submission.attempts, 3)
+        self.assertIsNone(submission.next_retry_at)
+        self.assertIn("outcome unknown", submission.last_error.lower())
+        self.assertEqual(process_efris_submission_queue(), 0)
+        self.assertEqual(adapter_factory.return_value.submit_receipt.call_count, 1)
+
+    @override_settings(EFRIS_INTEGRATION_ENABLED=True)
+    @patch("apps.integrations.services.get_efris_adapter")
+    def test_provider_rejection_stops_after_three_attempts(self, adapter_factory):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .efris import EfrisSubmitResult
+
+        self.tenant_settings.efris_enabled = True
+        self.tenant_settings.save(update_fields=["efris_enabled"])
+        entry, _ = post_cashbook_for_source(
+            tenant_id=self.tenant.id, source_type=FinancePostingSource.POS_PAYMENT,
+            source_id="rejected-3-times", kind=FinanceCategoryKind.INCOME,
+            amount=Decimal("7.00"), reference="TEST-REJECT", note="test",
+        )
+        submission = EfrisSubmission.objects.get(cashbook_entry=entry)
+        adapter_factory.return_value.submit_receipt.return_value = EfrisSubmitResult(
+            success=False, error_message="Validation rejected",
+        )
+        for i in range(3):
+            self.assertEqual(process_efris_submission_queue(), 1)
+            submission.refresh_from_db()
+            self.assertEqual(submission.attempts, i + 1)
+            if i < 2:
+                submission.next_retry_at = timezone.now() - timedelta(minutes=1)
+                submission.save(update_fields=["next_retry_at"])
+        self.assertIsNone(submission.next_retry_at)
+        self.assertEqual(process_efris_submission_queue(), 0)
+        self.assertEqual(adapter_factory.return_value.submit_receipt.call_count, 3)
