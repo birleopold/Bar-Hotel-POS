@@ -31,9 +31,21 @@ def apply_manual_stock_change(
     note: str = "",
     purchase_order=None,
 ) -> StockMovement:
-    """Apply a non-sale movement and update ``StockBalance``."""
-    if quantity_change == 0:
-        raise ValidationError({"quantity_change": "Must be non-zero."})
+    """Apply a non-sale movement and update ``StockBalance``.
+
+    Validate tenant scope and quantities before posting a financial stock fact.
+    """
+    try:
+        quantity_change = Decimal(str(quantity_change))
+    except (ValueError, TypeError, ArithmeticError) as exc:
+        raise ValidationError({"quantity_change": "Enter a valid stock quantity."}) from exc
+    if (not quantity_change.is_finite()
+            or quantity_change == 0
+            or quantity_change != quantity_change.quantize(Decimal("0.001"))
+            or abs(quantity_change) > Decimal("99999999999.999")):
+        raise ValidationError({"quantity_change": "Enter a non-zero quantity with up to three decimal places."})
+    if outlet.site.tenant_id != tenant_id or menu_item.tenant_id != tenant_id:
+        raise ValidationError({"stock": "Section and product must belong to this business."})
 
     if reason in (StockReason.RECEIVE, StockReason.ADJUST_IN) and quantity_change < 0:
         raise ValidationError({"quantity_change": "Must be positive for receive / adjust-in."})
