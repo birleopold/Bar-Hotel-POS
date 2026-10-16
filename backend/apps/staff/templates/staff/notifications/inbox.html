@@ -1,0 +1,73 @@
+{% extends "staff/base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Your workspace</p>
+    <h1 class="staff-page-title">Notifications</h1>
+    <p>Important stock, property maintenance and purchasing issues in your assigned locations. Alerts are private to your staff account.</p>
+  </div>
+</header>
+<section class="staff-card mb-3">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <a href="{% url 'staff-notifications' %}" class="staff-btn {% if unread_only %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}">All alerts</a>
+    <a href="?unread=1" class="staff-btn {% if unread_only %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}">Unread ({{ unread_count }})</a>
+    <form method="post" class="m-0">{% csrf_token %}
+      <input type="hidden" name="action" value="refresh">
+      <button type="submit" class="staff-btn staff-btn--ghost">Refresh alerts</button>
+    </form>
+    {% if unread_count %}
+      <form method="post" class="m-0">{% csrf_token %}
+        <input type="hidden" name="action" value="read_all">
+        <button type="submit" class="staff-btn staff-btn--ghost">Mark all read</button>
+      </form>
+    {% endif %}
+  </div>
+  <p class="staff-muted mt-3 mb-0">Refresh to review current low stock, unresolved room repairs and recorded delivery discrepancies. This version does not send SMS or push notifications; alerts are available inside the POS only.</p>
+</section>
+{% if alerts %}
+<div class="row g-3">
+  {% for alert in alerts %}
+    <div class="col-12 col-lg-6">
+      <article class="staff-card h-100{% if not alert.read_at %} border-start border-4{% endif %}">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          {% if alert.priority == 'urgent' %}<span class="staff-tag">Urgent</span>
+          {% elif alert.priority == 'high' %}<span class="staff-tag">High priority</span>
+          {% else %}<span class="staff-muted small">Notice</span>{% endif %}
+          {% if not alert.read_at %}<strong class="small">Unread</strong>{% endif %}
+          <span class="staff-muted small ms-auto">{{ alert.created_at|date:"j M, H:i" }}</span>
+        </div>
+        <h2 class="staff-card__title">{{ alert.title }}</h2>
+        <p class="staff-muted">{{ alert.body }}</p>
+        <div class="d-flex flex-wrap gap-2">
+          {% if alert.url %}<a class="staff-btn staff-btn--primary" href="{{ alert.url }}">Open record</a>{% endif %}
+          {% if not alert.read_at %}
+            <form method="post" class="m-0">{% csrf_token %}
+              <input type="hidden" name="action" value="read">
+              <input type="hidden" name="alert_id" value="{{ alert.pk }}">
+              <button class="staff-btn staff-btn--ghost" type="submit">Mark read</button>
+            </form>
+          {% else %}<span class="staff-muted small">Read</span>{% endif %}
+        </div>
+      </article>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<section class="staff-card">
+  <h2 class="staff-section-head">You're all caught up</h2>
+  <p class="staff-muted mb-0">No {% if unread_only %}unread{% else %}active{% endif %} alerts are available. Use Refresh alerts to check current conditions.</p>
+</section>
+{% endif %}
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="staff-pager mt-3" aria-label="Notification pages">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if unread_only %}&amp;unread=1{% endif %}">Previous</a>
+  {% endif %}
+  <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if unread_only %}&amp;unread=1{% endif %}">Next</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endblock %}
