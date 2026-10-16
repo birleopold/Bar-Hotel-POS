@@ -15,7 +15,7 @@
           </div>
           <p class="staff-pos-orders-kicker mb-1">Point of sale</p>
           <h1 class="staff-page-title staff-page-title--pos mb-1">{% if returns_task %}Returns{% elif mine_filter %}My orders{% else %}Orders{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-muted mb-0 staff-pos-orders-hero__lede">{% if current_outlet %}Serving {{ current_outlet.name }} · Start a check or pick up an active tab.{% else %}Select a section to start an order, or find a past bill below.{% endif %}</p>
+          <p class="staff-muted mb-0 staff-pos-orders-hero__lede">{% if current_outlet %}Serving {{ current_outlet.name }} · {% if show_supermarket_lane %}Scan products, check out, or resume a held basket.{% else %}Start a check or pick up an active tab.{% endif %}{% else %}Select a section to start an order, or find a past bill below.{% endif %}</p>
         </div>
         <div class="staff-pos-orders-hero__actions">
           {% if current_outlet %}
@@ -27,7 +27,7 @@
             <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline">
               {% csrf_token %}
               <input type="hidden" name="mode" value="hold">
-              <button type="submit" class="staff-btn staff-btn--ghost"><i class="bi bi-pause-circle me-2" aria-hidden="true"></i>Held tab</button>
+              <button type="submit" class="staff-btn staff-btn--ghost"><i class="bi bi-pause-circle me-2" aria-hidden="true"></i>{% if show_supermarket_lane %}Hold basket{% else %}Held tab{% endif %}</button>
             </form>
           {% endif %}
           {% if show_supermarket_lane %}
@@ -37,7 +37,7 @@
       </div>
 
       <dl class="staff-pos-orders-summary" aria-label="Orders summary">
-        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Held tabs</dt><dd class="staff-pos-orders-summary__value">{{ held_tabs|length }}</dd></div>
+        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">{% if show_supermarket_lane %}Held baskets{% else %}Held tabs{% endif %}</dt><dd class="staff-pos-orders-summary__value">{{ held_tabs|length }}</dd></div>
         <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Open checks</dt><dd class="staff-pos-orders-summary__value">{{ open_tabs|length }}</dd></div>
         <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Recent activity</dt><dd class="staff-pos-orders-summary__value">{{ recent_orders|length }}</dd></div>
         <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Orders found</dt><dd class="staff-pos-orders-summary__value">{{ page_obj.paginator.count }}</dd></div>
