@@ -5,6 +5,7 @@ active tenant, assigned properties or permitted outlets. No search terms are
 written to logs or stored, because they may contain guest identifiers.
 """
 import uuid
+from urllib.parse import urlencode
 from django.db.models import Q
 from django.urls import reverse
 
@@ -19,6 +20,11 @@ from .customers import can_manage_customers, visible_customers
 from .membership import sites_visible_for_membership, staff_accessible_outlets
 from .modules import get_tenant_staff_modules
 from .scoping import staff_nav_visibility_scoped
+from .permissions import (
+    membership_can_manage_reservations,
+    membership_can_manage_room_inventory,
+    membership_can_manage_folios,
+)
 
 CATEGORIES = (
     "Orders", "Reservations", "Rooms", "Customers", "Items",
@@ -72,7 +78,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
             "url": reverse("staff-order-detail", kwargs={"order_id": order.pk}),
         } for order in qs])
 
-    if nav.lodging and site_ids:
+    if nav.lodging and site_ids and membership_can_manage_reservations(membership):
         qs = Reservation.objects.filter(tenant=tenant, site_id__in=site_ids).filter(
             Q(guest_name__icontains=query) | exact_pk()
         ).select_related("site").order_by("-created_at")[offset:offset+per_group+1]
@@ -81,6 +87,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
             "url": reverse("staff-lodging-reservation-detail", kwargs={"reservation_id": res.pk}),
         } for res in qs])
 
+    if nav.lodging and site_ids and membership_can_manage_room_inventory(membership):
         rooms = Room.objects.filter(
             room_type__tenant=tenant, room_type__site_id__in=site_ids,
         ).filter(Q(name__icontains=query) | exact_pk()).select_related(
@@ -89,9 +96,12 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
         add_group("Rooms", [{
             "title": "Room " + room.name,
             "subtitle": f"{room.room_type.site.name} · {room.get_status_display()}",
-            "url": reverse("staff-lodging-rooms"),
+            "url": reverse("staff-lodging-rooms") + "?" + urlencode({
+                "site": str(room.room_type.site_id), "q": room.name,
+            }),
         } for room in rooms])
 
+    if nav.lodging and site_ids and membership_can_manage_folios(membership):
         folios = Folio.objects.filter(
             tenant=tenant, site_id__in=site_ids
         ).filter(Q(guest_name__icontains=query) | exact_pk()).select_related(
@@ -127,6 +137,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
             | Q(barcode__icontains=query) | exact_pk()
         ).order_by("name")[offset:offset+per_group+1]
         destination = reverse("staff-menu" if nav.menu else "staff-inventory-balances")
+        destination += "?" + urlencode({"q": query})
         add_group("Items", [{
             "title": item.name, "subtitle": ("SKU " + item.sku) if item.sku else "Catalog item",
             "url": destination,
@@ -140,7 +151,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
         ).order_by("name")[offset:offset+per_group+1]
         add_group("Suppliers", [{
             "title": supplier.name, "subtitle": "Supplier",
-            "url": reverse("staff-purchasing-suppliers"),
+            "url": reverse("staff-purchasing-suppliers") + "?" + urlencode({"q": supplier.name}),
         } for supplier in suppliers])
         pos = PurchaseOrder.objects.filter(
             tenant=tenant, outlet_id__in=outlet_ids,
@@ -178,7 +189,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1)
         add_group("Team", [{
             "title": member.user.get_full_name() or member.user.email,
             "subtitle": member.get_role_display(),
-            "url": reverse("staff-management"),
+            "url": reverse("staff-management") + "?view=team",
         } for member in worker_qs])
 
     return groups[:10]
