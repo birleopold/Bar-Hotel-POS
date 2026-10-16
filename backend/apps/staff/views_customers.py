@@ -1,5 +1,4 @@
 import uuid
-from django.core.exceptions import ValidationError as DjangoValidationError
 
 from django.contrib import messages
 from django.db.models import Q, Count
@@ -58,15 +57,13 @@ class StaffCustomerListView(CustomerAccessMixin, TemplateView):
             from django.db.models import Sum
             summary = {}
             ledger = LoyaltyLedgerEntry.objects.filter(
-                tenant=self.request.tenant,
+                tenant=self.request.tenant, customer__merged_into__isnull=True,
             ).values("source_type").annotate(total=Sum("points"), count=Count("pk"))
             for row in ledger:
                 summary[row["source_type"]] = row
             ctx["loyalty_summary"] = summary
-            ctx["loyalty_net_issued"] = sum(
-                int(row["total"] or 0) for row in summary.values()
-            )
             ctx["loyalty_reconciliation"] = reconcile_loyalty_tenant(tenant=self.request.tenant)
+            ctx["loyalty_net_issued"] = ctx["loyalty_reconciliation"]["net_points_outstanding"]
             ctx["loyalty_policy_summary"] = TenantSettings.objects.filter(
                 tenant=self.request.tenant,
             ).only("loyalty_enabled", "loyalty_spend_per_point", "default_currency").first()
