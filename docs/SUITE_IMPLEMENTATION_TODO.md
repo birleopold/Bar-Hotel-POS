@@ -446,3 +446,11 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Added focused `SimpleTestCase` contracts for no-entry defaults, negative balances after reversals, cross-tenant/merged-account rejection, source breakdown, and read-only grouped tenant summaries.
 - Research basis: Django 5.2 aggregation documentation, https://docs.djangoproject.com/en/5.2/topics/db/aggregation/ . No external points-to-currency treatment or accounting liability was inferred.
 - **Unverified implementation checkpoint**: tests were authored and committed, not executed. Staff-visible reconciliation, real database regressions, audit source tracing, API scopes and responsive browser certification remain pending; Phase 06 stays in progress.
+
+### 2026-10-16 — customer points usability and import blocker
+
+- Fixed the indentation error in `StaffCustomerListView.get_context_data` that prevented the customer staff view module from importing cleanly.
+- Integrated the existing read-only loyalty reconciliation into the real **Customers & Guests** owner directory and **Customer profile** (earned points, refund reversals, manual corrections, recorded redemptions, actual balance, accounts requiring review). Updated the negative-balance message to show positive points-to-recover rather than a signed negative figure.
+- Added database-backed tests covering two accounts with opposing balances, tenant isolation and merged-account exclusion. Existing unverified mocked reconciliation contracts remain separately authored.
+- No checkout reward redemption or monetary benefit has been enabled, and nothing mutates historical financial transactions. Existing staff shell/nav, responsive card/table styles and per-customer permissions are reused.
+- **Status**: work pushed to origin/main, not verified by a local Django runtime, PostgreSQL, browser or CI. Phase 06 is **still in progress**. No additional phase is marked complete by this checkpoint.
