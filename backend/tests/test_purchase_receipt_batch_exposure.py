@@ -63,3 +63,51 @@ class SupplierPayablesScopeTests(TestCase):
         self.assertEqual(result[0]["unpaid_received_value"], Decimal("1500"))
         self.assertFalse(result[0]["missing_cost_data"])
         self.assertEqual(purchase_order_exposure(tenant=tenant, outlet_ids=[other.id]), [])
+
+
+class GroceryReceivingServicePreflightTests(TestCase):
+    def test_invalid_delivery_cannot_post_receipt_or_stock(self):
+        from apps.accounts.models import Membership, MembershipRole, User
+        from apps.inventory.models import StockBalance, StockMovement
+        from apps.purchasing.models import PurchaseReceipt
+        from apps.purchasing.services import receive_purchase_order_goods
+        from rest_framework.exceptions import ValidationError
+
+        tenant = Tenant.objects.create(name="Grocery Receiving", slug="grocery-receiving-preflight")
+        site = Site.objects.create(tenant=tenant, name="Store")
+        outlet = Outlet.objects.create(site=site, name="Receiving", outlet_type=OutletType.SUPERMARKET)
+        category = MenuCategory.objects.create(tenant=tenant, name="Food")
+        item = MenuItem.objects.create(
+            tenant=tenant, category=category, name="Rice",
+            unit_price=Decimal("3200"), track_inventory=True,
+        )
+        supplier = Supplier.objects.create(tenant=tenant, name="Mill")
+        po = PurchaseOrder.objects.create(
+            tenant=tenant, supplier=supplier, outlet=outlet, status=PurchaseOrderStatus.SENT,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=item, quantity_ordered=Decimal("100"),
+            unit_cost=Decimal("2000"),
+        )
+        user = User.objects.create_user(email="grocery-receiver@example.test", password="TestPass9!")
+        membership = Membership.objects.create(user=user, tenant=tenant, role=MembershipRole.OWNER)
+        for quantity in ("NaN", "Infinity", "-1", "2.0001", "not-a-number"):
+            with self.subTest(quantity=quantity):
+                with self.assertRaises(ValidationError):
+                    receive_purchase_order_goods(
+                        po=po, membership=membership, user=user,
+                        lines_payload=[{"line_id": line.pk, "quantity": quantity}],
+                    )
+                self.assertFalse(PurchaseReceipt.objects.filter(purchase_order=po).exists())
+                self.assertFalse(StockMovement.objects.filter(tenant=tenant).exists())
+                self.assertFalse(StockBalance.objects.filter(menu_item=item, outlet=outlet).exists())
+
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po, membership=membership, user=user,
+                lines_payload=[
+                    {"line_id": line.pk, "quantity": "2"},
+                    {"line_id": line.pk, "quantity": "3"},
+                ],
+            )
+        self.assertFalse(PurchaseReceipt.objects.filter(purchase_order=po).exists())
