@@ -61,3 +61,9 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 
 - An explicit checkbox is now required both in the catalog import UI and server-side before applying bulk base-price changes. Preview and catalog creation do not require this confirmation; stale-price, tenant-scope, SKU uniqueness and audit validations remain in force.
 - Added a regression check for both the visible confirmation control and backend enforcement. **F2 is active and not yet complete**: fiscal receipt calculations, tax/refund precision, labels and complete catalog UX remain subject to tests and acceptance.
+
+### F2 retail refund numeric safety — 16 October 2026
+
+- Hardened the existing `refund_retail_line` domain service so return quantities and money amounts are finite, positive and within their three-/two-decimal database precision before any order, cash, loyalty or inventory records are changed.
+- Added parameterized regression cases for NaN, infinity, negative and over-precision amounts and quantities. No duplicate refund service was introduced.
+- F2 remains in progress: real tax/refund allocation, fiscal receipt acceptance, printable shelf labels, complete import/upsert policy and external integration/browser verification remain separate gates. Exact-head CI must pass before crediting full verification.
