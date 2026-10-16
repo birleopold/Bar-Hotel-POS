@@ -40,7 +40,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 - [-] **15 Hardware service layer:** workstation receipt/kitchen printers, scanner, drawer, customer display and scale; device configuration/test workflow; receipt format/routing/retry; adapter boundary and real-device evidence.
 - [-] **16 Offline operating policy/UI:** online/offline, queued count, last sync, synced/waiting/review/failed; retries/conflict resolution, queue age/value limits, allowed tenders, inventory/stale catalog policy, device identity, worker handoff and shared-terminal privacy.
-- [ ] **17 EFRIS:** fiscal queue, submission/accept/reject/reference, safe retry/correction and failure dashboard; credential and sandbox evidence; externally required synchronous behavior must follow verified requirements.
+- [-] **17 EFRIS:** fiscal queue, submission/accept/reject/reference, safe retry/correction and failure dashboard; credential and sandbox evidence; externally required synchronous behavior must follow verified requirements.
 
 ## Management, permissions and discovery
 
@@ -511,3 +511,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Extended the existing shared staff permissions with distinct `purchasing.view`, `purchasing.receive`, `purchasing.manage` and `purchasing.supplier_payment` capability checks. The existing purchasing staff views now use `receive` for stock receipt and `manage` for changing POs and supplier operations, preserving current role behavior.
 - Storekeepers can receive assigned stock without gaining supplier finance permissions. Unknown actions, missing or inactive memberships fail closed. Added standalone regression tests for these distinctions; existing end-to-end storekeeper receiving tests remain applicable.
 - These are role checks only. Existing tenant/business module/outlet checks remain mandatory. The new commits require their own CI confirmation, and Phase 20 remains in progress pending other workflows, API parity, manager approvals and full certification.
+
+### 2026-10-16 — Phase 17 EFRIS retry safety kickoff
+
+- Reused the existing `apps.integrations` outbox and URA adapter rather than creating another fiscal flow. Official URA guidance identifies fiscal receipts/invoices and credit/debit notes with FDN, verification features and transaction requirements; the generic adapter is still an uncertified integration shell.
+- Bounded automatic retries at three attempts, including scheduler and direct-processing paths. Unexpected provider exceptions now quarantine ambiguous outcomes without blindly retrying a document that may already have been accepted. Added two regression tests to cover unknown outcomes and exhausting retry limits.
+- Updated `docs/COMPLIANCE_EFRIS_POSTURE.md` with explicit operator caution and certification gaps.
+- Phase 17 advances from **pending** to **in progress** only. Fiscal-specific payload, receipt/credit-note lifecycle, status reconciliation, synchronous obligations, real sandbox credentials, end-to-end provider response evidence and user-facing correction workflow remain outstanding. These new changes need fresh CI confirmation; no production certification is claimed.
