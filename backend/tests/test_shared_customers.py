@@ -68,7 +68,7 @@ class SharedCustomerTests(TestCase):
 
     def test_staff_directory_scope_and_explicit_order_link(self):
         self.login()
-        response = self.client.post(reverse("staff-customer-create"), {"name": "A Guest", "email": "A@EXAMPLE.TEST", "phone": "123"})
+        response = self.client.post(reverse("staff-customer-create"), {"name": "A Guest", "email": "A@EXAMPLE.TEST", "phone": "0700123456"})
         self.assertEqual(response.status_code, 302)
         customer = Customer.objects.get(tenant=self.tenant, name="A Guest")
         self.assertEqual(customer.email, "a@example.test")
