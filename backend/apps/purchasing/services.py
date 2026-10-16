@@ -139,6 +139,25 @@ def receive_purchase_order_goods(
         raise ValidationError({"lines": "At least one line must have quantity greater than zero."})
 
     _sync_po_status(po_locked)
+    # Trace the delivery itself, including shortages and supplier reference.
+    # Individual inventory movements already have their own ledger audits.
+    log_audit(
+        tenant_id=po_locked.tenant_id,
+        user_id=user.pk if user else None,
+        action="purchase.goods_received",
+        entity_type="purchase_receipt",
+        entity_id=str(receipt.pk),
+        payload={
+            "purchase_order_id": str(po_locked.pk),
+            "delivery_reference": delivery_reference,
+            "discrepancy_note": receipt.discrepancy_note,
+            "lines": [
+                {"purchase_order_line_id": str(line.purchase_order_line_id),
+                 "quantity_received": str(line.quantity_received)}
+                for line in receipt.lines.all()
+            ],
+        },
+    )
     return po_locked
 
 
