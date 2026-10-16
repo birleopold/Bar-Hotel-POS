@@ -1,0 +1,49 @@
+/* Per-user workspace density. The saved choice is local to the signed-in browser. */
+.staff-body[data-staff-density="touch"] .staff-btn,
+.staff-body[data-staff-density="touch"] .staff-input,
+.staff-body[data-staff-density="touch"] button,
+.staff-body[data-staff-density="touch"] select,
+.staff-body[data-staff-density="touch"] input[type="search"]{
+  min-height:48px;
+}
+.staff-body[data-staff-density="touch"] .staff-card{
+  padding:clamp(18px,2vw,28px);
+}
+.staff-body[data-staff-density="touch"] .staff-table th,
+.staff-body[data-staff-density="touch"] .staff-table td{
+  padding:14px 12px;line-height:1.55;
+}
+.staff-body[data-staff-density="touch"] .staff-pos-kds-line{padding:15px 12px}
+.staff-body[data-staff-density="touch"] .staff-pos-kds-line__name{font-size:1.06rem}
+.staff-body[data-staff-density="touch"] .staff-pos-kds-line__qty{font-size:1.15rem}
+.staff-body[data-staff-density="compact"] .staff-card{
+  padding:12px 16px;
+}
+.staff-body[data-staff-density="compact"] .staff-table th,
+.staff-body[data-staff-density="compact"] .staff-table td{
+  padding:7px 10px;line-height:1.35;
+}
+.staff-body[data-staff-density="compact"] .staff-section-head{
+  margin-bottom:8px;
+}
+.staff-body[data-staff-density="compact"] .staff-btn,
+.staff-body[data-staff-density="compact"] .staff-input{
+  min-height:36px;padding-block:6px;
+}
+.staff-body[data-staff-density="compact"] .staff-pos-kds-line{padding:8px 10px}
+.staff-body[data-staff-density="compact"] .staff-pos-kds-line__name{font-size:.94rem}
+.staff-body[data-staff-density="compact"] .staff-pos-kds-card__head{padding:10px 12px}
+.staff-body[data-staff-density="compact"] .staff-metric-row{gap:6px}
+.staff-body[data-staff-density="compact"] .staff-table-wrap{overflow-x:auto}
+@media(max-width:767px){
+  .staff-body[data-staff-density="compact"] .staff-btn,
+  .staff-body[data-staff-density="compact"] .staff-input,
+  .staff-body[data-staff-density="compact"] .staff-command-launch{
+    min-height:44px;
+  }
+  .staff-body[data-staff-density="compact"] .staff-table th,
+  .staff-body[data-staff-density="compact"] .staff-table td{padding:10px 9px}
+}
+@media(prefers-reduced-motion:reduce){
+  .staff-body[data-staff-density] .staff-card{transition:none}
+}
