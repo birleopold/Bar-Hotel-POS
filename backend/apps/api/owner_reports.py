@@ -5,6 +5,7 @@ Existing staff summary calculations remain the sole source for CSV and PDF.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from html import escape
 from io import BytesIO
@@ -12,7 +13,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
 from django.core.mail import EmailMessage
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from apps.accounts.models import Membership, MembershipRole
@@ -22,6 +23,30 @@ from apps.tenants.models import (
     Outlet, OwnerReportDelivery, OwnerReportDeliveryStatus,
     OwnerReportFrequency, OwnerReportSchedule, TenantSettings,
 )
+
+
+@contextmanager
+def report_worker_tenant_scope(tenant_id):
+    """Scope non-HTTP worker queries using PostgreSQL session GUC.
+
+    Avoid keeping a DB transaction open while SMTP communicates externally.
+    Always restore connection state before processing another business.
+    """
+    if connection.vendor != "postgresql":
+        yield
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT current_setting('app.tenant_id', true)")
+        previous = cursor.fetchone()[0]
+        cursor.execute("SELECT set_config('app.tenant_id', %s, false)", [str(tenant_id)])
+    try:
+        yield
+    finally:
+        with connection.cursor() as cursor:
+            if previous:
+                cursor.execute("SELECT set_config('app.tenant_id', %s, false)", [previous])
+            else:
+                cursor.execute("RESET app.tenant_id")
 
 
 OWNER_ROLES = (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN)
