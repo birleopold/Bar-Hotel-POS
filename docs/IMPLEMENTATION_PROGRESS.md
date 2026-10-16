@@ -84,3 +84,9 @@ This order explicitly elevates supermarket fundamentals ahead of nice-to-have an
 | 2026-10-16 | Later customer/API and supermarket documentation commits | Await latest exact-head CI check | Do not assert a green result before GitHub Actions reports success |
 
 Refresh this ledger from actual GitHub Actions evidence with every delivery checkpoint. Do not silently overwrite the last failed result.
+
+## Supermarket delivery log — 2026-10-16
+
+- **SM-P0.1 cashier lane, first code slice:** supermarket order details now provide a scan-focused form, barcode shortcut, client-side duplicate-submit suppression, live status text and POST-only next-customer creation. Reuses existing order, scan validation and till/payment code. Regression tests added in `backend/tests/test_supermarket_cashier_lane.py`.
+- **Verification:** new commit requires full CI; no real-scanner, concurrent till, browser/mobile or payment provider sign-off is claimed. SM-11 and SM-P0.1 are not yet complete.
+- **Next:** finish the scan-to-payment workflow, then SM-P0.2 catalog import and SKU integrity, SM-P0.3 tax/refund correctness.
