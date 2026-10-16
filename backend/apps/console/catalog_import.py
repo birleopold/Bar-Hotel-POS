@@ -211,3 +211,109 @@ def import_catalog_items(*, tenant, rows):
         item.save()
         created += 1
     return created
+
+
+def parse_price_update_csv(*, tenant, uploaded):
+    """Preview price updates with an explicit expected current price.
+
+    No data changes are made; each row must match one existing tenant SKU.
+    Missing/duplicate SKUs and stale price snapshots fail the whole upload.
+    """
+    if getattr(uploaded, "size", 0) > MAX_FILE_BYTES:
+        raise CatalogImportProblem(["Upload a CSV smaller than 1 MB."])
+    raw = uploaded.read(MAX_FILE_BYTES + 1)
+    if len(raw) > MAX_FILE_BYTES:
+        raise CatalogImportProblem(["Upload a CSV smaller than 1 MB."])
+    try:
+        data = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise CatalogImportProblem(["Save the CSV as UTF-8."]) from exc
+    try:
+        reader = csv.DictReader(io.StringIO(data, newline=""), strict=True)
+        headers = [h.strip().casefold() for h in (reader.fieldnames or []) if isinstance(h, str)]
+        if len(headers) != 3 or set(headers) != {"sku", "old_price", "new_price"}:
+            raise CatalogImportProblem(["Price CSV columns must be sku,old_price,new_price."])
+        reader.fieldnames = headers
+        records = list(reader)
+    except csv.Error as exc:
+        raise CatalogImportProblem(["Invalid price CSV quoting."]) from exc
+    if not records or len(records) > MAX_ITEMS:
+        raise CatalogImportProblem(["Submit between 1 and 1,000 price rows per file."])
+    current = {
+        item.sku.casefold(): item
+        for item in MenuItem.objects.filter(tenant=tenant).exclude(sku="")
+    }
+    issues, prepared, seen = [], [], set()
+    for number, row in enumerate(records, 2):
+        try:
+            if None in row or any(row.get(k) is None for k in headers):
+                raise ValueError("A column is missing or an extra value was supplied.")
+            sku = row["sku"].strip()
+            key = sku.casefold()
+            if not sku or key in seen:
+                raise ValueError("SKU must be present and unique within this file.")
+            seen.add(key)
+            item = current.get(key)
+            if item is None:
+                raise ValueError("SKU not found in this business.")
+            old = _decimal(row["old_price"], name="old_price", digits=12, places=2)
+            new = _decimal(row["new_price"], name="new_price", digits=12, places=2)
+            if item.unit_price != old:
+                raise ValueError("Current price differs from old_price; export a fresh catalog.")
+            prepared.append({
+                "item_id": item.pk, "sku": item.sku, "name": item.name,
+                "old_price": old, "new_price": new,
+            })
+        except ValueError as exc:
+            issues.append(f"Row {number}: {exc}")
+            if len(issues) >= 20:
+                break
+    if issues:
+        raise CatalogImportProblem(issues)
+    return prepared
+
+
+@transaction.atomic
+def apply_price_updates(*, tenant, rows, user):
+    """Atomically apply prechecked base price changes and audit each batch."""
+    from apps.audit.services import log_audit
+
+    if not rows or len(rows) > MAX_ITEMS:
+        raise CatalogImportProblem(["Submit between 1 and 1,000 price rows."])
+    Tenant.objects.select_for_update().get(pk=tenant.pk)
+    identifiers = [r["item_id"] for r in rows]
+    if len(set(identifiers)) != len(identifiers):
+        raise CatalogImportProblem(["Duplicate product in price update."])
+    locked = {
+        item.pk: item
+        for item in MenuItem.objects.select_for_update().filter(
+            tenant=tenant, pk__in=identifiers,
+        )
+    }
+    for row in rows:
+        item = locked.get(row["item_id"])
+        if item is None or item.sku.casefold() != row["sku"].casefold():
+            raise CatalogImportProblem(["Product identity changed; export and check again."])
+        if item.unit_price != row["old_price"]:
+            raise CatalogImportProblem([
+                f"Price changed for {item.sku}; export and review current prices."
+            ])
+    changed = []
+    for row in rows:
+        item = locked[row["item_id"]]
+        if item.unit_price == row["new_price"]:
+            continue
+        previous = item.unit_price
+        item.unit_price = row["new_price"]
+        item.save(update_fields=["unit_price", "updated_at"])
+        changed.append({
+            "item_id": str(item.pk), "sku": item.sku,
+            "before": str(previous), "after": str(item.unit_price),
+        })
+    log_audit(
+        tenant_id=tenant.pk, user_id=user.pk,
+        action="catalog.bulk_base_prices_updated",
+        entity_type="menu_items", entity_id=str(tenant.pk),
+        payload={"count": len(changed), "changes": changed},
+    )
+    return len(changed)
