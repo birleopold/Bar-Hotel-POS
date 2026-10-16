@@ -5,6 +5,7 @@ from django.db.models import Sum
 from rest_framework.exceptions import ValidationError
 
 from apps.audit.services import log_audit
+from apps.customers.loyalty import award_paid_order_points, reverse_refunded_order_points
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
 from apps.finance.services import post_pos_payment_income, post_pos_refund_expense
@@ -134,6 +135,9 @@ def record_order_payment(
             )
     else:
         locked.save(update_fields=["updated_at"])
+
+    if locked.is_paid:
+        award_paid_order_points(order=locked, user=user)
 
     log_audit(
         tenant_id=locked.tenant_id,
@@ -346,6 +350,8 @@ def record_order_refund(
 
     if restock:
         _restock_paid_order_tracked_lines(order=locked, user=user)
+
+    reverse_refunded_order_points(order=locked, refund=refund, user=user)
 
     log_audit(
         tenant_id=locked.tenant_id,

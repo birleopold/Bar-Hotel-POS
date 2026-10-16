@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from apps.audit.services import log_audit
-from apps.customers.models import Customer
+from apps.customers.models import Customer, LoyaltyLedgerEntry
 from apps.events.models import EventBooking
 from apps.lodging.models import Folio, Reservation
 from apps.pos.models import Order
@@ -15,6 +15,12 @@ def merge_customers(*, source, target, tenant_id, user, reason):
     if not reason or len(reason) > 512 or source.pk == target.pk:
         raise ValidationError("Choose a different customer and explain the merge (up to 512 characters).")
     ids = sorted([source.pk, target.pk])
+    # Take order locks ahead of customer locks, consistent with checkout and
+    # refund -> loyalty lock order. A simultaneous payment cannot be assigned
+    # to a different customer halfway through the merge.
+    list(Order.objects.select_for_update().filter(
+        tenant_id=tenant_id, customer_id__in=ids,
+    ).order_by("pk").values_list("pk", flat=True))
     locked = {c.pk: c for c in Customer.objects.select_for_update().filter(tenant_id=tenant_id, pk__in=ids).order_by("pk")}
     if len(locked) != 2:
         raise ValidationError("Both customers must belong to this business.")
@@ -26,6 +32,9 @@ def merge_customers(*, source, target, tenant_id, user, reason):
         "folios": Folio.objects.filter(tenant_id=tenant_id, customer=src).update(customer=dst),
         "orders": Order.objects.filter(tenant_id=tenant_id, customer=src).update(customer=dst),
         "events": EventBooking.objects.filter(tenant_id=tenant_id, customer=src).update(customer=dst),
+        "loyalty_entries": LoyaltyLedgerEntry.objects.filter(
+            tenant_id=tenant_id, customer=src,
+        ).update(customer=dst),
     }
     src.merged_into = dst
     src.save(update_fields=["merged_into", "updated_at"])
