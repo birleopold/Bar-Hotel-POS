@@ -12,7 +12,7 @@ from tests.test_phase1_isolation_and_idempotency import _seed_tenant_bundle
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("invalid", [
-    "NaN", "Infinity", "-1", "1.0001", "1000000000000",
+    "NaN", "Infinity", "-1", "1.0001", "1000000000000", "not-a-number",
 ])
 def test_invalid_count_does_not_change_stock_or_create_movements(invalid):
     setup = _seed_tenant_bundle(
