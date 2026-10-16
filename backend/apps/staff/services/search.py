@@ -30,13 +30,15 @@ MANAGEMENT_ROLES = frozenset({
 })
 
 
-def staff_global_search(*, tenant, membership, user, query, per_group=5):
+def staff_global_search(*, tenant, membership, user, query, per_group=5, page=1):
     if not membership or not membership.is_active or membership.tenant_id != tenant.pk:
         return []
     query = (query or "").strip()[:80]
     if len(query) < 2:
         return []
     per_group = max(1, min(int(per_group), 8))
+    page = max(1, min(int(page), 100))
+    offset = (page - 1) * per_group
     current_outlets = staff_accessible_outlets(membership)
     outlet_ids = [outlet.pk for outlet in current_outlets]
     sites = sites_visible_for_membership(membership)
@@ -51,7 +53,10 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
 
     def add_group(name, entries):
         if entries:
-            groups.append({"name": name, "items": entries[:per_group]})
+            groups.append({
+                "name": name, "items": entries[:per_group],
+                "has_more": len(entries) > per_group,
+            })
 
     def exact_pk():
         return Q(pk=record_id) if record_id else Q(pk__isnull=True)
@@ -60,7 +65,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
         qs = Order.objects.filter(tenant=tenant, outlet_id__in=outlet_ids).filter(
             Q(bill_reference__icontains=query)
             | Q(table_label__icontains=query) | exact_pk()
-        ).select_related("outlet").order_by("-created_at")[:per_group]
+        ).select_related("outlet").order_by("-created_at")[offset:offset+per_group+1]
         add_group("Orders", [{
             "title": order.bill_reference or ("Order " + str(order.pk)[:8]),
             "subtitle": f"{order.outlet.name} · {order.get_status_display()}",
@@ -70,7 +75,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
     if nav.lodging and site_ids:
         qs = Reservation.objects.filter(tenant=tenant, site_id__in=site_ids).filter(
             Q(guest_name__icontains=query) | exact_pk()
-        ).select_related("site").order_by("-created_at")[:per_group]
+        ).select_related("site").order_by("-created_at")[offset:offset+per_group+1]
         add_group("Reservations", [{
             "title": res.guest_name, "subtitle": f"{res.site.name} · {res.get_status_display()}",
             "url": reverse("staff-lodging-reservation-detail", kwargs={"reservation_id": res.pk}),
@@ -80,7 +85,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
             room_type__tenant=tenant, room_type__site_id__in=site_ids,
         ).filter(Q(name__icontains=query) | exact_pk()).select_related(
             "room_type", "room_type__site"
-        ).order_by("name")[:per_group]
+        ).order_by("name")[offset:offset+per_group+1]
         add_group("Rooms", [{
             "title": "Room " + room.name,
             "subtitle": f"{room.room_type.site.name} · {room.get_status_display()}",
@@ -91,7 +96,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
             tenant=tenant, site_id__in=site_ids
         ).filter(Q(guest_name__icontains=query) | exact_pk()).select_related(
             "site"
-        ).order_by("-created_at")[:per_group]
+        ).order_by("-created_at")[offset:offset+per_group+1]
         add_group("Guest folios", [{
             "title": folio.guest_name,
             "subtitle": f"{folio.site.name} · Guest folio",
@@ -102,7 +107,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
         customers = visible_customers(membership, user).filter(
             Q(name__icontains=query) | Q(email__icontains=query)
             | Q(phone__icontains=query) | exact_pk()
-        ).order_by("name")[:per_group]
+        ).order_by("name")[offset:offset+per_group+1]
         add_group("Customers", [{
             "title": cust.name, "subtitle": "Customer account",
             "url": reverse("staff-customer-detail", kwargs={"customer_id": cust.pk}),
@@ -120,7 +125,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
         ).filter(Q(any_link=False) | Q(permitted_link=True)).filter(
             Q(name__icontains=query) | Q(sku__icontains=query)
             | Q(barcode__icontains=query) | exact_pk()
-        ).order_by("name")[:per_group]
+        ).order_by("name")[offset:offset+per_group+1]
         destination = reverse("staff-menu" if nav.menu else "staff-inventory-balances")
         add_group("Items", [{
             "title": item.name, "subtitle": ("SKU " + item.sku) if item.sku else "Catalog item",
@@ -132,7 +137,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
         # POs must always be limited to accessible receiving outlets.
         suppliers = Supplier.objects.filter(tenant=tenant).filter(
             Q(name__icontains=query) | exact_pk()
-        ).order_by("name")[:per_group]
+        ).order_by("name")[offset:offset+per_group+1]
         add_group("Suppliers", [{
             "title": supplier.name, "subtitle": "Supplier",
             "url": reverse("staff-purchasing-suppliers"),
@@ -142,7 +147,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
         ).filter(Q(reference__icontains=query) | Q(supplier__name__icontains=query)
                  | exact_pk()).select_related("supplier", "outlet").order_by(
             "-created_at"
-        )[:per_group]
+        )[offset:offset+per_group+1]
         add_group("Purchase orders", [{
             "title": po.reference or ("PO " + str(po.pk)[:8]),
             "subtitle": f"{po.supplier.name} · {po.outlet.name}",
@@ -153,7 +158,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
         bookings = EventBooking.objects.filter(
             tenant=tenant, space__site_id__in=site_ids,
         ).filter(Q(title__icontains=query) | Q(customer_name__icontains=query)
-                 | exact_pk()).select_related("space").order_by("-created_at")[:per_group]
+                 | exact_pk()).select_related("space").order_by("-created_at")[offset:offset+per_group+1]
         add_group("Events", [{
             "title": booking.title,
             "subtitle": f"{booking.space.name} · {booking.get_status_display()}",
@@ -169,7 +174,7 @@ def staff_global_search(*, tenant, membership, user, query, per_group=5):
         ).filter(
             Q(user__email__icontains=query) | Q(user__first_name__icontains=query)
             | Q(user__last_name__icontains=query)
-        ).select_related("user").distinct().order_by("user__email")[:per_group]
+        ).select_related("user").distinct().order_by("user__email")[offset:offset+per_group+1]
         add_group("Team", [{
             "title": member.user.get_full_name() or member.user.email,
             "subtitle": member.get_role_display(),
