@@ -427,3 +427,5 @@ Verification deferred at owner's direction. Status is implementation-in-progress
 - **Phase 06 is still not complete:** coupon/redemption checkout economics, tier benefits, credit/voucher lifecycle, customer portal, accounting/financial liability policy, promotion precedence, accurate multi-terminal concurrency testing, PostgreSQL/RLS checks and browser certification remain outstanding. No source code was certified green here.
 
 Reference design: Django transactional row locking and Yotpo's documented proportional handling of earned points on partial refunds (https://docs.djangoproject.com/en/5.2/topics/db/transactions/ ; https://support.yotpo.com/docs/point-balance-for-refunded-orders).
+
+- Owners now see a small **Customer points programme** overview directly in the existing Customers & Guests directory: current rule, net issued points, sale awards, refund reversals, and manual corrections. The figures are labeled as points, never money or cashbook liabilities.
