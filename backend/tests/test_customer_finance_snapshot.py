@@ -5,7 +5,7 @@ from django.template.loader import render_to_string
 
 from apps.customers.models import Customer
 from apps.lodging.models import Folio, FolioLine, FolioPayment
-from apps.pos.models import Order
+from apps.pos.models import Order, Payment, Refund
 from apps.staff.services.customer_finance import customer_financial_snapshot
 from apps.tenants.models import Outlet, OutletType, Site, Tenant
 
@@ -35,17 +35,43 @@ class CustomerFinanceSnapshotTests(TestCase):
         )
         assert report["UGX"] == {
             "direct_pos_sales": Decimal("25000"),
+            "direct_pos_refunds": Decimal("0.00"),
+            "direct_pos_net": Decimal("25000"),
             "folio_charges": Decimal("12000"),
             "folio_payments": Decimal("5000"),
             "outstanding": Decimal("7000"),
         }
         assert len(report) == 1
 
+    def test_refunds_reduce_direct_pos_history_without_affecting_folio_balance(self):
+        tenant = Tenant.objects.create(name="Refund History", slug="refund-history-customer")
+        site = Site.objects.create(tenant=tenant, name="Main")
+        outlet = Outlet.objects.create(site=site, name="Shop", outlet_type=OutletType.RETAIL)
+        guest = Customer.objects.create(tenant=tenant, name="Guest")
+        order = Order.objects.create(
+            tenant=tenant, outlet=outlet, customer=guest, currency="UGX",
+            total=Decimal("25000"), is_paid=True,
+        )
+        payment = Payment.objects.create(
+            tenant=tenant, order=order, amount=Decimal("25000"), method="cash",
+        )
+        Refund.objects.create(
+            tenant=tenant, order=order, payment=payment, amount=Decimal("5000"),
+            idempotency_key="direct-customer-refund-1",
+        )
+        report = customer_financial_snapshot(
+            tenant=tenant, customer=guest, site_ids=[site.pk], outlet_ids=[outlet.pk],
+        )
+        assert report["UGX"]["direct_pos_sales"] == Decimal("25000")
+        assert report["UGX"]["direct_pos_refunds"] == Decimal("5000")
+        assert report["UGX"]["direct_pos_net"] == Decimal("20000")
+        assert report["UGX"]["outstanding"] == 0
+
     def test_customer_financial_table_renders_currency_without_converting(self):
         html = render_to_string("staff/customers/detail.html", {
             "customer": {"name": "Guest", "email": "", "phone": ""},
             "financial_snapshot": {
-                "UGX": {"direct_pos_sales": Decimal("10000"), "folio_charges": Decimal("5000"),
+                "UGX": {"direct_pos_sales": Decimal("10000"), "direct_pos_refunds": Decimal("0"), "direct_pos_net": Decimal("10000"), "folio_charges": Decimal("5000"),
                         "folio_payments": Decimal("2000"), "outstanding": Decimal("3000")}
             },
             "can_merge": False,
