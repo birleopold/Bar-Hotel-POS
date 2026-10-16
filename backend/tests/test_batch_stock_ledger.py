@@ -30,6 +30,19 @@ class BatchStockLedgerTests(TestCase):
             quantity=Decimal("8"),
         )
 
+
+
+    def test_fefo_outflow_rejects_invalid_quantities_even_without_batches(self):
+        from apps.inventory.services_batches import consume_for_outflow_if_batched
+        for quantity in ("NaN", "Infinity", "-1", "0", "1.0001", "invalid"):
+            with self.subTest(quantity=quantity):
+                with self.assertRaises(ValidationError):
+                    consume_for_outflow_if_batched(
+                        tenant_id=self.tenant.id, outlet_id=self.outlet.id,
+                        menu_item_id=self.item.id, quantity=quantity,
+                    )
+        self.balance.refresh_from_db()
+        self.assertEqual(self.balance.quantity, Decimal("8"))
     def batch(self, code, amount, expires):
         return InventoryBatch.objects.create(
             tenant=self.tenant, outlet=self.outlet, menu_item=self.item,
