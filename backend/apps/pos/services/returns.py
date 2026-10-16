@@ -1,6 +1,6 @@
 """Atomic retail return and tender refund workflow."""
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
@@ -16,6 +16,21 @@ from .payments import record_order_refund
 def refund_retail_line(*, order: Order, line: OrderLine, quantity: Decimal,
                        amount: Decimal, reason: str, restock: bool, user,
                        idempotency_key: str, payment_id=None, workstation_id=None, shift_id=None) -> tuple[SupermarketLineReturn, bool]:
+    # Fail with a user-facing error before touching any refund, loyalty or
+    # stock record. Reject NaN/Infinity, negative and excessive precision.
+    try:
+        quantity = Decimal(str(quantity))
+        amount = Decimal(str(amount))
+    except (ValueError, TypeError, InvalidOperation) as exc:
+        raise ValidationError({"refund": "Enter valid numeric return quantity and refund amount."}) from exc
+    if (not quantity.is_finite() or quantity <= 0 or
+            quantity > Decimal("99999999999.999") or
+            quantity != quantity.quantize(Decimal("0.001"))):
+        raise ValidationError({"quantity": "Return quantity must be positive with up to three decimal places."})
+    if (not amount.is_finite() or amount <= 0 or
+            amount > Decimal("9999999999.99") or
+            amount != amount.quantize(Decimal("0.01"))):
+        raise ValidationError({"amount": "Refund amount must be positive with up to two decimal places."})
     locked = Order.objects.select_for_update().select_related("outlet").get(pk=order.pk)
     if locked.outlet.outlet_type not in {OutletType.RETAIL, OutletType.SUPERMARKET}:
         raise ValidationError("Line refunds are only available for retail and supermarket orders.")
