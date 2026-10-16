@@ -429,3 +429,12 @@ Verification deferred at owner's direction. Status is implementation-in-progress
 Reference design: Django transactional row locking and Yotpo's documented proportional handling of earned points on partial refunds (https://docs.djangoproject.com/en/5.2/topics/db/transactions/ ; https://support.yotpo.com/docs/point-balance-for-refunded-orders).
 
 - Owners now see a small **Customer points programme** overview directly in the existing Customers & Guests directory: current rule, net issued points, sale awards, refund reversals, and manual corrections. The figures are labeled as points, never money or cashbook liabilities.
+
+
+### 2026-10-16 — Phase 06: read-only points reconciliation primitive
+
+- Added `apps.customers.loyalty_reconciliation` with tenant-scoped, read-only account and workspace point summaries separated into sale earnings, refund reversals, reward redemptions and manager adjustments.
+- An individual account report exposes negative points to recover and flags refund reversals exceeding recorded sale awards; the workspace rollup counts negative accounts rather than masking them inside net points.
+- The functions never rewrite historical records, turn points into cash value, or treat a legitimate post-refund negative balance as an automatic correction.
+- This is a **backend foundation, not a completed reconciliation user journey**: owner/staff access, links, exports, anomaly resolution, transaction-level/source integrity checks, direct unit tests, database/tenant RLS evidence and browser verification are still required. Neither Phase 06 nor any other unfinished phase is marked complete.
+- Code committed to `origin/main` as an implementation-first checkpoint; verification is intentionally not represented as performed.
