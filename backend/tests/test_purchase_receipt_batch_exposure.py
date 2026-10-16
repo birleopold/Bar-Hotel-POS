@@ -174,3 +174,16 @@ class GroceryReceivingServicePreflightTests(TestCase):
             StockBalance.objects.get(outlet=outlet, menu_item=item).quantity,
             Decimal("8"),
         )
+
+
+class SupplierPaymentAmountPreflightTests(SimpleTestCase):
+    def test_invalid_supplier_payment_rejected_before_lookup_or_posting(self):
+        from apps.purchasing.services import record_supplier_payment
+        from rest_framework.exceptions import ValidationError
+        for amount in ("NaN", "Infinity", "-1", "0", "0.001", "not-a-number"):
+            with self.subTest(amount=amount):
+                with self.assertRaises(ValidationError):
+                    record_supplier_payment(
+                        po=None, amount=amount, method="cash", reference="",
+                        idempotency_key="preflight-no-finance", user=None, membership=None,
+                    )
