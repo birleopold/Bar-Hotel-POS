@@ -118,6 +118,26 @@ class SharedCustomerTests(TestCase):
             tenant=self.tenant, name="Not linked at this branch",
         ).exists())
 
+    def test_customer_directory_pages_are_scoped_and_searchable(self):
+        self.login()
+        Customer.objects.bulk_create([
+            Customer(tenant=self.tenant, name=f"Page Guest {number:03d}")
+            for number in range(55)
+        ])
+        first = self.client.get(reverse("staff-customers"))
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(len(first.context["customers"]), 50)
+        self.assertContains(first, "Next")
+        second = self.client.get(reverse("staff-customers"), {"page": "2"})
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(second.context["customers"]), 5)
+        self.assertContains(second, "Previous")
+        scoped = self.client.get(
+            reverse("staff-customers"), {"q": "Page Guest 054", "page": "2"}
+        )
+        self.assertEqual(scoped.context["customers_page"].number, 1)
+        self.assertEqual(len(scoped.context["customers"]), 1)
+
     def test_restricted_worker_customer_creation_does_not_redirect_to_hidden_record(self):
         self.login(self.worker)
         response = self.client.post(
