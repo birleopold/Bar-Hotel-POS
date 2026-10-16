@@ -1,5 +1,23 @@
 {% extends "staff/base.html" %}
-{% block title %}PO {{ po.reference|default:po.id }}{% endblock %}
+{% block title %}PO {{ po.reference|default:po.id }}{% block extra_js %}
+  {{ block.super }}
+  <script>
+  (function () {
+    var form = document.querySelector("[data-goods-receive-form]");
+    if (!form) return;
+    var button = form.querySelector("[data-goods-receive-submit]");
+    var status = form.querySelector("[data-goods-receive-status]");
+    var submitting = false;
+    form.addEventListener("submit", function (event) {
+      if (submitting) { event.preventDefault(); return; }
+      if (!form.checkValidity()) return;
+      submitting = true;
+      if (button) { button.disabled = true; button.textContent = "Recording delivery…"; }
+      if (status) status.textContent = "Recording this supplier delivery. Please do not submit it again.";
+    });
+  }());
+  </script>
+{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
   <header class="staff-page-hero">
@@ -52,7 +70,7 @@
       <h2 class="staff-section-head">Partial goods received</h2>
       <p class="staff-muted">For dated products, enter the batch code and expiry date alongside the delivered quantity. Products already tracked by batch require a batch code. A batch code can only be received once per item and section.</p>
       <div class="staff-card">
-        <form method="post">
+        <form method="post" data-goods-receive-form>
           {% csrf_token %}
           <input type="hidden" name="action" value="receive">
           <div class="row g-3 mb-3">
@@ -78,7 +96,9 @@
             </table>
           </div>
           <label class="staff-label mt-3" for="delivery-discrepancy">Delivery discrepancy (optional)</label><textarea class="staff-input" name="discrepancy_note" id="delivery-discrepancy" maxlength="512" placeholder="Describe damaged, missing or incorrect goods requiring manager follow-up."></textarea>
-          <button type="submit" class="staff-btn staff-btn--primary mt-2">Receive entered quantities</button>
+          <p class="staff-muted small mt-2 mb-1">Only record goods physically checked and accepted. Leave missing or damaged items out of the received quantity and document discrepancies for supplier follow-up.</p>
+          <button type="submit" class="staff-btn staff-btn--primary mt-2" data-goods-receive-submit>Receive entered quantities</button>
+          <p class="staff-muted small mt-2" aria-live="polite" role="status" data-goods-receive-status></p>
         </form>
       </div>
     {% endif %}
