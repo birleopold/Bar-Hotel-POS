@@ -34,8 +34,11 @@ def receive_purchase_order_goods(
         raise ValidationError({"detail": "You cannot receive stock for this outlet."})
 
     po_locked = PurchaseOrder.objects.select_for_update().get(pk=po.pk)
+    delivery_reference = (delivery_reference or "").strip()
+    if len(delivery_reference) > 128:
+        raise ValidationError({"delivery_reference": "Use at most 128 characters."})
     if delivery_reference and PurchaseReceipt.objects.filter(
-        purchase_order=po_locked, delivery_reference=delivery_reference.strip()[:128]
+        purchase_order=po_locked, delivery_reference__iexact=delivery_reference
     ).exists():
         raise ValidationError({"delivery_reference": "A delivery with this reference has already been recorded for the purchase order."})
     if po_locked.status not in (PurchaseOrderStatus.SENT, PurchaseOrderStatus.PARTIALLY_RECEIVED):
@@ -66,7 +69,7 @@ def receive_purchase_order_goods(
     receipt = PurchaseReceipt.objects.create(
         tenant_id=po_locked.tenant_id,
         purchase_order=po_locked,
-        delivery_reference=(delivery_reference or "")[:128],
+        delivery_reference=delivery_reference,
         note=(note or "")[:512],
         discrepancy_note=discrepancy_note.strip(),
         received_by=user,
