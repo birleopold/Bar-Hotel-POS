@@ -501,6 +501,12 @@ class OfflineQueuedOperation(TimeStampedModel):
     error_message = models.TextField(blank=True)
     applied_payment_id = models.UUIDField(null=True, blank=True)
     applied_order_id = models.UUIDField(null=True, blank=True)
+    review_note = models.CharField(max_length=500, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="offline_reviews",
+    )
 
     class Meta:
         ordering = ["-created_at"]
