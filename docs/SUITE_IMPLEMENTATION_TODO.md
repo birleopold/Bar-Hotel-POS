@@ -582,3 +582,9 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - The exact CI run `38928319358` failed **2 customer duplicate-warning tests**, with **532 passed, 5 skipped**. Root cause: both customer create/edit templates omitted `form.non_field_errors`, hiding a backend duplicate-contact validation message. Added accessible alert rendering to both pages.
 - Corrected restricted staff customer creation: the create flow no longer redirects to a forbidden detail page when that customer has no accessible site/outlet link; instead it returns to the directory with a clear manager-link instruction. Preserves the existing creator-does-not-bypass-scope privacy rule. Added a browser-response regression to cover this.
 - These changes are committed to main but **not yet verified** on the latest CI SHA. Phase 05 cannot responsibly be called finished until CI and the remaining linkage/privacy/invoice acceptance criteria are demonstrated; do not close it on the strength of changed source alone.
+
+### 2026-10-16 — Phase 05 customer financial ledger reconciliation
+
+- Customer-level financial snapshot now distinguishes **direct POS gross sales**, **actual POS refunds** and **net direct POS sales**, keeping folio-linked orders excluded from standalone totals. The customer-facing table displays the three amounts in each recorded currency. No backfill or mutation of payments or folio history.
+- Added regression coverage for a paid retail order with a partial refund; retained checks on existing folio balances and branch isolation.
+- Earlier customer error-rendering CI and the new financial reconciliation changes must pass the exact-commit CI run before Phase 05 can be declared locally verified. PostgreSQL/browser/privacy/credit/invoice policy remain independent acceptance gates.
