@@ -94,13 +94,29 @@ def test_import_row_cap_and_decimal_safety():
         user_email="csv-limits@example.test",
     )
     oversized_rows = "category,name,unit_price\n" + "".join(
-        f"Food,Item {i},2500\n" for i in range(251)
+        f"Food,Item {i},2500\n" for i in range(1001)
     )
-    with pytest.raises(CatalogImportProblem, match="at most 250"):
+    with pytest.raises(CatalogImportProblem, match="at most 1,000"):
         parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(oversized_rows))
     bad_numbers = "category,name,unit_price\nFood,Fictional product,NaN\n"
     with pytest.raises(CatalogImportProblem):
         parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(bad_numbers))
+
+
+@pytest.mark.django_db
+def test_retail_catalog_import_accepts_over_250_rows_without_stock_movements():
+    a = _seed_tenant_bundle(
+        name="Large Grocery", slug="large-grocery-batch",
+        user_email="large-grocery@example.test",
+    )
+    contents = "category,name,unit_price,sku,barcode\\n" + "".join(
+        f"Groceries,Item {index},1500.00,GROC-{index:04d},600{index:010d}\\n"
+        for index in range(300)
+    )
+    rows = parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(contents))
+    assert len(rows) == 300
+    assert import_catalog_items(tenant=a["tenant"], rows=rows) == 300
+    assert MenuItem.objects.filter(tenant=a["tenant"], sku__startswith="GROC-").count() == 300
 
 
 @pytest.mark.django_db
