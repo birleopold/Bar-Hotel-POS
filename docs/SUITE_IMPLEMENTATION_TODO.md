@@ -563,3 +563,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Prioritized Phase 05 as the cross-domain dependency for stays, retail orders, events and loyalty. Added a customer-create guard that warns about duplicate email or phone only when the matching existing identity is already visible to the employee within their current membership/site/outlet scope. This reduces accidental duplicate identities without revealing another branch's private customer record.
 - Added an end-to-end regression demonstrating an accessible matching guest is not duplicated, while a remote branch's unlinked identity is not disclosed. No bulk merge or historical customer link was performed. Preserved the existing privacy rule and its test: creating an unlinked customer alone does not confer continuing cross-branch access.
 - **Phase 05 remains in progress**: identity normalization, consent/privacy policy, non-leaking onboarding for restricted staff, full scoped linkage and invoice/credit reconciliation, and multi-device/browser/PostgreSQL evidence must still be completed. These commits require fresh CI verification before any completion claim.
+
+### 2026-10-16 — Phase 05 conservative customer contact normalization
+
+- Added form-level phone formatting validation and normalization to preserve digits and an explicit leading international +, without assuming Uganda country code for a local number. Limits input to 7–15 digits and standard separators; invalid extensions and arbitrary text are rejected.
+- This makes duplicate-contact review more consistent for **new or updated staff-entered** customers. Existing database records are deliberately not rewritten, preserving historical contact identity and transaction snapshots.
+- Added tests for Ugandan local/international-style numbers, optional contact, and invalid input. No contact-based automatic merge is performed.
+- Phase 05 remains **in progress** pending historic phone-matching review, scoped end-user create/link flows and full certification. Follow-on commits must pass fresh CI.
