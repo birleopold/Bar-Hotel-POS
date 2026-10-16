@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError as ModelValidationError
 from django.db import transaction
 
 from apps.catalog.models import MenuCategory, MenuItem, UnitOfMeasure
+from apps.tenants.models import Tenant
 
 MAX_FILE_BYTES = 256 * 1024
 MAX_ITEMS = 250
@@ -96,9 +97,6 @@ def parse_catalog_csv(*, tenant, uploaded):
             tenant=tenant,
         ).exclude(barcode="").values_list("barcode", flat=True)
     }
-    categories = {
-        c.name.casefold(): c for c in MenuCategory.objects.filter(tenant=tenant)
-    }
     seen_skus = set()
     seen_barcodes = set()
     rows = []
@@ -168,6 +166,9 @@ def import_catalog_items(*, tenant, rows):
     """Create only new items; validate all before committing any rows."""
     if not rows or len(rows) > MAX_ITEMS:
         raise CatalogImportProblem(["Import between 1 and 250 items at once."])
+    # Serialize concurrent imports for a business even if no menu items
+    # exist yet; selecting only matching SKUs does not lock an empty table.
+    Tenant.objects.select_for_update().get(pk=tenant.pk)
     existing_skus = {
         v.casefold() for v in MenuItem.objects.select_for_update().filter(
             tenant=tenant,
