@@ -109,8 +109,8 @@ def test_retail_catalog_import_accepts_over_250_rows_without_stock_movements():
         name="Large Grocery", slug="large-grocery-batch",
         user_email="large-grocery@example.test",
     )
-    contents = "category,name,unit_price,sku,barcode\\n" + "".join(
-        f"Groceries,Item {index},1500.00,GROC-{index:04d},600{index:010d}\\n"
+    contents = "category,name,unit_price,sku,barcode\n" + "".join(
+        f"Groceries,Item {index},1500.00,GROC-{index:04d},600{index:010d}\n"
         for index in range(300)
     )
     rows = parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(contents))
