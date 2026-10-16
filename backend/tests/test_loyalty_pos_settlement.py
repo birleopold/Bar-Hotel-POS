@@ -135,6 +135,23 @@ def test_refund_never_blocks_customer_money_if_points_already_used():
     assert not replay
     assert result.amount == Decimal("100.00")
     assert points_balance(tenant=a["tenant"], customer=customer) == -8
+    membership = Membership.objects.get(tenant=a["tenant"], user=a["user"])
+    # An authorized positive correction can partially clear an existing
+    # negative balance, while a further manual deduction must still fail.
+    adjust_points(
+        tenant=a["tenant"], customer_id=customer.pk,
+        membership=membership, user=a["user"],
+        points=3, reason="Owner verified the missing customer credit",
+        source_key=str(uuid.uuid4()),
+    )
+    assert points_balance(tenant=a["tenant"], customer=customer) == -5
+    with pytest.raises(ValidationError):
+        adjust_points(
+            tenant=a["tenant"], customer_id=customer.pk,
+            membership=membership, user=a["user"],
+            points=-1, reason="Unauthorized further negative debit",
+            source_key=str(uuid.uuid4()),
+        )
 
 
 @pytest.mark.django_db

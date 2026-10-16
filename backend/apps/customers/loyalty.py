@@ -52,7 +52,10 @@ def adjust_points(*, tenant, customer_id, membership, user, points, reason, sour
             raise ValidationError({"source_key": "This request key was used for a different adjustment."})
         return existing, True
     current = points_balance(tenant=tenant, customer=customer)
-    if current + points < 0:
+    # Refund reversals may legitimately leave points to recover. Positive
+    # corrections must remain possible even while the balance is negative;
+    # only a *new manual deduction* is forbidden from overdrawing points.
+    if points < 0 and current + points < 0:
         raise ValidationError({"points": "This would reduce the customer balance below zero."})
     entry = LoyaltyLedgerEntry.objects.create(
         tenant=tenant, customer=customer, points=points,
