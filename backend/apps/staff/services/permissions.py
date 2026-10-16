@@ -107,12 +107,7 @@ def membership_can_acknowledge_ready_handoff(
 
 
 def membership_can_approve_refunds(membership: Membership) -> bool:
-    return membership.role in (
-        MembershipRole.OWNER,
-        MembershipRole.TENANT_ADMIN,
-        MembershipRole.SITE_MANAGER,
-        MembershipRole.OUTLET_MANAGER,
-    )
+    return membership_can_approve_sensitive_action(membership, "refund")
 
 
 def membership_can_manage_workspace_settings(membership: Membership) -> bool:
@@ -156,3 +151,25 @@ def membership_has_purchasing_capability(membership: Membership | None, capabili
     """Fail closed on missing/inactive membership or unsupported action."""
     roles = PURCHASING_CAPABILITY_ROLES.get(capability)
     return bool(roles is not None and membership is not None and membership.is_active and membership.role in roles)
+
+
+# Phase 21 foundation: explicit manager authority for sensitive financial actions.
+# Authority to perform an action is NOT an issued approval: request/approver PIN,
+# immutable exact-action intent, expiry, and single use need separate enforcement.
+SENSITIVE_APPROVAL_ROLES = frozenset({
+    MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+})
+SENSITIVE_APPROVAL_ACTIONS = frozenset({
+    "refund", "retail_line_refund", "discount", "void",
+    "reopen", "stock_write_off", "price_override", "withdrawal",
+})
+
+
+def membership_can_approve_sensitive_action(membership: Membership | None, action: str) -> bool:
+    """Role eligibility only; fail closed for invalid, inactive or unknown actors."""
+    return bool(
+        action in SENSITIVE_APPROVAL_ACTIONS
+        and membership is not None and membership.is_active
+        and membership.role in SENSITIVE_APPROVAL_ROLES
+    )
