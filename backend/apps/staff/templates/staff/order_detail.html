@@ -46,6 +46,15 @@
     <p class="staff-muted mt-2">Confirm the person before linking. This changes the shared history link, not the receipt or payment.</p>
     <form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="set_customer"><label for="order-customer">Customer</label><select id="order-customer" class="staff-input" name="customer_id"><option value="">No linked customer</option>{% for person in customer_options %}<option value="{{ person.pk }}"{% if order.customer_id == person.pk %} selected{% endif %}>{{ person.name }}{% if person.phone %} · {{ person.phone }}{% endif %}</option>{% endfor %}</select><button type="submit" class="staff-btn staff-btn--secondary">Save customer link</button></form>
     {% if order.customer and can_view_customer_profile %}<a href="{% url 'staff-customer-detail' order.customer.pk %}">View customer history</a>{% endif %}
+    {% if loyalty_award %}
+      <p class="staff-muted mt-2 mb-0"><strong>Customer points earned:</strong> {{ loyalty_award.points }} from this settled sale. Returns adjust those points in the customer ledger.</p>
+    {% elif loyalty_policy_active and not order.is_paid %}
+      {% if order.customer %}
+        <p class="staff-muted mt-2 mb-0"><strong>Estimated reward:</strong> {{ loyalty_estimate|default_if_none:"0" }} points after full settlement, subject to the final eligible amount. No points have been posted yet.</p>
+      {% else %}
+        <p class="staff-muted mt-2 mb-0">Customer points are active. Link the correct customer before the final payment to qualify for earning.</p>
+      {% endif %}
+    {% endif %}
   </details>
 
   {% if ready_handoff_count and can_ack_ready_handoff %}

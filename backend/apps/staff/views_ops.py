@@ -573,6 +573,27 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         order: Order = ctx["order"]
         hardware = _tenant_hardware_flags(order.tenant)
         ctx["hardware"] = hardware
+        from apps.customers.models import LoyaltyLedgerEntry
+        from apps.customers.loyalty import eligible_spend_for_order
+        from apps.tenants.models import TenantSettings
+        from decimal import ROUND_FLOOR
+        policy = TenantSettings.objects.filter(tenant_id=order.tenant_id).only(
+            "loyalty_enabled", "loyalty_spend_per_point", "default_currency",
+        ).first()
+        ctx["loyalty_policy_active"] = bool(
+            policy and policy.loyalty_enabled
+            and order.currency == policy.default_currency
+        )
+        ctx["loyalty_award"] = LoyaltyLedgerEntry.objects.filter(
+            tenant_id=order.tenant_id, source_type="sale",
+            source_key=str(order.pk),
+        ).first()
+        ctx["loyalty_estimate"] = None
+        if (ctx["loyalty_policy_active"] and order.customer_id
+                and not order.is_paid and policy.loyalty_spend_per_point > 0):
+            ctx["loyalty_estimate"] = min(1000000, int((
+                eligible_spend_for_order(order) / policy.loyalty_spend_per_point
+            ).to_integral_value(rounding=ROUND_FLOOR)))
         ctx["can_view_customer_profile"] = can_manage_customers(self.request.tenant_membership)
         ctx["customer_options"] = visible_customers(self.request.tenant_membership, self.request.user).filter(
             Q(orders__outlet_id=order.outlet_id) | Q(created_by=self.request.user) | Q(pk=order.customer_id)
