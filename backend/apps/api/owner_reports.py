@@ -254,6 +254,15 @@ def deliver_owner_report(*, schedule, at=None):
             "django.core.mail.backends.filebased.EmailBackend",
         }:
             raise RuntimeError("SMTP email backend is not configured for real delivery.")
+        # A worker could be queued when an owner loses access. Recheck
+        # each address immediately before sending confidential totals.
+        still_allowed = set(eligible_recipients(schedule))
+        delivery.recipients_to_send = [
+            address for address in delivery.recipient_snapshot
+            if address in still_allowed
+        ]
+        if not schedule.is_enabled or not delivery.recipients_to_send:
+            raise RuntimeError("Report disabled or no active authorized recipients remain.")
         summary = _summary_for_schedule(schedule, period)
         csv_body = format_sales_summary_csv_from_summary(summary)
         pdf_body = build_pdf_summary(schedule=schedule, period=period, summary=summary)
@@ -273,7 +282,7 @@ def deliver_owner_report(*, schedule, at=None):
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[settings.DEFAULT_FROM_EMAIL],
-            bcc=delivery.recipient_snapshot,
+            bcc=delivery.recipients_to_send,
         )
         email.attach(f"operations-{report_label}.csv", csv_body, "text/csv")
         email.attach(f"operations-{report_label}.pdf", pdf_body, "application/pdf")
