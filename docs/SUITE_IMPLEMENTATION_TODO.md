@@ -48,11 +48,11 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 - [ ] **19 Scheduled owner reports:** configurable daily/weekly/monthly timezone schedules, email and PDF, scoped recipients, retry/deduplication and delivery history; optional messaging only after supported integration exists.
 - [ ] **20 Capability permissions:** extend existing policy layer with sale/discount/refund/void/reopen, inventory view/adjust/transfer, check-in/rate override, finance view/expense and staff manage; role presets, UI/service/API parity.
 - [ ] **21 Approval workflows:** request → authorized manager PIN → exact action → audit for discounts/refunds/voids/write-offs/reopens/settled changes/withdrawals/price overrides; expiry, scoped approver, replay and segregation rules.
-- [ ] **22 Owner-readable audit:** actor/time/action/value/before→after/reason/approver and linked entity; filter/export, scoped visibility, sensitive-data redaction.
-- [ ] **23 UI density:** accessible Floor touch controls and Office dense tables using shared tokens; persisted preference; responsive widths, focus, scroll and touch target evidence.
-- [ ] **24 Command palette:** Ctrl/Cmd+K, keyboard navigation, authorized actions and entity lookup; order, reservation, guest/customer, stock, supplier/PO, room, employee and receipt.
-- [ ] **25 Global search:** one scoped search for order/receipt/guest/reservation/room/customer/item/barcode/supplier/PO/employee; pagination, useful result labels, permission checks and query limits. Reuse the command palette search backend.
-- [ ] **26 Notifications:** read/unread, priority and links for stock, approvals, maintenance, deliveries, cancellations, variances, offline conflicts, fiscal failures and subscription issues; per-user/outlet scope and deduplication.
+- [-] **22 Owner-readable audit:** actor/time/action/value/before→after/reason/approver and linked entity; filter/export, scoped visibility, sensitive-data redaction.
+- [-] **23 UI density:** accessible Floor touch controls and Office dense tables using shared tokens; persisted preference; responsive widths, focus, scroll and touch target evidence.
+- [-] **24 Command palette:** Ctrl/Cmd+K, keyboard navigation, authorized actions and entity lookup; order, reservation, guest/customer, stock, supplier/PO, room, employee and receipt.
+- [-] **25 Global search:** one scoped search for order/receipt/guest/reservation/room/customer/item/barcode/supplier/PO/employee; pagination, useful result labels, permission checks and query limits. Reuse the command palette search backend.
+- [-] **26 Notifications:** read/unread, priority and links for stock, approvals, maintenance, deliveries, cancellations, variances, offline conflicts, fiscal failures and subscription issues; per-user/outlet scope and deduplication.
 
 ## Commercial readiness and engineering evidence
 
@@ -60,7 +60,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 - [ ] **28 Demo/training:** populated Hotel/Bar/Restaurant/Supermarket demos, isolated tenant/training data and explicit mode, safe reset and no live provider side effects.
 - [ ] **29 Subscription entitlements:** consistent template/view/service/API enforcement, sensible disabled-module behavior, tenant isolation and module bypass regression tests.
 - [-] **30 Documentation/feature matrix:** reconcile README/product plan/audit with source; generated capability matrix separating backend/UI/API/tests/PostgreSQL/browser/hardware; no stale test counts or claims of certification.
-- [ ] **31 Release certification command:** commit-bound evidence for migrations, checks, tests, PostgreSQL/concurrency/RLS, schema, security, browser workflows, static files and rollback review; certificate with actual database/browser versions and timestamp; fail on absent mandatory evidence.
+- [-] **31 Release certification command:** commit-bound evidence for migrations, checks, tests, PostgreSQL/concurrency/RLS, schema, security, browser workflows, static files and rollback review; certificate with actual database/browser versions and timestamp; fail on absent mandatory evidence.
 - [ ] **32 Financial/historical policies:** review positive-only historical POS folios and legacy receiving expenses; recipe recovery policy; discounted/taxed split-tender return allocation; no duplicate stock/cash posting; linked-return amount validation and authorized corrections.
 - [ ] **33 Deployment/operations:** direct-VPS instructions, database backup/restore drill, worker/scheduler health, rollback, static assets, observability and successful exact-commit release verification.
 - [ ] **34 Commercial source policy:** document repository visibility and proprietary-license choices for the owner; do not silently change repository visibility or grant a license. Track the actual chosen policy.
@@ -311,3 +311,36 @@ Verification deferred at owner's direction. Status is implementation-in-progress
 - Regression tests authored for recorded rolling usage, batch aging, supplier delivery timing, permissions and invalid planning parameters.
 - Research: https://stockoutinventory.com/guides/reorder-point-safety-stock (Sept 2026) and https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum .
 - Remains in progress until formal sell-through can be reconciled from opening, receipt and return inventories, seasonality and stockout biases are addressed, accessible reporting exports/aggregates are integrated, and owner-deferred verification is completed.
+
+
+### 2026-10-16 — direct implementation batch: staff discovery, UI, audit, alerts, release evidence
+
+**Phase 22: Management audit explorer (in-progress).**
+- Improved the **existing** staff/settings/activity route and activity view rather than duplicating the audit system.
+- Added date, event and record-type filters, 40-record pages, a bounded 1,000-record CSV export and actor/action/entity/time details.
+- Added server-side redaction for passwords, tokens, PINs, addresses, contact details and sensitive nested fields, plus spreadsheet-formula escaping.
+- Restricted owner/admin visibility to their own tenant; other managers see only events whose stored payload contains an assigned site/outlet identifier. Legacy events with no explicit scope fail closed for non-owners. Owner/scope regression tests authored.
+- Remaining: normalized audit scope fields for legacy events; semantically formatted before/after financial diffs, broader actor/reason/approver navigation and verified export accessibility.
+
+**Phase 23: Floor and Office layout density (in-progress).**
+- A visible header control cycles between **Standard**, **Floor touch** and **Office compact** layouts, remembered by tenant/user on each browser; compact mode retains minimum mobile controls. CSS applies to staff tables, cards, forms and kitchen.
+- Remaining: cross-device preference sync and actual keyboard/touch/large-display review before calling complete.
+
+**Phase 24 and 25: Authorized command palette and global search (in-progress).**
+- Ctrl/Cmd+K opens an accessible native search dialog from the shared staff shell; Enter/Arrow keys navigate, Escape closes, focus returns to opener. A full-page no-JavaScript search path and responsive search layouts are available.
+- A **single** query service scopes order, reservation, room, folio, customer, catalog/SKU/barcode, supplier, purchase order, event and worker records by tenant/member/assigned sites/outlets/entitled modules. The search endpoint bounds input length and rate, uses no-store responses and does not persist guest search terms.
+- Full page supports bounded pagination of results by category; frequent records return direct URLs, with targeted filters added to room, menu/catalog, stock-balance and supplier directories. Source data is added to the browser using text nodes (not injected markup). Tests cover tenant, site/outlet, module and customer privacy rules.
+- Research: WAI-ARIA 1.2 combobox and keyboard design: https://www.w3.org/WAI/ARIA/apg/patterns/combobox/
+- Remaining: unified index for larger datasets, indexing/performance evidence, additional receipt/reference types and cross-browser assistive-technology certification.
+
+**Phase 26: Private staff alerts (in-progress).**
+- Added a tenant-isolated persisted `StaffNotification` inbox with unique member/source identity, priorities, read/unread history and tenant RLS.
+- A staff-accessible notifications screen allows explicit **Refresh**, **Unread**, **Mark read** and **Mark all read** actions. Refresh derives live low-stock, unresolved room repair and goods-delivery discrepancy alerts in the user's assigned locations and enabled modules; it deactivates resolved source rows instead of deleting audit history. Notification read state never crosses workers or tenants. Header displays unread count.
+- No automatic push/SMS or asynchronous producer is claimed. Additional exception types and delivery schedules remain pending.
+- Tests authored for location privacy, replay deduplication, user isolation and resolved inventory alerts.
+
+**Phase 31: Fail-closed release evidence command (in-progress).**
+- Added `tools/release_certificate.py` and `docs/RELEASE_CERTIFICATION.md`. The command targets an exact clean git commit, executes Django deployment/migration/test/static checks in an isolated staging environment and requires explicit matching PostgreSQL/RLS/concurrency, browser, restore, rollback, and when applicable hardware evidence. Missing or failing mandatory evidence results in FAIL.
+- The command **has not been run**, per the owner's deferred verification instructions. Supplied evidence is self-reported and must be corroborated by the release operator.
+
+**Status:** These features have been committed to `origin/main` for implementation progress only. They have not completed CI, database, browser, safety or production certification. The complete remaining 34-phase roadmap is not finished, and phase checkboxes remain in progress until all acceptance items are delivered.
