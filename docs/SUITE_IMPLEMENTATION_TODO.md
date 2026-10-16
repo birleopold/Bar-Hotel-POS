@@ -498,3 +498,9 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Added tests covering storekeeper stock operations, accountant read-only access, front desk denial, inactive memberships and unknown capabilities. These tests must run in CI; authored tests are not passing-test evidence.
 - **Phase 20 changes from pending to in progress, not complete.** Missing: consistent action maps and enforcement in POS/refund/void/reopen, lodging, finance, staff management, API parity, outlet restrictions and role presets. Follow existing module/scope checks; this helper is not authorization by itself.
 - The previously green run on `7da92e40f57f` had 484 passed and 5 skipped. Later Phase 06 and Phase 20 commits must receive independent successful CI; no new overall completion count is asserted.
+
+### 2026-10-16 — Phase 20 concrete staff action enforcement
+
+- Verified GitHub Actions run `38921681863` for `963f9d65b78b`: **492 tests passed, 5 skipped** and Django checks/migration-drift passed. SQLite-only evidence; PostgreSQL/browser/release gates still outstanding.
+- Integrated the newly centralized inventory capability policy into existing stock transfer and stock-count POST authorization. Transfer now checks the `transfer` capability; starting and completing a count now check `count`. Other stock write operations continue using the existing `adjust` compatibility helper. This is service-preserving permission parity, not an independent authorization engine; tenant/outlet/module scopes are still enforced by their existing views and services.
+- Codex's end-to-end storekeeper stock transfer/count tests and the action-capability unit tests provide regression coverage to rerun. The new commit has not yet passed CI. Phase 20 remains in progress until other domain capabilities and API parity are delivered.
