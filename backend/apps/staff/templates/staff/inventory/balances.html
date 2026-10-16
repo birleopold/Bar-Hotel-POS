@@ -12,7 +12,7 @@
         </div>
         <div class="staff-page-hero__actions">
           <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
-          <a class="staff-btn staff-btn--ghost" href="?low_stock=1">Low stock only</a>
+          <a class="staff-btn staff-btn--ghost" href="?low_stock=1&amp;q={{ stock_q|urlencode }}">Low stock only</a>
           {% if can_modify_inventory %}
             <a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
             <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer' %}">Transfer</a>
@@ -21,6 +21,15 @@
       </div>
     </div>
   </header>
+  <form class="staff-card mb-3" method="get" role="search">
+    <label class="staff-label" for="balance-search">Find stock by item, SKU or barcode</label>
+    <div class="d-flex flex-wrap gap-2">
+      <input class="staff-input flex-grow-1" id="balance-search" name="q" maxlength="80"
+        value="{{ stock_q }}" placeholder="Search your stock" style="min-width:12rem">
+      {% if low_stock %}<input type="hidden" name="low_stock" value="1">{% endif %}
+      <button class="staff-btn staff-btn--primary" type="submit">Find stock</button>
+    </div>
+  </form>
   <h2 class="staff-section-head">Balances</h2>
   {% if balances %}
     <div class="staff-table-wrap">
@@ -48,9 +57,9 @@
   {% endif %}
   {% if is_paginated %}
     <nav class="staff-pager">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&low_stock={% if low_stock %}1{% endif %}">Previous</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;q={{ stock_q|urlencode }}{% if low_stock %}&amp;low_stock=1{% endif %}&low_stock={% if low_stock %}1{% endif %}">Previous</a>{% endif %}
       <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&low_stock={% if low_stock %}1{% endif %}">Next</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ stock_q|urlencode }}{% if low_stock %}&amp;low_stock=1{% endif %}&low_stock={% if low_stock %}1{% endif %}">Next</a>{% endif %}
     </nav>
   {% endif %}
 {% endblock %}
