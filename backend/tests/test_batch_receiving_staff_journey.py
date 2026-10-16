@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.batches import InventoryBatch
-from apps.inventory.models import StockBalance, StockMovement, StockReason
+from apps.inventory.models import StockBalance, StockMovement, StockReason, StockBatchAllocation
 from apps.inventory.services_batches import receive_tracked_batch, change_batch_hold
 from apps.tenants.models import Tenant, Site, Outlet, OutletType
 
@@ -49,6 +49,9 @@ class BatchReceiptTests(TestCase):
             self.receive()
         self.assertEqual(StockMovement.objects.count(), 1)
         self.assertEqual(InventoryBatch.objects.count(), 1)
+        allocation = StockBatchAllocation.objects.get(stock_movement=movement)
+        self.assertEqual(allocation.batch_id, batch.pk)
+        self.assertEqual(allocation.quantity, Decimal("5.250"))
 
     def test_expired_delivery_is_quarantined_without_double_entry(self):
         batch, _ = self.receive(
