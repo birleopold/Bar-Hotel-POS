@@ -79,7 +79,12 @@ def process_efris_submission(submission_id) -> EfrisSubmission | None:
     )
     if submission is None:
         return None
-    if submission.status == EfrisSubmissionStatus.SUBMITTED:
+    if submission.status in (EfrisSubmissionStatus.SUBMITTED, EfrisSubmissionStatus.PROCESSING):
+        return submission
+    if submission.attempts >= 3:
+        # Unknown provider outcomes require manual reconciliation before retry.
+        return submission
+    if submission.next_retry_at and submission.next_retry_at > timezone.now():
         return submission
     if not _tenant_efris_enabled(submission.tenant_id):
         # Preserve queue but avoid processing when feature is toggled off.
@@ -91,7 +96,17 @@ def process_efris_submission(submission_id) -> EfrisSubmission | None:
     submission.save(update_fields=["status", "attempts", "last_error", "updated_at"])
 
     adapter = get_efris_adapter()
-    result = adapter.submit_receipt(tenant_id=submission.tenant_id, payload=submission.payload or {})
+    try:
+        result = adapter.submit_receipt(tenant_id=submission.tenant_id, payload=submission.payload or {})
+    except Exception:
+        # A transport exception does not prove the fiscal document was rejected.
+        # Require human verification rather than blindly duplicating submission.
+        submission.status = EfrisSubmissionStatus.FAILED
+        submission.last_error = "Provider outcome unknown. Check URA or the integrator before any retry."
+        submission.next_retry_at = None
+        submission.attempts = max(submission.attempts, 3)
+        submission.save(update_fields=["status", "last_error", "next_retry_at", "attempts", "updated_at"])
+        return submission
     if result.success:
         submission.status = EfrisSubmissionStatus.SUBMITTED
         submission.provider_reference = (result.provider_reference or "")[:128]
@@ -113,7 +128,7 @@ def process_efris_submission(submission_id) -> EfrisSubmission | None:
     backoff_seconds = getattr(settings, "EFRIS_RETRY_BASE_SECONDS", 300) * max(1, submission.attempts)
     submission.status = EfrisSubmissionStatus.FAILED
     submission.last_error = (result.error_message or "Unknown EFRIS submission error.")[:2000]
-    submission.next_retry_at = timezone.now() + timedelta(seconds=backoff_seconds)
+    submission.next_retry_at = (timezone.now() + timedelta(seconds=backoff_seconds)) if submission.attempts < 3 else None
     submission.save(update_fields=["status", "last_error", "next_retry_at", "updated_at"])
     return submission
 
@@ -123,6 +138,8 @@ def pending_efris_submission_ids(*, limit: int) -> list:
     return list(
         EfrisSubmission.objects.filter(
             status__in=[EfrisSubmissionStatus.PENDING, EfrisSubmissionStatus.FAILED]
+        ).filter(
+            attempts__lt=3,
         ).filter(
             Q(next_retry_at__isnull=True) | Q(next_retry_at__lte=now)
         )
