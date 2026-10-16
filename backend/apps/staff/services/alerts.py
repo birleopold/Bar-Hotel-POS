@@ -5,9 +5,12 @@ claimed until a scheduled producer is deployed. State is scoped to membership.
 """
 from urllib.parse import urlencode
 
+from datetime import timedelta
 from django.db.models import F, Q
 from django.urls import reverse
 from django.utils import timezone
+from apps.pos.models import OfflineQueuedOperation, OfflineQueueStatus
+from apps.audit.models import ExceptionPolicy
 
 from apps.accounts.models import MembershipRole
 from apps.audit.models import StaffNotification
@@ -117,6 +120,33 @@ def refresh_staff_alerts(*, tenant, membership):
                 f"Supplier {po.supplier.name}: delivery {receipt.delivery_reference or str(receipt.pk)[:8]} requires a discrepancy review"[:400],
                 reverse("staff-purchasing-order-detail", kwargs={"po_id": po.pk}),
                 "high",
+            )
+
+    if vis.offline_sync and membership.role in MANAGER_ROLES:
+        # Offline sync conflicts do not prove a payment failed at the bank.
+        # They require investigation against the original register and receipt.
+        active_by_type["offline_issue"] = set()
+        pos_outlets = [
+            o.pk for o in outlets
+            if "pos" in get_tenant_staff_modules(tenant, outlet=o)
+        ]
+        policy = ExceptionPolicy.objects.filter(tenant=tenant).first()
+        hours = policy.offline_age_hours if policy else 24
+        cutoff = timezone.now() - timedelta(hours=hours)
+        outstanding = OfflineQueuedOperation.objects.filter(
+            tenant=tenant, outlet_id__in=pos_outlets,
+        ).filter(
+            Q(status=OfflineQueueStatus.FAILED, reviewed_at__isnull=True)
+            | Q(status=OfflineQueueStatus.PENDING, created_at__lt=cutoff)
+        ).select_related("outlet")
+        for item in outstanding.iterator(chunk_size=100):
+            failed = item.status == OfflineQueueStatus.FAILED
+            emit(
+                "offline_issue", item.pk,
+                "Offline payment or order needs review" if failed else "Offline sync overdue",
+                f"{item.outlet.name}: {item.operation_type} requires a manager check"[:400],
+                reverse("staff-offline-queue") + "?status=" + ("review" if failed else "pending"),
+                "high" if failed else "normal",
             )
 
     # Only change current categories the worker is eligible to refresh. A
