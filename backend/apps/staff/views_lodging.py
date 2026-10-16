@@ -442,6 +442,14 @@ class StaffRoomsListView(StaffTenantRequiredMixin, ListView):
 
     def dispatch(self, request, *args, **kwargs):
         self.sites, self.current_site = _lodging_sites_and_site(request)
+        requested_site = request.GET.get("site", "").strip()
+        if requested_site:
+            # A cross-branch search link may select a different assigned
+            # property for this page without switching the user's session.
+            selected = next((site for site in self.sites
+                             if str(site.pk) == requested_site), None)
+            if selected is not None:
+                self.current_site = selected
         if self.current_site is None:
             messages.info(request, "No branch is set up for lodging in this workspace.")
             return redirect("staff-dashboard")
@@ -451,16 +459,21 @@ class StaffRoomsListView(StaffTenantRequiredMixin, ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return (
+        qs = (
             Room.objects.filter(room_type__site=self.current_site, is_active=True)
             .select_related("room_type", "room_type__site")
             .order_by("room_type__name", "name")
         )
+        query = self.request.GET.get("q", "").strip()[:80]
+        if query:
+            qs = qs.filter(Q(name__icontains=query) | Q(room_type__name__icontains=query))
+        return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["sites"] = self.sites
         ctx["current_site"] = self.current_site
+        ctx["room_search_q"] = self.request.GET.get("q", "").strip()[:80]
         return ctx
 
 
