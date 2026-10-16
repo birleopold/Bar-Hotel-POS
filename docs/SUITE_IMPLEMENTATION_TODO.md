@@ -504,3 +504,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Verified GitHub Actions run `38921681863` for `963f9d65b78b`: **492 tests passed, 5 skipped** and Django checks/migration-drift passed. SQLite-only evidence; PostgreSQL/browser/release gates still outstanding.
 - Integrated the newly centralized inventory capability policy into existing stock transfer and stock-count POST authorization. Transfer now checks the `transfer` capability; starting and completing a count now check `count`. Other stock write operations continue using the existing `adjust` compatibility helper. This is service-preserving permission parity, not an independent authorization engine; tenant/outlet/module scopes are still enforced by their existing views and services.
 - Codex's end-to-end storekeeper stock transfer/count tests and the action-capability unit tests provide regression coverage to rerun. The new commit has not yet passed CI. Phase 20 remains in progress until other domain capabilities and API parity are delivered.
+
+### 2026-10-16 — Phase 20 purchasing action permissions
+
+- Verified GitHub Actions run `38923055890` for `615b20e66ddf`: **492 passed, 5 skipped**, system checks and migration consistency passed (SQLite only).
+- Extended the existing shared staff permissions with distinct `purchasing.view`, `purchasing.receive`, `purchasing.manage` and `purchasing.supplier_payment` capability checks. The existing purchasing staff views now use `receive` for stock receipt and `manage` for changing POs and supplier operations, preserving current role behavior.
+- Storekeepers can receive assigned stock without gaining supplier finance permissions. Unknown actions, missing or inactive memberships fail closed. Added standalone regression tests for these distinctions; existing end-to-end storekeeper receiving tests remain applicable.
+- These are role checks only. Existing tenant/business module/outlet checks remain mandatory. The new commits require their own CI confirmation, and Phase 20 remains in progress pending other workflows, API parity, manager approvals and full certification.
