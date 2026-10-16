@@ -120,6 +120,19 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"at most three decimal places" in response.content
             assert b"data-retail-scan-form" in response.content
 
+    def test_retail_payment_form_has_stable_key_and_double_submit_guard(self):
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            total=Decimal("5000"), subtotal=Decimal("5000"),
+        )
+        page = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        assert page.status_code == 200
+        if page.context["can_record_payment"]:
+            assert b"data-pos-payment-form" in page.content
+            assert b'name="payment_request_key"' in page.content
+            assert b"paymentPending" in page.content
+            assert b"Recording payment" in page.content
+
     def test_next_sale_is_post_only(self):
         url = reverse("staff-order-quick-create")
         before = Order.objects.filter(tenant=self.tenant).count()
