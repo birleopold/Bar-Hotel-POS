@@ -1,7 +1,7 @@
 import uuid
 
 from django.contrib import messages
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum, Subquery
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -48,13 +48,26 @@ class StaffCustomerListView(CustomerAccessMixin, TemplateView):
         ctx = super().get_context_data(**kwargs)
         q = self.request.GET.get("q", "").strip()[:100]
         qs = self.customers()
+        needs_review = self.request.GET.get("points_review") == "1"
+        owner = self.request.tenant_membership.role in {
+            MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+        }
+        if needs_review and owner:
+            negative_accounts = (
+                LoyaltyLedgerEntry.objects.filter(
+                    tenant=self.request.tenant, customer__merged_into__isnull=True,
+                )
+                .values("customer_id").annotate(net=Sum("points"))
+                .filter(net__lt=0).values("customer_id")
+            )
+            qs = qs.filter(pk__in=Subquery(negative_accounts))
+        elif needs_review:
+            raise Http404
+        ctx["points_review"] = needs_review and owner
         if q:
             qs = qs.filter(Q(name__icontains=q) | Q(email__icontains=q) | Q(phone__icontains=q))
         ctx.update(customers=qs.order_by("name", "id")[:50], search=q)
-        if self.request.tenant_membership.role in {
-            MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
-        }:
-            from django.db.models import Sum
+        if owner:
             summary = {}
             ledger = LoyaltyLedgerEntry.objects.filter(
                 tenant=self.request.tenant, customer__merged_into__isnull=True,
