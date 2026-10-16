@@ -138,6 +138,7 @@
           <form method="post" class="row g-2 align-items-end">
             {% csrf_token %}
             <input type="hidden" name="action" value="record_payment">
+            <input type="hidden" name="payment_request_key" value="{{ payment_request_key }}">
             <div class="col-12 col-md-4">{{ payment_form.amount.label_tag }}{{ payment_form.amount }}</div>
             <div class="col-12 col-md-4">{{ payment_form.method.label_tag }}{{ payment_form.method }}</div>
             <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Record payment</button></div>
