@@ -1594,6 +1594,12 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
         else:
             item_qs = MenuItem.objects.none()
 
+        query = self.request.GET.get("q", "").strip()[:80]
+        if query:
+            item_qs = item_qs.filter(
+                Q(name__icontains=query) | Q(sku__icontains=query)
+                | Q(barcode__icontains=query)
+            )
         return (
             MenuCategory.objects.filter(tenant=self.request.tenant, is_active=True)
             .filter(items__in=item_qs)
@@ -1608,6 +1614,7 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
         ctx["menu_scope_outlet"] = outlet
         ctx["menu_all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["can_manage_tv_details"] = membership_can_manage_workspace_settings(self.request.tenant_membership)
+        ctx["menu_search_q"] = self.request.GET.get("q", "").strip()[:80]
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
