@@ -32,6 +32,7 @@ def staff_nav(request):
         "staff_show_housekeeping_nav": False,
         "staff_show_workspace_nav": False,
         "staff_quick_primary": None,
+        "staff_can_quick_create_order": False,
         "staff_notification_unread": 0,
         "staff_show_console_entry": False,
         "staff_product": {
@@ -85,6 +86,14 @@ def staff_nav(request):
     out["staff_product"] = staff_product_presentation(t, current_outlet)
     vis = staff_nav_visibility_scoped(m, modules=modules, tenant=t, outlet=current_outlet)
     out["staff_nav"] = vis
+    # Menu visibility includes read-only and reception roles. A quick-create
+    # control is a write action and must not be offered to those workspaces.
+    from apps.accounts.models import MembershipRole
+    out["staff_can_quick_create_order"] = bool(vis.orders and m.role in {
+        MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+        MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+        MembershipRole.SERVER, MembershipRole.BARTENDER,
+    })
     from apps.audit.models import StaffNotification
     out["staff_notification_unread"] = StaffNotification.objects.filter(
         tenant=t, recipient=m, active=True, read_at__isnull=True,
