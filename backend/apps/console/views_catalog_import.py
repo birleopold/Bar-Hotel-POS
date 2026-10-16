@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.views.generic import FormView
 
 from apps.audit.services import log_audit
+from apps.catalog.models import MenuItem
 
 from .catalog_import import CatalogImportProblem, import_catalog_items, parse_catalog_csv
 from .mixins import ConsoleOrgAdminRequiredMixin
@@ -43,6 +44,31 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
+        if request.GET.get("export") == "1":
+            # Owner-only, tenant-scoped export for review before catalog changes.
+            # Export product metadata only, never stock quantities or sales.
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = 'attachment; filename="catalog-current.csv"'
+            response["Cache-Control"] = "private, no-store"
+            writer = csv.writer(response)
+            writer.writerow([
+                "category", "name", "unit_price", "sku", "barcode",
+                "track_inventory", "reorder_level", "unit_of_measure",
+                "tax_rate_percent", "description",
+            ])
+            items = MenuItem.objects.filter(
+                tenant=request.tenant,
+            ).select_related("category").order_by("name", "pk")
+            for item in items.iterator(chunk_size=500):
+                writer.writerow([
+                    item.category.name, item.name, item.unit_price, item.sku,
+                    item.barcode, "yes" if item.track_inventory else "no",
+                    item.reorder_level if item.reorder_level is not None else "",
+                    item.unit_of_measure,
+                    item.tax_rate_percent if item.tax_rate_percent is not None else "",
+                    item.description,
+                ])
+            return response
         if request.GET.get("sample") == "1":
             response = HttpResponse(content_type="text/csv; charset=utf-8")
             response["Content-Disposition"] = 'attachment; filename="catalog-example.csv"'
