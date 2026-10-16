@@ -20,6 +20,14 @@
     </div>
   </header>
 
+  <form class="staff-card mb-3" method="get" role="search">
+    <label class="staff-label" for="menu-item-search">Find an item, SKU or barcode</label>
+    <div class="d-flex flex-wrap gap-2">
+      <input class="staff-input flex-grow-1" id="menu-item-search" name="q" maxlength="80"
+        value="{{ menu_search_q }}" placeholder="Search products and menu" style="min-width:12rem">
+      <button class="staff-btn staff-btn--primary" type="submit">Find item</button>
+    </div>
+  </form>
   {% if menu_scope_outlet and not menu_all_outlets_mode %}
     <section class="staff-menu-tv-note" aria-label="Guest display settings">
       <span class="staff-menu-tv-note__icon"><i class="bi bi-display" aria-hidden="true"></i></span>
