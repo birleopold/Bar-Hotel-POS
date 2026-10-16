@@ -23,3 +23,20 @@ class StaffCustomerForm(forms.ModelForm):
 
     def clean_email(self):
         return self.cleaned_data["email"].strip().lower()
+
+    def clean_phone(self):
+        """Normalize harmless formatting without guessing international prefixes.
+
+        Do not fabricate a country code: historic customer phone values may be
+        local, and wrong assumptions could merge distinct customers.
+        """
+        raw = (self.cleaned_data.get("phone") or "").strip()
+        if not raw:
+            return ""
+        allowed = set("0123456789+ ()-./")
+        if any(char not in allowed for char in raw):
+            raise forms.ValidationError("Enter a phone number using digits and standard separators.")
+        digits = "".join(char for char in raw if char.isdigit())
+        if len(digits) < 7 or len(digits) > 15:
+            raise forms.ValidationError("Enter a phone number with 7–15 digits.")
+        return ("+" if raw.startswith("+") else "") + digits
