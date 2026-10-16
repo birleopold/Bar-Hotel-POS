@@ -122,7 +122,10 @@
   {% if staff_show_console_entry %}
   <div class="wb-nav-group">
     <span class="wb-nav-group__label">Platform</span>
-    <ul class="wb-nav-list"><li><a class="wb-nav-link" href="{% url 'console-index' %}"><i class="bi bi-sliders2" aria-hidden="true"></i><span>Admin console</span></a></li></ul>
+    <ul class="wb-nav-list">
+      <li><a class="wb-nav-link" href="{% url 'console-org-setup' %}"><i class="bi bi-list-check" aria-hidden="true"></i><span>Business setup</span></a></li>
+      <li><a class="wb-nav-link" href="{% url 'console-index' %}"><i class="bi bi-sliders2" aria-hidden="true"></i><span>Admin console</span></a></li>
+    </ul>
   </div>
   {% endif %}
 </nav>
