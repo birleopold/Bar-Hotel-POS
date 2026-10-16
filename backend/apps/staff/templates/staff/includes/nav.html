@@ -56,6 +56,14 @@
     </nav>
   {% endif %}
   <div class="staff-nav__meta">
+    {% if user.is_authenticated and staff_nav %}
+      <button type="button" class="staff-command-launch" data-staff-command-open
+        data-search-url="{% url 'staff-search' %}" aria-controls="staff-command-dialog"
+        aria-haspopup="dialog" title="Search workspace (Ctrl+K)">
+        <i class="bi bi-search" aria-hidden="true"></i><span>Search</span><kbd>Ctrl K</kbd>
+      </button>
+      <noscript><a href="{% url 'staff-search' %}">Find a record</a></noscript>
+    {% endif %}
     {% if user.is_authenticated %}
       {% if staff_nav_outlets %}
         <form class="staff-nav__outlet-form" method="post" action="{% url 'staff-select-outlet' %}">
