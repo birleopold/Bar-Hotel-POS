@@ -34,6 +34,9 @@ def stock_coverage_snapshot(*, tenant, outlet, days=30):
         on_hand = balance.quantity
         days_remaining = (on_hand / daily) if daily > 0 else None
         level = balance.menu_item.reorder_level
+        # Reorder level is a configured minimum, not a guessed supplier
+        # lead-time or an automatically generated purchase order.
+        reorder_shortfall = max(level - on_hand, Decimal("0")) if level is not None else None
         # Snapshot quantities are indicators, not batch-age or supplier-lead-time data.
         sell_through = None
         if used > 0 and on_hand + used > 0:
@@ -48,6 +51,8 @@ def stock_coverage_snapshot(*, tenant, outlet, days=30):
             "sell_through_proxy": sell_through,
             "stockout_risk": ("no_demand_data" if daily == 0 else "at_or_below_reorder" if level is not None and on_hand <= level else "less_than_7_days" if days_remaining < 7 else "covered"),
             "below_reorder_level": level is not None and on_hand <= level,
+            "reorder_shortfall": reorder_shortfall,
+            "out_of_stock": on_hand <= 0,
             "no_sales_history": daily == 0,
         })
     return result
