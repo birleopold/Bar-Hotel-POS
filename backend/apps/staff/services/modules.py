@@ -123,7 +123,7 @@ def resolve_effective_staff_modules(
             continue
         if is_enabled:
             # An entitlement may widen a plan, but never the configured business profile.
-            if module_key in configured_line_modules:
+            if module_key in configured_line_modules and module_key in settings_modules:
                 effective = effective | {module_key}
         else:
             effective = frozenset(m for m in effective if m != module_key)
