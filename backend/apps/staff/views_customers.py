@@ -95,6 +95,27 @@ class StaffCustomerCreateView(CustomerAccessMixin, TemplateView):
         form = StaffCustomerForm(request.POST)
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form=form), status=400)
+        # Warn about a verified contact match only within the worker's
+        # existing customer visibility scope; never disclose another branch's
+        # unlinked contact details to create a duplicate.
+        matches = Q()
+        email = (form.cleaned_data.get("email") or "").strip()
+        phone = (form.cleaned_data.get("phone") or "").strip()
+        if email:
+            matches |= Q(email__iexact=email)
+        if phone:
+            matches |= Q(phone=phone)
+        if matches:
+            duplicate = visible_customers(request.tenant_membership, request.user).filter(matches).first()
+            if duplicate:
+                form.add_error(
+                    None,
+                    "An accessible customer already uses this email or phone. "
+                    "Open the existing profile instead of creating a duplicate.",
+                )
+                return self.render_to_response(
+                    self.get_context_data(form=form), status=400,
+                )
         customer = form.save(commit=False)
         customer.tenant, customer.created_by = request.tenant, request.user
         customer.save()
