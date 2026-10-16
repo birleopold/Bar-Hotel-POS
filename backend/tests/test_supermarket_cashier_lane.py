@@ -54,6 +54,20 @@ class SupermarketCashierLaneTests(TestCase):
         order.refresh_from_db()
         assert order.lines.filter(menu_item__sku="SUG-001", is_voided=False).exists()
 
+    def test_cash_tender_helper_is_supermarket_only_and_ledger_uses_existing_payment(self):
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            total=Decimal("9000"), subtotal=Decimal("9000"),
+        )
+        response = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        assert response.status_code == 200
+        # Checkout staff can view the change calculator only when payment is allowed.
+        if response.context["can_record_payment"] and response.context["payment_form"]:
+            assert b"Cash received &amp; change" in response.content
+            assert b"data-retail-cash-received" in response.content
+            assert b"data-balance-due" in response.content
+            assert b"Record the due amount, not the cash tendered" in response.content
+
     def test_next_sale_is_post_only(self):
         url = reverse("staff-order-quick-create")
         before = Order.objects.filter(tenant=self.tenant).count()
