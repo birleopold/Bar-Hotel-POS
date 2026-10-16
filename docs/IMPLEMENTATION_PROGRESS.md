@@ -90,3 +90,11 @@ Refresh this ledger from actual GitHub Actions evidence with every delivery chec
 - **SM-P0.1 cashier lane, first code slice:** supermarket order details now provide a scan-focused form, barcode shortcut, client-side duplicate-submit suppression, live status text and POST-only next-customer creation. Reuses existing order, scan validation and till/payment code. Regression tests added in `backend/tests/test_supermarket_cashier_lane.py`.
 - **Verification:** new commit requires full CI; no real-scanner, concurrent till, browser/mobile or payment provider sign-off is claimed. SM-11 and SM-P0.1 are not yet complete.
 - **Next:** finish the scan-to-payment workflow, then SM-P0.2 catalog import and SKU integrity, SM-P0.3 tax/refund correctness.
+
+## Supermarket delivery log — catalog import expansion, 2026-10-16
+
+- Began **SM-P0.2** by strengthening the existing protected owner CSV importer, **not** building a second ingestion path. Bounded one-transaction import limit increased from 250 to 1,000 products/1 MB; CSV preview, case-insensitive duplicate SKU/barcode rejection, tenant-scoped writes, and atomic rollback remain.
+- Added test coverage for a successful 300-item batch plus updated max-row rejection boundary. This batch **does not update existing products** or insert stock balances, so opening stock must still be received via the inventory ledger.
+- Research baseline: Shopify's official product CSV guide recommends small test batches, strict CSV formatting and explicit overwrite semantics; all three inform the safe create-only policy until verified update rules are implemented.
+- **SM-P0.2 is not complete:** stable upsert/price-change approvals, 1,000-row UI and performance checks, cross-branch product assignments, precise import history and production PostgreSQL/browser acceptance remain.
+- CI status must be recorded for the **exact head commit**, not from a superseded cancelled run.
