@@ -46,7 +46,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 - [ ] **18 Executive analytics:** today/yesterday/week/month/custom, revenue, gross profit/cost quality, transactions/basket, occupancy/RevPAR, refunds/discounts/variance, top items, low stock, supplier payables and guest folios; group → branch → outlet → register → employee → transaction drilldown.
 - [-] **19 Scheduled owner reports:** configurable daily/weekly/monthly timezone schedules, email and PDF, scoped recipients, retry/deduplication and delivery history; optional messaging only after supported integration exists.
-- [ ] **20 Capability permissions:** extend existing policy layer with sale/discount/refund/void/reopen, inventory view/adjust/transfer, check-in/rate override, finance view/expense and staff manage; role presets, UI/service/API parity.
+- [-] **20 Capability permissions:** extend existing policy layer with sale/discount/refund/void/reopen, inventory view/adjust/transfer, check-in/rate override, finance view/expense and staff manage; role presets, UI/service/API parity.
 - [ ] **21 Approval workflows:** request → authorized manager PIN → exact action → audit for discounts/refunds/voids/write-offs/reopens/settled changes/withdrawals/price overrides; expiry, scoped approver, replay and segregation rules.
 - [-] **22 Owner-readable audit:** actor/time/action/value/before→after/reason/approver and linked entity; filter/export, scoped visibility, sensitive-data redaction.
 - [-] **23 UI density:** accessible Floor touch controls and Office dense tables using shared tokens; persisted preference; responsive widths, focus, scroll and touch target evidence.
@@ -491,3 +491,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Extended the **existing** customer directory with an owner/admin-only `points_review=1` drilldown for customers with negative net ledger points; the filtered customer list preserves search and links to each existing account breakdown. Non-owner requests for the report return 404 to avoid tenant-wide loyalty disclosure.
 - Existing owner summary links directly to this queue. Negative points remain an informational review signal, not an automatic charge, money balance or blocked refund. No ledger writes or changes to redemption policy.
 - Added a database-backed test verifying filtered results and frontend role denial. New commits require their own CI run. Phase 06 remains **in progress** pending the documented remaining reward/checkout/coupon scope and external test gates.
+
+### 2026-10-16 — Phase 20 permission-policy foundation
+
+- Added a centralized, fail-closed inventory action capability map (view, adjust, transfer, count), extending the existing staff permission module rather than introducing another permission engine. Existing `membership_can_modify_inventory` delegates to the shared adjust capability, retaining current write-role behavior.
+- Added tests covering storekeeper stock operations, accountant read-only access, front desk denial, inactive memberships and unknown capabilities. These tests must run in CI; authored tests are not passing-test evidence.
+- **Phase 20 changes from pending to in progress, not complete.** Missing: consistent action maps and enforcement in POS/refund/void/reopen, lodging, finance, staff management, API parity, outlet restrictions and role presets. Follow existing module/scope checks; this helper is not authorization by itself.
+- The previously green run on `7da92e40f57f` had 484 passed and 5 skipped. Later Phase 06 and Phase 20 commits must receive independent successful CI; no new overall completion count is asserted.
