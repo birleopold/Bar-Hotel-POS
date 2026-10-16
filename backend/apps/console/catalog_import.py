@@ -60,7 +60,7 @@ def parse_catalog_csv(*, tenant, uploaded):
         raise CatalogImportProblem(["Upload a CSV smaller than 1 MB."])
     raw = uploaded.read(MAX_FILE_BYTES + 1)
     if len(raw) > MAX_FILE_BYTES:
-        raise CatalogImportProblem(["Upload a CSV smaller than 256 KB."])
+        raise CatalogImportProblem(["Upload a CSV smaller than 1 MB."])
     try:
         data = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
