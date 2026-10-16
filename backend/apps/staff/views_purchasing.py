@@ -87,11 +87,19 @@ class StaffSupplierListView(StaffTenantRequiredMixin, ListView):
     def get_queryset(self):
         if not staff_accessible_outlets(self.request.tenant_membership):
             return Supplier.objects.none()
-        return Supplier.objects.filter(tenant=self.request.tenant).order_by("name")
+        qs = Supplier.objects.filter(tenant=self.request.tenant)
+        query = self.request.GET.get("q", "").strip()[:80]
+        if query:
+            qs = qs.filter(
+                Q(name__icontains=query) | Q(email__icontains=query)
+                | Q(phone__icontains=query)
+            )
+        return qs.order_by("name")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["can_modify_purchasing"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["supplier_search_q"] = self.request.GET.get("q", "").strip()[:80]
         return ctx
 
 
