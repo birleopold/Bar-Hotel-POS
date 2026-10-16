@@ -35,6 +35,17 @@
     </div>
   </section>
   {% endfor %}
+  {% if next_page or previous_page %}
+  <nav class="staff-pager mt-3" aria-label="Search results pages">
+    {% if previous_page %}
+      <a href="?q={{ query|urlencode }}&amp;page={{ previous_page }}">Previous</a>
+    {% endif %}
+    <span>Results page {{ search_page }}</span>
+    {% if next_page %}
+      <a href="?q={{ query|urlencode }}&amp;page={{ next_page }}">Next</a>
+    {% endif %}
+  </nav>
+  {% endif %}
 {% else %}
   <section class="staff-card"><h2 class="staff-section-head">No matches found</h2>
     <p class="staff-muted mb-0">Try a different name or reference. Results only include records in your permitted business locations.</p>
