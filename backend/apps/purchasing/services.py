@@ -153,7 +153,7 @@ def receive_purchase_order_goods(
             "discrepancy_note": receipt.discrepancy_note,
             "lines": [
                 {"purchase_order_line_id": str(line.purchase_order_line_id),
-                 "quantity_received": str(line.quantity_received)}
+                 "quantity_received": format(line.quantity_received.normalize(), "f")}
                 for line in receipt.lines.all()
             ],
         },
@@ -201,7 +201,6 @@ def confirm_missing_unit_cost(*, po: PurchaseOrder, line_id, unit_cost: Decimal,
     return line
 
 
-@transaction.atomic
 def record_supplier_payment(
     *, po: PurchaseOrder, amount: Decimal, method: str, reference: str,
     idempotency_key: str, user, membership,
@@ -217,40 +216,43 @@ def record_supplier_payment(
     key = (idempotency_key or "").strip()
     if not key or len(key) > 128:
         raise ValidationError({"idempotency_key": "A key of at most 128 characters is required."})
-    po = PurchaseOrder.objects.select_for_update().select_related("outlet__site").get(pk=po.pk)
-    if not outlet_belongs_to_membership(membership, po.outlet_id):
-        raise ValidationError({"detail": "You cannot pay a supplier for this outlet."})
-    reference = (reference or "").strip()
-    if len(reference) > 128:
-        raise ValidationError({"reference": "Must be at most 128 characters."})
-    existing = SupplierPayment.objects.filter(tenant_id=po.tenant_id, idempotency_key=key).first()
-    if existing:
-        if (existing.purchase_order_id, existing.amount, existing.method, existing.reference) != (
-            po.id, amount, method, reference
-        ):
-            raise ValidationError({"idempotency_key": "This key was used for a different supplier payment."})
-        return existing, True
-    if method not in SupplierPaymentMethod.values:
-        raise ValidationError({"method": "Select a valid payment method."})
-    if amount <= 0 or amount != amount.quantize(Decimal("0.01")):
-        raise ValidationError({"amount": "Enter a positive amount with at most two decimal places."})
-    received_lines = po.lines.filter(quantity_received__gt=0)
-    if not received_lines.exists() or received_lines.filter(unit_cost__isnull=True).exists():
-        raise ValidationError({"detail": "Received goods need a unit cost before supplier payment can be recorded."})
-    # Older releases wrote an expense on receipt. Never post the same outflow twice.
-    if has_legacy_receipt_expenses(po):
-        raise ValidationError({"detail": "This order has legacy receipt expenses. Reconcile those entries before recording supplier payments."})
-    received_total = received_goods_value(po)
-    paid = po.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    due = (received_total - paid).quantize(Decimal("0.01"))
-    if amount > due:
-        raise ValidationError({"amount": f"Payment exceeds the unpaid value of received goods ({due})."})
-    payment = SupplierPayment.objects.create(
-        tenant_id=po.tenant_id, purchase_order=po, amount=amount, method=method,
-        reference=reference, idempotency_key=key, recorded_by=user,
-    )
-    post_supplier_payment_expense(payment=payment, user=user)
-    return payment, False
+    # Reject malformed input before opening a database transaction.
+    # The lock, posting and audit sequence remains a single atomic unit.
+    with transaction.atomic():
+        po = PurchaseOrder.objects.select_for_update().select_related("outlet__site").get(pk=po.pk)
+        if not outlet_belongs_to_membership(membership, po.outlet_id):
+            raise ValidationError({"detail": "You cannot pay a supplier for this outlet."})
+        reference = (reference or "").strip()
+        if len(reference) > 128:
+            raise ValidationError({"reference": "Must be at most 128 characters."})
+        existing = SupplierPayment.objects.filter(tenant_id=po.tenant_id, idempotency_key=key).first()
+        if existing:
+            if (existing.purchase_order_id, existing.amount, existing.method, existing.reference) != (
+                po.id, amount, method, reference
+            ):
+                raise ValidationError({"idempotency_key": "This key was used for a different supplier payment."})
+            return existing, True
+        if method not in SupplierPaymentMethod.values:
+            raise ValidationError({"method": "Select a valid payment method."})
+        if amount <= 0 or amount != amount.quantize(Decimal("0.01")):
+            raise ValidationError({"amount": "Enter a positive amount with at most two decimal places."})
+        received_lines = po.lines.filter(quantity_received__gt=0)
+        if not received_lines.exists() or received_lines.filter(unit_cost__isnull=True).exists():
+            raise ValidationError({"detail": "Received goods need a unit cost before supplier payment can be recorded."})
+        # Older releases wrote an expense on receipt. Never post the same outflow twice.
+        if has_legacy_receipt_expenses(po):
+            raise ValidationError({"detail": "This order has legacy receipt expenses. Reconcile those entries before recording supplier payments."})
+        received_total = received_goods_value(po)
+        paid = po.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        due = (received_total - paid).quantize(Decimal("0.01"))
+        if amount > due:
+            raise ValidationError({"amount": f"Payment exceeds the unpaid value of received goods ({due})."})
+        payment = SupplierPayment.objects.create(
+            tenant_id=po.tenant_id, purchase_order=po, amount=amount, method=method,
+            reference=reference, idempotency_key=key, recorded_by=user,
+        )
+        post_supplier_payment_expense(payment=payment, user=user)
+        return payment, False
 
 
 def _sync_po_status(po: PurchaseOrder) -> None:
