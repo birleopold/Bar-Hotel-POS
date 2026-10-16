@@ -61,7 +61,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 - [-] **29 Subscription entitlements:** consistent template/view/service/API enforcement, sensible disabled-module behavior, tenant isolation and module bypass regression tests.
 - [-] **30 Documentation/feature matrix:** reconcile README/product plan/audit with source; generated capability matrix separating backend/UI/API/tests/PostgreSQL/browser/hardware; no stale test counts or claims of certification.
 - [-] **31 Release certification command:** commit-bound evidence for migrations, checks, tests, PostgreSQL/concurrency/RLS, schema, security, browser workflows, static files and rollback review; certificate with actual database/browser versions and timestamp; fail on absent mandatory evidence.
-- [ ] **32 Financial/historical policies:** review positive-only historical POS folios and legacy receiving expenses; recipe recovery policy; discounted/taxed split-tender return allocation; no duplicate stock/cash posting; linked-return amount validation and authorized corrections.
+- [-] **32 Financial/historical policies:** review positive-only historical POS folios and legacy receiving expenses; recipe recovery policy; discounted/taxed split-tender return allocation; no duplicate stock/cash posting; linked-return amount validation and authorized corrections.
 - [ ] **33 Deployment/operations:** direct-VPS instructions, database backup/restore drill, worker/scheduler health, rollback, static assets, observability and successful exact-commit release verification.
 - [-] **34 Commercial source policy:** document repository visibility and proprietary-license choices for the owner; do not silently change repository visibility or grant a license. Track the actual chosen policy.
 
@@ -545,3 +545,9 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - Corrected `resolve_effective_staff_modules`: explicit per-module entitlement grants can extend a plan only when that module is also enabled in the owner's tenant configuration and permitted by its business profile. A billing entitlement must not silently undo an owner-disabled feature.
 - Added database-backed tests for owner-disabled purchasing and cross-business lodging grant isolation, while still permitting inventory module plan extension when enabled by the owner.
 - Phase 29 is **in progress** only. Remaining work: explicit trial/grace and account-limit rules, consistent API/service and paid-module enforcement, transparent owner subscription UI, billing lifecycle, downgrade data safety, migrations and full release certification. The new commits require fresh CI confirmation.
+
+### 2026-10-16 — Phase 32 read-only historical accounting integrity
+
+- Extended the existing `audit_legacy_postings --tenant-id UUID` command rather than introducing a second reconciliation engine. It now identifies linked cashbook entries belonging to another tenant, wrong-tenant finance categories and unexpected income/expense classification for existing operational posting types. Findings are deterministic, tenant-scoped and contain IDs and issue codes; no account amounts or transactions are rewritten.
+- Added database tests for tenant isolation, inconsistent refund posting classification, unchanged source records and invalid tenant input.
+- Phase 32 changes from **pending to in progress**, not complete. Historical corrections need a governed authorization, reversal journal strategy, fiscal/tax impact assessment and provider/DB reconciliation; running this audit does not approve any mutation. New commits require fresh CI verification.
