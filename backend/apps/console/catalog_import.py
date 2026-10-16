@@ -15,8 +15,8 @@ from django.db import transaction
 from apps.catalog.models import MenuCategory, MenuItem, UnitOfMeasure
 from apps.tenants.models import Tenant
 
-MAX_FILE_BYTES = 256 * 1024
-MAX_ITEMS = 250
+MAX_FILE_BYTES = 1024 * 1024
+MAX_ITEMS = 1000
 HEADERS = (
     "category", "name", "unit_price", "sku", "barcode", "track_inventory",
     "reorder_level", "unit_of_measure", "tax_rate_percent", "description",
@@ -57,7 +57,7 @@ def _parse_bool(value: str):
 
 def parse_catalog_csv(*, tenant, uploaded):
     if getattr(uploaded, "size", 0) > MAX_FILE_BYTES:
-        raise CatalogImportProblem(["Upload a CSV smaller than 256 KB."])
+        raise CatalogImportProblem(["Upload a CSV smaller than 1 MB."])
     raw = uploaded.read(MAX_FILE_BYTES + 1)
     if len(raw) > MAX_FILE_BYTES:
         raise CatalogImportProblem(["Upload a CSV smaller than 256 KB."])
@@ -85,7 +85,7 @@ def parse_catalog_csv(*, tenant, uploaded):
     if not records:
         raise CatalogImportProblem(["Add at least one item row."])
     if len(records) > MAX_ITEMS:
-        raise CatalogImportProblem(["Import at most 250 items per CSV."])
+        raise CatalogImportProblem(["Import at most 1,000 items per CSV."])
 
     existing_skus = {
         value.casefold() for value in MenuItem.objects.filter(
@@ -165,7 +165,7 @@ def parse_catalog_csv(*, tenant, uploaded):
 def import_catalog_items(*, tenant, rows):
     """Create only new items; validate all before committing any rows."""
     if not rows or len(rows) > MAX_ITEMS:
-        raise CatalogImportProblem(["Import between 1 and 250 items at once."])
+        raise CatalogImportProblem(["Import between 1 and 1,000 items at once."])
     # Serialize concurrent imports for a business even if no menu items
     # exist yet; selecting only matching SKUs does not lock an empty table.
     Tenant.objects.select_for_update().get(pk=tenant.pk)
