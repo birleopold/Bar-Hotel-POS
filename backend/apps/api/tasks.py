@@ -138,3 +138,27 @@ def send_password_reset_email_task(self, *, user_email: str, uid_b64: str, token
         )
     except OSError as exc:
         raise self.retry(exc=exc) from exc
+
+
+
+@shared_task
+def dispatch_scheduled_owner_reports() -> None:
+    """Hourly opt-in delivery; no emails for tenants without an enabled schedule."""
+    from apps.api.owner_reports import deliver_owner_report
+    from apps.tenants.models import OwnerReportSchedule
+
+    for tenant in _iter_digest_tenants():
+        schedule = (
+            OwnerReportSchedule.objects.filter(tenant=tenant, is_enabled=True)
+            .select_related("tenant", "site")
+            .first()
+        )
+        if schedule is None:
+            continue
+        try:
+            deliver_owner_report(schedule=schedule)
+        except Exception:
+            logger.exception(
+                "Scheduled owner report failed tenant_id=%s",
+                str(tenant.pk),
+            )

@@ -152,6 +152,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.api.tasks.daily_operations_digest",
         "schedule": crontab(hour=6, minute=0),
     },
+    "scheduled-owner-reports": {
+        "task": "apps.api.tasks.dispatch_scheduled_owner_reports",
+        "schedule": crontab(minute=15),
+    },
     "process-efris-submissions": {
         "task": "apps.integrations.tasks.process_efris_submission_queue",
         "schedule": crontab(minute="*/5"),
