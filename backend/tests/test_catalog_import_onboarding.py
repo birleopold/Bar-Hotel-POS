@@ -120,6 +120,21 @@ def test_retail_catalog_import_accepts_over_250_rows_without_stock_movements():
 
 
 @pytest.mark.django_db
+def test_incomplete_csv_rows_and_embedded_newlines_do_not_create_products():
+    a = _seed_tenant_bundle(
+        name="Malformed Grocery", slug="malformed-grocery-rows",
+        user_email="malformed-grocery@example.test",
+    )
+    for content in (
+        "category,name,unit_price,sku\nFood,Good Item,2500,G-1\nFood,No price\n",
+        'category,name,unit_price,sku\nFood,"Two\nlines",2500,G-2\n',
+    ):
+        with pytest.raises(CatalogImportProblem):
+            parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(content))
+    assert not MenuItem.objects.filter(tenant=a["tenant"], sku__in=["G-1", "G-2"]).exists()
+
+
+@pytest.mark.django_db
 def test_required_setup_cannot_be_marked_finished_by_skipping():
     a = _seed_tenant_bundle(
         name="Required Setup", slug="required-setup-checks",
