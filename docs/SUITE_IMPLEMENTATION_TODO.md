@@ -45,7 +45,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 ## Management, permissions and discovery
 
 - [ ] **18 Executive analytics:** today/yesterday/week/month/custom, revenue, gross profit/cost quality, transactions/basket, occupancy/RevPAR, refunds/discounts/variance, top items, low stock, supplier payables and guest folios; group → branch → outlet → register → employee → transaction drilldown.
-- [ ] **19 Scheduled owner reports:** configurable daily/weekly/monthly timezone schedules, email and PDF, scoped recipients, retry/deduplication and delivery history; optional messaging only after supported integration exists.
+- [-] **19 Scheduled owner reports:** configurable daily/weekly/monthly timezone schedules, email and PDF, scoped recipients, retry/deduplication and delivery history; optional messaging only after supported integration exists.
 - [ ] **20 Capability permissions:** extend existing policy layer with sale/discount/refund/void/reopen, inventory view/adjust/transfer, check-in/rate override, finance view/expense and staff manage; role presets, UI/service/API parity.
 - [ ] **21 Approval workflows:** request → authorized manager PIN → exact action → audit for discounts/refunds/voids/write-offs/reopens/settled changes/withdrawals/price overrides; expiry, scoped approver, replay and segregation rules.
 - [-] **22 Owner-readable audit:** actor/time/action/value/before→after/reason/approver and linked entity; filter/export, scoped visibility, sensitive-data redaction.
@@ -56,7 +56,7 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 
 ## Commercial readiness and engineering evidence
 
-- [ ] **27 Onboarding:** business type → details → branch/outlets → catalog add/import → invite staff → configure/test device → test sale → go live, resumable checklist without Django admin.
+- [-] **27 Onboarding:** business type → details → branch/outlets → catalog add/import → invite staff → configure/test device → test sale → go live, resumable checklist without Django admin.
 - [ ] **28 Demo/training:** populated Hotel/Bar/Restaurant/Supermarket demos, isolated tenant/training data and explicit mode, safe reset and no live provider side effects.
 - [ ] **29 Subscription entitlements:** consistent template/view/service/API enforcement, sensible disabled-module behavior, tenant isolation and module bypass regression tests.
 - [-] **30 Documentation/feature matrix:** reconcile README/product plan/audit with source; generated capability matrix separating backend/UI/API/tests/PostgreSQL/browser/hardware; no stale test counts or claims of certification.
@@ -381,3 +381,25 @@ Verification deferred at owner's direction. Status is implementation-in-progress
 - Research basis: https://squareup.com/help/us/en/article/7777-process-card-payments-with-offline-mode and https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum .
 
 **Verification status:** Owner requested implementation first. Code and tests are committed to `origin/main`; no claim of full CI, PostgreSQL concurrency, offline-browser device or hardware certification is made. The 34-phase completion count remains based on **fully accepted** phases, not partially implemented features.
+
+
+### 2026-10-16 — Phase 27 guided onboarding and Phase 19 owner reporting (implementation-first batch)
+
+**Phase 27: Guided onboarding (in progress)**
+- Extended existing **Console → Workspace setup** rather than introducing parallel onboarding. Existing business-line selection, branch/outlet creation, invitations, inventory, room setup and go-live cards are retained.
+- Added required **business type**, **first sellable product/service**, and (for businesses with POS activity) **named workstation** steps. Opening stock is required only when an active SKU actually tracks inventory. Required stages cannot be skipped to fabricate completion; blocked steps remain incomplete.
+- Added a resumable checklist progress indicator, direct staff sidebar **Business setup** access for approved admin roles, and links to configuring/testing devices, staff invitations and real first-sale review. Go-live messages now explicitly distinguish automatic setup prerequisites from real device/payment certification.
+- Added **Catalog CSV import** with tenant isolation, UTF-8 limits (256 KiB, 250 items), strict rows and amount/quantity validation, category reuse/creation, duplicate SKU/barcode rejection, no partial import and a clear preview action. Stock, cash and fiscal records never change during import. Retail/hospitality catalog importer is not exposed to lodging-only businesses. Responsive import screen, example CSV, staff/console navigation and regression tests added.
+- Added a **no-payment checkout rehearsal** with the existing POS pricing/tax and quantity rules, section price overrides and a stored owner/date. It does not create a sale, payment, shift, stock movement or EFRIS document and is clearly labeled a nonfinancial preview. Screen is reachable from setup; tests authored.
+- Research references: https://help.shopify.com/en/manual/intro-to-shopify/shopify-pos-launch-checklist and https://support.phppointofsale.com/hc/en-us/articles/53260874229396-Your-first-day-store-setup .
+- Remaining: end-to-end safe training tenant/transaction support, proof that an actual configured payment terminal and printer work, opening-day signed decisions, full import browser and PostgreSQL concurrency verification, and additional branch-level onboarding where needed.
+
+**Phase 19: Owner-configurable scheduled sales reporting (in progress)**
+- Extended the existing ops digest rather than copying its financial aggregates. Added opt-in `OwnerReportSchedule` by tenant with optional property scope, daily/weekly/monthly cadence, local send-hour/day, and selected active owner/admin membership recipients. Default **off**.
+- Added per-period deduplicated `OwnerReportDelivery` history (sending, sent, failed), UTC/business-operating-date scope text, bounded failure retries, 45-minute retry gap and a persistent **Sending** state to prevent automatic SMTP duplicate resends.
+- Added PDF overview (ReportLab) plus CSV detail from the existing `build_sales_summary`, no customer-identifying details, and formula-safe CSV free text. Celery beat checks due schedules hourly and restores explicit per-tenant PostgreSQL RLS context between businesses.
+- New **Staff → Settings → Owner email reports** page offers owner/admin-only configuration, scoped recipients, preview PDF/CSV downloads and delivery history. PIN-only sessions cannot change email routing. No report emails are sent automatically until owners explicitly enable the schedule and working beat/worker/email services are configured.
+- Backend service tests authored for timezone/day rules, opt-in, recipient isolation, SMTP retries, delivery uniqueness and settings page access. Deployment and operational notes: `docs/OWNER_REPORT_SCHEDULING.md`.
+- Remaining: staging mail-provider evidence, PDF rendering across fonts and devices, alternate financial KPIs and recipient scope variations, operations monitoring of stuck Sending records, actual time/date and PostgreSQL verification.
+
+**Verification status:** Per owner instruction, staged verification is deferred. The code is committed to `origin/main` but is **not** certified for production. Neither Phase 19 nor Phase 27 is marked fully complete until its remaining acceptance requirements are met.
