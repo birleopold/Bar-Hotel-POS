@@ -109,6 +109,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         tenant=tenant, workstation__in=named_stations,
         result="pass",
     ).exists()
+    has_practice_sale = bool(progress and progress.practice_sale_checked_at)
 
     outlet_cta_url = (
         reverse("console-org-outlet-create", kwargs={"site_id": first_site.id})
@@ -240,6 +241,17 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
                 required=False,
             )] if has_pos_work else []
         ),
+        *(
+            [SetupStep(
+                key="practice_sale",
+                name="Practice checkout totals safely",
+                description="Preview a product's section price and tax without placing an order, taking money or changing stock.",
+                done=has_practice_sale,
+                cta_label="Practice checkout",
+                cta_url=reverse("console-org-practice-sale"),
+                required=False,
+            )] if has_inventory_work else []
+        ),
         SetupStep(
             key="first_paid_order",
             name="Review your first actual sale",
@@ -349,6 +361,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         "go_live_ready": all(c["done"] for c in go_live_checks),
         "show_catalog_import": has_inventory_work,
         "hardware_check_done": has_device_check,
+        "practice_sale_checked": has_practice_sale,
     }
 
 

@@ -100,6 +100,7 @@
     <div class="d-flex flex-wrap gap-2">
       {% if show_catalog_import %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-catalog-import' %}">Import more items</a>{% endif %}
       <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">Configure or check devices</a>
+      {% if show_catalog_import %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-practice-sale' %}">Practice checkout</a>{% endif %}
       <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-invite-create' %}">Invite teammates</a>
       <a class="staff-btn staff-btn--primary" href="{% url 'staff-dashboard' %}">Open staff workspace</a>
     </div>
