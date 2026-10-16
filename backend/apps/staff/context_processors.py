@@ -32,6 +32,7 @@ def staff_nav(request):
         "staff_show_housekeeping_nav": False,
         "staff_show_workspace_nav": False,
         "staff_quick_primary": None,
+        "staff_notification_unread": 0,
         "staff_show_console_entry": False,
         "staff_product": {
             "workspace_label": "Operations workspace",
@@ -84,6 +85,10 @@ def staff_nav(request):
     out["staff_product"] = staff_product_presentation(t, current_outlet)
     vis = staff_nav_visibility_scoped(m, modules=modules, tenant=t, outlet=current_outlet)
     out["staff_nav"] = vis
+    from apps.audit.models import StaffNotification
+    out["staff_notification_unread"] = StaffNotification.objects.filter(
+        tenant=t, recipient=m, active=True, read_at__isnull=True,
+    ).count()
 
     pos_shell = (
         ("pos" in modules and (vis.orders or vis.tables or vis.menu or vis.sales))
