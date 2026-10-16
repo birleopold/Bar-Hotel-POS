@@ -8,7 +8,7 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Stock take<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Physical counts and variance vs ledger.</p>
+          <p class="staff-dash-hero__tagline mb-0">Physical counts, manager review and stock reconciliation.</p>
         </div>
         <div class="staff-page-hero__actions">
           {% if can_modify_inventory %}
@@ -27,7 +27,7 @@
           <tr>
             <td>{{ s.created_at }}</td>
             <td>{{ s.outlet.name }}</td>
-            <td>{{ s.get_status_display }}</td>
+            <td>{{ s.get_status_display }}{% if s.status == "review" %} · manager attention{% endif %}</td>
             <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-inventory-count-detail' session_id=s.id %}">View</a></td>
           </tr>
         {% empty %}

@@ -112,6 +112,7 @@ class StockMovement(TimeStampedModel):
 
 class StockCountStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
+    REVIEW = "review", "Awaiting approval"
     COMPLETED = "completed", "Completed"
     CANCELLED = "cancelled", "Cancelled"
 
@@ -141,6 +142,9 @@ class StockCountSession(TimeStampedModel):
         related_name="stock_count_sessions",
     )
     note = models.CharField(max_length=512, blank=True)
+    submitted_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="submitted_stock_counts")
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_stock_counts")
     completed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

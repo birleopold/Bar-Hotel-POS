@@ -484,3 +484,137 @@ def complete_stock_count_session(
         payload={"line_count": len(rows), "outlet_id": str(outlet_id)},
     )
     return session
+
+
+# Review is separate from posting a physical-count adjustment. The locked
+# submission baseline must still be current when a second worker approves.
+@transaction.atomic
+def submit_stock_count_for_review(*, session, resolved_lines, user, membership):
+    from apps.pos.services import menu_item_available_at_outlet
+    from apps.staff.services.permissions import membership_has_inventory_capability
+
+    session = StockCountSession.objects.select_for_update().get(pk=session.pk)
+    if session.status != StockCountStatus.DRAFT:
+        raise ValidationError("Only draft counts can be submitted.")
+    if not membership_has_inventory_capability(membership, "count"):
+        raise ValidationError("Your role cannot count inventory.")
+    if not outlet_belongs_to_membership(membership, session.outlet_id):
+        raise ValidationError("You cannot count stock for this outlet.")
+    if not resolved_lines:
+        raise ValidationError({"lines": "Enter at least one physical quantity."})
+    if session.lines.exists():
+        raise ValidationError("Count lines already exist; refresh the session.")
+    seen = set()
+    for row in sorted(resolved_lines, key=lambda x: str(x["menu_item"].pk)):
+        item = row["menu_item"]
+        if item.id in seen:
+            raise ValidationError({"lines": f'Duplicate count for "{item.name}".'})
+        seen.add(item.id)
+        try:
+            quantity = Decimal(str(row["counted_quantity"]))
+        except (ValueError, TypeError, ArithmeticError, KeyError, InvalidOperation) as exc:
+            raise ValidationError({"lines": f'Invalid count for "{item.name}".'}) from exc
+        if (not quantity.is_finite() or quantity < 0
+                or quantity > Decimal("99999999999.999")
+                or quantity != quantity.quantize(Decimal("0.001"))):
+            raise ValidationError({"lines": f'Invalid count for "{item.name}".'})
+        if (item.tenant_id != session.tenant_id or not item.track_inventory
+                or not menu_item_available_at_outlet(item, session.outlet_id)):
+            raise ValidationError({"lines": f'"{item.name}" is not a tracked product at this section.'})
+        bal = StockBalance.objects.select_for_update().filter(
+            tenant_id=session.tenant_id, outlet_id=session.outlet_id, menu_item_id=item.id,
+        ).first()
+        before = bal.quantity if bal else Decimal("0")
+        StockCountLine.objects.create(
+            session=session, menu_item=item, counted_quantity=quantity,
+            system_quantity_before=before, variance=quantity - before,
+        )
+    session.status = StockCountStatus.REVIEW
+    session.submitted_by = user
+    session.submitted_at = timezone.now()
+    session.save(update_fields=["status", "submitted_by", "submitted_at", "updated_at"])
+    log_audit(
+        tenant_id=session.tenant_id, user_id=user.id, action="stock.count_submitted",
+        entity_type="stock_count_session", entity_id=str(session.id),
+        payload={"line_count": len(seen), "outlet_id": str(session.outlet_id)},
+    )
+    return session
+
+
+def _assert_count_approver(session, user, membership):
+    from apps.staff.services.permissions import membership_has_inventory_capability
+    if (not membership_has_inventory_capability(membership, "approve_count")
+            or not outlet_belongs_to_membership(membership, session.outlet_id)):
+        raise ValidationError("An authorized manager is required for this section.")
+    if user is None or user.id == session.submitted_by_id:
+        raise ValidationError("A different manager must approve this count.")
+
+
+@transaction.atomic
+def approve_stock_count_session(*, session, user, membership):
+    session = StockCountSession.objects.select_for_update().get(pk=session.pk)
+    if session.status != StockCountStatus.REVIEW:
+        raise ValidationError("Only submitted counts can be approved.")
+    _assert_count_approver(session, user, membership)
+    lines = list(session.lines.select_related("menu_item").order_by("menu_item_id"))
+    if not lines:
+        raise ValidationError("The submission has no counted items.")
+    # Lock balances in deterministic order: the same order used by final posting.
+    # Refuse a stale physical reading rather than undoing a sale/receipt/transfer.
+    for line in lines:
+        balance = StockBalance.objects.select_for_update().filter(
+            tenant_id=session.tenant_id, outlet_id=session.outlet_id,
+            menu_item_id=line.menu_item_id,
+        ).first()
+        now = balance.quantity if balance else Decimal("0")
+        if now != line.system_quantity_before:
+            raise ValidationError({
+                "stock": f'"{line.menu_item.name}" changed since counting. Return it for a fresh count.'
+            })
+    # One database transaction: historic submitted quantities remain in the
+    # audit event, and completion recreates the same lines with posted movements.
+    session.lines.all().delete()
+    session.status = StockCountStatus.DRAFT
+    session.save(update_fields=["status", "updated_at"])
+    complete_stock_count_session(
+        session=session,
+        resolved_lines=[
+            {"menu_item": line.menu_item, "counted_quantity": line.counted_quantity}
+            for line in lines
+        ],
+        user=user, membership=membership,
+    )
+    session.refresh_from_db()
+    session.approved_by = user
+    session.save(update_fields=["approved_by", "updated_at"])
+    log_audit(
+        tenant_id=session.tenant_id, user_id=user.id, action="stock.count_approved",
+        entity_type="stock_count_session", entity_id=str(session.id),
+        payload={"submitted_by_id": str(session.submitted_by_id), "line_count": len(lines)},
+    )
+    return session
+
+
+@transaction.atomic
+def return_stock_count_for_recount(*, session, user, membership, reason):
+    from apps.staff.services.permissions import membership_has_inventory_capability
+    session = StockCountSession.objects.select_for_update().get(pk=session.pk)
+    if session.status != StockCountStatus.REVIEW:
+        raise ValidationError("Only submitted counts can be returned for recount.")
+    if (not membership_has_inventory_capability(membership, "approve_count")
+            or not outlet_belongs_to_membership(membership, session.outlet_id)):
+        raise ValidationError("An authorized manager is required for this section.")
+    reason = (reason or "").strip()
+    if not reason or len(reason) > 512:
+        raise ValidationError({"reason": "Explain the recount (maximum 512 characters)."})
+    session.lines.all().delete()
+    session.status = StockCountStatus.DRAFT
+    session.submitted_by = None
+    session.submitted_at = None
+    session.save(update_fields=["status", "submitted_by", "submitted_at", "updated_at"])
+    log_audit(
+        tenant_id=session.tenant_id, user_id=user.id,
+        action="stock.count_recount_requested", entity_type="stock_count_session",
+        entity_id=str(session.id), payload={"reason": reason},
+    )
+    return session

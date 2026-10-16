@@ -16,7 +16,10 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.models import StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason
-from apps.inventory.services import apply_manual_stock_change, complete_stock_count_session, execute_stock_transfer
+from apps.inventory.services import (
+    apply_manual_stock_change, submit_stock_count_for_review,
+    approve_stock_count_session, return_stock_count_for_recount, execute_stock_transfer,
+)
 from apps.pos.services import menu_items_for_outlet_queryset
 from apps.tenants.models import Outlet
 
@@ -602,7 +605,9 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
-        ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
+        ctx["can_modify_inventory"] = membership_has_inventory_capability(self.request.tenant_membership, "count")
+        ctx["can_approve_count"] = (membership_has_inventory_capability(self.request.tenant_membership, "approve_count")
+            and sess.submitted_by_id != self.request.user.id)
         rows = []
         if sess.status == StockCountStatus.DRAFT:
             items = (
@@ -622,6 +627,7 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
                     }
                 )
         ctx["count_rows"] = rows
+        ctx["recorded_lines"] = sess.lines.all() if sess.status != StockCountStatus.DRAFT else []
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
@@ -632,6 +638,22 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-inventory-count-detail", session_id=sess.id)
 
         action = request.POST.get("action", "").strip()
+        if action in ("approve", "recount"):
+            try:
+                if action == "approve":
+                    approve_stock_count_session(
+                        session=sess, user=request.user, membership=request.tenant_membership,
+                    )
+                    messages.success(request, "Approved. Stock updated.")
+                else:
+                    return_stock_count_for_recount(
+                        session=sess, user=request.user, membership=request.tenant_membership,
+                        reason=request.POST.get("reason", ""),
+                    )
+                    messages.success(request, "Returned for a new count. Stock not changed.")
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            return redirect("staff-inventory-count-detail", session_id=sess.id)
         if action == "cancel":
             if sess.status != StockCountStatus.DRAFT:
                 messages.error(request, "Only draft sessions can be cancelled.")
@@ -643,9 +665,9 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
                 messages.success(request, "Count session cancelled.")
             return redirect("staff-inventory-count-detail", session_id=sess.id)
 
-        if action == "complete":
+        if action == "submit":
             if sess.status != StockCountStatus.DRAFT:
-                messages.error(request, "Only draft sessions can be completed.")
+                messages.error(request, "Only draft sessions can be submitted.")
                 return redirect("staff-inventory-count-detail", session_id=sess.id)
             if not outlet_belongs_to_membership(request.tenant_membership, sess.outlet_id):
                 messages.error(request, "You cannot complete this session.")
@@ -660,29 +682,21 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
                 messages.error(request, "No tracked items are available at this outlet.")
                 return redirect("staff-inventory-count-detail", session_id=sess.id)
 
-            bal_map = {
-                b.menu_item_id: b.quantity
-                for b in StockBalance.objects.filter(outlet_id=sess.outlet_id, tenant=request.tenant)
-            }
-            resolved: list[dict] = []
-            for mi in items:
-                key = f"counted_{mi.id}"
-                raw = request.POST.get(key, "").strip()
-                if raw == "":
-                    counted = bal_map.get(mi.id, Decimal("0"))
-                else:
-                    try:
-                        counted = Decimal(raw)
-                    except InvalidOperation:
-                        messages.error(request, f"Invalid quantity for {mi.name}.")
-                        return redirect("staff-inventory-count-detail", session_id=sess.id)
-                    if counted < 0:
-                        messages.error(request, "Counted quantities cannot be negative.")
-                        return redirect("staff-inventory-count-detail", session_id=sess.id)
-                resolved.append({"menu_item": mi, "counted_quantity": counted})
+            resolved = []
+            for item in items:
+                raw = request.POST.get(f"counted_{item.id}", "").strip()
+                # An uncounted item is not zero or an assumed ledger match.
+                if not raw:
+                    continue
+                try:
+                    quantity = Decimal(raw)
+                except InvalidOperation:
+                    messages.error(request, f"Invalid quantity for {item.name}.")
+                    return redirect("staff-inventory-count-detail", session_id=sess.id)
+                resolved.append({"menu_item": item, "counted_quantity": quantity})
 
             try:
-                complete_stock_count_session(
+                submit_stock_count_for_review(
                     session=sess,
                     resolved_lines=resolved,
                     user=request.user,
@@ -691,7 +705,7 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
             except DRFValidationError as e:
                 _flash_drf_validation(request, e)
             else:
-                messages.success(request, "Stock take completed and ledger updated.")
+                messages.success(request, "Submitted for manager approval. No stock changed.")
             return redirect("staff-inventory-count-detail", session_id=sess.id)
 
         messages.error(request, "Unknown action.")

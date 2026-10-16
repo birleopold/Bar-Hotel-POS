@@ -122,6 +122,7 @@ INVENTORY_CAPABILITY_ROLES = {
     "adjust": frozenset({MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER, MembershipRole.STOREKEEPER}),
     "transfer": frozenset({MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER, MembershipRole.STOREKEEPER}),
     "count": frozenset({MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER, MembershipRole.STOREKEEPER}),
+    "approve_count": frozenset({MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER}),
 }
 
 

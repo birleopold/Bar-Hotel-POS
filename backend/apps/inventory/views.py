@@ -6,6 +6,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 
 from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
 
@@ -19,7 +20,11 @@ from .serializers import (
     StockMovementWriteSerializer,
     StockTransferSerializer,
 )
-from .services import complete_stock_count_session
+from .services import (
+    complete_stock_count_session, submit_stock_count_for_review,
+    approve_stock_count_session, return_stock_count_for_recount,
+)
+from apps.staff.services.permissions import membership_has_inventory_capability
 
 
 class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -159,6 +164,43 @@ class StockCountSessionViewSet(viewsets.ModelViewSet):
             return StockCountSessionCreateSerializer
         return StockCountSessionSerializer
 
+    def _resolve_count_lines(self, request):
+        ser = StockCountCompleteSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        rows = []
+        for row in ser.validated_data["lines"]:
+            item = MenuItem.objects.filter(
+                id=row["menu_item"], tenant_id=request.tenant.id, is_active=True,
+            ).first()
+            if item is None:
+                raise ValidationError({"lines": "Unknown product in stock count."})
+            rows.append({"menu_item": item, "counted_quantity": row["counted_quantity"]})
+        return rows
+
+    @action(detail=True, methods=["post"], url_path="submit")
+    def submit(self, request, pk=None):
+        session = submit_stock_count_for_review(
+            session=self.get_object(), resolved_lines=self._resolve_count_lines(request),
+            user=request.user, membership=request.tenant_membership,
+        )
+        return Response(StockCountSessionSerializer(session, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="approve")
+    def approve(self, request, pk=None):
+        session = approve_stock_count_session(
+            session=self.get_object(), user=request.user,
+            membership=request.tenant_membership,
+        )
+        return Response(StockCountSessionSerializer(session, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="recount")
+    def recount(self, request, pk=None):
+        session = return_stock_count_for_recount(
+            session=self.get_object(), user=request.user,
+            membership=request.tenant_membership, reason=request.data.get("reason", ""),
+        )
+        return Response(StockCountSessionSerializer(session, context={"request": request}).data)
+
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request, pk=None):
         session = self.get_object()
@@ -189,29 +231,11 @@ class StockCountSessionViewSet(viewsets.ModelViewSet):
                 {"error": {"code": "invalid_state", "message": "Only draft sessions can be completed."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        ser = StockCountCompleteSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-        tenant = request.tenant
-        resolved = []
-        for row in ser.validated_data["lines"]:
-            mi = MenuItem.objects.filter(
-                id=row["menu_item"],
-                tenant_id=tenant.id,
-                is_active=True,
-            ).first()
-            if mi is None:
-                return Response(
-                    {"lines": f"Unknown menu item: {row['menu_item']}"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            resolved.append(
-                {"menu_item": mi, "counted_quantity": row["counted_quantity"]},
-            )
+        if not membership_has_inventory_capability(request.tenant_membership, "approve_count"):
+            raise ValidationError("Only managers can directly finalize stock counts.")
         complete_stock_count_session(
-            session=session,
-            resolved_lines=resolved,
-            user=request.user,
-            membership=request.tenant_membership,
+            session=session, resolved_lines=self._resolve_count_lines(request),
+            user=request.user, membership=request.tenant_membership,
         )
         session = (
             StockCountSession.objects.filter(pk=session.pk)

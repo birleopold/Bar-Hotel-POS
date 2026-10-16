@@ -108,3 +108,10 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 
 - The existing **Receive all outstanding** staff shortcut now requires an explicit, visible checkbox confirming every outstanding item was counted and accepted; the server validates the confirmation before any receipt/stock work. Short deliveries, damages and batch/expiry deliveries must use the existing quantity-entry workflow, not the shortcut. An unconfirmed request cannot silently book entire outstanding stock.
 - Hide the Cancel action for partially/fully received purchase orders, matching the existing backend status policy. Added full staff GET/POST tests for denied unconfirmed receipt (no ledger or receipt) and confirmed receipt. Scanner, inventory reconciliation, two-till concurrency and production evidence remain separate release gates.
+
+
+### F3 stock count review implementation — 16 October 2026
+
+- Reused the original count sessions and physical adjustment ledger. A worker now records **only physically checked items** (blank is not zero or an assumed ledger match) and submits a frozen comparison for independent manager approval. Submission leaves stock and movements untouched.
+- A different manager with section access may approve or return a count for rechecking with a required reason. Approval refuses counts made stale by an intervening sale, receipt or transfer. API parity adds `submit`, `approve` and `recount`; direct `complete` is manager-only for supervised counts. Historical completed sessions remain intact.
+- Evidence still required: exact-commit CI, PostgreSQL races, browser and physical stockroom acceptance. F3 remains **in progress**. Design references: [Shopify's stock counts](https://help.shopify.com/en/manual/inventory-and-locations/inventory-counts/performing-and-reviewing-counts) and [Lightspeed inventory-change reconciliation](https://retail-support.lightspeedhq.com/hc/en-us/articles/229129948-Performing-inventory-counts-in-Retail-POS).
