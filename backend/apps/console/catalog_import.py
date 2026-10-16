@@ -239,10 +239,12 @@ def parse_price_update_csv(*, tenant, uploaded):
         raise CatalogImportProblem(["Invalid price CSV quoting."]) from exc
     if not records or len(records) > MAX_ITEMS:
         raise CatalogImportProblem(["Submit between 1 and 1,000 price rows per file."])
-    current = {
-        item.sku.casefold(): item
-        for item in MenuItem.objects.filter(tenant=tenant).exclude(sku="")
-    }
+    current, ambiguous = {}, set()
+    for item in MenuItem.objects.filter(tenant=tenant).exclude(sku=""):
+        key = item.sku.casefold()
+        if key in current:
+            ambiguous.add(key)
+        current[key] = item
     issues, prepared, seen = [], [], set()
     for number, row in enumerate(records, 2):
         try:
@@ -253,6 +255,8 @@ def parse_price_update_csv(*, tenant, uploaded):
             if not sku or key in seen:
                 raise ValueError("SKU must be present and unique within this file.")
             seen.add(key)
+            if key in ambiguous:
+                raise ValueError("Multiple products use this SKU; resolve duplicates first.")
             item = current.get(key)
             if item is None:
                 raise ValueError("SKU not found in this business.")
@@ -294,6 +298,8 @@ def apply_price_updates(*, tenant, rows, user):
         item = locked.get(row["item_id"])
         if item is None or item.sku.casefold() != row["sku"].casefold():
             raise CatalogImportProblem(["Product identity changed; export and check again."])
+        if MenuItem.objects.filter(tenant=tenant, sku__iexact=item.sku).count() != 1:
+            raise CatalogImportProblem(["SKU is not unique in this business; resolve duplicates."])
         if item.unit_price != row["old_price"]:
             raise CatalogImportProblem([
                 f"Price changed for {item.sku}; export and review current prices."
