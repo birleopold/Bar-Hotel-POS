@@ -79,6 +79,8 @@ class OrgSetupWizardView(ConsoleOrgAdminRequiredMixin, TemplateView):
         ctx["setup_completion_percent"] = state["required_completion_percent"]
         ctx["go_live_checks"] = state["go_live_checks"]
         ctx["go_live_ready"] = state["go_live_ready"]
+        ctx["show_catalog_import"] = state["show_catalog_import"]
+        ctx["hardware_check_done"] = state["hardware_check_done"]
         ctx["setup_progress"] = progress
         ctx["setup_action_url"] = reverse("console-org-setup-step-state")
         try:
