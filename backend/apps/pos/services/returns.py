@@ -41,6 +41,8 @@ def refund_retail_line(*, order: Order, line: OrderLine, quantity: Decimal,
     # immutable order line snapshot, not today's potentially changed price.
     # Final total/payment caps continue to be enforced by record_order_refund.
     line_snapshot = OrderLine.objects.select_for_update().get(pk=line.pk, order_id=locked.pk)
+    if line_snapshot.quantity <= 0:
+        raise ValidationError({"quantity": "Original sale has no refundable quantity."})
     remaining_return_value = (
         (line_snapshot.line_total + line_snapshot.tax_amount)
         * quantity / line_snapshot.quantity
