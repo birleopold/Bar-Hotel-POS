@@ -37,7 +37,7 @@
       </div>
     {% endif %}
 
-    {% if staff_nav and staff_nav.orders %}
+    {% if staff_can_quick_create_order %}
       <form method="post" action="{% url 'staff-order-quick-create' %}" class="staff-sidebar__primary-action">
         {% csrf_token %}
         <input type="hidden" name="mode" value="">
