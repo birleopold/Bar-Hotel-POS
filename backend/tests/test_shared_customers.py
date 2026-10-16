@@ -87,6 +87,37 @@ class SharedCustomerTests(TestCase):
         self.assertNotContains(self.client.get(reverse("staff-customer-detail", args=[customer.pk])), str(remote_order.pk))
         self.assertEqual(self.client.get(reverse("staff-customers")).status_code, 200)
 
+    def test_create_warns_on_visible_duplicate_without_exposing_remote_profile(self):
+        visible = Customer.objects.create(
+            tenant=self.tenant, name="Existing guest", email="matched@example.test"
+        )
+        Reservation.objects.create(
+            tenant=self.tenant, site=self.site, customer=visible,
+            guest_name="Existing guest", check_in=date.today(),
+            check_out=date.today() + timedelta(days=1),
+        )
+        self.login(self.worker)
+        path = reverse("staff-customer-create")
+        result = self.client.post(path, {
+            "name": "Another spelling", "email": "MATCHED@example.test",
+        })
+        self.assertEqual(result.status_code, 400)
+        self.assertContains(result, "already uses this email or phone", status_code=400)
+        self.assertFalse(Customer.objects.filter(tenant=self.tenant, name="Another spelling").exists())
+
+        remote = Customer.objects.create(
+            tenant=self.tenant, name="Other branch private",
+            email="remote@example.test",
+        )
+        Order.objects.create(tenant=self.tenant, outlet=self.other_outlet, customer=remote)
+        result = self.client.post(path, {
+            "name": "Not linked at this branch", "email": "remote@example.test",
+        })
+        self.assertEqual(result.status_code, 302)
+        self.assertTrue(Customer.objects.filter(
+            tenant=self.tenant, name="Not linked at this branch",
+        ).exists())
+
     def test_reservation_and_event_forms_reject_other_tenant_customer(self):
         from apps.staff.forms.events import StaffEventBookingForm
         from apps.staff.forms.lodging import StaffReservationForm
