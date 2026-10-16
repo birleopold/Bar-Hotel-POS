@@ -97,3 +97,48 @@ def test_stock_count_cannot_approve_own_submission():
     with pytest.raises(ValidationError, match="different manager"):
         approve_stock_count_session(session=session, user=data["user"], membership=manager)
     assert session.lines.count() == 1
+
+
+
+@pytest.mark.django_db
+def test_net_zero_stock_movements_still_invalidate_review_snapshot():
+    from apps.inventory.models import StockMovement, StockReason
+    data = _seed_tenant_bundle(
+        name="Net Zero Count", slug="net-zero-count", user_email="net-zero-count@example.test",
+    )
+    manager = Membership.objects.get(tenant=data["tenant"], user=data["user"])
+    other = get_user_model().objects.create_user(
+        email="net-zero-counter@example.test", password="TestPassword99!",
+    )
+    worker = Membership.objects.create(
+        tenant=data["tenant"], user=other, role=MembershipRole.STOREKEEPER,
+    )
+    worker.sites.add(data["site"])
+    worker.outlets.add(data["outlet"])
+    balance = StockBalance.objects.create(
+        tenant=data["tenant"], outlet=data["outlet"], menu_item=data["item"],
+        quantity=Decimal("5"),
+    )
+    session = StockCountSession.objects.create(
+        tenant=data["tenant"], outlet=data["outlet"], created_by=other,
+    )
+    submit_stock_count_for_review(
+        session=session, user=other, membership=worker,
+        resolved_lines=[{"menu_item": data["item"], "counted_quantity": "4"}],
+    )
+    # A sale and a refund net to zero; quantity-only checks would miss both.
+    StockMovement.objects.create(
+        tenant=data["tenant"], outlet=data["outlet"], menu_item=data["item"],
+        quantity_change=Decimal("-1"), reason=StockReason.SALE, created_by=other,
+    )
+    StockMovement.objects.create(
+        tenant=data["tenant"], outlet=data["outlet"], menu_item=data["item"],
+        quantity_change=Decimal("1"), reason=StockReason.RECEIVE, created_by=other,
+    )
+    with pytest.raises(ValidationError, match="changed since counting"):
+        approve_stock_count_session(session=session, user=data["user"], membership=manager)
+    balance.refresh_from_db()
+    assert balance.quantity == Decimal("5")
+    assert not StockMovement.objects.filter(
+        tenant=data["tenant"], reason=StockReason.PHYSICAL_COUNT,
+    ).exists()

@@ -518,14 +518,22 @@ class StaffStockCountListView(StaffTenantRequiredMixin, ListView):
             StockCountSession.objects.filter(tenant=self.request.tenant, outlet_id__in=ids)
             .select_related("outlet", "created_by")
             .order_by("-created_at")
-        )
+        ).filter(**(
+            {"status": self.request.GET["status"]}
+            if self.request.GET.get("status") in (
+                StockCountStatus.DRAFT, StockCountStatus.REVIEW,
+                StockCountStatus.COMPLETED, StockCountStatus.CANCELLED,
+            ) else {}
+        ))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
-        ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
+        ctx["can_modify_inventory"] = membership_has_inventory_capability(self.request.tenant_membership, "count")
+        ctx["status_filter"] = self.request.GET.get("status", "") if self.request.GET.get("status") in StockCountStatus.values else ""
+        ctx["can_approve_count"] = membership_has_inventory_capability(self.request.tenant_membership, "approve_count")
         return ctx
 
 

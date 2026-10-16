@@ -115,3 +115,9 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - Reused the original count sessions and physical adjustment ledger. A worker now records **only physically checked items** (blank is not zero or an assumed ledger match) and submits a frozen comparison for independent manager approval. Submission leaves stock and movements untouched.
 - A different manager with section access may approve or return a count for rechecking with a required reason. Approval refuses counts made stale by an intervening sale, receipt or transfer. API parity adds `submit`, `approve` and `recount`; direct `complete` is manager-only for supervised counts. Historical completed sessions remain intact.
 - Evidence still required: exact-commit CI, PostgreSQL races, browser and physical stockroom acceptance. F3 remains **in progress**. Design references: [Shopify's stock counts](https://help.shopify.com/en/manual/inventory-and-locations/inventory-counts/performing-and-reviewing-counts) and [Lightspeed inventory-change reconciliation](https://retail-support.lightspeedhq.com/hc/en-us/articles/229129948-Performing-inventory-counts-in-Retail-POS).
+
+### F3 reviewer queue and net-zero inventory movements
+
+- Stock-count list now offers status filters (especially **Awaiting approval**) and keeps the selected filter through pagination, making submitted counts reachable from stock operations on narrow and large displays.
+- Approval also rejects an intervening stock movement even when later movements restore the exact same total quantity; this avoids applying a stale count after sale-plus-return or receipt-plus-transfer. Returning a count for recount records the original expected and counted quantities in the existing audit event, preserving a discrepancy trail when the editable draft is reset.
+- New regression tests exercise the net-zero movement safeguard. Full exact-main CI and PostgreSQL/device acceptance remain separate.

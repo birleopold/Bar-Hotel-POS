@@ -567,7 +567,13 @@ def approve_stock_count_session(*, session, user, membership):
             menu_item_id=line.menu_item_id,
         ).first()
         now = balance.quantity if balance else Decimal("0")
-        if now != line.system_quantity_before:
+        # A sale followed by a return may produce the same net quantity but
+        # invalidate the physical snapshot or its batch/expiry composition.
+        intervening_movement = StockMovement.objects.filter(
+            tenant_id=session.tenant_id, outlet_id=session.outlet_id,
+            menu_item_id=line.menu_item_id, created_at__gt=session.submitted_at,
+        ).exists()
+        if now != line.system_quantity_before or intervening_movement:
             raise ValidationError({
                 "stock": f'"{line.menu_item.name}" changed since counting. Return it for a fresh count.'
             })
@@ -607,6 +613,15 @@ def return_stock_count_for_recount(*, session, user, membership, reason):
     reason = (reason or "").strip()
     if not reason or len(reason) > 512:
         raise ValidationError({"reason": "Explain the recount (maximum 512 characters)."})
+    rejected_lines = [
+        {
+            "menu_item_id": str(line.menu_item_id),
+            "counted": str(line.counted_quantity),
+            "expected": str(line.system_quantity_before),
+            "variance": str(line.variance),
+        }
+        for line in session.lines.all().order_by("menu_item_id")
+    ]
     session.lines.all().delete()
     session.status = StockCountStatus.DRAFT
     session.submitted_by = None
@@ -615,6 +630,7 @@ def return_stock_count_for_recount(*, session, user, membership, reason):
     log_audit(
         tenant_id=session.tenant_id, user_id=user.id,
         action="stock.count_recount_requested", entity_type="stock_count_session",
-        entity_id=str(session.id), payload={"reason": reason},
+        entity_id=str(session.id),
+        payload={"reason": reason, "rejected_snapshot": rejected_lines},
     )
     return session
