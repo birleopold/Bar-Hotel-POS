@@ -36,6 +36,12 @@ def refresh_staff_alerts(*, tenant, membership):
     site_ids = [site.pk for site in sites]
     modules = get_tenant_staff_modules(tenant)
     vis = staff_nav_visibility_scoped(membership, modules=modules, tenant=tenant)
+    allowed_stock = [
+        o.pk for o in outlets if "inventory" in get_tenant_staff_modules(tenant, outlet=o)
+    ]
+    allowed_buying = [
+        o.pk for o in outlets if "purchasing" in get_tenant_staff_modules(tenant, outlet=o)
+    ]
     active_by_type = {}
     created_count = 0
 
@@ -60,10 +66,10 @@ def refresh_staff_alerts(*, tenant, membership):
         if created:
             created_count += 1
 
-    if vis.inventory and outlet_ids:
+    if vis.inventory and allowed_stock:
         active_by_type["low_stock"] = set()
         qs = StockBalance.objects.filter(
-            tenant=tenant, outlet_id__in=outlet_ids,
+            tenant=tenant, outlet_id__in=allowed_stock,
             menu_item__track_inventory=True,
             menu_item__reorder_level__isnull=False,
             quantity__lte=F("menu_item__reorder_level"),
@@ -96,10 +102,10 @@ def refresh_staff_alerts(*, tenant, membership):
                 "urgent" if repair.priority == "urgent" else "high",
             )
 
-    if vis.purchasing and outlet_ids:
+    if vis.purchasing and allowed_buying:
         active_by_type["delivery_issue"] = set()
         deliveries = PurchaseReceipt.objects.filter(
-            tenant=tenant, purchase_order__outlet_id__in=outlet_ids,
+            tenant=tenant, purchase_order__outlet_id__in=allowed_buying,
         ).exclude(discrepancy_note="").select_related(
             "purchase_order", "purchase_order__supplier",
         )
