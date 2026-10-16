@@ -104,6 +104,22 @@ class SupermarketCashierLaneTests(TestCase):
         assert b"Hold basket" in page.content
         assert b"Held baskets" in page.content
 
+    def test_retail_tender_guard_is_independent_of_scan_input(self):
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("4500"), total=Decimal("4500"),
+        )
+        response = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        assert response.status_code == 200
+        if response.context["can_record_payment"]:
+            assert b"data-retail-cash-panel" in response.content
+            assert b"data-retail-cash-received" in response.content
+            assert b"Number.isSafeInteger(cents)" in response.content
+            assert b"at most two decimal places" in response.content
+        if response.context["scan_add_form"]:
+            assert b"at most three decimal places" in response.content
+            assert b"data-retail-scan-form" in response.content
+
     def test_next_sale_is_post_only(self):
         url = reverse("staff-order-quick-create")
         before = Order.objects.filter(tenant=self.tenant).count()
