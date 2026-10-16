@@ -143,3 +143,11 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - Added **Export my current products** to the tenant owner/administrator catalog-import screen. It exports only that business's catalog metadata (category, name, price, SKU, barcode, tracking, reorder level, UoM, tax and description); it never exports customer data or inventory quantities and uses a private, no-store response. Regression coverage confirms tenant scoping.
 - Standardized CSV size-limit messages to **1 MB** and maintained the 1,000-row per-batch limit. Export is for owner review/backup before changes; imported records still cannot overwrite existing SKUs, and exports exceeding 1,000 rows require splitting before reimport.
 - **Outstanding SM-P0.2:** approved upsert/price-change workflow, change audit/history and rollback policy, catalog-to-outlet availability management, PostgreSQL large-batch performance and full end-user verification. Do not mark complete until exact-commit CI passes.
+
+## 2026-10-16 — SM-P0.2 bulk price editor end-user flow
+
+- Added a complete owner-facing **bulk base price worksheet** to the existing catalog import screen, including scoped current-price download, explicit `sku,old_price,new_price` format, preview and apply actions. The UI uses a dedicated review step; applying re-uploads and rechecks the file.
+- Existing product definitions are **not** silently overwritten by creation CSVs. Base prices change only in the explicit pricing flow. The service locks matching product rows, enforces unique SKU and expected previous price, updates the entire batch atomically or not at all, and writes a per-item before/after audit trail.
+- Restricted this path to the existing tenant-owner/admin console. No stock, tax, inventory receipt, historical order, customer or branch-level price overrides are rewritten.
+- Added regression tests for stale prices, duplicates, cross-tenant attempts, stock invariance and audit evidence. CI must pass on the exact commit before changing SM-P0.2 to completed.
+- Research: Shopify's official CSV overwrite guidance cautions that included empty fields may erase existing values, so this feature uses explicit old/new fields and preserves a create-only ordinary import. https://help.shopify.com/en/manual/products/import-export/import-products/
