@@ -165,3 +165,10 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - Added focused tests for stocked-but-below-minimum items and a zero-stock grocery item; branch/tenant filtering remains intact.
 - Research: [Odoo reordering rules](https://www.odoo.com/documentation/18.0/applications/inventory_and_mrp/inventory/warehouses_storage/replenishment/reordering_rules.html) distinguish configured reorder levels, current/forecasted stock and vendor lead time. This checkpoint intentionally calculates minimum-level shortfall only; supplier lead-time replenishment remains in the existing staff planning screen.
 - This is one stock-intelligence service improvement, **not a completed SM-P0.4 or Phase 07**. The remaining stock acceptance covers count discrepancy, FEFO, receipts, multi-unit conversion, mobile stocktake and concurrent till stock deduction. Exact-head CI and browser/PostgreSQL proof are still required.
+
+## 2026-10-16 — SM-P0.4 stocktake posting safety
+
+- Reused the existing `complete_stock_count_session` service. All submitted lines now undergo **preflight checks before the first stock balance, batch allocation, movement or count line is written**. Duplicate item lines, negative counts, non-finite decimal numbers, excessive precision and out-of-range quantities produce explicit validation errors.
+- Added `test_stock_count_preflight.py` coverage for duplicates and malformed counts, asserting the original balance and stock movement ledger remain unchanged when invalid counts are rejected. Existing outlet authorization and tenant scoping remain enforced.
+- This protects existing supermarket/grocery stocktake workflows and does not bypass batch-aware stock posting. It is not full stocktaking certification: physical count variance approval, mobile scanning, concurrent close/count and PostgreSQL locking must still be exercised.
+- Current work was committed to `origin/main` and must pass full exact-head CI. Do not close SM-P0.4 solely from source edits.
