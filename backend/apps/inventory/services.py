@@ -1,5 +1,5 @@
 import uuid
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.utils import timezone
@@ -400,7 +400,7 @@ def complete_stock_count_session(
         seen_items.add(mi.id)
         try:
             counted = Decimal(str(row["counted_quantity"]))
-        except (TypeError, ValueError, ArithmeticError, KeyError) as exc:
+        except (TypeError, ValueError, ArithmeticError, KeyError, InvalidOperation) as exc:
             raise ValidationError({"lines": f'Invalid count for "{mi.name}".'}) from exc
         if (
             not counted.is_finite()
