@@ -85,6 +85,25 @@ class SupermarketCashierLaneTests(TestCase):
             assert StaffOrderDetailView._payment_request_key(request) == key
             assert StaffOrderDetailView._payment_request_key(request) == key
 
+    def test_supermarket_walk_in_needs_no_table_or_customer(self):
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+        )
+        assert order.customer_id is None
+        assert order.table_id is None
+        page = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        assert page.status_code == 200
+        assert b"Fast supermarket checkout" in page.content
+        assert b"Customer record" not in page.content
+        assert b"Tab:" not in page.content
+        assert b"Charge to folio" not in page.content
+
+    def test_supermarket_order_list_uses_basket_labels(self):
+        page = self.client.get(reverse("staff-orders"))
+        assert page.status_code == 200
+        assert b"Hold basket" in page.content
+        assert b"Held baskets" in page.content
+
     def test_next_sale_is_post_only(self):
         url = reverse("staff-order-quick-create")
         before = Order.objects.filter(tenant=self.tenant).count()
