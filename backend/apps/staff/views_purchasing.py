@@ -14,8 +14,8 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
-from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
-from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
+from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
+from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
 from apps.tenants.models import Outlet, TenantSettings
 
 from .forms import StaffPOHeaderForm, StaffSupplierForm
@@ -388,6 +388,7 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["purchase_currency"] = settings.default_currency if settings else "USD"
         from apps.purchasing.services_exposure import supplier_invoice_settlement_rows
         ctx["invoice_settlement_rows"], ctx["unallocated_supplier_payments"] = supplier_invoice_settlement_rows(po=self.object)
+        ctx["supplier_returns"] = self.object.returns_to_supplier.select_related("receipt_line__purchase_order_line__menu_item", "returned_by").all()
         ctx["supplier_payment_key"] = uuid.uuid4()
         return ctx
 
@@ -435,8 +436,33 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     messages.success(request, "Credit already recorded." if replay else "Supplier credit recorded. No stock or cash was changed.")
             return redirect("staff-purchasing-order-detail", po_id=po.id)
 
+        if action == "supplier_return":
+            ser = RecordSupplierReturnSerializer(data=request.POST)
+            if not ser.is_valid():
+                _flash_serializer_errors(request, ser.errors)
+            else:
+                try:
+                    _, replay = return_received_goods_to_supplier(
+                        po=po, user=request.user, membership=request.tenant_membership,
+                        **ser.validated_data,
+                    )
+                except DRFValidationError as exc:
+                    _flash_drf_validation(request, exc)
+                else:
+                    messages.success(request, "Supplier return was already recorded." if replay else "Goods returned: stock reduced and audited. Supplier credit/cash are separate.")
+            return redirect("staff-purchasing-order-detail", po_id=po.pk)
+
         if action == "supplier_invoice":
-            ser = RecordSupplierInvoiceSerializer(data=request.POST)
+            invoice_payload = request.POST.dict()
+            invoice_lines = []
+            for line in po.lines.all():
+                qty = (request.POST.get(f"invoice_qty_{line.pk}") or "").strip()
+                cost = (request.POST.get(f"invoice_cost_{line.pk}") or "").strip()
+                if qty:
+                    invoice_lines.append({"line_id": str(line.pk), "quantity": qty, "unit_cost": cost})
+            if invoice_lines:
+                invoice_payload["lines"] = invoice_lines
+            ser = RecordSupplierInvoiceSerializer(data=invoice_payload)
             if not ser.is_valid():
                 _flash_serializer_errors(request, ser.errors)
             else:
