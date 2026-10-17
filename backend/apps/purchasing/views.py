@@ -50,7 +50,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         qs = (
             PurchaseOrder.objects.filter(tenant=self.request.tenant, outlet_id__in=oids)
             .select_related("supplier", "outlet", "created_by")
-            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments", "invoices")
+            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments", "invoices__credits", "invoices__allocated_payments")
             .order_by("-created_at")
         )
         supplier = self.request.query_params.get("supplier")

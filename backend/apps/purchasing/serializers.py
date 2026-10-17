@@ -106,9 +106,46 @@ class RecordSupplierCreditNoteSerializer(serializers.Serializer):
 
 
 class SupplierInvoiceReadSerializer(serializers.ModelSerializer):
+    credited_amount = serializers.SerializerMethodField()
+    linked_payments_amount = serializers.SerializerMethodField()
+    unlinked_payment_warning = serializers.SerializerMethodField()
+    unpaid_amount = serializers.SerializerMethodField()
+    overdue_days = serializers.SerializerMethodField()
+
+    @staticmethod
+    def _numbers(obj):
+        credited = sum((entry.amount for entry in obj.credits.all()), Decimal("0"))
+        paid = sum((entry.amount for entry in obj.allocated_payments.all()), Decimal("0"))
+        return credited, paid, max(Decimal("0"), obj.amount - credited - paid)
+
+    def get_credited_amount(self, obj):
+        return f"{self._numbers(obj)[0]:.2f}"
+
+    def get_linked_payments_amount(self, obj):
+        return f"{self._numbers(obj)[1]:.2f}"
+
+    def get_unlinked_payment_warning(self, obj):
+        return obj.purchase_order.payments.filter(invoice__isnull=True).exists()
+
+    def get_unpaid_amount(self, obj):
+        if self.get_unlinked_payment_warning(obj):
+            return None  # Never pretend an unattributed PO payment belongs to this invoice.
+        return f"{self._numbers(obj)[2]:.2f}"
+
+    def get_overdue_days(self, obj):
+        from django.utils import timezone
+        if self.get_unlinked_payment_warning(obj):
+            return None
+        due = self._numbers(obj)[2]
+        return max(0, (timezone.localdate() - obj.due_date).days) if due > 0 else 0
+
     class Meta:
         model = SupplierInvoice
-        fields = ("id", "reference", "invoice_date", "due_date", "amount", "note", "created_at")
+        fields = (
+            "id", "reference", "invoice_date", "due_date", "amount",
+            "credited_amount", "linked_payments_amount", "unlinked_payment_warning",
+            "unpaid_amount", "overdue_days", "note", "created_at",
+        )
         read_only_fields = fields
 
 
