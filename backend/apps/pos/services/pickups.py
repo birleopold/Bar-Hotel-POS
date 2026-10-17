@@ -21,6 +21,11 @@ def register_paid_pickup(*, order, expected_on, note, user, membership):
             or not manager_allowed(membership, locked.tenant_id, locked.outlet_id)
             or membership.user_id != user.pk):
         raise ValidationError({"detail": "An authorized retail manager must register pickup."})
+    from django.db.models import Sum
+    from apps.pos.models import Payment
+    paid = Payment.objects.filter(order=locked, tenant_id=locked.tenant_id).aggregate(v=Sum("amount"))["v"] or 0
+    if paid < locked.total:
+        raise ValidationError({"order": "Confirm the real recorded payment before scheduling pickup."})
     if not locked.is_paid or locked.status != OrderStatus.CLOSED or not locked.customer_id:
         raise ValidationError({"order": "Pickup requires a fully paid sale linked to an identified customer."})
     if locked.refunds.exists():

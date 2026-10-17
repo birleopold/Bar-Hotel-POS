@@ -482,6 +482,8 @@ def apply_supermarket_line_discount(
     )
     if locked_ln.is_voided:
         raise ValidationError("Cannot discount a voided line.")
+    if locked_ln.pricing_source == "wholesale":
+        raise ValidationError({"discount": "Wholesale price tiers cannot be stacked with manual discounts."})
     if discount_amount is not None and discount_percent is not None:
         raise ValidationError({"discount": "Use either discount amount or discount percent."})
     gross = line_total(locked_ln.quantity, locked_ln.unit_price)

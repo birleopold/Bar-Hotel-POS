@@ -40,7 +40,8 @@ def save_wholesale_tier(*, tenant, outlet, item_id, quantity, price,
                         membership, user, start=None, end=None, active=True):
     if (outlet.site.tenant_id != tenant.pk
             or outlet.outlet_type not in {OutletType.RETAIL, OutletType.SUPERMARKET}
-            or not manager_allowed(membership, tenant.pk, outlet.pk)):
+            or not manager_allowed(membership, tenant.pk, outlet.pk)
+            or membership.user_id != user.pk):
         raise ValidationError({"detail": "Only a retail manager of this section can set wholesale rates."})
     item = MenuItem.objects.filter(pk=item_id, tenant=tenant, is_active=True).first()
     if item is None:
@@ -78,7 +79,8 @@ def save_wholesale_tier(*, tenant, outlet, item_id, quantity, price,
 def apply_wholesale_tier(*, order, line_id, membership, user):
     locked = Order.objects.select_for_update().select_related("outlet", "customer").get(pk=order.pk)
     if (locked.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}
-            or not manager_allowed(membership, locked.tenant_id, locked.outlet_id)):
+            or not manager_allowed(membership, locked.tenant_id, locked.outlet_id)
+            or membership.user_id != user.pk):
         raise ValidationError({"detail": "A manager of this retail section must approve wholesale pricing."})
     if (locked.status != OrderStatus.OPEN or locked.is_paid or locked.customer_id is None
             or locked.customer.merged_into_id or locked.applied_promotion_id
