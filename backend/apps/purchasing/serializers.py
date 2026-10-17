@@ -93,7 +93,21 @@ class LinkSupplierPaymentInvoiceSerializer(serializers.Serializer):
     note = serializers.CharField(min_length=12, max_length=512, trim_whitespace=True)
 
 
+class SupplierInvoiceLineInputSerializer(serializers.Serializer):
+    line_id = serializers.UUIDField()
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=Decimal("0.001"))
+    unit_cost = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
+
+
+class RecordSupplierReturnSerializer(serializers.Serializer):
+    receipt_line_id = serializers.UUIDField()
+    reference = serializers.CharField(max_length=128)
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=Decimal("0.001"))
+    note = serializers.CharField(min_length=12, max_length=512)
+
+
 class RecordSupplierInvoiceSerializer(serializers.Serializer):
+    lines = SupplierInvoiceLineInputSerializer(many=True, required=False)
     reference = serializers.CharField(max_length=128, trim_whitespace=True)
     invoice_date = serializers.DateField()
     due_date = serializers.DateField()
@@ -112,6 +126,17 @@ class RecordSupplierCreditNoteSerializer(serializers.Serializer):
 
 
 class SupplierInvoiceReadSerializer(serializers.ModelSerializer):
+    matching_status = serializers.SerializerMethodField()
+    matched_lines = serializers.SerializerMethodField()
+
+    def get_matching_status(self, obj):
+        return "three_way_matched" if obj.matched_lines.exists() else "legacy_unmatched"
+
+    def get_matched_lines(self, obj):
+        return [{"line_id": str(line.purchase_order_line_id), "quantity": str(line.quantity),
+                 "unit_cost": str(line.unit_cost), "amount": str(line.amount)}
+                for line in obj.matched_lines.all()]
+
     credited_amount = serializers.SerializerMethodField()
     linked_payments_amount = serializers.SerializerMethodField()
     unlinked_payment_warning = serializers.SerializerMethodField()
@@ -149,7 +174,7 @@ class SupplierInvoiceReadSerializer(serializers.ModelSerializer):
         model = SupplierInvoice
         fields = (
             "id", "reference", "invoice_date", "due_date", "amount",
-            "credited_amount", "linked_payments_amount", "unlinked_payment_warning",
+            "matching_status", "matched_lines", "credited_amount", "linked_payments_amount", "unlinked_payment_warning",
             "unpaid_amount", "overdue_days", "note", "created_at",
         )
         read_only_fields = fields

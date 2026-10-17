@@ -17,11 +17,12 @@ from .serializers import (
     RecordSupplierPaymentSerializer,
     LinkSupplierPaymentInvoiceSerializer,
     RecordSupplierInvoiceSerializer,
+    RecordSupplierReturnSerializer,
     SupplierInvoiceReadSerializer,
     ReceivePurchaseOrderSerializer,
     SupplierSerializer,
 )
-from .services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice
+from .services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier
 
 
 class PurchasingActionPermission(BasePermission):
@@ -70,7 +71,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         qs = (
             PurchaseOrder.objects.filter(tenant=self.request.tenant, outlet_id__in=oids)
             .select_related("supplier", "outlet", "created_by")
-            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments", "invoices__credits", "invoices__allocated_payments")
+            .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments", "invoices__credits", "invoices__allocated_payments", "invoices__matched_lines")
             .order_by("-created_at")
         )
         supplier = self.request.query_params.get("supplier")
@@ -180,6 +181,20 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             **serializer.validated_data,
         )
         return Response(SupplierInvoiceReadSerializer(invoice).data,
+                        status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="return-goods")
+    def return_goods(self, request, pk=None):
+        po = self.get_object()
+        serializer = RecordSupplierReturnSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result, replay = return_received_goods_to_supplier(
+            po=po, user=request.user, membership=request.tenant_membership,
+            **serializer.validated_data,
+        )
+        return Response({"id": str(result.pk), "quantity": str(result.quantity),
+                         "reference": result.reference, "stock_movement_id": str(result.movement_id),
+                         "credit_note_recorded": False},
                         status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="confirm-cost")
