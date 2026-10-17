@@ -234,6 +234,43 @@ class SupplierInvoice(TimeStampedModel):
         ]
 
 
+class SupplierInvoiceLine(TimeStampedModel):
+    """Immutable PO/GRN quantity and quoted-cost evidence for invoice matching."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invoice = models.ForeignKey("purchasing.SupplierInvoice", on_delete=models.PROTECT, related_name="matched_lines")
+    purchase_order_line = models.ForeignKey("purchasing.PurchaseOrderLine", on_delete=models.PROTECT, related_name="invoice_matches")
+    quantity = models.DecimalField(max_digits=14, decimal_places=3)
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["invoice", "purchase_order_line"], name="uniq_supplier_invoice_line_po_line"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="supplier_invoice_line_qty_positive"),
+            models.CheckConstraint(condition=models.Q(unit_cost__gte=0), name="supplier_invoice_line_cost_nonnegative"),
+            models.CheckConstraint(condition=models.Q(amount__gte=0), name="supplier_invoice_line_amount_nonnegative"),
+        ]
+
+
+class SupplierReturn(TimeStampedModel):
+    """Confirmed outward stock movement to vendor; credit/refund is independent."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="supplier_returns")
+    purchase_order = models.ForeignKey("purchasing.PurchaseOrder", on_delete=models.PROTECT, related_name="returns_to_supplier")
+    receipt_line = models.ForeignKey("purchasing.PurchaseReceiptLine", on_delete=models.PROTECT, related_name="supplier_returns")
+    movement = models.OneToOneField("inventory.StockMovement", on_delete=models.PROTECT, related_name="supplier_return")
+    reference = models.CharField(max_length=128)
+    quantity = models.DecimalField(max_digits=14, decimal_places=3)
+    note = models.CharField(max_length=512)
+    returned_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="supplier_returns_processed")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["purchase_order", "reference"], name="uniq_supplier_return_reference_po"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="supplier_return_quantity_positive"),
+        ]
+
+
 class SupplierCreditNote(TimeStampedModel):
     """A verified vendor-issued credit against a recorded invoice, not a refund.
 
