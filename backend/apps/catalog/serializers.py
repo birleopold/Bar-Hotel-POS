@@ -61,6 +61,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "sku",
             "barcode",
             "unit_of_measure",
+            "units_per_carton",
             "track_inventory",
             "reorder_level",
             "kds_station",
@@ -100,6 +101,17 @@ class MenuItemSerializer(serializers.ModelSerializer):
             },
         }
     )
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        size = attrs.get("units_per_carton", getattr(self.instance, "units_per_carton", 1))
+        uom = attrs.get("unit_of_measure", getattr(self.instance, "unit_of_measure", "each"))
+        tracked = attrs.get("track_inventory", getattr(self.instance, "track_inventory", False))
+        if size > 1 and (uom != "each" or not tracked):
+            raise serializers.ValidationError({
+                "units_per_carton": "Cartons require a tracked product counted in pieces.",
+            })
+        return attrs
+
     def get_modifier_groups(self, obj: MenuItem) -> list:
         links = (
             MenuItemModifierGroup.objects.filter(menu_item=obj)
@@ -214,6 +226,7 @@ class MenuItemListSerializer(serializers.ModelSerializer):
             "effective_unit_price",
             "barcode",
             "unit_of_measure",
+            "units_per_carton",
             "track_inventory",
             "kds_station",
             "consume_recipe_on_sale",

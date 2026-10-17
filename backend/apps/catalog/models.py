@@ -72,6 +72,11 @@ class MenuItem(TimeStampedModel):
         choices=UnitOfMeasure.choices,
         default=UnitOfMeasure.EACH,
     )
+    units_per_carton = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(10000)],
+        help_text="Pieces in one supplier carton; 1 means cartons are not configured.",
+    )
     track_inventory = models.BooleanField(
         default=False,
         help_text="When true, outlet stock is reduced when the order is paid.",

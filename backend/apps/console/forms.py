@@ -400,6 +400,7 @@ class ConsoleMenuItemForm(forms.ModelForm):
             "sku",
             "barcode",
             "unit_of_measure",
+            "units_per_carton",
             "track_inventory",
             "reorder_level",
             "unit_price",
@@ -415,6 +416,7 @@ class ConsoleMenuItemForm(forms.ModelForm):
             "sku": forms.TextInput(attrs={"class": "staff-input"}),
             "barcode": forms.TextInput(attrs={"class": "staff-input"}),
             "unit_of_measure": forms.Select(attrs={"class": "staff-input"}),
+            "units_per_carton": forms.NumberInput(attrs={"class": "staff-input", "min": "1", "max": "10000", "step": "1"}),
             "track_inventory": forms.CheckboxInput(),
             "reorder_level": forms.NumberInput(attrs={"class": "staff-input", "step": "any"}),
             "unit_price": forms.NumberInput(attrs={"class": "staff-input", "step": "0.01"}),
@@ -444,6 +446,15 @@ class ConsoleMenuItemForm(forms.ModelForm):
         self.fields["description"].required = False
         self.fields["tax_rate_percent"].required = False
         self.fields["reorder_level"].required = False
+
+    def clean(self):
+        values = super().clean()
+        if values.get("units_per_carton", 1) > 1:
+            if values.get("unit_of_measure") != "each":
+                self.add_error("units_per_carton", "Carton quantities require an item stocked by the piece.")
+            if not values.get("track_inventory"):
+                self.add_error("units_per_carton", "Turn on stock tracking before configuring cartons.")
+        return values
 
 
 class ConsoleModifierGroupForm(forms.ModelForm):
