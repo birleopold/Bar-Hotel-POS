@@ -149,3 +149,10 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - Existing supplier invoice and missing-cost services now reject nonfinite, invalid, overly precise or out-of-range decimal inputs, plus invalid invoice/due dates, before posting. No new financial ledger was introduced.
 - Added regression cases for bad amounts/dates, no unintended documents or payments and valid decimal string submissions. These tests are code changes subject to exact-head CI; F4 and production verification remain open.
 - Benchmarked against Django database-constraint guidance and Odoo vendor-bill/partial-delivery documentation. Duplicate supplier references across separate invoices require context, not an unconditional rejection.
+
+
+### F3 staged transfers, manager resolution and FEFO verification — 17 October 2026
+
+- Staff **Dispatch stock** deducts source stock into an auditable in-transit balance, then receiving confirms the physical units that enter destination on-hand. Shortages, overages, late receipts, sender returns and missing-goods write-offs have separate audited outcomes and protection against double posting.
+- Receiving uses the source's FEFO allocation trail to recreate batch identities at the destination or origin; receipt rejects incompatible batches atomically. Historical immediate transfers, their follow-up and existing API behavior remain unchanged; APIs offer opt-in `dispatch_only=true` for staged dispatch.
+- This is a code implementation checkpoint, **not F3 field acceptance**: require exact-main CI, PostgreSQL concurrent-dispatch/receipt testing and actual device/warehouse batch-count verification before F3 can be marked complete. Architecture references: Odoo 19 stock in transit and two-step receiving guidance.

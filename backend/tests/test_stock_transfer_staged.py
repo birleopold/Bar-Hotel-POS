@@ -1,5 +1,8 @@
 """Staged transfer dispatch and physical receiving must be non-duplicating."""
 from decimal import Decimal
+from datetime import timedelta
+from django.utils import timezone
+from apps.inventory.batches import InventoryBatch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -14,11 +17,18 @@ from apps.tenants.models import Outlet, OutletType
 from tests.test_phase1_isolation_and_idempotency import _seed_tenant_bundle
 
 
-def start(slug):
+def start(slug, batches=False):
     data = _seed_tenant_bundle(name=slug, slug=slug, user_email=slug + "@example.test")
     dest = Outlet.objects.create(site=data["site"], name="Receiving", outlet_type=OutletType.RETAIL)
     StockBalance.objects.create(tenant=data["tenant"], outlet=data["outlet"],
                                 menu_item=data["item"], quantity=Decimal("10"))
+    if batches:
+        InventoryBatch.objects.create(
+            tenant=data["tenant"], outlet=data["outlet"], menu_item=data["item"],
+            batch_code="LOT-42", received_at=timezone.localdate(),
+            expiry_date=timezone.localdate() + timedelta(days=90),
+            received_quantity=Decimal("10"), remaining_quantity=Decimal("10"),
+        )
     sender = Membership.objects.get(tenant=data["tenant"], user=data["user"])
     receive_user = get_user_model().objects.create_user(email="recv-" + slug + "@example.test", password="Password123!")
     receive_role = Membership.objects.create(tenant=data["tenant"], user=receive_user, role=MembershipRole.STOREKEEPER)
@@ -131,3 +141,43 @@ def test_unrelated_tenant_cannot_resolve_shortage():
         )
     receipt.refresh_from_db()
     assert receipt.status == "disputed"
+
+
+
+@pytest.mark.django_db
+def test_staged_receipt_preserves_fefo_batch_identity():
+    data, dest, user, role, reviewer, manager, receipt = start("staged-batch", batches=True)
+    assert InventoryBatch.objects.get(outlet=data["outlet"], batch_code="LOT-42").remaining_quantity == 6
+    verify_stock_transfer_receipt(
+        receipt=receipt, membership=role, user=user, received_quantity="2",
+        note="Two units physically arrived in this lot.",
+    )
+    received = InventoryBatch.objects.get(outlet=dest, batch_code="LOT-42")
+    assert received.remaining_quantity == 2
+    resolve_stock_transfer_discrepancy(
+        receipt=receipt, membership=manager, user=reviewer,
+        action="return_source", note="The remaining two units were physically returned to sender.",
+    )
+    receipt.refresh_from_db()
+    assert receipt.outstanding_quantity == 0
+    assert InventoryBatch.objects.get(outlet=data["outlet"], batch_code="LOT-42").remaining_quantity == 8
+    assert InventoryBatch.objects.get(outlet=dest, batch_code="LOT-42").remaining_quantity == 2
+
+
+@pytest.mark.django_db
+def test_conflicting_destination_batch_rolls_back_receipt():
+    data, dest, user, role, reviewer, manager, receipt = start("staged-batch-conflict", batches=True)
+    InventoryBatch.objects.create(
+        tenant=data["tenant"], outlet=dest, menu_item=data["item"],
+        batch_code="LOT-42", received_at=timezone.localdate(),
+        expiry_date=timezone.localdate() + timedelta(days=1),
+        received_quantity=Decimal("0"), remaining_quantity=Decimal("0"),
+    )
+    with pytest.raises(ValidationError, match="incompatible"):
+        verify_stock_transfer_receipt(
+            receipt=receipt, membership=role, user=user, received_quantity="4",
+        )
+    receipt.refresh_from_db()
+    assert receipt.status == "in_transit" and receipt.outstanding_quantity == 4
+    assert not StockBalance.objects.filter(outlet=dest, menu_item=data["item"]).exists()
+    assert StockMovement.objects.filter(transfer_batch=receipt.transfer_batch).count() == 1
