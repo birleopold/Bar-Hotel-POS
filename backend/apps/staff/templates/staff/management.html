@@ -68,6 +68,19 @@
     {% endif %}
   </section>
   {% endif %}
+  {% if management_recent_shifts %}
+  <section class="staff-card mb-3">
+    <h2 class="staff-section-head">Register reconciliations</h2>
+    <p class="staff-muted">Latest 20 shifts in your authorized sections. Open one to inspect counted cash, payments, refunds and handover evidence. Old shifts may have incomplete tender attribution.</p>
+    <div class="staff-table-wrap"><table class="staff-table">
+    <thead><tr><th>Section / register</th><th>Opened by</th><th>When</th><th>Status</th><th>Details</th></tr></thead>
+    <tbody>{% for shift in management_recent_shifts %}
+    <tr><td>{{ shift.outlet.name }} · {{ shift.workstation.name|default:"Section register" }}</td>
+    <td>{{ shift.opened_by.email|default:"Former worker" }}</td>
+    <td>{{ shift.opened_at }}</td><td>{{ shift.get_status_display }}</td>
+    <td><a class="staff-btn staff-btn--ghost" href="{% url 'staff-management-shift' shift_id=shift.id %}">Review shift</a></td></tr>
+    {% endfor %}</tbody></table></div>
+  </section>{% endif %}
   <div class="staff-tile-grid">{% for label,url in management_reports %}<a class="staff-tile" href="{{ url }}">{{ label }}</a>{% empty %}<p>No report areas are enabled for your role and scope.</p>{% endfor %}</div>
 {% endif %}
 {% endblock %}

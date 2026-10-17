@@ -100,6 +100,13 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                 ctx["team_manage_url"] = reverse("staff-workspace-members")
         elif mode == "today":
             ctx["management_metrics"] = dashboard_operations_snapshot(request, membership=request.tenant_membership, modules=modules, vis=vis)
+        if mode == "reports" and vis.orders and "pos" in modules and outlets:
+            from apps.pos.models import PosShift
+            ctx["management_recent_shifts"] = (
+                PosShift.objects.filter(tenant=request.tenant, outlet__in=outlets)
+                .select_related("outlet", "workstation", "opened_by")
+                .order_by("-opened_at")[:20]
+            )
         reports = []
         if vis.sales and outlets:
             reports.append(("Sales report", reverse("staff-sales")))
