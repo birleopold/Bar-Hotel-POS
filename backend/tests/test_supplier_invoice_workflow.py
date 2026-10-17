@@ -352,3 +352,48 @@ class SupplierInvoiceTests(TestCase):
         self.assertEqual(unallocated, Decimal("200"))
         self.assertFalse(rows[0]["is_exact"])
         self.assertEqual(rows[0]["unpaid"], Decimal("1500"))
+
+
+    def test_purchase_api_invoice_fields_do_not_invent_legacy_payment_allocation(self):
+        from apps.purchasing.serializers import SupplierInvoiceReadSerializer
+        from apps.purchasing.services import record_supplier_payment
+        from apps.purchasing.models import SupplierPaymentMethod
+
+        invoice, _ = self.record(reference="API-BILL", amount=Decimal("1400"))
+        data = SupplierInvoiceReadSerializer(invoice).data
+        self.assertEqual(data["credited_amount"], "0.00")
+        self.assertEqual(data["linked_payments_amount"], "0.00")
+        self.assertEqual(data["unpaid_amount"], "1400.00")
+        self.assertFalse(data["unlinked_payment_warning"])
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense"):
+                record_supplier_payment(
+                    po=self.po, amount=Decimal("200"), method=SupplierPaymentMethod.BANK,
+                    reference="bank-legacy", idempotency_key="unassigned-api",
+                    user=None, membership=object(),
+                )
+        unresolved = SupplierInvoiceReadSerializer(invoice).data
+        self.assertTrue(unresolved["unlinked_payment_warning"])
+        self.assertIsNone(unresolved["unpaid_amount"])
+        self.assertIsNone(unresolved["overdue_days"])
+
+    def test_idempotency_key_cannot_be_reused_for_another_invoice(self):
+        from apps.purchasing.services import record_supplier_payment
+        from apps.purchasing.models import SupplierPaymentMethod
+
+        invoice, _ = self.record(reference="IDEMP-ONE", amount=Decimal("1000"))
+        another, _ = self.record(reference="IDEMP-TWO", amount=Decimal("500"))
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense") as posting:
+                record_supplier_payment(
+                    po=self.po, amount=Decimal("100"), method=SupplierPaymentMethod.BANK,
+                    reference="ref", idempotency_key="same-key-across-bills",
+                    invoice_id=invoice.pk, user=None, membership=object(),
+                )
+                with self.assertRaisesRegex(ValidationError, "different supplier payment"):
+                    record_supplier_payment(
+                        po=self.po, amount=Decimal("100"), method=SupplierPaymentMethod.BANK,
+                        reference="ref", idempotency_key="same-key-across-bills",
+                        invoice_id=another.pk, user=None, membership=object(),
+                    )
+                posting.assert_called_once()
