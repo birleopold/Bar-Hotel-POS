@@ -397,3 +397,108 @@ class SupplierInvoiceTests(TestCase):
                         invoice_id=another.pk, user=None, membership=object(),
                     )
                 posting.assert_called_once()
+
+
+    def test_manager_can_link_old_payment_without_another_cash_posting(self):
+        from apps.accounts.models import Membership, MembershipRole, User
+        from apps.purchasing.services import (
+            record_supplier_payment, link_existing_supplier_payment_to_invoice,
+        )
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services_exposure import supplier_invoice_settlement_rows
+
+        invoice, _ = self.record(reference="MATCH-OLDER", amount=Decimal("1500"))
+        manager = User.objects.create_user(email="po-link-manager@example.test", password="Password123!")
+        membership = Membership.objects.create(
+            tenant=self.tenant, user=manager, role=MembershipRole.OWNER,
+        )
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense") as expense:
+                payment, _ = record_supplier_payment(
+                    po=self.po, amount=Decimal("500"), method=SupplierPaymentMethod.BANK,
+                    reference="BANK-9988", idempotency_key="historical-match",
+                    user=manager, membership=membership,
+                )
+                linked, replay = link_existing_supplier_payment_to_invoice(
+                    po=self.po, payment_id=payment.pk, invoice_id=invoice.pk,
+                    note="Matched bank statement reference BANK-9988 to supplier invoice.",
+                    user=manager, membership=membership,
+                )
+                again, repeated = link_existing_supplier_payment_to_invoice(
+                    po=self.po, payment_id=payment.pk, invoice_id=invoice.pk,
+                    note="Repeated read of previously verified allocation.",
+                    user=manager, membership=membership,
+                )
+                self.assertFalse(replay)
+                self.assertTrue(repeated)
+                self.assertEqual(again.pk, linked.pk)
+                expense.assert_called_once()
+        payment.refresh_from_db()
+        self.assertEqual(payment.invoice_id, invoice.pk)
+        self.assertEqual(payment.amount, Decimal("500"))
+        rows, unallocated = supplier_invoice_settlement_rows(po=self.po)
+        self.assertEqual(unallocated, Decimal("0"))
+        self.assertEqual(rows[0]["unpaid"], Decimal("1000"))
+        self.assertTrue(rows[0]["is_exact"])
+
+    def test_manager_link_rejects_wrong_invoice_and_oversized_payment(self):
+        from apps.accounts.models import Membership, MembershipRole, User
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services import (
+            record_supplier_payment, link_existing_supplier_payment_to_invoice,
+        )
+
+        invoice, _ = self.record(reference="SMALL-BILL", amount=Decimal("400"))
+        self.record(reference="BIG-BILL", amount=Decimal("1000"))
+        manager = User.objects.create_user(email="po-link-reviewer@example.test", password="Password123!")
+        membership = Membership.objects.create(
+            tenant=self.tenant, user=manager, role=MembershipRole.OWNER,
+        )
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense"):
+                payment, _ = record_supplier_payment(
+                    po=self.po, amount=Decimal("700"), method=SupplierPaymentMethod.CASH,
+                    reference="old-700", idempotency_key="old-700",
+                    user=manager, membership=membership,
+                )
+            with self.assertRaisesRegex(ValidationError, "exceeds"):
+                link_existing_supplier_payment_to_invoice(
+                    po=self.po, payment_id=payment.pk, invoice_id=invoice.pk,
+                    note="Do not assign seven hundred to four hundred.",
+                    user=manager, membership=membership,
+                )
+        payment.refresh_from_db()
+        self.assertIsNone(payment.invoice_id)
+        self.assertEqual(payment.amount, Decimal("700"))
+
+    def test_storekeeper_cannot_allocate_supplier_payments(self):
+        from apps.accounts.models import Membership, MembershipRole, User
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services import (
+            record_supplier_payment, link_existing_supplier_payment_to_invoice,
+        )
+
+        invoice, _ = self.record(reference="MANAGER-ONLY", amount=Decimal("1000"))
+        owner = User.objects.create_user(email="po-link-owner@example.test", password="Password123!")
+        owner_membership = Membership.objects.create(
+            tenant=self.tenant, user=owner, role=MembershipRole.OWNER,
+        )
+        warehouse = User.objects.create_user(email="po-link-storekeeper@example.test", password="Password123!")
+        warehouse_membership = Membership.objects.create(
+            tenant=self.tenant, user=warehouse, role=MembershipRole.STOREKEEPER,
+        )
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense"):
+                payment, _ = record_supplier_payment(
+                    po=self.po, amount=Decimal("100"), method=SupplierPaymentMethod.BANK,
+                    reference="guard-payment", idempotency_key="guard-payment",
+                    user=owner, membership=owner_membership,
+                )
+            with self.assertRaisesRegex(ValidationError, "purchasing manager"):
+                link_existing_supplier_payment_to_invoice(
+                    po=self.po, payment_id=payment.pk, invoice_id=invoice.pk,
+                    note="Warehouse staff cannot allocate financial history.",
+                    user=warehouse, membership=warehouse_membership,
+                )
+        payment.refresh_from_db()
+        self.assertIsNone(payment.invoice_id)
