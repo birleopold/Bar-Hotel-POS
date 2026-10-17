@@ -248,6 +248,7 @@ class SupplierInvoiceTests(TestCase):
         from apps.purchasing.services_exposure import supplier_invoice_settlement_rows
 
         invoice, _ = self.record(reference="LINK-01", amount=Decimal("1200"))
+        self.record(reference="LINK-02", amount=Decimal("500"))
         with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
             with patch("apps.purchasing.services.post_supplier_payment_expense") as expense:
                 payment, replay = record_supplier_payment(
