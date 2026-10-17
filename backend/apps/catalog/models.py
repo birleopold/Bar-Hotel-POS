@@ -186,6 +186,8 @@ class SupermarketSkuProfile(TimeStampedModel):
         default=BarcodeMode.SCAN,
     )
     plu_code = models.CharField(max_length=16, blank=True)
+    scale_prefix = models.CharField(max_length=2, blank=True, help_text="Configured local variable-weight EAN-13 prefix 20–29.")
+    scale_item_code = models.CharField(max_length=5, blank=True, help_text="Five digits identifying this weighed product within the local label format.")
     weighted_pricing_mode = models.CharField(
         max_length=16,
         choices=WeightedPricingMode.choices,
@@ -200,7 +202,10 @@ class SupermarketSkuProfile(TimeStampedModel):
 
     class Meta:
         ordering = ["tenant__name", "menu_item__name"]
-        unique_together = [["tenant", "plu_code"]]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "plu_code"], condition=~models.Q(plu_code=""), name="uniq_nonblank_supermarket_plu"),
+            models.UniqueConstraint(fields=["tenant", "scale_prefix", "scale_item_code"], condition=~models.Q(scale_prefix=""), name="uniq_tenant_scale_weight_code"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.menu_item.name} supermarket profile"
