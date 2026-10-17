@@ -222,6 +222,28 @@ class OrderLine(TimeStampedModel):
         return f"{self.label} x {self.quantity}"
 
 
+class WholesalePriceRule(TimeStampedModel):
+    """Manager-controlled B2B quantity-price tier, never implicit for walk-in sales."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="wholesale_price_rules")
+    outlet = models.ForeignKey("tenants.Outlet", on_delete=models.PROTECT, related_name="wholesale_price_rules")
+    menu_item = models.ForeignKey("catalog.MenuItem", on_delete=models.PROTECT, related_name="wholesale_price_rules")
+    minimum_quantity = models.DecimalField(max_digits=10, decimal_places=3)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ["outlet", "menu_item", "-minimum_quantity"]
+        constraints = [
+            models.UniqueConstraint(fields=["outlet", "menu_item", "minimum_quantity"], name="uniq_wholesale_tier_per_outlet"),
+            models.CheckConstraint(condition=models.Q(minimum_quantity__gt=0), name="wholesale_tier_qty_positive"),
+            models.CheckConstraint(condition=models.Q(unit_price__gte=0), name="wholesale_tier_price_nonnegative"),
+        ]
+
+
 class PaymentMethod(models.TextChoices):
     CASH = "cash", "Cash"
     CARD = "card", "Card"
