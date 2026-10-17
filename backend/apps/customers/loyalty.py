@@ -25,6 +25,55 @@ def points_balance(*, tenant, customer):
 
 
 @transaction.atomic
+def redeem_non_cash_reward(*, tenant, customer_id, membership, user,
+                           points, benefit, source_key):
+    """Manager-authorized non-cash fulfillment; never changes POS tax or sale price.
+
+    The benefit is documented, not monetary. The customer lock protects the
+    available balance across concurrent checkout counters.
+    """
+    from apps.tenants.models import TenantSettings
+    if (not membership or not membership.is_active or membership.tenant_id != tenant.pk
+            or membership.user_id != user.pk or membership.role not in MANAGER_ROLES):
+        raise ValidationError({"detail": "Only an authorized business manager may redeem rewards."})
+    if not isinstance(points, int) or isinstance(points, bool) or not 1 <= points <= 100000:
+        raise ValidationError({"points": "Redeem between 1 and 100,000 whole points."})
+    benefit = (benefit or "").strip()
+    if not 12 <= len(benefit) <= 300:
+        raise ValidationError({"benefit": "Describe the non-cash reward actually supplied in 12–300 characters."})
+    key = (source_key or "").strip()
+    if not key or len(key) > 128:
+        raise ValidationError({"source_key": "A unique request key is required."})
+    customer = Customer.objects.select_for_update().filter(
+        pk=customer_id, tenant=tenant, merged_into__isnull=True,
+    ).first()
+    if customer is None:
+        raise ValidationError({"customer": "Choose an active customer in the same business."})
+    previous = LoyaltyLedgerEntry.objects.filter(
+        tenant=tenant, source_type="redemption", source_key=key,
+    ).first()
+    if previous:
+        if previous.customer_id != customer.pk or previous.points != -points or previous.reason != benefit:
+            raise ValidationError({"source_key": "This request key was used for a different redemption."})
+        return previous, True
+    policy = TenantSettings.objects.filter(tenant=tenant).first()
+    if policy is None or not policy.loyalty_enabled:
+        raise ValidationError({"loyalty": "Enable the optional loyalty program before redeeming benefits."})
+    if points_balance(tenant=tenant, customer=customer) < points:
+        raise ValidationError({"points": "Insufficient available points for this reward."})
+    entry = LoyaltyLedgerEntry.objects.create(
+        tenant=tenant, customer=customer, points=-points,
+        source_type="redemption", source_key=key, reason=benefit, recorded_by=user,
+    )
+    log_audit(tenant_id=tenant.pk, user_id=user.pk,
+              action="customer.non_cash_reward_redeemed",
+              entity_type="loyalty_entry", entity_id=str(entry.pk),
+              payload={"customer_id": str(customer.pk), "points": points,
+                       "benefit": benefit, "currency_value": None})
+    return entry, False
+
+
+@transaction.atomic
 def adjust_points(*, tenant, customer_id, membership, user, points, reason, source_key):
     if (not membership or not membership.is_active
             or membership.tenant_id != tenant.pk or membership.user_id != user.pk

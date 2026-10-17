@@ -19,7 +19,20 @@
     {% else %}
       <p class="staff-muted small mt-2">Automatic earning is switched off for this workspace. Previously earned points and refund corrections remain recorded.</p>
     {% endif %}
-    <p class="staff-muted small mt-2">Reward checkout/redemption rules are not yet enabled. Only owners and administrators may make manual corrections, with a reason and transaction history.</p>
+    <p class="staff-muted small mt-2">Non-cash rewards may be redeemed by authorized managers when loyalty is enabled. Points do not have a cash exchange rate; redemptions do not reduce order totals, invoice taxes or customer debts. Monetary coupons and paid benefits require separate business and accounting policies.</p>
+    {% if can_adjust_loyalty and loyalty_policy and loyalty_policy.loyalty_enabled %}
+    <details class="mt-3"><summary><strong>Redeem a non-cash reward</strong></summary>
+      <form method="post" class="row g-2 mt-2">{% csrf_token %}
+        <input type="hidden" name="action" value="non_cash_reward">
+        <input type="hidden" name="request_key" value="{{ loyalty_request_key }}">
+        <div class="col-12 col-md-3"><label class="staff-label" for="reward-points">Points to redeem</label>
+          <input type="number" name="points" id="reward-points" min="1" max="100000" step="1" class="staff-input" required></div>
+        <div class="col-12 col-md-9"><label class="staff-label" for="reward-benefit">Reward actually issued (non-cash)</label>
+          <textarea name="benefit" id="reward-benefit" minlength="12" maxlength="300" rows="2" class="staff-input" required
+            placeholder="Describe the non-cash gift or service given to this customer"></textarea></div>
+        <div class="col-12"><button type="submit" class="staff-btn staff-btn--primary">Issue non-cash reward and deduct points</button></div>
+      </form>
+    </details>{% endif %}
     {% if can_adjust_loyalty %}
       <a class="staff-btn staff-btn--ghost staff-btn--sm" href="{% url 'staff-workspace-branding' %}#loyalty-settings">Set earning rules</a>
     {% endif %}

@@ -13,7 +13,7 @@ from apps.accounts.models import MembershipRole
 from apps.audit.services import log_audit
 from apps.customers.models import Customer, LoyaltyLedgerEntry
 from apps.tenants.models import TenantSettings
-from apps.customers.loyalty import adjust_points, points_balance
+from apps.customers.loyalty import adjust_points, points_balance, redeem_non_cash_reward
 from apps.customers.loyalty_reconciliation import reconcile_loyalty_account, reconcile_loyalty_tenant
 from apps.customers.services import merge_customers
 from apps.events.models import EventBooking
@@ -206,6 +206,25 @@ class StaffCustomerDetailView(CustomerAccessMixin, TemplateView):
                 messages.error(request, str(getattr(exc, "detail", exc)))
             else:
                 messages.success(request, "Already recorded." if repeated else "Points adjustment recorded.")
+            return redirect("staff-customer-detail", customer_id=customer.pk)
+        if request.POST.get("action") == "non_cash_reward":
+            if request.tenant_membership.role not in {
+                MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+            }:
+                raise Http404
+            try:
+                points = int(request.POST.get("points", ""))
+                key = uuid.UUID(request.POST.get("request_key", ""))
+                _entry, replay = redeem_non_cash_reward(
+                    tenant=request.tenant, customer_id=customer.pk,
+                    membership=request.tenant_membership, user=request.user,
+                    points=points, benefit=request.POST.get("benefit", ""),
+                    source_key=str(key),
+                )
+            except (ValueError, TypeError, ValidationError) as exc:
+                messages.error(request, str(getattr(exc, "detail", exc)))
+            else:
+                messages.success(request, "Reward already recorded." if replay else "Non-cash reward issued and points deducted.")
             return redirect("staff-customer-detail", customer_id=customer.pk)
         if request.POST.get("action") == "merge":
             if request.tenant_membership.role not in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}:
