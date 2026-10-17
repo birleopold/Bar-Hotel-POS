@@ -277,6 +277,8 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
     locked = Order.objects.select_for_update().get(pk=order.pk)
     if locked.status != OrderStatus.OPEN or locked.is_paid:
         raise ValidationError("Promotion can only be applied to open, unpaid orders.")
+    if locked.lines.filter(pricing_source="wholesale", is_voided=False).exists():
+        raise ValidationError({"promotion": "Wholesale price tiers cannot be combined with order promotions."})
     if promotion.tenant_id != locked.tenant_id or not promotion.is_active:
         raise ValidationError("Invalid promotion.")
     now = dj_tz.now()
@@ -587,10 +589,23 @@ def adjust_open_order_line_quantity(
     tax_rate = Decimal("0")
     if locked_ln.menu_item is not None and locked_ln.menu_item.tax_rate_percent is not None:
         tax_rate = locked_ln.menu_item.tax_rate_percent
+    if locked_ln.pricing_source == "wholesale":
+        if locked_o.payments.exists():
+            raise ValidationError({"quantity": "Cannot change the quantity of a wholesale line after a payment; refund or review the sale."})
+        from .wholesale import qualifying_rule
+        tier = qualifying_rule(tenant_id=locked_o.tenant_id, outlet_id=locked_o.outlet_id,
+                               menu_item_id=locked_ln.menu_item_id, quantity=quantity)
+        if tier is None:
+            locked_ln.unit_price = locked_ln.menu_item.unit_price_for_outlet(locked_o.outlet_id)
+            locked_ln.pricing_source = "menu"
+        else:
+            locked_ln.unit_price = tier.unit_price
+        locked_ln.line_discount_amount = Decimal("0")
+        locked_ln.line_discount_percent = None
     locked_ln.quantity = quantity
     locked_ln.line_total = line_total(quantity, locked_ln.unit_price)
     locked_ln.tax_amount = line_tax(locked_ln.line_total, tax_rate)
-    locked_ln.save(update_fields=["quantity", "line_total", "tax_amount", "updated_at"])
+    locked_ln.save(update_fields=["quantity", "unit_price", "pricing_source", "line_discount_amount", "line_discount_percent", "line_total", "tax_amount", "updated_at"])
     recalculate_order_totals(locked_o)
     log_audit(
         tenant_id=locked_o.tenant_id,
