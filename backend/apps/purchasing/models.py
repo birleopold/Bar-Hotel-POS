@@ -184,6 +184,7 @@ class SupplierPayment(TimeStampedModel):
     tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="supplier_payments")
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.PROTECT, related_name="payments")
     amount = models.DecimalField(max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    invoice = models.ForeignKey("purchasing.SupplierInvoice", on_delete=models.PROTECT, null=True, blank=True, related_name="allocated_payments", help_text="Verified invoice; legacy PO payments are unallocated.")
     method = models.CharField(max_length=24, choices=SupplierPaymentMethod.choices)
     reference = models.CharField(max_length=128, blank=True)
     idempotency_key = models.CharField(max_length=128)
