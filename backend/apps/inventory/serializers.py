@@ -9,11 +9,35 @@ from apps.tenants.models import Outlet
 
 from .models import (
     StockBalance,
+    StockShelfLocation,
     StockCountLine,
     StockCountSession,
     StockMovement,
     StockReason,
 )
+
+
+class ShelfLocationWriteSerializer(serializers.Serializer):
+    outlet_id = serializers.UUIDField()
+    menu_item_id = serializers.UUIDField()
+    aisle = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
+    shelf = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
+    bin_code = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
+    note = serializers.CharField(max_length=160, allow_blank=True, required=False, default="")
+
+
+class ShelfLocationReadSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="menu_item.name", read_only=True)
+    item_sku = serializers.CharField(source="menu_item.sku", read_only=True)
+    outlet_name = serializers.CharField(source="outlet.name", read_only=True)
+
+    class Meta:
+        model = StockShelfLocation
+        fields = (
+            "id", "outlet", "outlet_name", "menu_item", "item_name", "item_sku",
+            "aisle", "shelf", "bin_code", "note", "updated_by", "updated_at",
+        )
+        read_only_fields = fields
 
 
 class StockBalanceSerializer(serializers.ModelSerializer):

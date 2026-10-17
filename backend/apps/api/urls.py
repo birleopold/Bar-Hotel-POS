@@ -6,6 +6,7 @@ from .auth_views import TokenObtainPairThrottledView, TokenRefreshThrottledView
 from apps.audit.views import AuditEventViewSet
 from apps.inventory.views import (
     StockBalanceViewSet,
+    StockShelfLocationViewSet,
     StockCountSessionViewSet,
     StockMovementViewSet,
     StockTransferViewSet,
@@ -58,6 +59,7 @@ router.register(r"tables", TableViewSet, basename="table")
 router.register(r"pos/shifts", RegisterShiftViewSet, basename="pos-shift")
 router.register(r"orders", OrderViewSet, basename="order")
 router.register(r"stock/balances", StockBalanceViewSet, basename="stock-balance")
+router.register(r"stock/shelves", StockShelfLocationViewSet, basename="stock-shelf-location")
 router.register(r"stock/movements", StockMovementViewSet, basename="stock-movement")
 router.register(r"stock/transfers", StockTransferViewSet, basename="stock-transfer")
 router.register(r"stock/count-sessions", StockCountSessionViewSet, basename="stock-count-session")

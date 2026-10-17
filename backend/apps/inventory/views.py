@@ -11,9 +11,11 @@ from rest_framework.exceptions import ValidationError
 
 from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
 
-from .models import StockBalance, StockCountSession, StockCountStatus, StockMovement, StockTransferReceipt
+from .models import StockBalance, StockShelfLocation, StockCountSession, StockCountStatus, StockMovement, StockTransferReceipt
 from .serializers import (
     StockBalanceSerializer,
+    ShelfLocationReadSerializer,
+    ShelfLocationWriteSerializer,
     StockCountCompleteSerializer,
     StockCountSessionCreateSerializer,
     StockCountSessionSerializer,
@@ -27,6 +29,49 @@ from .services import (
     verify_stock_transfer_receipt, resolve_stock_transfer_discrepancy,
 )
 from apps.staff.services.permissions import membership_has_inventory_capability
+
+
+class StockShelfLocationViewSet(viewsets.GenericViewSet):
+    """Fast searchable shelf addresses, updated without changing inventory quantities."""
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule]
+    required_staff_module = "inventory"
+    serializer_class = ShelfLocationReadSerializer
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return StockShelfLocation.objects.none()
+        return StockShelfLocation.objects.filter(
+            tenant=self.request.tenant,
+            outlet_id__in=membership_outlet_ids(self.request.tenant_membership),
+        ).select_related("outlet", "menu_item").order_by("outlet__name", "menu_item__name")
+
+    def list(self, request):
+        qs = self.get_queryset()
+        raw = request.query_params.get("outlet")
+        if raw:
+            try:
+                qs = qs.filter(outlet_id=uuid.UUID(str(raw)))
+            except (ValueError, TypeError):
+                qs = qs.none()
+        term = (request.query_params.get("q") or "").strip()[:80]
+        if term:
+            qs = qs.filter(
+                Q(menu_item__name__icontains=term) | Q(menu_item__sku__icontains=term)
+                | Q(menu_item__barcode__icontains=term) | Q(aisle__icontains=term)
+                | Q(shelf__icontains=term) | Q(bin_code__icontains=term)
+            )
+        return Response(ShelfLocationReadSerializer(qs[:100], many=True).data)
+
+    def create(self, request):
+        from .services_shelves import set_stock_shelf_location
+        serializer = ShelfLocationWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        location, replay = set_stock_shelf_location(
+            tenant_id=request.tenant.pk, membership=request.tenant_membership,
+            user=request.user, **serializer.validated_data,
+        )
+        return Response(ShelfLocationReadSerializer(location).data,
+                        status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
 
 
 class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
