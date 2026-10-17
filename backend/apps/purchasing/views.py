@@ -15,12 +15,13 @@ from .serializers import (
     PurchaseOrderStatusUpdateSerializer,
     ConfirmMissingUnitCostSerializer,
     RecordSupplierPaymentSerializer,
+    LinkSupplierPaymentInvoiceSerializer,
     RecordSupplierInvoiceSerializer,
     SupplierInvoiceReadSerializer,
     ReceivePurchaseOrderSerializer,
     SupplierSerializer,
 )
-from .services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, record_supplier_invoice
+from .services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice
 
 
 class SupplierViewSet(viewsets.ModelViewSet):
@@ -131,6 +132,24 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         )
         from .serializers import SupplierPaymentSerializer
         return Response(SupplierPaymentSerializer(payment).data, status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="link-payment")
+    def link_payment(self, request, pk=None):
+        from rest_framework.exceptions import PermissionDenied
+        from apps.staff.services.permissions import membership_has_purchasing_capability
+
+        if not membership_has_purchasing_capability(request.tenant_membership, "supplier_payment"):
+            raise PermissionDenied("Only an authorized purchasing manager can reconcile supplier payments.")
+        po = self.get_object()
+        ser = LinkSupplierPaymentInvoiceSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        payment, replay = link_existing_supplier_payment_to_invoice(
+            po=po, user=request.user, membership=request.tenant_membership,
+            **ser.validated_data,
+        )
+        from .serializers import SupplierPaymentSerializer
+        return Response(SupplierPaymentSerializer(payment).data,
+                        status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="invoices")
     def record_invoice(self, request, pk=None):
