@@ -32,7 +32,14 @@ def _finalize_order_payment(*, obj, tenant_id, outlet, user, payload: dict):
 
     oid = payload.get("order_id")
     idem = (payload.get("idempotency_key") or "").strip()
-    amount = Decimal(str(payload.get("amount", "0")))
+    try:
+        amount = Decimal(str(payload.get("amount", "0")))
+    except (ValueError, TypeError, ArithmeticError) as exc:
+        raise ValidationError({"amount": "Enter a valid offline cash amount."}) from exc
+    if (not amount.is_finite() or amount <= 0
+            or amount > Decimal("999999999999.99")
+            or amount != amount.quantize(Decimal("0.01"))):
+        raise ValidationError({"amount": "Offline cash amount must be positive, finite and have at most two decimal places."})
     method = payload.get("method")
     if not oid or not idem or not method:
         raise ValidationError("payload requires order_id, idempotency_key, method, amount.")
@@ -47,7 +54,13 @@ def _finalize_order_payment(*, obj, tenant_id, outlet, user, payload: dict):
     # Policy is applied only on the server; an offline device cannot claim that
     # an unlimited or unverified electronic payment has already settled.
     policy = TenantSettings.objects.filter(tenant_id=tenant_id).first()
-    if policy is not None and policy.offline_cash_payment_limit is not None:
+    # A policy change must not reinterpret a previously posted, idempotent payment.
+    # The canonical posting service verifies that a replay's payload is identical.
+    prior_payment = Payment.objects.filter(
+        tenant_id=tenant_id, idempotency_key=idem,
+        order_id=order.pk, amount=amount, method=PaymentMethod.CASH,
+    ).exists()
+    if not prior_payment and policy is not None and policy.offline_cash_payment_limit is not None:
         if order.currency != policy.default_currency:
             raise ValidationError({
                 "currency": "Offline cash ceiling applies only to the business's default currency. Reconcile other currencies online."
