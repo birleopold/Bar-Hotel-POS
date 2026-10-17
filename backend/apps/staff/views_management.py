@@ -196,8 +196,12 @@ class StaffManagementShiftView(StaffManagementView):
         if "pos" not in modules or not vis.orders:
             raise Http404
         shift = get_object_or_404(PosShift.objects.select_related("outlet", "workstation", "opened_by", "closed_by"), tenant=request.tenant, outlet__in=outlets, pk=shift_id)
+        from .services.shift_reconciliation import build_shift_reconciliation
+        summary = build_shift_reconciliation(shift)
         variance = shift.counted_cash - shift.expected_cash if shift.counted_cash is not None else None
-        return render(request, "staff/management_shift.html", {"shift": shift, "variance": variance})
+        return render(request, "staff/management_shift.html", {
+            "shift": shift, "variance": variance, "reconciliation": summary,
+        })
 
 
 class StaffManagementSourceView(StaffManagementView):
