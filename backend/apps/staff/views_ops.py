@@ -781,6 +781,17 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     svc.active_options = options_by_service.get(str(svc.id), [])
         is_supermarket_outlet = order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
         ctx["is_supermarket_outlet"] = is_supermarket_outlet
+        from apps.pos.models import RetailPickup
+        ctx["retail_pickup"] = RetailPickup.objects.filter(
+            tenant_id=order.tenant_id, order=order,
+        ).select_related("collected_by").first()
+        from apps.pos.services.wholesale import manager_allowed
+        ctx["can_schedule_paid_pickup"] = bool(
+            is_supermarket_outlet and order.is_paid and order.customer_id
+            and order.status == OrderStatus.CLOSED
+            and not order.refunds.exists()
+            and manager_allowed(self.request.tenant_membership, order.tenant_id, order.outlet_id)
+        )
         from apps.pos.services.wholesale import manager_allowed, qualifying_rule
         ctx["can_apply_wholesale"] = bool(
             can_modify_open and is_supermarket_outlet and order.customer_id
@@ -895,6 +906,29 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 messages.error(request, str(getattr(exc, "detail", exc)))
             else:
                 messages.success(request, "Wholesale unit price approved and recalculated.")
+            return redirect("staff-order-detail", order_id=order.id)
+        if action in ("schedule_paid_pickup", "hand_over_paid_pickup"):
+            from django.utils.dateparse import parse_date
+            from apps.pos.services.pickups import register_paid_pickup, hand_over_paid_pickup
+            from apps.pos.models import RetailPickup
+            try:
+                if action == "schedule_paid_pickup":
+                    register_paid_pickup(
+                        order=order, expected_on=parse_date(request.POST.get("expected_on", "")),
+                        note=request.POST.get("note", ""), user=request.user, membership=m,
+                    )
+                    messages.success(request, "Paid order scheduled for collection; stock was not deducted again.")
+                else:
+                    pickup = RetailPickup.objects.filter(tenant_id=order.tenant_id, order=order).first()
+                    if pickup is None:
+                        raise DRFValidationError({"pickup": "This order has no registered pickup."})
+                    hand_over_paid_pickup(
+                        pickup=pickup, note=request.POST.get("note", ""),
+                        membership=m, user=request.user,
+                    )
+                    messages.success(request, "Customer pickup recorded; sale and inventory are unchanged.")
+            except (DRFValidationError, ValueError, TypeError) as exc:
+                messages.error(request, str(getattr(exc, "detail", exc)))
             return redirect("staff-order-detail", order_id=order.id)
         if action == "record_payment":
             return self._post_record_payment(request, order)

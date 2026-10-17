@@ -36,6 +36,30 @@
       <p class="staff-muted small mt-2 mb-0" role="status" aria-live="polite" data-retail-tender-status>Enter the cash handed over to calculate change.</p>
     </section>
   {% endif %}
+  {% if order.is_paid and order.status == 'closed' %}
+  <section class="staff-card mb-3" aria-label="Paid order pickup">
+    <h2 class="staff-card__title">Paid sale · collection or pickup</h2>
+    <p class="staff-muted small">A confirmed pickup records the handover of goods already sold. It does not reserve unpaid stock, issue a deposit refund or change inventory twice.</p>
+    {% if retail_pickup %}
+      <p><strong>{{ retail_pickup.get_status_display }}</strong> · Expected {{ retail_pickup.expected_on }}
+      {% if retail_pickup.collected_at %} · Collected {{ retail_pickup.collected_at }} by {{ retail_pickup.collected_by.email|default:"Former worker" }}{% endif %}</p>
+      {% if retail_pickup.status == 'awaiting' and can_modify_open_order == False %}
+      <form method="post" class="row g-2">{% csrf_token %}
+        <input type="hidden" name="action" value="hand_over_paid_pickup">
+        <div class="col-12 col-lg-9"><label class="staff-label" for="pickup-proof">Customer identity and physical handover confirmation</label>
+          <textarea class="staff-input" id="pickup-proof" name="note" required minlength="12" maxlength="300" rows="2"></textarea></div>
+        <div class="col-12 col-lg-3 align-self-end"><button class="staff-btn staff-btn--primary" type="submit">Confirm collected</button></div></form>{% endif %}
+    {% elif can_schedule_paid_pickup %}
+      <form method="post" class="row g-2 align-items-end">{% csrf_token %}
+        <input type="hidden" name="action" value="schedule_paid_pickup">
+        <div class="col-12 col-md-4"><label class="staff-label" for="pickup-when">Expected collection date</label>
+          <input class="staff-input" type="date" id="pickup-when" name="expected_on" required></div>
+        <div class="col-12 col-md-5"><label class="staff-label" for="pickup-note">Collection note</label>
+          <input class="staff-input" id="pickup-note" name="note" maxlength="300" placeholder="Collection shelf or pickup instructions"></div>
+        <div class="col-12 col-md-3"><button type="submit" class="staff-btn staff-btn--primary">Schedule pickup</button></div></form>
+    {% else %}<p class="staff-muted">An identified customer and manager approval are required to schedule collection.</p>{% endif %}
+    <a class="staff-btn staff-btn--ghost mt-2" href="{% url 'staff-retail-pickups' %}">See pickup queue</a>
+  </section>{% endif %}
   <section class="staff-card mb-3" aria-label="Wholesale prices">
     <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
       <div><h2 class="staff-card__title">Wholesale quantity pricing</h2>

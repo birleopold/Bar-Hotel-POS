@@ -1,0 +1,22 @@
+{% extends "staff/base.html" %}
+{% block title %}Customer pickups{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+<p class="staff-dash-hero__eyebrow">Retail · Pickup queue</p>
+<h1 class="staff-page-title">Paid orders awaiting collection</h1>
+<p>These orders are already paid. Stock was deducted once at checkout; recording pickup only confirms handover.</p>
+</div></header>
+<nav class="staff-toolbar mb-3" aria-label="Pickup filters">
+<a class="staff-btn staff-btn--ghost" href="?status=awaiting">Awaiting</a>
+<a class="staff-btn staff-btn--ghost" href="?status=collected">Collected</a>
+<a class="staff-btn staff-btn--ghost" href="?status=all">All</a>
+<a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Sales</a></nav>
+<section class="staff-card"><div class="staff-table-wrap"><table class="staff-table">
+<thead><tr><th>Pickup date</th><th>Store</th><th>Receipt</th><th>Customer</th><th>Status</th><th>Open order</th></tr></thead>
+<tbody>{% for pickup in pickups %}<tr>
+<td>{{ pickup.expected_on }}</td><td>{{ pickup.order.outlet.name }}</td><td>{{ pickup.order.bill_reference }}</td>
+<td>{{ pickup.order.customer.name|default:"Customer" }}</td><td>{{ pickup.get_status_display }}</td>
+<td><a class="staff-btn staff-btn--ghost" href="{% url 'staff-order-detail' order_id=pickup.order_id %}">Review</a></td></tr>
+{% empty %}<tr><td colspan="6">No matching paid pickups in your accessible stores.</td></tr>{% endfor %}</tbody></table></div>
+{% if is_paginated %}<div class="mt-3">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</div>{% endif %}
+</section>{% endblock %}
