@@ -44,7 +44,7 @@ def test_transfer_screen_discloses_immediate_stock_posting_and_has_submission_gu
         / "apps" / "staff" / "templates" / "staff" / "inventory"
         / "transfer_form.html"
     ).read_text(encoding="utf-8")
-    assert "changes both stock balances immediately" in template
+    assert "Only the sender\'s stock decreases now" in template
     assert "data-transfer-form" in template
     assert "inFlight" in template
     assert 'aria-live="polite"' in template
