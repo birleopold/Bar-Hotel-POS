@@ -433,14 +433,24 @@ def add_supermarket_line_by_code(
     quantity: Decimal,
     user,
 ) -> OrderLine:
-    item, source = lookup_supermarket_item_for_code(
-        tenant_id=order.tenant_id,
-        outlet_id=order.outlet_id,
-        code=code,
+    from apps.catalog.scale_labels import decode_scale_weight_label
+
+    decoded = decode_scale_weight_label(
+        tenant_id=order.tenant_id, outlet_id=order.outlet_id, code=(code or "").strip(),
     )
-    if item is None:
-        raise ValidationError({"code": "No active SKU found for this barcode/PLU at this outlet."})
-    qty = normalize_supermarket_quantity(menu_item=item, quantity=quantity)
+    if decoded is not None:
+        if Decimal(str(quantity)) != Decimal("1"):
+            raise ValidationError({"quantity": "Scale labels contain their weight. Leave scan quantity at 1."})
+        item, qty = decoded
+        source = "weighted"
+    else:
+        item, source = lookup_supermarket_item_for_code(
+            tenant_id=order.tenant_id, outlet_id=order.outlet_id, code=code,
+        )
+        if item is None:
+            raise ValidationError({"code": "No active SKU found for this barcode/PLU at this outlet."})
+        qty = quantity
+    qty = normalize_supermarket_quantity(menu_item=item, quantity=qty)
     line = add_line_to_open_order(order=order, menu_item=item, quantity=qty, user=user)
     pricing_source = source
     profile = getattr(item, "supermarket_profile", None)
