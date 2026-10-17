@@ -1,0 +1,41 @@
+{% extends "staff/base.html" %}
+{% block title %}Find aisle & shelf{% endblock %}
+{% block content %}
+{% include "staff/inventory/includes/subnav.html" %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+<p class="staff-dash-hero__eyebrow">Inventory · Store locations</p>
+<h1 class="staff-page-title">Find an item on the shelf</h1>
+<p class="staff-dash-hero__tagline">Locate supermarket products by name, barcode, SKU, aisle, shelf or bin. These are picking labels; stock quantities remain in the existing inventory ledger.</p>
+</div></header>
+<form method="get" class="staff-card mb-3" role="search">
+<label class="staff-label" for="shelf-search">Product, barcode or location</label>
+<div class="d-flex flex-wrap gap-2"><input class="staff-input flex-grow-1" id="shelf-search" name="q" value="{{ locator_q }}" maxlength="80" placeholder="e.g. rice, 890112, A3" style="min-width:12rem">
+<button class="staff-btn staff-btn--primary staff-btn--touch" type="submit">Find item</button></div>
+</form>
+{% if all_outlets_mode %}<p class="staff-muted">Showing only sections you are authorized to access.</p>{% elif current_outlet %}<p class="staff-muted">Section: {{ current_outlet.name }}</p>{% endif %}
+{% if balances %}
+<div class="staff-table-wrap"><table class="staff-table">
+<thead><tr><th>Section</th><th>Product</th><th>On hand</th><th>Picking location</th>{% if can_assign_shelves %}<th>Update shelf label</th>{% endif %}</tr></thead>
+<tbody>{% for row in balances %}
+<tr><td>{{ row.outlet.name }}</td><td><strong>{{ row.menu_item.name }}</strong><div class="staff-muted small">{{ row.menu_item.sku|default:row.menu_item.barcode|default:"No product code" }}</div></td>
+<td>{{ row.quantity }} {{ row.menu_item.get_unit_of_measure_display }}</td>
+<td>{% if row.location %}
+<strong>{% if row.location.aisle %}Aisle {{ row.location.aisle }}{% endif %} {% if row.location.shelf %}· Shelf {{ row.location.shelf }}{% endif %} {% if row.location.bin_code %}· Bin {{ row.location.bin_code }}{% endif %}</strong>
+{% if row.location.note %}<div class="staff-muted small">{{ row.location.note }}</div>{% endif %}
+{% else %}<span class="staff-muted">Not assigned</span>{% endif %}</td>
+{% if can_assign_shelves %}<td>
+<details><summary class="staff-btn staff-btn--ghost staff-btn--sm">Edit location</summary>
+<form class="mt-2" method="post">
+{% csrf_token %}<input type="hidden" name="outlet_id" value="{{ row.outlet_id }}">
+<input type="hidden" name="menu_item_id" value="{{ row.menu_item_id }}">
+<input type="hidden" name="return_q" value="{{ locator_q }}">
+<div class="row g-2"><div class="col-12 col-md-4"><label class="staff-label" for="aisle-{{ row.pk }}">Aisle</label><input class="staff-input" name="aisle" id="aisle-{{ row.pk }}" maxlength="32" value="{{ row.location.aisle|default:'' }}"></div>
+<div class="col-12 col-md-4"><label class="staff-label" for="shelf-{{ row.pk }}">Shelf</label><input class="staff-input" name="shelf" id="shelf-{{ row.pk }}" maxlength="32" value="{{ row.location.shelf|default:'' }}"></div>
+<div class="col-12 col-md-4"><label class="staff-label" for="bin-{{ row.pk }}">Bin</label><input class="staff-input" name="bin_code" id="bin-{{ row.pk }}" maxlength="32" value="{{ row.location.bin_code|default:'' }}"></div>
+<div class="col-12"><label class="staff-label" for="note-{{ row.pk }}">Optional directions</label><input class="staff-input" name="note" id="note-{{ row.pk }}" maxlength="160" value="{{ row.location.note|default:'' }}" placeholder="Left end, upper shelf"></div>
+<div class="col-12"><button class="staff-btn staff-btn--primary staff-btn--touch" type="submit">Save location</button></div></div>
+</form></details></td>{% endif %}
+</tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="staff-card"><h2 class="staff-card__title">No products found</h2><p class="staff-muted">Try a product name, SKU, barcode, or shelf code. Products appear here once their stock balances are initialized.</p></div>{% endif %}
+{% if is_paginated %}<nav class="staff-pager" aria-label="Shelf pages">{% if page_obj.has_previous %}<a href="?q={{ locator_q|urlencode }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}<span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?q={{ locator_q|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}</nav>{% endif %}
+{% endblock %}

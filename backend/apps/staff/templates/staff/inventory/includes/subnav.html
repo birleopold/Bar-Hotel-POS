@@ -2,6 +2,7 @@
 <div class="staff-subnav-pills" aria-label="Stock sections">
   <a class="staff-btn {% if n == 'staff-inventory-balances' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-balances' %}">Stock</a>
   <a class="staff-btn {% if n == 'staff-inventory-batches' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
+  <a class="staff-btn {% if n == 'staff-inventory-shelves' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-shelves' %}">Aisles &amp; shelves</a>
   <a class="staff-btn {% if n == 'staff-inventory-intelligence' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-intelligence' %}">Stock planning</a>
   <a class="staff-btn {% if n == 'staff-inventory-movements' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movements' %}">Ledger</a>
   <a class="staff-btn {% if n == 'staff-inventory-movement-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
