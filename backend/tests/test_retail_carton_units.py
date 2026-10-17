@@ -9,7 +9,7 @@ from rest_framework.exceptions import ValidationError
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.catalog.packaging import to_stock_units
-from apps.inventory.models import StockBalance, StockMovement, StockCountSession, StockCountStatus
+from apps.inventory.models import StockBalance, StockMovement, StockCountSession, StockCountStatus, StockTransferReceipt
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, Supplier
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer
 from apps.purchasing.services import receive_purchase_order_goods
@@ -131,6 +131,38 @@ class RetailCartonWorkflowTests(TestCase):
             StockBalance.objects.get(outlet=self.outlet, menu_item=self.item).quantity,
             Decimal("12"),
         )
+        self.assertFalse(
+            StockBalance.objects.filter(outlet=self.destination, menu_item=self.item).exists(),
+            "Dispatched cartons must not become available before physical receiving.",
+        )
+        receipt = StockTransferReceipt.objects.get(
+            tenant=self.tenant, menu_item=self.item, to_outlet=self.destination,
+        )
+        self.assertEqual(receipt.dispatched_quantity, Decimal("38"))
+        self.assertEqual(receipt.outstanding_quantity, Decimal("38"))
+
+        receiver = User.objects.create_user(
+            email="carton-receiver@example.test", password="TestPass9!",
+        )
+        receiving_role = Membership.objects.create(
+            user=receiver, tenant=self.tenant, role=MembershipRole.STOREKEEPER,
+        )
+        receiving_role.sites.add(self.site)
+        receiving_role.outlets.add(self.destination)
+        self.client.force_login(receiver)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.destination.pk)
+        session.save()
+        confirm = self.client.post(
+            reverse("staff-inventory-transfer-receipts"),
+            {"action": "verify", "receipt_id": str(receipt.pk),
+             "received_quantity": "38", "note": "Counted two pieces plus three cartons."},
+        )
+        self.assertEqual(confirm.status_code, 302)
+        receipt.refresh_from_db()
+        self.assertEqual(receipt.status, "matched")
+        self.assertEqual(receipt.outstanding_quantity, Decimal("0"))
         self.assertEqual(
             StockBalance.objects.get(outlet=self.destination, menu_item=self.item).quantity,
             Decimal("38"),
