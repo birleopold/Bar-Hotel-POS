@@ -116,7 +116,9 @@ class ShelfLocatorTests(TestCase):
         )
         page = self.client.get(reverse("staff-inventory-shelves"), {"q": "SECRET"})
         self.assertEqual(page.status_code, 200)
-        self.assertNotContains(page, "SECRET")
+        # Search text remains in the search field; only result rows are secret.
+        self.assertContains(page, "No products found")
+        self.assertEqual(list(page.context["balances"]), [])
 
 
     def test_api_shelf_lookup_and_assignment_are_outlet_scoped(self):
