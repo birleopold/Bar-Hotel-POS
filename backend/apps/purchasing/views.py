@@ -3,7 +3,7 @@ import uuid
 from apps.access.outlets import membership_outlet_ids
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission, SAFE_METHODS
 from rest_framework.response import Response
 
 from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
@@ -24,8 +24,27 @@ from .serializers import (
 from .services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice
 
 
+class PurchasingActionPermission(BasePermission):
+    """Match API writes to the existing staff purchasing capability policy."""
+    message = "Your role cannot perform this purchasing action."
+
+    def has_permission(self, request, view):
+        from apps.staff.services.permissions import membership_has_purchasing_capability
+        membership = getattr(request, "tenant_membership", None)
+        if request.method in SAFE_METHODS:
+            capability = "view"
+        else:
+            action = getattr(view, "action", None)
+            capability = {
+                "receive": "receive",
+                "record_payment": "supplier_payment",
+                "link_payment": "supplier_payment",
+            }.get(action, "manage")
+        return membership_has_purchasing_capability(membership, capability)
+
+
 class SupplierViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, PurchasingActionPermission]
     required_staff_module = "purchasing"
     serializer_class = SupplierSerializer
     http_method_names = ["get", "post", "put", "patch", "head", "options"]
@@ -40,7 +59,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
 
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, PurchasingActionPermission]
     required_staff_module = "purchasing"
     http_method_names = ["get", "post", "patch", "head", "options"]
 
