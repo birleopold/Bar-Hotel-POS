@@ -163,3 +163,15 @@ class VariableWeightLabelTests(TestCase):
         MenuItemOutlet.objects.create(menu_item=self.item, outlet=hidden_outlet)
         with self.assertRaisesRegex(ValidationError, "authorized store sections"):
             self.configure()
+
+    def test_scale_decoder_rejects_another_business_outlet(self):
+        from apps.tenants.models import Site, Tenant, Outlet
+        self.configure()
+        other = Tenant.objects.create(name="F6 Foreign", slug="f6-foreign-scale")
+        other_site = Site.objects.create(tenant=other, name="Other shop")
+        other_outlet = Outlet.objects.create(
+            site=other_site, name="Other register", outlet_type=OutletType.SUPERMARKET,
+        )
+        barcode = make_scale_weight_label(prefix="21", item_code="00123", grams=1000)
+        with self.assertRaisesRegex(ValidationError, "authorized retail outlet"):
+            decode_scale_weight_label(tenant_id=self.tenant.pk, outlet_id=other_outlet.pk, code=barcode)

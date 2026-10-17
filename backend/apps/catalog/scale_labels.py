@@ -109,6 +109,12 @@ def decode_scale_weight_label(*, tenant_id, outlet_id, code):
     ).first()
     if profile is None:
         return None
+    from apps.tenants.models import Outlet, OutletType
+    if not Outlet.objects.filter(
+        pk=outlet_id, site__tenant_id=tenant_id, is_active=True,
+        outlet_type__in=[OutletType.RETAIL, OutletType.SUPERMARKET],
+    ).exists():
+        raise ValidationError({"code": "Scale labels may only be scanned at an authorized retail outlet."})
     item = profile.menu_item
     if (profile.weighted_pricing_mode != WeightedPricingMode.WEIGHTED
             or not profile.allow_fractional_quantity or item.unit_of_measure != UnitOfMeasure.KG):
