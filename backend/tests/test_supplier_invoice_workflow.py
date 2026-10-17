@@ -120,3 +120,49 @@ class SupplierInvoiceTests(TestCase):
         self.assertFalse(replay)
         self.assertEqual(payment.amount, Decimal("2000.00"))
         post_expense.assert_called_once()
+
+    def test_invoice_amount_guard_rejects_invalid_decimal_inputs_without_payment(self):
+        for raw in ("NaN", "Infinity", "-1", "0", "12.123", "abc", "1000000000000.00", None):
+            with self.subTest(raw=raw):
+                with self.assertRaises(ValidationError):
+                    self.record(reference="BAD-INVOICE", amount=raw)
+        self.assertFalse(SupplierInvoice.objects.filter(purchase_order=self.po).exists())
+        self.assertFalse(SupplierPayment.objects.filter(purchase_order=self.po).exists())
+        invoice, replay = self.record(reference="GOOD-INVOICE", amount="1234.50")
+        self.assertFalse(replay)
+        self.assertEqual(invoice.amount, Decimal("1234.50"))
+
+    def test_supplier_invoice_invalid_date_does_not_create_document(self):
+        for issued, due in ((None, date(2026, 10, 30)), (date(2026, 10, 1), None),
+                            (date(2026, 10, 30), date(2026, 10, 1))):
+            with self.subTest(issued=issued, due=due):
+                with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+                    with self.assertRaises(ValidationError):
+                        record_supplier_invoice(
+                            po=self.po, reference="BAD-DATE",
+                            invoice_date=issued, due_date=due, amount=Decimal("50"),
+                            user=None, membership=object(),
+                        )
+        self.assertFalse(SupplierInvoice.objects.filter(purchase_order=self.po).exists())
+
+    def test_missing_unit_cost_confirmation_guards_numeric_input(self):
+        from apps.purchasing.services import confirm_missing_unit_cost
+        line = PurchaseOrderLine.objects.get(purchase_order=self.po)
+        line.unit_cost = None
+        line.save(update_fields=["unit_cost"])
+        for value in ("NaN", "Infinity", "-1", "1.001", "abc", "10000000000.00", None):
+            with self.subTest(value=value):
+                with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+                    with self.assertRaises(ValidationError):
+                        confirm_missing_unit_cost(
+                            po=self.po, line_id=line.pk, unit_cost=value,
+                            user=None, membership=object(),
+                        )
+                line.refresh_from_db()
+                self.assertIsNone(line.unit_cost)
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            result = confirm_missing_unit_cost(
+                po=self.po, line_id=line.pk, unit_cost="123.45",
+                user=None, membership=object(),
+            )
+        self.assertEqual(result.unit_cost, Decimal("123.45"))

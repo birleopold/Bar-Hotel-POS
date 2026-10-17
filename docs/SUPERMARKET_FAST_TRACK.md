@@ -143,3 +143,9 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - Extended existing transfer receiving checks with one manager follow-up (recount required or investigation documented). Only an authorized destination manager other than the original dispatcher/receiver can submit a 12–512 character finding. Re-review is rejected under a row lock. Existing transfer posting remains single-entry; this process never modifies stock or books financial losses.
 - Staff Inventory → Check deliveries now includes Needs manager review and Reviewed filters, linked investigation actions, and retained delivery history. Investigation uses existing tenant/outlet permissions, audit and responsive staff styles.
 - Added migration and regression tests for outcome, replay, permissions, outlet scope and malformed submissions. At code-creation time tests/CI had not yet executed; do not mark F3 as certified until exact-commit CI and PostgreSQL/browser/device acceptance. Stock count approval remains the only mechanism in this UI for correcting physical quantity variance.
+
+
+### F4 supplier document numeric safety — 17 October 2026
+- Existing supplier invoice and missing-cost services now reject nonfinite, invalid, overly precise or out-of-range decimal inputs, plus invalid invoice/due dates, before posting. No new financial ledger was introduced.
+- Added regression cases for bad amounts/dates, no unintended documents or payments and valid decimal string submissions. These tests are code changes subject to exact-head CI; F4 and production verification remain open.
+- Benchmarked against Django database-constraint guidance and Odoo vendor-bill/partial-delivery documentation. Duplicate supplier references across separate invoices require context, not an unconditional rejection.

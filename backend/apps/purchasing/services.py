@@ -198,7 +198,13 @@ def confirm_missing_unit_cost(*, po: PurchaseOrder, line_id, unit_cost: Decimal,
     line = PurchaseOrderLine.objects.select_for_update().filter(purchase_order=po, pk=line_id).first()
     if line is None or line.unit_cost is not None:
         raise ValidationError({"line_id": "Select a line whose unit cost has not been confirmed."})
-    if unit_cost < 0 or unit_cost != unit_cost.quantize(Decimal("0.01")):
+    try:
+        unit_cost = Decimal(str(unit_cost))
+    except (TypeError, ValueError, ArithmeticError, InvalidOperation) as exc:
+        raise ValidationError({"unit_cost": "Enter a valid cost amount."}) from exc
+    if (not unit_cost.is_finite() or unit_cost < 0
+            or unit_cost > Decimal("9999999999.99")
+            or unit_cost != unit_cost.quantize(Decimal("0.01"))):
         raise ValidationError({"unit_cost": "Enter a non-negative cost with at most two decimal places."})
     line.unit_cost = unit_cost
     line.save(update_fields=["unit_cost", "updated_at"])
@@ -312,10 +318,19 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
     description = (note or "").strip()
     if len(description) > 512:
         raise ValidationError({"note": "Use at most 512 characters."})
+    from datetime import date
+    if not isinstance(invoice_date, date) or not isinstance(due_date, date):
+        raise ValidationError({"invoice_date": "Enter valid invoice and payment due dates."})
     if due_date < invoice_date:
         raise ValidationError({"due_date": "Due date cannot be earlier than invoice date."})
-    if not amount.is_finite() or amount <= 0 or amount != amount.quantize(Decimal("0.01")):
-        raise ValidationError({"amount": "Enter a positive amount with two decimal places."})
+    try:
+        amount = Decimal(str(amount))
+    except (TypeError, ValueError, ArithmeticError, InvalidOperation) as exc:
+        raise ValidationError({"amount": "Enter a valid supplier invoice amount."}) from exc
+    if (not amount.is_finite() or amount <= 0
+            or amount > Decimal("999999999999.99")
+            or amount != amount.quantize(Decimal("0.01"))):
+        raise ValidationError({"amount": "Enter a positive amount with at most two decimal places."})
     existing = SupplierInvoice.objects.filter(
         tenant_id=po.tenant_id, purchase_order=po, reference=number,
     ).first()
