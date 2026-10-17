@@ -34,6 +34,26 @@
       <p class="staff-muted small mt-2 mb-0" role="status" aria-live="polite" data-retail-tender-status>Enter the cash handed over to calculate change.</p>
     </section>
   {% endif %}
+  <section class="staff-card mb-3" aria-label="Wholesale prices">
+    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+      <div><h2 class="staff-card__title">Wholesale quantity pricing</h2>
+      <p class="staff-muted small">Only for identified customers and authorized managers. Regular walk-in shoppers keep shelf prices. Never combined with an order promotion.</p></div>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-wholesale-pricing' %}">Manage tiers</a>
+    </div>
+    {% if can_apply_wholesale %}
+    <form method="post" class="row g-2 align-items-end">{% csrf_token %}
+      <input type="hidden" name="action" value="apply_wholesale">
+      <div class="col-12 col-md-8"><label class="staff-label" for="wholesale-line">Eligible order item</label>
+      <select name="line_id" id="wholesale-line" class="staff-input" required>
+        <option value="">Select eligible line</option>
+        {% for line, rule in wholesale_available_lines %}{% if rule %}
+        <option value="{{ line.id }}">{{ line.label }} · {{ line.quantity }} units · {{ order.currency }} {{ rule.unit_price }} per unit (from {{ rule.minimum_quantity }})</option>
+        {% endif %}{% endfor %}
+      </select></div>
+      <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Manager: apply wholesale price</button></div>
+    </form>
+    {% else %}<p class="staff-muted">Link the customer's verified profile before recording payment to enable wholesale approval. Manager rights required.</p>{% endif %}
+  </section>
   {% if can_modify_open_order and line_discount_form %}
     <div class="staff-card">
       <h2 class="staff-card__title">Line discount</h2>

@@ -6,6 +6,7 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils.dateparse import parse_datetime
 from django.views import View
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.pos.models import WholesalePriceRule
@@ -49,8 +50,8 @@ class StaffWholesalePricingView(StaffTenantRequiredMixin, View):
                 user=request.user, item_id=request.POST.get("menu_item_id"),
                 quantity=request.POST.get("minimum_quantity"),
                 price=request.POST.get("unit_price"),
-                start=parse_datetime(request.POST["starts_at"]) if request.POST.get("starts_at") else None,
-                end=parse_datetime(request.POST["ends_at"]) if request.POST.get("ends_at") else None,
+                start=timezone.make_aware(parse_datetime(request.POST["starts_at"])) if request.POST.get("starts_at") else None,
+                end=timezone.make_aware(parse_datetime(request.POST["ends_at"])) if request.POST.get("ends_at") else None,
                 active=request.POST.get("is_active") == "on",
             )
         except (ValidationError, ValueError, TypeError) as exc:

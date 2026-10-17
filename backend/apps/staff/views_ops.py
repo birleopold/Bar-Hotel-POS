@@ -781,6 +781,20 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     svc.active_options = options_by_service.get(str(svc.id), [])
         is_supermarket_outlet = order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
         ctx["is_supermarket_outlet"] = is_supermarket_outlet
+        from apps.pos.services.wholesale import manager_allowed, qualifying_rule
+        ctx["can_apply_wholesale"] = bool(
+            can_modify_open and is_supermarket_outlet and order.customer_id
+            and not order.payments.exists()
+            and manager_allowed(m, order.tenant_id, order.outlet_id)
+        )
+        ctx["wholesale_available_lines"] = []
+        if ctx["can_apply_wholesale"]:
+            ctx["wholesale_available_lines"] = [
+                (line, qualifying_rule(tenant_id=order.tenant_id,
+                    outlet_id=order.outlet_id, menu_item_id=line.menu_item_id,
+                    quantity=line.quantity))
+                for line in order.lines.all() if line.menu_item_id and not line.is_voided
+            ]
         ctx["scan_add_form"] = (
             StaffOrderScanAddForm()
             if can_modify_open and is_supermarket_outlet and hardware["barcode_scanner_enabled"]
@@ -870,6 +884,18 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             messages.success(request, "Customer link saved. Transaction amounts and receipt details were not changed.")
             return redirect("staff-order-detail", order_id=order.id)
 
+        if action == "apply_wholesale":
+            from apps.pos.services.wholesale import apply_wholesale_tier
+            try:
+                apply_wholesale_tier(
+                    order=order, line_id=request.POST.get("line_id"),
+                    membership=m, user=request.user,
+                )
+            except (DRFValidationError, ValueError, TypeError) as exc:
+                messages.error(request, str(getattr(exc, "detail", exc)))
+            else:
+                messages.success(request, "Wholesale unit price approved and recalculated.")
+            return redirect("staff-order-detail", order_id=order.id)
         if action == "record_payment":
             return self._post_record_payment(request, order)
         if action == "set_folio":
