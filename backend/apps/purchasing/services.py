@@ -459,3 +459,58 @@ def record_supplier_credit_note(*, po, invoice_id, reference, credit_date,
         },
     )
     return credit, False
+
+
+
+@transaction.atomic
+def link_existing_supplier_payment_to_invoice(*, po, payment_id, invoice_id, note, user, membership):
+    """Audited attribution correction only: never recreate a cash expense or edit a payment amount.
+
+    Supports one existing PO payment paying one exact invoice in full or part.
+    Splitting one historical payment across multiple bills needs a separate
+    allocation model and is deliberately not guessed by this operation.
+    """
+    from apps.staff.services.permissions import membership_has_purchasing_capability
+
+    po = PurchaseOrder.objects.select_for_update().get(pk=po.pk)
+    if (
+        membership is None or membership.tenant_id != po.tenant_id
+        or not membership_has_purchasing_capability(membership, "supplier_payment")
+        or not outlet_belongs_to_membership(membership, po.outlet_id)
+    ):
+        raise ValidationError({"detail": "Only an authorized purchasing manager can link payments for this section."})
+    payment = po.payments.select_for_update().filter(
+        pk=payment_id, tenant_id=po.tenant_id,
+    ).first()
+    invoice = po.invoices.filter(pk=invoice_id, tenant_id=po.tenant_id).first()
+    if payment is None or invoice is None:
+        raise ValidationError({"invoice_id": "Select a payment and an invoice from this purchase order."})
+    if payment.invoice_id:
+        if payment.invoice_id == invoice.pk:
+            return payment, True
+        raise ValidationError({"payment_id": "This payment is already linked to a different supplier invoice."})
+    note = (note or "").strip()
+    if not 12 <= len(note) <= 512:
+        raise ValidationError({"note": "Explain how the payment reference matches this invoice (12–512 characters)."})
+    credited = invoice.credits.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    linked = invoice.allocated_payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    due = (invoice.amount - credited - linked).quantize(Decimal("0.01"))
+    if payment.amount > due:
+        raise ValidationError({
+            "invoice_id": "This payment exceeds the invoice's currently unpaid balance. Do not guess a split across invoices."
+        })
+    payment.invoice = invoice
+    payment.save(update_fields=["invoice", "updated_at"])
+    log_audit(
+        tenant_id=po.tenant_id, user_id=user.pk if user else None,
+        action="purchase.supplier_payment_linked_invoice",
+        entity_type="supplier_payment", entity_id=str(payment.pk),
+        payload={
+            "purchase_order_id": str(po.pk),
+            "supplier_invoice_id": str(invoice.pk),
+            "payment_amount_unchanged": str(payment.amount),
+            "previous_invoice_id": None, "reason": note,
+            "cashbook_reposted": False, "stock_changed": False,
+        },
+    )
+    return payment, False
