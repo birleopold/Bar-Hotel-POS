@@ -460,8 +460,10 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 cost = (request.POST.get(f"invoice_cost_{line.pk}") or "").strip()
                 if qty:
                     invoice_lines.append({"line_id": str(line.pk), "quantity": qty, "unit_cost": cost})
-            if invoice_lines:
-                invoice_payload["lines"] = invoice_lines
+            if not invoice_lines:
+                messages.error(request, "Enter at least one received item and its quantity from the supplier invoice. Header-only invoices are not a verified three-way match.")
+                return redirect("staff-purchasing-order-detail", po_id=po.pk)
+            invoice_payload["lines"] = invoice_lines
             ser = RecordSupplierInvoiceSerializer(data=invoice_payload)
             if not ser.is_valid():
                 _flash_serializer_errors(request, ser.errors)
