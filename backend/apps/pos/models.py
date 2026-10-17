@@ -244,6 +244,26 @@ class WholesalePriceRule(TimeStampedModel):
         ]
 
 
+class RetailPickup(TimeStampedModel):
+    """Pickup handoff for an already fully paid sale; no second inventory posting."""
+    class Status(models.TextChoices):
+        AWAITING = "awaiting", "Awaiting customer"
+        COLLECTED = "collected", "Collected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="retail_pickups")
+    order = models.OneToOneField("pos.Order", on_delete=models.PROTECT, related_name="retail_pickup")
+    expected_on = models.DateField()
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.AWAITING)
+    note = models.CharField(max_length=300, blank=True)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, related_name="retail_pickups_created")
+    collected_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="retail_pickups_collected")
+    collected_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["expected_on", "created_at"]
+
+
 class PaymentMethod(models.TextChoices):
     CASH = "cash", "Cash"
     CARD = "card", "Card"
