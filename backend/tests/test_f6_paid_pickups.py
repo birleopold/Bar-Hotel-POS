@@ -7,7 +7,7 @@ from rest_framework.exceptions import ValidationError
 from apps.accounts.models import Membership, MembershipRole
 from apps.customers.models import Customer
 from apps.inventory.models import StockMovement
-from apps.pos.models import Order, OrderStatus, RetailPickup
+from apps.pos.models import Order, OrderStatus, RetailPickup, Payment, PaymentMethod
 from apps.pos.services.pickups import register_paid_pickup, hand_over_paid_pickup
 from apps.tenants.models import OutletType
 from tests.test_phase1_isolation_and_idempotency import _seed_tenant_bundle
@@ -20,7 +20,9 @@ def test_paid_pickup_is_idempotent_and_does_not_create_stock_or_money():
     a["outlet"].save(update_fields=["outlet_type"])
     customer = Customer.objects.create(tenant=a["tenant"], name="Retail Pickup Person")
     order = Order.objects.create(tenant=a["tenant"], outlet=a["outlet"], customer=customer,
-                                 status=OrderStatus.CLOSED, is_paid=True, currency="USD")
+                                 status=OrderStatus.CLOSED, is_paid=True, currency="USD", total=5)
+    Payment.objects.create(tenant=a["tenant"], order=order, amount=5,
+                           method=PaymentMethod.CASH, idempotency_key="pickup-paid-evidence")
     member = Membership.objects.get(user=a["user"], tenant=a["tenant"])
     date = timezone.localdate() + timedelta(days=2)
     args = dict(order=order, expected_on=date, note="Collect from service desk", user=a["user"], membership=member)
@@ -41,7 +43,7 @@ def test_paid_pickup_is_idempotent_and_does_not_create_stock_or_money():
     )
     assert repeated and again.pk == first.pk
     assert not StockMovement.objects.filter(order=order).exists()
-    assert not order.payments.exists()
+    assert order.payments.count() == 1
     assert not order.refunds.exists()
     assert RetailPickup.objects.filter(order=order).count() == 1
 
