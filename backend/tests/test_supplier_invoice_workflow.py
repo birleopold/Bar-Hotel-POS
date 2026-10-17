@@ -240,3 +240,114 @@ class SupplierInvoiceTests(TestCase):
                     reason="An invalid credit should never be recorded.",
                     user=None, membership=object(),
                 )
+
+
+    def test_invoice_linked_payment_has_exact_balance_and_idempotency(self):
+        from apps.purchasing.services import record_supplier_payment
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services_exposure import supplier_invoice_settlement_rows
+
+        invoice, _ = self.record(reference="LINK-01", amount=Decimal("1200"))
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense") as expense:
+                payment, replay = record_supplier_payment(
+                    po=self.po, amount=Decimal("450"), method=SupplierPaymentMethod.BANK,
+                    reference="bank-transfer", idempotency_key="invoice-linked-450",
+                    invoice_id=invoice.pk, user=None, membership=object(),
+                )
+                same, repeated = record_supplier_payment(
+                    po=self.po, amount=Decimal("450"), method=SupplierPaymentMethod.BANK,
+                    reference="bank-transfer", idempotency_key="invoice-linked-450",
+                    invoice_id=invoice.pk, user=None, membership=object(),
+                )
+                self.assertFalse(replay)
+                self.assertTrue(repeated)
+                self.assertEqual(same.pk, payment.pk)
+                self.assertEqual(payment.invoice_id, invoice.pk)
+                expense.assert_called_once()
+                with self.assertRaisesRegex(ValidationError, "unpaid balance"):
+                    record_supplier_payment(
+                        po=self.po, amount=Decimal("751"), method=SupplierPaymentMethod.CASH,
+                        reference="another", idempotency_key="invoice-overpay",
+                        invoice_id=invoice.pk, user=None, membership=object(),
+                    )
+        rows, unallocated = supplier_invoice_settlement_rows(po=self.po, today=date(2026, 11, 2))
+        self.assertEqual(unallocated, Decimal("0"))
+        self.assertTrue(rows[0]["is_exact"])
+        self.assertEqual(rows[0]["paid"], Decimal("450"))
+        self.assertEqual(rows[0]["unpaid"], Decimal("750"))
+        self.assertEqual(rows[0]["overdue_days"], 3)
+
+    def test_payment_cannot_be_attributed_to_a_different_order_invoice(self):
+        from apps.purchasing.services import record_supplier_payment
+        from apps.purchasing.models import SupplierPaymentMethod
+
+        another_po = PurchaseOrder.objects.create(
+            tenant=self.tenant, supplier=self.po.supplier, outlet=self.outlet,
+            status=PurchaseOrderStatus.PARTIALLY_RECEIVED,
+        )
+        other_invoice = SupplierInvoice.objects.create(
+            tenant=self.tenant, purchase_order=another_po, reference="OTHER",
+            invoice_date=date(2026, 10, 1), due_date=date(2026, 11, 1),
+            amount=Decimal("100"),
+        )
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with self.assertRaisesRegex(ValidationError, "belonging"):
+                record_supplier_payment(
+                    po=self.po, amount=Decimal("100"), method=SupplierPaymentMethod.CASH,
+                    reference="bad", idempotency_key="not-our-invoice",
+                    invoice_id=other_invoice.pk, user=None, membership=object(),
+                )
+        self.assertFalse(SupplierPayment.objects.filter(purchase_order=self.po).exists())
+
+    def test_credit_cannot_erase_amount_already_paid_to_invoice(self):
+        from apps.purchasing.services import record_supplier_payment, record_supplier_credit_note
+        from apps.purchasing.models import SupplierPaymentMethod
+
+        invoice, _ = self.record(reference="PAID-INV", amount=Decimal("1500"))
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense"):
+                record_supplier_payment(
+                    po=self.po, amount=Decimal("1100"), method=SupplierPaymentMethod.BANK,
+                    reference="bank-01", idempotency_key="paid-1100",
+                    invoice_id=invoice.pk, user=None, membership=object(),
+                )
+            with self.assertRaisesRegex(ValidationError, "unpaid balance"):
+                record_supplier_credit_note(
+                    po=self.po, invoice_id=invoice.pk, reference="CREDIT-TOO-HIGH",
+                    credit_date=date(2026, 10, 10), amount=Decimal("401"),
+                    reason="Over-credit must not undo already settled funds.",
+                    user=None, membership=object(),
+                )
+            credit, replay = record_supplier_credit_note(
+                po=self.po, invoice_id=invoice.pk, reference="CREDIT-VALID",
+                credit_date=date(2026, 10, 10), amount=Decimal("400"),
+                reason="Supplier issued a valid credit against the unpaid remainder.",
+                user=None, membership=object(),
+            )
+            self.assertFalse(replay)
+            self.assertEqual(credit.amount, Decimal("400"))
+
+    def test_unassigned_legacy_payment_is_not_assumed_to_pay_selected_invoice(self):
+        from apps.purchasing.services import record_supplier_payment
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services_exposure import supplier_invoice_settlement_rows
+
+        invoice, _ = self.record(reference="UNLINKED-INVOICE", amount=Decimal("1500"))
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense"):
+                record_supplier_payment(
+                    po=self.po, amount=Decimal("200"), method=SupplierPaymentMethod.CASH,
+                    reference="old-payment", idempotency_key="legacy-unlinked",
+                    user=None, membership=object(),
+                )
+                with self.assertRaisesRegex(ValidationError, "Reconcile"):
+                    record_supplier_payment(
+                        po=self.po, amount=Decimal("200"), method=SupplierPaymentMethod.CASH,
+                        reference="new-payment", idempotency_key="selected-with-legacy",
+                        invoice_id=invoice.pk, user=None, membership=object(),
+                    )
+        rows, unallocated = supplier_invoice_settlement_rows(po=self.po)
+        self.assertEqual(unallocated, Decimal("200"))
+        self.assertFalse(rows[0]["is_exact"])
+        self.assertEqual(rows[0]["unpaid"], Decimal("1500"))
