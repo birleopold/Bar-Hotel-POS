@@ -20,7 +20,7 @@ from apps.inventory.models import StockBalance, StockCountSession, StockCountSta
 from apps.inventory.services import (
     apply_manual_stock_change, submit_stock_count_for_review,
     approve_stock_count_session, return_stock_count_for_recount, execute_stock_transfer,
-    verify_stock_transfer_receipt, review_stock_transfer_discrepancy,
+    verify_stock_transfer_receipt, review_stock_transfer_discrepancy, resolve_stock_transfer_discrepancy,
 )
 from apps.pos.services import menu_items_for_outlet_queryset
 from apps.tenants.models import Outlet
@@ -485,6 +485,7 @@ class StaffStockTransferView(StaffTenantRequiredMixin, FormView):
     def form_valid(self, form):
         try:
             execute_stock_transfer(
+                staged=True,
                 tenant_id=self.request.tenant.id,
                 membership=self.request.tenant_membership,
                 from_outlet=form.cleaned_data["from_outlet"],
@@ -497,8 +498,8 @@ class StaffStockTransferView(StaffTenantRequiredMixin, FormView):
         except DRFValidationError as e:
             _flash_drf_validation(self.request, e)
             return self.form_invalid(form)
-        messages.success(self.request, "Transfer completed.")
-        return redirect("staff-inventory-movements")
+        messages.success(self.request, "Stock dispatched. Receiving must confirm it before destination inventory becomes available.")
+        return redirect("staff-inventory-transfer-receipts")
 
 
 class StaffStockCountListView(StaffTenantRequiredMixin, ListView):
@@ -1009,10 +1010,12 @@ class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
     def get_queryset(self):
         ids = [o.id for o in staff_accessible_outlets(self.request.tenant_membership)]
         qs = StockTransferReceipt.objects.filter(
-            tenant=self.request.tenant, to_outlet_id__in=ids,
-        ).select_related("from_outlet", "to_outlet", "menu_item", "dispatched_by", "checked_by")
+            tenant=self.request.tenant,
+        ).filter(Q(to_outlet_id__in=ids) | Q(from_outlet_id__in=ids)).select_related(
+            "from_outlet", "to_outlet", "menu_item", "dispatched_by", "checked_by", "reviewed_by", "resolved_by",
+        )
         choice = self.request.GET.get("status")
-        if choice in ("awaiting", "matched", "disputed"):
+        if choice in ("awaiting", "in_transit", "matched", "disputed", "resolved"):
             qs = qs.filter(status=choice)
         elif choice == "needs_review":
             qs = qs.filter(status="disputed", reviewed_at__isnull=True)
@@ -1025,13 +1028,14 @@ class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
         ctx["status_filter"] = self.request.GET.get("status", "")
         ctx["can_verify"] = membership_has_inventory_capability(self.request.tenant_membership, "transfer")
         ctx["can_review"] = membership_has_inventory_capability(self.request.tenant_membership, "approve_count")
+        ctx["accessible_outlet_ids"] = [o.id for o in staff_accessible_outlets(self.request.tenant_membership)]
         return ctx
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get("action", "verify")
         if action == "verify":
             capability = "transfer"
-        elif action == "review":
+        elif action in ("review", "resolve"):
             capability = "approve_count"
         else:
             messages.error(request, "Unknown delivery action.")
@@ -1055,6 +1059,12 @@ class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
                     user=request.user, review_action=request.POST.get("review_action", ""),
                     note=request.POST.get("note", ""),
                 )
+            elif action == "resolve":
+                resolve_stock_transfer_discrepancy(
+                    receipt=receipt, membership=request.tenant_membership,
+                    user=request.user, action=request.POST.get("resolution_action", ""),
+                    note=request.POST.get("note", ""),
+                )
             else:
                 verify_stock_transfer_receipt(
                     receipt=receipt, membership=request.tenant_membership,
@@ -1066,6 +1076,8 @@ class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
         else:
             if action == "review":
                 messages.success(request, "Manager follow-up recorded. Stock remains unchanged; use a separate reviewed count if correction is needed.")
+            elif action == "resolve":
+                messages.success(request, "Manager decision recorded on the staged transfer.")
             else:
-                messages.success(request, "Physical delivery checked. Any discrepancy is logged for review; no stock was posted twice.")
+                messages.success(request, "Receiving check recorded; verified stock entered destination inventory.")
         return redirect("staff-inventory-transfer-receipts")
