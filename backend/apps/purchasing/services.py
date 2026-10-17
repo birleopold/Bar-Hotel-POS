@@ -15,7 +15,7 @@ from apps.inventory.services_batches import receive_tracked_batch
 from apps.inventory.batches import InventoryBatch
 from django.utils import timezone
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, SupplierPayment, SupplierPaymentMethod, SupplierInvoice, SupplierCreditNote
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, SupplierPayment, SupplierPaymentMethod, SupplierInvoice, SupplierInvoiceLine, SupplierReturn, SupplierCreditNote
 
 
 @transaction.atomic
@@ -171,11 +171,18 @@ def receive_purchase_order_goods(
 
 
 def received_goods_value(po: PurchaseOrder) -> Decimal:
-    return sum(
-        (line.quantity_received * line.unit_cost).quantize(Decimal("0.01"))
-        for line in po.lines.all()
-        if line.unit_cost is not None
+    gross = sum(
+        ((line.quantity_received * line.unit_cost).quantize(Decimal("0.01"))
+         for line in po.lines.all() if line.unit_cost is not None),
+        Decimal("0"),
     )
+    returned = sum(
+        ((ret.quantity * ret.receipt_line.purchase_order_line.unit_cost).quantize(Decimal("0.01"))
+         for ret in po.returns_to_supplier.select_related("receipt_line__purchase_order_line").all()
+         if ret.receipt_line.purchase_order_line.unit_cost is not None),
+        Decimal("0"),
+    )
+    return gross - returned
 
 
 def has_legacy_receipt_expenses(po: PurchaseOrder) -> bool:
@@ -324,7 +331,7 @@ def _sync_po_status(po: PurchaseOrder) -> None:
 
 @transaction.atomic
 def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
-                            user, membership, note=""):
+                            user, membership, note="", lines=None):
     """Record a verified supplier document; never invent a cash payment.
 
     Multiple partial-delivery invoices are supported up to the known value of
@@ -354,6 +361,46 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
             or amount > Decimal("999999999999.99")
             or amount != amount.quantize(Decimal("0.01"))):
         raise ValidationError({"amount": "Enter a positive amount with at most two decimal places."})
+    # Verify actual PO line/receipt evidence before accepting an itemized invoice.
+    # Header-only invoices remain as historical/unmatched documents, never
+    # retroactively represented as having passed a three-way match.
+    matched = []
+    if lines is not None:
+        if not isinstance(lines, (list, tuple)) or not lines:
+            raise ValidationError({"lines": "Include at least one invoiced item and quantity."})
+        used = set()
+        for entry in lines:
+            if not isinstance(entry, dict):
+                raise ValidationError({"lines": "Use item, quantity and unit cost for each line."})
+            line_id = entry.get("line_id")
+            line = PurchaseOrderLine.objects.select_for_update().filter(
+                purchase_order=po, pk=line_id,
+            ).first()
+            if line is None or line.pk in used:
+                raise ValidationError({"lines": "Invoice items must be distinct lines on this purchase order."})
+            used.add(line.pk)
+            if line.unit_cost is None:
+                raise ValidationError({"lines": "Confirm the original purchase order unit cost."})
+            try:
+                qty = Decimal(str(entry.get("quantity")))
+                price = Decimal(str(entry.get("unit_cost")))
+            except (ValueError, TypeError, ArithmeticError, InvalidOperation) as exc:
+                raise ValidationError({"lines": "Enter valid invoiced quantities and prices."}) from exc
+            if (not qty.is_finite() or qty <= 0 or qty > Decimal("99999999999.999")
+                    or qty != qty.quantize(Decimal("0.001"))):
+                raise ValidationError({"lines": "Quantity must be positive and have up to three decimal places."})
+            if (not price.is_finite() or price != line.unit_cost):
+                raise ValidationError({"lines": f"Unit cost for {line.menu_item.name} differs from the agreed purchase order. Resolve the price difference before paying."})
+            previous = line.invoice_matches.aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+            returned = SupplierReturn.objects.filter(
+                purchase_order=po, receipt_line__purchase_order_line=line,
+            ).aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+            if qty > line.quantity_received - returned - previous:
+                raise ValidationError({"lines": f"Invoiced quantity for {line.menu_item.name} exceeds accepted, not-yet-invoiced received goods."})
+            matched.append((line, qty, price, (qty * price).quantize(Decimal("0.01"))))
+        expected = sum((row[3] for row in matched), Decimal("0"))
+        if expected != amount:
+            raise ValidationError({"amount": f"Invoice amount {amount:.2f} does not equal matched line total {expected:.2f}. Verify supplier charges separately."})
     existing = SupplierInvoice.objects.filter(
         tenant_id=po.tenant_id, purchase_order=po, reference=number,
     ).first()
@@ -361,6 +408,17 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
         if (existing.amount, existing.invoice_date, existing.due_date, existing.note) != (
                 amount, invoice_date, due_date, description):
             raise ValidationError({"reference": "Invoice number already used for different details."})
+        if lines is not None:
+            old = sorted(
+                ((m.purchase_order_line_id, m.quantity, m.unit_cost, m.amount)
+                 for m in existing.matched_lines.all()), key=lambda entry: str(entry[0]),
+            )
+            proposed = sorted(
+                ((line.pk, qty, cost, total) for line, qty, cost, total in matched),
+                key=lambda entry: str(entry[0]),
+            )
+            if old != proposed:
+                raise ValidationError({"reference": "An invoice with this number has different matched items."})
         return existing, True
     if po.lines.filter(quantity_received__gt=0, unit_cost__isnull=True).exists():
         raise ValidationError({"detail": "Confirm unit costs of received goods before adding an invoice."})
@@ -376,6 +434,11 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
         invoice_date=invoice_date, due_date=due_date, amount=amount,
         note=description, recorded_by=user,
     )
+    for line, qty, cost, total in matched:
+        SupplierInvoiceLine.objects.create(
+            invoice=invoice, purchase_order_line=line,
+            quantity=qty, unit_cost=cost, amount=total,
+        )
     log_audit(
         tenant_id=po.tenant_id, user_id=user.pk if user else None,
         action="purchase.supplier_invoice_recorded",
@@ -383,6 +446,8 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
         payload={
             "purchase_order_id": str(po.pk), "reference": number,
             "amount": str(amount), "due_date": str(due_date),
+            "three_way_matched": bool(matched),
+            "matched_lines": [{"po_line": str(l.pk), "quantity": str(q), "unit_cost": str(cost)} for l, q, cost, _ in matched],
         },
     )
     return invoice, False
@@ -514,3 +579,97 @@ def link_existing_supplier_payment_to_invoice(*, po, payment_id, invoice_id, not
         },
     )
     return payment, False
+
+
+@transaction.atomic
+def return_received_goods_to_supplier(*, po, receipt_line_id, quantity, reference, note, user, membership):
+    """Send physically held goods back to vendor; vendor credit/cash are separate."""
+    from apps.staff.services.permissions import membership_has_purchasing_capability
+    from apps.inventory.models import StockBalance
+    from apps.inventory.services_batches import record_batch_allocations
+    from django.db.models import F
+
+    po = PurchaseOrder.objects.select_for_update().get(pk=po.pk)
+    if (membership is None or membership.tenant_id != po.tenant_id
+            or not membership_has_purchasing_capability(membership, "manage")
+            or not outlet_belongs_to_membership(membership, po.outlet_id)):
+        raise ValidationError({"detail": "A purchasing manager with access to this section must approve a supplier return."})
+    number = (reference or "").strip()
+    note = (note or "").strip()
+    if not number or len(number) > 128:
+        raise ValidationError({"reference": "Enter a supplier return reference up to 128 characters."})
+    if not 12 <= len(note) <= 512:
+        raise ValidationError({"note": "Explain the physical return in 12–512 characters."})
+    try:
+        qty = Decimal(str(quantity))
+    except (TypeError, ValueError, ArithmeticError, InvalidOperation) as exc:
+        raise ValidationError({"quantity": "Enter a valid returned quantity."}) from exc
+    if (not qty.is_finite() or qty <= 0 or qty > Decimal("99999999999.999")
+            or qty != qty.quantize(Decimal("0.001"))):
+        raise ValidationError({"quantity": "Quantity must be positive and have up to three decimal places."})
+    receipt_line = PurchaseReceiptLine.objects.select_for_update().filter(
+        pk=receipt_line_id, receipt__purchase_order=po, receipt__tenant_id=po.tenant_id,
+    ).select_related("purchase_order_line__menu_item", "inventory_batch").first()
+    if receipt_line is None:
+        raise ValidationError({"receipt_line_id": "Select a received delivery line on this PO."})
+    previous = po.returns_to_supplier.filter(reference__iexact=number).first()
+    if previous is not None:
+        if previous.receipt_line_id == receipt_line.pk and previous.quantity == qty and previous.note == note:
+            return previous, True
+        raise ValidationError({"reference": "This supplier return reference was already used for different goods."})
+    returned = receipt_line.supplier_returns.aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+    if qty > receipt_line.quantity_received - returned:
+        raise ValidationError({"quantity": "Returned quantity exceeds the outstanding accepted delivery quantity."})
+    item = receipt_line.purchase_order_line.menu_item
+    bal = StockBalance.objects.select_for_update().filter(
+        outlet=po.outlet, menu_item=item, tenant_id=po.tenant_id,
+    ).first()
+    if bal is None or bal.quantity < qty:
+        raise ValidationError({"stock": "Not enough physical stock remains in the receiving section for this supplier return."})
+    tracked = InventoryBatch.objects.filter(
+        tenant_id=po.tenant_id, outlet=po.outlet, menu_item=item,
+    ).exists()
+    if tracked and receipt_line.inventory_batch_id is None:
+        raise ValidationError({"batch": "Cannot identify the original received lot; reconcile this historical stock before returning."})
+    if tracked:
+        batch = InventoryBatch.objects.select_for_update().get(
+            pk=receipt_line.inventory_batch_id, tenant_id=po.tenant_id,
+            outlet=po.outlet, menu_item=item,
+        )
+        if batch.remaining_quantity < qty:
+            raise ValidationError({"batch": "The originally received lot no longer contains enough units to return."})
+        InventoryBatch.objects.filter(pk=batch.pk).update(
+            remaining_quantity=F("remaining_quantity") - qty,
+        )
+        bal.quantity -= qty
+        bal.save(update_fields=["quantity", "updated_at"])
+        movement = StockMovement.objects.create(
+            tenant_id=po.tenant_id, outlet=po.outlet, menu_item=item,
+            quantity_change=-qty, reason=StockReason.ADJUST_OUT,
+            purchase_order=po, created_by=user,
+            note=("Supplier return " + number + ": " + note)[:512],
+        )
+        record_batch_allocations(tenant_id=po.tenant_id, movement=movement, allocations=[(batch.pk, qty)])
+    else:
+        movement = apply_manual_stock_change(
+            tenant_id=po.tenant_id, outlet=po.outlet, menu_item=item,
+            quantity_change=-qty, reason=StockReason.ADJUST_OUT,
+            purchase_order=po, user=user, note="Supplier return " + number + ": " + note,
+        )
+    ret = SupplierReturn.objects.create(
+        tenant_id=po.tenant_id, purchase_order=po, receipt_line=receipt_line,
+        movement=movement, reference=number, quantity=qty,
+        note=note, returned_by=user,
+    )
+    log_audit(
+        tenant_id=po.tenant_id, user_id=user.pk if user else None,
+        action="purchase.supplier_goods_returned", entity_type="supplier_return",
+        entity_id=str(ret.pk), payload={
+            "purchase_order_id": str(po.pk), "receipt_line_id": str(receipt_line.pk),
+            "batch_id": str(receipt_line.inventory_batch_id) if receipt_line.inventory_batch_id else None,
+            "stock_movement_id": str(movement.pk), "reference": number,
+            "quantity": str(qty), "supplier_credit_issued": False, "cash_refunded": False,
+            "note": note,
+        },
+    )
+    return ret, False
