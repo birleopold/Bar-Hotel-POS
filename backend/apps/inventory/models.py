@@ -236,6 +236,25 @@ class StockTransferReceipt(TimeStampedModel):
             models.CheckConstraint(condition=models.Q(dispatched_quantity__gte=models.F("posted_quantity") + models.F("returned_quantity") + models.F("written_off_quantity")), name="transfer_total_not_exceeded"),
         ]
 
+class StockShelfLocation(TimeStampedModel):
+    """Physical picking address for a product in an outlet; not a stock balance."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="stock_shelf_locations")
+    outlet = models.ForeignKey("tenants.Outlet", on_delete=models.CASCADE, related_name="shelf_locations")
+    menu_item = models.ForeignKey("catalog.MenuItem", on_delete=models.CASCADE, related_name="shelf_locations")
+    aisle = models.CharField(max_length=32, blank=True)
+    shelf = models.CharField(max_length=32, blank=True)
+    bin_code = models.CharField(max_length=32, blank=True)
+    note = models.CharField(max_length=160, blank=True)
+    updated_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="shelf_locations_updated")
+
+    class Meta:
+        ordering = ["outlet__name", "menu_item__name"]
+        constraints = [
+            models.UniqueConstraint(fields=["outlet", "menu_item"], name="uniq_shelf_location_outlet_product"),
+        ]
+
+
 # Batch model imported here so Django registers it with the inventory app.
 from .batches import InventoryBatch  # noqa: E402,F401
 
