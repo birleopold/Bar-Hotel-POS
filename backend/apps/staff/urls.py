@@ -111,6 +111,7 @@ urlpatterns = [
     ),
     path("inventory/movements/", views_inventory.StaffStockMovementListView.as_view(), name="staff-inventory-movements"),
     path("inventory/transfer/", views_inventory.StaffStockTransferView.as_view(), name="staff-inventory-transfer"),
+    path("inventory/transfer-receipts/", views_inventory.StaffStockTransferReceiptListView.as_view(), name="staff-inventory-transfer-receipts"),
     path(
         "inventory/counts/new/",
         views_inventory.StaffStockCountCreateView.as_view(),

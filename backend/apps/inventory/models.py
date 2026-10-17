@@ -178,6 +178,35 @@ class StockCountLine(TimeStampedModel):
         return f"{self.menu_item.name}: {self.counted_quantity}"
 
 
+
+class StockTransferReceipt(TimeStampedModel):
+    """Destination verification of an already-posted internal stock transfer.
+
+    This is NOT an in-transit inventory balance or a second ledger.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="transfer_receipts")
+    transfer_batch = models.UUIDField(unique=True)
+    from_outlet = models.ForeignKey("tenants.Outlet", on_delete=models.PROTECT, related_name="sent_transfer_receipts")
+    to_outlet = models.ForeignKey("tenants.Outlet", on_delete=models.PROTECT, related_name="received_transfer_receipts")
+    menu_item = models.ForeignKey("catalog.MenuItem", on_delete=models.PROTECT, related_name="transfer_receipts")
+    dispatched_quantity = models.DecimalField(max_digits=14, decimal_places=3)
+    received_quantity = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    status = models.CharField(max_length=16, default="awaiting", choices=[
+        ("awaiting", "Awaiting check"), ("matched", "Matched"), ("disputed", "Discrepancy"),
+    ])
+    dispatched_by = models.ForeignKey("accounts.User", null=True, on_delete=models.SET_NULL, related_name="transfer_dispatches")
+    checked_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="transfer_checks")
+    checked_at = models.DateTimeField(null=True, blank=True)
+    discrepancy_note = models.CharField(max_length=512, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(dispatched_quantity__gt=0), name="transfer_receipt_dispatched_positive"),
+            models.CheckConstraint(condition=models.Q(received_quantity__gte=0) | models.Q(received_quantity__isnull=True), name="transfer_receipt_received_nonnegative"),
+        ]
+
 # Batch model imported here so Django registers it with the inventory app.
 from .batches import InventoryBatch  # noqa: E402,F401
 

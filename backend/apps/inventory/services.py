@@ -17,6 +17,7 @@ from .models import (
     StockCountStatus,
     StockMovement,
     StockReason,
+    StockTransferReceipt,
 )
 
 @transaction.atomic
@@ -356,6 +357,11 @@ def execute_stock_transfer(
         record_batch_allocations(
             tenant_id=tenant_id, movement=mov_in, allocations=destination_allocations,
         )
+    StockTransferReceipt.objects.create(
+        tenant_id=tenant_id, transfer_batch=batch, from_outlet=from_outlet,
+        to_outlet=to_outlet, menu_item=menu_item, dispatched_quantity=quantity,
+        dispatched_by=user,
+    )
     log_audit(
         tenant_id=tenant_id,
         user_id=user.id if user else None,
@@ -638,3 +644,50 @@ def return_stock_count_for_recount(*, session, user, membership, reason):
         payload={"reason": reason, "rejected_snapshot": rejected_lines},
     )
     return session
+
+
+@transaction.atomic
+def verify_stock_transfer_receipt(*, receipt, membership, user, received_quantity, note=""):
+    """Account for a physical receipt without reposting any stock movement."""
+    from apps.staff.services.permissions import membership_has_inventory_capability
+    receipt = StockTransferReceipt.objects.select_for_update().get(pk=receipt.pk)
+    if receipt.status != "awaiting":
+        raise ValidationError("This transfer has already been checked.")
+    if not membership_has_inventory_capability(membership, "transfer"):
+        raise ValidationError("You cannot verify stock transfers.")
+    if membership.tenant_id != receipt.tenant_id or not outlet_belongs_to_membership(membership, receipt.to_outlet_id):
+        raise ValidationError("You cannot verify stock for the destination section.")
+    if user is None or user.pk == receipt.dispatched_by_id:
+        raise ValidationError("A different receiving worker must check this transfer.")
+    try:
+        amount = Decimal(str(received_quantity))
+    except (TypeError, ValueError, InvalidOperation, ArithmeticError) as exc:
+        raise ValidationError({"received_quantity": "Enter a valid physical quantity."}) from exc
+    if (not amount.is_finite() or amount < 0 or amount > Decimal("99999999999.999")
+            or amount != amount.quantize(Decimal("0.001"))):
+        raise ValidationError({"received_quantity": "Enter a non-negative quantity, up to three decimal places."})
+    note = (note or "").strip()
+    if len(note) > 512:
+        raise ValidationError({"note": "Limit the explanation to 512 characters."})
+    if amount != receipt.dispatched_quantity and not note:
+        raise ValidationError({"note": "Explain the missing or extra stock before reporting a discrepancy."})
+    receipt.received_quantity = amount
+    receipt.status = "matched" if amount == receipt.dispatched_quantity else "disputed"
+    receipt.discrepancy_note = note
+    receipt.checked_by = user
+    receipt.checked_at = timezone.now()
+    receipt.save(update_fields=[
+        "received_quantity", "status", "discrepancy_note",
+        "checked_by", "checked_at", "updated_at",
+    ])
+    log_audit(
+        tenant_id=receipt.tenant_id, user_id=user.pk,
+        action="stock.transfer_verified", entity_type="stock_transfer",
+        entity_id=str(receipt.transfer_batch),
+        payload={
+            "from_outlet_id": str(receipt.from_outlet_id), "to_outlet_id": str(receipt.to_outlet_id),
+            "dispatched": str(receipt.dispatched_quantity), "received": str(amount),
+            "status": receipt.status, "note": note,
+        },
+    )
+    return receipt

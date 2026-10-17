@@ -7,6 +7,7 @@
   <a class="staff-btn {% if n == 'staff-inventory-movement-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
   <a class="staff-btn {% if n == 'staff-inventory-movement-upload' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movement-upload' %}">Upload CSV</a>
   <a class="staff-btn {% if n == 'staff-inventory-transfer' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-transfer' %}">Transfer</a>
+  <a class="staff-btn {% if n == 'staff-inventory-transfer-receipts' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-transfer-receipts' %}">Check deliveries</a>
   <a class="staff-btn {% if n == 'staff-inventory-counts' or n == 'staff-inventory-count-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-counts' %}">Stock take</a>
 </div>
 {% endwith %}

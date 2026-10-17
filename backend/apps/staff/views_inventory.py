@@ -16,10 +16,11 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.catalog.packaging import to_stock_units
-from apps.inventory.models import StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason
+from apps.inventory.models import StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason, StockTransferReceipt
 from apps.inventory.services import (
     apply_manual_stock_change, submit_stock_count_for_review,
     approve_stock_count_session, return_stock_count_for_recount, execute_stock_transfer,
+    verify_stock_transfer_receipt,
 )
 from apps.pos.services import menu_items_for_outlet_queryset
 from apps.tenants.models import Outlet
@@ -996,3 +997,47 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
             "unknown_age_page_count": sum(int(row["unbatched_qty"] > 0) for row in summaries),
         })
         return ctx
+
+
+
+class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
+    staff_nav_capability = "inventory"
+    template_name = "staff/inventory/transfer_receipts.html"
+    context_object_name = "receipts"
+    paginate_by = 30
+
+    def get_queryset(self):
+        ids = [o.id for o in staff_accessible_outlets(self.request.tenant_membership)]
+        qs = StockTransferReceipt.objects.filter(
+            tenant=self.request.tenant, to_outlet_id__in=ids,
+        ).select_related("from_outlet", "to_outlet", "menu_item", "dispatched_by", "checked_by")
+        choice = self.request.GET.get("status")
+        if choice in ("awaiting", "matched", "disputed"):
+            qs = qs.filter(status=choice)
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["status_filter"] = self.request.GET.get("status", "")
+        ctx["can_verify"] = membership_has_inventory_capability(self.request.tenant_membership, "transfer")
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        if not membership_has_inventory_capability(request.tenant_membership, "transfer"):
+            messages.error(request, "Your role cannot verify transfers.")
+            return redirect("staff-inventory-transfer-receipts")
+        receipt = self.get_queryset().filter(pk=request.POST.get("receipt_id")).first()
+        if receipt is None:
+            from django.http import Http404
+            raise Http404
+        try:
+            verify_stock_transfer_receipt(
+                receipt=receipt, membership=request.tenant_membership,
+                user=request.user, received_quantity=request.POST.get("received_quantity"),
+                note=request.POST.get("note", ""),
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(request, "Physical delivery checked. Any discrepancy is logged for review; no stock was posted twice.")
+        return redirect("staff-inventory-transfer-receipts")

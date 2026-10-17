@@ -1,0 +1,33 @@
+{% extends "staff/base.html" %}
+{% block title %}Check stock deliveries{% endblock %}
+{% block content %}
+{% include "staff/inventory/includes/subnav.html" %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Stock</p>
+<h1 class="staff-page-title">Check transferred deliveries</h1>
+<p class="staff-dash-hero__tagline">Transfers already changed both stock balances. Confirm what actually arrived here; a mismatch is recorded for investigation, not automatically adjusted.</p></div></header>
+<nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filter deliveries">
+<a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer-receipts' %}">All</a>
+<a class="staff-btn staff-btn--ghost" href="?status=awaiting">Awaiting check</a>
+<a class="staff-btn staff-btn--ghost" href="?status=disputed">Discrepancies</a>
+<a class="staff-btn staff-btn--ghost" href="?status=matched">Matched</a></nav>
+{% for receipt in receipts %}
+<section class="staff-card mb-3" aria-label="Delivery {{ receipt.transfer_batch }}">
+<h2 class="staff-section-head">{{ receipt.menu_item.name }} · {{ receipt.dispatched_quantity }} units</h2>
+<p class="staff-muted">{{ receipt.from_outlet.name }} → {{ receipt.to_outlet.name }} · {{ receipt.created_at }} · {{ receipt.get_status_display }}</p>
+{% if receipt.status == "awaiting" and can_verify and receipt.dispatched_by_id != request.user.id %}
+<form method="post">{% csrf_token %}<input type="hidden" name="receipt_id" value="{{ receipt.id }}">
+<div class="mb-3"><label for="qty-{{ receipt.id }}">Quantity physically received (base units)</label>
+<input class="staff-input" id="qty-{{ receipt.id }}" name="received_quantity" type="number" min="0" step="0.001" max="99999999999.999" required></div>
+<div class="mb-3"><label for="note-{{ receipt.id }}">Discrepancy explanation (required when different)</label>
+<textarea class="staff-input" id="note-{{ receipt.id }}" name="note" maxlength="512" rows="2"></textarea></div>
+<button class="staff-btn staff-btn--primary" type="submit">Confirm physical check</button></form>
+{% elif receipt.status == "awaiting" %}<p class="staff-muted">A different authorized receiving worker must check this delivery.</p>
+{% else %}<p>Received: {{ receipt.received_quantity }} · Verified by {{ receipt.checked_by|default:"Former staff" }} on {{ receipt.checked_at }}</p>
+{% if receipt.discrepancy_note %}<p class="staff-muted">Report: {{ receipt.discrepancy_note }}</p>{% endif %}
+{% endif %}</section>
+{% empty %}<div class="staff-card"><p>No transfers in this filter. Earlier transfers may predate delivery-check tracking.</p></div>{% endfor %}
+{% if is_paginated %}<nav class="staff-pager">
+{% if page_obj.has_previous %}<a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+<span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+{% if page_obj.has_next %}<a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}</nav>{% endif %}
+{% endblock %}
