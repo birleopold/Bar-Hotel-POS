@@ -1,5 +1,7 @@
 {% extends "staff/order_detail.html" %}
 {% block order_extra %}
+  <div class="staff-toolbar mt-2 mb-3"><a class="staff-btn staff-btn--ghost" target="_blank" rel="noopener" href="{% url 'staff-retail-customer-display' order_id=order.id %}">Open customer display on second screen</a>
+    <p class="staff-muted small mb-0">Read-only, staff-session protected. Move this tab to the second monitor; public access is disabled.</p></div>
   {% if can_modify_open_order and scan_add_form %}
     <div class="staff-card" id="retail-fast-checkout" aria-label="Fast supermarket checkout">
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
