@@ -12,6 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.CreateModel(
             name="StockShelfLocation",
+            options={"ordering": ["outlet__name", "menu_item__name"]},
             fields=[
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
