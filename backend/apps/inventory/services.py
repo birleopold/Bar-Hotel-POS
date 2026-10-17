@@ -248,7 +248,8 @@ def execute_stock_transfer(
     quantity: Decimal,
     user,
     note: str = "",
-) -> tuple[uuid.UUID, StockMovement, StockMovement]:
+    staged: bool = False,
+) -> tuple[uuid.UUID, StockMovement, StockMovement | None]:
     try:
         quantity = Decimal(str(quantity))
     except (TypeError, ValueError, ArithmeticError, InvalidOperation) as exc:
@@ -309,6 +310,22 @@ def execute_stock_transfer(
         record_batch_allocations(
             tenant_id=tenant_id, movement=mov_out, allocations=source_batches,
         )
+
+    if staged:
+        StockTransferReceipt.objects.create(
+            tenant_id=tenant_id, transfer_batch=batch, from_outlet=from_outlet,
+            to_outlet=to_outlet, menu_item=menu_item, dispatched_quantity=quantity,
+            dispatched_by=user, mode="staged", status="in_transit",
+        )
+        log_audit(
+            tenant_id=tenant_id, user_id=user.pk if user else None,
+            action="stock.transfer_dispatched", entity_type="stock_transfer",
+            entity_id=str(batch), payload={
+                "from_outlet_id": str(from_outlet.id), "to_outlet_id": str(to_outlet.id),
+                "menu_item_id": str(menu_item.id), "quantity": str(quantity),
+            },
+        )
+        return batch, mov_out, None
 
     bal_to, _ = StockBalance.objects.select_for_update().get_or_create(
         outlet=to_outlet,
@@ -653,7 +670,7 @@ def verify_stock_transfer_receipt(*, receipt, membership, user, received_quantit
     """Account for a physical receipt without reposting any stock movement."""
     from apps.staff.services.permissions import membership_has_inventory_capability
     receipt = StockTransferReceipt.objects.select_for_update().get(pk=receipt.pk)
-    if receipt.status != "awaiting":
+    if receipt.status not in ("awaiting", "in_transit"):
         raise ValidationError("This transfer has already been checked.")
     if not membership_has_inventory_capability(membership, "transfer"):
         raise ValidationError("You cannot verify stock transfers.")
@@ -673,6 +690,13 @@ def verify_stock_transfer_receipt(*, receipt, membership, user, received_quantit
         raise ValidationError({"note": "Limit the explanation to 512 characters."})
     if amount != receipt.dispatched_quantity and not note:
         raise ValidationError({"note": "Explain the missing or extra stock before reporting a discrepancy."})
+    if receipt.mode == "staged":
+        posted = min(amount, receipt.dispatched_quantity)
+        _post_staged_transfer_arrival(
+            receipt=receipt, quantity=posted, destination=receipt.to_outlet,
+            user=user, note="Physical receiving: " + note,
+        )
+        receipt.posted_quantity = posted
     receipt.received_quantity = amount
     receipt.status = "matched" if amount == receipt.dispatched_quantity else "disputed"
     receipt.discrepancy_note = note
@@ -680,7 +704,7 @@ def verify_stock_transfer_receipt(*, receipt, membership, user, received_quantit
     receipt.checked_at = timezone.now()
     receipt.save(update_fields=[
         "received_quantity", "status", "discrepancy_note",
-        "checked_by", "checked_at", "updated_at",
+        "checked_by", "checked_at", "posted_quantity", "updated_at",
     ])
     log_audit(
         tenant_id=receipt.tenant_id, user_id=user.pk,
@@ -744,6 +768,155 @@ def review_stock_transfer_discrepancy(*, receipt, membership, user, review_actio
             "received": str(receipt.received_quantity),
             "review_action": review_action, "reason": note,
             "stock_posted_by_review": False,
+        },
+    )
+    return receipt
+
+
+def _post_staged_transfer_arrival(*, receipt, quantity, destination, user, note):
+    """Move confirmed units from transit to physical stock with source batch traceability.
+
+    Caller holds the transfer receipt's row lock inside a transaction. All balance,
+    batch and ledger writes roll back together when receiving is invalid.
+    """
+    if quantity <= 0:
+        return None
+    from .batches import InventoryBatch
+    from .models import StockBatchAllocation
+    from django.db.models import F
+
+    dispatch_movement = StockMovement.objects.get(
+        tenant_id=receipt.tenant_id, transfer_batch=receipt.transfer_batch,
+        reason=StockReason.TRANSFER_OUT, outlet_id=receipt.from_outlet_id,
+    )
+    source_allocations = list(
+        StockBatchAllocation.objects.filter(stock_movement=dispatch_movement)
+        .select_related("batch").order_by("created_at", "id")
+    )
+    prior_posted = receipt.posted_quantity + receipt.returned_quantity
+    if source_allocations and sum(
+        (row.quantity for row in source_allocations), Decimal("0")
+    ) != receipt.dispatched_quantity:
+        raise ValidationError("Original dispatch allocations need reconciliation.")
+
+    assignments = []
+    remaining = quantity
+    skip = prior_posted
+    for allocation in source_allocations:
+        if skip >= allocation.quantity:
+            skip -= allocation.quantity
+            continue
+        available = allocation.quantity - skip
+        skip = Decimal("0")
+        used = min(available, remaining)
+        if used <= 0:
+            break
+        source = allocation.batch
+        receiving_batch, created = InventoryBatch.objects.select_for_update().get_or_create(
+            tenant_id=receipt.tenant_id, outlet=destination, menu_item=receipt.menu_item,
+            batch_code=source.batch_code,
+            defaults={
+                "received_at": timezone.localdate(), "expiry_date": source.expiry_date,
+                "received_quantity": used, "remaining_quantity": used,
+                "quarantined": source.quarantined or bool(
+                    source.expiry_date and source.expiry_date < timezone.localdate()
+                ),
+            },
+        )
+        if not created:
+            if receiving_batch.expiry_date != source.expiry_date or receiving_batch.quarantined:
+                raise ValidationError(
+                    "The receiving section has an incompatible or held batch with that code."
+                )
+            InventoryBatch.objects.filter(pk=receiving_batch.pk).update(
+                received_quantity=F("received_quantity") + used,
+                remaining_quantity=F("remaining_quantity") + used,
+            )
+        assignments.append((receiving_batch.pk, used))
+        remaining -= used
+        if not remaining:
+            break
+    if source_allocations and remaining != 0:
+        raise ValidationError("Receipt exceeds dispatched batch allocations.")
+    bal, _ = StockBalance.objects.select_for_update().get_or_create(
+        outlet=destination, menu_item=receipt.menu_item,
+        defaults={"tenant_id": receipt.tenant_id, "quantity": Decimal("0")},
+    )
+    bal.quantity += quantity
+    bal.save(update_fields=["quantity", "updated_at"])
+    movement = StockMovement.objects.create(
+        tenant_id=receipt.tenant_id, outlet=destination, menu_item=receipt.menu_item,
+        quantity_change=quantity, reason=StockReason.TRANSFER_IN,
+        transfer_batch=receipt.transfer_batch, created_by=user, note=note[:512],
+    )
+    if assignments:
+        from .services_batches import record_batch_allocations
+        record_batch_allocations(
+            tenant_id=receipt.tenant_id, movement=movement, allocations=assignments,
+        )
+    return movement
+
+
+@transaction.atomic
+def resolve_stock_transfer_discrepancy(*, receipt, membership, user, action, note):
+    """Record an independent manager's final decision and any necessary stock movement."""
+    from apps.staff.services.permissions import membership_has_inventory_capability
+    receipt = StockTransferReceipt.objects.select_for_update().get(pk=receipt.pk)
+    if receipt.mode != "staged" or receipt.status != "disputed":
+        raise ValidationError("Only an open staged-transfer discrepancy can be resolved.")
+    if (
+        membership.tenant_id != receipt.tenant_id
+        or not membership_has_inventory_capability(membership, "approve_count")
+        or not outlet_belongs_to_membership(membership, receipt.to_outlet_id)
+        or not outlet_belongs_to_membership(membership, receipt.from_outlet_id)
+    ):
+        raise ValidationError("A manager with access to both sections must resolve this discrepancy.")
+    if user is None or user.pk in (receipt.dispatched_by_id, receipt.checked_by_id):
+        raise ValidationError("An independent manager must resolve this discrepancy.")
+    note = (note or "").strip()
+    if not note or len(note) > 512:
+        raise ValidationError({"note": "Explain the investigation and decision (up to 512 characters)."})
+    outstanding = receipt.outstanding_quantity
+    overage = (receipt.received_quantity or Decimal("0")) > receipt.dispatched_quantity
+    if overage:
+        if action != "acknowledge_overage":
+            raise ValidationError("Extra goods must be investigated, not silently added to stock.")
+    elif outstanding <= 0 or action not in ("receive_missing", "return_source", "write_off"):
+        raise ValidationError("Choose a valid outcome for the remaining goods.")
+    if action == "receive_missing":
+        _post_staged_transfer_arrival(
+            receipt=receipt, quantity=outstanding, destination=receipt.to_outlet,
+            user=user, note="Late receipt: " + note,
+        )
+        receipt.posted_quantity += outstanding
+    elif action == "return_source":
+        _post_staged_transfer_arrival(
+            receipt=receipt, quantity=outstanding, destination=receipt.from_outlet,
+            user=user, note="Recovered in transit: " + note,
+        )
+        receipt.returned_quantity += outstanding
+    elif action == "write_off":
+        # Source movement already removed stock from sellable on-hand.
+        receipt.written_off_quantity += outstanding
+    receipt.status = "resolved"
+    receipt.resolution_action = action
+    receipt.resolution_note = note
+    receipt.resolved_by = user
+    receipt.resolved_at = timezone.now()
+    receipt.save(update_fields=[
+        "posted_quantity", "returned_quantity", "written_off_quantity",
+        "status", "resolution_action", "resolution_note",
+        "resolved_by", "resolved_at", "updated_at",
+    ])
+    log_audit(
+        tenant_id=receipt.tenant_id, user_id=user.pk,
+        action="stock.transfer_discrepancy_resolved", entity_type="stock_transfer",
+        entity_id=str(receipt.transfer_batch),
+        payload={
+            "action": action, "note": note,
+            "outstanding_before": str(outstanding),
+            "posted": str(receipt.posted_quantity), "returned": str(receipt.returned_quantity),
+            "written_off": str(receipt.written_off_quantity),
         },
     )
     return receipt
