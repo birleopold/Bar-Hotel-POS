@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.accounts.models import Membership
 from apps.pos.models import Order, Payment, PaymentMethod, Workstation
-from apps.tenants.models import Tenant
+from apps.tenants.models import Tenant, TenantSettings
 
 from .orders import (
     add_line_to_open_order,
@@ -44,6 +44,18 @@ def _finalize_order_payment(*, obj, tenant_id, outlet, user, payload: dict):
             )
         })
     order = Order.objects.get(id=oid, tenant_id=tenant_id, outlet_id=outlet.id)
+    # Policy is applied only on the server; an offline device cannot claim that
+    # an unlimited or unverified electronic payment has already settled.
+    policy = TenantSettings.objects.filter(tenant_id=tenant_id).first()
+    if policy is not None and policy.offline_cash_payment_limit is not None:
+        if order.currency != policy.default_currency:
+            raise ValidationError({
+                "currency": "Offline cash ceiling applies only to the business's default currency. Reconcile other currencies online."
+            })
+        if amount > policy.offline_cash_payment_limit:
+            raise ValidationError({
+                "amount": f"Offline cash payment exceeds the business limit of {policy.offline_cash_payment_limit} {policy.default_currency}. Review at a connected till."
+            })
     if (Workstation.objects.filter(tenant_id=tenant_id, outlet=outlet).exists()
             and not payload.get("shift_id")
             and not Payment.objects.filter(tenant_id=tenant_id, idempotency_key=idem).exists()):
