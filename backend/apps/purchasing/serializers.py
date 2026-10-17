@@ -76,11 +76,12 @@ class PurchaseReceiptSerializer(serializers.ModelSerializer):
 class SupplierPaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupplierPayment
-        fields = ("id", "amount", "method", "reference", "created_at")
+        fields = ("id", "invoice", "amount", "method", "reference", "created_at")
         read_only_fields = fields
 
 
 class RecordSupplierPaymentSerializer(serializers.Serializer):
+    invoice_id = serializers.UUIDField(required=False, allow_null=True)
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
     method = serializers.ChoiceField(choices=SupplierPaymentMethod.choices)
     reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")

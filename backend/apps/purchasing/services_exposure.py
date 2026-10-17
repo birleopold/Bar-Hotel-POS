@@ -57,3 +57,25 @@ def purchase_order_exposure(*, tenant, outlet=None, outlet_ids=None):
             "missing_order_cost_data": not full_order_costs,
         })
     return result
+
+
+
+def supplier_invoice_settlement_rows(*, po, today=None):
+    """Read-only invoice balances: never guess which invoice old payments settled."""
+    from datetime import date
+    from django.db.models import Sum
+    current = today or date.today()
+    unallocated = po.payments.filter(invoice__isnull=True).aggregate(
+        total=Sum("amount"),
+    )["total"] or Decimal("0")
+    rows = []
+    for invoice in po.invoices.prefetch_related("credits", "allocated_payments").order_by("due_date", "reference"):
+        credited = sum((credit.amount for credit in invoice.credits.all()), Decimal("0"))
+        allocated = sum((payment.amount for payment in invoice.allocated_payments.all()), Decimal("0"))
+        unpaid = max(Decimal("0"), invoice.amount - credited - allocated)
+        rows.append({
+            "invoice": invoice, "credited": credited, "paid": allocated,
+            "unpaid": unpaid, "overdue_days": max(0, (current - invoice.due_date).days) if unpaid else 0,
+            "is_exact": unallocated == 0,
+        })
+    return rows, unallocated

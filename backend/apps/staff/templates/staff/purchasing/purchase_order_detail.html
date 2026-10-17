@@ -125,11 +125,12 @@
     <p><strong>{{ purchase_currency }} {{ supplier_invoiced }}</strong> invoiced · <strong>{{ purchase_currency }} {{ supplier_credited }}</strong> credited · <strong>{{ purchase_currency }} {{ supplier_net_invoiced }}</strong> net invoiced.</p>
     {% if po.invoices.all %}
     <div class="staff-table-wrap"><table class="staff-table">
-      <thead><tr><th>Invoice</th><th>Invoice date</th><th>Payment due</th><th>Amount</th></tr></thead>
-      <tbody>{% for invoice in po.invoices.all %}
-        <tr><td>{{ invoice.reference }}</td><td>{{ invoice.invoice_date }}</td><td>{{ invoice.due_date }}</td><td>{{ purchase_currency }} {{ invoice.amount }}</td></tr>
+      <thead><tr><th>Invoice</th><th>Invoice date</th><th>Payment due</th><th>Invoiced</th><th>Credited</th><th>Paid to invoice</th><th>Unpaid</th></tr></thead>
+      <tbody>{% for row in invoice_settlement_rows %}
+        <tr><td>{{ row.invoice.reference }}</td><td>{{ row.invoice.invoice_date }}</td><td>{{ row.invoice.due_date }}{% if row.overdue_days %}<small class="staff-muted"> · {{ row.overdue_days }} days overdue</small>{% endif %}</td><td>{{ purchase_currency }} {{ row.invoice.amount }}</td><td>{{ purchase_currency }} {{ row.credited }}</td><td>{{ purchase_currency }} {{ row.paid }}</td><td><strong>{{ purchase_currency }} {{ row.unpaid }}</strong></td></tr>
       {% endfor %}</tbody>
-    </table></div>{% endif %}
+    </table></div>
+    {% if unallocated_supplier_payments %}<p class="staff-alert staff-alert--info">Unassigned historical payments: {{ purchase_currency }} {{ unallocated_supplier_payments }}. Individual invoice balances above are not final until those payments are reconciled. No automatic allocation has been made.</p>{% endif %}{% endif %}
     {% if can_modify_purchasing and not uncosted_received and received_value > supplier_net_invoiced %}
     <form method="post" class="row g-2 align-items-end">
       {% csrf_token %}<input type="hidden" name="action" value="supplier_invoice">
@@ -190,24 +191,32 @@
           </form>
         {% endif %}{% endfor %}
       {% endif %}
-    {% elif can_modify_purchasing and supplier_payment_limit > 0 %}
+    {% elif can_modify_purchasing and supplier_payment_limit > 0 and not unallocated_supplier_payments %}
       <p class="staff-muted">Record a payment only after money has actually been sent to the supplier. Receiving goods alone does not create a cashbook expense.</p>
       <form method="post" class="row g-2 align-items-end mb-3" data-supplier-payment-form>
         {% csrf_token %}<input type="hidden" name="action" value="supplier_payment"><input type="hidden" name="idempotency_key" value="{{ supplier_payment_key }}">
         <div class="col-12 col-md-3"><label class="staff-label" for="supplier-payment-amount">Amount paid</label><input class="staff-input" id="supplier-payment-amount" name="amount" type="number" step="0.01" min="0.01" max="{{ supplier_payment_limit }}" required></div>
+        {% if supplier_invoiced > 0 %}
+        <div class="col-12 col-md-3"><label class="staff-label" for="supplier-payment-invoice">Supplier invoice</label>
+          <select class="staff-input" id="supplier-payment-invoice" name="invoice_id" required>
+          <option value="">Choose the invoice being paid</option>
+          {% for row in invoice_settlement_rows %}{% if row.unpaid > 0 %}<option value="{{ row.invoice.id }}">{{ row.invoice.reference }} · due {{ purchase_currency }} {{ row.unpaid }}</option>{% endif %}{% endfor %}
+          </select>
+        </div>{% endif %}
         <div class="col-12 col-md-3"><label class="staff-label" for="supplier-payment-method">Method</label><select class="staff-input" id="supplier-payment-method" name="method" required>{% for value, label in supplier_payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
         <div class="col-12 col-md-4"><label class="staff-label" for="supplier-payment-reference">Payment reference</label><input class="staff-input" id="supplier-payment-reference" name="reference" maxlength="128" placeholder="Bank or mobile money reference"></div>
         <div class="col-12 col-md-2"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-supplier-payment-submit>Record payment</button></div>
         <p class="staff-muted small mt-2" role="status" aria-live="polite" data-supplier-payment-status></p>
       </form>
-    {% elif supplier_due > 0 and supplier_invoiced > 0 and supplier_invoice_due <= 0 and not legacy_receipt_expenses and not uncosted_received %}
+    {% elif unallocated_supplier_payments and supplier_invoiced > 0 %}<p class="staff-alert staff-alert--info">Invoice-specific settlements are on hold because earlier payments lack invoice attribution. Investigate and reconcile the payment references before proceeding.</p>
+    {% elif supplier_due > 0 and supplier_invoiced > 0 and supplier_invoice_due <= 0 and not legacy_receipt_expenses and not uncosted_received %>
       <p class="staff-alert staff-alert--info">The recorded invoices have no balance remaining. Record the next verified invoice before another supplier payment.</p>
     {% endif %}
     {% if po.payments.all %}
       <div class="staff-table-wrap"><table class="staff-table">
         <caption class="visually-hidden">Payments to {{ po.supplier.name }}</caption>
-        <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead>
-        <tbody>{% for payment in po.payments.all %}<tr><td>{{ payment.created_at }}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference|default:"—" }}</td><td class="staff-money">{{ purchase_currency }} {{ payment.amount }}</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>Date</th><th>Invoice</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead>
+        <tbody>{% for payment in po.payments.all %}<tr><td>{{ payment.created_at }}</td><td>{% if payment.invoice %}{{ payment.invoice.reference }}{% else %}Unassigned (historical){% endif %}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference|default:"—" }}</td><td class="staff-money">{{ purchase_currency }} {{ payment.amount }}</td></tr>{% endfor %}</tbody>
       </table></div>
     {% else %}<p class="staff-muted mb-0">No supplier payments recorded.</p>{% endif %}
   </section>

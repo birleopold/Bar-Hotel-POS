@@ -386,6 +386,8 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["supplier_payment_methods"] = SupplierPaymentMethod.choices
         settings = TenantSettings.objects.filter(tenant_id=self.object.tenant_id).first()
         ctx["purchase_currency"] = settings.default_currency if settings else "USD"
+        from apps.purchasing.services_exposure import supplier_invoice_settlement_rows
+        ctx["invoice_settlement_rows"], ctx["unallocated_supplier_payments"] = supplier_invoice_settlement_rows(po=self.object)
         ctx["supplier_payment_key"] = uuid.uuid4()
         return ctx
 
