@@ -44,6 +44,10 @@ def configure_scale_weight_label(*, tenant_id, menu_item_id, prefix, item_code, 
     ).first()
     if item is None:
         raise ValidationError({"menu_item_id": "Only active, stock-tracked kilogram products can use weighed labels."})
+    from apps.access.outlets import membership_outlet_ids
+    from apps.pos.services.menu import menu_item_available_at_outlet
+    if not any(menu_item_available_at_outlet(item, oid) for oid in membership_outlet_ids(membership)):
+        raise ValidationError({"menu_item_id": "This product is outside your authorized store sections."})
     prefix = str(prefix or "").strip()
     item_code = str(item_code or "").strip()
     if bool(prefix) != bool(item_code):
