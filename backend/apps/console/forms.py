@@ -446,6 +446,11 @@ class ConsoleMenuItemForm(forms.ModelForm):
         self.fields["description"].required = False
         self.fields["tax_rate_percent"].required = False
         self.fields["reorder_level"].required = False
+        # Existing owners/API clients can omit this newly optional setting.
+        self.fields["units_per_carton"].required = False
+
+    def clean_units_per_carton(self):
+        return self.cleaned_data.get("units_per_carton") or 1
 
     def clean(self):
         values = super().clean()
