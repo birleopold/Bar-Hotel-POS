@@ -116,6 +116,11 @@ class TenantSettings(TimeStampedModel):
         ),
     )
     default_currency = models.CharField(max_length=3, default="USD")
+    offline_cash_payment_limit = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="Optional maximum offline cash payment in the default currency. Blank preserves existing legacy policy.",
+    )
     default_timezone = models.CharField(max_length=64, default="UTC")
     business_day_cutover_hour = models.PositiveSmallIntegerField(
         default=4, validators=[MinValueValidator(0), MaxValueValidator(23)],
