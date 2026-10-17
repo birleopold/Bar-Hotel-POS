@@ -502,3 +502,140 @@ class SupplierInvoiceTests(TestCase):
                 )
         payment.refresh_from_db()
         self.assertIsNone(payment.invoice_id)
+
+
+    def test_three_way_matching_uses_actual_receipt_quantity_cost_and_exact_total(self):
+        from apps.purchasing.models import SupplierInvoiceLine
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            invoice, replay = record_supplier_invoice(
+                po=self.po, reference="MATCH-PO-01", amount=Decimal("1500"),
+                invoice_date=date(2026, 10, 1), due_date=date(2026, 10, 30),
+                lines=[{"line_id": self.po.lines.get().pk, "quantity": "1.5", "unit_cost": "1000.00"}],
+                user=None, membership=object(),
+            )
+            self.assertFalse(replay)
+            matched = SupplierInvoiceLine.objects.get(invoice=invoice)
+            self.assertEqual((matched.quantity, matched.unit_cost, matched.amount),
+                             (Decimal("1.5"), Decimal("1000"), Decimal("1500")))
+            with self.assertRaisesRegex(ValidationError, "exceeds accepted"):
+                record_supplier_invoice(
+                    po=self.po, reference="OVER-QTY", amount=Decimal("1000"),
+                    invoice_date=date(2026, 10, 2), due_date=date(2026, 10, 30),
+                    lines=[{"line_id": self.po.lines.get().pk, "quantity": "1", "unit_cost": "1000"}],
+                    user=None, membership=object(),
+                )
+            with self.assertRaisesRegex(ValidationError, "differs"):
+                record_supplier_invoice(
+                    po=self.po, reference="PRICE-CHANGED", amount=Decimal("500"),
+                    invoice_date=date(2026, 10, 2), due_date=date(2026, 10, 30),
+                    lines=[{"line_id": self.po.lines.get().pk, "quantity": "0.5", "unit_cost": "999.99"}],
+                    user=None, membership=object(),
+                )
+            with self.assertRaisesRegex(ValidationError, "does not equal"):
+                record_supplier_invoice(
+                    po=self.po, reference="WRONG-TOTAL", amount=Decimal("450"),
+                    invoice_date=date(2026, 10, 2), due_date=date(2026, 10, 30),
+                    lines=[{"line_id": self.po.lines.get().pk, "quantity": "0.5", "unit_cost": "1000"}],
+                    user=None, membership=object(),
+                )
+            again, replay = record_supplier_invoice(
+                po=self.po, reference="MATCH-PO-01", amount=Decimal("1500"),
+                invoice_date=date(2026, 10, 1), due_date=date(2026, 10, 30),
+                lines=[{"line_id": self.po.lines.get().pk, "quantity": "1.5", "unit_cost": "1000.00"}],
+                user=None, membership=object(),
+            )
+            self.assertTrue(replay)
+            self.assertEqual(again.pk, invoice.pk)
+
+    def test_returned_goods_are_removed_once_without_supplier_refund_or_credit(self):
+        from apps.accounts.models import Membership, MembershipRole, User
+        from apps.inventory.models import StockBalance, StockMovement
+        from apps.purchasing.models import PurchaseReceipt, PurchaseReceiptLine, SupplierReturn
+        from apps.purchasing.services import return_received_goods_to_supplier, received_goods_value
+
+        user = User.objects.create_user(email="return-manager@example.test", password="Password123!")
+        membership = Membership.objects.create(
+            tenant=self.tenant, user=user, role=MembershipRole.OWNER,
+        )
+        receipt = PurchaseReceipt.objects.create(
+            tenant=self.tenant, purchase_order=self.po, delivery_reference="R-01",
+        )
+        accepted = PurchaseReceiptLine.objects.create(
+            receipt=receipt, purchase_order_line=self.po.lines.get(),
+            quantity_received=Decimal("2"),
+        )
+        stock = StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.outlet, menu_item=self.po.lines.get().menu_item,
+            quantity=Decimal("2"),
+        )
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            result, replay = return_received_goods_to_supplier(
+                po=self.po, receipt_line_id=accepted.pk, quantity="1",
+                reference="RETURN-01", note="Supplier accepted damaged sealed goods.",
+                membership=membership, user=user,
+            )
+            second, repeated = return_received_goods_to_supplier(
+                po=self.po, receipt_line_id=accepted.pk, quantity="1",
+                reference="RETURN-01", note="Supplier accepted damaged sealed goods.",
+                membership=membership, user=user,
+            )
+        self.assertFalse(replay)
+        self.assertTrue(repeated)
+        self.assertEqual(second.pk, result.pk)
+        stock.refresh_from_db()
+        self.assertEqual(stock.quantity, Decimal("1"))
+        self.assertEqual(result.movement.quantity_change, Decimal("-1"))
+        self.assertEqual(StockMovement.objects.filter(purchase_order=self.po).count(), 1)
+        self.assertEqual(SupplierReturn.objects.filter(purchase_order=self.po).count(), 1)
+        self.assertFalse(self.po.credits.exists())
+        self.assertFalse(self.po.payments.exists())
+        self.assertEqual(received_goods_value(self.po), Decimal("1000"))
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with self.assertRaises(ValidationError):
+                return_received_goods_to_supplier(
+                    po=self.po, receipt_line_id=accepted.pk, quantity="2",
+                    reference="RETURN-02", note="More goods than are left in receipt.",
+                    membership=membership, user=user,
+                )
+
+    def test_return_preserves_original_batch_and_rejects_wrong_lot(self):
+        from apps.accounts.models import Membership, MembershipRole, User
+        from apps.inventory.batches import InventoryBatch
+        from apps.inventory.models import StockBalance, StockBatchAllocation
+        from apps.purchasing.models import PurchaseReceipt, PurchaseReceiptLine
+        from apps.purchasing.services import return_received_goods_to_supplier
+        user = User.objects.create_user(email="batch-return-manager@example.test", password="Password123!")
+        membership = Membership.objects.create(tenant=self.tenant, user=user, role=MembershipRole.OWNER)
+        receipt = PurchaseReceipt.objects.create(tenant=self.tenant, purchase_order=self.po)
+        batch = InventoryBatch.objects.create(
+            tenant=self.tenant, outlet=self.outlet, menu_item=self.po.lines.get().menu_item,
+            batch_code="RETURN-LOT-1", received_at=date(2026, 10, 1),
+            expiry_date=date(2026, 12, 31), received_quantity=Decimal("2"),
+            remaining_quantity=Decimal("1"),
+        )
+        accepted = PurchaseReceiptLine.objects.create(
+            receipt=receipt, purchase_order_line=self.po.lines.get(),
+            quantity_received=Decimal("2"), inventory_batch=batch,
+        )
+        stock = StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.outlet, menu_item=self.po.lines.get().menu_item,
+            quantity=Decimal("2"),
+        )
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with self.assertRaisesRegex(ValidationError, "originally received lot"):
+                return_received_goods_to_supplier(
+                    po=self.po, receipt_line_id=accepted.pk, quantity="2",
+                    reference="LOT-FAIL", note="Returning two but only one in this lot.",
+                    membership=membership, user=user,
+                )
+            ret, replay = return_received_goods_to_supplier(
+                po=self.po, receipt_line_id=accepted.pk, quantity="1",
+                reference="LOT-OK", note="Verified original damaged lot return.",
+                membership=membership, user=user,
+            )
+        self.assertFalse(replay)
+        batch.refresh_from_db()
+        stock.refresh_from_db()
+        self.assertEqual(batch.remaining_quantity, Decimal("0"))
+        self.assertEqual(stock.quantity, Decimal("1"))
+        self.assertEqual(StockBatchAllocation.objects.get(stock_movement=ret.movement).batch_id, batch.pk)
