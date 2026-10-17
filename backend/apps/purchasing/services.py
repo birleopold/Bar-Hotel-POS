@@ -218,7 +218,7 @@ def confirm_missing_unit_cost(*, po: PurchaseOrder, line_id, unit_cost: Decimal,
 
 def record_supplier_payment(
     *, po: PurchaseOrder, amount: Decimal, method: str, reference: str,
-    idempotency_key: str, user, membership,
+    idempotency_key: str, user, membership, invoice_id=None,
 ) -> tuple[SupplierPayment, bool]:
     try:
         amount = Decimal(str(amount))
@@ -240,10 +240,17 @@ def record_supplier_payment(
         reference = (reference or "").strip()
         if len(reference) > 128:
             raise ValidationError({"reference": "Must be at most 128 characters."})
+        selected_invoice = None
+        if invoice_id:
+            selected_invoice = SupplierInvoice.objects.filter(
+                tenant_id=po.tenant_id, purchase_order=po, pk=invoice_id,
+            ).first()
+            if selected_invoice is None:
+                raise ValidationError({"invoice_id": "Choose an invoice belonging to this purchase order."})
         existing = SupplierPayment.objects.filter(tenant_id=po.tenant_id, idempotency_key=key).first()
         if existing:
-            if (existing.purchase_order_id, existing.amount, existing.method, existing.reference) != (
-                po.id, amount, method, reference
+            if (existing.purchase_order_id, existing.amount, existing.method, existing.reference, existing.invoice_id) != (
+                po.id, amount, method, reference, selected_invoice.pk if selected_invoice else None
             ):
                 raise ValidationError({"idempotency_key": "This key was used for a different supplier payment."})
             return existing, True
@@ -275,8 +282,22 @@ def record_supplier_payment(
             })
         if amount > due:
             raise ValidationError({"amount": f"Payment exceeds the unpaid value of received goods ({due})."})
+        if selected_invoice is not None:
+            # Existing unallocated payments cannot be assigned to a bill by guesswork.
+            if po.payments.filter(invoice__isnull=True).exists():
+                raise ValidationError({
+                    "invoice_id": "This order has payments without invoice attribution. Reconcile them before linking new payments to individual invoices."
+                })
+            previously_paid = selected_invoice.allocated_payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+            invoice_credits = selected_invoice.credits.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+            invoice_due = (selected_invoice.amount - invoice_credits - previously_paid).quantize(Decimal("0.01"))
+            if amount > invoice_due:
+                raise ValidationError({
+                    "amount": f"Payment exceeds this invoice's unpaid balance ({max(Decimal('0'), invoice_due):.2f})."
+                })
         payment = SupplierPayment.objects.create(
-            tenant_id=po.tenant_id, purchase_order=po, amount=amount, method=method,
+            tenant_id=po.tenant_id, purchase_order=po, invoice=selected_invoice,
+            amount=amount, method=method,
             reference=reference, idempotency_key=key, recorded_by=user,
         )
         post_supplier_payment_expense(payment=payment, user=user)
@@ -415,8 +436,9 @@ def record_supplier_credit_note(*, po, invoice_id, reference, credit_date,
     gross_invoiced = po.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
     total_credited = po.credits.aggregate(total=Sum("amount"))["total"] or Decimal("0")
     paid = po.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    if amount > invoice.amount - credited_for_invoice:
-        raise ValidationError({"amount": "Credit exceeds the remaining value of the selected invoice."})
+    invoice_paid = invoice.allocated_payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    if amount > invoice.amount - credited_for_invoice - invoice_paid:
+        raise ValidationError({"amount": "Credit exceeds the invoice's unpaid balance after linked payments."})
     if amount > gross_invoiced - total_credited - paid:
         raise ValidationError({
             "amount": "Credit would exceed unpaid supplier invoices. Reconcile actual payments/refunds separately."
