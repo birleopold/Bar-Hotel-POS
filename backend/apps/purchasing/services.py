@@ -6,6 +6,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.audit.services import log_audit
+from apps.catalog.packaging import to_stock_units
 from apps.finance.models import FinancePostingLink, FinancePostingSource
 from apps.finance.services import post_supplier_payment_expense
 from apps.inventory.models import StockMovement, StockReason
@@ -52,15 +53,26 @@ def receive_purchase_order_goods(
     normalized = []
     for row in lines_payload:
         try:
-            qty = Decimal(str(row["quantity"]))
             line_id = row["line_id"]
-        except (KeyError, TypeError, ValueError, InvalidOperation) as exc:
-            raise ValidationError({"lines": "Every delivery line needs an item and valid quantity."}) from exc
-        if not qty.is_finite() or qty < 0 or qty > Decimal("99999999999.999"):
-            raise ValidationError({"lines": "Delivery quantity must be finite and non-negative."})
-        if qty != qty.quantize(Decimal("0.001")):
-            raise ValidationError({"lines": "Delivery quantity allows at most three decimal places."})
-        normalized.append({**row, "line_id": line_id, "quantity": qty})
+        except (TypeError, KeyError) as exc:
+            raise ValidationError({"lines": "Each delivery row needs a purchase order line."}) from exc
+        line = PurchaseOrderLine.objects.select_for_update().filter(
+            purchase_order=po_locked, pk=line_id,
+        ).first()
+        if line is None:
+            raise ValidationError({"lines": f"Unknown line: {line_id}."})
+        qty = to_stock_units(
+            units=row.get("quantity", 0), cartons=row.get("cartons", 0),
+            units_per_carton=line.units_per_carton_snapshot, allow_zero=True,
+        )
+        try:
+            carton_count = int(row.get("cartons") or 0)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"cartons": "Enter whole cartons."}) from exc
+        normalized.append({
+            **row, "line_id": line.pk, "quantity": qty,
+            "cartons": carton_count, "_line": line,
+        })
     lines_payload = normalized
     positive_ids = [row["line_id"] for row in lines_payload if row["quantity"] > 0]
     if len(positive_ids) != len(set(positive_ids)):
@@ -81,12 +93,7 @@ def receive_purchase_order_goods(
         if qty <= 0:
             continue
         any_positive = True
-        try:
-            line = PurchaseOrderLine.objects.select_for_update().get(
-                purchase_order=po_locked, pk=line_id
-            )
-        except PurchaseOrderLine.DoesNotExist:
-            raise ValidationError({"lines": f"Unknown line_id {line_id} for this purchase order."})
+        line = row["_line"]
         remaining = line.quantity_ordered - line.quantity_received
         if qty > remaining:
             raise ValidationError(
@@ -132,6 +139,7 @@ def receive_purchase_order_goods(
             receipt=receipt,
             purchase_order_line=line,
             quantity_received=qty,
+            cartons_received=row["cartons"],
             inventory_batch=batch,
         )
 
@@ -153,7 +161,8 @@ def receive_purchase_order_goods(
             "discrepancy_note": receipt.discrepancy_note,
             "lines": [
                 {"purchase_order_line_id": str(line.purchase_order_line_id),
-                 "quantity_received": format(line.quantity_received.normalize(), "f")}
+                 "quantity_received": format(line.quantity_received.normalize(), "f"),
+                 "cartons_received": line.cartons_received}
                 for line in receipt.lines.all()
             ],
         },

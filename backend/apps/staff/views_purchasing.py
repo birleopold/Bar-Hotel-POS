@@ -259,11 +259,12 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
         for i in range(PO_LINE_SLOTS):
             mid_raw = (request.POST.get(f"line_{i}_menu_item") or "").strip()
             qty_raw = (request.POST.get(f"line_{i}_quantity_ordered") or "").strip()
+            cartons_raw = (request.POST.get(f"line_{i}_cartons") or "").strip()
             cost_raw = (request.POST.get(f"line_{i}_unit_cost") or "").strip()
-            if not mid_raw and not qty_raw and not cost_raw:
+            if not mid_raw and not qty_raw and not cartons_raw and not cost_raw:
                 continue
-            if not mid_raw or not qty_raw:
-                line_errors.append(f"Row {i + 1}: choose an item and quantity.")
+            if not mid_raw or not (qty_raw or cartons_raw):
+                line_errors.append(f"Row {i + 1}: choose an item and units or cartons.")
                 continue
             try:
                 mid = uuid.UUID(mid_raw)
@@ -274,12 +275,12 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
                 line_errors.append(f"Row {i + 1}: duplicate item (each line must be a different SKU).")
                 continue
             try:
-                qty = Decimal(qty_raw)
+                qty = Decimal(qty_raw) if qty_raw else Decimal("0")
             except InvalidOperation:
                 line_errors.append(f"Row {i + 1}: invalid quantity.")
                 continue
-            if qty <= 0:
-                line_errors.append(f"Row {i + 1}: quantity must be positive.")
+            if not qty.is_finite() or qty < 0:
+                line_errors.append(f"Row {i + 1}: quantity must be finite and non-negative.")
                 continue
             unit_cost = None
             if cost_raw:
@@ -293,6 +294,8 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
                     continue
             seen_mi.add(mid)
             row: dict = {"menu_item": str(mid), "quantity_ordered": str(qty)}
+            if cartons_raw:
+                row["cartons"] = cartons_raw
             if unit_cost is not None:
                 row["unit_cost"] = str(unit_cost)
             lines_payload.append(row)
@@ -519,18 +522,21 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
             lines_payload: list[dict] = []
             for line in po.lines.all():
                 raw = (request.POST.get(f"recv_{line.id}") or "").strip()
-                if not raw:
+                cartons_raw = (request.POST.get(f"recv_cartons_{line.id}") or "").strip()
+                if not raw and not cartons_raw:
                     continue
                 try:
-                    qty = Decimal(raw)
+                    qty = Decimal(raw) if raw else Decimal("0")
                 except InvalidOperation:
                     messages.error(request, f"Invalid quantity for line {line.menu_item.name}.")
                     return redirect("staff-purchasing-order-detail", po_id=po.id)
                 if not qty.is_finite() or qty < 0:
                     messages.error(request, f"Enter a valid positive quantity for {line.menu_item.name}.")
                     return redirect("staff-purchasing-order-detail", po_id=po.id)
-                if qty > 0:
+                if qty > 0 or cartons_raw:
                     entry = {"line_id": line.id, "quantity": qty}
+                    if cartons_raw:
+                        entry["cartons"] = cartons_raw
                     code = (request.POST.get(f"batch_{line.id}") or "").strip()
                     expiry_raw = (request.POST.get(f"expiry_{line.id}") or "").strip()
                     if code:

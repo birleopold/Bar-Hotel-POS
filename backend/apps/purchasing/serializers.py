@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
+from apps.catalog.packaging import to_stock_units
 from apps.tenants.models import Outlet
 
 from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice
@@ -45,6 +46,7 @@ class PurchaseOrderLineReadSerializer(serializers.ModelSerializer):
             "quantity_ordered",
             "quantity_received",
             "quantity_remaining",
+            "units_per_carton_snapshot",
             "unit_cost",
             "created_at",
             "updated_at",
@@ -57,7 +59,7 @@ class PurchaseReceiptLineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseReceiptLine
-        fields = ("id", "purchase_order_line", "item_name", "quantity_received")
+        fields = ("id", "purchase_order_line", "item_name", "quantity_received", "cartons_received")
         read_only_fields = fields
 
 
@@ -139,8 +141,9 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 class PurchaseOrderLineInputSerializer(serializers.Serializer):
     menu_item = serializers.UUIDField()
     quantity_ordered = serializers.DecimalField(
-        max_digits=14, decimal_places=3, min_value=Decimal("0.001")
+        max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, default=Decimal("0"),
     )
+    cartons = serializers.IntegerField(required=False, min_value=1)
     unit_cost = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -209,13 +212,17 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"lines": f"Item {item.name} must have track_inventory enabled."}
                 )
-            line_objects.append(
-                {
-                    "menu_item": item,
-                    "quantity_ordered": row["quantity_ordered"],
-                    "unit_cost": row.get("unit_cost"),
-                }
+            if item.units_per_carton > 1 and item.unit_of_measure != "each":
+                raise serializers.ValidationError({"lines": f"Cartons for {item.name} require piece units."})
+            ordered_units = to_stock_units(
+                units=row["quantity_ordered"], cartons=row.get("cartons", 0),
+                units_per_carton=item.units_per_carton,
             )
+            line_objects.append({
+                "menu_item": item, "quantity_ordered": ordered_units,
+                "unit_cost": row.get("unit_cost"),
+                "units_per_carton_snapshot": item.units_per_carton,
+            })
 
         po = PurchaseOrder.objects.create(
             tenant=tenant,
@@ -233,6 +240,7 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 menu_item=lo["menu_item"],
                 quantity_ordered=lo["quantity_ordered"],
                 unit_cost=lo["unit_cost"],
+                units_per_carton_snapshot=lo["units_per_carton_snapshot"],
             )
         return po
 
@@ -270,8 +278,9 @@ class PurchaseOrderStatusUpdateSerializer(serializers.ModelSerializer):
 class ReceiveLineSerializer(serializers.Serializer):
     line_id = serializers.UUIDField()
     quantity = serializers.DecimalField(
-        max_digits=14, decimal_places=3, min_value=Decimal("0")
+        max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, default=Decimal("0"),
     )
+    cartons = serializers.IntegerField(required=False, min_value=1)
     batch_code = serializers.CharField(required=False, allow_blank=True, max_length=128)
     expiry_date = serializers.DateField(required=False, allow_null=True)
     received_at = serializers.DateField(required=False)

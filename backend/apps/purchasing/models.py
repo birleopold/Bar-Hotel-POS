@@ -99,6 +99,7 @@ class PurchaseOrderLine(TimeStampedModel):
         decimal_places=3,
         validators=[MinValueValidator(Decimal("0.001"))],
     )
+    units_per_carton_snapshot = models.PositiveSmallIntegerField(default=1)
     quantity_received = models.DecimalField(
         max_digits=14,
         decimal_places=3,
@@ -158,6 +159,7 @@ class PurchaseReceiptLine(TimeStampedModel):
         decimal_places=3,
         validators=[MinValueValidator(Decimal("0.001"))],
     )
+    cartons_received = models.PositiveIntegerField(default=0)
     inventory_batch = models.ForeignKey(
         "inventory.InventoryBatch", on_delete=models.PROTECT,
         null=True, blank=True, related_name="purchase_receipt_lines",
