@@ -1,51 +1,77 @@
 {% extends "staff/base.html" %}
-{% block title %}Check stock deliveries{% endblock %}
+{% block title %}Stock transfers{% endblock %}
 {% block content %}
 {% include "staff/inventory/includes/subnav.html" %}
-<header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Stock</p>
-<h1 class="staff-page-title">Check transferred deliveries</h1>
-<p class="staff-dash-hero__tagline">Transfers already changed both stock balances. Confirm what actually arrived here; a mismatch is recorded for investigation, not automatically adjusted.</p></div></header>
-<nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filter deliveries">
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+<p class="staff-dash-hero__eyebrow">Inventory · Handover</p>
+<h1 class="staff-page-title">Stock transfers and deliveries</h1>
+<p class="staff-dash-hero__tagline">Staged transfers leave the sender at dispatch and enter the receiver's stock only after physical confirmation. Older immediate transfers remain unchanged.</p>
+</div></header>
+<nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filter transfer deliveries">
 <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer-receipts' %}">All</a>
-<a class="staff-btn staff-btn--ghost" href="?status=awaiting">Awaiting check</a>
+<a class="staff-btn staff-btn--ghost" href="?status=in_transit">In transit</a>
+<a class="staff-btn staff-btn--ghost" href="?status=awaiting">Legacy checks</a>
 <a class="staff-btn staff-btn--ghost" href="?status=needs_review">Needs manager review</a>
 <a class="staff-btn staff-btn--ghost" href="?status=disputed">All discrepancies</a>
 <a class="staff-btn staff-btn--ghost" href="?status=reviewed">Reviewed</a>
-<a class="staff-btn staff-btn--ghost" href="?status=matched">Matched</a></nav>
+<a class="staff-btn staff-btn--ghost" href="?status=matched">Matched</a>
+<a class="staff-btn staff-btn--ghost" href="?status=resolved">Resolved</a></nav>
 {% for receipt in receipts %}
 <section class="staff-card mb-3" aria-label="Delivery {{ receipt.transfer_batch }}">
 <h2 class="staff-section-head">{{ receipt.menu_item.name }} · {{ receipt.dispatched_quantity }} units</h2>
 <p class="staff-muted">{{ receipt.from_outlet.name }} → {{ receipt.to_outlet.name }} · {{ receipt.created_at }} · {{ receipt.get_status_display }}</p>
-{% if receipt.status == "awaiting" and can_verify and receipt.dispatched_by_id != request.user.id %}
+<p class="staff-muted small">Reference {{ receipt.transfer_batch }} · {% if receipt.mode == "staged" %}In transit {{ receipt.outstanding_quantity }} units{% else %}Historical immediate transfer{% endif %}</p>
+{% if receipt.status == "in_transit" or receipt.status == "awaiting" %}
+{% if can_verify and receipt.to_outlet_id in accessible_outlet_ids and receipt.dispatched_by_id != request.user.id %}
 <form method="post">{% csrf_token %}<input type="hidden" name="action" value="verify"><input type="hidden" name="receipt_id" value="{{ receipt.id }}">
 <div class="mb-3"><label for="qty-{{ receipt.id }}">Quantity physically received (base units)</label>
 <input class="staff-input" id="qty-{{ receipt.id }}" name="received_quantity" type="number" min="0" step="0.001" max="99999999999.999" required></div>
-<div class="mb-3"><label for="note-{{ receipt.id }}">Discrepancy explanation (required when different)</label>
+<div class="mb-3"><label for="note-{{ receipt.id }}">Reason for discrepancy (required if count differs)</label>
 <textarea class="staff-input" id="note-{{ receipt.id }}" name="note" maxlength="512" rows="2"></textarea></div>
-<button class="staff-btn staff-btn--primary" type="submit">Confirm physical check</button></form>
-{% elif receipt.status == "awaiting" %}<p class="staff-muted">A different authorized receiving worker must check this delivery.</p>
-{% else %}<p>Received: {{ receipt.received_quantity }} · Verified by {{ receipt.checked_by|default:"Former staff" }} on {{ receipt.checked_at }}</p>
-{% if receipt.discrepancy_note %}<p class="staff-muted">Report: {{ receipt.discrepancy_note }}</p>{% endif %}
-{% if receipt.status == "disputed" %}
+<button class="staff-btn staff-btn--primary" type="submit">Confirm receiving</button></form>
+{% else %}<p class="staff-muted">Awaiting a different authorized receiving worker.</p>{% endif %}
+{% else %}
+<p>Physically counted: {{ receipt.received_quantity|default_if_none:"—" }} · By {{ receipt.checked_by|default:"Former staff" }} · {{ receipt.checked_at|default:"—" }}</p>
+{% if receipt.mode == "staged" %}<p class="staff-muted">Posted to destination {{ receipt.posted_quantity }} · Still in transit {{ receipt.outstanding_quantity }}</p>{% endif %}
+{% if receipt.discrepancy_note %}<p class="staff-muted">Reported discrepancy: {{ receipt.discrepancy_note }}</p>{% endif %}
+{% if receipt.status == "disputed" and receipt.mode == "staged" %}
+{% if can_review and receipt.from_outlet_id in accessible_outlet_ids and receipt.to_outlet_id in accessible_outlet_ids and receipt.checked_by_id != request.user.id and receipt.dispatched_by_id != request.user.id %}
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="resolve"><input type="hidden" name="receipt_id" value="{{ receipt.id }}">
+<div class="mb-3"><label for="resolution-{{ receipt.id }}">Manager's physically verified outcome</label>
+<select class="staff-input" id="resolution-{{ receipt.id }}" name="resolution_action" required>
+<option value="">Select an outcome</option>
+{% if receipt.outstanding_quantity > 0 %}
+<option value="receive_missing">Remaining goods arrived at destination</option>
+<option value="return_source">Remaining goods returned to sending section</option>
+<option value="write_off">Goods lost in transit; record loss</option>
+{% else %}<option value="acknowledge_overage">Extra goods investigated; do not book automatically</option>{% endif %}
+</select></div>
+<div class="mb-3"><label for="resolution-note-{{ receipt.id }}">Investigation findings and reason</label>
+<textarea class="staff-input" id="resolution-note-{{ receipt.id }}" name="note" minlength="12" maxlength="512" rows="3" required></textarea></div>
+<button class="staff-btn staff-btn--primary" type="submit">Resolve transfer discrepancy</button></form>
+{% else %}<p class="staff-muted">Independent manager access to both sections required for resolution.</p>{% endif %}
+{% elif receipt.status == "disputed" %}
 {% if receipt.reviewed_at %}
 <p><strong>Manager follow-up:</strong> {{ receipt.get_review_action_display }} by {{ receipt.reviewed_by|default:"Former staff" }} on {{ receipt.reviewed_at }}</p>
 <p class="staff-muted">Findings: {{ receipt.review_note }}</p>
-{% elif can_review and receipt.checked_by_id != request.user.id and receipt.dispatched_by_id != request.user.id %}
+{% elif can_review and receipt.to_outlet_id in accessible_outlet_ids and receipt.checked_by_id != request.user.id and receipt.dispatched_by_id != request.user.id %}
 <form method="post">{% csrf_token %}<input type="hidden" name="action" value="review"><input type="hidden" name="receipt_id" value="{{ receipt.id }}">
-<div class="mb-3"><label for="result-{{ receipt.id }}">Manager follow-up</label>
-<select class="staff-input" id="result-{{ receipt.id }}" name="review_action" required>
+<div class="mb-3"><label for="review-action-{{ receipt.id }}">Manager follow-up</label>
+<select class="staff-input" id="review-action-{{ receipt.id }}" name="review_action" required>
 <option value="">Choose action</option>
 <option value="needs_count">Request an independent physical count</option>
 <option value="documented">Record investigated explanation (no stock correction)</option>
 </select></div>
-<div class="mb-3"><label for="review-note-{{ receipt.id }}">Investigation findings and next action</label>
+<div class="mb-3"><label for="review-note-{{ receipt.id }}">Findings and next action</label>
 <textarea class="staff-input" id="review-note-{{ receipt.id }}" name="note" minlength="12" maxlength="512" rows="3" required></textarea></div>
-<p class="staff-muted">Reviewing never adjusts stock. Use the existing reviewed stock count for corrections.</p>
+<p class="staff-muted">Legacy manager review never adjusts stock. Use a reviewed stock count for corrections.</p>
 <button class="staff-btn staff-btn--primary" type="submit">Record manager follow-up</button></form>
-{% else %}<p class="staff-muted">Awaiting an independent authorized manager to review this discrepancy.</p>{% endif %}
+{% else %}<p class="staff-muted">Awaiting an independent authorized manager.</p>{% endif %}
 {% endif %}
-{% endif %}</section>
-{% empty %}<div class="staff-card"><p>No transfers in this filter. Earlier transfers may predate delivery-check tracking.</p></div>{% endfor %}
+{% if receipt.status == "resolved" %}<p class="staff-muted">Resolved: {{ receipt.resolution_action }} · {{ receipt.resolution_note }} · {{ receipt.resolved_by|default:"Former staff" }}</p>{% endif %}
+{% endif %}
+</section>
+{% empty %}<div class="staff-card"><p>No transfers match this filter.</p></div>{% endfor %}
 {% if is_paginated %}<nav class="staff-pager">
 {% if page_obj.has_previous %}<a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
 <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>

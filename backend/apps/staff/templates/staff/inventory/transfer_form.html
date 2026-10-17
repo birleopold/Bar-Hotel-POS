@@ -8,7 +8,7 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Transfer stock<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Move stock between sections. Confirm the physical handover first: this action changes both stock balances immediately.</p>
+          <p class="staff-dash-hero__tagline mb-0">Dispatch goods from one section to another. Only the sender's stock decreases now; the receiving section gets stock when a different worker confirms it.</p>
         </div>
       </div>
     </div>
@@ -19,8 +19,8 @@
     {% for field in form %}
       <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
     {% endfor %}
-    <p class="staff-muted small">Configured carton sizes are shown next to products. Transfers immediately update both sections in individual units.</p>
-    <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-transfer-submit>Transfer stock</button>
+    <p class="staff-muted small">Loose units and whole cartons are supported. Quantity remains in transit until physically verified.</p>
+    <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-transfer-submit>Dispatch stock</button>
     <p class="staff-muted small mt-2" role="status" aria-live="polite" data-transfer-status></p>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Cancel</a>
   </form>
@@ -39,7 +39,7 @@
     inFlight = true;
     var button = form.querySelector("[data-transfer-submit]");
     var status = form.querySelector("[data-transfer-status]");
-    if (button) { button.disabled = true; button.textContent = "Transferring…"; }
+    if (button) { button.disabled = true; button.textContent = "Dispatching…"; }
     if (status) status.textContent = "Saving this transfer. Do not submit it again.";
   });
 }());
