@@ -1,4 +1,6 @@
 """Tenant-scoped supermarket shelf locator; location labels are not stock quantities."""
+from uuid import UUID
+
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
@@ -13,6 +15,11 @@ from .models import StockShelfLocation
 def set_stock_shelf_location(*, tenant_id, outlet_id, menu_item_id, aisle="", shelf="",
                              bin_code="", note="", membership, user=None):
     from apps.staff.services.permissions import membership_has_inventory_capability
+    try:
+        outlet_id = UUID(str(outlet_id))
+        menu_item_id = UUID(str(menu_item_id))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValidationError({"detail": "Select a valid product and store section."}) from exc
     if not membership_has_inventory_capability(membership, "adjust"):
         raise ValidationError({"detail": "Your role cannot change shelf locations."})
     if not outlet_belongs_to_membership(membership, outlet_id):
