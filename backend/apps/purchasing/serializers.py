@@ -139,6 +139,12 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 
 
 class PurchaseOrderLineInputSerializer(serializers.Serializer):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if not attrs.get("quantity_ordered") and not attrs.get("cartons"):
+            raise serializers.ValidationError("Enter units, cartons or both.")
+        return attrs
+
     menu_item = serializers.UUIDField()
     quantity_ordered = serializers.DecimalField(
         max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, default=Decimal("0"),
@@ -185,6 +191,19 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 {"outlet": "You cannot create a PO for this outlet."}
             )
 
+        for row in attrs["lines"]:
+            item = MenuItem.objects.filter(
+                pk=row["menu_item"], tenant_id=tenant.pk, is_active=True,
+                track_inventory=True,
+            ).first()
+            if item is None:
+                raise serializers.ValidationError({"lines": "Choose an active tracked product."})
+            if item.units_per_carton > 1 and item.unit_of_measure != "each":
+                raise serializers.ValidationError({"lines": "Cartons must be configured for a piece-based item."})
+            to_stock_units(
+                units=row["quantity_ordered"], cartons=row.get("cartons", 0),
+                units_per_carton=item.units_per_carton,
+            )
         attrs["_supplier"] = supplier
         attrs["_outlet"] = outlet
         return attrs

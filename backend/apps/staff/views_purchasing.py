@@ -332,7 +332,11 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
             ctx = self.get_context_data(form=form)
             return render(request, self.template_name, ctx)
 
-        po = ser.save()
+        try:
+            po = ser.save()
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+            return render(request, self.template_name, self.get_context_data(form=form))
         messages.success(self.request, "Purchase order created as draft.")
         return redirect("staff-purchasing-order-detail", po_id=po.id)
 
