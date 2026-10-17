@@ -139,3 +139,27 @@ class VariableWeightLabelTests(TestCase):
         self.item.refresh_from_db()
         self.assertEqual(self.item.supermarket_profile.scale_prefix, "21")
         self.assertEqual(self.item.supermarket_profile.scale_item_code, "00123")
+
+
+    def test_scale_rule_change_updates_offline_catalog_fingerprint(self):
+        from apps.pos.services.catalog_version import catalog_version_payload
+
+        before = catalog_version_payload(
+            tenant_id=self.tenant.pk, outlet_id=self.outlet.pk,
+        )["catalog_version"]
+        self.configure()
+        after = catalog_version_payload(
+            tenant_id=self.tenant.pk, outlet_id=self.outlet.pk,
+        )["catalog_version"]
+        self.assertNotEqual(before, after)
+
+    def test_unassigned_store_owner_cannot_edit_invisible_scale_item(self):
+        second_site = Site.objects.create(tenant=self.tenant, name="Other location")
+        hidden_outlet = Outlet.objects.create(
+            site=second_site, name="Hidden produce", outlet_type=OutletType.SUPERMARKET,
+        )
+        # The SKU is explicitly offered only at another branch.
+        from apps.catalog.models import MenuItemOutlet
+        MenuItemOutlet.objects.create(menu_item=self.item, outlet=hidden_outlet)
+        with self.assertRaisesRegex(ValidationError, "authorized store sections"):
+            self.configure()

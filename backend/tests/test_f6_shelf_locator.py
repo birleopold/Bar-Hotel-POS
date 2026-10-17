@@ -117,3 +117,29 @@ class ShelfLocatorTests(TestCase):
         page = self.client.get(reverse("staff-inventory-shelves"), {"q": "SECRET"})
         self.assertEqual(page.status_code, 200)
         self.assertNotContains(page, "SECRET")
+
+
+    def test_api_shelf_lookup_and_assignment_are_outlet_scoped(self):
+        from rest_framework.test import APIClient
+
+        api = APIClient()
+        assert api.login(username=self.user.email, password="Password123!")
+        url = reverse("stock-shelf-location-list")
+        headers = {"HTTP_X_TENANT_ID": str(self.tenant.pk)}
+        posted = api.post(url, {
+            "outlet_id": str(self.outlet.pk), "menu_item_id": str(self.item.pk),
+            "aisle": "B1", "shelf": "Lower", "bin_code": "BX3",
+        }, format="json", **headers)
+        self.assertEqual(posted.status_code, 201, posted.content)
+        self.assertEqual(posted.data["aisle"], "B1")
+        matches = api.get(url, {"q": "BX3"}, **headers)
+        self.assertEqual(matches.status_code, 200)
+        self.assertEqual(len(matches.data), 1)
+        denied = api.post(url, {
+            "outlet_id": str(self.other_outlet.pk), "menu_item_id": str(self.item.pk),
+            "aisle": "PRIVATE",
+        }, format="json", **headers)
+        self.assertEqual(denied.status_code, 400, denied.content)
+        self.assertEqual(StockShelfLocation.objects.count(), 1)
+        self.balance.refresh_from_db()
+        self.assertEqual(self.balance.quantity, Decimal("23"))
