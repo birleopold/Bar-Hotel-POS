@@ -26,6 +26,8 @@ class StaffScaleLabelView(StaffTenantRequiredMixin, ListView):
     http_method_names = ["get", "post", "head", "options"]
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not getattr(request, "tenant_membership", None):
+            return super().dispatch(request, *args, **kwargs)
         outlets = Outlet.objects.filter(
             pk__in=membership_outlet_ids(request.tenant_membership),
             outlet_type__in=[OutletType.RETAIL, OutletType.SUPERMARKET],

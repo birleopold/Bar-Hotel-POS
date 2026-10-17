@@ -5,6 +5,7 @@ Layout is opt-in: PP (20-29) + IIIII (store item code) + GGGGG
 differ; the application never interprets arbitrary 20-29 barcodes as weight.
 """
 from decimal import Decimal
+from uuid import UUID
 
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
@@ -38,6 +39,10 @@ def configure_scale_weight_label(*, tenant_id, menu_item_id, prefix, item_code, 
             or membership.tenant_id != tenant_id
             or not membership_can_manage_workspace_settings(membership)):
         raise ValidationError({"detail": "Only an active business owner or administrator can configure scale labels."})
+    try:
+        menu_item_id = UUID(str(menu_item_id))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValidationError({"menu_item_id": "Select a valid kilogram product."}) from exc
     item = MenuItem.objects.filter(
         pk=menu_item_id, tenant_id=tenant_id, unit_of_measure=UnitOfMeasure.KG,
         track_inventory=True, is_active=True,

@@ -25,6 +25,8 @@ class StaffShelfLocationView(StaffTenantRequiredMixin, ListView):
     http_method_names = ["get", "post", "head", "options"]
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated or not getattr(request, "tenant_membership", None):
+            return super().dispatch(request, *args, **kwargs)
         if not membership_has_inventory_capability(request.tenant_membership, "view"):
             return HttpResponseForbidden("Your role cannot open the stock locator.")
         return super().dispatch(request, *args, **kwargs)
