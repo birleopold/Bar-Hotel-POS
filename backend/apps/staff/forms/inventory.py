@@ -58,6 +58,10 @@ class StaffStockMovementForm(forms.Form):
             ).select_related("site")
         if menu_items_qs is not None:
             self.fields["menu_item"].queryset = menu_items_qs
+            self.fields["menu_item"].label_from_instance = lambda item: (
+                f"{item.name} ({item.units_per_carton} pieces per carton)"
+                if item.units_per_carton > 1 else item.name
+            )
             if not menu_items_qs.exists():
                 self.fields["menu_item"].empty_label = "No tracked items available"
                 self.fields["menu_item"].help_text = (
@@ -83,10 +87,13 @@ class StaffStockTransferForm(forms.Form):
         widget=forms.Select(attrs={"class": "staff-input"}),
     )
     quantity = forms.DecimalField(
-        max_digits=14,
-        decimal_places=3,
-        min_value=Decimal("0.001"),
-        widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.001"}),
+        label="Loose units", max_digits=14, decimal_places=3, min_value=Decimal("0"),
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.001", "min": "0"}),
+    )
+    cartons = forms.IntegerField(
+        label="Whole cartons (optional)", min_value=1, required=False,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "step": "1", "min": "1"}),
     )
     note = forms.CharField(
         required=False,
@@ -111,6 +118,17 @@ class StaffStockTransferForm(forms.Form):
         t = data.get("to_outlet")
         if f and t and f.id == t.id:
             raise forms.ValidationError("Source and destination sections must differ.")
+        if data.get("menu_item") is not None:
+            from apps.catalog.packaging import to_stock_units
+            from rest_framework.exceptions import ValidationError as DRFValidationError
+            try:
+                data["quantity"] = to_stock_units(
+                    units=data.get("quantity") or 0,
+                    cartons=data.get("cartons") or 0,
+                    units_per_carton=data["menu_item"].units_per_carton,
+                )
+            except DRFValidationError as exc:
+                raise forms.ValidationError(str(exc.detail)) from exc
         return data
 
 

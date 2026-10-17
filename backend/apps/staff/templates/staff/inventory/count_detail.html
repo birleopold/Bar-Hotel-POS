@@ -17,22 +17,23 @@
   </header>
   {% if count_session.status == 'draft' and can_modify_inventory %}
     <h2 class="staff-section-head">Physical counts</h2>
-    <p class="staff-muted">Enter only quantities you physically checked. Leave others blank. Submitting will not update stock until a separate manager approves.</p>
+    <p class="staff-muted">Enter physically counted loose units, cartons, or both. Leave both blank for uncounted products; type 0 to count an empty shelf. Manager approval is still required.</p>
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="action" value="submit">
       <div class="staff-table-wrap mb-3">
         <table class="staff-table">
-          <thead><tr><th>Item</th><th>System qty</th><th>Counted</th></tr></thead>
+          <thead><tr><th>Item</th><th>System qty</th><th>Loose units</th><th>Whole cartons</th></tr></thead>
           <tbody>
             {% for row in count_rows %}
               <tr>
                 <td>{{ row.menu_item.name }}</td>
                 <td>{{ row.system_qty }}</td>
-                <td><input class="staff-input" type="number" step="0.001" min="0" name="counted_{{ row.menu_item.id }}" placeholder="Actual quantity" aria-label="Actual quantity of {{ row.menu_item.name }}" style="max-width: 9rem;"></td>
+                <td><input class="staff-input" type="number" step="0.001" min="0" name="counted_{{ row.menu_item.id }}" placeholder="Loose units" aria-label="Loose units counted for {{ row.menu_item.name }}" style="max-width: 9rem;"></td>
+                <td>{% if row.menu_item.units_per_carton > 1 %}<input class="staff-input" type="number" step="1" min="1" name="cartons_{{ row.menu_item.id }}" placeholder="{{ row.menu_item.units_per_carton }} units each" aria-label="Whole cartons counted for {{ row.menu_item.name }}" style="max-width: 9rem;">{% else %}<span class="staff-muted">—</span>{% endif %}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="3" class="staff-muted">No tracked items at this outlet.</td></tr>
+              <tr><td colspan="4" class="staff-muted">No tracked items at this outlet.</td></tr>
             {% endfor %}
           </tbody>
         </table>

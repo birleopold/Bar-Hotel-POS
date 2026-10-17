@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
+from apps.catalog.packaging import to_stock_units
 from apps.tenants.models import Outlet
 
 from .models import (
@@ -175,7 +176,8 @@ class StockTransferSerializer(serializers.Serializer):
     from_outlet = serializers.UUIDField()
     to_outlet = serializers.UUIDField()
     menu_item = serializers.UUIDField()
-    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=Decimal("0.001"))
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, default=Decimal("0"))
+    cartons = serializers.IntegerField(required=False, min_value=1)
     note = serializers.CharField(required=False, allow_blank=True, default="")
 
     def create(self, validated_data):
@@ -212,7 +214,10 @@ class StockTransferSerializer(serializers.Serializer):
             from_outlet=from_outlet,
             to_outlet=to_outlet,
             menu_item=menu_item,
-            quantity=validated_data["quantity"],
+            quantity=to_stock_units(
+                units=validated_data["quantity"], cartons=validated_data.get("cartons", 0),
+                units_per_carton=menu_item.units_per_carton,
+            ),
             user=request.user,
             note=validated_data.get("note", ""),
         )

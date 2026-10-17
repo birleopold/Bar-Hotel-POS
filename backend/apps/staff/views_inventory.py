@@ -15,6 +15,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuCategory, MenuItem
+from apps.catalog.packaging import to_stock_units
 from apps.inventory.models import StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason
 from apps.inventory.services import (
     apply_manual_stock_change, submit_stock_count_for_review,
@@ -693,13 +694,17 @@ class StaffStockCountDetailView(StaffTenantRequiredMixin, DetailView):
             resolved = []
             for item in items:
                 raw = request.POST.get(f"counted_{item.id}", "").strip()
-                # An uncounted item is not zero or an assumed ledger match.
-                if not raw:
+                cartons = request.POST.get(f"cartons_{item.id}", "").strip()
+                # Blank in both fields means not physically counted.
+                if not raw and not cartons:
                     continue
                 try:
-                    quantity = Decimal(raw)
-                except InvalidOperation:
-                    messages.error(request, f"Invalid quantity for {item.name}.")
+                    quantity = to_stock_units(
+                        units=raw or 0, cartons=cartons or 0,
+                        units_per_carton=item.units_per_carton, allow_zero=True,
+                    )
+                except DRFValidationError as exc:
+                    _flash_drf_validation(request, exc)
                     return redirect("staff-inventory-count-detail", session_id=sess.id)
                 resolved.append({"menu_item": item, "counted_quantity": quantity})
 

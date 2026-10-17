@@ -19,6 +19,7 @@
     {% for field in form %}
       <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
     {% endfor %}
+    <p class="staff-muted small">Configured carton sizes are shown next to products. Transfers immediately update both sections in individual units.</p>
     <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-transfer-submit>Transfer stock</button>
     <p class="staff-muted small mt-2" role="status" aria-live="polite" data-transfer-status></p>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Cancel</a>
