@@ -1,0 +1,40 @@
+{% extends "staff/base.html" %}
+{% block title %}Variable-weight scale labels{% endblock %}
+{% block content %}
+{% include "staff/inventory/includes/subnav.html" %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+<p class="staff-dash-hero__eyebrow">Supermarket · Weighed products</p>
+<h1 class="staff-page-title">Configure scale-label barcodes</h1>
+<p class="staff-dash-hero__tagline">Use only when your real weighing scale prints the supported local EAN-13 layout: 2-digit prefix (20–29), 5-digit product, 5-digit net grams, checksum. This format is not universal.</p>
+</div></header>
+<section class="staff-card mb-3">
+<h2 class="staff-card__title">Before enabling a scale</h2>
+<p class="staff-muted">Verify an actual label from your weighing scale against this format. The label encodes net grams; checkout calculates weight in kilograms and uses the configured price per kilogram, plus the existing tax rules. No automatic tare, calibration, hardware control or price-encoded label format is claimed.</p>
+<p class="staff-muted small">Only active, inventory-tracked kilogram products appear here. The prefix and product number are unique within this business. Enter both fields to enable a mapping, or clear both to disable it.</p>
+</section>
+<form method="get" class="staff-card mb-3" role="search">
+<label for="scale-filter" class="staff-label">Find weighed product</label>
+<div class="d-flex flex-wrap gap-2"><input class="staff-input flex-grow-1" id="scale-filter" name="q" maxlength="80" placeholder="Product, SKU or barcode" value="{{ scale_q }}" style="min-width:12rem">
+<button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Find</button></div></form>
+{% if scale_items %}
+<div class="staff-table-wrap"><table class="staff-table">
+<thead><tr><th>Product</th><th>Price per kilogram</th><th>Configured format</th>{% if can_configure %}<th>Update scale mapping</th>{% endif %}</tr></thead>
+<tbody>{% for item in scale_items %}
+<tr><td><strong>{{ item.name }}</strong><div class="staff-muted small">{{ item.sku|default:item.barcode|default:"No code" }}</div></td>
+<td>{{ item.unit_price }} / kg</td>
+<td>{% if item.supermarket_profile.scale_prefix %}{{ item.supermarket_profile.scale_prefix }} · {{ item.supermarket_profile.scale_item_code }} · net grams · check digit{% else %}<span class="staff-muted">Not configured</span>{% endif %}</td>
+{% if can_configure %}<td><details><summary class="staff-btn staff-btn--ghost staff-btn--sm">Configure</summary>
+<form method="post" class="mt-2">{% csrf_token %}
+<input type="hidden" name="menu_item_id" value="{{ item.pk }}">
+<input type="hidden" name="return_q" value="{{ scale_q }}">
+<div class="row g-2">
+<div class="col-12 col-md-6"><label class="staff-label" for="scale-prefix-{{ item.pk }}">Local prefix (20–29)</label>
+<input class="staff-input" id="scale-prefix-{{ item.pk }}" name="scale_prefix" inputmode="numeric" pattern="2[0-9]" minlength="2" maxlength="2" value="{{ item.supermarket_profile.scale_prefix|default:'' }}" placeholder="21"></div>
+<div class="col-12 col-md-6"><label class="staff-label" for="scale-item-{{ item.pk }}">Five-digit product number</label>
+<input class="staff-input" id="scale-item-{{ item.pk }}" name="scale_item_code" inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" value="{{ item.supermarket_profile.scale_item_code|default:'' }}" placeholder="00123"></div>
+<div class="col-12"><button class="staff-btn staff-btn--primary staff-btn--touch" type="submit">Save mapping</button></div>
+</div></form></details></td>{% endif %}</tr>
+{% endfor %}</tbody></table></div>
+{% else %}<div class="staff-card"><h2 class="staff-card__title">No kilogram items found</h2><p class="staff-muted">Add an active kilogram product with inventory tracking first, or try a different search.</p></div>{% endif %}
+{% if is_paginated %}<nav class="staff-pager" aria-label="Weighed products pagination">{% if page_obj.has_previous %}<a href="?q={{ scale_q|urlencode }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}<span>{{ page_obj.number }} of {{ paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?q={{ scale_q|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}</nav>{% endif %}
+{% endblock %}
