@@ -364,6 +364,7 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
     # Verify actual PO line/receipt evidence before accepting an itemized invoice.
     # Header-only invoices remain as historical/unmatched documents, never
     # retroactively represented as having passed a three-way match.
+    existing_invoice = SupplierInvoice.objects.filter(tenant_id=po.tenant_id, purchase_order=po, reference=number).first()
     matched = []
     if lines is not None:
         if not isinstance(lines, (list, tuple)) or not lines:
@@ -392,6 +393,9 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
             if (not price.is_finite() or price != line.unit_cost):
                 raise ValidationError({"lines": f"Unit cost for {line.menu_item.name} differs from the agreed purchase order. Resolve the price difference before paying."})
             previous = line.invoice_matches.aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+            if existing_invoice is not None:
+                own_qty = line.invoice_matches.filter(invoice=existing_invoice).aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+                previous -= own_qty
             returned = SupplierReturn.objects.filter(
                 purchase_order=po, receipt_line__purchase_order_line=line,
             ).aggregate(total=Sum("quantity"))["total"] or Decimal("0")
@@ -401,9 +405,7 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
         expected = sum((row[3] for row in matched), Decimal("0"))
         if expected != amount:
             raise ValidationError({"amount": f"Invoice amount {amount:.2f} does not equal matched line total {expected:.2f}. Verify supplier charges separately."})
-    existing = SupplierInvoice.objects.filter(
-        tenant_id=po.tenant_id, purchase_order=po, reference=number,
-    ).first()
+    existing = existing_invoice
     if existing is not None:
         if (existing.amount, existing.invoice_date, existing.due_date, existing.note) != (
                 amount, invoice_date, due_date, description):
