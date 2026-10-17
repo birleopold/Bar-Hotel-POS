@@ -1,4 +1,5 @@
 import uuid
+from django.db.models import Q
 
 from apps.access.outlets import membership_outlet_ids, outlet_belongs_to_membership
 from apps.catalog.models import MenuItem
@@ -10,7 +11,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
 
-from .models import StockBalance, StockCountSession, StockCountStatus, StockMovement
+from .models import StockBalance, StockCountSession, StockCountStatus, StockMovement, StockTransferReceipt
 from .serializers import (
     StockBalanceSerializer,
     StockCountCompleteSerializer,
@@ -23,6 +24,7 @@ from .serializers import (
 from .services import (
     complete_stock_count_session, submit_stock_count_for_review,
     approve_stock_count_session, return_stock_count_for_recount,
+    verify_stock_transfer_receipt, resolve_stock_transfer_discrepancy,
 )
 from apps.staff.services.permissions import membership_has_inventory_capability
 
@@ -126,10 +128,70 @@ class StockTransferViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
             {
                 "transfer_batch": str(batch),
                 "from_movement_id": str(mov_out.id),
-                "to_movement_id": str(mov_in.id),
+                "to_movement_id": str(mov_in.id) if mov_in is not None else None,
+                "status": "posted" if mov_in is not None else "in_transit",
             },
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=False, methods=["get"], url_path="receipts")
+    def receipts(self, request):
+        ids = membership_outlet_ids(request.tenant_membership)
+        transfers = StockTransferReceipt.objects.filter(
+            tenant=request.tenant,
+        ).filter(Q(from_outlet_id__in=ids) | Q(to_outlet_id__in=ids)).order_by("-created_at")[:100]
+        return Response([{
+            "id": str(r.id), "reference": str(r.transfer_batch),
+            "from_outlet": str(r.from_outlet_id), "to_outlet": str(r.to_outlet_id),
+            "menu_item": str(r.menu_item_id), "status": r.status, "mode": r.mode,
+            "dispatched": str(r.dispatched_quantity), "posted": str(r.posted_quantity),
+            "outstanding": str(r.outstanding_quantity),
+        } for r in transfers])
+
+    @action(detail=False, methods=["post"], url_path="receive")
+    def receive(self, request):
+        try:
+            receipt_id = uuid.UUID(str(request.data.get("receipt_id")))
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise ValidationError({"receipt_id": "Invalid transfer reference."}) from exc
+        receipt = StockTransferReceipt.objects.filter(
+            id=receipt_id, tenant=request.tenant,
+            to_outlet_id__in=membership_outlet_ids(request.tenant_membership),
+        ).first()
+        if receipt is None:
+            raise ValidationError({"receipt_id": "Transfer is not accessible."})
+        result = verify_stock_transfer_receipt(
+            receipt=receipt, membership=request.tenant_membership, user=request.user,
+            received_quantity=request.data.get("received_quantity"),
+            note=request.data.get("note", ""),
+        )
+        return Response({
+            "status": result.status, "posted": str(result.posted_quantity),
+            "outstanding": str(result.outstanding_quantity),
+        })
+
+    @action(detail=False, methods=["post"], url_path="resolve")
+    def resolve(self, request):
+        try:
+            receipt_id = uuid.UUID(str(request.data.get("receipt_id")))
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise ValidationError({"receipt_id": "Invalid transfer reference."}) from exc
+        ids = membership_outlet_ids(request.tenant_membership)
+        receipt = StockTransferReceipt.objects.filter(
+            id=receipt_id, tenant=request.tenant,
+            from_outlet_id__in=ids, to_outlet_id__in=ids,
+        ).first()
+        if receipt is None:
+            raise ValidationError({"receipt_id": "Transfer is not accessible."})
+        result = resolve_stock_transfer_discrepancy(
+            receipt=receipt, membership=request.tenant_membership, user=request.user,
+            action=request.data.get("action", ""), note=request.data.get("note", ""),
+        )
+        return Response({
+            "status": result.status, "posted": str(result.posted_quantity),
+            "returned": str(result.returned_quantity),
+            "written_off": str(result.written_off_quantity),
+        })
 
 
 class StockCountSessionViewSet(viewsets.ModelViewSet):

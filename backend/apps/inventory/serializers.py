@@ -179,6 +179,7 @@ class StockTransferSerializer(serializers.Serializer):
     quantity = serializers.DecimalField(max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, default=Decimal("0"))
     cartons = serializers.IntegerField(required=False, min_value=1)
     note = serializers.CharField(required=False, allow_blank=True, default="")
+    dispatch_only = serializers.BooleanField(required=False, default=False)
 
     def create(self, validated_data):
         from .services import execute_stock_transfer
@@ -209,6 +210,7 @@ class StockTransferSerializer(serializers.Serializer):
             raise serializers.ValidationError({"menu_item": "Invalid menu item."})
 
         return execute_stock_transfer(
+            staged=validated_data.get("dispatch_only", False),
             tenant_id=tenant.id,
             membership=membership,
             from_outlet=from_outlet,
