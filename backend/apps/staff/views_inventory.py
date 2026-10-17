@@ -1026,7 +1026,12 @@ class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
         if not membership_has_inventory_capability(request.tenant_membership, "transfer"):
             messages.error(request, "Your role cannot verify transfers.")
             return redirect("staff-inventory-transfer-receipts")
-        receipt = self.get_queryset().filter(pk=request.POST.get("receipt_id")).first()
+        try:
+            receipt_uuid = uuid.UUID(str(request.POST.get("receipt_id", "")))
+        except (ValueError, TypeError):
+            from django.http import Http404
+            raise Http404
+        receipt = self.get_queryset().filter(pk=receipt_uuid).first()
         if receipt is None:
             from django.http import Http404
             raise Http404

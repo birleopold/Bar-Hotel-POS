@@ -265,6 +265,8 @@ def execute_stock_transfer(
         raise ValidationError({"from_outlet": "You cannot transfer from this outlet."})
     if not outlet_belongs_to_membership(membership, to_outlet.id):
         raise ValidationError({"to_outlet": "You cannot transfer to this outlet."})
+    if menu_item.tenant_id != tenant_id:
+        raise ValidationError({"menu_item": "Product must belong to this business."})
     if not menu_item.track_inventory:
         raise ValidationError({"menu_item": "Enable track_inventory on this item."})
 
