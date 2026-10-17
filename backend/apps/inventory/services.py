@@ -693,3 +693,57 @@ def verify_stock_transfer_receipt(*, receipt, membership, user, received_quantit
         },
     )
     return receipt
+
+
+
+@transaction.atomic
+def review_stock_transfer_discrepancy(*, receipt, membership, user, review_action, note):
+    """Record independent manager follow-up; never rewrite posted stock.
+
+    A disputed transfer already posted inventory at dispatch. Reconciliation
+    requires a separately approved physical stock count or manual adjustment.
+    This action records an investigation and cannot itself fix a variance.
+    """
+    from apps.staff.services.permissions import membership_has_inventory_capability
+
+    receipt = StockTransferReceipt.objects.select_for_update().get(pk=receipt.pk)
+    if receipt.status != "disputed":
+        raise ValidationError("Only a delivery with a recorded discrepancy can be reviewed.")
+    if receipt.reviewed_at is not None:
+        raise ValidationError("This discrepancy has already been reviewed.")
+    if not membership_has_inventory_capability(membership, "approve_count"):
+        raise ValidationError("Only a manager can review delivery discrepancies.")
+    if membership.tenant_id != receipt.tenant_id or not outlet_belongs_to_membership(
+        membership, receipt.to_outlet_id,
+    ):
+        raise ValidationError("You cannot review the destination section.")
+    if user is None or user.pk in (receipt.checked_by_id, receipt.dispatched_by_id):
+        raise ValidationError("A different manager must review this delivery.")
+    if review_action not in ("needs_count", "documented"):
+        raise ValidationError({"review_action": "Choose a valid follow-up result."})
+    note = (note or "").strip()
+    if not 12 <= len(note) <= 512:
+        raise ValidationError({"note": "Explain the manager's findings in 12–512 characters."})
+    receipt.review_action = review_action
+    receipt.review_note = note
+    receipt.reviewed_by = user
+    receipt.reviewed_at = timezone.now()
+    receipt.save(update_fields=[
+        "review_action", "review_note", "reviewed_by", "reviewed_at", "updated_at",
+    ])
+    log_audit(
+        tenant_id=receipt.tenant_id, user_id=user.pk,
+        action="stock.transfer_discrepancy_reviewed", entity_type="stock_transfer",
+        entity_id=str(receipt.transfer_batch),
+        payload={
+            "receipt_id": str(receipt.pk),
+            "from_outlet_id": str(receipt.from_outlet_id),
+            "to_outlet_id": str(receipt.to_outlet_id),
+            "menu_item_id": str(receipt.menu_item_id),
+            "dispatched": str(receipt.dispatched_quantity),
+            "received": str(receipt.received_quantity),
+            "review_action": review_action, "reason": note,
+            "stock_posted_by_review": False,
+        },
+    )
+    return receipt

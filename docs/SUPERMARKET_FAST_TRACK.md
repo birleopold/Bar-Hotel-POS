@@ -137,3 +137,9 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - Earlier historic transfers remain historical ledger rows and do not fabricate receiving confirmations. Requires exact-head CI, Postgres RLS/concurrency, real-device and operational acceptance before certifying F3.
 
 - Additional safeguards: destination checks validate a bounded, finite base-unit quantity; a malformed receipt identifier returns Not Found instead of a server error. New receiving-check rows use the existing PostgreSQL tenant RLS pattern. Direct transfer rejects a product owned by a different business before moving any stock. Added regression cases for match, discrepancy, replay, invalid quantities and cross-tenant/self-confirmation denial.
+
+
+### F3 independent discrepancy investigation — 17 October 2026
+- Extended existing transfer receiving checks with one manager follow-up (recount required or investigation documented). Only an authorized destination manager other than the original dispatcher/receiver can submit a 12–512 character finding. Re-review is rejected under a row lock. Existing transfer posting remains single-entry; this process never modifies stock or books financial losses.
+- Staff Inventory → Check deliveries now includes Needs manager review and Reviewed filters, linked investigation actions, and retained delivery history. Investigation uses existing tenant/outlet permissions, audit and responsive staff styles.
+- Added migration and regression tests for outcome, replay, permissions, outlet scope and malformed submissions. At code-creation time tests/CI had not yet executed; do not mark F3 as certified until exact-commit CI and PostgreSQL/browser/device acceptance. Stock count approval remains the only mechanism in this UI for correcting physical quantity variance.

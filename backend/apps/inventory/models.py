@@ -199,6 +199,17 @@ class StockTransferReceipt(TimeStampedModel):
     checked_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="transfer_checks")
     checked_at = models.DateTimeField(null=True, blank=True)
     discrepancy_note = models.CharField(max_length=512, blank=True)
+    review_action = models.CharField(max_length=20, blank=True, default="", choices=[
+        ("", "Not reviewed"),
+        ("needs_count", "Physical recount required"),
+        ("documented", "Investigation documented"),
+    ])
+    review_note = models.CharField(max_length=512, blank=True)
+    reviewed_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="reviewed_transfer_discrepancies",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]

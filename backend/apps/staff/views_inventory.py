@@ -20,7 +20,7 @@ from apps.inventory.models import StockBalance, StockCountSession, StockCountSta
 from apps.inventory.services import (
     apply_manual_stock_change, submit_stock_count_for_review,
     approve_stock_count_session, return_stock_count_for_recount, execute_stock_transfer,
-    verify_stock_transfer_receipt,
+    verify_stock_transfer_receipt, review_stock_transfer_discrepancy,
 )
 from apps.pos.services import menu_items_for_outlet_queryset
 from apps.tenants.models import Outlet
@@ -1014,17 +1014,30 @@ class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
         choice = self.request.GET.get("status")
         if choice in ("awaiting", "matched", "disputed"):
             qs = qs.filter(status=choice)
+        elif choice == "needs_review":
+            qs = qs.filter(status="disputed", reviewed_at__isnull=True)
+        elif choice == "reviewed":
+            qs = qs.filter(status="disputed", reviewed_at__isnull=False)
         return qs.order_by("-created_at")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["status_filter"] = self.request.GET.get("status", "")
         ctx["can_verify"] = membership_has_inventory_capability(self.request.tenant_membership, "transfer")
+        ctx["can_review"] = membership_has_inventory_capability(self.request.tenant_membership, "approve_count")
         return ctx
 
     def post(self, request, *args, **kwargs):
-        if not membership_has_inventory_capability(request.tenant_membership, "transfer"):
-            messages.error(request, "Your role cannot verify transfers.")
+        action = request.POST.get("action", "verify")
+        if action == "verify":
+            capability = "transfer"
+        elif action == "review":
+            capability = "approve_count"
+        else:
+            messages.error(request, "Unknown delivery action.")
+            return redirect("staff-inventory-transfer-receipts")
+        if not membership_has_inventory_capability(request.tenant_membership, capability):
+            messages.error(request, "Your role cannot perform that delivery action.")
             return redirect("staff-inventory-transfer-receipts")
         try:
             receipt_uuid = uuid.UUID(str(request.POST.get("receipt_id", "")))
@@ -1036,13 +1049,23 @@ class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
             from django.http import Http404
             raise Http404
         try:
-            verify_stock_transfer_receipt(
-                receipt=receipt, membership=request.tenant_membership,
-                user=request.user, received_quantity=request.POST.get("received_quantity"),
-                note=request.POST.get("note", ""),
-            )
+            if action == "review":
+                review_stock_transfer_discrepancy(
+                    receipt=receipt, membership=request.tenant_membership,
+                    user=request.user, review_action=request.POST.get("review_action", ""),
+                    note=request.POST.get("note", ""),
+                )
+            else:
+                verify_stock_transfer_receipt(
+                    receipt=receipt, membership=request.tenant_membership,
+                    user=request.user, received_quantity=request.POST.get("received_quantity"),
+                    note=request.POST.get("note", ""),
+                )
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
         else:
-            messages.success(request, "Physical delivery checked. Any discrepancy is logged for review; no stock was posted twice.")
+            if action == "review":
+                messages.success(request, "Manager follow-up recorded. Stock remains unchanged; use a separate reviewed count if correction is needed.")
+            else:
+                messages.success(request, "Physical delivery checked. Any discrepancy is logged for review; no stock was posted twice.")
         return redirect("staff-inventory-transfer-receipts")

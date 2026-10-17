@@ -8,14 +8,16 @@
 <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filter deliveries">
 <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer-receipts' %}">All</a>
 <a class="staff-btn staff-btn--ghost" href="?status=awaiting">Awaiting check</a>
-<a class="staff-btn staff-btn--ghost" href="?status=disputed">Discrepancies</a>
+<a class="staff-btn staff-btn--ghost" href="?status=needs_review">Needs manager review</a>
+<a class="staff-btn staff-btn--ghost" href="?status=disputed">All discrepancies</a>
+<a class="staff-btn staff-btn--ghost" href="?status=reviewed">Reviewed</a>
 <a class="staff-btn staff-btn--ghost" href="?status=matched">Matched</a></nav>
 {% for receipt in receipts %}
 <section class="staff-card mb-3" aria-label="Delivery {{ receipt.transfer_batch }}">
 <h2 class="staff-section-head">{{ receipt.menu_item.name }} · {{ receipt.dispatched_quantity }} units</h2>
 <p class="staff-muted">{{ receipt.from_outlet.name }} → {{ receipt.to_outlet.name }} · {{ receipt.created_at }} · {{ receipt.get_status_display }}</p>
 {% if receipt.status == "awaiting" and can_verify and receipt.dispatched_by_id != request.user.id %}
-<form method="post">{% csrf_token %}<input type="hidden" name="receipt_id" value="{{ receipt.id }}">
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="verify"><input type="hidden" name="receipt_id" value="{{ receipt.id }}">
 <div class="mb-3"><label for="qty-{{ receipt.id }}">Quantity physically received (base units)</label>
 <input class="staff-input" id="qty-{{ receipt.id }}" name="received_quantity" type="number" min="0" step="0.001" max="99999999999.999" required></div>
 <div class="mb-3"><label for="note-{{ receipt.id }}">Discrepancy explanation (required when different)</label>
@@ -24,6 +26,24 @@
 {% elif receipt.status == "awaiting" %}<p class="staff-muted">A different authorized receiving worker must check this delivery.</p>
 {% else %}<p>Received: {{ receipt.received_quantity }} · Verified by {{ receipt.checked_by|default:"Former staff" }} on {{ receipt.checked_at }}</p>
 {% if receipt.discrepancy_note %}<p class="staff-muted">Report: {{ receipt.discrepancy_note }}</p>{% endif %}
+{% if receipt.status == "disputed" %}
+{% if receipt.reviewed_at %}
+<p><strong>Manager follow-up:</strong> {{ receipt.get_review_action_display }} by {{ receipt.reviewed_by|default:"Former staff" }} on {{ receipt.reviewed_at }}</p>
+<p class="staff-muted">Findings: {{ receipt.review_note }}</p>
+{% elif can_review and receipt.checked_by_id != request.user.id and receipt.dispatched_by_id != request.user.id %}
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="review"><input type="hidden" name="receipt_id" value="{{ receipt.id }}">
+<div class="mb-3"><label for="result-{{ receipt.id }}">Manager follow-up</label>
+<select class="staff-input" id="result-{{ receipt.id }}" name="review_action" required>
+<option value="">Choose action</option>
+<option value="needs_count">Request an independent physical count</option>
+<option value="documented">Record investigated explanation (no stock correction)</option>
+</select></div>
+<div class="mb-3"><label for="review-note-{{ receipt.id }}">Investigation findings and next action</label>
+<textarea class="staff-input" id="review-note-{{ receipt.id }}" name="note" minlength="12" maxlength="512" rows="3" required></textarea></div>
+<p class="staff-muted">Reviewing never adjusts stock. Use the existing reviewed stock count for corrections.</p>
+<button class="staff-btn staff-btn--primary" type="submit">Record manager follow-up</button></form>
+{% else %}<p class="staff-muted">Awaiting an independent authorized manager to review this discrepancy.</p>{% endif %}
+{% endif %}
 {% endif %}</section>
 {% empty %}<div class="staff-card"><p>No transfers in this filter. Earlier transfers may predate delivery-check tracking.</p></div>{% endfor %}
 {% if is_paginated %}<nav class="staff-pager">
