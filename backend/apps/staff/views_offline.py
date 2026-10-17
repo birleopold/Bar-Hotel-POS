@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 import uuid
 from django.contrib import messages
 from django.db import transaction
@@ -10,6 +11,8 @@ from django.shortcuts import redirect
 from apps.accounts.models import MembershipRole
 from apps.audit.models import ExceptionPolicy
 from apps.audit.services import log_audit
+from apps.tenants.models import TenantSettings
+from .services.permissions import membership_can_manage_workspace_settings
 from apps.pos.models import OfflineQueueStatus
 from .services.modules import get_tenant_staff_modules
 from django.utils import timezone
@@ -104,6 +107,13 @@ class StaffOfflineQueueListView(StaffTenantRequiredMixin, ListView):
                 "as_of": snap.get("as_of", ""),
             }
         ctx["catalog_by_outlet"] = catalog_by_outlet
+        ctx["offline_cash_ceiling"] = TenantSettings.objects.filter(tenant=self.request.tenant).values(
+            "offline_cash_payment_limit", "default_currency",
+        ).first()
+        ctx["can_configure_offline_limit"] = (
+            membership_can_manage_workspace_settings(self.request.tenant_membership)
+            and not self.request.session.get("staff_pin_authenticated")
+        )
         return ctx
 
 
@@ -116,6 +126,40 @@ class StaffOfflineQueueListView(StaffTenantRequiredMixin, ListView):
             MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
         }:
             return HttpResponseForbidden("Only a manager can review offline conflicts.")
+        if request.POST.get("action") == "cash_limit":
+            if (not membership_can_manage_workspace_settings(member)
+                    or request.session.get("staff_pin_authenticated")):
+                return HttpResponseForbidden("Sign in with an administrator password to change offline cash limits.")
+            raw = (request.POST.get("cash_limit") or "").strip()
+            amount = None
+            if raw:
+                try:
+                    amount = Decimal(raw)
+                except (InvalidOperation, TypeError, ValueError):
+                    messages.error(request, "Enter a valid cash amount or leave blank for no per-payment limit.")
+                    return redirect("staff-offline-queue")
+                if (not amount.is_finite() or amount <= 0
+                        or amount > Decimal("999999999999.99")
+                        or amount != amount.quantize(Decimal("0.01"))):
+                    messages.error(request, "Use a positive monetary amount with at most two decimals.")
+                    return redirect("staff-offline-queue")
+            settings, _ = TenantSettings.objects.get_or_create(tenant=request.tenant)
+            settings = TenantSettings.objects.select_for_update().get(pk=settings.pk)
+            before = settings.offline_cash_payment_limit
+            if before != amount:
+                settings.offline_cash_payment_limit = amount
+                settings.save(update_fields=["offline_cash_payment_limit", "updated_at"])
+                log_audit(
+                    tenant_id=request.tenant.pk, user_id=request.user.pk,
+                    action="pos.offline_cash_ceiling_updated", entity_type="tenant_settings",
+                    entity_id=str(settings.pk), payload={
+                        "previous": str(before) if before is not None else None,
+                        "new": str(amount) if amount is not None else None,
+                        "currency": settings.default_currency,
+                    },
+                )
+            messages.success(request, "Offline cash payment limit saved. This does not certify unsynced devices or live stock.")
+            return redirect("staff-offline-queue")
         if request.POST.get("action") != "review":
             messages.error(request, "Choose a supported queue review action.")
             return redirect("staff-offline-queue")

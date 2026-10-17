@@ -33,6 +33,25 @@
   </div>
   <p class="staff-muted small mt-2 mb-0">A browser connection indicator is not proof that the register has fully synchronized. Review all failed or waiting transactions before closing a till.</p>
   <p class="staff-muted small mt-2 mb-0">Only cash tenders can be queued through this offline replay workflow. Card, mobile money and bank transfers need online verification. The system never assumes an offline electronic payment has settled.</p>
+  <div class="mt-3">
+    <h3 class="staff-section-head">Offline cash payment limit</h3>
+    {% if offline_cash_ceiling.offline_cash_payment_limit %}
+    <p class="staff-muted">Configured maximum per offline cash payment: <strong>{{ offline_cash_ceiling.default_currency }} {{ offline_cash_ceiling.offline_cash_payment_limit }}</strong>.</p>
+    {% else %}
+    <p class="staff-alert staff-alert--info">No offline cash ceiling is configured. Historic behavior is retained, but this is a risk for unattended devices. An owner can set a limit.</p>
+    {% endif %}
+    <p class="staff-muted small">This server limit applies to one queued cash payment in the business default currency. It does not authorize card payments, guarantee stock, impose a per-device daily ceiling, or prove the till's unsent transactions exist on the server.</p>
+    {% if can_configure_offline_limit %}
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}<input type="hidden" name="action" value="cash_limit">
+      <div class="col-12 col-md-6">
+        <label class="staff-label" for="offline-cash-limit">Per-payment ceiling ({{ offline_cash_ceiling.default_currency|default:"default currency" }})</label>
+        <input id="offline-cash-limit" class="staff-input" type="number" name="cash_limit" min="0.01" step="0.01" max="999999999999.99" value="{{ offline_cash_ceiling.offline_cash_payment_limit|default_if_none:'' }}" placeholder="e.g. 500000">
+      </div>
+      <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Save offline limit</button></div>
+      <p class="staff-muted small mb-0">Blank means no per-payment limit. Set a limit appropriate for your store and till procedures.</p>
+    </form>{% endif %}
+  </div>
 </section>
 <div class="staff-card mb-3">
   <h2 class="staff-section-head">When sync shows <code class="staff-code">409 catalog_stale</code></h2>
