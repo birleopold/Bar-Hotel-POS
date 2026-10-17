@@ -191,7 +191,7 @@
           </form>
         {% endif %}{% endfor %}
       {% endif %}
-    {% elif can_modify_purchasing and supplier_payment_limit > 0 and not unallocated_supplier_payments %}
+    {% elif can_modify_purchasing and supplier_payment_limit > 0 and not legacy_receipt_expenses and not uncosted_received and supplier_invoiced == 0 or can_modify_purchasing and supplier_payment_limit > 0 and not unallocated_supplier_payments %}
       <p class="staff-muted">Record a payment only after money has actually been sent to the supplier. Receiving goods alone does not create a cashbook expense.</p>
       <form method="post" class="row g-2 align-items-end mb-3" data-supplier-payment-form>
         {% csrf_token %}<input type="hidden" name="action" value="supplier_payment"><input type="hidden" name="idempotency_key" value="{{ supplier_payment_key }}">
