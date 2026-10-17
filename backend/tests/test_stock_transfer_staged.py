@@ -82,3 +82,52 @@ def test_shortage_reconciliation_is_a_single_manager_action(action, source_qty, 
             receipt=receipt, membership=manager, user=reviewer,
             action=action, note="Duplicate should not post",
         )
+
+
+@pytest.mark.django_db
+def test_overage_is_reported_but_never_invented_as_saleable_stock():
+    data, dest, user, role, reviewer, manager, receipt = start("staged-surplus")
+    with pytest.raises(ValidationError, match="Explain"):
+        verify_stock_transfer_receipt(
+            receipt=receipt, membership=role, user=user, received_quantity="6",
+        )
+    verify_stock_transfer_receipt(
+        receipt=receipt, membership=role, user=user,
+        received_quantity="6", note="Found two unexpected units",
+    )
+    receipt.refresh_from_db()
+    assert receipt.status == "disputed" and receipt.posted_quantity == 4
+    assert StockBalance.objects.get(outlet=dest, menu_item=data["item"]).quantity == 4
+    with pytest.raises(ValidationError):
+        resolve_stock_transfer_discrepancy(
+            receipt=receipt, membership=manager, user=reviewer,
+            action="write_off", note="Should not accept a wrong result.",
+        )
+    resolve_stock_transfer_discrepancy(
+        receipt=receipt, membership=manager, user=reviewer,
+        action="acknowledge_overage", note="Quarantined extra units pending count.",
+    )
+    receipt.refresh_from_db()
+    assert receipt.status == "resolved"
+    assert StockBalance.objects.get(outlet=dest, menu_item=data["item"]).quantity == 4
+
+
+@pytest.mark.django_db
+def test_unrelated_tenant_cannot_resolve_shortage():
+    data, dest, user, role, reviewer, manager, receipt = start("staged-tenant")
+    verify_stock_transfer_receipt(
+        receipt=receipt, membership=role, user=user,
+        received_quantity="0", note="Nothing arrived at the destination",
+    )
+    other = _seed_tenant_bundle(
+        name="Independent Owner", slug="staged-other",
+        user_email="staged-other@example.test",
+    )
+    different = Membership.objects.get(tenant=other["tenant"], user=other["user"])
+    with pytest.raises(ValidationError, match="manager"):
+        resolve_stock_transfer_discrepancy(
+            receipt=receipt, membership=different, user=other["user"],
+            action="write_off", note="Cross tenant must fail.",
+        )
+    receipt.refresh_from_db()
+    assert receipt.status == "disputed"

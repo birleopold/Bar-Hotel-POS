@@ -1018,9 +1018,9 @@ class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
         if choice in ("awaiting", "in_transit", "matched", "disputed", "resolved"):
             qs = qs.filter(status=choice)
         elif choice == "needs_review":
-            qs = qs.filter(status="disputed", reviewed_at__isnull=True)
+            qs = qs.filter(mode="instant", status="disputed", reviewed_at__isnull=True)
         elif choice == "reviewed":
-            qs = qs.filter(status="disputed", reviewed_at__isnull=False)
+            qs = qs.filter(mode="instant", status="disputed", reviewed_at__isnull=False)
         return qs.order_by("-created_at")
 
     def get_context_data(self, **kwargs):
