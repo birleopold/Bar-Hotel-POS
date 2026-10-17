@@ -8,7 +8,7 @@ from .models import PurchaseOrder, PurchaseOrderStatus
 
 
 def purchase_order_exposure(*, tenant, outlet=None, outlet_ids=None):
-    qs = PurchaseOrder.objects.filter(tenant=tenant).select_related("supplier", "outlet").prefetch_related("lines", "payments", "invoices")
+    qs = PurchaseOrder.objects.filter(tenant=tenant).select_related("supplier", "outlet").prefetch_related("lines", "payments", "invoices", "credits")
     if outlet is not None:
         if outlet.site.tenant_id != tenant.pk:
             raise ValueError("outlet must belong to tenant")
@@ -34,6 +34,8 @@ def purchase_order_exposure(*, tenant, outlet=None, outlet_ids=None):
         paid = sum((payment.amount for payment in order.payments.all()), Decimal("0"))
         invoices = list(order.invoices.all())
         invoiced = sum((inv.amount for inv in invoices), Decimal("0"))
+        credited = sum((credit.amount for credit in order.credits.all()), Decimal("0"))
+        net_invoiced = invoiced - credited
         next_due = min((inv.due_date for inv in invoices), default=None)
         result.append({
             "order_id": order.pk,
@@ -44,11 +46,13 @@ def purchase_order_exposure(*, tenant, outlet=None, outlet_ids=None):
             "received_value": received,
             "paid_amount": paid,
             "invoiced_value": invoiced,
+            "credited_value": credited,
+            "net_invoiced_value": net_invoiced,
             "earliest_invoice_due_date": next_due,
-            "unbilled_received_value": max(Decimal("0"), received - invoiced) if received is not None else None,
+            "unbilled_received_value": max(Decimal("0"), received - net_invoiced) if received is not None else None,
             # A PO-level balance only: payments are not linked to individual invoice lines.
-            "unpaid_invoiced_value": max(Decimal("0"), invoiced - paid),
-            "unpaid_received_value": max(Decimal("0"), received - paid) if received is not None else None,
+            "unpaid_invoiced_value": max(Decimal("0"), net_invoiced - paid),
+            "unpaid_received_value": max(Decimal("0"), received - paid - credited) if received is not None else None,
             "missing_cost_data": not complete_received_costs,
             "missing_order_cost_data": not full_order_costs,
         })

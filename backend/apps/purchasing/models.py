@@ -231,3 +231,40 @@ class SupplierInvoice(TimeStampedModel):
                 condition=models.Q(amount__gt=0), name="supplier_invoice_amount_positive",
             ),
         ]
+
+
+class SupplierCreditNote(TimeStampedModel):
+    """A verified vendor-issued credit against a recorded invoice, not a refund.
+
+    No stock or cashbook movement is posted by recording this document.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="supplier_credit_notes",
+    )
+    purchase_order = models.ForeignKey(
+        PurchaseOrder, on_delete=models.PROTECT, related_name="credits",
+    )
+    invoice = models.ForeignKey(
+        SupplierInvoice, on_delete=models.PROTECT, related_name="credits",
+    )
+    reference = models.CharField(max_length=128)
+    credit_date = models.DateField()
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    reason = models.CharField(max_length=512)
+    recorded_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True,
+        related_name="supplier_credit_notes_recorded",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "purchase_order", "reference"],
+                name="uniq_supplier_credit_reference_po",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0), name="supplier_credit_amount_positive",
+            ),
+        ]

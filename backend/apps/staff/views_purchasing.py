@@ -14,8 +14,8 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
-from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, ReceivePurchaseOrderSerializer
-from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, record_supplier_invoice, received_goods_value, has_legacy_receipt_expenses
+from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
+from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, record_supplier_invoice, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
 from apps.tenants.models import Outlet, TenantSettings
 
 from .forms import StaffPOHeaderForm, StaffSupplierForm
@@ -372,9 +372,11 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["received_value"] = received_goods_value(self.object)
         ctx["supplier_paid"] = self.object.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
         ctx["supplier_invoiced"] = self.object.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-        ctx["supplier_due"] = ctx["received_value"] - ctx["supplier_paid"]
-        # Match the effective backend payment ceiling when supplier invoices exist.
-        ctx["supplier_invoice_due"] = max(Decimal("0"), ctx["supplier_invoiced"] - ctx["supplier_paid"])
+        ctx["supplier_credited"] = self.object.credits.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        ctx["supplier_net_invoiced"] = ctx["supplier_invoiced"] - ctx["supplier_credited"]
+        ctx["supplier_due"] = ctx["received_value"] - ctx["supplier_paid"] - ctx["supplier_credited"]
+        # Use the same net invoice ceiling as the payment service.
+        ctx["supplier_invoice_due"] = max(Decimal("0"), ctx["supplier_net_invoiced"] - ctx["supplier_paid"])
         ctx["supplier_payment_limit"] = min(
             ctx["supplier_due"],
             ctx["supplier_invoice_due"] if ctx["supplier_invoiced"] > 0 else ctx["supplier_due"],
@@ -413,6 +415,22 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     _flash_drf_validation(request, exc)
                 else:
                     messages.success(request, "Unit cost confirmed.")
+            return redirect("staff-purchasing-order-detail", po_id=po.id)
+
+        if action == "supplier_credit":
+            ser = RecordSupplierCreditNoteSerializer(data=request.POST)
+            if not ser.is_valid():
+                _flash_serializer_errors(request, ser.errors)
+            else:
+                try:
+                    _, replay = record_supplier_credit_note(
+                        po=po, user=request.user, membership=request.tenant_membership,
+                        **ser.validated_data,
+                    )
+                except DRFValidationError as exc:
+                    _flash_drf_validation(request, exc)
+                else:
+                    messages.success(request, "Credit already recorded." if replay else "Supplier credit recorded. No stock or cash was changed.")
             return redirect("staff-purchasing-order-detail", po_id=po.id)
 
         if action == "supplier_invoice":

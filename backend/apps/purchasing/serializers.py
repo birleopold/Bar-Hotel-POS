@@ -94,6 +94,16 @@ class RecordSupplierInvoiceSerializer(serializers.Serializer):
     note = serializers.CharField(required=False, allow_blank=True, max_length=512, default="")
 
 
+class RecordSupplierCreditNoteSerializer(serializers.Serializer):
+    invoice_id = serializers.UUIDField()
+    reference = serializers.CharField(max_length=128, trim_whitespace=True)
+    credit_date = serializers.DateField()
+    amount = serializers.DecimalField(
+        max_digits=14, decimal_places=2, min_value=Decimal("0.01"),
+    )
+    reason = serializers.CharField(min_length=12, max_length=512, trim_whitespace=True)
+
+
 class SupplierInvoiceReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupplierInvoice

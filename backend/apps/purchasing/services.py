@@ -15,7 +15,7 @@ from apps.inventory.services_batches import receive_tracked_batch
 from apps.inventory.batches import InventoryBatch
 from django.utils import timezone
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, SupplierPayment, SupplierPaymentMethod, SupplierInvoice
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, SupplierPayment, SupplierPaymentMethod, SupplierInvoice, SupplierCreditNote
 
 
 @transaction.atomic
@@ -263,11 +263,13 @@ def record_supplier_payment(
         # Recorded invoices create a narrower settlement ceiling. If no invoice
         # exists, preserve the established receipt-backed payment workflow.
         invoiced = po.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-        if invoiced > 0 and amount > (invoiced - paid).quantize(Decimal("0.01")):
+        credited = po.credits.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        net_invoiced = invoiced - credited
+        if invoiced > 0 and amount > (net_invoiced - paid).quantize(Decimal("0.01")):
             raise ValidationError({
                 "amount": (
                     "Payment exceeds the unpaid recorded supplier invoices "
-                    f"({max(Decimal('0'), invoiced - paid):.2f}). "
+                    f"({max(Decimal('0'), net_invoiced - paid):.2f}). "
                     "Record and verify the remaining invoice before paying more."
                 )
             })
@@ -343,7 +345,8 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
         raise ValidationError({"detail": "Confirm unit costs of received goods before adding an invoice."})
     value = received_goods_value(po)
     already = po.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    if amount > value - already:
+    credited = po.credits.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    if amount > value - (already - credited):
         raise ValidationError({
             "amount": "Invoice exceeds the unbilled value of received goods; review any tax or delivery charges separately."
         })
@@ -362,3 +365,75 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
         },
     )
     return invoice, False
+
+
+
+@transaction.atomic
+def record_supplier_credit_note(*, po, invoice_id, reference, credit_date,
+                                amount, reason, user, membership):
+    """Recognize a vendor credit against unpaid invoices, not a cash refund.
+
+    All invoice, payment and credit changes serialize on the purchase order.
+    Historical payments and stock movements are never rewritten.
+    """
+    from datetime import date
+
+    po = PurchaseOrder.objects.select_for_update().get(pk=po.pk)
+    if not outlet_belongs_to_membership(membership, po.outlet_id):
+        raise ValidationError({"detail": "You cannot record credits for this section."})
+    invoice = SupplierInvoice.objects.filter(
+        tenant_id=po.tenant_id, purchase_order=po, pk=invoice_id,
+    ).first()
+    if invoice is None:
+        raise ValidationError({"invoice_id": "Choose a supplier invoice on this purchase order."})
+    if has_legacy_receipt_expenses(po):
+        raise ValidationError({"detail": "Reconcile legacy receipt expenses before recording supplier credits."})
+    number = (reference or "").strip()
+    if not number or len(number) > 128:
+        raise ValidationError({"reference": "Enter the supplier's credit note number (up to 128 characters)."})
+    reason = (reason or "").strip()
+    if len(reason) < 12 or len(reason) > 512:
+        raise ValidationError({"reason": "Explain the supplier credit in 12–512 characters."})
+    if not isinstance(credit_date, date) or credit_date < invoice.invoice_date:
+        raise ValidationError({"credit_date": "Credit note date cannot be before the invoice date."})
+    try:
+        amount = Decimal(str(amount))
+    except (TypeError, ValueError, ArithmeticError, InvalidOperation) as exc:
+        raise ValidationError({"amount": "Enter a valid supplier credit amount."}) from exc
+    if (not amount.is_finite() or amount <= 0
+            or amount > Decimal("999999999999.99")
+            or amount != amount.quantize(Decimal("0.01"))):
+        raise ValidationError({"amount": "Use a positive credit amount with two decimal places."})
+    existing = po.credits.filter(reference=number).first()
+    if existing is not None:
+        if (existing.invoice_id, existing.credit_date, existing.amount, existing.reason) != (
+            invoice.pk, credit_date, amount, reason,
+        ):
+            raise ValidationError({"reference": "Credit number already used for different details."})
+        return existing, True
+    credited_for_invoice = invoice.credits.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    gross_invoiced = po.invoices.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    total_credited = po.credits.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    paid = po.payments.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    if amount > invoice.amount - credited_for_invoice:
+        raise ValidationError({"amount": "Credit exceeds the remaining value of the selected invoice."})
+    if amount > gross_invoiced - total_credited - paid:
+        raise ValidationError({
+            "amount": "Credit would exceed unpaid supplier invoices. Reconcile actual payments/refunds separately."
+        })
+    credit = SupplierCreditNote.objects.create(
+        tenant_id=po.tenant_id, purchase_order=po, invoice=invoice,
+        reference=number, credit_date=credit_date, amount=amount,
+        reason=reason, recorded_by=user,
+    )
+    log_audit(
+        tenant_id=po.tenant_id, user_id=user.pk if user else None,
+        action="purchase.supplier_credit_recorded",
+        entity_type="supplier_credit_note", entity_id=str(credit.pk),
+        payload={
+            "purchase_order_id": str(po.pk), "invoice_id": str(invoice.pk),
+            "reference": number, "amount": str(amount), "reason": reason,
+            "cash_refunded": False, "stock_changed": False,
+        },
+    )
+    return credit, False
