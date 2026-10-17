@@ -87,6 +87,12 @@ class RecordSupplierPaymentSerializer(serializers.Serializer):
     reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
 
 
+class LinkSupplierPaymentInvoiceSerializer(serializers.Serializer):
+    payment_id = serializers.UUIDField()
+    invoice_id = serializers.UUIDField()
+    note = serializers.CharField(min_length=12, max_length=512, trim_whitespace=True)
+
+
 class RecordSupplierInvoiceSerializer(serializers.Serializer):
     reference = serializers.CharField(max_length=128, trim_whitespace=True)
     invoice_date = serializers.DateField()

@@ -14,8 +14,8 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
-from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
-from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, record_supplier_invoice, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
+from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
+from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
 from apps.tenants.models import Outlet, TenantSettings
 
 from .forms import StaffPOHeaderForm, StaffSupplierForm
@@ -449,6 +449,26 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     _flash_drf_validation(request, exc)
                 else:
                     messages.success(request, "Invoice already recorded." if replay else "Supplier invoice recorded.")
+            return redirect("staff-purchasing-order-detail", po_id=po.id)
+
+        if action == "supplier_payment_link":
+            ser = LinkSupplierPaymentInvoiceSerializer(data=request.POST)
+            if not ser.is_valid():
+                _flash_serializer_errors(request, ser.errors)
+            else:
+                try:
+                    _, replay = link_existing_supplier_payment_to_invoice(
+                        po=po, user=request.user, membership=request.tenant_membership,
+                        **ser.validated_data,
+                    )
+                except DRFValidationError as exc:
+                    _flash_drf_validation(request, exc)
+                else:
+                    messages.success(
+                        request,
+                        "Payment already linked to this invoice." if replay else
+                        "Historical payment linked to the verified invoice; no new payment or stock movement was recorded.",
+                    )
             return redirect("staff-purchasing-order-detail", po_id=po.id)
 
         if action == "supplier_payment":

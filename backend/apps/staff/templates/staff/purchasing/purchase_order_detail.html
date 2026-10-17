@@ -130,7 +130,34 @@
         <tr><td>{{ row.invoice.reference }}</td><td>{{ row.invoice.invoice_date }}</td><td>{{ row.invoice.due_date }}{% if row.overdue_days %}<small class="staff-muted"> · {{ row.overdue_days }} days overdue</small>{% endif %}</td><td>{{ purchase_currency }} {{ row.invoice.amount }}</td><td>{{ purchase_currency }} {{ row.credited }}</td><td>{{ purchase_currency }} {{ row.paid }}</td><td><strong>{{ purchase_currency }} {{ row.unpaid }}</strong></td></tr>
       {% endfor %}</tbody>
     </table></div>
-    {% if unallocated_supplier_payments %}<p class="staff-alert staff-alert--info">Unassigned historical payments: {{ purchase_currency }} {{ unallocated_supplier_payments }}. Individual invoice balances above are not final until those payments are reconciled. No automatic allocation has been made.</p>{% endif %}{% endif %}
+    {% if unallocated_supplier_payments %}
+      <p class="staff-alert staff-alert--info">Unassigned historical payments: {{ purchase_currency }} {{ unallocated_supplier_payments }}. Invoice balances are not final until the original payment references are checked. No allocation was guessed.</p>
+      {% if can_modify_purchasing %}
+        <h3 class="staff-section-head">Link an older payment to its invoice</h3>
+        <p class="staff-muted small">Use this only when the full original payment belongs to one invoice. Splitting one payment across several invoices requires a separate reconciliation; linking does not send money again.</p>
+        {% for payment in po.payments.all %}{% if not payment.invoice_id %}
+          <form method="post" class="row g-2 align-items-end mb-3">
+            {% csrf_token %}<input type="hidden" name="action" value="supplier_payment_link"><input type="hidden" name="payment_id" value="{{ payment.id }}">
+            <div class="col-12 col-md-3">
+              <strong>{{ purchase_currency }} {{ payment.amount }}</strong>
+              <small class="staff-muted d-block">{{ payment.reference|default:"Reference not recorded" }} · {{ payment.created_at }}</small>
+            </div>
+            <div class="col-12 col-md-3"><label class="staff-label" for="link-invoice-{{ payment.id }}">Verified invoice</label>
+              <select id="link-invoice-{{ payment.id }}" class="staff-input" name="invoice_id" required>
+                <option value="">Choose invoice</option>
+                {% for row in invoice_settlement_rows %}{% if row.unpaid >= payment.amount %}
+                  <option value="{{ row.invoice.id }}">{{ row.invoice.reference }} · {{ purchase_currency }} {{ row.unpaid }} outstanding</option>
+                {% endif %}{% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4"><label class="staff-label" for="link-note-{{ payment.id }}">Verification details</label>
+              <input id="link-note-{{ payment.id }}" class="staff-input" name="note" minlength="12" maxlength="512" placeholder="Matched bank reference and supplier invoice" required>
+            </div>
+            <div class="col-12 col-md-2"><button class="staff-btn staff-btn--ghost staff-btn--touch" type="submit">Link payment</button></div>
+          </form>
+        {% endif %}{% endfor %}
+      {% endif %}
+    {% endif %}{% endif %}
     {% if can_modify_purchasing and not uncosted_received and received_value > supplier_net_invoiced %}
     <form method="post" class="row g-2 align-items-end">
       {% csrf_token %}<input type="hidden" name="action" value="supplier_invoice">
