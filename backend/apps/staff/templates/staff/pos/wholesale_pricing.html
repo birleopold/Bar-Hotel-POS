@@ -1,0 +1,28 @@
+{% extends "staff/base.html" %}
+{% block title %}Wholesale pricing{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+  <p class="staff-dash-hero__eyebrow">Supermarket · Wholesale</p><h1 class="staff-page-title">Wholesale quantity prices</h1>
+  <p>Set optional unit rates for business customers. Anonymous shoppers always pay the normal shelf price unless a manager explicitly applies an eligible wholesale tier.</p>
+</div></header>
+<div class="staff-toolbar mb-3"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Back to sales</a></div>
+{% if wholesale_can_edit %}
+<section class="staff-card mb-3"><h2 class="staff-card__title">Set or update a tier · {{ wholesale_outlet.name }}</h2>
+<form method="post" class="row g-3">{% csrf_token %}
+<div class="col-12 col-md-5"><label class="staff-label" for="wh-item">Product</label><select id="wh-item" name="menu_item_id" class="staff-input" required>
+<option value="">Choose a product</option>{% for item in wholesale_items %}<option value="{{ item.pk }}">{{ item.name }}</option>{% endfor %}</select></div>
+<div class="col-6 col-md-3"><label class="staff-label" for="wh-qty">Minimum units</label><input id="wh-qty" name="minimum_quantity" type="number" min="0.001" step="0.001" class="staff-input" required></div>
+<div class="col-6 col-md-4"><label class="staff-label" for="wh-price">Unit price ({{ request.tenant.settings.default_currency }})</label><input id="wh-price" name="unit_price" type="number" min="0" step="0.01" class="staff-input" required></div>
+<div class="col-12 col-md-4"><label class="staff-label" for="wh-start">Starts (optional)</label><input id="wh-start" name="starts_at" type="datetime-local" class="staff-input"></div>
+<div class="col-12 col-md-4"><label class="staff-label" for="wh-end">Ends (optional)</label><input id="wh-end" name="ends_at" type="datetime-local" class="staff-input"></div>
+<div class="col-12 col-md-4"><label class="staff-label" for="wh-active"><input id="wh-active" name="is_active" type="checkbox" checked> Active</label></div>
+<div class="col-12"><p class="staff-muted small">The largest eligible minimum-quantity tier applies. Changing a rule never reprices completed receipts or already partially paid sales.</p><button class="staff-btn staff-btn--primary" type="submit">Save wholesale rate</button></div>
+</form></section>
+{% elif not wholesale_outlets %}<div class="staff-card">No retail or supermarket sections are available to your account.</div>
+{% else %}<div class="staff-card">Select a single retail section in the header and sign in as a manager to set prices.</div>{% endif %}
+<section class="staff-card"><h2 class="staff-card__title">Current wholesale tiers</h2>
+<div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Section</th><th>Product</th><th>From units</th><th>Unit rate</th><th>Effective</th><th>Status</th></tr></thead>
+<tbody>{% for rule in wholesale_rules %}<tr><td>{{ rule.outlet.name }}</td><td>{{ rule.menu_item.name }}</td>
+<td>{{ rule.minimum_quantity }}</td><td>{{ rule.unit_price }}</td><td>{{ rule.starts_at|default:"Now" }} – {{ rule.ends_at|default:"No expiry" }}</td><td>{{ rule.is_active|yesno:"Active,Inactive" }}</td></tr>
+{% empty %}<tr><td colspan="6">No wholesale tiers configured.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}
