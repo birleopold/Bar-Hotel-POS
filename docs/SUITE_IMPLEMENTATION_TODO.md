@@ -611,3 +611,10 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 - The existing direct completion domain service is now manager-only, with a regression test proving an authorized storekeeper cannot bypass approval. No duplicate stock ledger or new sale/customer/table dependency was introduced.
 - Exact prior green source checkpoint: ed449b03359a0a2f2f2a0062c94bad3f46494a46 — https://github.com/birleopold/Bar-Hotel-POS/actions/runs/38956165341 — 592 passed, 5 skipped, 20 subtests; Django checks and migration-drift checks passed. This final permission guard/documentation commit requires its own CI.
 - F3, Phase 07 and Phase 08 stay IN PROGRESS: carton/unit conversions, in-transit transfers, original-lot reconciliation, PostgreSQL two-till races, mobile/browser workflows and physical devices remain unverified.
+
+
+### F3 carton-to-unit conversion — 17 October 2026
+
+- Tenant product configuration now provides **pieces per carton** for tracked pieces (1 = disabled). Purchase orders accept whole cartons alongside loose units and retain their **original carton size snapshot**. Supplier receiving uses that snapshot, stores the quantity of cartons entered, rejects duplicate delivery references, and posts only base-unit quantities to the existing stock ledger. Supplier cost remains per individual piece.
+- Staff/API stock transfers and staff physical counts accept cartons plus loose units through one bounded, finite and precision-checked converter. Ordinary POS checkout and historical stock quantities are unchanged; legacy purchase orders have a safe carton factor of 1.
+- Research: Odoo 19 official [Units of measure](https://www.odoo.com/documentation/19.0/applications/inventory_and_mrp/inventory/product_management/configure/uom.html) and [Packaging](https://www.odoo.com/documentation/19.0/applications/inventory_and_mrp/inventory/product_management/configure/packaging.html). This implementation is **not F3 completion**; multi-stage transfer dispatch/acceptance, real PostgreSQL concurrency, browser/device acceptance and lot reconciliation remain open.

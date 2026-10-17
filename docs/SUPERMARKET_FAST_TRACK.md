@@ -121,3 +121,10 @@ After F1–F6, reconcile **every SM-01 through SM-36** item with evidence, with 
 - Stock-count list now offers status filters (especially **Awaiting approval**) and keeps the selected filter through pagination, making submitted counts reachable from stock operations on narrow and large displays.
 - Approval also rejects an intervening stock movement even when later movements restore the exact same total quantity; this avoids applying a stale count after sale-plus-return or receipt-plus-transfer. Returning a count for recount records the original expected and counted quantities in the existing audit event, preserving a discrepancy trail when the editable draft is reset.
 - New regression tests exercise the net-zero movement safeguard. Full exact-main CI and PostgreSQL/device acceptance remain separate.
+
+
+### F3 carton-to-unit conversion — 17 October 2026
+
+- Tenant product configuration now provides **pieces per carton** for tracked pieces (1 = disabled). Purchase orders accept whole cartons alongside loose units and retain their **original carton size snapshot**. Supplier receiving uses that snapshot, stores the quantity of cartons entered, rejects duplicate delivery references, and posts only base-unit quantities to the existing stock ledger. Supplier cost remains per individual piece.
+- Staff/API stock transfers and staff physical counts accept cartons plus loose units through one bounded, finite and precision-checked converter. Ordinary POS checkout and historical stock quantities are unchanged; legacy purchase orders have a safe carton factor of 1.
+- Research: Odoo 19 official [Units of measure](https://www.odoo.com/documentation/19.0/applications/inventory_and_mrp/inventory/product_management/configure/uom.html) and [Packaging](https://www.odoo.com/documentation/19.0/applications/inventory_and_mrp/inventory/product_management/configure/packaging.html). This implementation is **not F3 completion**; multi-stage transfer dispatch/acceptance, real PostgreSQL concurrency, browser/device acceptance and lot reconciliation remain open.
