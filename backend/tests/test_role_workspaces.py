@@ -168,7 +168,7 @@ class RoleWorkspaceTests(TestCase):
         response = self.client.post(reverse("staff-inventory-transfer"), transfer)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(StockBalance.objects.get(outlet=self.outlet, menu_item=item).quantity, Decimal("8"))
-        self.assertEqual(StockBalance.objects.get(outlet=destination, menu_item=item).quantity, Decimal("2"))
+        self.assertFalse(StockBalance.objects.filter(outlet=destination, menu_item=item).exists())
         movements = StockMovement.objects.count()
         response = self.client.post(reverse("staff-inventory-transfer"), {**transfer, "to_outlet": str(self.other_outlet.pk)})
         self.assertEqual(response.status_code, 200)

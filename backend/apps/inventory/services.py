@@ -731,8 +731,10 @@ def review_stock_transfer_discrepancy(*, receipt, membership, user, review_actio
     from apps.staff.services.permissions import membership_has_inventory_capability
 
     receipt = StockTransferReceipt.objects.select_for_update().get(pk=receipt.pk)
-    if receipt.mode != "instant" or receipt.status != "disputed":
-        raise ValidationError("Legacy review applies only to immediate-transfer discrepancies.")
+    if receipt.mode != "instant":
+        raise ValidationError("Staged transfers require stock-aware discrepancy resolution.")
+    if receipt.status != "disputed":
+        raise ValidationError("Only a delivery with a recorded discrepancy can be reviewed.")
     if receipt.reviewed_at is not None:
         raise ValidationError("This discrepancy has already been reviewed.")
     if not membership_has_inventory_capability(membership, "approve_count"):
