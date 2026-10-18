@@ -1,6 +1,6 @@
 """Additional exception sources, with permission-safe descriptions and links."""
 from datetime import timedelta
-from django.db.models import Q, CharField, Value
+from django.db.models import Q, CharField, Value, Count
 from django.db.models.functions import Cast, Replace
 from django.utils import timezone
 from django.urls import reverse
@@ -32,8 +32,28 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
         lines = OrderLine.objects.filter(order__tenant=request.tenant, order__outlet_id__in=ids).select_related("order")
         for obj in limited(lines.filter(updated_at__gte=cutoff, line_discount_amount__gt=policy.discount_threshold, is_voided=False).order_by("-updated_at"), "line_discount"):
             result.append(row("line_discount", obj, "Line discount", f"{obj.label} · {obj.line_discount_amount} {obj.order.currency}", reverse("staff-order-detail", kwargs={"order_id":obj.order_id}), (obj.line_discount_amount, obj.updated_at)))
-        for obj in limited(lines.filter(is_voided=True, voided_at__gte=cutoff).order_by("-voided_at"), "void"):
-            result.append(row("void", obj, "Voided line", f"{obj.label} · {obj.void_reason}", reverse("staff-order-detail", kwargs={"order_id":obj.order_id}), (obj.voided_at, obj.void_reason)))
+        # Investigate repeated voids on the same sale without mistaking the
+        # most recent 50 displayed records for a complete frequency count.
+        # Limit the grouped query to orders actually shown to the manager.
+        visible_voids = list(limited(
+            lines.filter(is_voided=True, voided_at__gte=cutoff).order_by("-voided_at"),
+            "void",
+        ))
+        repeated_voids = {}
+        if visible_voids:
+            repeated_voids = dict(
+                lines.filter(
+                    is_voided=True, voided_at__gte=cutoff,
+                    order_id__in={item.order_id for item in visible_voids},
+                ).order_by().values("order_id").annotate(total=Count("pk"))
+                .values_list("order_id", "total")
+            )
+        for obj in visible_voids:
+            count = repeated_voids.get(obj.order_id, 0)
+            detail = f"{obj.label} · {obj.void_reason or 'No reason recorded'}"
+            if count > 1:
+                detail += f" · {count} voided lines on this sale"
+            result.append(row("void", obj, "Voided line", detail, reverse("staff-order-detail", kwargs={"order_id":obj.order_id}), (obj.voided_at, obj.void_reason, count)))
         queue = OfflineQueuedOperation.objects.filter(tenant=request.tenant, outlet_id__in=ids).filter(Q(status="failed") | Q(status="pending", created_at__lt=timezone.now()-timedelta(hours=policy.offline_age_hours))).order_by("created_at")
         for obj in limited(queue, "offline_conflict"):
             result.append(row("offline_conflict", obj, "Offline operation needs attention", f"{obj.operation_type} · {obj.status} · queued {obj.created_at:%Y-%m-%d %H:%M}", source_url("offline_conflict",obj), (obj.status, obj.updated_at)))
