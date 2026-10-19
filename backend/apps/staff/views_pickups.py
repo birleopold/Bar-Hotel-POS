@@ -1,4 +1,5 @@
 from django.views.generic import ListView
+from django.utils import timezone
 from apps.pos.models import RetailPickup
 from apps.tenants.models import OutletType
 from .mixins import StaffTenantRequiredMixin
@@ -17,6 +18,8 @@ class StaffRetailPickupsView(StaffTenantRequiredMixin, ListView):
         qs = RetailPickup.objects.filter(tenant=self.request.tenant, order__outlet_id__in=ids)
         if self.request.GET.get("status", "awaiting") == "awaiting":
             qs = qs.filter(status=RetailPickup.Status.AWAITING)
+        elif self.request.GET.get("status") == "overdue":
+            qs = qs.filter(status=RetailPickup.Status.AWAITING, expected_on__lt=timezone.localdate())
         elif self.request.GET.get("status") == "collected":
             qs = qs.filter(status=RetailPickup.Status.COLLECTED)
         return qs.select_related("order", "order__outlet", "order__customer").order_by("expected_on", "-created_at")
