@@ -171,8 +171,17 @@ class ManagementWorkspaceTests(TestCase):
         rows = self.rows()
         self.assertEqual(len([r for r in rows if r.kind == "refund"]), 50)
         self.assertNotIn(str(self.refund.pk), {r.entity_id for r in rows if r.kind == "refund"})
+        # New refunds materially change the review evidence, so a stale
+        # fingerprint must fail even when the original refund is beyond the
+        # 50-row display limit. Refresh from its scoped source URL.
         response = self.client.post(reverse("staff-management"), self.review_data(refund_row))
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 409)
+        source = self.client.get(refund_row.url if refund_row.url else reverse("staff-management-source", args=["refund", self.refund.pk]))
+        self.assertEqual(source.status_code, 200)
+        refreshed = source.context["exception"]
+        self.assertNotEqual(refund_row.fingerprint, refreshed.fingerprint)
+        self.assertIn("52 refunds", refreshed.detail)
+        self.assertEqual(self.client.post(reverse("staff-management"), self.review_data(refreshed)).status_code, 302)
         self.assertTrue(ExceptionReview.objects.filter(entity_id=self.refund.pk).exists())
         Refund.objects.filter(pk=self.refund.pk).update(created_at=timezone.now()-timedelta(days=60))
         self.assertEqual(self.client.post(reverse("staff-management"), self.review_data(refund_row)).status_code, 409)
