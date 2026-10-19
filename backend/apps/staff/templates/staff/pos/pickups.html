@@ -15,7 +15,7 @@
 <section class="staff-card"><div class="staff-table-wrap"><table class="staff-table">
 <thead><tr><th>Pickup date</th><th>Store</th><th>Receipt</th><th>Customer</th><th>Status</th><th>Open order</th></tr></thead>
 <tbody>{% for pickup in pickups %}<tr>
-<td>{{ pickup.expected_on }}{% if pickup.status == "awaiting" and pickup.expected_on < today %} <span class="staff-tag">Overdue</span>{% endif %}</td><td>{{ pickup.order.outlet.name }}</td><td>{{ pickup.order.bill_reference }}</td>
+<td>{{ pickup.expected_on }}</td><td>{{ pickup.order.outlet.name }}</td><td>{{ pickup.order.bill_reference }}</td>
 <td>{{ pickup.order.customer.name|default:"Customer" }}</td><td>{{ pickup.get_status_display }}</td>
 <td><a class="staff-btn staff-btn--ghost" href="{% url 'staff-order-detail' order_id=pickup.order_id %}">Review</a></td></tr>
 {% empty %}<tr><td colspan="6">No matching paid pickups in your accessible stores.</td></tr>{% endfor %}</tbody></table></div>
