@@ -9,7 +9,7 @@ from rest_framework.exceptions import ValidationError
 from apps.audit.services import log_audit
 from apps.pos.models import Order, OrderStatus, RetailPickup
 from apps.pos.services.wholesale import manager_allowed
-from apps.staff.services.permissions import membership_can_modify_lodging
+from apps.staff.services.permissions import membership_can_confirm_retail_pickup
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.tenants.models import OutletType
 
@@ -65,7 +65,7 @@ def hand_over_paid_pickup(*, pickup, note, user, membership):
         raise ValidationError({"detail": "Pickup no longer available."})
     if (not membership or not membership.is_active or membership.user_id != user.pk
             or membership.tenant_id != locked.tenant_id
-            or not membership_can_modify_lodging(membership)
+            or not membership_can_confirm_retail_pickup(membership)
             or not outlet_belongs_to_membership(membership, locked.outlet_id)):
         raise ValidationError({"detail": "Only staff authorized for this retail section may confirm handover."})
     if row.status == RetailPickup.Status.COLLECTED:
