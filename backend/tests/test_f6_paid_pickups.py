@@ -66,3 +66,18 @@ def test_pickup_requires_paid_customer_and_right_store_permissions():
     order.save(update_fields=["customer", "is_paid", "status"])
     with pytest.raises(ValidationError):
         register_paid_pickup(**args)
+
+
+def test_retail_pickup_handover_permission_is_not_lodging_dependent():
+    from apps.staff.services.permissions import membership_can_confirm_retail_pickup
+    from types import SimpleNamespace
+
+    for role in (
+        MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+        MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+    ):
+        assert membership_can_confirm_retail_pickup(SimpleNamespace(is_active=True, role=role))
+        assert not membership_can_confirm_retail_pickup(SimpleNamespace(is_active=False, role=role))
+    for role in (MembershipRole.STOREKEEPER, MembershipRole.SERVER, MembershipRole.FRONT_DESK):
+        assert not membership_can_confirm_retail_pickup(SimpleNamespace(is_active=True, role=role))
+    assert not membership_can_confirm_retail_pickup(None)
