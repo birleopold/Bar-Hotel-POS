@@ -12,7 +12,7 @@ from apps.integrations.models import EfrisSubmission
 from apps.pos.models import Order, OrderLine, OfflineQueuedOperation, Payment, Refund
 from apps.purchasing.models import PurchaseReceipt
 
-EXTRA_KINDS = ("discount", "line_discount", "void", "stock_adjustment", "delivery_discrepancy", "efris_failure", "offline_conflict", "pin_failure")
+EXTRA_KINDS = ("discount", "line_discount", "void", "manual_price", "stock_adjustment", "delivery_discrepancy", "efris_failure", "offline_conflict", "pin_failure")
 
 
 def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
@@ -54,6 +54,20 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
             if count > 1:
                 detail += f" · {count} voided lines on this sale"
             result.append(row("void", obj, "Voided line", detail, reverse("staff-order-detail", kwargs={"order_id":obj.order_id}), (obj.voided_at, obj.void_reason, count)))
+        # A manual price marker is a review signal, not proof that a shelf
+        # price was overridden. Historical menu prices are not reconstructed.
+        manual_lines = lines.filter(
+            pricing_source="manual", is_voided=False,
+            created_at__gte=cutoff,
+        ).order_by("-created_at")
+        for obj in limited(manual_lines, "manual_price"):
+            result.append(row(
+                "manual_price", obj, "Manual price entry",
+                f"{obj.label} · {obj.quantity} × {obj.unit_price} {obj.order.currency}"
+                " · compare with the authorized selling price",
+                reverse("staff-order-detail", kwargs={"order_id": obj.order_id}),
+                (obj.unit_price, obj.quantity, obj.updated_at, obj.pricing_source),
+            ))
         queue = OfflineQueuedOperation.objects.filter(tenant=request.tenant, outlet_id__in=ids).filter(Q(status="failed") | Q(status="pending", created_at__lt=timezone.now()-timedelta(hours=policy.offline_age_hours))).order_by("created_at")
         for obj in limited(queue, "offline_conflict"):
             result.append(row("offline_conflict", obj, "Offline operation needs attention", f"{obj.operation_type} · {obj.status} · queued {obj.created_at:%Y-%m-%d %H:%M}", source_url("offline_conflict",obj), (obj.status, obj.updated_at)))
