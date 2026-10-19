@@ -174,3 +174,14 @@ def membership_can_approve_sensitive_action(membership: Membership | None, actio
         and membership is not None and membership.is_active
         and membership.role in SENSITIVE_APPROVAL_ROLES
     )
+
+
+def membership_can_confirm_retail_pickup(membership: Membership | None) -> bool:
+    """Retail handover role check; callers also validate outlet and tenant scope."""
+    return bool(
+        membership is not None and membership.is_active
+        and membership.role in {
+            MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+        }
+    )
