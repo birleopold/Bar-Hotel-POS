@@ -176,7 +176,7 @@ class ManagementWorkspaceTests(TestCase):
         # 50-row display limit. Refresh from its scoped source URL.
         response = self.client.post(reverse("staff-management"), self.review_data(refund_row))
         self.assertEqual(response.status_code, 409)
-        source = self.client.get(refund_row.url if refund_row.url else reverse("staff-management-source", args=["refund", self.refund.pk]))
+        source = self.client.get(reverse("staff-management-source", args=["refund", self.refund.pk]))
         self.assertEqual(source.status_code, 200)
         refreshed = source.context["exception"]
         self.assertNotEqual(refund_row.fingerprint, refreshed.fingerprint)
