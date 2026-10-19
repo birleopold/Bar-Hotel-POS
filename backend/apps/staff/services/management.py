@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import F, Q, Count, Sum
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -77,8 +77,41 @@ def exception_rows(request, *, source=None):
         for shift in limited(shifts, "cash_variance"):
             rows.append(_row("cash_variance", shift, "Cash variance", f"{shift.outlet.name} · {shift.workstation.name if shift.workstation else 'Section register'} · {shift.variance:+.2f}", reverse("staff-management-shift", kwargs={"shift_id": shift.pk}), (shift.expected_cash, shift.counted_cash, shift.closed_at)))
         refunds = Refund.objects.filter(tenant=request.tenant, order__tenant=request.tenant, order__outlet_id__in=outlet_ids, created_at__gte=cutoff, amount__gte=policy.refund_threshold).select_related("order", "order__outlet").order_by("-created_at")
-        for refund in limited(refunds, "refund"):
-            rows.append(_row("refund", refund, "Refund review", f"{refund.order.outlet.name} · {refund.amount:.2f} {refund.order.currency} · {refund.reason}", reverse("staff-order-detail", kwargs={"order_id": refund.order_id}), (refund.amount, refund.created_at)))
+        visible_refunds = list(limited(refunds, "refund"))
+        # Aggregate from all refunds for each visible sale, including refunds
+        # below the single-refund threshold. Do not treat the 50-row display
+        # limit as a count limit or combine different currencies.
+        refund_history = {}
+        if visible_refunds:
+            refund_history = {
+                record["order_id"]: record
+                for record in Refund.objects.filter(
+                    tenant=request.tenant, order__tenant=request.tenant,
+                    order__outlet_id__in=outlet_ids, created_at__gte=cutoff,
+                    order_id__in={refund.order_id for refund in visible_refunds},
+                ).order_by().values("order_id").annotate(
+                    count=Count("pk"), total=Sum("amount"),
+                )
+            }
+        for refund in visible_refunds:
+            history = refund_history.get(refund.order_id, {})
+            count = history.get("count", 1)
+            detail = (
+                f"{refund.order.outlet.name} · {refund.amount:.2f} "
+                f"{refund.order.currency} · {refund.reason or 'No reason recorded'}"
+            )
+            if count > 1:
+                detail += (
+                    f" · {count} refunds on this sale within review window "
+                    f"(total {history['total']:.2f} {refund.order.currency})"
+                )
+            if not refund.restocked:
+                detail += " · Inventory not restocked by this refund"
+            rows.append(_row(
+                "refund", refund, "Refund review", detail,
+                reverse("staff-order-detail", kwargs={"order_id": refund.order_id}),
+                (refund.amount, refund.created_at, count, history.get("total"), refund.restocked),
+            ))
     if "inventory" in modules and vis.inventory:
         balances = StockBalance.objects.filter(tenant=request.tenant, outlet_id__in=outlet_ids, menu_item__tenant=request.tenant, menu_item__track_inventory=True, menu_item__reorder_level__isnull=False, quantity__lte=F("menu_item__reorder_level")).select_related("outlet", "menu_item").order_by("quantity", "pk")
         for balance in limited(balances, "low_stock"):
