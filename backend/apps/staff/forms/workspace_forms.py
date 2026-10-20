@@ -64,6 +64,23 @@ class StaffTenantModulesForm(forms.Form):
 
 
 class StaffTenantBrandingForm(forms.ModelForm):
+    business_name = forms.CharField(
+        label="Business name", max_length=255,
+        widget=forms.TextInput(attrs={"class": "staff-input", "autocomplete": "organization"}),
+        help_text="Shown on your staff pages, sign-in screens and tenant-branded documents.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields["business_name"].initial = self.instance.tenant.name
+
+    def clean_business_name(self):
+        name = " ".join(self.cleaned_data["business_name"].split())
+        if len(name) < 2:
+            raise forms.ValidationError("Enter a business name of at least 2 characters.")
+        return name
+
     class Meta:
         model = TenantSettings
         fields = [
