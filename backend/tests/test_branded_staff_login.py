@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole
+from apps.staff.forms.workspace_forms import StaffTenantBrandingForm
 from apps.tenants.models import Tenant, TenantSettings, TenantDomain
 
 
@@ -59,3 +60,25 @@ class BrandedStaffLoginTests(TestCase):
         self.assertContains(response, "Sennana Supermarket · STAFF TERMINAL")
         self.assertNotContains(response, self.user.email)
         self.assertNotContains(response, "Kartel Bar")
+
+
+class BusinessNameBrandingFormTests(TestCase):
+    def test_business_name_is_required_and_normalized(self):
+        tenant = Tenant.objects.create(name="Original Store", slug="original-store")
+        settings = TenantSettings.objects.create(tenant=tenant)
+        base_data = {
+            "default_currency": settings.default_currency,
+            "default_timezone": settings.default_timezone,
+            "loyalty_spend_per_point": str(settings.loyalty_spend_per_point),
+            "receipt_footer": "",
+            "theme_primary": settings.theme_primary,
+            "theme_secondary": settings.theme_secondary,
+            "theme_accent": settings.theme_accent,
+            "logo_url": "",
+        }
+        missing = StaffTenantBrandingForm(data=base_data, instance=settings)
+        self.assertFalse(missing.is_valid())
+        self.assertIn("business_name", missing.errors)
+        form = StaffTenantBrandingForm(data={**base_data, "business_name": "  Sennana   Supermarket  "}, instance=settings)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["business_name"], "Sennana Supermarket")
