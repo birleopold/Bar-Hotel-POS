@@ -15,7 +15,7 @@
     <section class="staff-terminal__panel" aria-labelledby="terminal-title">
       <div class="staff-terminal__eyebrow">{% if login_brand %}{{ login_brand.name }} · STAFF TERMINAL{% else %}READY FOR THE NEXT WORKER{% endif %}</div>
       <h1 id="terminal-title">{% if login_brand %}Welcome to {{ login_brand.name }}{% else %}Your turn to serve.{% endif %}</h1>
-      <p class="staff-terminal__intro">Your turn to serve. Choose your name and enter your PIN; your work stays under your own account.</p>
+      <p class="staff-terminal__intro">{% if login_brand %}{{ login_brand.workspace_label }}. {% endif %}Your turn to serve. Choose your name and enter your PIN; your work stays under your own account.</p>
       {% if workers %}
         <form method="post" action="{% url 'staff-terminal' %}" class="staff-terminal__form" novalidate>
           {% csrf_token %}
