@@ -9,7 +9,7 @@ from apps.accounts.models import Membership, MembershipRole
 from apps.staff.forms.workspace_forms import StaffTenantBrandingForm
 from apps.staff.terminal import available_workers, set_member_pin, verify_member_pin
 from apps.staff.services.presentation import staff_product_presentation
-from apps.tenants.models import Tenant, TenantSettings, TenantDomain
+from apps.tenants.models import Tenant, TenantSettings, TenantDomain, Site, Outlet, OutletType
 
 
 @override_settings(ALLOWED_HOSTS=["testserver", "sennana.example.test", "kartel.example.test"])
@@ -61,6 +61,26 @@ class BrandedStaffLoginTests(TestCase):
         self.assertNotIn(member, available_workers(self.kartel.pk, ""))
         self.assertIsNone(verify_member_pin(
             member_id=member.pk, tenant_id=self.kartel.pk, outlet_id="", pin="627941"
+        ))
+
+    def test_branch_assigned_worker_cannot_unlock_another_branch(self):
+        first_site = Site.objects.create(tenant=self.sennana, name="Main Branch")
+        other_site = Site.objects.create(tenant=self.sennana, name="Second Branch")
+        first_outlet = Outlet.objects.create(site=first_site, name="Till 1", outlet_type=OutletType.SUPERMARKET)
+        other_outlet = Outlet.objects.create(site=other_site, name="Till 2", outlet_type=OutletType.SUPERMARKET)
+        user = get_user_model().objects.create_user(email="sennana-cashier@example.test", password="TestPassword!123")
+        member = Membership.objects.create(tenant=self.sennana, user=user, role=MembershipRole.SERVER)
+        member.sites.add(first_site)
+        set_member_pin(member, "749182")
+        self.assertIn(member, available_workers(self.sennana.pk, str(first_outlet.pk)))
+        self.assertNotIn(member, available_workers(self.sennana.pk, str(other_outlet.pk)))
+        self.assertIsNone(verify_member_pin(
+            member_id=member.pk, tenant_id=self.sennana.pk,
+            outlet_id=str(other_outlet.pk), pin="749182",
+        ))
+        self.assertIsNotNone(verify_member_pin(
+            member_id=member.pk, tenant_id=self.sennana.pk,
+            outlet_id=str(first_outlet.pk), pin="749182",
         ))
 
     def test_branded_login_shows_only_domain_identity(self):
