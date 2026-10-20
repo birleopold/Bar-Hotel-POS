@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole
 from apps.staff.forms.workspace_forms import StaffTenantBrandingForm
+from apps.staff.services.presentation import staff_product_presentation
 from apps.tenants.models import Tenant, TenantSettings, TenantDomain
 
 
@@ -82,3 +83,28 @@ class BusinessNameBrandingFormTests(TestCase):
         form = StaffTenantBrandingForm(data={**base_data, "business_name": "  Sennana   Supermarket  "}, instance=settings)
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["business_name"], "Sennana Supermarket")
+
+
+class TenantSpecificPresentationTests(TestCase):
+    def test_independent_retail_and_hospitality_labels(self):
+        expected = (
+            ("retail", "Sales", "New sale"),
+            ("supermarket", "Sales", "New sale"),
+            ("bar", "Orders", "New order"),
+            ("lodging", "Orders", "New order"),
+        )
+        for line, orders_label, quick_action in expected:
+            with self.subTest(line=line):
+                tenant = Tenant.objects.create(name=f"{line} Example", slug=f"brand-{line}")
+                TenantSettings.objects.create(tenant=tenant, business_lines=[line])
+                product = staff_product_presentation(tenant)
+                self.assertEqual(product["business_key"], line)
+                self.assertEqual(product["orders_label"], orders_label)
+                self.assertEqual(
+                    "New sale" if product["business_key"] in {"retail", "supermarket"} else "New order",
+                    quick_action,
+                )
+        bar = Tenant.objects.get(slug="brand-bar")
+        self.assertEqual(staff_product_presentation(bar)["preparation_label"], "Drink prep")
+        hotel = Tenant.objects.get(slug="brand-lodging")
+        self.assertEqual(staff_product_presentation(hotel)["lodging_label"], "Front desk")
