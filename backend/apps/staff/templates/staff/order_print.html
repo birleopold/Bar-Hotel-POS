@@ -12,12 +12,15 @@
     .muted { color: #666; font-size: 0.9em; }
     .tot { font-weight: 700; margin-top: 0.75rem; }
     .a4only { display: {{ a4_only_display }}; }
+    .print-brand { text-align: center; margin-bottom: 1rem; }
+    .print-brand__name { font-weight: 700; }
+    @media print { .print-brand img { max-height: 48px; } }
   </style>
 </head>
 <body>
-  {% if request.tenant %}<div style="text-align:center;margin-bottom:1rem;">
+  {% if request.tenant %}<div class="print-brand">
     {% if tenant_settings.logo_url %}<img src="{{ tenant_settings.logo_url }}" alt="" style="max-height:48px;max-width:140px;object-fit:contain;"><br>{% endif %}
-    <strong>{{ request.tenant.name }}</strong>
+    <div class="print-brand__name">{{ request.tenant.name }}</div>
   </div>{% endif %}
   <h1>{{ document_title }}</h1>
   <p class="muted">{{ order.outlet.name }} · {{ printed_at }}</p>
