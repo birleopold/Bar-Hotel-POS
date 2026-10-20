@@ -2,6 +2,8 @@
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core import signing
+from apps.staff.terminal import TERMINAL_COOKIE, TERMINAL_SALT
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -97,6 +99,33 @@ class BrandedStaffLoginTests(TestCase):
         self.assertContains(response, "PRIVATE STAFF WORKSPACE")
         self.assertContains(response, 'name="theme-color" content="#135C49"')
         self.assertNotContains(response, "Kartel Bar")
+
+    def test_other_tenant_terminal_cookie_cannot_cross_branded_domain(self):
+        member = Membership.objects.get(tenant=self.kartel, user=self.user)
+        set_member_pin(member, "627941")
+        self.client.cookies[TERMINAL_COOKIE] = signing.dumps(
+            {"tenant": str(self.kartel.pk), "outlet": ""}, salt=TERMINAL_SALT
+        )
+        page = self.client.get(reverse("staff-terminal"), HTTP_HOST="sennana.example.test")
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Sennana Supermarket")
+        self.assertNotContains(page, self.user.email)
+        rejected = self.client.post(reverse("staff-terminal"), {
+            "worker": str(member.pk), "pin": "627941",
+        }, HTTP_HOST="sennana.example.test")
+        self.assertRedirects(rejected, reverse("staff-login"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_tampered_terminal_cookie_does_not_unlock_worker(self):
+        member = Membership.objects.get(tenant=self.kartel, user=self.user)
+        set_member_pin(member, "627941")
+        signed = signing.dumps({"tenant": str(self.kartel.pk), "outlet": ""}, salt=TERMINAL_SALT)
+        self.client.cookies[TERMINAL_COOKIE] = signed + "tampered"
+        response = self.client.post(reverse("staff-terminal"), {
+            "worker": str(member.pk), "pin": "627941",
+        }, HTTP_HOST="kartel.example.test")
+        self.assertRedirects(response, reverse("staff-login"), fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_terminal_without_pairing_never_reveals_other_tenant_staff(self):
         response = self.client.get(reverse("staff-terminal"), HTTP_HOST="sennana.example.test")
