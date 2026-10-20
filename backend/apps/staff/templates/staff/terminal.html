@@ -4,14 +4,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Terminal locked · {% if login_brand %}{{ login_brand.name }}{% else %}Staff{% endif %}</title>
+  <title>{% if login_brand %}{{ login_brand.name }} · Staff terminal{% else %}Staff terminal{% endif %}</title>
+  {% if login_brand and login_brand.logo_url %}<link rel="icon" href="{{ login_brand.logo_url }}">{% endif %}
+  <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#173C65{% endif %}">
   <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20260930.1">
 </head>
 <body class="staff-body staff-terminal-body"{% if login_brand %} style="--staff-primary:{{ login_brand.primary }}; --brand-primary:{{ login_brand.primary }}"{% endif %}>
   <main class="staff-terminal" id="staff-main-content">
     <div class="staff-terminal__masthead"><span class="staff-terminal__mark" aria-hidden="true">◼</span><span>{% if login_brand %}{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="" style="width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:8px">{% endif %}{{ login_brand.name }}{% else %}Staff workspace{% endif %}</span><span class="staff-terminal__status">Terminal locked</span></div>
     <section class="staff-terminal__panel" aria-labelledby="terminal-title">
-      <div class="staff-terminal__eyebrow">READY FOR THE NEXT WORKER</div>
+      <div class="staff-terminal__eyebrow">{% if login_brand %}{{ login_brand.name }} · STAFF TERMINAL{% else %}READY FOR THE NEXT WORKER{% endif %}</div>
       <h1 id="terminal-title">{% if login_brand %}Welcome to {{ login_brand.name }}{% else %}Your turn to serve.{% endif %}</h1>
       <p class="staff-terminal__intro">Choose your name and enter your PIN. Your work stays under your own account.</p>
       {% if workers %}
@@ -23,7 +25,7 @@
           <button class="staff-btn staff-btn--primary staff-terminal__submit" type="submit">Unlock workspace</button>
         </form>
       {% else %}
-        <p class="staff-terminal__empty">No PIN-enabled workers are assigned to this terminal yet. Sign in with your account password to set a PIN. If you already have a PIN, ask a manager to check your site and outlet access.</p>
+        <p class="staff-terminal__empty">No staff accounts are available on this terminal. Sign in with your work account to set up your PIN, or ask your manager to check the terminal assignment.</p>
       {% endif %}
       <a class="staff-terminal__alternative" href="{% url 'staff-login' %}">Sign in with email and password <span aria-hidden="true">→</span></a>
     </section>
