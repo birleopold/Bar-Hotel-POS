@@ -1,6 +1,7 @@
 """Regression coverage for branded tenant authentication boundaries."""
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -11,6 +12,8 @@ from apps.tenants.models import Tenant, TenantSettings, TenantDomain
 @override_settings(ALLOWED_HOSTS=["testserver", "sennana.example.test", "kartel.example.test"])
 class BrandedStaffLoginTests(TestCase):
     def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
         self.sennana = Tenant.objects.create(name="Sennana Supermarket", slug="sennana")
         self.kartel = Tenant.objects.create(name="Kartel Bar", slug="kartel")
         TenantDomain.objects.create(tenant=self.sennana, hostname="sennana.example.test",
