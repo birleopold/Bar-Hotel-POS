@@ -41,3 +41,18 @@ class BrandedStaffLoginTests(TestCase):
         )
         self.assertContains(response, "Sennana Supermarket")
         self.assertNotContains(response, "Kartel Bar")
+
+
+    def test_branded_workspace_sets_own_page_identity(self):
+        response = self.client.get(reverse("staff-login"), HTTP_HOST="sennana.example.test")
+        self.assertContains(response, "<title>Sennana Supermarket · Staff sign in</title>", html=False)
+        self.assertContains(response, "PRIVATE STAFF WORKSPACE")
+        self.assertContains(response, 'name="theme-color" content="#135C49"')
+        self.assertNotContains(response, "Kartel Bar")
+
+    def test_terminal_without_pairing_never_reveals_other_tenant_staff(self):
+        response = self.client.get(reverse("staff-terminal"), HTTP_HOST="sennana.example.test")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Sennana Supermarket · STAFF TERMINAL")
+        self.assertNotContains(response, self.user.email)
+        self.assertNotContains(response, "Kartel Bar")
