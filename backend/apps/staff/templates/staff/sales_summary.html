@@ -4,11 +4,11 @@
 {% block content %}
   <header class="staff-page-hero">
     <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Reports</p>
+      <p class="staff-dash-hero__eyebrow">{{ request.tenant.name }} · Reports</p>
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Sales summary<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Payments and refunds in range; kitchen / bar / service split follows line mix.</p>
+          <p class="staff-dash-hero__tagline mb-0">{% if staff_product.business_key == "retail" or staff_product.business_key == "supermarket" %}Review your store sales, refunds, and payment totals for the selected dates.{% elif staff_product.business_key == "lodging" %}Review property sales, refunds, and payment totals for the selected dates.{% else %}Payments and refunds in range; sales breakdown follows your business mix.{% endif %}</p>
         </div>
         <div class="staff-page-hero__actions">
           <a class="staff-btn staff-btn--ghost" href="?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&date_basis={{ date_basis|urlencode }}&format=csv">Download CSV</a>
