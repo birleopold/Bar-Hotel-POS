@@ -14,13 +14,13 @@
       <ul class="staff-nav__links">
         {% if staff_show_ops_nav %}
           {% if staff_nav.orders %}
-            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-orders' or request.resolver_match.url_name == 'staff-order-detail' %} staff-nav__link--active{% endif %}" href="{% url 'staff-orders' %}">Orders</a></li>
+            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-orders' or request.resolver_match.url_name == 'staff-order-detail' %} staff-nav__link--active{% endif %}" href="{% url 'staff-orders' %}">{% if staff_product.scope_label == "Register" %}Sales{% else %}Orders{% endif %}</a></li>
           {% endif %}
           {% if staff_nav.tables %}
             <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-tables' or request.resolver_match.url_name == 'staff-table-create' or request.resolver_match.url_name == 'staff-table-edit' %} staff-nav__link--active{% endif %}" href="{% url 'staff-tables' %}">Tables</a></li>
           {% endif %}
           {% if staff_nav.kitchen %}
-            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-kds' %} staff-nav__link--active{% endif %}" href="{% url 'staff-kds' %}">Prep</a></li>
+            <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-kds' %} staff-nav__link--active{% endif %}" href="{% url 'staff-kds' %}">{% if staff_product.workspace_label == "Bar operations" or staff_product.workspace_label == "Lounge operations" %}Drink prep{% else %}Prep{% endif %}</a></li>
           {% endif %}
           {% if staff_nav.menu %}
             <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-menu' %} staff-nav__link--active{% endif %}" href="{% url 'staff-menu' %}">Items</a></li>
@@ -42,7 +42,7 @@
           <li><a class="staff-nav__link{% if '/staff/purchasing/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-purchasing-orders' %}">Purchasing</a></li>
         {% endif %}
         {% if staff_show_lodging_nav and staff_nav.lodging %}
-          <li><a class="staff-nav__link{% if '/staff/lodging/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}">Lodging</a></li>
+          <li><a class="staff-nav__link{% if '/staff/lodging/' in request.path %} staff-nav__link--active{% endif %}" href="{% url 'staff-lodging-reservations' %}">Front desk</a></li>
         {% elif staff_show_housekeeping_nav %}
           <li><a class="staff-nav__link{% if request.resolver_match.url_name == 'staff-lodging-housekeeping' %} staff-nav__link--active{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a></li>
         {% endif %}
