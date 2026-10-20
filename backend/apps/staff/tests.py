@@ -115,6 +115,35 @@ class SharedTerminalTests(TestCase):
         self.client.post(reverse("staff-select-tenant"), {"tenant_id": str(second_tenant.id)})
         self.assertEqual(self.client.session[STAFF_SESSION_TENANT_KEY], str(self.tenant.id))
 
+    def test_two_workers_can_switch_on_one_terminal_without_session_leakage(self):
+        second_user = User.objects.create_user(email="second-cashier@test.local", password="SecondPass9!")
+        second_member = Membership.objects.create(
+            user=second_user, tenant=self.tenant, role=MembershipRole.SERVER,
+        )
+        second_member.sites.add(self.site)
+        second_member.outlets.add(self.outlet)
+        set_member_pin(self.worker_member, "681347")
+        set_member_pin(second_member, "537194")
+        self._owner_at_counter()
+        self.client.post(reverse("staff-terminal-lock"))
+        first = self.client.post(reverse("staff-terminal"), {
+            "worker": str(self.worker_member.id), "pin": "681347",
+        })
+        self.assertRedirects(first, reverse("staff-dashboard"))
+        self.assertEqual(self.client.session["_auth_user_id"], str(self.worker.id))
+        previous_session_key = self.client.session.session_key
+        self.client.post(reverse("staff-terminal-lock"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+        second = self.client.post(reverse("staff-terminal"), {
+            "worker": str(second_member.id), "pin": "537194",
+        })
+        self.assertRedirects(second, reverse("staff-dashboard"))
+        self.assertEqual(self.client.session["_auth_user_id"], str(second_user.id))
+        self.assertEqual(self.client.session[STAFF_SESSION_TENANT_KEY], str(self.tenant.pk))
+        self.assertEqual(self.client.session[STAFF_SESSION_OUTLET_KEY], str(self.outlet.pk))
+        self.assertNotEqual(self.client.session.session_key, previous_session_key)
+        self.assertEqual(self.client.get(reverse("staff-dashboard")).status_code, 200)
+
     def test_password_recovery_keeps_terminal_tenant_and_outlet_for_multi_tenant_worker(self):
         earlier_tenant = Tenant.objects.create(name="A Earlier Workspace", slug="a-earlier-workspace")
         earlier_membership = Membership.objects.create(
