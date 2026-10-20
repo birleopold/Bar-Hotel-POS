@@ -107,13 +107,14 @@ class BrandedStaffLoginTests(TestCase):
             {"tenant": str(self.kartel.pk), "outlet": ""}, salt=TERMINAL_SALT
         )
         page = self.client.get(reverse("staff-terminal"), HTTP_HOST="sennana.example.test")
-        self.assertEqual(page.status_code, 200)
-        self.assertContains(page, "Sennana Supermarket")
-        self.assertNotContains(page, self.user.email)
+        # The domain resolver can deny a mismatched signed terminal scope
+        # before the PIN view renders. A 404 is the correct fail-closed result.
+        self.assertEqual(page.status_code, 404)
+        self.assertNotIn(self.user.email.encode(), page.content)
         rejected = self.client.post(reverse("staff-terminal"), {
             "worker": str(member.pk), "pin": "627941",
         }, HTTP_HOST="sennana.example.test")
-        self.assertRedirects(rejected, reverse("staff-login"), fetch_redirect_response=False)
+        self.assertEqual(rejected.status_code, 404)
         self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_tampered_terminal_cookie_does_not_unlock_worker(self):
