@@ -3,11 +3,11 @@
 {% block content %}
   <header class="staff-page-hero">
     <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Finance</p>
+      <p class="staff-dash-hero__eyebrow">{{ request.tenant.name }} · Finance</p>
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Income &amp; expenses<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Manual income and expense lines outside POS sales (utilities, bank fees, other income, etc.). Aligns with day-to-day cash tracking on the ground.</p>
+          <p class="staff-dash-hero__tagline mb-0">Track additional income and expenses for {{ request.tenant.name }}, such as utilities and bank fees, separately from recorded sales.</p>
         </div>
         <div class="staff-page-hero__actions">
           <a class="staff-btn staff-btn--primary" href="{% url 'staff-finance-entry-create' %}">New entry</a>
