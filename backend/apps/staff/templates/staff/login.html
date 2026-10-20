@@ -4,7 +4,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Sign in · {% if login_brand %}{{ login_brand.name }}{% else %}Staff{% endif %}</title>
+  <title>{% if login_brand %}{{ login_brand.name }} · Staff sign in{% else %}Staff sign in{% endif %}</title>
+  {% if login_brand and login_brand.logo_url %}<link rel="icon" href="{{ login_brand.logo_url }}">{% endif %}
+  <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#173C65{% endif %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
@@ -13,8 +15,8 @@
 <body class="staff-body"{% if login_brand %} style="--staff-primary:{{ login_brand.primary }}; --brand-primary:{{ login_brand.primary }}"{% endif %}>
   <main class="staff-login-screen">
     <section class="staff-login-card" aria-labelledby="staff-login-title">
-      <div class="staff-login-brand">{% if login_brand and login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="" style="width:48px;height:48px;object-fit:contain;border-radius:9px">{% else %}<span class="staff-login-brand__mark" aria-hidden="true">{% if login_brand %}{{ login_brand.name|slice:":1" }}{% else %}S{% endif %}</span>{% endif %}<span><strong>{% if login_brand %}{{ login_brand.name }}{% else %}Staff workspace{% endif %}</strong><small>SECURE STAFF SIGN IN</small></span></div>
-      <div class="staff-login-intro"><p>Welcome back</p><h1 id="staff-login-title">Sign in</h1><span>{% if login_brand %}Sign in to {{ login_brand.name }}.{% else %}Use your account to continue to your workspace.{% endif %}</span></div>
+      <div class="staff-login-brand">{% if login_brand and login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="" style="width:48px;height:48px;object-fit:contain;border-radius:9px">{% else %}<span class="staff-login-brand__mark" aria-hidden="true">{% if login_brand %}{{ login_brand.name|slice:":1" }}{% else %}S{% endif %}</span>{% endif %}<span><strong>{% if login_brand %}{{ login_brand.name }}{% else %}Staff workspace{% endif %}</strong><small>{% if login_brand %}PRIVATE STAFF WORKSPACE{% else %}SECURE STAFF SIGN IN{% endif %}</small></span></div>
+      <div class="staff-login-intro"><p>{% if login_brand %}{{ login_brand.name }}{% else %}Welcome back{% endif %}</p><h1 id="staff-login-title">Staff sign in</h1><span>{% if login_brand %}Sign in to {{ login_brand.name }}.{% else %}Use your account to continue to your workspace.{% endif %}</span></div>
       <form method="post" action="{% url 'staff-login' %}" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}
