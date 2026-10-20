@@ -1,7 +1,7 @@
 {% load static %}
 <header class="staff-nav{% if '/staff/orders' in request.path or '/staff/kitchen' in request.path or '/staff/tables' in request.path %} staff-nav--pos{% endif %}" role="banner">
   <a class="staff-nav__brand" href="{% url 'staff-dashboard' %}">
-    <span class="staff-nav__dot" aria-hidden="true"></span>
+    {% if tenant_settings.logo_url %}<img src="{{ tenant_settings.logo_url }}" alt="" loading="lazy" style="width:22px;height:22px;object-fit:contain;border-radius:5px;margin-right:6px;">{% else %}<span class="staff-nav__dot" aria-hidden="true"></span>{% endif %}
     {{ request.tenant.name|default:"Staff" }}
   </a>
   {% if user.is_authenticated %}
