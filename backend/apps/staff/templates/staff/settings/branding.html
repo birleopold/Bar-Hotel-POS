@@ -7,12 +7,18 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Branding &amp; defaults<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Colours, logo, and defaults for this workspace.</p>
+          <p class="staff-dash-hero__tagline mb-0">Manage your business name, visual identity, and workspace defaults.</p>
         </div>
       </div>
     </div>
   </header>
   {% include "staff/settings/includes/subnav.html" %}
+  <section class="staff-card mb-3" aria-label="Current brand preview" style="border-top:4px solid {{ tenant_settings.theme_primary|default:'#173C65' }};">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      {% if tenant_settings.logo_url %}<img src="{{ tenant_settings.logo_url }}" alt="" style="height:56px;width:56px;object-fit:contain;border-radius:12px;">{% endif %}
+      <div><p class="staff-muted mb-1 small">Your staff will see</p><h2 class="h4 mb-1">{{ request.tenant.name }}</h2><p class="staff-muted mb-0 small">Staff sign in · Sales · Reports · Receipts</p></div>
+    </div>
+  </section>
   {% if form %}
     <form method="post" class="staff-card">
       {% csrf_token %}
