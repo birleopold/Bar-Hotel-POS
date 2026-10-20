@@ -5,6 +5,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}Staff{% endblock %}{% if request.tenant %} · {{ request.tenant.name }}{% endif %}</title>
+  {% if tenant_settings and tenant_settings.logo_url %}<link rel="icon" href="{{ tenant_settings.logo_url }}">{% endif %}
+  <meta name="theme-color" content="{% if tenant_settings %}{{ tenant_settings.theme_primary }}{% else %}#173C65{% endif %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
