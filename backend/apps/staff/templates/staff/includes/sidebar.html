@@ -1,7 +1,7 @@
 <aside class="staff-sidebar" aria-label="Workspace navigation">
   <div class="staff-sidebar__brand-wrap">
     <a class="staff-sidebar__brand" href="{% url 'staff-dashboard' %}">
-      <span class="staff-sidebar__mark" aria-hidden="true">{{ request.tenant.name|default:"S"|slice:":1"|upper }}</span>
+      {% if tenant_settings.logo_url %}<span class="staff-sidebar__mark" aria-hidden="true"><img src="{{ tenant_settings.logo_url }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain;border-radius:inherit;"></span>{% else %}<span class="staff-sidebar__mark" aria-hidden="true">{{ request.tenant.name|default:"S"|slice:":1"|upper }}</span>{% endif %}
       <span class="staff-sidebar__brand-copy"><strong>{{ request.tenant.name|default:"Staff workspace" }}</strong><small>{{ staff_product.workspace_label|default:"Operations workspace" }}</small></span>
       <i class="bi bi-chevron-down staff-sidebar__brand-caret" aria-hidden="true"></i>
     </a>
