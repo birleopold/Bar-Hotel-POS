@@ -1,5 +1,5 @@
 {% extends "staff/base.html" %}
-{% block title %}Orders{% endblock %}
+{% block title %}{{ staff_product.orders_label|default:"Orders" }}{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
 {% block main_class %}staff-main--wide staff-main--pos{% endblock %}
 {% block content %}
@@ -11,10 +11,10 @@
           <div class="staff-pos-orders-hero__eyebrow">
             <span class="orders-live-pill" data-live-status="static"><i class="bi bi-clock" aria-hidden="true"></i> Current view</span>
             <a class="staff-pos-orders-jump" href="{{ request.get_full_path }}"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Refresh</a>
-            <a class="staff-pos-orders-jump" href="#staff-orders-history"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>Past orders</a>
+            <a class="staff-pos-orders-jump" href="#staff-orders-history"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>{% if show_supermarket_lane %}Past sales{% else %}Past orders{% endif %}</a>
           </div>
           <p class="staff-pos-orders-kicker mb-1">Point of sale</p>
-          <h1 class="staff-page-title staff-page-title--pos mb-1">{% if returns_task %}Returns{% elif mine_filter %}My orders{% else %}Orders{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <h1 class="staff-page-title staff-page-title--pos mb-1">{% if returns_task %}Returns{% elif mine_filter %}{% if show_supermarket_lane %}My sales{% else %}My orders{% endif %}{% else %}{{ staff_product.orders_label|default:"Orders" }}{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-muted mb-0 staff-pos-orders-hero__lede">{% if current_outlet %}Serving {{ current_outlet.name }} · {% if show_supermarket_lane %}Scan products, check out, or resume a held basket.{% else %}Start a check or pick up an active tab.{% endif %}{% else %}Select a section to start an order, or find a past bill below.{% endif %}</p>
         </div>
         <div class="staff-pos-orders-hero__actions">
@@ -22,7 +22,7 @@
             <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline">
               {% csrf_token %}
               <input type="hidden" name="mode" value="">
-              <button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>New order</button>
+              <button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>{% if show_supermarket_lane %}New sale{% else %}New order{% endif %}</button>
             </form>
             <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline">
               {% csrf_token %}
@@ -36,11 +36,11 @@
         </div>
       </div>
 
-      <dl class="staff-pos-orders-summary" aria-label="Orders summary">
+      <dl class="staff-pos-orders-summary" aria-label="{% if show_supermarket_lane %}Sales summary{% else %}Orders summary{% endif %}">
         <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">{% if show_supermarket_lane %}Held baskets{% else %}Held tabs{% endif %}</dt><dd class="staff-pos-orders-summary__value">{{ held_tabs|length }}</dd></div>
-        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Open checks</dt><dd class="staff-pos-orders-summary__value">{{ open_tabs|length }}</dd></div>
+        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">{% if show_supermarket_lane %}Open baskets{% else %}Open checks{% endif %}</dt><dd class="staff-pos-orders-summary__value">{{ open_tabs|length }}</dd></div>
         <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Recent activity</dt><dd class="staff-pos-orders-summary__value">{{ recent_orders|length }}</dd></div>
-        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">Orders found</dt><dd class="staff-pos-orders-summary__value">{{ page_obj.paginator.count }}</dd></div>
+        <div class="staff-pos-orders-summary__item"><dt class="staff-pos-orders-summary__label">{% if show_supermarket_lane %}Sales found{% else %}Orders found{% endif %}</dt><dd class="staff-pos-orders-summary__value">{{ page_obj.paginator.count }}</dd></div>
       </dl>
     </section>
 
@@ -76,7 +76,7 @@
     <section id="staff-orders-history" class="staff-pos-orders-history" aria-labelledby="staff-orders-history-heading">
       <header class="staff-pos-orders-history__intro">
         <div>
-          <h2 id="staff-orders-history-heading" class="staff-pos-orders-history__title">Past orders</h2>
+          <h2 id="staff-orders-history-heading" class="staff-pos-orders-history__title">{% if show_supermarket_lane %}Past sales{% else %}Past orders{% endif %}</h2>
           <p class="staff-muted mb-0 staff-pos-orders-history__subtitle">Search by bill reference, tab, or section.</p>
         </div>
         {% if is_paginated %}
