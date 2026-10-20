@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole
 from apps.staff.forms.workspace_forms import StaffTenantBrandingForm
+from apps.staff.terminal import available_workers, set_member_pin, verify_member_pin
 from apps.staff.services.presentation import staff_product_presentation
 from apps.tenants.models import Tenant, TenantSettings, TenantDomain
 
@@ -39,6 +40,28 @@ class BrandedStaffLoginTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertFalse("_auth_user_id" in self.client.session)
+
+    def test_worker_lookup_and_pin_are_strictly_tenant_scoped(self):
+        member = Membership.objects.get(tenant=self.kartel, user=self.user)
+        set_member_pin(member, "627941")
+        self.assertNotIn(member, available_workers(self.sennana.pk, ""))
+        self.assertIn(member, available_workers(self.kartel.pk, ""))
+        self.assertIsNone(verify_member_pin(
+            member_id=member.pk, tenant_id=self.sennana.pk, outlet_id="", pin="627941"
+        ))
+        self.assertIsNotNone(verify_member_pin(
+            member_id=member.pk, tenant_id=self.kartel.pk, outlet_id="", pin="627941"
+        ))
+
+    def test_disabled_membership_is_not_available_for_pin(self):
+        member = Membership.objects.get(tenant=self.kartel, user=self.user)
+        set_member_pin(member, "627941")
+        member.is_active = False
+        member.save(update_fields=["is_active"])
+        self.assertNotIn(member, available_workers(self.kartel.pk, ""))
+        self.assertIsNone(verify_member_pin(
+            member_id=member.pk, tenant_id=self.kartel.pk, outlet_id="", pin="627941"
+        ))
 
     def test_branded_login_shows_only_domain_identity(self):
         response = self.client.get(
