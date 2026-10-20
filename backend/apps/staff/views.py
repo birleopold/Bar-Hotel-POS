@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 import time
 
+from django import forms
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.views import LoginView, LogoutView
@@ -49,20 +50,53 @@ from .services.dashboard_insights import (
 from .services.workbench import build_workbench_playbook, role_at_work_copy
 
 
+def login_brand_for_request(request, scope=None):
+    """Only a verified domain or signed terminal may select a public identity."""
+    from apps.tenants.models import Tenant, TenantSettings
+
+    tenant = getattr(request, "domain_tenant", None)
+    if tenant is None:
+        scope = scope if scope is not None else terminal_scope(request)
+        if scope:
+            tenant = Tenant.objects.filter(pk=scope[0], is_active=True).first()
+    if tenant is None:
+        return None
+    theme = TenantSettings.objects.filter(tenant=tenant).first()
+    return {
+        "name": tenant.name,
+        "logo_url": theme.logo_url if theme else "",
+        "primary": theme.theme_primary if theme else "#173C65",
+    }
+
+
 class StaffLoginView(LoginView):
     template_name = "staff/login.html"
     form_class = StaffLoginForm
     redirect_authenticated_user = True
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["login_brand"] = login_brand_for_request(self.request)
+        return context
+
     def form_valid(self, form) -> HttpResponse:
         # Keep password recovery inside the workspace that opened the shared
         # terminal. Multi-tenant users must set their PIN on that membership.
         scope = terminal_scope(self.request)
-        response = super().form_valid(form)
         user = form.get_user()
         memberships = membership_queryset_for(user)
-        first = memberships.filter(tenant_id=scope[0]).first() if scope else None
-        if first is None:
+        domain_tenant = getattr(self.request, "domain_tenant", None)
+        if domain_tenant is not None:
+            first = memberships.filter(tenant_id=domain_tenant.pk).first()
+            if first is None:
+                form.add_error(None, "Unable to sign in to this workspace with those credentials.")
+                return self.form_invalid(form)
+            if scope is not None and str(scope[0]) != str(domain_tenant.pk):
+                scope = None
+        else:
+            first = memberships.filter(tenant_id=scope[0]).first() if scope else None
+        response = super().form_valid(form)
+        if first is None and domain_tenant is None:
             first = memberships.first()
             if scope:
                 response = clear_terminal(response)
@@ -109,7 +143,7 @@ class StaffTerminalView(View):
         scope = terminal_scope(request)
         workers = available_workers(*scope) if scope else []
         form = StaffTerminalUnlockForm(workers=workers)
-        return render(request, "staff/terminal.html", {"form": form, "workers": workers})
+        return render(request, "staff/terminal.html", {"form": form, "workers": workers, "login_brand": login_brand_for_request(request, scope)})
 
     def post(self, request):
         if request.user.is_authenticated:
@@ -145,7 +179,7 @@ class StaffTerminalView(View):
                           action="staff.terminal_unlocked", entity_type="membership", entity_id=str(member.id), payload={})
                 return redirect("staff-dashboard")
         form.add_error(None, "Unable to unlock. Check your name and PIN, or sign in with your password.")
-        return render(request, "staff/terminal.html", {"form": form, "workers": workers}, status=200)
+        return render(request, "staff/terminal.html", {"form": form, "workers": workers, "login_brand": login_brand_for_request(request, scope)}, status=200)
 
 
 class StaffTerminalLockView(View):
