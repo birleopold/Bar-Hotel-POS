@@ -5,7 +5,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole
-from apps.tenants.models import Tenant, TenantSettings
+from apps.tenants.models import Tenant, TenantSettings, TenantDomain
 
 
 @override_settings(ALLOWED_HOSTS=["testserver", "sennana.example.test", "kartel.example.test"])
@@ -13,6 +13,10 @@ class BrandedStaffLoginTests(TestCase):
     def setUp(self):
         self.sennana = Tenant.objects.create(name="Sennana Supermarket", slug="sennana")
         self.kartel = Tenant.objects.create(name="Kartel Bar", slug="kartel")
+        TenantDomain.objects.create(tenant=self.sennana, hostname="sennana.example.test",
+                                    kind=TenantDomain.Kind.CUSTOM, status=TenantDomain.Status.ACTIVE)
+        TenantDomain.objects.create(tenant=self.kartel, hostname="kartel.example.test",
+                                    kind=TenantDomain.Kind.CUSTOM, status=TenantDomain.Status.ACTIVE)
         self.user = get_user_model().objects.create_user(
             email="kartel-worker@example.test", password="TestPassword!123"
         )
