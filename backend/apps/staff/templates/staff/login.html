@@ -4,17 +4,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Sign in · Staff</title>
+  <title>Sign in · {% if login_brand %}{{ login_brand.name }}{% else %}Staff{% endif %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20261006.3">
 </head>
-<body class="staff-body">
+<body class="staff-body"{% if login_brand %} style="--staff-primary:{{ login_brand.primary }}; --brand-primary:{{ login_brand.primary }}"{% endif %}>
   <main class="staff-login-screen">
     <section class="staff-login-card" aria-labelledby="staff-login-title">
-      <div class="staff-login-brand"><span class="staff-login-brand__mark" aria-hidden="true">S</span><span><strong>Staff workspace</strong><small>SECURE SIGN IN</small></span></div>
-      <div class="staff-login-intro"><p>Welcome back</p><h1 id="staff-login-title">Sign in</h1><span>Use your account to continue to your workspace.</span></div>
+      <div class="staff-login-brand">{% if login_brand and login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="" style="width:48px;height:48px;object-fit:contain;border-radius:9px">{% else %}<span class="staff-login-brand__mark" aria-hidden="true">{% if login_brand %}{{ login_brand.name|slice:":1" }}{% else %}S{% endif %}</span>{% endif %}<span><strong>{% if login_brand %}{{ login_brand.name }}{% else %}Staff workspace{% endif %}</strong><small>SECURE STAFF SIGN IN</small></span></div>
+      <div class="staff-login-intro"><p>Welcome back</p><h1 id="staff-login-title">Sign in</h1><span>{% if login_brand %}Sign in to {{ login_brand.name }}.{% else %}Use your account to continue to your workspace.{% endif %}</span></div>
       <form method="post" action="{% url 'staff-login' %}" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}
@@ -35,7 +35,7 @@
       </form>
       <p class="staff-terminal__login-link"><a href="{% url 'staff-terminal' %}">Use worker PIN on this terminal</a></p>
       <p class="staff-login-secure"><span aria-hidden="true">●</span> Your account keeps your work private.</p>
-    </div>
+    </section>
   </main>
 </body>
 </html>
