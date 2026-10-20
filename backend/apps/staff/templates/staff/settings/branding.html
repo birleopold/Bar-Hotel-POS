@@ -1,5 +1,29 @@
 {% extends "staff/base.html" %}
 {% block title %}Workspace branding{% endblock %}
+{% block extra_js %}
+  {{ block.super }}
+  {% if form %}
+  <script>
+    (function () {
+      const nameField = document.getElementById("id_business_name");
+      const colorField = document.getElementById("id_theme_primary");
+      const namePreview = document.getElementById("business-brand-name");
+      const brandPreview = document.getElementById("business-brand-preview");
+      if (nameField && namePreview) {
+        const originalName = namePreview.textContent.trim();
+        nameField.addEventListener("input", function () {
+          namePreview.textContent = nameField.value.trim().replace(/\\s+/g, " ") || originalName;
+        });
+      }
+      if (colorField && brandPreview) {
+        colorField.addEventListener("input", function () {
+          if (/^#[0-9a-fA-F]{6}$/.test(colorField.value)) brandPreview.style.borderTopColor = colorField.value;
+        });
+      }
+    }());
+  </script>
+  {% endif %}
+{% endblock %}
 {% block content %}
   <header class="staff-page-hero">
     <div class="staff-dash-hero__panel">
@@ -13,10 +37,10 @@
     </div>
   </header>
   {% include "staff/settings/includes/subnav.html" %}
-  <section class="staff-card mb-3" aria-label="Current brand preview" style="border-top:4px solid {{ tenant_settings.theme_primary|default:'#173C65' }};">
+  <section class="staff-card mb-3" id="business-brand-preview" aria-label="Business identity preview" style="border-top:4px solid {{ tenant_settings.theme_primary|default:'#173C65' }};">
     <div class="d-flex align-items-center gap-3 flex-wrap">
-      {% if tenant_settings.logo_url %}<img src="{{ tenant_settings.logo_url }}" alt="" style="height:56px;width:56px;object-fit:contain;border-radius:12px;">{% endif %}
-      <div><p class="staff-muted mb-1 small">Your staff will see</p><h2 class="h4 mb-1">{{ request.tenant.name }}</h2><p class="staff-muted mb-0 small">Staff sign in · Sales · Reports · Receipts</p></div>
+      {% if tenant_settings.logo_url %}<img id="business-brand-logo" src="{{ tenant_settings.logo_url }}" alt="" style="height:56px;width:56px;object-fit:contain;border-radius:12px;">{% endif %}
+      <div><p class="staff-muted mb-1 small">Your staff will see</p><h2 class="h4 mb-1" id="business-brand-name">{{ request.tenant.name }}</h2><p class="staff-muted mb-0 small">Preview of your current workspace identity</p></div>
     </div>
   </section>
   {% if form %}
@@ -34,7 +58,8 @@
         </div>
         {% if field.name == "loyalty_spend_per_point" %}</section>{% endif %}
       {% endfor %}
-      <button type="submit" class="staff-btn staff-btn--primary">Save workspace settings</button>
+      <button type="submit" class="staff-btn staff-btn--primary">Save business identity and settings</button>
+      <p class="staff-muted small mt-2 mb-0">The name and colours update across staff pages after saving. Your workspace address stays unchanged.</p>
     </form>
   {% else %}
     <p class="staff-muted">Read-only for your role</p>
