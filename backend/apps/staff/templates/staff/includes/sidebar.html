@@ -41,7 +41,7 @@
       <form method="post" action="{% url 'staff-order-quick-create' %}" class="staff-sidebar__primary-action">
         {% csrf_token %}
         <input type="hidden" name="mode" value="">
-        <button type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>{% if staff_product.scope_label == "Register" %}New sale{% else %}New order{% endif %}</span></button>
+        <button type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>{% if staff_product.business_key == "retail" or staff_product.business_key == "supermarket" %}New sale{% else %}New order{% endif %}</span></button>
       </form>
     {% endif %}
 
