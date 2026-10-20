@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Membership, MembershipRole, UserInvite
 from apps.catalog.models import MenuCategory, MenuItem, Promotion
+from apps.finance.models import CashbookEntry, FinanceCategory, FinanceCategoryKind
 from apps.inventory.models import StockBalance, StockCountSession, StockCountStatus, StockMovement
 from apps.inventory.serializers import StockCountCompleteSerializer
 from apps.pos.models import (
@@ -147,6 +148,35 @@ def test_cross_tenant_order_and_stock_reads_do_not_disclose_foreign_data(api_cli
     foreign_headers = {"HTTP_X_TENANT_ID": str(b["tenant"].pk)}
     assert api_client.get("/api/v1/orders/", **foreign_headers).status_code == 403
     assert api_client.get("/api/v1/stock/balances/", **foreign_headers).status_code == 403
+
+
+@pytest.mark.django_db
+def test_finance_api_keeps_cashbook_and_categories_inside_tenant(api_client):
+    from datetime import date
+
+    a = _seed_tenant_bundle(name="Finance Tenant A", slug="finance-tenant-a", user_email="finance-a@test.local")
+    b = _seed_tenant_bundle(name="Finance Tenant B", slug="finance-tenant-b", user_email="finance-b@test.local")
+    own_category = FinanceCategory.objects.create(tenant=a["tenant"], name="Utilities A", kind=FinanceCategoryKind.EXPENSE)
+    foreign_category = FinanceCategory.objects.create(tenant=b["tenant"], name="Private B", kind=FinanceCategoryKind.EXPENSE)
+    own_entry = CashbookEntry.objects.create(
+        tenant=a["tenant"], category=own_category, site=a["site"], amount=Decimal("30"), transaction_date=date.today()
+    )
+    foreign_entry = CashbookEntry.objects.create(
+        tenant=b["tenant"], category=foreign_category, site=b["site"], amount=Decimal("999"), transaction_date=date.today()
+    )
+    assert api_client.login(username=a["user"].email, password="TestPass9!")
+    headers = {"HTTP_X_TENANT_ID": str(a["tenant"].pk)}
+    categories = api_client.get("/api/v1/finance/categories/", **headers)
+    assert categories.status_code == 200, categories.content
+    assert str(own_category.pk) in str(categories.json())
+    assert str(foreign_category.pk) not in str(categories.json())
+    entries = api_client.get("/api/v1/finance/entries/", **headers)
+    assert entries.status_code == 200, entries.content
+    assert str(own_entry.pk) in str(entries.json())
+    assert str(foreign_entry.pk) not in str(entries.json())
+    assert api_client.get(f"/api/v1/finance/categories/{foreign_category.pk}/", **headers).status_code == 404
+    foreign_headers = {"HTTP_X_TENANT_ID": str(b["tenant"].pk)}
+    assert api_client.get("/api/v1/finance/entries/", **foreign_headers).status_code == 403
 
 
 @pytest.mark.django_db
