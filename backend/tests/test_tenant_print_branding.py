@@ -43,7 +43,6 @@ class BrandedOrderPrintTests(SimpleTestCase):
                 "show_payment_history": False,
                 "show_refund_history": False,
             },
-            request=request,
         )
         self.assertIn("Sennana Supermarket", html)
         self.assertIn("Thank you for shopping", html)
