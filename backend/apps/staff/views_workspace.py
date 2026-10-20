@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
@@ -109,8 +110,14 @@ class StaffWorkspaceBrandingView(StaffTenantRequiredMixin, UpdateView):
         return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
-        messages.success(self.request, "Workspace settings saved. Staff pages pick up theme on refresh.")
-        return super().form_valid(form)
+        with transaction.atomic():
+            tenant = self.request.tenant.__class__.objects.select_for_update().get(pk=self.request.tenant.pk)
+            tenant.name = form.cleaned_data["business_name"]
+            tenant.save(update_fields=["name", "updated_at"])
+            self.request.tenant.name = tenant.name
+            response = super().form_valid(form)
+        messages.success(self.request, "Business identity and workspace settings saved.")
+        return response
 
 
 class StaffIntegrationLinkListView(StaffTenantRequiredMixin, ListView):
