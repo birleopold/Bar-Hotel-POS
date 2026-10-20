@@ -16,7 +16,7 @@
   <main class="staff-login-screen">
     <section class="staff-login-card" aria-labelledby="staff-login-title">
       <div class="staff-login-brand">{% if login_brand and login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="" style="width:48px;height:48px;object-fit:contain;border-radius:9px">{% else %}<span class="staff-login-brand__mark" aria-hidden="true">{% if login_brand %}{{ login_brand.name|slice:":1" }}{% else %}S{% endif %}</span>{% endif %}<span><strong>{% if login_brand %}{{ login_brand.name }}{% else %}Staff workspace{% endif %}</strong><small>{% if login_brand %}PRIVATE STAFF WORKSPACE{% else %}SECURE STAFF SIGN IN{% endif %}</small></span></div>
-      <div class="staff-login-intro"><p>{% if login_brand %}{{ login_brand.name }}{% else %}Welcome back{% endif %}</p><h1 id="staff-login-title">Staff sign in</h1><span>{% if login_brand %}Sign in to {{ login_brand.name }}.{% else %}Use your account to continue to your workspace.{% endif %}</span></div>
+      <div class="staff-login-intro"><p>{% if login_brand %}{{ login_brand.name }}{% else %}Welcome back{% endif %}</p><h1 id="staff-login-title">Staff sign in</h1><span>{% if login_brand %}{{ login_brand.workspace_label }} · {{ login_brand.name }}.{% else %}Use your account to continue to your workspace.{% endif %}</span></div>
       <form method="post" action="{% url 'staff-login' %}" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}
