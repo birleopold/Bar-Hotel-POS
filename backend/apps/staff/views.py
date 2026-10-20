@@ -62,8 +62,11 @@ def login_brand_for_request(request, scope=None):
     if tenant is None:
         return None
     theme = TenantSettings.objects.filter(tenant=tenant).first()
+    from .services.presentation import staff_product_presentation
+    presentation = staff_product_presentation(tenant)
     return {
         "name": tenant.name,
+        "workspace_label": presentation["workspace_label"],
         "logo_url": theme.logo_url if theme else "",
         "primary": theme.theme_primary if theme else "#173C65",
     }
