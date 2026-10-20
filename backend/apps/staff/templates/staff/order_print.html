@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>{{ document_title }} {{ order.bill_reference }}</title>
+  <title>{% if request.tenant %}{{ request.tenant.name }} · {% endif %}{{ document_title }} {{ order.bill_reference }}</title>
   <style>
     @page { size: {{ page_size }}; margin: {{ page_margin }}; }
     body { font-family: system-ui, sans-serif; font-size: {{ font_size }}; color: #222; padding: {{ body_padding }}; max-width: {{ paper_width }}; margin: 0 auto; }
@@ -15,6 +15,10 @@
   </style>
 </head>
 <body>
+  {% if request.tenant %}<div style="text-align:center;margin-bottom:1rem;">
+    {% if tenant_settings.logo_url %}<img src="{{ tenant_settings.logo_url }}" alt="" style="max-height:48px;max-width:140px;object-fit:contain;"><br>{% endif %}
+    <strong>{{ request.tenant.name }}</strong>
+  </div>{% endif %}
   <h1>{{ document_title }}</h1>
   <p class="muted">{{ order.outlet.name }} · {{ printed_at }}</p>
   <p><strong>{{ order.bill_reference }}</strong>{% if order.table_label %} · {{ order.table_label }}{% endif %}</p>
@@ -52,6 +56,7 @@
       {% endfor %}
     </div>
   {% endif %}
+  {% if tenant_settings.receipt_footer %}<p class="muted" style="text-align:center;white-space:pre-line;">{{ tenant_settings.receipt_footer }}</p>{% endif %}
   <script>window.onload = function () { window.print(); };</script>
   {% if request.session.staff_pin_session %}
     <form id="staff-print-idle-lock" method="post" action="{% url 'staff-terminal-lock' %}" hidden>{% csrf_token %}</form>
