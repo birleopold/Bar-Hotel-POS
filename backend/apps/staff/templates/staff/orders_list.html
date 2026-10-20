@@ -15,7 +15,7 @@
           </div>
           <p class="staff-pos-orders-kicker mb-1">Point of sale</p>
           <h1 class="staff-page-title staff-page-title--pos mb-1">{% if returns_task %}Returns{% elif mine_filter %}{% if show_supermarket_lane %}My sales{% else %}My orders{% endif %}{% else %}{{ staff_product.orders_label|default:"Orders" }}{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-muted mb-0 staff-pos-orders-hero__lede">{% if current_outlet %}Serving {{ current_outlet.name }} · {% if show_supermarket_lane %}Scan products, check out, or resume a held basket.{% else %}Start a check or pick up an active tab.{% endif %}{% else %}Select a section to start an order, or find a past bill below.{% endif %}</p>
+          <p class="staff-muted mb-0 staff-pos-orders-hero__lede">{% if current_outlet %}Serving {{ current_outlet.name }} · {% if show_supermarket_lane %}Scan products, check out, or resume a held basket.{% else %}Start a check or pick up an active tab.{% endif %}{% else %}{% if staff_product.business_key == "retail" or staff_product.business_key == "supermarket" %}Select a register to start a sale or find a previous receipt below.{% else %}Select a section to start an order, or find a past bill below.{% endif %}{% endif %}</p>
         </div>
         <div class="staff-pos-orders-hero__actions">
           {% if current_outlet %}
@@ -54,7 +54,7 @@
           <div class="visually-hidden orders-supermarket-lane-card" data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}">Supermarket lane</div>
           <div class="staff-pos-supermarket-card" data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}">
             <div>
-              <h3 class="staff-pos-supermarket-card__title"><i class="bi bi-shop me-2"></i>Supermarket</h3>
+              <h3 class="staff-pos-supermarket-card__title"><i class="bi bi-shop me-2"></i>{% if staff_product.business_key == "retail" %}Retail checkout{% else %}Supermarket checkout{% endif %}</h3>
               <p class="staff-pos-supermarket-card__status">Shift is {% if supermarket_shift_open %}<strong>Open</strong>{% else %}<strong>Closed</strong>{% endif %}</p>
             </div>
             <a href="{% url 'staff-pos-shifts' %}" class="staff-btn staff-btn--sm staff-btn--ghost">Manage shift</a>
@@ -63,7 +63,7 @@
         <div class="staff-pos-orders-lanes__head">
           <div>
             <h2 id="staff-pos-lanes-heading" class="staff-card__title staff-card__title--pos mb-1">Now serving</h2>
-            <p class="staff-muted mb-0">Held tabs, walk-ins, and a short list of recent checks.</p>
+            <p class="staff-muted mb-0">{% if show_supermarket_lane %}Held baskets, open checkouts, and recent sales.{% else %}Held tabs, walk-ins, and a short list of recent checks.{% endif %}</p>
           </div>
         </div>
         <div id="staff-orders-lanes-scroll" class="staff-pos-orders-lanes-scroll" aria-label="Active checks">
@@ -77,7 +77,7 @@
       <header class="staff-pos-orders-history__intro">
         <div>
           <h2 id="staff-orders-history-heading" class="staff-pos-orders-history__title">{% if show_supermarket_lane %}Past sales{% else %}Past orders{% endif %}</h2>
-          <p class="staff-muted mb-0 staff-pos-orders-history__subtitle">Search by bill reference, tab, or section.</p>
+          <p class="staff-muted mb-0 staff-pos-orders-history__subtitle">{% if show_supermarket_lane %}Search past receipts by reference or register.{% else %}Search by bill reference, tab, or section.{% endif %}</p>
         </div>
         {% if is_paginated %}
           <p class="staff-pos-orders-history__count" aria-live="polite">
