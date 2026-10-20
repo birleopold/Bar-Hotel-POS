@@ -124,6 +124,32 @@ def test_cross_tenant_invite_create_forbidden_and_no_side_effect(api_client):
 
 
 @pytest.mark.django_db
+def test_cross_tenant_order_and_stock_reads_do_not_disclose_foreign_data(api_client):
+    a = _seed_tenant_bundle(name="Read Tenant A", slug="read-tenant-a", user_email="read-a@test.local")
+    b = _seed_tenant_bundle(name="Read Tenant B", slug="read-tenant-b", user_email="read-b@test.local")
+    own_order = _create_open_order(tenant=a["tenant"], outlet=a["outlet"])
+    foreign_order = _create_open_order(tenant=b["tenant"], outlet=b["outlet"])
+    StockBalance.objects.create(tenant=a["tenant"], outlet=a["outlet"], menu_item=a["item"], quantity=Decimal("7"))
+    StockBalance.objects.create(tenant=b["tenant"], outlet=b["outlet"], menu_item=b["item"], quantity=Decimal("99"))
+    assert api_client.login(username=a["user"].email, password="TestPass9!")
+    headers = {"HTTP_X_TENANT_ID": str(a["tenant"].pk)}
+    orders = api_client.get("/api/v1/orders/", **headers)
+    assert orders.status_code == 200, orders.content
+    assert str(own_order.pk) in str(orders.json())
+    assert str(foreign_order.pk) not in str(orders.json())
+    assert api_client.get(f"/api/v1/orders/{foreign_order.pk}/", **headers).status_code == 404
+    balances = api_client.get("/api/v1/stock/balances/", **headers)
+    assert balances.status_code == 200, balances.content
+    assert str(b["outlet"].pk) not in str(balances.json())
+    assert str(b["item"].pk) not in str(balances.json())
+    assert str(a["outlet"].pk) in str(balances.json())
+    # Supplying a different tenant ID must not switch a logged-in staff member.
+    foreign_headers = {"HTTP_X_TENANT_ID": str(b["tenant"].pk)}
+    assert api_client.get("/api/v1/orders/", **foreign_headers).status_code == 403
+    assert api_client.get("/api/v1/stock/balances/", **foreign_headers).status_code == 403
+
+
+@pytest.mark.django_db
 def test_cross_tenant_order_payment_cannot_target_foreign_order(api_client):
     a = _seed_tenant_bundle(name="Tenant A", slug="tenant-a-pay", user_email="ta-pay@test.local")
     b = _seed_tenant_bundle(name="Tenant B", slug="tenant-b-pay", user_email="tb-pay@test.local")
