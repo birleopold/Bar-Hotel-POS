@@ -141,6 +141,9 @@ class StaffTerminalView(View):
         if request.user.is_authenticated:
             return redirect("staff-dashboard")
         scope = terminal_scope(request)
+        domain = getattr(request, "domain_tenant", None)
+        if domain is not None and (scope is None or str(scope[0]) != str(domain.pk)):
+            scope = None
         workers = available_workers(*scope) if scope else []
         form = StaffTerminalUnlockForm(workers=workers)
         return render(request, "staff/terminal.html", {"form": form, "workers": workers, "login_brand": login_brand_for_request(request, scope)})
@@ -149,7 +152,8 @@ class StaffTerminalView(View):
         if request.user.is_authenticated:
             return redirect("staff-dashboard")
         scope = terminal_scope(request)
-        if scope is None:
+        domain = getattr(request, "domain_tenant", None)
+        if scope is None or (domain is not None and str(scope[0]) != str(domain.pk)):
             return redirect("staff-login")
         workers = available_workers(*scope)
         form = StaffTerminalUnlockForm(request.POST, workers=workers)
