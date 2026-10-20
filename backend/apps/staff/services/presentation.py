@@ -63,6 +63,10 @@ def staff_product_presentation(tenant, outlet: Outlet | None = None) -> dict:
 
     return {
         "workspace_label": label,
+        "business_key": key,
+        "orders_label": "Sales" if key in {"retail", "supermarket"} else "Orders",
+        "preparation_label": "Drink prep" if key in {"bar", "lounge"} else "Prep",
+        "lodging_label": "Front desk" if key == "lodging" else "Lodging",
         "tagline": tagline,
         "workflow_steps": flow,
         "scope_label": "Register" if key in {"retail", "supermarket"} else "Section",
