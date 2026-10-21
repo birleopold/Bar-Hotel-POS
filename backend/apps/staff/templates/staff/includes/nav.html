@@ -1,5 +1,14 @@
 {% load static %}
 <header class="staff-nav{% if '/staff/orders' in request.path or '/staff/kitchen' in request.path or '/staff/tables' in request.path %} staff-nav--pos{% endif %}" role="banner">
+  {% if request.resolver_match.url_name == "staff-dashboard" and show_workspace_admin_tools and staff_product.business_key == "supermarket" or request.resolver_match.url_name == "staff-dashboard" and show_workspace_admin_tools and staff_product.business_key == "retail" %}
+  <div class="owner-topbar">
+    <a class="owner-topbar__brand" href="{% url 'staff-dashboard' %}"><i class="bi bi-cart3"></i><span><strong>{{ request.tenant.name }}</strong><small>Store management</small></span></a>
+    {% if staff_nav_outlets %}<form method="post" action="{% url 'staff-select-outlet' %}" class="owner-topbar__branch">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><i class="bi bi-geo-alt-fill"></i><label class="visually-hidden" for="owner-outlet">Current shop section</label><select id="owner-outlet" name="outlet_id" onchange="this.form.submit()"><option value="__all__"{% if staff_all_outlets %} selected{% endif %}>All sections</option>{% for o in staff_nav_outlets %}<option value="{{ o.id }}"{% if staff_nav_outlet and staff_nav_outlet.id == o.id and not staff_all_outlets %} selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></form>{% endif %}
+    <div class="owner-topbar__search"><i class="bi bi-search"></i><span>Find products, staff and reports from the menu</span></div>
+    <div class="owner-topbar__account"><span class="owner-topbar__avatar">{{ user.first_name|slice:":1"|default:"O" }}</span><span><strong>{{ user.get_full_name|default:user.email }}</strong><small>Owner administration</small></span></div>
+    <form method="post" action="{% url 'staff-logout' %}">{% csrf_token %}<button type="submit" class="owner-topbar__signout">Sign out</button></form>
+  </div>
+  {% else %}
   <a class="staff-nav__brand" href="{% url 'staff-dashboard' %}">
     {% if tenant_settings.logo_url %}<img src="{{ tenant_settings.logo_url }}" alt="" loading="lazy" style="width:22px;height:22px;object-fit:contain;border-radius:5px;margin-right:6px;">{% else %}<span class="staff-nav__dot" aria-hidden="true"></span>{% endif %}
     {{ request.tenant.name|default:"Staff" }}
@@ -118,4 +127,5 @@
       </form>
     {% endif %}
   </div>
+  {% endif %}
 </header>
