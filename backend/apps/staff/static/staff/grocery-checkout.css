@@ -59,3 +59,9 @@
   .grocery-register-ready .staff-pos-menu-categories{scroll-snap-type:x proximity}
   .grocery-register-ready .staff-pos-category-filter{scroll-snap-align:start}
 }
+
+.grocery-basket-jump{display:none!important}
+@media(max-width:900px){
+  .grocery-basket-jump{display:block!important;position:sticky;top:0;z-index:12;text-align:center;min-height:48px;padding:.8rem;margin-bottom:.75rem;box-shadow:0 3px 14px rgba(10,64,41,.16)}
+  #grocery-current-basket{scroll-margin-top:65px}
+}
