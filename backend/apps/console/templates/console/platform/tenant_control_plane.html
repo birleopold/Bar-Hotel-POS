@@ -18,6 +18,19 @@
   </section>
 
   <section class="staff-card mb-4">
+    <h2 class="h5 mb-2">Tenant owner login</h2>
+    <p class="staff-muted small">Create the first owner's email and password for this business. Credentials work only with workspaces where that account has membership. Existing emails must be invited, never overwritten.</p>
+    <form method="post" autocomplete="off">
+      {% csrf_token %}
+      {{ owner_form.non_field_errors }}
+      {% for field in owner_form %}
+        <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      {% endfor %}
+      <button class="staff-btn staff-btn--primary" type="submit" name="create_tenant_owner" value="1">Create tenant owner</button>
+    </form>
+  </section>
+
+  <section class="staff-card mb-4">
     <h2 class="h5 mb-2">Workspace domains</h2>
     <p class="staff-muted small">Domains choose the workspace and its branding. Staff still need an account with membership in this workspace. A custom domain is only activated after ownership verification, DNS routing, and HTTPS are ready.</p>
     {% if platform_domain %}
