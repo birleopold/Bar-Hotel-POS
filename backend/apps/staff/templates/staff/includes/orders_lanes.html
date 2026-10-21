@@ -61,8 +61,8 @@
   <div class="staff-pos-lanes-empty">
     <span class="staff-pos-lanes-empty__icon" aria-hidden="true"><i class="bi bi-receipt-cutoff"></i></span>
     <div>
-      <h3>No checks in progress</h3>
-      <p>{% if current_outlet %}Start a new order when your next guest is ready.{% else %}Choose a section above to start serving.{% endif %}</p>
+      <h3>{% if show_supermarket_lane %}No baskets in progress{% else %}No checks in progress{% endif %}</h3>
+      <p>{% if current_outlet %}{% if show_supermarket_lane %}Scan an item to start the next sale.{% else %}Start a new order when your next guest is ready.{% endif %}{% else %}{% if show_supermarket_lane %}Choose a register to begin selling.{% else %}Choose a section above to start serving.{% endif %}{% endif %}</p>
     </div>
   </div>
 {% endif %}
