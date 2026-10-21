@@ -8,7 +8,7 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">New purchase order<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Draft a PO with supplier, section, and line items.</p>
+          <p class="staff-dash-hero__tagline mb-0">{% if grocery_owner_shell %}Choose a supplier, select your shop section, and list the products you need.{% else %}Draft a PO with supplier, section, and line items.{% endif %}</p>
         </div>
       </div>
     </div>
@@ -18,12 +18,14 @@
   <p class="staff-alert staff-alert--info">Item and quantity were suggested from stock planning. Check the supplier, actual need, current stock and price before saving this draft.</p>
   {% endif %}
   <h2 class="staff-section-head">Order details</h2>
-  <form method="post" class="staff-card">
+  <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-admin-form{% endif %}">
     {% csrf_token %}
+    {% if grocery_owner_shell %}<p class="staff-muted small">Step 1: Choose who supplies the goods and where they will be delivered.</p><div class="grocery-admin-fields">{% endif %}
     {% for field in form %}
-      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}</div>
     {% endfor %}
-    <h2 class="staff-section-head">Lines (tracked items)</h2>
+    {% if grocery_owner_shell %}</div>{% endif %}
+    <h2 class="staff-section-head">{% if grocery_owner_shell %}Step 2: Products to order{% else %}Lines (tracked items){% endif %}</h2>
     <p class="staff-muted">Enter loose units, whole cartons, or both. Units are saved as the actual stock quantity. Cost is always for one loose unit.</p>
     <div class="staff-table-wrap mb-3">
       <table class="staff-table">
