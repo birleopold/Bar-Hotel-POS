@@ -45,7 +45,7 @@ from .forms import (
 )
 from .mixins import PlatformOperatorRequiredMixin
 from .setup_flow import build_tenant_setup_state, sync_tenant_setup_progress
-from apps.tenants.domains import begin_custom_domain_verification, create_platform_domain, verify_custom_domain
+from apps.tenants.domains import begin_custom_domain_verification, create_platform_alias, create_platform_domain, verify_custom_domain
 
 
 class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
@@ -401,6 +401,15 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
                     messages.success(request, f"Platform address ready: {domain.hostname}")
                 else:
                     messages.error(request, "Set TENANT_PLATFORM_DOMAIN in the server environment first.")
+            except ValidationError as exc:
+                messages.error(request, "; ".join(exc.messages))
+            return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+        if "add_platform_alias" in request.POST:
+            try:
+                domain = create_platform_alias(
+                    self.tenant_obj, request.POST.get("hostname", "")
+                )
+                messages.success(request, f"Platform alias registered: {domain.hostname}. Configure HTTPS before sharing it.")
             except ValidationError as exc:
                 messages.error(request, "; ".join(exc.messages))
             return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
