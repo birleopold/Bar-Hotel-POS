@@ -9,8 +9,10 @@ SSL renewal and backup jobs. This setup must not stop or replace other Django ap
 
 ## Isolation contract
 
-- Keep this repository and virtualenv separate, e.g. `/srv/leosoft-pos/app`
-  and `/srv/leosoft-pos/venv`; run as a dedicated unprivileged Linux user.
+- Use your existing unprivileged `admin` account, but keep POS isolated in
+  `/home/admin/Bar-Hotel-POS` and `/home/admin/Bar-Hotel-POS/.venv`. The POS
+  still gets its own systemd unit, Unix socket, PostgreSQL roles/database and
+  static-files directory `/var/www/leosoft-pos/static`.
 - POS-only PostgreSQL database, login role, schema ownership strategy and
   independent backups. **Important:** production POS app role must not be
   superuser, have BYPASSRLS, or own RLS-protected tables.
@@ -71,7 +73,15 @@ to check template consistency without changing the machine.
 
 ## Production env
 
-Use `pos.env.example` as a checklist; provision secrets securely rather than
+Use `pos.env.example` as a checklist. Store the file at
+`/etc/leosoft-pos/pos.env` readable by `admin` only. For schema migrations,
+use a separate database-owner connection supplied as `MIGRATION_DATABASE_URL`
+for the deploy shell; keep that owner password *out of* the long-lived systemd
+environment. The normal `DATABASE_URL` must use a non-owner PostgreSQL login
+role because an owner bypasses ordinary RLS. After migrations, grant that
+role the required schema, table and sequence privileges. Do not expose
+`/home/admin` to nginx: POS static assets are copied to `/var/www/leosoft-pos/static`.
+Provision secrets securely rather than
 committing them. Application settings live in `backend/config/settings/production.py`.
 The file deliberately does not enable HSTS for subdomains until their HTTPS
 coverage is certified.
