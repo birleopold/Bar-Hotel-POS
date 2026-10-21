@@ -98,6 +98,44 @@
   });
   var action = payment && payment.querySelector('button[type="submit"]');
   if (action) action.textContent = "Take payment";
+  // Quick payment-method choices mirror the existing form's available options.
+  // They only select a method; the established server POST remains responsible
+  // for validation, permissions and settlement.
+  if (payment) {
+    var methodSelect = payment.querySelector('select[name="method"]');
+    if (methodSelect) {
+      var methods = Array.prototype.slice.call(methodSelect.options).filter(function (option) {
+        return option.value && option.value.trim();
+      });
+      if (methods.length) {
+        var choices = document.createElement("div");
+        choices.className = "grocery-payment-choices";
+        choices.setAttribute("role", "group");
+        choices.setAttribute("aria-label", "Choose payment method");
+        methods.forEach(function (option) {
+          var choice = document.createElement("button");
+          choice.type = "button";
+          choice.className = "grocery-payment-choice";
+          choice.textContent = option.textContent.trim();
+          choice.dataset.method = option.value;
+          choice.setAttribute("aria-pressed", String(methodSelect.value === option.value));
+          choice.addEventListener("click", function () {
+            methodSelect.value = option.value;
+            methodSelect.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+          choices.appendChild(choice);
+        });
+        function reflectPaymentMethod() {
+          Array.prototype.forEach.call(choices.children, function (choice) {
+            choice.setAttribute("aria-pressed", String(methodSelect.value === choice.dataset.method));
+          });
+        }
+        methodSelect.addEventListener("change", reflectPaymentMethod);
+        payment.parentNode.insertBefore(choices, payment);
+        reflectPaymentMethod();
+      }
+    }
+  }
   if (paymentCard) {
     var due = paymentCard.querySelector(".staff-pos-side-hint");
     if (due) due.classList.add("grocery-amount-due");
