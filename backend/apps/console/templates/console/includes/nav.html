@@ -1,4 +1,12 @@
 <header class="staff-nav" role="banner">
+{% if grocery_console_shell %}
+  <div class="grocery-console-top">
+    <a class="grocery-console-top__brand" href="{% url 'staff-dashboard' %}"><i class="bi bi-cart3"></i><span><strong>{{ console_active_tenant.name }}</strong><small>Store management</small></span></a>
+    <span class="grocery-console-top__location"><i class="bi bi-geo-alt-fill"></i> Business setup</span>
+    <a class="grocery-console-top__back" href="{% url 'staff-dashboard' %}"><i class="bi bi-arrow-left"></i> Back to overview</a>
+    <span class="grocery-console-top__person">{{ user.email }}</span>
+  </div>
+{% else %}
   <a class="staff-nav__brand" href="{% url 'console-index' %}">
     <span class="staff-nav__dot" aria-hidden="true"></span>
     Console
@@ -31,4 +39,5 @@
       {% if request.tenant %}<span class="staff-context-pill"><strong>{{ request.tenant.name }}</strong></span>{% endif %}
     {% endif %}
   </div>
+{% endif %}
 </header>
