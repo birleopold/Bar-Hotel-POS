@@ -1,11 +1,40 @@
 {% extends "console/base.html" %}
 {% block title %}{% if object %}Edit branch{% else %}New branch{% endif %}{% endblock %}
 {% block content %}
-  <h1 class="staff-page-title">{% if object %}Edit branch{% else %}New branch{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <form method="post" class="staff-card">
+{% if grocery_console_shell %}
+<section class="grocery-setup" aria-labelledby="edit-branch-heading">
+  <header class="grocery-form-head">
+    <div><p class="grocery-form-kicker">STORE / BRANCHES</p>
+      <h1 id="edit-branch-heading">{% if object %}Edit branch{% else %}Add branch{% endif %}</h1>
+      <p class="staff-muted">Enter your store's name and location. Only the name is required to begin.</p>
+    </div>
+    <a href="{% url 'console-org-sites' %}" class="staff-btn staff-btn--ghost"><i class="bi bi-arrow-left"></i> Back</a>
+  </header>
+  <form method="post" class="staff-card grocery-guided-form">
     {% csrf_token %}
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grocery-form-fields">
+      {% for field in form %}
+      <div class="grocery-form-field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<div class="grocery-form-errors" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="grocery-form-footer"><span>* Required field</span><div>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}">Cancel</a>
+      <button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-check-circle"></i> Save branch</button>
+    </div></div>
+  </form>
+</section>
+{% else %}
+  <h1 class="staff-page-title">{% if object %}Edit branch{% else %}New branch{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+  <form method="post" class="staff-card">{% csrf_token %}
     {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
     <button type="submit" class="staff-btn staff-btn--primary">Save</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}">Cancel</a>
   </form>
+{% endif %}
 {% endblock %}
