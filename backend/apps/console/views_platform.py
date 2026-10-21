@@ -176,8 +176,22 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
     template_name = "console/platform/tenant_control_plane.html"
 
     def dispatch(self, request, *args, **kwargs):
-        self.tenant_obj = get_object_or_404(Tenant, pk=kwargs["tenant_id"])
-        return super().dispatch(request, *args, **kwargs)
+        # Central-host platform requests have no tenant context. Scope RLS
+        # to this workspace only after verifying platform operator access.
+        # Render lazy template queries before the transaction-local GUC ends.
+        if not request.user.is_authenticated or not (
+            request.user.is_superuser or getattr(request.user, "is_platform_staff", False)
+        ):
+            return super().dispatch(request, *args, **kwargs)
+        with transaction.atomic():
+            self.tenant_obj = get_object_or_404(Tenant, pk=kwargs["tenant_id"])
+            if connection.vendor == "postgresql" and settings.POSTGRES_SET_REQUEST_TENANT_GUC:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT set_config('app.tenant_id', %s, true)", [str(self.tenant_obj.pk)])
+            response = super().dispatch(request, *args, **kwargs)
+            if hasattr(response, "render") and not response.is_rendered:
+                response.render()
+            return response
 
     def _subscription_form(self, data=None):
         sub = getattr(self.tenant_obj, "subscription", None)
