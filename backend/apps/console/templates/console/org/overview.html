@@ -1,10 +1,64 @@
 {% extends "console/base.html" %}
-{% block title %}Organization{% endblock %}
+{% block title %}{% if grocery_console_shell %}Store settings{% else %}Organization{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
+{% if grocery_console_shell %}
+<section class="grocery-setup" aria-labelledby="store-settings-heading">
+  <header class="grocery-setup__hero">
+    <div>
+      <p class="grocery-setup__eyebrow">Store management / Business settings</p>
+      <h1 id="store-settings-heading">Your store settings</h1>
+      <p>Manage branches, products, staff and checkout from one place. New to the system? Start with guided setup.</p>
+    </div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-setup' %}"><i class="bi bi-list-check"></i> Guided setup</a>
+  </header>
+  <section class="staff-card grocery-setup__progress" aria-label="Business setup progress">
+    <div class="grocery-setup__progress-heading">
+      <strong>Business setup</strong><span>{{ setup_state.required_completion_percent }}% complete</span>
+    </div>
+    <progress max="100" value="{{ setup_state.required_completion_percent }}">{{ setup_state.required_completion_percent }}%</progress>
+    {% if show_setup_prompt %}
+      <p class="grocery-setup__next">Some setup steps are not finished. <a href="{{ setup_url }}">Continue guided setup <i class="bi bi-arrow-right"></i></a></p>
+    {% else %}
+      <p class="grocery-setup__next"><i class="bi bi-check-circle-fill text-success"></i> Required setup complete. Check devices and payment methods before live sales.</p>
+    {% endif %}
+  </section>
+  <div class="grocery-setup__layout">
+    <div>
+      <div class="grocery-setup__section-head"><h2>Manage your store</h2><span>Choose what you want to change</span></div>
+      <div class="grocery-console-shortcuts">
+        <a href="{% url 'console-org-sites' %}"><i class="bi bi-geo-alt"></i><span><strong>Branches</strong><small>{{ site_count }} location{{ site_count|pluralize }}. Manage store locations and sales areas.</small></span><i class="bi bi-chevron-right"></i></a>
+        <a href="{% url 'console-org-menu-items' %}"><i class="bi bi-box-seam"></i><span><strong>Products</strong><small>Edit selling prices, barcodes and product details.</small></span><i class="bi bi-chevron-right"></i></a>
+        <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people"></i><span><strong>Staff</strong><small>Manage team members and their access.</small></span><i class="bi bi-chevron-right"></i></a>
+        <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer"></i><span><strong>Registers &amp; devices</strong><small>Prepare your checkout tills and receipt printers.</small></span><i class="bi bi-chevron-right"></i></a>
+        <a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes"></i><span><strong>Stock</strong><small>Check stock levels across all branches.</small></span><i class="bi bi-chevron-right"></i></a>
+        <a href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags"></i><span><strong>Product categories</strong><small>Organise products so staff can find them quickly.</small></span><i class="bi bi-chevron-right"></i></a>
+      </div>
+    </div>
+    <aside class="grocery-setup__aside" aria-label="Store help">
+      <section class="staff-card">
+        <h2>Store at a glance</h2>
+        <ul class="grocery-setup__checks">
+          <li><i class="bi bi-shop" aria-hidden="true"></i><span><strong>{{ site_count }}</strong> branches</span></li>
+          <li><i class="bi bi-diagram-3" aria-hidden="true"></i><span><strong>{{ outlet_count }}</strong> sales areas</span></li>
+        </ul>
+        <p class="mt-2 mb-0">Your products, stock and tills are managed separately to keep daily operations simple.</p>
+      </section>
+      <section class="staff-card">
+        <h2>Ready for checkout?</h2>
+        <p>Finish store setup, check your registers and printers, then open checkout.</p>
+        <div class="grocery-setup__aside-links">
+          <a href="{% url 'console-org-setup' %}"><i class="bi bi-list-check"></i> Review setup</a>
+          <a href="{% url 'staff-terminal' %}"><i class="bi bi-cart-check"></i> Open checkout</a>
+          <a href="{% url 'staff-dashboard' %}"><i class="bi bi-speedometer2"></i> Store overview</a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>
+{% else %}
   <h1 class="staff-page-title">Organization overview<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
   <p class="staff-lead">{{ request.tenant.name }} — the setup and operations selected for this business.</p>
-
   <div class="staff-grid-2 mb-4">
     <div class="staff-card staff-card--soft">
       <h2 class="staff-card__title">Counts</h2>
@@ -26,16 +80,14 @@
       </ul>
     </div>
   </div>
-
   {% if show_setup_prompt %}
-    <div class="staff-card mb-4" style="border-color: rgba(232, 93, 76, 0.25);">
+    <div class="staff-card mb-4">
       <h2 class="staff-card__title">Business setup</h2>
       <h2 class="staff-card__title">Guided setup</h2>
       <p class="staff-muted">Required steps: {{ setup_state.required_completion_percent }}% complete.</p>
       <a class="staff-btn staff-btn--primary" href="{{ setup_url }}">Finish business setup</a>
     </div>
   {% endif %}
-
   <h2 class="staff-section-title">Quick links</h2>
   <div class="staff-quick-links mb-4">
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}">Branches</a>
@@ -50,4 +102,5 @@
       <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-rates' %}">Nightly rates</a>
     {% endif %}
   </div>
+{% endif %}
 {% endblock %}
