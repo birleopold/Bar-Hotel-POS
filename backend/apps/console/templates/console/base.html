@@ -20,9 +20,10 @@
     }
   </style>
   {% endif %}
+  {% if grocery_console_shell %}<link rel="stylesheet" href="{% static 'staff/grocery-owner-console.css' %}?v=20261021.1">{% endif %}
   {% block extra_css %}{% endblock %}
 </head>
-<body class="staff-body console-body">
+<body class="staff-body console-body{% if grocery_console_shell %} grocery-console-body{% endif %}">
   <div class="staff-app-shell console-app-shell">
     {% include "console/includes/sidebar.html" %}
     <div class="staff-app-shell__body">
