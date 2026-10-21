@@ -126,12 +126,19 @@ def build_pdf_summary(*, schedule, period, summary):
     styles["Normal"].leading = 13
     title_style = styles["Title"]
     title_style.alignment = TA_LEFT
-    currency = getattr(schedule.tenant.settings, "default_currency", "UGX")
+    tenant_theme = schedule.tenant.settings
+    currency = getattr(tenant_theme, "default_currency", "UGX")
+    brand_hex = getattr(tenant_theme, "theme_primary", "#173C65")
+    try:
+        brand_colour = colors.HexColor(brand_hex)
+    except (ValueError, TypeError):
+        brand_colour = colors.HexColor("#173C65")
+    title_style.textColor = brand_colour
     scope = schedule.site.name if schedule.site_id else "All business sections"
     story = [
-        Paragraph("Operations report", title_style),
+        Paragraph(pdf_text(schedule.tenant.name), title_style),
+        Paragraph("Operations report", styles["Heading2"]),
         Spacer(1, 12),
-        Paragraph(pdf_text(schedule.tenant.name), styles["Heading2"]),
         Paragraph("Scope: " + pdf_text(scope), styles["Normal"]),
         Paragraph("Period: " + pdf_text(period[0]) + " to " + pdf_text(period[1]), styles["Normal"]),
         Paragraph(
