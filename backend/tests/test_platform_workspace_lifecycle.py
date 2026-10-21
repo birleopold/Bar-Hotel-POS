@@ -49,6 +49,44 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         )
         self.assertTrue(TenantDomain.objects.filter(tenant=tenant).exists())
 
+    def test_platform_can_create_tenant_owner_without_platform_privileges(self):
+        from apps.accounts.models import Membership, MembershipRole
+        from apps.tenants.models import Site
+        tenant = Tenant.objects.create(name="Example Grocery", slug="owner-grocery")
+        site = Site.objects.create(tenant=tenant, name="Main")
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        response = self.client.post(url, {
+            "create_tenant_owner": "1",
+            "email": "owner@example.test",
+            "password": "A-different-strong-password-391!",
+            "confirm_password": "A-different-strong-password-391!",
+        })
+        self.assertRedirects(response, url)
+        owner = get_user_model().objects.get(email="owner@example.test")
+        self.assertTrue(owner.check_password("A-different-strong-password-391!"))
+        self.assertFalse(owner.is_superuser)
+        self.assertFalse(owner.is_platform_staff)
+        membership = Membership.objects.get(user=owner, tenant=tenant)
+        self.assertEqual(membership.role, MembershipRole.OWNER)
+        self.assertTrue(membership.sites.filter(pk=site.pk).exists())
+
+    def test_platform_cannot_overwrite_existing_user_password(self):
+        tenant = Tenant.objects.create(name="Other Grocery", slug="other-grocery")
+        existing = get_user_model().objects.create_user(
+            email="existing@example.test", password="OriginalPassword904!"
+        )
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        response = self.client.post(url, {
+            "create_tenant_owner": "1",
+            "email": existing.email,
+            "password": "NewPassword904!",
+            "confirm_password": "NewPassword904!",
+        })
+        self.assertEqual(response.status_code, 200)
+        existing.refresh_from_db()
+        self.assertTrue(existing.check_password("OriginalPassword904!"))
+        self.assertFalse(existing.memberships.filter(tenant=tenant).exists())
+
     def test_normal_staff_cannot_access_platform_control_plane(self):
         other = get_user_model().objects.create_user(
             email="ordinary@example.test", password="test-password-safe"
