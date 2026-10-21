@@ -22,7 +22,7 @@ server {
     add_header X-Content-Type-Options nosniff always;
 
     location /static/ {
-        alias /home/admin/Bar-Hotel-POS/backend/staticfiles/;
+        alias /var/www/leosoft-pos/static/;
         expires 7d;
         add_header Cache-Control "public";
     }
