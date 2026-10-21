@@ -28,7 +28,9 @@
 
 ## W3/W4 — required certification
 
-- [x] PostgreSQL integration CI now exercises the non-owner RLS role and core policy presence; added tests for missing and unrelated tenant GUC values (latest combined CI pending).
+**Deployment target:** Central platform domain `pos.leosoftug.com`, hosted as an isolated Django service on the existing Ubuntu 24.04 Contabo VPS. See [Contabo deployment contract](../deployment/contabo/README.md) and its secret-free env example. Shared-VPS safety, tenant wildcard DNS/TLS and verified custom domains are mandatory release checks.
+
+- [x] PostgreSQL integration CI tests non-owner RLS role and core policy presence; the missing-GUC case now explicitly clears earlier test-local configuration (CI verification pending).
 - [ ] Confirm production database role is non-owner/no BYPASSRLS and repeat policies against production-equivalent permissions.
 - [ ] Cross-domain custom apex/subdomain + platform subdomain DNS/HTTPS lifecycle.
 - [ ] Real terminal pairing, PIN handover and print checks on desktop/tablet/mobile.
