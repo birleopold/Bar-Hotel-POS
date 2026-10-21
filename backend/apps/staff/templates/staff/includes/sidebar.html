@@ -1,15 +1,15 @@
 <aside class="staff-sidebar" aria-label="Workspace navigation">
-{% if request.resolver_match.url_name == "staff-dashboard" and show_workspace_admin_tools and staff_product.business_key == "supermarket" or request.resolver_match.url_name == "staff-dashboard" and show_workspace_admin_tools and staff_product.business_key == "retail" %}
+{% if grocery_owner_shell %}
   <a class="owner-side-brand" href="{% url 'staff-dashboard' %}"><span class="owner-side-logo"><i class="bi bi-cart3"></i></span><span><strong>{{ request.tenant.name }}</strong><small>Store management</small></span></a>
   <nav class="owner-side-nav" aria-label="Store administration">
-    <a class="is-active" href="{% url 'staff-dashboard' %}"><i class="bi bi-columns-gap"></i> Overview</a>
+    <a{% if request.resolver_match.url_name == "staff-dashboard" %} class="is-active"{% endif %} href="{% url 'staff-dashboard' %}"><i class="bi bi-columns-gap"></i> Overview</a>
     {% if staff_nav.sales %}<a href="{% url 'staff-sales' %}"><i class="bi bi-graph-up-arrow"></i> Sales</a>{% endif %}
     {% if staff_nav.menu %}<a href="{% url 'staff-menu' %}"><i class="bi bi-box"></i> Products</a>{% endif %}
     {% if staff_nav.inventory %}<a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock</a>{% endif %}
     {% if staff_nav.purchasing %}<a href="{% url 'staff-purchasing-orders' %}"><i class="bi bi-truck"></i> Purchasing</a>{% endif %}
     <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people"></i> Staff</a>
     {% if staff_nav.sales %}<a href="{% url 'staff-sales' %}"><i class="bi bi-bar-chart"></i> Reports</a>{% endif %}
-    <a href="{{ tenant_setup_url|default:'#' }}"><i class="bi bi-gear"></i> Settings</a>
+    <a href="{% url 'console-org-setup' %}"><i class="bi bi-gear"></i> Settings</a>
   </nav>
   <div class="owner-side-foot"><a href="{% url 'staff-pin-setup' %}"><i class="bi bi-shield-lock"></i> Set terminal PIN</a><form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit"><i class="bi bi-lock"></i> Lock terminal</button></form></div>
 {% else %}
