@@ -3,23 +3,55 @@
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
   <div class="grocery-form-head">
-    <div><p class="grocery-form-kicker">PRODUCT CATALOGUE</p><h1 class="staff-page-title">{% if object %}Edit product{% else %}Add a product{% endif %}</h1><p class="staff-muted">Fill in the details you know, then save. You can edit the product later.</p></div>
+    <div><p class="grocery-form-kicker">{% if grocery_console_shell %}STORE / PRODUCTS{% else %}PRODUCT CATALOGUE{% endif %}</p>
+      <h1 class="staff-page-title">{% if object %}Edit product{% else %}Add a product{% endif %}</h1>
+      <p class="staff-muted">Fill in the details you know, then save. You can edit the product later.</p>
+    </div>
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}"><i class="bi bi-arrow-left"></i> Products</a>
   </div>
-  {% if object %}<div class="grocery-form-links"><a href="{% url 'console-org-menu-item-outlets' item_id=object.id %}">Outlet pricing</a> · <a href="{% url 'console-org-menu-item-recipe' item_id=object.id %}">Recipe / bill of materials</a></div>{% endif %}
+  {% if object %}
+    <div class="grocery-form-links">
+      <a href="{% url 'console-org-menu-item-outlets' item_id=object.id %}">{% if grocery_console_shell %}Branch pricing{% else %}Outlet pricing{% endif %}</a>
+      {% if not grocery_console_shell %} · <a href="{% url 'console-org-menu-item-recipe' item_id=object.id %}">Recipe / bill of materials</a>{% endif %}
+    </div>
+  {% endif %}
   <form method="post" class="staff-card grocery-guided-form">
     {% csrf_token %}
-    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>{% endif %}
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     <div class="grocery-form-fields">
       {% for field in form %}
-      <div class="grocery-form-field">
-        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
-        {{ field }}
-        {% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}
-        {% if field.errors %}<div class="grocery-form-errors" role="alert">{{ field.errors }}</div>{% endif %}
-      </div>
+        {% if not grocery_console_shell or field.name != 'outlets' and field.name != 'modifier_groups' and field.name != 'kds_station' and field.name != 'consume_recipe_on_sale' %}
+        <div class="grocery-form-field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+          {{ field }}
+          {% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<div class="grocery-form-errors" role="alert">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endif %}
       {% endfor %}
     </div>
-    <div class="grocery-form-footer"><span>Fields marked * are required.</span><div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Cancel</a><button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-check-circle"></i> Save product</button></div></div>
+    {% if grocery_console_shell %}
+    <details class="grocery-advanced-settings">
+      <summary><i class="bi bi-sliders2"></i> Advanced product options (usually not needed)</summary>
+      <p class="staff-muted small">Use these only if different sales areas need this product or if you offer prepared items. Your regular selling details are above.</p>
+      <div class="grocery-form-fields">
+        {% for field in form %}
+          {% if field.name == 'outlets' or field.name == 'modifier_groups' or field.name == 'kds_station' or field.name == 'consume_recipe_on_sale' %}
+          <div class="grocery-form-field">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}
+            {% if field.errors %}<div class="grocery-form-errors" role="alert">{{ field.errors }}</div>{% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+    <div class="grocery-form-footer"><span>Fields marked * are required.</span>
+      <div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Cancel</a>
+        <button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-check-circle"></i> Save product</button>
+      </div>
+    </div>
   </form>
 {% endblock %}
