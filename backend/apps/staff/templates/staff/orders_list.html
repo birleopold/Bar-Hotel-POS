@@ -104,10 +104,10 @@
           {% if status_filter %}
             <input type="hidden" name="status" value="{{ status_filter }}">
           {% endif %}
-          <label class="visually-hidden" for="q">Search orders</label>
+          <label class="visually-hidden" for="q">Search {% if show_supermarket_lane %}sales{% else %}orders{% endif %}</label>
           <div class="staff-pos-orders-search__field">
             <i class="bi bi-search staff-pos-orders-search__icon" aria-hidden="true"></i>
-            <input class="staff-input staff-pos-orders-search__input" id="q" name="q" type="search" value="{{ q_filter }}" placeholder="Bill ref, tab name, outlet…" autocomplete="off">
+            <input class="staff-input staff-pos-orders-search__input" id="q" name="q" type="search" value="{{ q_filter }}" placeholder="{% if show_supermarket_lane %}Receipt number, register, product…{% else %}Bill ref, tab name, outlet…{% endif %}" autocomplete="off">
           </div>
           <button type="submit" class="staff-btn staff-btn--primary staff-pos-orders-search__btn">Search</button>
         </form>
@@ -120,7 +120,7 @@
             <div class="staff-pos-order-card__title">{{ o.bill_reference }}</div>
             <div class="staff-pos-order-card__meta">
               <span>{{ o.outlet.name }}</span>
-              {% if o.table_label %}<span>Tab: {{ o.table_label }}</span>{% endif %}
+              {% if not show_supermarket_lane and o.table_label %}<span>Tab: {{ o.table_label }}</span>{% endif %}
             </div>
           </div>
           <div class="staff-pos-order-card__status">
