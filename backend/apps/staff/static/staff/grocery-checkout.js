@@ -35,6 +35,7 @@
   var catalogHeading = catalogCard && catalogCard.querySelector("h2");
   if (catalogHeading) catalogHeading.textContent = "Products";
   var search = catalog && catalog.querySelector("[data-pos-menu-search]");
+  if (search) search.placeholder = "Search grocery products";
   if (search) search.setAttribute("aria-label", "Search products");
   document.addEventListener("keydown", function (event) {
     if (event.key === "F3" && search) {
@@ -44,7 +45,7 @@
   });
   // Simple grocery products add on one tap through the existing Django form.
   // Products requiring options still use the visible item form so choices are not skipped.
-  var addForm = catalogCard && catalogCard.querySelector('form input[name="action"][value="add_line"]');
+  var addForm = right.querySelector('form input[name="action"][value="add_line"]');
   addForm = addForm && addForm.form;
   var productSelect = addForm && addForm.querySelector('select[name="menu_item"]');
   var quantityInput = addForm && addForm.querySelector('input[name="quantity"]');
@@ -79,6 +80,22 @@
       addForm.querySelectorAll('button[type="submit"]').forEach(function (button) { button.disabled = false; });
     });
   }
+  // Keep product selection visible, but tuck away rare or manager-only
+  // checkout controls without removing any existing server-backed actions.
+  Array.prototype.slice.call(right.children).forEach(function (section) {
+    if (!section.classList || !section.classList.contains("staff-card")) return;
+    if (section === basket || section === paymentCard || section === cash) return;
+    if (section.closest("details")) return;
+    var title = section.querySelector("h2");
+    if (!title) return;
+    var detail = document.createElement("details");
+    detail.className = "grocery-more-action";
+    var summary = document.createElement("summary");
+    summary.textContent = title.textContent.trim();
+    detail.appendChild(summary);
+    right.insertBefore(detail, section);
+    detail.appendChild(section);
+  });
   var action = payment && payment.querySelector('button[type="submit"]');
   if (action) action.textContent = "Complete payment";
   if (paymentCard) {
