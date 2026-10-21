@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from apps.staff.services import membership_queryset_for
-from apps.tenants.models import Tenant
+from apps.tenants.business_lines import normalize_business_lines
+from apps.tenants.models import Tenant, TenantSettings
 
 from .mixins import membership_can_manage_org_console, user_is_platform_operator
 from .services import console_business_line_flags
@@ -37,11 +38,14 @@ def console_nav(request):
         return base_ctx
 
     flags = console_business_line_flags(active_tenant)
-    from apps.staff.services.presentation import staff_product_presentation
-    presentation = staff_product_presentation(active_tenant)
+    try:
+        business_lines = normalize_business_lines(active_tenant.settings.business_lines)
+    except TenantSettings.DoesNotExist:
+        business_lines = []
+    retail_only = bool(business_lines) and set(business_lines) <= {"retail", "supermarket"}
     base_ctx["grocery_console_shell"] = bool(
         tm and membership_can_manage_org_console(tm)
-        and presentation.get("business_key") in ("supermarket", "retail")
+        and retail_only
         and not platform_operator
     )
     return {**base_ctx, "console_nav": flags, **flags}
