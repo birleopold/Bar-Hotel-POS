@@ -72,3 +72,18 @@ class PostgresRlsEnforcementTests(TestCase):
                         cursor.execute("SELECT tenant_id::text FROM pos_order")
                         rows = [item[0] for item in cursor.fetchall()]
                         self.assertEqual(rows, [str(tenant.pk)])
+        # A request without a tenant GUC must see no order rows at all.
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(f"SET LOCAL ROLE {role}")
+                cursor.execute("SELECT tenant_id::text FROM pos_order")
+                self.assertEqual(cursor.fetchall(), [])
+
+        # Even if the tenant setting names a third, non-existent tenant, it
+        # cannot broaden database access to data from either seeded tenant.
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(f"SET LOCAL ROLE {role}")
+                cursor.execute("SELECT set_config('app.tenant_id', %s, true)", ["00000000-0000-0000-0000-000000000001"])
+                cursor.execute("SELECT tenant_id::text FROM pos_order")
+                self.assertEqual(cursor.fetchall(), [])
