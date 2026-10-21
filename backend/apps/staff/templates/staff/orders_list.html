@@ -97,7 +97,7 @@
           <a class="staff-pos-orders-seg{% if status_filter == 'closed' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'closed' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=closed{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Closed</a>
           <a class="staff-pos-orders-seg{% if status_filter == 'cancelled' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'cancelled' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=cancelled{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Cancelled</a>
         </nav>
-        <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}{% if not mine_filter %}?mine=1{% endif %}">{% if mine_filter %}Everyone's orders{% else %}My orders{% endif %}</a>
+        <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}{% if not mine_filter %}?mine=1{% endif %}">{% if mine_filter %}{% if show_supermarket_lane %}Everyone's sales{% else %}Everyone's orders{% endif %}{% else %}{% if show_supermarket_lane %}My sales{% else %}My orders{% endif %}{% endif %}</a>
         <form class="staff-pos-orders-search" method="get" action="{% url 'staff-orders' %}">
           {% if returns_task %}<input type="hidden" name="task" value="returns">{% endif %}
           {% if mine_filter %}<input type="hidden" name="mine" value="1">{% endif %}
