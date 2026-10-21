@@ -2,15 +2,15 @@
 <aside class="staff-sidebar console-sidebar" aria-label="Administration navigation">
 {% if grocery_console_shell %}
   <a class="grocery-console-brand" href="{% url 'staff-dashboard' %}"><i class="bi bi-cart3"></i><span><strong>{{ console_active_tenant.name }}</strong><small>Store management</small></span></a>
-  <nav class="grocery-console-links" aria-label="Store setup">
+  <nav class="grocery-console-links" aria-label="Store management">
     <a href="{% url 'staff-dashboard' %}"><i class="bi bi-columns-gap"></i> Overview</a>
-    <a{% if u == 'console-org-setup' %} class="is-active"{% endif %} href="{% url 'console-org-setup' %}"><i class="bi bi-list-check"></i> Guided setup</a>
-    <a href="{% url 'console-org-sites' %}"><i class="bi bi-geo-alt"></i> Branches</a>
-    <a href="{% url 'console-org-menu-items' %}"><i class="bi bi-box"></i> Products</a>
+    <a{% if u == 'console-org-setup' %} class="is-active" aria-current="page"{% endif %} href="{% url 'console-org-setup' %}"><i class="bi bi-list-check"></i> Guided setup</a>
+    <a{% if u == 'console-org-sites' or u == 'console-org-site-create' or u == 'console-org-site-edit' or u == 'console-org-outlets' or u == 'console-org-outlet-create' or u == 'console-org-outlet-edit' %} class="is-active" aria-current="page"{% endif %} href="{% url 'console-org-sites' %}"><i class="bi bi-geo-alt"></i> Branches</a>
+    <a{% if u == 'console-org-menu-items' or u == 'console-org-menu-item-create' or u == 'console-org-menu-item-edit' or u == 'console-org-menu-categories' or u == 'console-org-menu-category-create' or u == 'console-org-menu-category-edit' or u == 'console-org-catalog-import' or u == 'console-org-menu-item-outlets' or u == 'console-org-menu-item-outlet-create' or u == 'console-org-menu-item-outlet-edit' %} class="is-active" aria-current="page"{% endif %} href="{% url 'console-org-menu-items' %}"><i class="bi bi-box"></i> Products</a>
     <a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock</a>
     <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people"></i> Staff</a>
     <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer"></i> Registers</a>
-    <a href="{% url 'console-org' %}"><i class="bi bi-gear"></i> Business settings</a>
+    <a{% if u == 'console-org' %} class="is-active" aria-current="page"{% endif %} href="{% url 'console-org' %}"><i class="bi bi-gear"></i> Business settings</a>
   </nav>
   <div class="grocery-console-help"><i class="bi bi-question-circle"></i><span>Follow the setup checklist in order. You can return and make changes later.</span></div>
 {% else %}
