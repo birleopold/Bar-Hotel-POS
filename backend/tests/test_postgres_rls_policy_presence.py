@@ -76,6 +76,7 @@ class PostgresRlsEnforcementTests(TestCase):
         with transaction.atomic():
             with connection.cursor() as cursor:
                 cursor.execute(f"SET LOCAL ROLE {role}")
+                cursor.execute("SELECT set_config('app.tenant_id', '', true)")
                 cursor.execute("SELECT tenant_id::text FROM pos_order")
                 self.assertEqual(cursor.fetchall(), [])
 
