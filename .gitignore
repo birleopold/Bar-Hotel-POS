@@ -1,2 +1,9 @@
 # Leftover from removed Vite/React app (delete whole frontend/ when files are unlocked)
 frontend/node_modules/
+
+# Per-server Python virtualenv and local runtime artifacts
+.venv/
+backend/.env
+backend/staticfiles/
+__pycache__/
+*.pyc
