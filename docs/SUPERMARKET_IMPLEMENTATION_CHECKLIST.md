@@ -226,3 +226,19 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 **Guardrails and explicit unavailable workflows:** customers can still use anonymous supermarket sales with no name or room/table. Retail credit accounts/credit-sale AR and *unpaid layaway with deposits/reservations/cancellations* are **not enabled**: the current payment-finance cashbook recognizes POS receipts immediately and does not provide the accrual receivable/deposit-liability ledger, credit write-offs and reserved-inventory allocation those promises require. A fully paid pickup must not be marketed as layaway. Customer-facing second-screen is staff-session authenticated, not publicly paired hardware. Redemption is non-cash only. Approved retail hardware/scale, tax and receipt certification, real PostgreSQL/RLS concurrency, multi-device browser/accessible scanner tests and backup/rollback remain acceptance tasks, **not certified by CI**.
 
 **Delivery truth:** F6 is *software-in-progress* for SM-23/24/25/28/34/35; the new F6 subworkflows are code-delivered with automated regression checks. This is not a claim that the full batch is fully completed or approved for rollout. The parent 34-phase roadmap remains in force. See `docs/SUPERMARKET_F6_ACCEPTANCE.md`.
+
+
+### Owner administration visual parity — 21 October 2026
+
+- [x] Store-owner administration shell on `/console/` remains separate from platform and bar/hotel consoles; retail/supermarket-only multi-line tenants also get the store shell.
+- [x] Guided setup has numbered required tasks, true backend progress state, optional tasks, expandable problem controls and go-live checks; no automatic claim that payment or printer hardware is certified.
+- [x] Business settings, branches, sales areas, product list, categories and corresponding create/edit forms share a consistent retail visual system, with clear empty states and mobile table scrolling.
+- [x] Product advanced settings are collapsed by default without removing underlying fields or saving an incomplete form; validation errors expand the group.
+- [x] Per-sales-area pricing list, edit and removal confirmation use plain retail terms without affecting store inventory or financial calculations.
+- [x] CSV product import is aligned with the store-owner navigation without changing its preview/apply validation rules.
+- [x] Added `backend/tests/test_grocery_owner_console_pages.py` covering owner routing, cross-profile presentation, forms and links.
+- [ ] GitHub Actions SQLite + PostgreSQL checks for the **combined latest commit** (do not treat newly committed tests as a passing run).
+- [ ] Real browser check at a deployed owner site: desktop/tablet/phone setup, stock/pricing flows, responsive navigation, keyboard, error handling and print-device integration.
+- [ ] Confirm live tenant's deployment pulled current `origin/main`, then collect final screenshots against the approved store owner reference.
+
+**Scope:** These are navigation/presentation changes and regression tests. They do not certify F6 operational acceptance or claim all remaining business-specific modules are complete.
