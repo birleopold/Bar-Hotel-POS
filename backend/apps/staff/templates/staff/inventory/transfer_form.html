@@ -14,11 +14,13 @@
     </div>
   </header>
   <h2 class="staff-section-head">Transfer</h2>
-  <form method="post" class="staff-card" data-transfer-form>
+  <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-admin-form{% endif %}" data-transfer-form>
     {% csrf_token %}
+    {% if grocery_owner_shell %}<div class="grocery-admin-fields">{% endif %}
     {% for field in form %}
-      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}</div>
     {% endfor %}
+    {% if grocery_owner_shell %}</div>{% endif %}
     <p class="staff-muted small">Loose units and whole cartons are supported. Quantity remains in transit until physically verified.</p>
     <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-transfer-submit>Dispatch stock</button>
     <p class="staff-muted small mt-2" role="status" aria-live="polite" data-transfer-status></p>
