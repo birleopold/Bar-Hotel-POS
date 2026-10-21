@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.http.request import validate_host
+from django.db import connection, transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -108,16 +109,23 @@ class PlatformTenantCreateView(PlatformOperatorRequiredMixin, CreateView):
         return initial
 
     def form_valid(self, form):
-        messages.success(self.request, f"Workspace “{form.instance.name}” created.")
-        response = super().form_valid(form)
-        TenantSettings.objects.get_or_create(tenant=self.object)
-        try:
-            domain = create_platform_domain(self.object)
-            if domain:
-                messages.info(self.request, f"Platform address reserved: {domain.hostname}")
-        except ValidationError as exc:
-            messages.warning(self.request, "; ".join(exc.messages))
-        return response
+        # Platform operators start on the central hostname without tenant scope.
+        # Persist the workspace and its RLS-protected settings in one transaction
+        # with a transaction-local scope for the new tenant. Never bypass RLS.
+        with transaction.atomic():
+            response = super().form_valid(form)
+            if connection.vendor == "postgresql" and settings.POSTGRES_SET_REQUEST_TENANT_GUC:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT set_config('app.tenant_id', %s, true)", [str(self.object.pk)])
+            TenantSettings.objects.get_or_create(tenant=self.object)
+            try:
+                domain = create_platform_domain(self.object)
+                if domain:
+                    messages.info(self.request, f"Platform address reserved: {domain.hostname}")
+            except ValidationError as exc:
+                messages.warning(self.request, "; ".join(exc.messages))
+            messages.success(self.request, f"Workspace “{form.instance.name}” created.")
+            return response
 
 
 class PlatformTenantUpdateView(PlatformOperatorRequiredMixin, UpdateView):
