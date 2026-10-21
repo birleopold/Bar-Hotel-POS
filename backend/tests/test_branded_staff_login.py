@@ -93,6 +93,18 @@ class BrandedStaffLoginTests(TestCase):
         self.assertNotContains(response, "Kartel Bar")
 
 
+    def test_login_appearance_is_tenant_specific(self):
+        settings = TenantSettings.objects.get(tenant=self.sennana)
+        settings.login_welcome_message = "Welcome, Sennana team"
+        settings.login_background_url = "https://cdn.example.test/sennana-login.jpg"
+        settings.save(update_fields=["login_welcome_message", "login_background_url"])
+        page = self.client.get(reverse("staff-login"), HTTP_HOST="sennana.example.test")
+        self.assertContains(page, "Welcome, Sennana team")
+        self.assertContains(page, "https://cdn.example.test/sennana-login.jpg")
+        other = self.client.get(reverse("staff-login"), HTTP_HOST="kartel.example.test")
+        self.assertNotContains(other, "Welcome, Sennana team")
+        self.assertNotContains(other, "sennana-login.jpg")
+
     def test_branded_workspace_sets_own_page_identity(self):
         response = self.client.get(reverse("staff-login"), HTTP_HOST="sennana.example.test")
         self.assertContains(response, "<title>Sennana Supermarket · Staff sign in</title>", html=False)
@@ -156,6 +168,21 @@ class BusinessNameBrandingFormTests(TestCase):
         form = StaffTenantBrandingForm(data={**base_data, "business_name": "  Sennana   Supermarket  "}, instance=settings)
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["business_name"], "Sennana Supermarket")
+        unsafe = StaffTenantBrandingForm(
+            data={**base_data, "business_name": "Sennana Supermarket",
+                  "login_background_url": "http://cdn.example.test/background.jpg"},
+            instance=settings,
+        )
+        self.assertFalse(unsafe.is_valid())
+        self.assertIn("login_background_url", unsafe.errors)
+        safe = StaffTenantBrandingForm(
+            data={**base_data, "business_name": "Sennana Supermarket",
+                  "login_background_url": "https://cdn.example.test/background.jpg",
+                  "login_welcome_message": "Welcome to Sennana"},
+            instance=settings,
+        )
+        self.assertTrue(safe.is_valid(), safe.errors)
+
 
 
 class TenantSpecificPresentationTests(TestCase):
