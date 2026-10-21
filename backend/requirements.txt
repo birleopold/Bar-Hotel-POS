@@ -17,3 +17,6 @@ celery>=5.4,<6
 dnspython>=2.6,<3
 
 reportlab>=4.2,<5
+
+# Production WSGI server for dedicated POS systemd service
+gunicorn>=22,<24
