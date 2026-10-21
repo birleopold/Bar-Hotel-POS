@@ -33,3 +33,25 @@
 .grocery-console-body .console-main table thead th{background:#eff7f2;color:#344b62;font-weight:750}
 .grocery-console-body .console-main table tbody tr:hover{background:#f7fbf9}
 @media(max-width:800px){.grocery-console-body .console-main{padding:14px}.grocery-console-body .console-main .staff-card{padding:14px}.grocery-console-body .staff-nav__links{overflow-x:auto}}
+
+/* A focused store setup shell instead of hospitality console navigation. */
+.grocery-console-top{display:flex;align-items:center;gap:22px;width:100%;padding:12px 22px;min-height:72px}
+.grocery-console-top__brand,.grocery-console-brand{display:flex;align-items:center;gap:12px;color:#16304a;text-decoration:none}
+.grocery-console-top__brand i,.grocery-console-brand i{font-size:1.85rem;color:#008d4e}
+.grocery-console-top__brand span,.grocery-console-brand span{display:grid;line-height:1.22}
+.grocery-console-top__brand strong,.grocery-console-brand strong{font-size:1.04rem;font-weight:800}
+.grocery-console-top__brand small,.grocery-console-brand small{font-size:.77rem;color:#748499}
+.grocery-console-top__location{display:flex;align-items:center;gap:8px;padding:11px 16px;border:1px solid #dce6ef;border-radius:9px;background:#fff;font-weight:650;color:#304964}
+.grocery-console-top__location i{color:#008e50}
+.grocery-console-top__back{margin-left:auto;text-decoration:none;color:#087947;font-weight:700;white-space:nowrap}
+.grocery-console-top__person{color:#64758b;font-size:.81rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:210px}
+.grocery-console-brand{padding:19px 15px;border-bottom:1px solid #e3eaf1}
+.grocery-console-links{display:flex;flex-direction:column;gap:5px;padding:15px 12px}
+.grocery-console-links a{display:flex;align-items:center;gap:15px;text-decoration:none;border-radius:10px;color:#465b79;padding:12px 14px;min-height:48px;font-weight:600}
+.grocery-console-links a i{width:23px;font-size:1.16rem}
+.grocery-console-links a:hover,.grocery-console-links a:focus-visible{background:#ecf8f0;color:#087b46}
+.grocery-console-links a.is-active{background:#008e50;color:#fff}
+.grocery-console-help{border-top:1px solid #e2ebee;margin-top:auto;padding:22px 16px;color:#63778a;font-size:.82rem;display:flex;gap:12px;line-height:1.45}
+.grocery-console-help i{font-size:1.25rem;color:#06874e}
+@media(max-width:900px){.grocery-console-top__person{display:none}.grocery-console-top{gap:12px;padding:10px 12px}.grocery-console-top__location{display:none}}
+@media(max-width:700px){.grocery-console-links{flex-direction:row;overflow-x:auto;white-space:nowrap}.grocery-console-links a{flex:0 0 auto}.grocery-console-brand{padding:12px}.grocery-console-help{display:none}}
