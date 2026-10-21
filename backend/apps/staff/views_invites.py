@@ -17,6 +17,7 @@ from django.utils.http import urlsafe_base64_encode
 from django.views.generic import FormView, ListView, UpdateView, View
 
 from apps.accounts.invite_service import create_user_invite
+from apps.accounts.role_policy import role_choices_for_tenant
 from apps.accounts.models import Membership, MembershipRole, User, UserInvite
 from apps.api.password_views import build_password_reset_email_body
 from apps.audit.services import log_audit
@@ -244,7 +245,7 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
         ctx["filter_pin"] = self.request.GET.get("pin") or ""
         ctx["filter_site"] = self.request.GET.get("site") or ""
         ctx["filter_outlet"] = self.request.GET.get("outlet") or ""
-        ctx["role_choices"] = MembershipRole.choices
+        ctx["role_choices"] = role_choices_for_tenant(self.request.tenant)
         ctx["now"] = timezone.now()
         actor = self.request.tenant_membership
         from apps.staff.services.membership import staff_accessible_outlets, sites_visible_for_membership
