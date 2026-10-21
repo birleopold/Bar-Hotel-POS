@@ -641,6 +641,25 @@ class StaffWorkspaceAccessTests(TestCase):
         self.assertContains(r, "Business identity")
 
 
+    def test_business_profile_blocks_unrelated_lodging_route(self) -> None:
+        user = User.objects.create_user(email="bar-owner-scope@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(user)
+        response = self.client.get(reverse("staff-lodging-reservations"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("staff-dashboard"))
+
+    def test_disabled_purchasing_module_blocks_direct_route(self) -> None:
+        user = User.objects.create_user(email="no-purchasing@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        TenantSettings.objects.filter(tenant=self.tenant).update(
+            enabled_staff_modules=["pos", "kitchen", "workspace"]
+        )
+        self._login_with_tenant(user)
+        response = self.client.get(reverse("staff-purchasing-orders"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("staff-dashboard"))
+
     def test_owner_modules_page_renders(self) -> None:
         user = User.objects.create_user(email="own-mod@test.local", password="TestPass9!")
         Membership.objects.create(
