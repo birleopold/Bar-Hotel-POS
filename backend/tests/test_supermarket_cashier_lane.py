@@ -34,6 +34,12 @@ class SupermarketCashierLaneTests(TestCase):
         session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
         session.save()
 
+    def test_cashier_manager_does_not_get_owner_administration_dashboard(self):
+        page = self.client.get(reverse("staff-dashboard"))
+        self.assertEqual(page.status_code, 200)
+        self.assertNotContains(page, 'class="owner-home"')
+        self.assertContains(page, "staff-dash-hero--modern")
+
     def test_owner_dashboard_has_guided_setup_and_actual_sections(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
         membership.role = MembershipRole.OWNER
