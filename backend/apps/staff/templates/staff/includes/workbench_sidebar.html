@@ -1,6 +1,24 @@
 {# Role- and module-aware navigation. Keep these gates aligned with staff_nav visibility. #}
 {% with u=request.resolver_match.url_name %}
 <nav class="wb-side-nav" aria-label="Staff sections">
+{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}
+  <div class="wb-nav-group">
+    <span class="wb-nav-group__label">Checkout</span>
+    <ul class="wb-nav-list">
+      {% if staff_nav.orders %}
+        <li><a class="wb-nav-link{% if u == 'staff-orders' or u == 'staff-order-detail' %} wb-nav-link--active{% endif %}" href="{% url 'staff-orders' %}"><i class="bi bi-cart3" aria-hidden="true"></i><span>Point of sale</span></a></li>
+        <li><a class="wb-nav-link{% if u == 'staff-pos-shifts' %} wb-nav-link--active{% endif %}" href="{% url 'staff-pos-shifts' %}"><i class="bi bi-cash-stack" aria-hidden="true"></i><span>Register &amp; shift</span></a></li>
+      {% endif %}
+      {% if staff_nav.sales %}<li><a class="wb-nav-link{% if u == 'staff-sales' %} wb-nav-link--active{% endif %}" href="{% url 'staff-sales' %}"><i class="bi bi-receipt" aria-hidden="true"></i><span>Sales &amp; receipts</span></a></li>{% endif %}
+      {% if staff_nav.menu %}<li><a class="wb-nav-link{% if u == 'staff-menu' %} wb-nav-link--active{% endif %}" href="{% url 'staff-menu' %}"><i class="bi bi-box" aria-hidden="true"></i><span>Products</span></a></li>{% endif %}
+      {% if staff_nav.inventory %}<li><a class="wb-nav-link{% if 'inventory' in u %} wb-nav-link--active{% endif %}" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam" aria-hidden="true"></i><span>Stock</span></a></li>{% endif %}
+      {% if staff_nav.purchasing %}<li><a class="wb-nav-link{% if 'purchasing' in u %} wb-nav-link--active{% endif %}" href="{% url 'staff-purchasing-orders' %}"><i class="bi bi-truck" aria-hidden="true"></i><span>Purchasing</span></a></li>{% endif %}
+      {% if staff_nav.workspace %}<li><a class="wb-nav-link{% if 'settings' in u %} wb-nav-link--active{% endif %}" href="{% url 'staff-workspace-branding' %}"><i class="bi bi-gear" aria-hidden="true"></i><span>Settings</span></a></li>{% endif %}
+    </ul>
+  </div>
+  <details class="wb-nav-group">
+    <summary class="wb-nav-group__label">More tools</summary>
+{% endif %}
   <div class="wb-nav-group">
     <span class="wb-nav-group__label">Workspace</span>
     <ul class="wb-nav-list">
@@ -131,5 +149,6 @@
     </ul>
   </div>
   {% endif %}
+{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}</details>{% endif %}
 </nav>
 {% endwith %}
