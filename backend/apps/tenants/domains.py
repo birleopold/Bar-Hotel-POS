@@ -83,11 +83,17 @@ def create_platform_domain(tenant: Tenant) -> TenantDomain | None:
 
 def begin_custom_domain_verification(tenant: Tenant, hostname: str) -> TenantDomain:
     hostname = normalize_hostname(hostname)
-    central_hosts = {
-        normalize_hostname(host)
-        for host in getattr(settings, "TENANT_CENTRAL_HOSTS", ())
-        if host and not host.startswith(("[", ".", "*."))
-    }
+    # Development central hosts such as "localhost" and "testserver" are
+    # intentionally not valid public DNS names. Ignore them when checking
+    # custom-domain reservations instead of rejecting all custom domains.
+    central_hosts = set()
+    for host in getattr(settings, "TENANT_CENTRAL_HOSTS", ()):
+        if not host or host.startswith(("[", ".", "*.")):
+            continue
+        try:
+            central_hosts.add(normalize_hostname(host))
+        except ValidationError:
+            continue
     if hostname in central_hosts:
         raise ValidationError("This hostname is reserved for the platform's own system address.")
     suffix = platform_domain_suffix()
