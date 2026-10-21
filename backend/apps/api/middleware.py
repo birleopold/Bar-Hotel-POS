@@ -41,6 +41,11 @@ class TenantContextMiddleware:
         request.tenant_membership = None
 
         path = request.path
+        # Browser staff/console pages authenticate via sessions in
+        # StaffSessionTenantMiddleware. API tenant headers must never
+        # intercept those pages and return JSON tenant_forbidden errors.
+        if not path.startswith("/api/v1/"):
+            return self.get_response(request)
         if any(path.startswith(p) for p in self.EXEMPT_PATH_PREFIXES):
             return self.get_response(request)
 
