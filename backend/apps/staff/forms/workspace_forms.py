@@ -93,6 +93,8 @@ class StaffTenantBrandingForm(forms.ModelForm):
             "theme_secondary",
             "theme_accent",
             "logo_url",
+            "login_background_url",
+            "login_welcome_message",
             "hardware_barcode_scanner_enabled",
             "hardware_cash_drawer_enabled",
             "hardware_receipt_printer_enabled",
@@ -110,11 +112,19 @@ class StaffTenantBrandingForm(forms.ModelForm):
             "theme_secondary": forms.TextInput(attrs={"class": "staff-input", "type": "color"}),
             "theme_accent": forms.TextInput(attrs={"class": "staff-input", "type": "color"}),
             "logo_url": forms.URLInput(attrs={"class": "staff-input"}),
+            "login_background_url": forms.URLInput(attrs={"class": "staff-input", "placeholder": "https://example.com/entrance.jpg"}),
+            "login_welcome_message": forms.TextInput(attrs={"class": "staff-input", "maxlength": 160}),
             "hardware_barcode_scanner_enabled": forms.CheckboxInput(),
             "hardware_cash_drawer_enabled": forms.CheckboxInput(),
             "hardware_receipt_printer_enabled": forms.CheckboxInput(),
             "efris_enabled": forms.CheckboxInput(),
         }
+
+    def clean_login_background_url(self):
+        value = self.cleaned_data.get("login_background_url", "")
+        if value and not value.lower().startswith("https://"):
+            raise forms.ValidationError("Use an HTTPS image URL for the login background.")
+        return value
 
     def clean_theme_primary(self):
         return self._hex(self.cleaned_data.get("theme_primary", ""))
