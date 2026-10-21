@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% if login_brand %}{{ login_brand.name }} · Staff sign in{% else %}Staff sign in{% endif %}</title>
-  {% if login_brand and login_brand.logo_url %}<link rel="icon" href="{{ login_brand.logo_url }}">{% endif %}
+  {% if login_brand and login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
   <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#173C65{% endif %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
