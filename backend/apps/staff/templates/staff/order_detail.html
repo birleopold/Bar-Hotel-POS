@@ -1,5 +1,5 @@
 {% extends "staff/base.html" %}
-{% block title %}Order {{ order.bill_reference }}{% endblock %}
+{% block title %}{% if is_supermarket_outlet %}Sale{% else %}Order{% endif %} {{ order.bill_reference }}{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
 {% block main_class %}staff-main--wide staff-main--pos staff-main--pos-bleed{% endblock %}
 {% block content %}
@@ -30,11 +30,11 @@
           <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Done · lock terminal</button>
         </form>
       {% endif %}
-      <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'staff-orders' %}">All orders</a>
+      <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'staff-orders' %}">{% if is_supermarket_outlet %}All sales{% else %}All orders{% endif %}</a>
     </div>
   </div>
 
-  <h1 class="visually-hidden">Order {{ order.bill_reference }}</h1>
+  <h1 class="visually-hidden">{% if is_supermarket_outlet %}Sale{% else %}Order{% endif %} {{ order.bill_reference }}</h1>
   <div class="staff-pos-totals-row">
     <span class="staff-pos-totals-row__total">{{ order.currency }} <strong>{{ order.total }}</strong></span>
     <span class="staff-pos-totals-row__meta">Sub {{ order.subtotal }} · Tax {{ order.tax_total }}</span>
@@ -62,7 +62,7 @@
   {% endif %}
 
   <div class="staff-pos-order-layout">
-    <section class="staff-pos-order-main staff-pos-panel-scroll" aria-label="Order lines">
+    <section class="staff-pos-order-main staff-pos-panel-scroll" aria-label="{% if is_supermarket_outlet %}Sale items{% else %}Order lines{% endif %}">
       <div class="staff-card staff-card--pos mb-0">
         <h2 class="staff-card__title staff-card__title--pos">Lines</h2>
         <div class="staff-table-wrap staff-table-wrap--pos">
@@ -120,7 +120,7 @@
                   </tr>
                 {% endif %}
               {% empty %}
-                <tr><td colspan="5"><div class="staff-empty-state"><p class="staff-empty-state__title">No order lines yet</p><p class="staff-empty-state__copy">Add items or services from the action panel to build this bill.</p></div></td></tr>
+                <tr><td colspan="5"><div class="staff-empty-state"><p class="staff-empty-state__title">{% if is_supermarket_outlet %}Basket empty{% else %}No order lines yet{% endif %}</p><p class="staff-empty-state__copy">{% if is_supermarket_outlet %}Scan a barcode or choose a product to start the sale.{% else %}Add items or services from the action panel to build this bill.{% endif %}</p></div></td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -128,7 +128,7 @@
       </div>
     </section>
 
-    <aside class="staff-pos-order-side staff-pos-panel-scroll" aria-label="Order actions">
+    <aside class="staff-pos-order-side staff-pos-panel-scroll" aria-label="{% if is_supermarket_outlet %}Checkout actions{% else %}Order actions{% endif %}">
       {% if can_record_payment and payment_form %}
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Pay</h2>
@@ -170,7 +170,7 @@
       {% if can_modify_open_order and add_line_form %}
         <div class="staff-card staff-card--pos">
           <div class="staff-pos-menu-head">
-            <div><span class="staff-pos-menu-eyebrow">ORDER MENU</span><h2 class="staff-card__title staff-card__title--pos mb-0">Add an item</h2></div>
+            <div><span class="staff-pos-menu-eyebrow">{% if is_supermarket_outlet %}PRODUCT CATALOGUE{% else %}ORDER MENU{% endif %}</span><h2 class="staff-card__title staff-card__title--pos mb-0">Add an item</h2></div>
             <span class="staff-pos-menu-hint">Tap a tile to select</span>
           </div>
           {% if pos_menu_categories %}
@@ -204,7 +204,7 @@
             <input type="hidden" name="action" value="add_line">
             <div class="staff-pos-add-item-form__selection"><label class="staff-label" for="{{ add_line_form.menu_item.id_for_label }}">Selected item</label>{{ add_line_form.menu_item }}</div>
             <div class="staff-pos-add-item-form__quantity">{{ add_line_form.quantity.label_tag }}{{ add_line_form.quantity }}</div>
-            <div class="staff-pos-add-item-form__submit"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add to order</button></div>
+            <div class="staff-pos-add-item-form__submit"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch"><i class="bi bi-plus-lg" aria-hidden="true"></i>{% if is_supermarket_outlet %} Add to basket{% else %} Add to order{% endif %}</button></div>
             <div class="staff-pos-add-item-form__modifiers" id="staff-pos-add-line-modifiers" aria-live="polite"></div>
           </form>
         </div>
@@ -247,7 +247,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="hold_order">
                 <label class="staff-label" for="hold_label">Hold</label>
-                <input class="staff-input mb-2" id="hold_label" name="hold_label" maxlength="64" placeholder="Name / table" autocomplete="off" data-pos-hold-input>
+                <input class="staff-input mb-2" id="hold_label" name="hold_label" maxlength="64" placeholder="{% if is_supermarket_outlet %}Basket note (optional){% else %}Name / table{% endif %}" autocomplete="off" data-pos-hold-input>
                 <button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch" data-pos-hold-save>Hold</button>
               </form>
             </div>
