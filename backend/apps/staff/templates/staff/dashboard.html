@@ -1,5 +1,6 @@
 {% extends "staff/base.html" %}
 {% block title %}Operations overview{% endblock %}
+{% block extra_css %}{{ block.super }}{% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}<style>{% include "staff/includes/grocery_owner_setup_styles.html" %}</style>{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide staff-main--dashboard{% endblock %}
 {% block content %}
   <header class="staff-dash-hero staff-dash-hero--modern">
@@ -118,6 +119,45 @@
       </div>
     {% endif %}
 
+    {% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}
+      <section class="grocery-owner-setup staff-card mb-3" aria-labelledby="grocery-owner-title">
+        <div class="grocery-owner-setup__head">
+          <div>
+            <p class="grocery-owner-setup__eyebrow">BUSINESS OWNER · GETTING STARTED</p>
+            <h2 id="grocery-owner-title">Set up your shop, one step at a time</h2>
+            <p>Follow these steps from left to right. You can return whenever you need to change something.</p>
+          </div>
+          {% if tenant_setup_state %}<div class="grocery-owner-setup__progress"><strong>{{ tenant_setup_state.required_completion_percent }}%</strong><span>Core setup done</span></div>{% endif %}
+        </div>
+        {% if tenant_setup_state %}<progress class="grocery-owner-setup__bar" max="100" value="{{ tenant_setup_state.required_completion_percent }}" aria-label="Business setup progress">{{ tenant_setup_state.required_completion_percent }}%</progress>{% endif %}
+        <div class="grocery-owner-setup__steps">
+          <a href="{{ tenant_setup_url|default:'#' }}" class="grocery-owner-setup__step">
+            <span class="grocery-owner-setup__number">1</span><i class="bi bi-shop" aria-hidden="true"></i>
+            <strong>My business</strong><small>Shop name, location, currency and receipt details</small><span class="grocery-owner-setup__go">Open setup <i class="bi bi-arrow-right"></i></span>
+          </a>
+          <a href="{% url 'staff-menu' %}" class="grocery-owner-setup__step">
+            <span class="grocery-owner-setup__number">2</span><i class="bi bi-upc-scan" aria-hidden="true"></i>
+            <strong>My products</strong><small>Add names, barcodes and selling prices</small><span class="grocery-owner-setup__go">Manage products <i class="bi bi-arrow-right"></i></span>
+          </a>
+          <a href="{% url 'staff-inventory-balances' %}" class="grocery-owner-setup__step">
+            <span class="grocery-owner-setup__number">3</span><i class="bi bi-box-seam" aria-hidden="true"></i>
+            <strong>My stock</strong><small>Check what you have and record stock arriving</small><span class="grocery-owner-setup__go">Check stock <i class="bi bi-arrow-right"></i></span>
+          </a>
+          <a href="{% url 'staff-workspace-members' %}" class="grocery-owner-setup__step">
+            <span class="grocery-owner-setup__number">4</span><i class="bi bi-people" aria-hidden="true"></i>
+            <strong>My workers</strong><small>Invite cashiers and choose what they may do</small><span class="grocery-owner-setup__go">Manage team <i class="bi bi-arrow-right"></i></span>
+          </a>
+          <a href="{% url 'staff-workstations' %}" class="grocery-owner-setup__step">
+            <span class="grocery-owner-setup__number">5</span><i class="bi bi-printer" aria-hidden="true"></i>
+            <strong>My checkout</strong><small>Set up tills, receipt printing and devices</small><span class="grocery-owner-setup__go">Set up register <i class="bi bi-arrow-right"></i></span>
+          </a>
+        </div>
+        <div class="grocery-owner-setup__footer">
+          <span><i class="bi bi-shield-check" aria-hidden="true"></i> Changes stay in your own business workspace.</span>
+          <a class="staff-btn staff-btn--primary" href="{{ tenant_setup_url|default:'#' }}">Continue guided setup <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+        </div>
+      </section>
+    {% endif %}
     {% if show_workspace_admin_tools %}
       <div class="staff-card staff-admin-compact mb-3">
         <div>
