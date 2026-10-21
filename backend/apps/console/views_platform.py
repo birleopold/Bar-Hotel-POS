@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from django import forms
 from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from apps.accounts.models import Membership, MembershipRole
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -170,6 +174,25 @@ class PlatformPlanUpdateView(PlatformOperatorRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f"Plan “{form.instance.name}” updated.")
         return super().form_valid(form)
+
+
+class PlatformTenantOwnerForm(forms.Form):
+    email = forms.EmailField(widget=forms.EmailInput(attrs={"class": "staff-input", "autocomplete": "off"}))
+    password = forms.CharField(
+        min_length=8, widget=forms.PasswordInput(attrs={"class": "staff-input", "autocomplete": "new-password"})
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={"class": "staff-input", "autocomplete": "new-password"})
+    )
+
+    def clean(self):
+        data = super().clean()
+        if data.get("password") and data.get("confirm_password"):
+            if data["password"] != data["confirm_password"]:
+                self.add_error("confirm_password", "Passwords do not match.")
+            else:
+                validate_password(data["password"])
+        return data
 
 
 class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView):
@@ -394,6 +417,25 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
         )
 
     def post(self, request, *args, **kwargs):
+        if "create_tenant_owner" in request.POST:
+            owner_form = PlatformTenantOwnerForm(request.POST)
+            if owner_form.is_valid():
+                email = owner_form.cleaned_data["email"].strip().lower()
+                # Never reset an existing user's password or silently grant
+                # an existing account access to another tenant.
+                if get_user_model().objects.filter(email__iexact=email).exists():
+                    owner_form.add_error("email", "This email already has an account. Invite the existing user instead.")
+                else:
+                    owner = get_user_model().objects.create_user(
+                        email=email, password=owner_form.cleaned_data["password"]
+                    )
+                    member = Membership.objects.create(
+                        user=owner, tenant=self.tenant_obj, role=MembershipRole.OWNER
+                    )
+                    member.sites.set(Site.objects.filter(tenant=self.tenant_obj, is_active=True))
+                    messages.success(request, f"Owner login created for {email}.")
+                    return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+            return self.render_to_response(self.get_context_data(owner_form=owner_form))
         if "create_platform_domain" in request.POST:
             try:
                 domain = create_platform_domain(self.tenant_obj)
@@ -766,6 +808,7 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
         ctx = super().get_context_data(**kwargs)
         sub = getattr(self.tenant_obj, "subscription", None)
         ctx["tenant_obj"] = self.tenant_obj
+        ctx["owner_form"] = kwargs.get("owner_form") or PlatformTenantOwnerForm()
         ctx["tenant_domains"] = list(TenantDomain.objects.filter(tenant=self.tenant_obj))
         ctx["platform_domain"] = settings.TENANT_PLATFORM_DOMAIN
         ctx["domain_target"] = settings.TENANT_DOMAIN_TARGET
