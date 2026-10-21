@@ -1,10 +1,12 @@
 {% extends "staff/base.html" %}
 {% block title %}Configure workstation{% endblock %}
 {% block content %}
-<header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Devices &amp; registers</p><h1 class="staff-page-title">{% if form.instance.created_at %}Configure workstation{% else %}Add workstation{% endif %}</h1><p class="staff-dash-hero__tagline">Give staff a recognizable device name and record its section and hardware labels.</p></div></header>
-<div class="staff-card"><form method="post" class="staff-register-form">{% csrf_token %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel"><p class="staff-dash-hero__eyebrow">Devices &amp; registers</p><h1 class="staff-page-title">{% if form.instance.created_at %}Configure workstation{% else %}Add workstation{% endif %}</h1><p class="staff-dash-hero__tagline">{% if grocery_owner_shell %}Name this register and choose where it will be used. Add printer or scanner details if available.{% else %}Give staff a recognizable device name and record its section and hardware labels.{% endif %}</p></div></header>
+<div class="staff-card"><form method="post" class="staff-register-form{% if grocery_owner_shell %} grocery-admin-form{% endif %}">{% csrf_token %}
   {% if form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% if grocery_owner_shell %}<div class="grocery-admin-fields">{% endif %}
   {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}{% for error in field.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>{% endfor %}
-  <button class="staff-btn staff-btn--primary">Save workstation</button><a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstations' %}">Cancel</a>
+  {% if grocery_owner_shell %}</div>{% endif %}
+  <button class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Save register{% else %}Save workstation{% endif %}</button><a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstations' %}">Cancel</a>
 </form></div>
 {% endblock %}
