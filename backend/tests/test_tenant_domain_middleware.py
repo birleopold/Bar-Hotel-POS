@@ -1,5 +1,7 @@
 from django.http import HttpResponse
-from django.test import RequestFactory, SimpleTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
+from django.core.cache import cache
+from apps.tenants.models import Tenant, TenantDomain
 
 from apps.tenants.middleware import TenantDomainResolutionMiddleware
 
