@@ -1,0 +1,12 @@
+# Import this file from the EXISTING Caddyfile only after reviewing imports.
+# Keep other sites unchanged. Caddy automatically manages central-host TLS.
+pos.leosoftug.com {
+    encode zstd gzip
+    handle_path /static/* {
+        root * /var/www/leosoft-pos/static
+        file_server
+    }
+    handle {
+        reverse_proxy 127.0.0.1:18083
+    }
+}
