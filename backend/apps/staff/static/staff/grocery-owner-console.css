@@ -55,3 +55,24 @@
 .grocery-console-help i{font-size:1.25rem;color:#06874e}
 @media(max-width:900px){.grocery-console-top__person{display:none}.grocery-console-top{gap:12px;padding:10px 12px}.grocery-console-top__location{display:none}}
 @media(max-width:700px){.grocery-console-links{flex-direction:row;overflow-x:auto;white-space:nowrap}.grocery-console-links a{flex:0 0 auto}.grocery-console-brand{padding:12px}.grocery-console-help{display:none}}
+
+/* Beginner-friendly product editor with consistent forms throughout owner setup. */
+.grocery-console-body .grocery-form-head{display:flex;align-items:start;justify-content:space-between;gap:16px;margin:0 0 20px}
+.grocery-console-body .grocery-form-kicker{color:#07844b;font-size:.75rem;font-weight:800;letter-spacing:.08em;margin:0 0 8px}
+.grocery-console-body .grocery-form-head h1{font-size:clamp(1.55rem,2.5vw,2rem);letter-spacing:-.025em;font-weight:790;margin:0 0 8px}
+.grocery-console-body .grocery-form-head p:last-child{margin-bottom:0}
+.grocery-console-body .grocery-guided-form{max-width:1020px;padding:24px}
+.grocery-console-body .grocery-form-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}
+.grocery-console-body .grocery-form-field{min-width:0;display:flex;flex-direction:column;align-items:stretch}
+.grocery-console-body .grocery-form-field label{font-size:.85rem;font-weight:700;color:#243c57;margin-bottom:7px}
+.grocery-console-body .grocery-form-field label span{color:#bd4b26}
+.grocery-console-body .grocery-form-field>input:not([type=checkbox]),.grocery-console-body .grocery-form-field>select,.grocery-console-body .grocery-form-field>textarea{width:100%;padding:10px 12px;max-width:100%}
+.grocery-console-body .grocery-form-field:has(textarea){grid-column:1/-1}
+.grocery-console-body .grocery-form-field:has(input[type=checkbox]){flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px;border:1px solid #e3ebe5;background:#f8fbf9;padding:13px;border-radius:10px}
+.grocery-console-body .grocery-form-field:has(input[type=checkbox]) label{margin:0}
+.grocery-console-body .grocery-form-help{color:#66788b;font-size:.76rem;margin:5px 0 0;line-height:1.4}
+.grocery-console-body .grocery-form-errors{color:#aa2833;font-size:.81rem;margin-top:4px}
+.grocery-console-body .grocery-form-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid #e3ebe9;margin-top:22px;padding-top:18px;color:#77879a;font-size:.79rem}
+.grocery-console-body .grocery-form-footer>div{display:flex;gap:10px;align-items:center}
+.grocery-console-body .grocery-form-links{margin:0 0 14px}
+@media(max-width:760px){.grocery-console-body .grocery-form-fields{grid-template-columns:1fr}.grocery-console-body .grocery-guided-form{padding:16px}.grocery-console-body .grocery-form-head{flex-direction:column}.grocery-console-body .grocery-form-footer{flex-direction:column;align-items:stretch}.grocery-console-body .grocery-form-footer>div{justify-content:flex-end}}
