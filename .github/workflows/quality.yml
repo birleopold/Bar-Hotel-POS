@@ -38,6 +38,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: Check read-only deployment preflight syntax
+        run: bash -n deployment/contabo/preflight.sh
+
       - name: Django system checks
         working-directory: backend
         run: python manage.py check
