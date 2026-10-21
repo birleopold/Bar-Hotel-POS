@@ -632,6 +632,10 @@ class StaffMembershipBulkActionForm(forms.Form):
         super().__init__(*args, **kwargs)
         if tenant is not None:
             self.fields["member_ids"].queryset = Membership.objects.filter(tenant=tenant)
+            self.fields["role_preset"].choices = [
+                choice for choice in ROLE_PRESET_CHOICES
+                if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
+            ]
 
     def clean(self):
         data = super().clean()
