@@ -245,3 +245,15 @@
 .grocery-owner-body .grocery-required{color:#b43431}
 .grocery-owner-body .grocery-worker-fields>.mb-3:has(textarea){grid-column:1/-1}
 @media(max-width:720px){.grocery-owner-body .grocery-worker-fields{grid-template-columns:1fr}}
+
+/* Consistent setup layout for shop purchasing, stock counts and registers. */
+.grocery-owner-body .grocery-admin-form{max-width:1080px}
+.grocery-owner-body .grocery-admin-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;margin:16px 0}
+.grocery-owner-body .grocery-admin-fields>.mb-3{min-width:0;margin:0!important;display:flex;flex-direction:column}
+.grocery-owner-body .grocery-admin-fields label{font-size:.84rem;font-weight:700;color:#293f5a;margin-bottom:7px}
+.grocery-owner-body .grocery-admin-fields :is(input:not([type=checkbox]),select,textarea){width:100%;max-width:100%;padding:9px 12px}
+.grocery-owner-body .grocery-admin-fields .errorlist{font-size:.8rem;color:#b52b36}
+.grocery-owner-body .grocery-admin-fields>.mb-3:has(textarea){grid-column:1/-1}
+.grocery-owner-body .grocery-admin-form .staff-table-wrap{border:1px solid #e0e8ea}
+.grocery-owner-body .grocery-admin-form .staff-table td{min-width:110px}
+@media(max-width:720px){.grocery-owner-body .grocery-admin-fields{grid-template-columns:1fr}}
