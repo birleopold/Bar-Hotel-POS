@@ -97,3 +97,11 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
         self.assertFalse(TenantSettings.objects.filter(tenant=tenant).exists())
+
+    def test_tenant_scope_middleware_precedes_staff_membership_lookup(self):
+        from django.conf import settings
+        middleware = settings.MIDDLEWARE
+        self.assertLess(
+            middleware.index("apps.api.middleware.PostgresRequestTenantGucMiddleware"),
+            middleware.index("apps.staff.middleware.StaffSessionTenantMiddleware"),
+        )
