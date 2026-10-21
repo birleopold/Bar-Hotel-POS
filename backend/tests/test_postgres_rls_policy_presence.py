@@ -3,7 +3,9 @@
 The CI database owner bypasses ordinary RLS policies. Production certification
 must also run queries as a non-owner, non-BYPASSRLS application role.
 """
-from django.db import connection
+from django.db import connection, transaction
+from apps.tenants.models import Tenant, Site, Outlet, OutletType
+from apps.pos.models import Order
 from django.test import TestCase
 
 
@@ -42,3 +44,31 @@ class PostgresRlsPolicyPresenceTests(TestCase):
             with self.subTest(table=table):
                 self.assertIn(table, state)
                 self.assertEqual(state[table], (True, True))
+
+
+class PostgresRlsEnforcementTests(TestCase):
+    def test_non_owner_role_cannot_read_other_tenant_orders(self):
+        if connection.vendor != "postgresql":
+            self.skipTest("PostgreSQL is required")
+        first = Tenant.objects.create(name="RLS first", slug="rls-first")
+        second = Tenant.objects.create(name="RLS second", slug="rls-second")
+        for tenant in (first, second):
+            site = Site.objects.create(tenant=tenant, name="Main")
+            outlet = Outlet.objects.create(site=site, name="Till", outlet_type=OutletType.RETAIL)
+            Order.objects.create(tenant=tenant, outlet=outlet, currency="UGX", total=100)
+        # The migration/CI database owner bypasses RLS; explicitly exercise
+        # SELECT through a temporary non-owner role with only table read access.
+        role = "rls_ci_reader"
+        with connection.cursor() as cursor:
+            cursor.execute(f"CREATE ROLE {role} NOLOGIN")
+            cursor.execute(f"GRANT USAGE ON SCHEMA public TO {role}")
+            cursor.execute(f"GRANT SELECT ON pos_order TO {role}")
+        for tenant in (first, second):
+            with self.subTest(tenant=tenant.slug):
+                with transaction.atomic():
+                    with connection.cursor() as cursor:
+                        cursor.execute(f"SET LOCAL ROLE {role}")
+                        cursor.execute("SELECT set_config('app.tenant_id', %s, true)", [str(tenant.pk)])
+                        cursor.execute("SELECT tenant_id::text FROM pos_order")
+                        rows = [item[0] for item in cursor.fetchall()]
+                        self.assertEqual(rows, [str(tenant.pk)])
