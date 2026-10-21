@@ -93,6 +93,7 @@ class StaffTenantBrandingForm(forms.ModelForm):
             "theme_secondary",
             "theme_accent",
             "logo_url",
+            "favicon_url",
             "login_background_url",
             "login_welcome_message",
             "hardware_barcode_scanner_enabled",
@@ -112,6 +113,7 @@ class StaffTenantBrandingForm(forms.ModelForm):
             "theme_secondary": forms.TextInput(attrs={"class": "staff-input", "type": "color"}),
             "theme_accent": forms.TextInput(attrs={"class": "staff-input", "type": "color"}),
             "logo_url": forms.URLInput(attrs={"class": "staff-input"}),
+            "favicon_url": forms.URLInput(attrs={"class": "staff-input", "placeholder": "https://example.com/favicon.png"}),
             "login_background_url": forms.URLInput(attrs={"class": "staff-input", "placeholder": "https://example.com/entrance.jpg"}),
             "login_welcome_message": forms.TextInput(attrs={"class": "staff-input", "maxlength": 160}),
             "hardware_barcode_scanner_enabled": forms.CheckboxInput(),
@@ -119,6 +121,12 @@ class StaffTenantBrandingForm(forms.ModelForm):
             "hardware_receipt_printer_enabled": forms.CheckboxInput(),
             "efris_enabled": forms.CheckboxInput(),
         }
+
+    def clean_favicon_url(self):
+        value = self.cleaned_data.get("favicon_url", "")
+        if value and not value.lower().startswith("https://"):
+            raise forms.ValidationError("Use an HTTPS URL for the browser icon.")
+        return value
 
     def clean_login_background_url(self):
         value = self.cleaned_data.get("login_background_url", "")
