@@ -48,6 +48,29 @@
       <div class="staff-alert staff-alert--info staff-alert--pos mb-0 staff-pos-orders-alert">{{ ready_handoff_count }} ready for handoff.</div>
     {% endif %}
 
+    {% if show_supermarket_lane %}
+      <section class="staff-card mb-3" aria-label="Quick checkout guide">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h2 class="staff-card__title mb-1">Ready to serve the next customer?</h2>
+            <p class="staff-muted mb-0">Start a sale, scan or search for products, take payment, then print the receipt. No customer account needed for a normal walk-in sale.</p>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            {% if current_outlet and supermarket_shift_open %}
+              <form method="post" action="{% url 'staff-order-quick-create' %}">
+                {% csrf_token %}
+                <button class="staff-btn staff-btn--primary staff-btn--touch" type="submit">Start checkout</button>
+              </form>
+            {% elif not supermarket_shift_open %}
+              <a class="staff-btn staff-btn--primary staff-btn--touch" href="{% url 'staff-pos-shifts' %}">Open register first</a>
+            {% else %}
+              <span class="staff-muted small">Select a register to begin checkout.</span>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    {% endif %}
+
     <section class="staff-pos-orders-lanes" aria-labelledby="staff-pos-lanes-heading">
       <div class="staff-card staff-card--pos staff-card--soft staff-pos-orders-lanes-shell mb-0">
         {% if show_supermarket_lane %}
