@@ -139,6 +139,7 @@ class TenantSettings(TimeStampedModel):
     theme_secondary = models.CharField(max_length=7, default="#2DD4BF", help_text="Hex color")
     theme_accent = models.CharField(max_length=7, default="#FBBF24", help_text="Hex color")
     logo_url = models.URLField(blank=True)
+    favicon_url = models.URLField(blank=True, help_text="Optional HTTPS square icon for browser tabs; defaults to business logo.")
     login_background_url = models.URLField(blank=True, help_text="Optional HTTPS image for your branded staff login background.")
     login_welcome_message = models.CharField(max_length=160, blank=True, help_text="Optional greeting displayed on staff sign-in screens.")
     enabled_staff_modules = models.JSONField(
