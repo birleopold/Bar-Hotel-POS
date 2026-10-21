@@ -1,41 +1,40 @@
-from django.test import SimpleTestCase
+from django.test import TestCase
 
 from apps.accounts.models import MembershipRole
 from apps.accounts.role_policy import permitted_roles
 from apps.staff.forms import StaffTeamInviteForm, StaffWorkerCreateForm, StaffMembershipManageForm, StaffMembershipBulkActionForm
 
 
-class FakeSettings:
-    def __init__(self, lines):
-        self.business_lines = lines
+from apps.tenants.models import Tenant, TenantSettings
 
 
-class FakeTenant:
-    def __init__(self, lines):
-        self.settings = FakeSettings(lines)
-
-
-class BusinessRolePolicyTests(SimpleTestCase):
+class BusinessRolePolicyTests(TestCase):
+    def tenant_for(self, lines):
+        import uuid
+        slug = "roles-" + uuid.uuid4().hex[:12]
+        tenant = Tenant.objects.create(name="Roles Test", slug=slug)
+        TenantSettings.objects.update_or_create(tenant=tenant, defaults={"business_lines": lines})
+        return tenant
     def test_supermarket_excludes_hospitality_roles(self):
-        allowed = permitted_roles(FakeTenant(["supermarket"]))
+        allowed = permitted_roles(self.tenant_for(["supermarket"]))
         self.assertIn(MembershipRole.SERVER, allowed)
         self.assertIn(MembershipRole.STOREKEEPER, allowed)
         for role in (MembershipRole.BARTENDER, MembershipRole.KITCHEN, MembershipRole.CLEANER, MembershipRole.FRONT_DESK):
             self.assertNotIn(role, allowed)
 
     def test_hotel_roles_are_relevant(self):
-        allowed = permitted_roles(FakeTenant(["lodging"]))
+        allowed = permitted_roles(self.tenant_for(["lodging"]))
         self.assertIn(MembershipRole.FRONT_DESK, allowed)
         self.assertIn(MembershipRole.CLEANER, allowed)
         self.assertNotIn(MembershipRole.BARTENDER, allowed)
 
     def test_mixed_businesses_have_union_of_roles(self):
-        allowed = permitted_roles(FakeTenant(["supermarket", "bar"]))
+        allowed = permitted_roles(self.tenant_for(["supermarket", "bar"]))
         self.assertIn(MembershipRole.BARTENDER, allowed)
         self.assertIn(MembershipRole.STOREKEEPER, allowed)
 
     def test_tenant_forms_hide_irrelevant_roles_and_presets(self):
-        tenant = FakeTenant(["supermarket"])
+        tenant = self.tenant_for(["supermarket"])
         for form_class in (StaffTeamInviteForm, StaffWorkerCreateForm):
             form = form_class(tenant=tenant)
             roles = dict(form.fields["role"].choices)
@@ -60,7 +59,7 @@ class BusinessRolePolicyTests(SimpleTestCase):
         }
         for line, expected in cases.items():
             with self.subTest(line=line):
-                tenant = FakeTenant([line])
+                tenant = self.tenant_for([line])
                 for cls in (StaffTeamInviteForm, StaffWorkerCreateForm, StaffMembershipManageForm, StaffMembershipBulkActionForm):
                     form = cls(tenant=tenant)
                     actual = set(dict(form.fields["role_preset"].choices)) - {""}
