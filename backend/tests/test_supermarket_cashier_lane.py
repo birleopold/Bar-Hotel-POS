@@ -52,6 +52,7 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "owner-side-nav")
         self.assertContains(page, "owner-global-search")
         self.assertContains(page, "Common actions")
+        self.assertContains(page, reverse("console-org-menu-item-create"))
         self.assertContains(page, "Needs your attention")
         self.assertContains(page, "Business activity")
         self.assertNotContains(page, "staff-dash-hero--modern")
