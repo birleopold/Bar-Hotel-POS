@@ -1,6 +1,6 @@
 <section class="owner-home" aria-label="Store management overview">
   <header class="owner-home__welcome">
-    <div><p class="owner-home__eyebrow">STORE MANAGEMENT · {{ request.tenant.name }}</p><h1><span class="owner-home__greeting">Welcome back!</span>Here's your store at a glance.</h1><p>Everything you need to manage your supermarket in one place.</p></div>
+    <div><p class="owner-home__eyebrow">STORE MANAGEMENT · {{ request.tenant.name }}</p><h1><span class="owner-home__greeting">Welcome back to {{ request.tenant.name }}.</span>Here's your store at a glance.</h1><p>Everything you need to manage your supermarket in one place.</p></div>
     {% if staff_can_quick_create_order %}<form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}<button type="submit" class="owner-home__pos"><i class="bi bi-cart3"></i><span><strong>Open cashier POS</strong><small>Start a new sale</small></span><i class="bi bi-arrow-right"></i></button></form>{% else %}<a class="owner-home__pos" href="{% url 'staff-orders' %}"><i class="bi bi-cart3"></i><span><strong>Open sales workspace</strong><small>View supermarket sales</small></span><i class="bi bi-arrow-right"></i></a>{% endif %}
   </header>
   <div class="owner-home__stats" aria-label="Business snapshot">
@@ -27,7 +27,7 @@
         {% if staff_nav.orders %}<li><span class="owner-home__number">5</span><span><strong>Configure payments and tills</strong><small>Cash, supported payment methods and receipts</small></span><a href="{% url 'staff-workstations' %}">Registers <i class="bi bi-arrow-right"></i></a></li>
         <li><span class="owner-home__number">6</span><span><strong>Check your first sale</strong><small>Confirm scanning, payment and receipt printing</small></span><a href="{% url 'staff-orders' %}">Sales <i class="bi bi-arrow-right"></i></a></li>
       {% endif %}</ol>
-      <p class="owner-home__setup-note"><i class="bi bi-info-circle"></i> The percentage comes from your actual business setup. Step labels are guidance, not individual completion claims.</p>
+      <p class="owner-home__setup-note"><i class="bi bi-info-circle"></i> Setup progress reflects real completed requirements. The six shortcuts are a simple guide, not six independent completion checks.</p>
     </section>
     <section class="owner-home__card owner-home__actions" aria-labelledby="owner-actions-title"><div class="owner-home__card-head"><div><h2 id="owner-actions-title">Common actions</h2><p>Quick links to the things you do most.</p></div></div>
       <div class="owner-home__action-grid">
