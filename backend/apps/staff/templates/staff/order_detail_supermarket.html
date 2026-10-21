@@ -1,4 +1,9 @@
+{% load static %}
 {% extends "staff/order_detail.html" %}
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'staff/grocery-checkout.css' %}">
+{% endblock %}
 {% block order_extra %}
   <div class="staff-toolbar mt-2 mb-3"><a class="staff-btn staff-btn--ghost" target="_blank" rel="noopener" href="{% url 'staff-retail-customer-display' order_id=order.id %}">Open customer display on second screen</a>
     <p class="staff-muted small mb-0">Read-only, staff-session protected. Move this tab to the second monitor; public access is disabled.</p></div>
@@ -152,6 +157,7 @@
 
 {% block extra_js %}
 {{ block.super }}
+<script src="{% static 'staff/grocery-checkout.js' %}" defer></script>
 <script>
 (function () {
   "use strict";
