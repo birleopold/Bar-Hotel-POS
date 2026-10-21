@@ -12,6 +12,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.invite_service import create_user_invite
+from apps.accounts.role_policy import permitted_roles
 from apps.accounts.models import Membership, MembershipRole, User, UserInvite
 from apps.api.permissions import CanManageTenantSettings, HasTenantContext, NotReadOnlyRole
 from apps.tenants.models import Outlet, Site
@@ -78,6 +79,11 @@ class InviteCreateView(APIView):
         if role not in {c.value for c in MembershipRole}:
             return Response(
                 {"error": {"code": "invalid_role", "message": "Invalid role."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if role not in permitted_roles(request.tenant):
+            return Response(
+                {"error": {"code": "invalid_role", "message": "Role is not available for this business line."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
