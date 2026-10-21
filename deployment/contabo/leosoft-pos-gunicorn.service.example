@@ -1,0 +1,28 @@
+# Template only. Review paths and run-user before installing as
+# /etc/systemd/system/leosoft-pos-gunicorn.service.
+# Do not replace or restart services belonging to other Django projects.
+[Unit]
+Description=Leosoft POS isolated Gunicorn application
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=leosoft-pos
+Group=www-data
+WorkingDirectory=/srv/leosoft-pos/app/backend
+EnvironmentFile=/etc/leosoft-pos/pos.env
+RuntimeDirectory=leosoft-pos
+RuntimeDirectoryMode=0750
+UMask=0007
+ExecStart=/srv/leosoft-pos/venv/bin/gunicorn config.wsgi:application --workers 3 --bind unix:/run/leosoft-pos/gunicorn.sock --access-logfile - --error-logfile -
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/leosoft-pos /srv/leosoft-pos/app/backend
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
