@@ -40,3 +40,22 @@
 /* Sidebar's secondary links remain available without crowding checkout. */
 .wb-side-nav details.wb-nav-group>summary{cursor:pointer;list-style-position:inside;padding:.75rem .5rem}
 .wb-side-nav details.wb-nav-group[open]>summary{margin-bottom:.35rem}
+
+/* Small cashier screens: keep basket and payment accessible without hiding the catalogue. */
+@media (max-width:900px){
+  .grocery-register-ready .staff-pos-order-main{order:1}
+  .grocery-register-ready .staff-pos-order-side{order:2}
+  .grocery-register-ready .staff-pos-order-side>.staff-card:first-child{margin-bottom:.75rem}
+  .grocery-register-ready .staff-pos-order-side [data-pos-payment-form] button[type="submit"]{min-height:56px}
+  .grocery-register-ready .staff-pos-menu-grid{gap:.65rem}
+}
+@media (min-width:601px) and (max-width:900px){
+  .grocery-register-ready .staff-pos-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:600px){
+  .grocery-register-ready .staff-pos-menu-tile__photo{height:85px}
+  .grocery-register-ready .staff-pos-menu-tile__name{font-size:.92rem}
+  .grocery-register-ready .staff-pos-order-side .staff-table{min-width:420px}
+  .grocery-register-ready .staff-pos-menu-categories{scroll-snap-type:x proximity}
+  .grocery-register-ready .staff-pos-category-filter{scroll-snap-align:start}
+}
