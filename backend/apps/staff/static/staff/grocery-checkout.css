@@ -18,3 +18,15 @@
 .grocery-register-ready [data-retail-scan-form] input{min-height:46px}
 .grocery-register-ready .staff-pos-order-main>.staff-card{margin-bottom:14px!important}
 @media(max-width:600px){.grocery-register-ready .staff-pos-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.grocery-register-ready .staff-pos-menu-tile{padding:.7rem}.grocery-register-ready .staff-pos-category-filter{min-height:44px}}
+
+/* Visual hierarchy: scanning/product choice first, transaction total second. */
+.grocery-register-ready .staff-pos-order-side>.staff-card:first-child{background:#fff;border:1px solid #d9e6df;box-shadow:0 6px 24px rgba(19,50,37,.06)}
+.grocery-register-ready .staff-pos-order-side>.staff-card:first-child .staff-card__title{color:#08623c;font-size:1.18rem;font-weight:750}
+.grocery-register-ready .grocery-amount-due{padding:12px 14px;border-radius:12px;background:#effaf3;color:#115f3d;font-size:1.14rem}
+.grocery-register-ready .grocery-amount-due strong{font-size:1.42rem;font-variant-numeric:tabular-nums}
+.grocery-register-ready [data-pos-payment-form] button[type="submit"]{background:#087d49;border-color:#087d49;color:#fff;font-size:1.05rem;font-weight:750;box-shadow:0 3px 12px rgba(5,105,59,.18)}
+.grocery-register-ready [data-pos-payment-form] button[type="submit"]:focus-visible{outline:3px solid #e2b75b;outline-offset:3px}
+.grocery-register-ready [data-retail-scan-form] button{min-height:48px}
+.grocery-register-ready [data-pos-menu-search]{min-height:48px}
+.grocery-register-ready .staff-pos-menu-browser{max-width:100%}
+@media(prefers-reduced-motion:reduce){.grocery-register-ready .staff-pos-menu-tile{transition:none}}
