@@ -34,6 +34,33 @@ class SupermarketCashierLaneTests(TestCase):
         session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
         session.save()
 
+    def test_grocery_checkout_exposes_visual_layout_assets(self):
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user
+        )
+        page = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "grocery-checkout.css")
+        self.assertContains(page, "grocery-checkout.js")
+        self.assertContains(page, "staff-pos-order-layout")
+        self.assertContains(page, "data-retail-scan-form")
+        self.assertContains(page, "staff-pos-order-side")
+
+    def test_grocery_tiles_can_display_catalogue_photos(self):
+        cat = MenuCategory.objects.create(tenant=self.tenant, name="Fresh items")
+        MenuItem.objects.create(
+            tenant=self.tenant, category=cat, name="Grocery milk",
+            unit_price=Decimal("3000"),
+            display_image_url="https://example.com/milk.png",
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user
+        )
+        page = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Grocery milk")
+        self.assertContains(page, "milk.png")
+
     def test_scan_first_form_reaches_existing_server_side_checkout(self):
         cat = MenuCategory.objects.create(tenant=self.tenant, name="Grocery")
         MenuItem.objects.create(
