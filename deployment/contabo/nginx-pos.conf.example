@@ -1,0 +1,40 @@
+# Review existing nginx server_name values before enabling.
+# This file serves ONLY pos.leosoftug.com; wildcard/custom domains require
+# separate, TLS-certified vhosts, validated ownership and routing.
+# Paths below must exist before nginx -t; never overwrite another site's file.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name pos.leosoftug.com;
+    return 301 https://pos.leosoftug.com$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name pos.leosoftug.com;
+
+    # Provision the certificate for THIS hostname before enabling the vhost.
+    ssl_certificate /etc/letsencrypt/live/pos.leosoftug.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/pos.leosoftug.com/privkey.pem;
+
+    client_max_body_size 16m;
+    add_header X-Content-Type-Options nosniff always;
+
+    location /static/ {
+        alias /srv/leosoft-pos/static/;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    location / {
+        proxy_pass http://unix:/run/leosoft-pos/gunicorn.sock:;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 65s;
+        proxy_connect_timeout 10s;
+        proxy_redirect off;
+    }
+}
