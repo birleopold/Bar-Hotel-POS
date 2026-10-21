@@ -3,6 +3,7 @@
 {% block extra_css %}{{ block.super }}{% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}<style>{% include "staff/includes/grocery_owner_setup_styles.html" %}</style>{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide staff-main--dashboard{% endblock %}
 {% block content %}
+  {% if not show_workspace_admin_tools or staff_product.business_key != "supermarket" and staff_product.business_key != "retail" %}
   <header class="staff-dash-hero staff-dash-hero--modern">
     <div class="staff-dash-hero__panel">
       <div class="staff-dash-hero__copy">
@@ -15,6 +16,7 @@
       </div>
     </div>
   </header>
+  {% endif %}
 
   {% if not active_membership %}
     <div class="staff-card staff-card--soft staff-empty-split">
