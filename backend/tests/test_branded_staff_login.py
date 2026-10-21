@@ -104,6 +104,12 @@ class BrandedStaffLoginTests(TestCase):
         other = self.client.get(reverse("staff-login"), HTTP_HOST="kartel.example.test")
         self.assertNotContains(other, "Welcome, Sennana team")
         self.assertNotContains(other, "sennana-login.jpg")
+        settings.favicon_url = "https://cdn.example.test/sennana-icon.png"
+        settings.save(update_fields=["favicon_url"])
+        own_with_icon = self.client.get(reverse("staff-login"), HTTP_HOST="sennana.example.test")
+        self.assertContains(own_with_icon, 'rel="icon" href="https://cdn.example.test/sennana-icon.png"')
+        other_with_icon = self.client.get(reverse("staff-login"), HTTP_HOST="kartel.example.test")
+        self.assertNotContains(other_with_icon, "sennana-icon.png")
 
     def test_pin_terminal_uses_only_own_login_appearance(self):
         settings = TenantSettings.objects.get(tenant=self.sennana)
@@ -194,6 +200,12 @@ class BusinessNameBrandingFormTests(TestCase):
             instance=settings,
         )
         self.assertTrue(safe.is_valid(), safe.errors)
+        insecure_icon = StaffTenantBrandingForm(
+            data={**base_data, "business_name": "Sennana Supermarket",
+                  "favicon_url": "http://cdn.example.test/icon.png"}, instance=settings,
+        )
+        self.assertFalse(insecure_icon.is_valid())
+        self.assertIn("favicon_url", insecure_icon.errors)
 
 
 
