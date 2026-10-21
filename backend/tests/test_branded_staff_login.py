@@ -105,6 +105,18 @@ class BrandedStaffLoginTests(TestCase):
         self.assertNotContains(other, "Welcome, Sennana team")
         self.assertNotContains(other, "sennana-login.jpg")
 
+    def test_pin_terminal_uses_only_own_login_appearance(self):
+        settings = TenantSettings.objects.get(tenant=self.sennana)
+        settings.login_welcome_message = "Welcome to Sennana checkout"
+        settings.login_background_url = "https://cdn.example.test/store-entrance.jpg"
+        settings.save(update_fields=["login_welcome_message", "login_background_url"])
+        own_page = self.client.get(reverse("staff-terminal"), HTTP_HOST="sennana.example.test")
+        self.assertContains(own_page, "Welcome to Sennana checkout")
+        self.assertContains(own_page, "store-entrance.jpg")
+        other_page = self.client.get(reverse("staff-terminal"), HTTP_HOST="kartel.example.test")
+        self.assertNotContains(other_page, "Welcome to Sennana checkout")
+        self.assertNotContains(other_page, "store-entrance.jpg")
+
     def test_branded_workspace_sets_own_page_identity(self):
         response = self.client.get(reverse("staff-login"), HTTP_HOST="sennana.example.test")
         self.assertContains(response, "<title>Sennana Supermarket · Staff sign in</title>", html=False)
