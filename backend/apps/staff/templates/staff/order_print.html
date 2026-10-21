@@ -13,7 +13,10 @@
     .tot { font-weight: 700; margin-top: 0.75rem; }
     .a4only { display: {{ a4_only_display }}; }
     .print-brand { text-align: center; margin-bottom: 1rem; }
-    .print-brand__name { font-weight: 700; }
+    .print-brand__name { font-weight: 700; font-size: 1.15em; }
+    .print-brand { border-bottom: 2px solid {{ tenant_settings.theme_primary|default:'#173C65' }}; padding-bottom: 0.65rem; }
+    .print-brand__subtitle { color: #555; margin-top: 0.2rem; font-size: 0.85em; }
+    @media print { a { color: inherit; } }
     @media print { .print-brand img { max-height: 48px; } }
   </style>
 </head>
@@ -21,9 +24,10 @@
   {% if request.tenant %}<div class="print-brand">
     {% if tenant_settings.logo_url %}<img src="{{ tenant_settings.logo_url }}" alt="" style="max-height:48px;max-width:140px;object-fit:contain;"><br>{% endif %}
     <div class="print-brand__name">{{ request.tenant.name }}</div>
+    <div class="print-brand__subtitle">{{ order.outlet.name }}</div>
   </div>{% endif %}
   <h1>{{ document_title }}</h1>
-  <p class="muted">{{ order.outlet.name }} · {{ printed_at }}</p>
+  <p class="muted">Printed {{ printed_at }}</p>
   <p><strong>{{ order.bill_reference }}</strong>{% if order.table_label %} · {{ order.table_label }}{% endif %}</p>
   <table>
     <thead><tr><th>Item</th><th>Qty</th><th>Amount</th></tr></thead>
@@ -41,7 +45,7 @@
   </table>
   <p>Subtotal {{ order.currency }} {{ order.subtotal }}</p>
   <p>Tax {{ order.tax_total }}</p>
-  <p class="tot">Total {{ order.total }}</p>
+  <p class="tot">Total {{ order.currency }} {{ order.total }}</p>
   <p>Paid {{ amount_paid }} · Balance {{ balance_due }}</p>
   {% if show_payment_history %}
     <div class="a4only">
