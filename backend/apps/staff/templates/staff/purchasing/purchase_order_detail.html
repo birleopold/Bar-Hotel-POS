@@ -17,11 +17,11 @@
     </div>
   </header>
   {% include "staff/purchasing/includes/subnav.html" %}
-  <h2 class="staff-section-head">Line items</h2>
+  <h2 class="staff-section-head">{% if grocery_owner_shell %}Products ordered{% else %}Line items{% endif %}</h2>
   <div class="staff-card mb-3">
     <div class="staff-table-wrap">
       <table class="staff-table">
-        <thead><tr><th>Item</th><th>Ordered</th><th>Goods received</th><th>Remaining</th></tr></thead>
+        <thead><tr><th>Product</th><th>Ordered</th><th>Received</th><th>Still expected</th></tr></thead>
         <tbody>
           {% for line in po.lines.all %}
             <tr>
@@ -40,7 +40,7 @@
     <div class="staff-toolbar staff-toolbar--tight flex-wrap mb-3">
       {% if can_modify_purchasing %}
       {% if po.status == 'draft' %}
-        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="send"><button type="submit" class="staff-btn staff-btn--primary">Mark sent</button></form>
+        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="send"><button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Mark order as sent{% else %}Mark sent{% endif %}</button></form>
       {% endif %}
       {% if po.status == 'draft' or po.status == 'sent' %}
         <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button type="submit" class="staff-btn staff-btn--ghost">Cancel PO</button></form>
