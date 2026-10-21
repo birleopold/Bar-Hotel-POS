@@ -28,9 +28,19 @@
     {% else %}
       <p class="small">Set <code>TENANT_PLATFORM_DOMAIN</code> on the server to enable automatic client subdomains.</p>
     {% endif %}
+    {% if platform_domain %}
+      <form method="post" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+        {% csrf_token %}
+        <label class="flex-grow-1">Additional platform address
+          <input class="staff-input" name="hostname" placeholder="fizo.{{ platform_domain }}" required maxlength="253" autocomplete="off">
+        </label>
+        <button type="submit" name="add_platform_alias" value="1" class="staff-btn staff-btn--ghost">Add platform alias</button>
+      </form>
+      <p class="staff-muted small">Aliases belong to this workspace only. They require working HTTPS before tenants can use them.</p>
+    {% endif %}
     <form method="post" class="d-flex flex-wrap align-items-end gap-2 mb-3">
       {% csrf_token %}
-      <label class="flex-grow-1">Custom hostname
+      <label class="flex-grow-1">External custom hostname
         <input class="staff-input" name="hostname" placeholder="pos.client.example" required maxlength="253" autocomplete="off">
       </label>
       <button type="submit" name="add_custom_domain" value="1" class="staff-btn staff-btn--primary">Add custom domain</button>
