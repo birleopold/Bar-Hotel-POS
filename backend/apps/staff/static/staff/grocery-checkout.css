@@ -127,3 +127,13 @@
 .grocery-register-ready .grocery-payment-choice[aria-pressed=true]{background:#e7f9ef;border-color:#079552;color:#007a43;box-shadow:inset 0 0 0 1px #079552}
 .grocery-register-ready .grocery-payment-choice:focus-visible{outline:3px solid #e9b447;outline-offset:2px}
 @media(max-width:450px){.grocery-register-ready .grocery-payment-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Server-backed basket quantity shortcuts, designed for fast touch checkout. */
+.grocery-register-ready .grocery-basket-quantity{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.grocery-register-ready .grocery-qty-shortcuts{display:inline-flex;align-items:center;gap:3px}
+.grocery-register-ready .grocery-qty-shortcut{height:34px;min-width:34px;border:1px solid #dbe6ee;border-radius:8px;background:#eef3f8;color:#17324f;font-size:1.2rem;line-height:1;font-weight:750;touch-action:manipulation}
+.grocery-register-ready .grocery-qty-shortcut:hover{background:#e2f5eb;border-color:#a5d7bb;color:#087b47}
+.grocery-register-ready .grocery-qty-shortcut:focus-visible{outline:3px solid #e9b447;outline-offset:2px}
+.grocery-register-ready .grocery-basket-quantity .staff-input--pos-qty{min-width:64px;max-width:86px;text-align:center}
+.grocery-register-ready .grocery-basket-quantity .staff-btn{min-height:34px}
+@media(max-width:600px){.grocery-register-ready .grocery-qty-shortcut{min-height:42px;min-width:42px}}
