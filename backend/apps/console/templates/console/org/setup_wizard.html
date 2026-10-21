@@ -2,6 +2,119 @@
 {% block title %}Setup wizard{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
+{% if grocery_console_shell %}
+<section class="grocery-setup" aria-labelledby="store-setup-heading">
+  <div class="grocery-setup__hero">
+    <div>
+      <p class="grocery-setup__eyebrow">Store management / Guided setup</p>
+      <h1 id="store-setup-heading">Set up your store</h1>
+      <p>Follow these steps in order to prepare your products, stock, staff and checkout. You can come back to any step later.</p>
+    </div>
+    <div class="grocery-setup__hero-actions">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-dashboard' %}"><i class="bi bi-arrow-left"></i> Store overview</a>
+      {% if setup_complete %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-terminal' %}"><i class="bi bi-cart-check"></i> Open checkout</a>{% endif %}
+    </div>
+  </div>
+  <div class="staff-card grocery-setup__progress">
+    <div class="grocery-setup__progress-heading"><strong>Required setup progress</strong><span>{{ setup_completion_percent }}% complete</span></div>
+    <progress value="{{ setup_completion_percent }}" max="100" aria-label="Required setup progress">{{ setup_completion_percent }}%</progress>
+    {% if setup_complete %}
+      <p class="grocery-setup__next"><i class="bi bi-check-circle-fill text-success"></i> Your required setup steps are complete. Review the go-live checks before accepting real sales.</p>
+    {% elif next_step %}
+      <p class="grocery-setup__next">Up next: <a href="{{ next_step.cta_url }}">{{ next_step.name }} <i class="bi bi-arrow-right"></i></a></p>
+    {% endif %}
+  </div>
+  <div class="grocery-setup__layout">
+    <div>
+      <div class="grocery-setup__section-head"><h2>Complete these steps</h2><span>Start from the top</span></div>
+      {% for step in setup_steps %}
+        <article class="staff-card grocery-setup__step{% if step.done %} grocery-setup__step--done{% elif step.status == 'blocked' %} grocery-setup__step--blocked{% endif %}">
+          <span class="grocery-setup__step-icon" aria-hidden="true">{% if step.done %}<i class="bi bi-check-lg"></i>{% else %}{{ forloop.counter }}{% endif %}</span>
+          <div class="grocery-setup__step-body">
+            <h3>{{ step.name }}</h3>
+            <p>{{ step.description }}</p>
+            <div class="grocery-setup__step-actions">
+              <a class="staff-btn staff-btn--sm {% if step.done %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}" href="{{ step.cta_url }}">{{ step.cta_label }} <i class="bi bi-arrow-right"></i></a>
+              {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
+              <span class="grocery-setup__status{% if step.done %} grocery-setup__status--done{% elif step.status == 'blocked' %} grocery-setup__status--blocked{% endif %}">{% if step.done %}<i class="bi bi-check-circle-fill"></i> Done{% elif step.status == 'blocked' %}<i class="bi bi-exclamation-circle"></i> Needs attention{% else %}Not started{% endif %}</span>
+            </div>
+            {% if step.required %}
+            <details class="grocery-setup__more">
+              <summary>Problem with this step?</summary>
+              <form method="post" action="{{ setup_action_url }}">
+                {% csrf_token %}
+                <input type="hidden" name="step_key" value="{{ step.key }}">
+                <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+                <button name="state" value="blocked" type="submit">Mark as blocked</button>
+                <button name="state" value="" type="submit">Clear blocked flag</button>
+              </form>
+            </details>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+      {% if setup_optional_steps %}
+        <div class="grocery-setup__section-head mt-4"><h2>Useful extras</h2><span>Optional</span></div>
+        {% for step in setup_optional_steps %}
+          <article class="staff-card grocery-setup__step">
+            <span class="grocery-setup__step-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+            <div class="grocery-setup__step-body">
+              <h3>{{ step.name }}</h3><p>{{ step.description }}</p>
+              <div class="grocery-setup__step-actions">
+                <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.cta_url }}">{{ step.cta_label }} <i class="bi bi-arrow-right"></i></a>
+                {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
+                <span class="grocery-setup__status">{% if step.done %}Done{% elif step.status == 'skipped' %}Skipped{% else %}Optional{% endif %}</span>
+              </div>
+              <details class="grocery-setup__more"><summary>Other options</summary>
+                <form method="post" action="{{ setup_action_url }}">{% csrf_token %}
+                  <input type="hidden" name="step_key" value="{{ step.key }}"><input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+                  <button type="submit" name="state" value="skipped">Skip for now</button>
+                  {% if step.manual_state %}<button type="submit" name="state" value="reset">Remove skip</button>{% endif %}
+                </form>
+              </details>
+            </div>
+          </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+    <aside class="grocery-setup__aside" aria-label="Store setup help">
+      <section class="staff-card">
+        <h2><i class="bi bi-check2-square text-success"></i> Before your first sale</h2>
+        <p>These automatic checks help you spot missing setup. Confirm your hardware and payments in person before using the live till.</p>
+        <ul class="grocery-setup__checks">
+          {% for check in go_live_checks %}
+            <li><i class="bi {% if check.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}" aria-hidden="true"></i><span>{{ check.label }}{% if not check.done %} — <a href="{{ check.fix_url }}">Fix this</a>{% endif %}</span></li>
+          {% endfor %}
+        </ul>
+        {% if go_live_ready %}<p class="grocery-setup__status grocery-setup__status--done mt-2"><i class="bi bi-check-circle-fill"></i> Automatic checks passed</p>{% endif %}
+      </section>
+      <section class="staff-card grocery-setup__profile">
+        <details {% if business_profile_form.errors %}open{% endif %}>
+          <summary>Change business type</summary>
+          <p class="mt-2">Only choose what this business sells. Changing these settings also changes which pages your staff can access.</p>
+          {% include "staff/includes/form_errors_block.html" with form=business_profile_form title="Fix the business profile" %}
+          <form method="post">{% csrf_token %}
+            <div class="staff-checklist">{{ business_profile_form.business_lines }}</div>
+            {% if business_profile_form.business_lines.help_text %}<p>{{ business_profile_form.business_lines.help_text }}</p>{% endif %}
+            <button class="staff-btn staff-btn--primary" type="submit">Save business type</button>
+          </form>
+        </details>
+      </section>
+      <section class="staff-card">
+        <h2>Helpful shortcuts</h2>
+        <div class="grocery-setup__aside-links">
+          {% if show_catalog_import %}<a href="{% url 'console-org-catalog-import' %}"><i class="bi bi-file-earmark-spreadsheet"></i> Import products from CSV</a>{% endif %}
+          <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer"></i> Check registers and printers</a>
+          <a href="{% url 'staff-workspace-invite-create' %}"><i class="bi bi-person-plus"></i> Add staff members</a>
+          {% if show_catalog_import %}<a href="{% url 'console-org-practice-sale' %}"><i class="bi bi-play-circle"></i> Practice a sale</a>{% endif %}
+          <a href="{% url 'staff-dashboard' %}"><i class="bi bi-grid-1x2"></i> Open store dashboard</a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>
+{% else %}
+
   <h1 class="staff-page-title">Workspace setup<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
   <p class="staff-lead">{{ setup_pitch }}</p>
 
@@ -108,4 +221,5 @@
     </div>
   </section>
   <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Back to overview</a></p>
+{% endif %}
 {% endblock %}
