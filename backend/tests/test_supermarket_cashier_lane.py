@@ -48,6 +48,8 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Here's your store at a glance.")
         self.assertContains(page, "Set up your store")
+        self.assertContains(page, "owner-home__banner")
+        self.assertContains(page, "Good afternoon!")
         self.assertContains(page, "owner-topbar__brand")
         self.assertContains(page, "owner-side-nav")
         self.assertContains(page, "owner-global-search")
