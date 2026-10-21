@@ -9,6 +9,7 @@
 - [x] Tenant-specific favicon, with logo fallback across staff chrome and login pages.
 - [x] Live name, colour, logo, welcome-message and background preview.
 - [x] Dedicated migration and cross-tenant branding regression tests.
+- [x] Receipt/bill print headers use tenant logo, business name, primary colour, branch/register and currency-aware total; print regression assertion added.
 - [ ] Verify the combined W1 changes pass **both** SQLite and PostgreSQL CI.
 - [ ] Review every generated financial document and email notification for identity, sender and tenant-data isolation (not all use the order print template).
 - [ ] Browser-check accessibility, photo contrast, image failure fallback, mobile layouts and the save/reload journey.
@@ -18,6 +19,7 @@
 - [x] Presentation keys and tenant business-line module filtering.
 - [x] Retail sales terminology in orders list and navigation.
 - [x] Supermarket/retail empty checkout lanes without guest, check or table prompts.
+- [x] Retail sales history search, filters and primary order-detail actions use sales, receipts, baskets and checkout language; hide hospitality tab labels.
 - [ ] Audit every critical order/detail/return, purchasing, report, inventory and employee workflow for irrelevant terminology.
 - [ ] Browser-run each business profile: supermarket, independent retail, bar/lounge, restaurant, hotel, mixed business.
 - [ ] Confirm filtered routes and APIs deny disabled business modules, not just hide nav links.
