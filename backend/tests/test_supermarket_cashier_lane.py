@@ -48,6 +48,9 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "grocery-owner-console.css")
         self.assertContains(response, "grocery-console-body")
+        self.assertContains(response, "grocery-console-top")
+        self.assertContains(response, "grocery-console-links")
+        self.assertContains(response, "Guided setup")
 
     def test_owner_administration_shell_persists_after_navigation(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
