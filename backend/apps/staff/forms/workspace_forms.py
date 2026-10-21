@@ -669,7 +669,7 @@ class StaffMembershipManageForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self._tenant = tenant
         if tenant is not None:
-            self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=False)
+            self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=True)
             self.fields["role_preset"].choices = [
                 choice for choice in ROLE_PRESET_CHOICES
                 if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
