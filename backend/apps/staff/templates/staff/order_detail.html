@@ -188,7 +188,7 @@
                   {% for item in category.menu_items %}
                     <button type="button" class="staff-pos-menu-tile" data-pos-menu-tile data-item-id="{{ item.id }}" data-category-id="{{ category.id }}" data-item-name="{{ item.name|lower }}" aria-pressed="false">
                       {% if is_supermarket_outlet and item.display_image_url %}
-                        <span class="staff-pos-menu-tile__photo"><img src="{{ item.display_image_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.parentElement.style.display='none'"></span>
+                        <span class="staff-pos-menu-tile__photo"><img src="{{ item.display_image_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>
                       {% else %}
                         <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
                       {% endif %}
