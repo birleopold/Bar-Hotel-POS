@@ -7,6 +7,8 @@ import time
 from typing import Callable
 
 from django.contrib.auth import logout
+from django.db import connection, transaction
+from django.conf import settings
 from django.http import HttpRequest, HttpResponseForbidden, HttpResponseNotFound
 from django.shortcuts import redirect
 
