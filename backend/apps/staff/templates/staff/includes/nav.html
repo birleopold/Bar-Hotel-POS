@@ -1,6 +1,6 @@
 {% load static %}
 <header class="staff-nav{% if '/staff/orders' in request.path or '/staff/kitchen' in request.path or '/staff/tables' in request.path %} staff-nav--pos{% endif %}" role="banner">
-  {% if request.resolver_match.url_name == "staff-dashboard" and show_workspace_admin_tools and staff_product.business_key == "supermarket" or request.resolver_match.url_name == "staff-dashboard" and show_workspace_admin_tools and staff_product.business_key == "retail" %}
+  {% if grocery_owner_shell %}
   <div class="owner-topbar">
     <a class="owner-topbar__brand" href="{% url 'staff-dashboard' %}"><i class="bi bi-cart3"></i><span><strong>{{ request.tenant.name }}</strong><small>Store management</small></span></a>
     {% if staff_nav_outlets %}<form method="post" action="{% url 'staff-select-outlet' %}" class="owner-topbar__branch">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><i class="bi bi-geo-alt-fill"></i><label class="visually-hidden" for="owner-outlet">Current shop section</label><select id="owner-outlet" name="outlet_id" onchange="this.form.submit()"><option value="__all__"{% if staff_all_outlets %} selected{% endif %}>All sections</option>{% for o in staff_nav_outlets %}<option value="{{ o.id }}"{% if staff_nav_outlet and staff_nav_outlet.id == o.id and not staff_all_outlets %} selected{% endif %}>{{ o.name }}</option>{% endfor %}</select></form>{% endif %}
