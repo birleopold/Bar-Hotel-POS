@@ -7,19 +7,21 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">{{ form_title }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Create a staff login without an email invite.</p>
+          <p class="staff-dash-hero__tagline mb-0">{% if grocery_owner_shell %}Add a worker and choose what they are allowed to do. No email invitation is needed.{% else %}Create a staff login without an email invite.{% endif %}</p>
         </div>
       </div>
     </div>
   </header>
   {% include "staff/settings/includes/subnav.html" %}
-  <h2 class="staff-section-head">Account</h2>
-  <form method="post" class="staff-card">
+  <h2 class="staff-section-head">{% if grocery_owner_shell %}Worker details{% else %}Account{% endif %}</h2>
+  <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-staff-form{% endif %}">
     {% csrf_token %}
+    {% if grocery_owner_shell %}<p class="staff-muted small">Enter the worker's information below. Required fields are marked *.</p><div class="grocery-worker-fields">{% endif %}
     {% for field in form %}
-      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      <div class="mb-3"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="grocery-required">*</span>{% endif %}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}</div>
     {% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Create</button>
+    {% if grocery_owner_shell %}</div>{% endif %}
+    <button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Save worker{% else %}Create{% endif %}</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-members' %}">Cancel</a>
   </form>
 {% endblock %}
