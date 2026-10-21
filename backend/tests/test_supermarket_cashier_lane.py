@@ -44,7 +44,7 @@ class SupermarketCashierLaneTests(TestCase):
         url = reverse("staff-order-detail", kwargs={"order_id": order.id})
         response = self.client.get(url)
         assert response.status_code == 200
-        assert b"Fast supermarket checkout" in response.content
+        assert b"Scan items" in response.content
         assert b"data-retail-scan-form" in response.content
         assert b"data-retail-scan-status" in response.content
         scanned = self.client.post(
@@ -93,7 +93,7 @@ class SupermarketCashierLaneTests(TestCase):
         assert order.table_id is None
         page = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
         assert page.status_code == 200
-        assert b"Fast supermarket checkout" in page.content
+        assert b"Scan items" in page.content
         assert b"Customer record" not in page.content
         assert b"Tab:" not in page.content
         assert b"Charge to folio" not in page.content
