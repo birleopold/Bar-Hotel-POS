@@ -4,6 +4,7 @@ import re
 from django import forms
 
 from apps.accounts.models import Membership, MembershipRole, User
+from apps.accounts.role_policy import permitted_roles, role_choices_for_tenant
 from apps.integrations.models import IntegrationLink
 from apps.tenants.models import Outlet, Site, TenantSettings
 
@@ -456,6 +457,12 @@ class StaffTeamInviteForm(forms.Form):
         super().__init__(*args, **kwargs)
         self._tenant = tenant
         if tenant is not None:
+            self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=False)
+            self.fields["role_preset"].choices = [
+                choice for choice in ROLE_PRESET_CHOICES
+                if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
+            ]
+        if tenant is not None:
             from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
             from apps.tenants.models import OutletType
 
@@ -478,6 +485,8 @@ class StaffTeamInviteForm(forms.Form):
 
     def clean(self):
         data = apply_role_preset(super().clean())
+        if self._tenant is not None and data.get("role") not in permitted_roles(self._tenant):
+            raise forms.ValidationError({"role": "This role is not available for the configured business lines."})
         selected_sites = data.get("sites")
         selected_outlets = data.get("outlets")
         if selected_sites and selected_outlets:
@@ -540,6 +549,12 @@ class StaffWorkerCreateForm(forms.Form):
         super().__init__(*args, **kwargs)
         self._tenant = tenant
         if tenant is not None:
+            self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=False)
+            self.fields["role_preset"].choices = [
+                choice for choice in ROLE_PRESET_CHOICES
+                if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
+            ]
+        if tenant is not None:
             from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
             from apps.tenants.models import OutletType
 
@@ -570,6 +585,8 @@ class StaffWorkerCreateForm(forms.Form):
 
     def clean(self):
         data = apply_role_preset(super().clean())
+        if self._tenant is not None and data.get("role") not in permitted_roles(self._tenant):
+            raise forms.ValidationError({"role": "This role is not available for the configured business lines."})
         email = data.get("email")
         if self._tenant is not None and email and Membership.objects.filter(tenant=self._tenant, user__email__iexact=email).exists():
             raise forms.ValidationError({"email": "This user already belongs to the workspace."})
@@ -651,6 +668,12 @@ class StaffMembershipManageForm(forms.ModelForm):
     def __init__(self, *args, tenant=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._tenant = tenant
+        if tenant is not None:
+            self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=False)
+            self.fields["role_preset"].choices = [
+                choice for choice in ROLE_PRESET_CHOICES
+                if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
+            ]
         if self.instance.pk and self.instance.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
             self.fields["sites"].required = False
         site_qs = Site.objects.none()
@@ -693,6 +716,8 @@ class StaffMembershipManageForm(forms.ModelForm):
 
     def clean(self):
         data = apply_role_preset(super().clean())
+        if self._tenant is not None and data.get("role") not in permitted_roles(self._tenant):
+            raise forms.ValidationError({"role": "This role is not available for the configured business lines."})
         selected_sites = data.get("sites")
         selected_outlets = data.get("outlets")
         if selected_sites and selected_outlets:
