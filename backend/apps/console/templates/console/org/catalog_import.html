@@ -1,7 +1,18 @@
 {% extends "console/base.html" %}
-{% block title %}Import products{% endblock %}
+{% block title %}Import products{% if grocery_console_shell %}</div>{% endif %}
+{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
+{% if grocery_console_shell %}
+<div class="grocery-setup">
+<header class="grocery-setup__hero">
+  <div><p class="grocery-setup__eyebrow">Store management / Products / Import</p>
+    <h1>Import products from a spreadsheet</h1>
+    <p>Already have your products in Excel or another system? Save the file as CSV, check it here, then import it. Your stock and money balances will not be changed.</p>
+  </div>
+  <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}"><i class="bi bi-arrow-left"></i> Products</a>
+</header>
+{% else %}
 <header class="staff-page-hero">
   <div class="staff-dash-hero__panel">
     <p class="staff-dash-hero__eyebrow">Workspace setup · Catalog</p>
@@ -9,6 +20,7 @@
     <p>Bring your existing items into this business without entering them one at a time. You can review the file before importing.</p>
   </div>
 </header>
+{% endif %}
 <div class="d-flex flex-wrap gap-2 mb-3">
   <a href="{% url 'console-org-setup' %}" class="staff-btn staff-btn--ghost">Back to setup</a>
   <a href="{% url 'console-org-menu-items' %}" class="staff-btn staff-btn--ghost">View catalog</a>
