@@ -40,6 +40,15 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertNotContains(page, 'class="owner-home"')
         self.assertContains(page, "staff-dash-hero--modern")
 
+    def test_owner_setup_console_has_retail_skin(self):
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        membership.role = MembershipRole.OWNER
+        membership.save(update_fields=["role"])
+        response = self.client.get(reverse("console-org-setup"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "grocery-owner-console.css")
+        self.assertContains(response, "grocery-console-body")
+
     def test_owner_administration_shell_persists_after_navigation(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
         membership.role = MembershipRole.OWNER
