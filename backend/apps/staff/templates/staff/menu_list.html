@@ -1,15 +1,15 @@
 {% extends "staff/base.html" %}
-{% block title %}Menu items{% endblock %}
+{% block title %}{% if grocery_owner_shell %}Products{% else %}Menu items{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide staff-main--menu-catalog{% endblock %}
 {% block content %}
   <header class="staff-page-hero staff-menu-hero">
     <div class="staff-dash-hero__panel">
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
-          <p class="staff-dash-hero__eyebrow"><i class="bi bi-journal-richtext" aria-hidden="true"></i> Menu catalog</p>
-          <h1 class="staff-page-title mb-0">Sellable items<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__eyebrow"><i class="bi bi-journal-richtext" aria-hidden="true"></i> {% if grocery_owner_shell %}Product catalogue{% else %}Menu catalog{% endif %}</p>
+          <h1 class="staff-page-title mb-0">{% if grocery_owner_shell %}Products{% else %}Sellable items{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-dash-hero__tagline mb-0">
-            {% if menu_all_outlets_mode %}Showing items available across your sections.{% elif menu_scope_outlet %}Showing the sellable menu for {{ menu_scope_outlet.name }}.{% else %}Choose one section to view its sellable items.{% endif %}
+            {% if menu_all_outlets_mode %}Showing items available across your sections.{% elif menu_scope_outlet %}Showing products available for {{ menu_scope_outlet.name }}.{% else %}Choose a section to see its products.{% endif %}
           </p>
         </div>
         <div class="staff-menu-hero__summary" aria-label="Catalog summary">
