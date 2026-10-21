@@ -34,6 +34,18 @@ class SupermarketCashierLaneTests(TestCase):
         session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
         session.save()
 
+    def test_owner_dashboard_has_guided_setup_and_actual_sections(self):
+        page = self.client.get(reverse("staff-dashboard"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Here's your store at a glance.")
+        self.assertContains(page, "Set up your store")
+        self.assertContains(page, "Common actions")
+        self.assertContains(page, "Needs your attention")
+        self.assertContains(page, "Business activity")
+        self.assertContains(page, "Configure payments and tills")
+        self.assertContains(page, 'href="' + reverse("staff-workspace-members") + '"')
+        self.assertContains(page, 'href="' + reverse("staff-inventory-balances") + '"')
+
     def test_grocery_checkout_exposes_visual_layout_assets(self):
         order = Order.objects.create(
             tenant=self.tenant, outlet=self.outlet, created_by=self.user
