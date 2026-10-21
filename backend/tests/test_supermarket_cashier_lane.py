@@ -51,6 +51,16 @@ class SupermarketCashierLaneTests(TestCase):
                 self.assertContains(response, "owner-topbar__brand")
                 self.assertContains(response, "owner-side-nav")
                 self.assertContains(response, "grocery-owner-body")
+                self.assertContains(response, "owner-side-nav")
+
+    def test_grocery_owner_products_page_uses_retail_language(self):
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        membership.role = MembershipRole.OWNER
+        membership.save(update_fields=["role"])
+        page = self.client.get(reverse("staff-menu"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Product catalogue")
+        self.assertContains(page, "owner-topbar__brand")
 
     def test_owner_dashboard_has_guided_setup_and_actual_sections(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
