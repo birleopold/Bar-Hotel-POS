@@ -68,6 +68,7 @@ def login_brand_for_request(request, scope=None):
         "name": tenant.name,
         "workspace_label": presentation["workspace_label"],
         "logo_url": theme.logo_url if theme else "",
+        "favicon_url": (theme.favicon_url or theme.logo_url) if theme else "",
         "background_url": theme.login_background_url if theme else "",
         "welcome_message": theme.login_welcome_message if theme else "",
         "primary": theme.theme_primary if theme else "#173C65",
