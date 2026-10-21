@@ -9,10 +9,14 @@
       const colorField = document.getElementById("id_theme_primary");
       const namePreview = document.getElementById("business-brand-name");
       const brandPreview = document.getElementById("business-brand-preview");
+      const greetingField = document.getElementById("id_login_welcome_message");
+      const greetingPreview = document.getElementById("business-brand-greeting");
+      const backgroundField = document.getElementById("id_login_background_url");
+      const backgroundPreview = document.getElementById("business-brand-background");
       if (nameField && namePreview) {
         const originalName = namePreview.textContent.trim();
         nameField.addEventListener("input", function () {
-          namePreview.textContent = nameField.value.trim().replace(/\\s+/g, " ") || originalName;
+          namePreview.textContent = nameField.value.trim().replace(/\s+/g, " ") || originalName;
         });
       }
       if (greetingField && greetingPreview) {
@@ -26,9 +30,11 @@
           if (url.startsWith("https://")) {
             backgroundPreview.src = url;
             backgroundPreview.hidden = false;
+            backgroundPreview.style.display = "block";
           } else {
             backgroundPreview.removeAttribute("src");
             backgroundPreview.hidden = true;
+            backgroundPreview.style.display = "none";
           }
         });
       }
@@ -59,7 +65,7 @@
       {% if tenant_settings.logo_url %}<img id="business-brand-logo" src="{{ tenant_settings.logo_url }}" alt="" style="height:56px;width:56px;object-fit:contain;border-radius:12px;">{% endif %}
       <div><p class="staff-muted mb-1 small">Your staff will see</p><h2 class="h4 mb-1" id="business-brand-name">{{ request.tenant.name }}</h2><p class="staff-muted mb-0 small" id="business-brand-greeting">{% if tenant_settings.login_welcome_message %}{{ tenant_settings.login_welcome_message }}{% else %}Your personalised staff greeting appears here.{% endif %}</p></div>
     </div>
-    <img id="business-brand-background" {% if tenant_settings.login_background_url %}src="{{ tenant_settings.login_background_url }}"{% else %}hidden{% endif %} alt="" style="display:block;max-width:100%;width:100%;height:130px;object-fit:cover;border-radius:10px;margin-top:16px;"{% if not tenant_settings.login_background_url %} hidden{% endif %}>
+    <img id="business-brand-background" {% if tenant_settings.login_background_url %}src="{{ tenant_settings.login_background_url }}"{% else %}hidden{% endif %} alt="" style="display:{% if tenant_settings.login_background_url %}block{% else %}none{% endif %};max-width:100%;width:100%;height:130px;object-fit:cover;border-radius:10px;margin-top:16px;"{% if not tenant_settings.login_background_url %} hidden{% endif %}>
   </section>
   {% if form %}
     <form method="post" class="staff-card">
