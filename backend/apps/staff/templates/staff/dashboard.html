@@ -43,6 +43,9 @@
       </div>
     </div>
   {% else %}
+    {% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}
+      {% include "staff/includes/grocery_owner_dashboard.html" %}
+    {% else %}
 
     {% if show_workspace_setup_cta and tenant_setup_state and tenant_setup_progress %}
       <div class="staff-setup-banner">
@@ -333,6 +336,7 @@
         </select>
         <button type="submit" class="staff-btn staff-btn--ghost">Apply</button>
       </form>
+    {% endif %}
     {% endif %}
   {% endif %}
 {% endblock %}
