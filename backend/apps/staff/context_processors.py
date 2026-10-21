@@ -22,6 +22,7 @@ def staff_nav(request):
     """Outlet list, site list, role + tenant-module nav flags for staff chrome."""
     out = {
         "staff_nav": None,
+        "grocery_owner_shell": False,
         "staff_nav_outlets": [],
         "staff_nav_outlet": None,
         "staff_show_ops_nav": False,
@@ -84,6 +85,13 @@ def staff_nav(request):
     from .services.presentation import staff_product_presentation
 
     out["staff_product"] = staff_product_presentation(t, current_outlet)
+    # Use one coherent administration shell on every staff page reached through
+    # the grocery/retail owner sidebar, not only the dashboard homepage.
+    from apps.console.mixins import membership_can_manage_org_console
+    out["grocery_owner_shell"] = bool(
+        membership_can_manage_org_console(m)
+        and out["staff_product"].get("business_key") in ("supermarket", "retail")
+    )
     vis = staff_nav_visibility_scoped(m, modules=modules, tenant=t, outlet=current_outlet)
     out["staff_nav"] = vis
     # Menu visibility includes read-only and reception roles. A quick-create
