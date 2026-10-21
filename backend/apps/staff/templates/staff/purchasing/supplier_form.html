@@ -7,19 +7,21 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">{{ form_title }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Supplier contact and defaults for purchase orders.</p>
+          <p class="staff-dash-hero__tagline mb-0">{% if grocery_owner_shell %}Enter the supplier's contact details so you can order and receive stock easily.{% else %}Supplier contact and defaults for purchase orders.{% endif %}</p>
         </div>
       </div>
     </div>
   </header>
   {% include "staff/purchasing/includes/subnav.html" %}
   <h2 class="staff-section-head">Supplier</h2>
-  <form method="post" class="staff-card">
+  <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-admin-form{% endif %}">
     {% csrf_token %}
+    {% if grocery_owner_shell %}<div class="grocery-admin-fields">{% endif %}
     {% for field in form %}
-      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}</div>
     {% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Save</button>
+    {% if grocery_owner_shell %}</div>{% endif %}
+    <button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Save supplier{% else %}Save{% endif %}</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-suppliers' %}">Cancel</a>
   </form>
 {% endblock %}
