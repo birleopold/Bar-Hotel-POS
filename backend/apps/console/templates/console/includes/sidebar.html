@@ -1,5 +1,19 @@
 {% with u=request.resolver_match.url_name %}
 <aside class="staff-sidebar console-sidebar" aria-label="Administration navigation">
+{% if grocery_console_shell %}
+  <a class="grocery-console-brand" href="{% url 'staff-dashboard' %}"><i class="bi bi-cart3"></i><span><strong>{{ console_active_tenant.name }}</strong><small>Store management</small></span></a>
+  <nav class="grocery-console-links" aria-label="Store setup">
+    <a href="{% url 'staff-dashboard' %}"><i class="bi bi-columns-gap"></i> Overview</a>
+    <a{% if u == 'console-org-setup' %} class="is-active"{% endif %} href="{% url 'console-org-setup' %}"><i class="bi bi-list-check"></i> Guided setup</a>
+    <a href="{% url 'console-org-sites' %}"><i class="bi bi-geo-alt"></i> Branches</a>
+    <a href="{% url 'console-org-menu-items' %}"><i class="bi bi-box"></i> Products</a>
+    <a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock</a>
+    <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people"></i> Staff</a>
+    <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer"></i> Registers</a>
+    <a href="{% url 'console-org' %}"><i class="bi bi-gear"></i> Business settings</a>
+  </nav>
+  <div class="grocery-console-help"><i class="bi bi-question-circle"></i><span>Follow the setup checklist in order. You can return and make changes later.</span></div>
+{% else %}
   <div class="staff-sidebar__brand-wrap">
     <a class="staff-sidebar__brand" href="{% url 'console-index' %}">
       <span class="staff-sidebar__mark" aria-hidden="true"><i class="bi bi-sliders2"></i></span>
@@ -106,5 +120,6 @@
       </div>
     </div>
   {% endif %}
+{% endif %}
 </aside>
 {% endwith %}
