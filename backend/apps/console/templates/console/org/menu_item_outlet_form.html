@@ -1,12 +1,37 @@
 {% extends "console/base.html" %}
-{% block title %}{{ form_title|default:"Outlet pricing" }}{% endblock %}
+{% block title %}{% if grocery_console_shell %}Sales area price{% else %}{{ form_title|default:"Outlet pricing" }}{% endif %}{% endblock %}
 {% block content %}
+{% if grocery_console_shell %}
+<section class="grocery-setup" aria-labelledby="area-price-heading">
+  <header class="grocery-form-head">
+    <div><p class="grocery-form-kicker">STORE / PRODUCT PRICING</p><h1 id="area-price-heading">Price for a sales area</h1>
+      <p class="staff-muted">{{ menu_item.name }}. Set a special price if needed; leave it blank to use the normal selling price.</p>
+    </div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-outlets' item_id=menu_item.id %}"><i class="bi bi-arrow-left"></i> Back</a>
+  </header>
+  <form class="staff-card grocery-guided-form" method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grocery-form-fields">{% for field in form %}
+      <div class="grocery-form-field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+        {{ field }}{% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<p class="grocery-form-errors" role="alert">{{ field.errors }}</p>{% endif %}
+      </div>
+    {% endfor %}</div>
+    <div class="grocery-form-footer"><span>Leave optional fields empty to use normal pricing.</span>
+      <div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-outlets' item_id=menu_item.id %}">Cancel</a>
+        <button class="staff-btn staff-btn--primary" type="submit"><i class="bi bi-check-circle"></i> Save price</button></div>
+    </div>
+  </form>
+</section>
+{% else %}
   <p class="staff-muted"><a href="{% url 'console-org-menu-item-outlets' item_id=menu_item.id %}">Back</a> · {{ menu_item.name }}</p>
   <h1 class="staff-page-title">{{ form_title|default:"Outlet pricing" }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <form method="post" class="staff-card">
-    {% csrf_token %}
+  <form method="post" class="staff-card">{% csrf_token %}
     {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
     <button type="submit" class="staff-btn staff-btn--primary">Save</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-outlets' item_id=menu_item.id %}">Cancel</a>
   </form>
+{% endif %}
 {% endblock %}
