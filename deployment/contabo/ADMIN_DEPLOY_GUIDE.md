@@ -90,10 +90,9 @@ bash deployment/contabo/deploy-app.sh
 unset MIGRATION_DATABASE_URL
 ```
 
-Before the first start, run the two post-migration `GRANT` statements in
-section B (otherwise the runtime app cannot access the tables). If the deploy
-script stops because the service cannot query the DB, run those GRANTs and
-restart **only** `leosoft-pos-gunicorn.service`.
+The deploy script runs the two post-migration runtime-role `GRANT` statements
+before restarting Gunicorn. Those privileges are confined to `leosoft_pos`.
+If it stops, inspect the error; do not restart unrelated applications.
 
 Check: `sudo systemctl status leosoft-pos-gunicorn.service --no-pager`
 and `sudo journalctl -u leosoft-pos-gunicorn.service -n 80 --no-pager`.
@@ -101,10 +100,22 @@ and `sudo journalctl -u leosoft-pos-gunicorn.service -n 80 --no-pager`.
 ## E. Nginx / certificates (separate staging)
 
 Do **not** enable `nginx-pos.conf.example` before the hostname certificate
-exists, as it contains SSL certificate paths. Obtain the
-`pos.leosoftug.com` certificate using a temporary, narrowly scoped port-80
-challenge vhost or existing validated ACME procedure; then install the POS
-template as a **new** site (do not replace any existing site). Confirm:
+exists. Use the POS-only HTTP challenge vhost first, without replacing any
+existing sites. These commands assume `pos.leosoftug.com` already resolves
+correctly and no existing nginx site claims that same hostname:
+
+```bash
+sudo apt-get install -y certbot
+sudo install -d -m 0755 /var/www/leosoft-pos/acme/.well-known/acme-challenge
+sudo cp deployment/contabo/nginx-pos-http.conf.example /etc/nginx/sites-available/leosoft-pos.conf
+sudo ln -s /etc/nginx/sites-available/leosoft-pos.conf /etc/nginx/sites-enabled/leosoft-pos.conf
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot certonly --webroot -w /var/www/leosoft-pos/acme -d pos.leosoftug.com
+sudo cp deployment/contabo/nginx-pos.conf.example /etc/nginx/sites-available/leosoft-pos.conf
+```
+
+The final POS-only nginx template preserves the HTTP-01 ACME path for later
+renewals. Always run `nginx -t` before reloading. Confirm:
 
 ```bash
 sudo nginx -t
