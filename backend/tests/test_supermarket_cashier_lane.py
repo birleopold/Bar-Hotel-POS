@@ -40,6 +40,20 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertNotContains(page, 'class="owner-home"')
         self.assertContains(page, "staff-dash-hero--modern")
 
+    def test_grocery_product_editor_and_stock_form_have_simple_labels(self):
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        membership.role = MembershipRole.OWNER
+        membership.save(update_fields=["role"])
+        product = self.client.get(reverse("console-org-menu-item-create"))
+        self.assertEqual(product.status_code, 200)
+        self.assertContains(product, "Add a product")
+        self.assertContains(product, "grocery-guided-form")
+        self.assertContains(product, "Save product")
+        stock = self.client.get(reverse("staff-inventory-movement-create"))
+        self.assertEqual(stock.status_code, 200)
+        self.assertContains(stock, "Receive or adjust stock")
+        self.assertContains(stock, "grocery-staff-form")
+
     def test_owner_setup_console_has_retail_skin(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
         membership.role = MembershipRole.OWNER
