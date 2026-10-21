@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from unittest.mock import patch
 from apps.tenants.domains import verify_custom_domain
-from apps.tenants.domains import begin_custom_domain_verification, create_platform_domain
+from apps.tenants.domains import begin_custom_domain_verification, create_platform_alias, create_platform_domain
 from apps.tenants.models import Tenant, TenantDomain
 
 from apps.tenants.middleware import TenantDomainResolutionMiddleware
@@ -111,6 +111,21 @@ class TenantDomainRegistrationTests(TestCase):
         self.assertEqual(first.pk, again.pk)
         self.assertEqual(first.hostname, "first-store.pos.example.test")
         self.assertEqual(first.status, TenantDomain.Status.ACTIVE)
+
+    def test_platform_alias_is_reserved_to_one_tenant(self):
+        alias = create_platform_alias(self.first, "short.pos.example.test")
+        self.assertEqual(alias.tenant_id, self.first.pk)
+        self.assertEqual(alias.kind, TenantDomain.Kind.PLATFORM)
+        self.assertFalse(alias.is_primary)
+        self.assertEqual(create_platform_alias(self.first, "short.pos.example.test").pk, alias.pk)
+        with self.assertRaises(ValidationError):
+            create_platform_alias(self.second, "short.pos.example.test")
+
+    def test_platform_alias_rejects_external_or_nested_hosts(self):
+        for host in ("external.example.com", "deep.short.pos.example.test", "pos.example.test"):
+            with self.subTest(host=host):
+                with self.assertRaises(ValidationError):
+                    create_platform_alias(self.first, host)
 
     def test_custom_apex_and_subdomain_can_coexist(self):
         apex = begin_custom_domain_verification(self.first, "Shop.Example.COM.")
