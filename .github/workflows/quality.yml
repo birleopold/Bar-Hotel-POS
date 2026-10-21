@@ -41,6 +41,7 @@ jobs:
       - name: Check read-only deployment preflight syntax
         run: |
           bash -n deployment/contabo/preflight.sh
+          bash -n deployment/contabo/deploy-app.sh
           bash deployment/contabo/validate-config.sh
 
       - name: Django system checks
