@@ -31,7 +31,7 @@
       {% endfor %}
     </div>
     {% if grocery_console_shell %}
-    <details class="grocery-advanced-settings">
+    <details class="grocery-advanced-settings"{% if form.errors %} open{% endif %}>
       <summary><i class="bi bi-sliders2"></i> Advanced product options (usually not needed)</summary>
       <p class="staff-muted small">Use these only if different sales areas need this product or if you offer prepared items. Your regular selling details are above.</p>
       <div class="grocery-form-fields">
