@@ -1,6 +1,8 @@
 from django.http import HttpResponse
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from apps.tenants.domains import begin_custom_domain_verification, create_platform_domain
 from apps.tenants.models import Tenant, TenantDomain
 
 from apps.tenants.middleware import TenantDomainResolutionMiddleware
@@ -93,3 +95,36 @@ class TenantDualDomainTests(TestCase):
         for hostname in ("sennana.pos.example.test", "shop.example.com"):
             with self.subTest(hostname=hostname):
                 self.assertEqual(self._resolve(hostname).status_code, 404)
+
+
+@override_settings(TENANT_PLATFORM_DOMAIN="pos.example.test", TENANT_CENTRAL_HOSTS=["pos.example.test"])
+class TenantDomainRegistrationTests(TestCase):
+    def setUp(self):
+        self.first = Tenant.objects.create(name="First", slug="first-store")
+        self.second = Tenant.objects.create(name="Second", slug="second-store")
+
+    def test_platform_subdomain_registration_is_idempotent(self):
+        first = create_platform_domain(self.first)
+        again = create_platform_domain(self.first)
+        self.assertEqual(first.pk, again.pk)
+        self.assertEqual(first.hostname, "first-store.pos.example.test")
+        self.assertEqual(first.status, TenantDomain.Status.ACTIVE)
+
+    def test_custom_apex_and_subdomain_can_coexist(self):
+        apex = begin_custom_domain_verification(self.first, "Shop.Example.COM.")
+        subdomain = begin_custom_domain_verification(self.first, "pos.shop.example.com")
+        self.assertEqual(apex.hostname, "shop.example.com")
+        self.assertEqual(subdomain.hostname, "pos.shop.example.com")
+        self.assertEqual(apex.status, TenantDomain.Status.PENDING)
+        self.assertEqual(subdomain.status, TenantDomain.Status.PENDING)
+
+    def test_duplicate_custom_domain_cannot_be_claimed_by_another_tenant(self):
+        begin_custom_domain_verification(self.first, "shop.example.com")
+        with self.assertRaises(ValidationError):
+            begin_custom_domain_verification(self.second, "shop.example.com")
+
+    def test_platform_namespace_cannot_be_taken_as_custom_domain(self):
+        for hostname in ("pos.example.test", "first-store.pos.example.test"):
+            with self.subTest(hostname=hostname):
+                with self.assertRaises(ValidationError):
+                    begin_custom_domain_verification(self.first, hostname)
