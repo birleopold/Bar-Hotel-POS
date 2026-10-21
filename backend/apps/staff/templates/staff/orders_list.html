@@ -51,7 +51,7 @@
     <section class="staff-pos-orders-lanes" aria-labelledby="staff-pos-lanes-heading">
       <div class="staff-card staff-card--pos staff-card--soft staff-pos-orders-lanes-shell mb-0">
         {% if show_supermarket_lane %}
-          <div class="visually-hidden orders-supermarket-lane-card" data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}">Supermarket lane</div>
+          <div class="visually-hidden orders-supermarket-lane-card" data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}">{% if staff_product.business_key == "retail" %}Retail lane{% else %}Supermarket lane{% endif %}</div>
           <div class="staff-pos-supermarket-card" data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}">
             <div>
               <h3 class="staff-pos-supermarket-card__title"><i class="bi bi-shop me-2"></i>{% if staff_product.business_key == "retail" %}Retail checkout{% else %}Supermarket checkout{% endif %}</h3>
@@ -62,11 +62,11 @@
         {% endif %}
         <div class="staff-pos-orders-lanes__head">
           <div>
-            <h2 id="staff-pos-lanes-heading" class="staff-card__title staff-card__title--pos mb-1">Now serving</h2>
+            <h2 id="staff-pos-lanes-heading" class="staff-card__title staff-card__title--pos mb-1">{% if show_supermarket_lane %}Checkout activity{% else %}Now serving{% endif %}</h2>
             <p class="staff-muted mb-0">{% if show_supermarket_lane %}Held baskets, open checkouts, and recent sales.{% else %}Held tabs, walk-ins, and a short list of recent checks.{% endif %}</p>
           </div>
         </div>
-        <div id="staff-orders-lanes-scroll" class="staff-pos-orders-lanes-scroll" aria-label="Active checks">
+        <div id="staff-orders-lanes-scroll" class="staff-pos-orders-lanes-scroll" aria-label="{% if show_supermarket_lane %}Active checkouts{% else %}Active checks{% endif %}">
           {% include "staff/includes/orders_lanes.html" %}
         </div>
       </div>
