@@ -6,7 +6,12 @@ server {
     listen 80;
     listen [::]:80;
     server_name pos.leosoftug.com;
-    return 301 https://pos.leosoftug.com$request_uri;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/leosoft-pos/acme;
+    }
+    location / {
+        return 301 https://pos.leosoftug.com$request_uri;
+    }
 }
 
 server {
