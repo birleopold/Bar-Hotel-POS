@@ -1,11 +1,28 @@
 {% extends "console/base.html" %}
-{% block title %}Remove outlet link{% endblock %}
+{% block title %}{% if grocery_console_shell %}Remove sales area{% else %}Remove outlet link{% endif %}{% endblock %}
 {% block content %}
+{% if grocery_console_shell %}
+<section class="grocery-setup" aria-labelledby="remove-area-heading">
+  <header class="grocery-setup__hero">
+    <div><p class="grocery-setup__eyebrow">STORE / PRODUCT PRICING</p>
+      <h1 id="remove-area-heading">Remove this sales area?</h1>
+      <p>{{ menu_item.name }} — {{ object.outlet.name }}. This removes the special sales-area link for this product. Your product is not deleted.</p>
+    </div>
+  </header>
+  <form class="staff-card grocery-guided-form" method="post">{% csrf_token %}
+    <p>Remove this sales area from <strong>{{ menu_item.name }}</strong>?</p>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-outlets' item_id=menu_item.id %}">Keep sales area</a>
+      <button type="submit" class="staff-btn staff-btn--primary">Yes, remove link</button>
+    </div>
+  </form>
+</section>
+{% else %}
   <h1 class="staff-page-title">Remove outlet pricing?<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
   <p>{{ menu_item.name }} — {{ object.outlet.name }}</p>
-  <form method="post" class="staff-card">
-    {% csrf_token %}
+  <form method="post" class="staff-card">{% csrf_token %}
     <button type="submit" class="staff-btn staff-btn--primary">Yes, remove</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-outlets' item_id=menu_item.id %}">Cancel</a>
   </form>
+{% endif %}
 {% endblock %}
