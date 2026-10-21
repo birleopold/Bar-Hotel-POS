@@ -30,6 +30,39 @@
     left.insertBefore(jump, left.firstChild);
   }
 
+  // Cashier basket controls use the existing server-backed quantity and void
+  // forms; no client-side stock or payment state is invented.
+  if (basket) {
+    var lines = basket.querySelectorAll("tbody tr");
+    lines.forEach(function (line) {
+      var quantityForm = line.querySelector('form input[name="action"][value="adjust_line_qty"]');
+      quantityForm = quantityForm && quantityForm.form;
+      if (!quantityForm) return;
+      var quantity = quantityForm.querySelector('input[name="quantity"]');
+      if (!quantity) return;
+      var buttons = document.createElement("div");
+      buttons.className = "grocery-qty-shortcuts";
+      [-1, 1].forEach(function (delta) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "grocery-qty-shortcut";
+        button.textContent = delta > 0 ? "+" : "−";
+        button.setAttribute("aria-label", delta > 0 ? "Increase item quantity" : "Decrease item quantity");
+        button.addEventListener("click", function () {
+          var current = Number(quantity.value);
+          var step = Number(quantity.step);
+          if (!(step > 0)) step = 1;
+          var updated = Math.round((current + delta * step) * 1000) / 1000;
+          if (!(updated > 0)) return;
+          quantity.value = String(updated);
+          if (typeof quantityForm.requestSubmit === "function") quantityForm.requestSubmit();
+        });
+        buttons.appendChild(button);
+      });
+      quantityForm.classList.add("grocery-basket-quantity");
+      quantityForm.insertBefore(buttons, quantityForm.querySelector('button[type="submit"]'));
+    });
+  }
   var basketHeading = basket && basket.querySelector("h2");
   if (basketHeading) basketHeading.textContent = "Current basket";
   var catalogHeading = catalogCard && catalogCard.querySelector("h2");
