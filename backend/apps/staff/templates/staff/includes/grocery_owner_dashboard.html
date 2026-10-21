@@ -6,8 +6,8 @@
   <div class="owner-home__stats" aria-label="Business snapshot">
     <a class="owner-home__stat" href="{% url 'staff-sales' %}"><span class="owner-home__stat-icon owner-home__stat-icon--green"><i class="bi bi-graph-up-arrow"></i></span><span><small>Net sales · last 8 days</small><strong>{% if staff_dashboard_sales_snapshot %}{{ staff_dashboard_sales_snapshot.currency_code }} {{ staff_dashboard_sales_snapshot.net_sales }}{% else %}Not available{% endif %}</strong><em>Open sales report</em></span></a>
     <a class="owner-home__stat" href="{% url 'staff-sales' %}"><span class="owner-home__stat-icon owner-home__stat-icon--blue"><i class="bi bi-receipt"></i></span><span><small>Payments · last 8 days</small><strong>{% if staff_dashboard_sales_snapshot %}{{ staff_dashboard_sales_snapshot.payments_count }}{% else %}Not available{% endif %}</strong><em>View transaction activity</em></span></a>
-    <a class="owner-home__stat" href="{% url 'staff-inventory-balances' %}"><span class="owner-home__stat-icon owner-home__stat-icon--orange"><i class="bi bi-box-seam"></i></span><span><small>Low-stock items shown</small><strong>{{ staff_dashboard_low_stock_rows|length }}</strong><em>Review all stock levels</em></span></a>
-    <a class="owner-home__stat" href="{% url 'staff-pos-shifts' %}"><span class="owner-home__stat-icon owner-home__stat-icon--purple"><i class="bi bi-wallet2"></i></span><span><small>Register cash</small><strong>Review shifts</strong><em>See actual cash records</em></span></a>
+    {% if staff_nav.inventory %}<a class="owner-home__stat" href="{% url 'staff-inventory-balances' %}"><span class="owner-home__stat-icon owner-home__stat-icon--orange"><i class="bi bi-box-seam"></i></span><span><small>Low-stock items shown</small><strong>{{ staff_dashboard_low_stock_rows|length }}</strong><em>Review all stock levels</em></span></a>
+    {% endif %}{% if staff_nav.orders %}<a class="owner-home__stat" href="{% url 'staff-pos-shifts' %}"><span class="owner-home__stat-icon owner-home__stat-icon--purple"><i class="bi bi-wallet2"></i></span><span><small>Register cash</small><strong>Review shifts</strong><em>See actual cash records</em></span></a>{% endif %}
   </div>
   <div class="owner-home__grid">
     <section class="owner-home__card owner-home__setup" aria-labelledby="owner-setup-title">
@@ -32,8 +32,8 @@
     <section class="owner-home__card owner-home__actions" aria-labelledby="owner-actions-title"><div class="owner-home__card-head"><div><h2 id="owner-actions-title">Common actions</h2><p>Quick links to the things you do most.</p></div></div>
       <div class="owner-home__action-grid">
         <a href="{% url 'staff-menu' %}"><i class="bi bi-box-seam"></i><span><strong>Add a product</strong><small>Create an item with price and barcode</small></span><i class="bi bi-chevron-right"></i></a>
-        <a href="{% url 'staff-inventory-movement-create' %}"><i class="bi bi-truck"></i><span><strong>Receive stock</strong><small>Record goods from suppliers</small></span><i class="bi bi-chevron-right"></i></a>
-        <a href="{% url 'staff-workspace-member-create' %}"><i class="bi bi-person-plus"></i><span><strong>Add staff member</strong><small>Assign access and responsibilities</small></span><i class="bi bi-chevron-right"></i></a>
+        {% if staff_nav.inventory %}<a href="{% url 'staff-inventory-movement-create' %}"><i class="bi bi-truck"></i><span><strong>Receive stock</strong><small>Record goods from suppliers</small></span><i class="bi bi-chevron-right"></i></a>
+        {% endif %}<a href="{% url 'staff-workspace-member-create' %}"><i class="bi bi-person-plus"></i><span><strong>Add staff member</strong><small>Assign access and responsibilities</small></span><i class="bi bi-chevron-right"></i></a>
         <a href="{{ tenant_setup_url }}"><i class="bi bi-gear"></i><span><strong>Store settings</strong><small>Business, payments and receipts</small></span><i class="bi bi-chevron-right"></i></a>
       </div><p class="owner-home__tip"><i class="bi bi-lightbulb"></i> <span>Start with your products and stock, then set up workers and payments.</span></p>
     </section>
