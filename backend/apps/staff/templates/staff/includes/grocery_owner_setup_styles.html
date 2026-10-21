@@ -153,3 +153,22 @@
 @media(max-width:800px){.owner-topbar__search{display:none}}
 
 .owner-home__greeting{display:block;font-weight:790;margin-bottom:1px}
+
+/* Reference fidelity: tighter 16:9 owner dashboard density and card rhythm. */
+@media(min-width:1251px){
+  .grocery-owner-body .staff-main--dashboard{padding:16px 22px 28px!important}
+  .grocery-owner-body .owner-home__welcome{min-height:106px;margin-bottom:12px}
+  .grocery-owner-body .owner-home__stats{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px}
+  .grocery-owner-body .owner-home__stat{min-height:104px}
+  .grocery-owner-body .owner-home__grid{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px}
+  .grocery-owner-body .owner-home__card{padding:15px}
+  .grocery-owner-body .owner-home__steps li{padding:6px 0;min-height:43px}
+  .grocery-owner-body .owner-home__action-grid a{min-height:106px}
+}
+.grocery-owner-body .owner-home__stat:focus-visible,
+.grocery-owner-body .owner-home__action-grid a:focus-visible,
+.grocery-owner-body .owner-home__steps a:focus-visible,
+.grocery-owner-body .owner-side-nav a:focus-visible{outline:3px solid #e3ab45;outline-offset:3px}
+.grocery-owner-body .owner-home__stat strong{font-variant-numeric:tabular-nums}
+.grocery-owner-body .owner-home__steps li:hover{background:#f8fcf9}
+.grocery-owner-body .owner-home__activity:hover{background:#f7fbf9;color:#135b38}
