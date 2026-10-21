@@ -45,7 +45,7 @@
   });
   // Simple grocery products add on one tap through the existing Django form.
   // Products requiring options still use the visible item form so choices are not skipped.
-  var addForm = right.querySelector('form input[name="action"][value="add_line"]');
+  var addForm = catalogCard && catalogCard.querySelector('form input[name="action"][value="add_line"]');
   addForm = addForm && addForm.form;
   var productSelect = addForm && addForm.querySelector('select[name="menu_item"]');
   var quantityInput = addForm && addForm.querySelector('input[name="quantity"]');
@@ -97,7 +97,7 @@
     detail.appendChild(section);
   });
   var action = payment && payment.querySelector('button[type="submit"]');
-  if (action) action.textContent = "Complete payment";
+  if (action) action.textContent = "Take payment";
   if (paymentCard) {
     var due = paymentCard.querySelector(".staff-pos-side-hint");
     if (due) due.classList.add("grocery-amount-due");
