@@ -14,6 +14,11 @@
       <div class="owner-home__card-head"><div><h2 id="owner-setup-title"><i class="bi bi-flag-fill"></i> Set up your store</h2><p>Follow these steps in order. You can change anything later.</p></div><a href="{{ tenant_setup_url }}">Full setup <i class="bi bi-arrow-right"></i></a></div>
       <div class="owner-home__progress"><span>Business setup progress</span><strong>{{ tenant_setup_state.required_completion_percent|default:0 }}%</strong></div>
       <progress max="100" value="{{ tenant_setup_state.required_completion_percent|default:0 }}" aria-label="Business setup completion"></progress>
+      {% if tenant_setup_state.next_step %}
+        <a class="owner-home__next" href="{{ tenant_setup_state.next_step.cta_url }}"><span><i class="bi bi-arrow-right-circle"></i> <strong>Next recommended step:</strong> {{ tenant_setup_state.next_step.name }}</span><span>Continue <i class="bi bi-arrow-right"></i></span></a>
+      {% elif tenant_setup_state.setup_complete %}
+        <p class="owner-home__next owner-home__next--done"><i class="bi bi-check-circle"></i> Core business setup is complete.</p>
+      {% endif %}
       <ol class="owner-home__steps">
         <li><span class="owner-home__number">1</span><span><strong>Business details</strong><small>Store name, branches, currency and receipts</small></span><a href="{{ tenant_setup_url }}">Set up <i class="bi bi-arrow-right"></i></a></li>
         <li><span class="owner-home__number">2</span><span><strong>Add products</strong><small>Names, categories, prices and barcodes</small></span><a href="{% url 'staff-menu' %}">Products <i class="bi bi-arrow-right"></i></a></li>
