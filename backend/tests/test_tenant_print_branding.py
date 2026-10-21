@@ -30,6 +30,7 @@ class BrandedOrderPrintTests(SimpleTestCase):
                 "tenant_settings": SimpleNamespace(
                     logo_url="https://example.test/logo.png",
                     receipt_footer="Thank you for shopping",
+                    theme_primary="#1557A6",
                 ),
                 "page_size": "A4",
                 "page_margin": "10mm",
@@ -47,6 +48,9 @@ class BrandedOrderPrintTests(SimpleTestCase):
         self.assertIn("Sennana Supermarket", html)
         self.assertIn("Thank you for shopping", html)
         self.assertIn("https://example.test/logo.png", html)
+        self.assertIn("#1557A6", html)
+        self.assertIn("Main Register", html)
+        self.assertIn("Total UGX 10000", html)
         self.assertNotIn("Kartel Bar", html)
         request.tenant = SimpleNamespace(name="Kartel Bar")
         kartel_html = render_to_string(
