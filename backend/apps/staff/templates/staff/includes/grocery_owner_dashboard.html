@@ -6,12 +6,12 @@
   <div class="owner-home__stats" aria-label="Business snapshot">
     <a class="owner-home__stat" href="{% url 'staff-sales' %}"><span class="owner-home__stat-icon owner-home__stat-icon--green"><i class="bi bi-graph-up-arrow"></i></span><span><small>Net sales · last 8 days</small><strong>{% if staff_dashboard_sales_snapshot %}{{ staff_dashboard_sales_snapshot.currency_code }} {{ staff_dashboard_sales_snapshot.net_sales }}{% else %}Not available{% endif %}</strong><em>Open sales report</em></span></a>
     <a class="owner-home__stat" href="{% url 'staff-sales' %}"><span class="owner-home__stat-icon owner-home__stat-icon--blue"><i class="bi bi-receipt"></i></span><span><small>Payments · last 8 days</small><strong>{% if staff_dashboard_sales_snapshot %}{{ staff_dashboard_sales_snapshot.payments_count }}{% else %}Not available{% endif %}</strong><em>View transaction activity</em></span></a>
-    <a class="owner-home__stat" href="{% url 'staff-inventory-balances' %}"><span class="owner-home__stat-icon owner-home__stat-icon--orange"><i class="bi bi-box-seam"></i></span><span><small>Low-stock alerts</small><strong>{{ staff_dashboard_low_stock_rows|length }}</strong><em>Items shown for your outlet</em></span></a>
+    <a class="owner-home__stat" href="{% url 'staff-inventory-balances' %}"><span class="owner-home__stat-icon owner-home__stat-icon--orange"><i class="bi bi-box-seam"></i></span><span><small>Low-stock items shown</small><strong>{{ staff_dashboard_low_stock_rows|length }}</strong><em>Review all stock levels</em></span></a>
     <a class="owner-home__stat" href="{% url 'staff-pos-shifts' %}"><span class="owner-home__stat-icon owner-home__stat-icon--purple"><i class="bi bi-wallet2"></i></span><span><small>Register cash</small><strong>Review shifts</strong><em>See actual cash records</em></span></a>
   </div>
   <div class="owner-home__grid">
     <section class="owner-home__card owner-home__setup" aria-labelledby="owner-setup-title">
-      <div class="owner-home__card-head"><div><h2 id="owner-setup-title"><i class="bi bi-flag-fill"></i> Set up your store</h2><p>Follow these steps in order. You can change anything later.</p></div><a href="{{ tenant_setup_url }}">Full setup <i class="bi bi-arrow-right"></i></a></div>
+      <div class="owner-home__card-head"><div><h2 id="owner-setup-title"><i class="bi bi-flag-fill"></i> Set up your store</h2><p>Follow these six simple steps. Your real setup status appears above.</p></div><a href="{{ tenant_setup_url }}">Full setup <i class="bi bi-arrow-right"></i></a></div>
       <div class="owner-home__progress"><span>Business setup progress</span><strong>{{ tenant_setup_state.required_completion_percent|default:0 }}%</strong></div>
       <progress max="100" value="{{ tenant_setup_state.required_completion_percent|default:0 }}" aria-label="Business setup completion"></progress>
       {% if tenant_setup_state.next_step %}
