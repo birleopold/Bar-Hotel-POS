@@ -18,6 +18,18 @@
   if (paymentCard && basket) right.insertBefore(paymentCard, basket.nextSibling);
   if (cash && paymentCard) right.insertBefore(cash, paymentCard.nextSibling);
   root.classList.add("grocery-register-ready");
+  // On compact screens, offer a clear jump to the live basket rather than
+  // forcing a cashier to scroll past a long product catalogue.
+  if (basket) {
+    basket.id = "grocery-current-basket";
+    var jump = document.createElement("a");
+    jump.href = "#grocery-current-basket";
+    jump.className = "grocery-basket-jump staff-btn staff-btn--primary";
+    jump.textContent = "View basket and payment";
+    jump.setAttribute("aria-label", "Jump to current basket and payment");
+    left.insertBefore(jump, left.firstChild);
+  }
+
   var basketHeading = basket && basket.querySelector("h2");
   if (basketHeading) basketHeading.textContent = "Current basket";
   var catalogHeading = catalogCard && catalogCard.querySelector("h2");
