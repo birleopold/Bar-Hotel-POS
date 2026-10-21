@@ -1,0 +1,14 @@
+# Temporary bootstrap vhost for HTTP-01 certificate issuance, only POS host.
+# Safe to replace with nginx-pos.conf.example after certificate exists.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name pos.leosoftug.com;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/leosoft-pos/acme;
+        default_type text/plain;
+    }
+    location / {
+        return 404;
+    }
+}
