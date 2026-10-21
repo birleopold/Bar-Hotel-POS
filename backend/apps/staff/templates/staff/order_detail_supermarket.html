@@ -5,7 +5,7 @@
   {% if can_modify_open_order and scan_add_form %}
     <div class="staff-card" id="retail-fast-checkout" aria-label="Fast supermarket checkout">
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-        <div><h2 class="staff-card__title mb-1">Fast supermarket checkout</h2><p class="staff-muted small mb-0">Scan the next barcode and press Enter. Use quantity for loose or multiple items. Press / to return to scanning.</p></div>
+        <div><h2 class="staff-card__title mb-1">Scan items</h2><p class="staff-muted small mb-0">Scan a barcode or enter a product code. Press Enter to add it. Set quantity only when selling multiple items or measured goods.</p></div>
         <span class="staff-tag">Scan or enter PLU</span>
       </div>
       <form method="post" class="row g-3 align-items-end" data-retail-scan-form>
@@ -13,7 +13,7 @@
         <input type="hidden" name="action" value="scan_add_line">
         <div class="col-md-6">{{ scan_add_form.code.label_tag }}{{ scan_add_form.code }}</div>
         <div class="col-md-3">{{ scan_add_form.quantity.label_tag }}{{ scan_add_form.quantity }}</div>
-        <div class="col-md-3"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-retail-scan-submit>Add to basket</button></div>
+        <div class="col-md-3"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-retail-scan-submit>Add item</button></div>
       </form>
       <p class="staff-muted small mt-2 mb-0" role="status" data-retail-scan-status aria-live="polite">Scanner ready. Each successful scan updates the basket using the existing stock and pricing rules.</p>
     </div>
@@ -27,8 +27,8 @@
   {% endif %}
   {% if can_record_payment and payment_form %}
     <section class="staff-card" aria-label="Cash tender calculator" data-retail-cash-panel data-balance-due="{{ balance_due }}">
-      <h2 class="staff-card__title">Cash received &amp; change</h2>
-      <p class="staff-muted small">For full settlement of the remaining amount only. Select <strong>Cash</strong> in Pay before recording the payment. Never enter cash received as the sale amount.</p>
+      <h2 class="staff-card__title">Cash payment · calculate change</h2>
+      <p class="staff-muted small">Enter what the shopper hands you to see their change. To complete payment, use <strong>Pay</strong> and select <strong>Cash</strong>. The cash-received figure is not the sale amount.</p>
       <div class="row g-2 align-items-end">
         <div class="col-12 col-sm-6"><label class="staff-label" for="retail-cash-received">Cash received ({{ order.currency }})</label><input id="retail-cash-received" class="staff-input" type="number" min="0" step="0.01" inputmode="decimal" data-retail-cash-received></div>
         <div class="col-12 col-sm-6"><span class="staff-label">Change to return</span><output class="d-block fw-bold" for="retail-cash-received" data-retail-change>—</output></div>
