@@ -2,6 +2,8 @@ from django.http import HttpResponse
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from unittest.mock import patch
+from apps.tenants.domains import verify_custom_domain
 from apps.tenants.domains import begin_custom_domain_verification, create_platform_domain
 from apps.tenants.models import Tenant, TenantDomain
 
@@ -128,3 +130,36 @@ class TenantDomainRegistrationTests(TestCase):
             with self.subTest(hostname=hostname):
                 with self.assertRaises(ValidationError):
                     begin_custom_domain_verification(self.first, hostname)
+
+
+class CustomDomainOwnershipVerificationTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="DNS tenant", slug="dns-tenant")
+        self.domain = begin_custom_domain_verification(self.tenant, "pos.dns-tenant.example.com")
+
+    def test_verified_txt_challenge_changes_status_but_does_not_activate(self):
+        expected = f"hotelnbarmgmt-domain-verification={self.domain.verification_token}"
+        answer = type("TxtAnswer", (), {"strings": [expected.encode()]})()
+        with patch("dns.resolver.resolve", return_value=[answer]) as resolve:
+            self.assertTrue(verify_custom_domain(self.domain))
+        resolve.assert_called_once_with(
+            "_hotelnbarmgmt.pos.dns-tenant.example.com", "TXT", lifetime=5
+        )
+        self.domain.refresh_from_db()
+        self.assertEqual(self.domain.status, TenantDomain.Status.VERIFIED)
+        self.assertEqual(self.domain.tls_status, "awaiting_certificate")
+        self.assertIsNotNone(self.domain.verified_at)
+
+    def test_wrong_txt_challenge_never_verifies(self):
+        answer = type("TxtAnswer", (), {"strings": [b"hotelnbarmgmt-domain-verification=wrong"]})()
+        with patch("dns.resolver.resolve", return_value=[answer]):
+            self.assertFalse(verify_custom_domain(self.domain))
+        self.domain.refresh_from_db()
+        self.assertEqual(self.domain.status, TenantDomain.Status.PENDING)
+        self.assertIsNone(self.domain.verified_at)
+
+    def test_dns_lookup_failure_never_verifies(self):
+        with patch("dns.resolver.resolve", side_effect=RuntimeError("DNS unavailable")):
+            self.assertFalse(verify_custom_domain(self.domain))
+        self.domain.refresh_from_db()
+        self.assertEqual(self.domain.status, TenantDomain.Status.PENDING)
