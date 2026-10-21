@@ -11,7 +11,8 @@
 - [x] Dedicated migration and cross-tenant branding regression tests.
 - [x] Receipt/bill print headers use tenant logo, business name, primary colour, branch/register and currency-aware total; print regression assertion added.
 - [ ] Verify the combined W1 changes pass **both** SQLite and PostgreSQL CI.
-- [ ] Review every generated financial document and email notification for identity, sender and tenant-data isolation (not all use the order print template).
+- [x] Scheduled owner-report email already uses tenant-specific subject and report body; the attached PDF now headlines the tenant name in its configured brand colour.
+- [ ] Review remaining financial documents and other email senders for identity, sender and tenant-data isolation (not all use the order print template).
 - [ ] Browser-check accessibility, photo contrast, image failure fallback, mobile layouts and the save/reload journey.
 
 ## W2 — Business-specific experience
@@ -19,7 +20,7 @@
 - [x] Presentation keys and tenant business-line module filtering.
 - [x] Retail sales terminology in orders list and navigation.
 - [x] Supermarket/retail empty checkout lanes without guest, check or table prompts.
-- [x] Retail sales history search, filters and primary order-detail actions use sales, receipts, baskets and checkout language; hide hospitality tab labels.
+- [x] Retail sales history search, filters, empty states, accessible labels and primary detail actions use sales, receipts, baskets and checkout language; hide hospitality tab labels.
 - [ ] Audit every critical order/detail/return, purchasing, report, inventory and employee workflow for irrelevant terminology.
 - [ ] Browser-run each business profile: supermarket, independent retail, bar/lounge, restaurant, hotel, mixed business.
 - [ ] Confirm filtered routes and APIs deny disabled business modules, not just hide nav links.
@@ -31,4 +32,4 @@
 - [ ] Real terminal pairing, PIN handover and print checks on desktop/tablet/mobile.
 - [ ] Production deploy, smoke/rollback and final release sign-off.
 
-**Current release status:** W1/W2 implementation underway; none of the remaining certification gates is implicitly satisfied by a commit.
+**Current release status:** W1/W2 core capabilities implemented but release gates still open. Begin W3/W4 verification in parallel; do not claim W1/W2 at 100% until outstanding document coverage, route/module enforcement, full-profile browser checks and CI are evidenced.
