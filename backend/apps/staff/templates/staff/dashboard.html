@@ -1,6 +1,7 @@
 {% extends "staff/base.html" %}
 {% block title %}Operations overview{% endblock %}
 {% block extra_css %}{{ block.super }}{% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}<style>{% include "staff/includes/grocery_owner_setup_styles.html" %}</style>{% endif %}{% endblock %}
+{% block body_class %}{% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}grocery-owner-body{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide staff-main--dashboard{% endblock %}
 {% block content %}
   {% if not show_workspace_admin_tools or staff_product.business_key != "supermarket" and staff_product.business_key != "retail" %}
