@@ -30,6 +30,43 @@
       search.focus();
     }
   });
+  // Simple grocery products add on one tap through the existing Django form.
+  // Products requiring options still use the visible item form so choices are not skipped.
+  var addForm = catalogCard && catalogCard.querySelector('form input[name="action"][value="add_line"]');
+  addForm = addForm && addForm.form;
+  var productSelect = addForm && addForm.querySelector('select[name="menu_item"]');
+  var quantityInput = addForm && addForm.querySelector('input[name="quantity"]');
+  var modifierHost = addForm && addForm.querySelector("#staff-pos-add-line-modifiers");
+  var busy = false;
+  if (addForm && productSelect && catalog) {
+    catalog.querySelectorAll("[data-pos-menu-tile]").forEach(function (tile) {
+      tile.addEventListener("click", function () {
+        if (busy) return;
+        if (productSelect.value !== tile.dataset.itemId) return;
+        // Existing modifier renderer has already processed the selection.
+        if (modifierHost && modifierHost.querySelector("input,select,textarea")) return;
+        if (quantityInput) quantityInput.value = "1";
+        if (!addForm.checkValidity()) return;
+        busy = true;
+        if (typeof addForm.requestSubmit === "function") addForm.requestSubmit();
+        else addForm.submit();
+      });
+    });
+    addForm.addEventListener("submit", function (event) {
+      if (!addForm.checkValidity()) { busy = false; return; }
+      if (addForm.dataset.grocerySubmitting === "1") {
+        event.preventDefault();
+        return;
+      }
+      addForm.dataset.grocerySubmitting = "1";
+      addForm.querySelectorAll('button[type="submit"]').forEach(function (button) { button.disabled = true; });
+    });
+    window.addEventListener("pageshow", function () {
+      busy = false;
+      delete addForm.dataset.grocerySubmitting;
+      addForm.querySelectorAll('button[type="submit"]').forEach(function (button) { button.disabled = false; });
+    });
+  }
   var action = payment && payment.querySelector('button[type="submit"]');
   if (action) action.textContent = "Complete payment";
   if (paymentCard) {
