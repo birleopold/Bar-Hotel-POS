@@ -49,7 +49,7 @@
         </tbody>
       </table>
     </div>
-    <button type="submit" class="staff-btn staff-btn--primary">Create draft</button>
+    <button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Save purchase order draft{% else %}Create draft{% endif %}</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">Cancel</a>
   </form>
 {% endblock %}
