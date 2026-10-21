@@ -290,9 +290,10 @@ class StaffUiTests(TestCase):
         response = self.client.get(reverse("staff-dashboard"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Retail workspace")
-        self.assertContains(response, "close the register")
-        self.assertContains(response, "Customers")
+        self.assertContains(response, "Here's your store at a glance.")
+        self.assertContains(response, "Set up your store")
+        self.assertContains(response, "Configure payments and tills")
+        self.assertContains(response, "Register cash")
         self.assertNotContains(response, "guest folios")
         self.assertNotContains(response, "Housekeeping")
         self.assertNotContains(response, "Reservations")
