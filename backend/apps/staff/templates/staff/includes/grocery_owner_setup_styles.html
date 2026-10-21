@@ -234,3 +234,14 @@
   .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-chip-row{overflow-x:auto}
 }
 @media(prefers-reduced-motion:reduce){.grocery-owner-body .staff-main *{scroll-behavior:auto!important;transition:none!important}}
+
+/* Guided staff workspace forms: products, stock records, and worker onboarding. */
+.grocery-owner-body .grocery-staff-form{max-width:1040px}
+.grocery-owner-body .grocery-worker-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 20px;margin:14px 0 20px}
+.grocery-owner-body .grocery-worker-fields>.mb-3{min-width:0;margin-bottom:0!important;display:flex;flex-direction:column}
+.grocery-owner-body .grocery-worker-fields label{font-size:.85rem;font-weight:700;color:#29415c;margin-bottom:7px}
+.grocery-owner-body .grocery-worker-fields :is(input:not([type=checkbox]),select,textarea){max-width:100%;width:100%;padding:9px 12px}
+.grocery-owner-body .grocery-worker-fields .errorlist{color:#b52e3a;margin-top:5px;font-size:.8rem}
+.grocery-owner-body .grocery-required{color:#b43431}
+.grocery-owner-body .grocery-worker-fields>.mb-3:has(textarea){grid-column:1/-1}
+@media(max-width:720px){.grocery-owner-body .grocery-worker-fields{grid-template-columns:1fr}}
