@@ -63,7 +63,7 @@ class SupermarketCashierLaneTests(TestCase):
         assert response.status_code == 200
         # Checkout staff can view the change calculator only when payment is allowed.
         if response.context["can_record_payment"] and response.context["payment_form"]:
-            assert b"Cash payment · calculate change" in response.content
+            assert "Cash payment · calculate change".encode("utf-8") in response.content
             assert b"data-retail-cash-received" in response.content
             assert b"data-balance-due" in response.content
             assert b"Record the due amount, not the cash tendered" in response.content
