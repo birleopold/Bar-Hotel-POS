@@ -81,6 +81,39 @@ def create_platform_domain(tenant: Tenant) -> TenantDomain | None:
     return domain
 
 
+
+def create_platform_alias(tenant: Tenant, hostname: str) -> TenantDomain:
+    """Reserve an additional platform hostname for exactly one tenant.
+
+    A platform alias is not a tenant-owned external custom domain and must
+    never be allowed to replace another workspace's hostname.
+    """
+    hostname = normalize_hostname(hostname)
+    suffix = platform_domain_suffix()
+    if not suffix or not hostname.endswith("." + suffix):
+        raise ValidationError("Platform aliases must end with the configured platform domain.")
+    prefix = hostname[: -(len(suffix) + 1)]
+    if not prefix or "." in prefix:
+        raise ValidationError("Use one subdomain label before the platform domain.")
+    domain, _created = TenantDomain.objects.get_or_create(
+        hostname=hostname,
+        defaults={
+            "tenant": tenant,
+            "kind": TenantDomain.Kind.PLATFORM,
+            "status": TenantDomain.Status.ACTIVE,
+            "is_primary": False,
+            "tls_status": "not_configured",
+        },
+    )
+    if domain.tenant_id != tenant.pk or domain.kind != TenantDomain.Kind.PLATFORM:
+        raise ValidationError("That platform address is already reserved.")
+    if domain.status != TenantDomain.Status.ACTIVE:
+        domain.status = TenantDomain.Status.ACTIVE
+        domain.save(update_fields=["status", "updated_at"])
+    cache.delete(f"tenant-domain:{hostname}")
+    return domain
+
+
 def begin_custom_domain_verification(tenant: Tenant, hostname: str) -> TenantDomain:
     hostname = normalize_hostname(hostname)
     # Development central hosts such as "localhost" and "testserver" are
