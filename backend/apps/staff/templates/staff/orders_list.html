@@ -91,7 +91,7 @@
 
       {% if returns_task %}<p class="staff-muted">Find the original closed receipt and open it to review returnable lines. Refunds require an authorized manager; existing return and payment rules still apply.</p>{% endif %}
       <div class="staff-pos-orders-history__controls">
-        <nav class="staff-pos-orders-segments" aria-label="Order status">
+        <nav class="staff-pos-orders-segments" aria-label="{% if show_supermarket_lane %}Sale status{% else %}Order status{% endif %}">
           <a class="staff-pos-orders-seg{% if not status_filter %} staff-pos-orders-seg--active{% endif %}"{% if not status_filter %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?{% if mine_filter %}mine=1&{% endif %}{% if q_filter %}q={{ q_filter|urlencode }}{% endif %}">All</a>
           <a class="staff-pos-orders-seg{% if status_filter == 'open' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'open' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=open{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Open</a>
           <a class="staff-pos-orders-seg{% if status_filter == 'closed' %} staff-pos-orders-seg--active{% endif %}"{% if status_filter == 'closed' %} aria-current="page"{% endif %} href="{% url 'staff-orders' %}?status=closed{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}">Closed</a>
@@ -136,12 +136,12 @@
         </a>
       {% empty %}
         {% url "staff-orders" as orders_url %}
-        {% include "staff/includes/empty_state.html" with title="No orders match your filters" message="Try clearing the status/search filters or create a new order tab." action_url=orders_url action_label="Reset filters" %}
+        {% if show_supermarket_lane %}{% include "staff/includes/empty_state.html" with title="No sales match your filters" message="Try changing the search or status, or start a new checkout." action_url=orders_url action_label="Reset filters" %}{% else %}{% include "staff/includes/empty_state.html" with title="No orders match your filters" message="Try clearing the status/search filters or create a new order tab." action_url=orders_url action_label="Reset filters" %}{% endif %}
       {% endfor %}
       </div>
 
     {% if is_paginated %}
-      <nav class="staff-pager staff-pager--pos staff-pager--pos-footer" aria-label="Past orders pages">
+      <nav class="staff-pager staff-pager--pos staff-pager--pos-footer" aria-label="{% if show_supermarket_lane %}Past sales pages{% else %}Past orders pages{% endif %}">
         {% if page_obj.has_previous %}
           <a class="staff-btn staff-btn--sm staff-btn--ghost" rel="prev" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if returns_task %}&task=returns{% endif %}{% if mine_filter %}&mine=1{% endif %}{% if q_filter %}&q={{ q_filter|urlencode }}{% endif %}"><i class="bi bi-chevron-left me-1"></i>Newer</a>
         {% else %}
