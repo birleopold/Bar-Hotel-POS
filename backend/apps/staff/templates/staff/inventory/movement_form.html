@@ -7,13 +7,13 @@
       <p class="staff-dash-hero__eyebrow">Stock</p>
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Stock movement<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Stock receive, adjustment, or waste — one line at a time.</p>
+          <h1 class="staff-page-title mb-0">{% if grocery_owner_shell %}Receive or adjust stock{% else %}Stock movement{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">{% if grocery_owner_shell %}Choose a product, enter its quantity and select why the stock is changing.{% else %}Stock receive, adjustment, or waste — one line at a time.{% endif %}</p>
         </div>
       </div>
     </div>
   </header>
-  <h2 class="staff-section-head">Line</h2>
+  <h2 class="staff-section-head">{% if grocery_owner_shell %}Stock details{% else %}Line{% endif %}</h2>
   {% if not has_tracked_menu_items %}
     <div class="staff-card staff-card--soft mb-4">
       <p class="mb-2">No tracked items yet. Create one quickly or use the console catalog.</p>
@@ -31,12 +31,14 @@
       {% endif %}
     </div>
   {% endif %}
-  <form method="post" class="staff-card">
+  <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-staff-form{% endif %}">
     {% csrf_token %}
+    {% if grocery_owner_shell %}<p class="staff-muted small">The stock record is saved to your selected business section.</p><div class="grocery-worker-fields">{% endif %}
     {% for field in form %}
-      <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      <div class="mb-3"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="grocery-required">*</span>{% endif %}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}</div>
     {% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Save movement</button>
+    {% if grocery_owner_shell %}</div>{% endif %}
+    <button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Save stock record{% else %}Save movement{% endif %}</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-movements' %}">Cancel</a>
   </form>
 {% endblock %}
