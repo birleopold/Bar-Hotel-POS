@@ -133,3 +133,23 @@
 .grocery-console-body .grocery-setup__table-intro{color:#667a8e;margin:-4px 0 18px;font-size:.88rem}
 @media(max-width:1080px){.grocery-console-body .grocery-setup__layout{grid-template-columns:1fr}.grocery-console-body .grocery-setup__aside{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.grocery-console-body .grocery-setup__hero{flex-direction:column;align-items:stretch}.grocery-console-body .grocery-setup__aside{grid-template-columns:1fr}.grocery-console-body .grocery-setup__step{padding:14px!important}.grocery-console-body .grocery-setup__step-icon{flex-basis:33px;width:33px;height:33px}.grocery-console-body .grocery-setup__progress{padding:16px}.grocery-console-body .grocery-setup__table-actions{justify-content:flex-start}}
+
+
+/* Consistent management choices, inline actions and progressive disclosure. */
+.grocery-console-body .grocery-console-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grocery-console-body .grocery-console-shortcuts>a{display:flex;align-items:center;gap:12px;min-height:116px;padding:16px;border-radius:13px;background:#fff;border:1px solid #e1e9ef;color:#172c49;text-decoration:none;box-shadow:0 3px 15px rgba(28,45,77,.035)}
+.grocery-console-body .grocery-console-shortcuts>a:hover,.grocery-console-body .grocery-console-shortcuts>a:focus-visible{border-color:#51b88b;background:#f9fdfa}
+.grocery-console-body .grocery-console-shortcuts>a>.bi:first-child{font-size:1.5rem;color:#008e50;flex:0 0 34px}
+.grocery-console-body .grocery-console-shortcuts>a>.bi:last-child{margin-left:auto;color:#7891a4}
+.grocery-console-body .grocery-console-shortcuts span{display:grid;gap:5px;min-width:0;flex:1}
+.grocery-console-body .grocery-console-shortcuts strong{font-size:.91rem;font-weight:800}
+.grocery-console-body .grocery-console-shortcuts small{font-size:.78rem;line-height:1.45;color:#6b7c8f}
+.grocery-console-body .grocery-setup__action-link{color:#087947;font-size:.84rem;font-weight:750;text-decoration:none}
+.grocery-console-body .grocery-advanced-settings{margin:19px 0 0;padding:15px;background:#f8fbf9;border:1px solid #dce9e1;border-radius:12px}
+.grocery-console-body .grocery-advanced-settings>summary{cursor:pointer;color:#1d3d30;font-weight:800;font-size:.88rem}
+.grocery-console-body .grocery-advanced-settings>summary i{color:#087d4b;margin-right:7px}
+.grocery-console-body .grocery-advanced-settings .grocery-form-fields{margin-top:16px}
+.grocery-console-body .grocery-advanced-settings .staff-muted{margin-top:12px}
+.grocery-console-body .grocery-setup__hero .grocery-setup__eyebrow a{color:#087947;text-decoration:none}
+.grocery-console-body .grocery-setup__hero .grocery-setup__eyebrow a:hover{text-decoration:underline}
+@media(max-width:720px){.grocery-console-body .grocery-console-shortcuts{grid-template-columns:1fr}.grocery-console-body .grocery-console-shortcuts>a{min-height:90px}.grocery-console-body .grocery-setup__empty{padding:24px 10px}}
