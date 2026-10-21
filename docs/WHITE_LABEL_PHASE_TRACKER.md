@@ -23,11 +23,13 @@
 - [x] Retail sales history search, filters, empty states, accessible labels and primary detail actions use sales, receipts, baskets and checkout language; hide hospitality tab labels.
 - [ ] Audit every critical order/detail/return, purchasing, report, inventory and employee workflow for irrelevant terminology.
 - [ ] Browser-run each business profile: supermarket, independent retail, bar/lounge, restaurant, hotel, mixed business.
-- [ ] Confirm filtered routes and APIs deny disabled business modules, not just hide nav links.
+- [x] Added direct-route regression tests rejecting lodging pages in bar-only workspaces and purchasing pages after the module is disabled (CI verification pending).
+- [ ] Extend direct-route/API enforcement checks to remaining business modules and role combinations.
 
 ## W3/W4 — required certification
 
-- [ ] PostgreSQL RLS against a non-owner app role and production-equivalent tenant context.
+- [x] PostgreSQL integration CI now exercises the non-owner RLS role and core policy presence; added tests for missing and unrelated tenant GUC values (latest combined CI pending).
+- [ ] Confirm production database role is non-owner/no BYPASSRLS and repeat policies against production-equivalent permissions.
 - [ ] Cross-domain custom apex/subdomain + platform subdomain DNS/HTTPS lifecycle.
 - [ ] Real terminal pairing, PIN handover and print checks on desktop/tablet/mobile.
 - [ ] Production deploy, smoke/rollback and final release sign-off.
