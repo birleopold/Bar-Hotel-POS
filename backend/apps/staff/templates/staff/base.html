@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}Staff{% endblock %}{% if request.tenant %} · {{ request.tenant.name }}{% endif %}</title>
-  {% if tenant_settings and tenant_settings.logo_url %}<link rel="icon" href="{{ tenant_settings.logo_url }}">{% endif %}
+  {% if tenant_settings %}{% if tenant_settings.favicon_url %}<link rel="icon" href="{{ tenant_settings.favicon_url }}">{% elif tenant_settings.logo_url %}<link rel="icon" href="{{ tenant_settings.logo_url }}">{% endif %}{% endif %}
   <meta name="theme-color" content="{% if tenant_settings %}{{ tenant_settings.theme_primary }}{% else %}#173C65{% endif %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
