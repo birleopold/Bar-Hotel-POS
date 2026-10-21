@@ -356,6 +356,20 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
                 setup_state = build_tenant_setup_state(active.tenant)
                 setup_progress = sync_tenant_setup_progress(active.tenant, setup_state)
                 ctx["tenant_setup_state"] = setup_state
+                # Each owner checklist row reflects a real prerequisite, never a
+                # fabricated six-step completion percentage.
+                setup_steps_by_key = {
+                    step["key"]: step
+                    for step in setup_state["all_steps"]
+                }
+                ctx["grocery_setup_checks"] = {
+                    "business": bool(setup_steps_by_key.get("business_profile", {}).get("done")),
+                    "products": bool(setup_steps_by_key.get("first_sellable", {}).get("done")),
+                    "stock": bool(setup_steps_by_key.get("first_stock_receive", {}).get("done")),
+                    "staff": bool(setup_steps_by_key.get("first_team_invite", {}).get("done")),
+                    "register": bool(setup_steps_by_key.get("first_workstation", {}).get("done")),
+                    "sale": bool(setup_steps_by_key.get("first_paid_order", {}).get("done")),
+                }
                 ctx["tenant_setup_progress"] = setup_progress
                 ctx["show_workspace_setup_cta"] = (
                     not setup_state["setup_complete"] and not setup_progress.suppress_dashboard_prompt
