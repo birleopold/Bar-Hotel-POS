@@ -34,6 +34,35 @@ ROLE_PRESET_DEFAULTS: dict[str, dict[str, str]] = {
 }
 
 
+ROLE_PRESET_BUSINESS_LINES = {
+    "cashier": {"retail", "supermarket", "bar", "lounge", "restaurant", "cafeteria", "services", "events"},
+    "restaurant_server": {"restaurant", "cafeteria"},
+    "bar_staff": {"bar", "lounge"},
+    "front_desk": {"lodging", "events", "services"},
+    "housekeeping": {"lodging"},
+    "storekeeper": {"bar", "lounge", "restaurant", "cafeteria", "kitchen", "lodging", "retail", "supermarket"},
+    "branch_manager": set(),
+}
+
+
+def role_presets_for_tenant(tenant):
+    from apps.tenants.business_lines import normalize_business_lines
+
+    try:
+        lines = set(normalize_business_lines(tenant.settings.business_lines))
+    except (AttributeError, ValueError, TypeError):
+        lines = set()
+    roles = permitted_roles(tenant)
+    return [
+        choice for choice in ROLE_PRESET_CHOICES
+        if not choice[0]
+        or (
+            ROLE_PRESET_DEFAULTS[choice[0]]["role"] in roles
+            and (not ROLE_PRESET_BUSINESS_LINES[choice[0]] or bool(lines & ROLE_PRESET_BUSINESS_LINES[choice[0]]))
+        )
+    ]
+
+
 def apply_role_preset(cleaned_data: dict) -> dict:
     preset = str(cleaned_data.get("role_preset") or "").strip()
     defaults = ROLE_PRESET_DEFAULTS.get(preset)
@@ -458,10 +487,7 @@ class StaffTeamInviteForm(forms.Form):
         self._tenant = tenant
         if tenant is not None:
             self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=False)
-            self.fields["role_preset"].choices = [
-                choice for choice in ROLE_PRESET_CHOICES
-                if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
-            ]
+            self.fields["role_preset"].choices = role_presets_for_tenant(tenant)
         if tenant is not None:
             from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
             from apps.tenants.models import OutletType
@@ -550,10 +576,7 @@ class StaffWorkerCreateForm(forms.Form):
         self._tenant = tenant
         if tenant is not None:
             self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=False)
-            self.fields["role_preset"].choices = [
-                choice for choice in ROLE_PRESET_CHOICES
-                if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
-            ]
+            self.fields["role_preset"].choices = role_presets_for_tenant(tenant)
         if tenant is not None:
             from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
             from apps.tenants.models import OutletType
@@ -632,10 +655,7 @@ class StaffMembershipBulkActionForm(forms.Form):
         super().__init__(*args, **kwargs)
         if tenant is not None:
             self.fields["member_ids"].queryset = Membership.objects.filter(tenant=tenant)
-            self.fields["role_preset"].choices = [
-                choice for choice in ROLE_PRESET_CHOICES
-                if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
-            ]
+            self.fields["role_preset"].choices = role_presets_for_tenant(tenant)
 
     def clean(self):
         data = super().clean()
@@ -674,10 +694,7 @@ class StaffMembershipManageForm(forms.ModelForm):
         self._tenant = tenant
         if tenant is not None:
             self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=True)
-            self.fields["role_preset"].choices = [
-                choice for choice in ROLE_PRESET_CHOICES
-                if not choice[0] or ROLE_PRESET_DEFAULTS[choice[0]]["role"] in permitted_roles(tenant)
-            ]
+            self.fields["role_preset"].choices = role_presets_for_tenant(tenant)
         if self.instance.pk and self.instance.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
             self.fields["sites"].required = False
         site_qs = Site.objects.none()
