@@ -40,6 +40,18 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertNotContains(page, 'class="owner-home"')
         self.assertContains(page, "staff-dash-hero--modern")
 
+    def test_owner_administration_shell_persists_after_navigation(self):
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        membership.role = MembershipRole.OWNER
+        membership.save(update_fields=["role"])
+        for name in ("staff-dashboard", "staff-menu", "staff-inventory-balances", "staff-orders"):
+            with self.subTest(page=name):
+                response = self.client.get(reverse(name))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "owner-topbar__brand")
+                self.assertContains(response, "owner-side-nav")
+                self.assertContains(response, "grocery-owner-body")
+
     def test_owner_dashboard_has_guided_setup_and_actual_sections(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
         membership.role = MembershipRole.OWNER
