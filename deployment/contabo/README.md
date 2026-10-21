@@ -30,6 +30,29 @@ SSL renewal and backup jobs. This setup must not stop or replace other Django ap
   Specifically, do not redirect or change `leosoftug.com`, `hotspotcloud.net`,
   or any unrelated nginx virtual host.
 
+## Read-only preflight
+
+From the checked-out repository root on the VPS:
+
+```bash
+bash deployment/contabo/preflight.sh
+```
+
+This command inventories the current OS, nginx validity, app services,
+listening ports and DNS/HTTPS readiness. It **does not make changes**.
+
+## Service template
+
+`leosoft-pos-gunicorn.service.example` is an example of a dedicated Gunicorn
+systemd unit for the POS. Review directory permissions and worker counts before
+installing it. Do **not** copy it over an existing service or issue a blanket
+`systemctl restart gunicorn`. Keep the POS Unix socket independent from every
+other application and make sure nginx alone can reach it.
+
+The `ProtectSystem` and `ReadWritePaths` restrictions are starting points;
+adjust them to actual upload, log, cache and backup storage locations without
+granting the POS access to unrelated application directories.
+
 ## Production env
 
 Use `pos.env.example` as a checklist; provision secrets securely rather than
