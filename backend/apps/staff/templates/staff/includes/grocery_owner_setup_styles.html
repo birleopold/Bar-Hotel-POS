@@ -180,3 +180,19 @@
 .owner-home__steps li:has(.owner-home__step-status.is-done)>a{background:#f1f7f3}
 @media(max-width:680px){.owner-home__steps li{gap:8px}.owner-home__step-status{font-size:.7rem}.owner-home__steps li a{padding:8px}}
 @media(max-width:470px){.owner-home__steps li a{margin-left:0}.owner-home__step-status{margin-left:auto}}
+
+/* Hero composition matched to owner dashboard reference without external imagery. */
+.grocery-owner-body .owner-home__welcome{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,.55fr) minmax(225px,.48fr);align-items:center;gap:18px}
+.grocery-owner-body .owner-home__welcome>div:first-child{min-width:0}
+.grocery-owner-body .owner-home__eyebrow{display:none}
+.grocery-owner-body .owner-home__greeting{display:block;letter-spacing:-.035em}
+.grocery-owner-body .owner-home__banner{height:108px;border-radius:12px;overflow:hidden;background:linear-gradient(110deg,#e6f1e9,#f5ead6);display:flex;align-items:center;justify-content:space-around;border:1px solid #e4e9e3}
+.grocery-owner-body .owner-home__banner-art{display:flex;align-items:end;gap:9px;height:75%;color:#087c4a}
+.grocery-owner-body .owner-home__banner-art i:nth-child(1){font-size:3.1rem}
+.grocery-owner-body .owner-home__banner-art i:nth-child(2){font-size:2.2rem}
+.grocery-owner-body .owner-home__banner-art i:nth-child(3){font-size:1.6rem}
+.grocery-owner-body .owner-home__banner-note{font-size:.73rem;line-height:1.4;text-align:center;color:#294239;font-weight:700;background:rgba(255,255,255,.83);padding:9px;border-radius:7px}
+.grocery-owner-body .owner-home__welcome form{margin:0;min-width:0}
+.grocery-owner-body .owner-home__pos{width:100%;min-height:75px;justify-content:space-between}
+@media(max-width:1260px){.grocery-owner-body .owner-home__welcome{grid-template-columns:minmax(0,1fr) minmax(210px,.48fr)}.grocery-owner-body .owner-home__banner{display:none}}
+@media(max-width:700px){.grocery-owner-body .owner-home__welcome{grid-template-columns:1fr}.grocery-owner-body .owner-home__pos{min-height:64px}}
