@@ -75,9 +75,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.tenants.middleware.TenantDomainResolutionMiddleware",
     "apps.api.middleware.TenantContextMiddleware",
+    # Establish PostgreSQL tenant scope before staff membership lookups.
+    "apps.api.middleware.PostgresRequestTenantGucMiddleware",
     "apps.staff.middleware.StaffSessionTenantMiddleware",
     "apps.common.middleware.operation_context.OperationContextMiddleware",
-    "apps.api.middleware.PostgresRequestTenantGucMiddleware",
     "apps.staff.middleware.StaffTerminalIdleMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
