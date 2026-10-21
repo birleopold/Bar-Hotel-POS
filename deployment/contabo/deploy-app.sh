@@ -29,7 +29,7 @@ if [[ -z "${MIGRATION_DATABASE_URL:-}" ]]; then
 fi
 DATABASE_URL="$MIGRATION_DATABASE_URL" "$VENV/bin/python" manage.py migrate --noinput
 # Newly created tables/sequences must be readable by the separate non-owner runtime role.
-psql "$MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<\'SQL\'
+psql "$MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO leosoft_pos_app;
 GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO leosoft_pos_app;
 SQL
