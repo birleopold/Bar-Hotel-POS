@@ -196,3 +196,41 @@
 .grocery-owner-body .owner-home__pos{width:100%;min-height:75px;justify-content:space-between}
 @media(max-width:1260px){.grocery-owner-body .owner-home__welcome{grid-template-columns:minmax(0,1fr) minmax(210px,.48fr)}.grocery-owner-body .owner-home__banner{display:none}}
 @media(max-width:700px){.grocery-owner-body .owner-home__welcome{grid-template-columns:1fr}.grocery-owner-body .owner-home__pos{min-height:64px}}
+
+/* Consistent administration screen treatment after leaving Overview. */
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-page-hero{margin:0 0 18px;padding:0;border:0;background:transparent;box-shadow:none}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-page-hero .staff-dash-hero__panel{padding:20px 22px;background:#fff;border:1px solid #e1e9ef;border-radius:14px;box-shadow:0 3px 15px rgba(28,45,77,.04)}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-page-title{font-size:clamp(1.55rem,2.3vw,2rem);line-height:1.25;letter-spacing:-.03em;font-weight:790;margin:0;color:#122440}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-page-title__accent{display:none}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-dash-hero__eyebrow{font-size:.77rem;letter-spacing:.055em;color:#078448;font-weight:750;margin-bottom:8px}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-dash-hero__tagline{color:#60718a;font-size:.88rem;line-height:1.55;margin-top:7px}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-section-head{color:#172743;font-size:1.12rem;font-weight:750;margin:18px 0 12px}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-card{padding:17px;border-radius:13px}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-label{font-size:.82rem;color:#334a68;font-weight:650;margin-bottom:6px}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-input,
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) input[type="search"],
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) input[type="text"],
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) input[type="number"],
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) select,
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) textarea{border-radius:10px;border:1px solid #d6e1ec;background:#fff;color:#21344e;min-height:43px}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) textarea{min-height:94px}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) :is(input,select,textarea,button,a):focus-visible{outline:3px solid #e5ab3c;outline-offset:2px}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-btn{border-radius:10px;min-height:40px;font-weight:650}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-btn--primary{background:#008c4d;border-color:#008c4d;color:#fff}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-btn--primary:hover{background:#007541;border-color:#007541}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-btn--ghost{border-color:#d6e1ea;background:#fff;color:#314968}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-btn--ghost:hover{background:#eef7f1;color:#087c49}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) :is(.staff-table-wrap,.table-responsive){border-radius:12px;overflow-x:auto}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) table{font-variant-numeric:tabular-nums;max-width:100%}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) table thead th{background:#f1f7f3;color:#41536d;font-size:.78rem;font-weight:750;border-bottom:1px solid #dce8e2}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) table tbody tr:hover{background:#f7fbf8}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-chip-row{gap:8px;align-items:center;flex-wrap:wrap}
+.grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-alert{border-radius:12px}
+@media(max-width:700px){
+  .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-page-hero .staff-dash-hero__panel{padding:16px}
+  .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-page-hero__head{flex-direction:column;align-items:stretch;gap:12px}
+  .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-page-hero__actions{display:flex;flex-wrap:wrap;gap:8px}
+  .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-card{padding:13px}
+  .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-chip-row{overflow-x:auto}
+}
+@media(prefers-reduced-motion:reduce){.grocery-owner-body .staff-main *{scroll-behavior:auto!important;transition:none!important}}
