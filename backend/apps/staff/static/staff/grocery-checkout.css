@@ -30,3 +30,13 @@
 .grocery-register-ready [data-pos-menu-search]{min-height:48px}
 .grocery-register-ready .staff-pos-menu-browser{max-width:100%}
 @media(prefers-reduced-motion:reduce){.grocery-register-ready .staff-pos-menu-tile{transition:none}}
+
+/* Actual product photography, when supplied in the existing catalogue. */
+.grocery-register-ready .staff-pos-menu-tile__photo{display:block;width:100%;height:108px;overflow:hidden;border-radius:10px;background:#f6f8f7}
+.grocery-register-ready .staff-pos-menu-tile__photo img{display:block;width:100%;height:100%;object-fit:contain}
+.grocery-register-ready .staff-pos-menu-tile__icon{min-height:44px}
+.grocery-register-ready .staff-pos-menu-tile__name{overflow-wrap:anywhere}
+@media(min-width:1200px){.grocery-register-ready .staff-pos-menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* Sidebar's secondary links remain available without crowding checkout. */
+.wb-side-nav details.wb-nav-group>summary{cursor:pointer;list-style-position:inside;padding:.75rem .5rem}
+.wb-side-nav details.wb-nav-group[open]>summary{margin-bottom:.35rem}
