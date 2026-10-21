@@ -23,6 +23,7 @@ def console_nav(request):
 
     base_ctx = {
         "console_nav": None,
+        "grocery_console_shell": False,
         "console_memberships": memberships,
         "console_platform_tenants": platform_tenants,
         "console_is_platform_operator": platform_operator,
@@ -36,4 +37,11 @@ def console_nav(request):
         return base_ctx
 
     flags = console_business_line_flags(active_tenant)
+    from apps.staff.services.presentation import staff_product_presentation
+    presentation = staff_product_presentation(active_tenant)
+    base_ctx["grocery_console_shell"] = bool(
+        tm and membership_can_manage_org_console(tm)
+        and presentation.get("business_key") in ("supermarket", "retail")
+        and not platform_operator
+    )
     return {**base_ctx, "console_nav": flags, **flags}
