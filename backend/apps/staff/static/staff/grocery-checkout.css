@@ -65,3 +65,32 @@
   .grocery-basket-jump{display:block!important;position:sticky;top:0;z-index:12;text-align:center;min-height:48px;padding:.8rem;margin-bottom:.75rem;box-shadow:0 3px 14px rgba(10,64,41,.16)}
   #grocery-current-basket{scroll-margin-top:65px}
 }
+
+/* Grocery POS visual system: compact sidebar, light workspace and green actions. */
+.staff-body--pos:has(.grocery-register-ready){background:#f5f8f6}
+.staff-body--pos:has(.grocery-register-ready) .staff-main{background:#f5f8f6}
+.staff-body--pos:has(.grocery-register-ready) .staff-sidebar{background:#fff;border-right:1px solid #e3eae5}
+.staff-body--pos:has(.grocery-register-ready) .staff-sidebar__brand-copy strong{color:#15352b}
+.staff-body--pos:has(.grocery-register-ready) .staff-sidebar__primary-action button{background:#087f4a;color:#fff;border-radius:12px}
+.staff-body--pos:has(.grocery-register-ready) .wb-nav-link--active{background:#e9f7ef;color:#09683f;border-radius:10px}
+.grocery-register-ready{gap:20px;padding:6px 0 24px}
+.grocery-register-ready .staff-card{background:#fff;border:1px solid #e0e9e3;box-shadow:0 4px 18px rgba(29,63,44,.045)}
+.grocery-register-ready .staff-pos-order-main>.staff-card{border-radius:16px}
+.grocery-register-ready .staff-pos-order-side>.staff-card{border-radius:16px}
+.grocery-register-ready .staff-pos-order-side>.staff-card:first-child{border:1px solid #d3e7d9}
+.grocery-register-ready .staff-pos-menu-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.grocery-register-ready .staff-pos-menu-search{flex:1 1 200px}
+.grocery-register-ready .staff-pos-menu-search input{border:1px solid #d5e2db;border-radius:11px;background:#fbfdfb;padding:12px 14px}
+.grocery-register-ready .staff-pos-category-filter.is-active{background:#0c834c;border-color:#0c834c;color:#fff}
+.grocery-register-ready .staff-pos-menu-tile__photo{background:#f9faf8;border:1px solid #eff2ee}
+.grocery-register-ready .staff-pos-menu-tile.is-selected{border:2px solid #09854b;background:#f3fcf6}
+.grocery-register-ready .staff-pos-order-side .staff-table thead{background:#f5f9f6}
+.grocery-register-ready .staff-pos-order-side .staff-table td{vertical-align:middle}
+.grocery-register-ready .staff-pos-order-side .staff-pos-line-actions{display:flex;flex-wrap:wrap;gap:4px}
+.grocery-register-ready .staff-pos-order-side .staff-input--pos-qty{max-width:76px}
+.grocery-register-ready .grocery-more-action{margin:10px 0;border:1px solid #dce7df;border-radius:12px;overflow:hidden;background:#fff}
+.grocery-register-ready .grocery-more-action>summary{cursor:pointer;padding:14px 16px;color:#2c4938;font-weight:650}
+.grocery-register-ready .grocery-more-action[open]>summary{border-bottom:1px solid #e3e9e5}
+.grocery-register-ready .grocery-more-action>.staff-card{box-shadow:none;border:0;margin:0!important}
+@media(max-width:900px){.grocery-register-ready .staff-pos-order-side{position:static;max-height:none;overflow:visible}.grocery-register-ready .staff-pos-order-main{overflow:visible;max-height:none}}
+@media(max-width:480px){.grocery-register-ready{gap:12px}.grocery-register-ready .staff-pos-order-main>.staff-card,.grocery-register-ready .staff-pos-order-side>.staff-card{border-radius:12px}.grocery-register-ready .staff-pos-menu-grid{gap:8px}.grocery-register-ready .staff-pos-menu-tile{min-height:115px}}
