@@ -1,25 +1,40 @@
 {% extends "console/base.html" %}
-{% block title %}Sections · {{ site.name }}{% endblock %}
+{% block title %}{% if grocery_console_shell %}Sales areas{% else %}Sections{% endif %} · {{ site.name }}{% endblock %}
 {% block content %}
+{% if grocery_console_shell %}
+<section class="grocery-setup" aria-labelledby="sales-area-heading">
+  <header class="grocery-setup__hero">
+    <div><p class="grocery-setup__eyebrow"><a href="{% url 'console-org-sites' %}">Branches</a> / {{ site.name }}</p>
+      <h1 id="sales-area-heading">Sales areas</h1>
+      <p>Set up the parts of {{ site.name }} where sales happen. For a small shop, one main sales area is enough.</p>
+    </div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-outlet-create' site_id=site.id %}"><i class="bi bi-plus-lg"></i> Add sales area</a>
+  </header>
+  <section class="staff-card">
+    {% if outlets %}
+      <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th scope="col">Sales area</th><th scope="col">Type</th><th scope="col">Actions</th></tr></thead>
+        <tbody>{% for o in outlets %}
+        <tr><td><strong>{{ o.name }}</strong></td><td>{{ o.get_outlet_type_display }}</td>
+          <td><a class="grocery-setup__action-link" href="{% url 'console-org-outlet-edit' outlet_id=o.id %}">Edit sales area <i class="bi bi-arrow-right"></i></a></td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+    {% else %}
+      <div class="grocery-setup__empty"><i class="bi bi-shop-window fs-1 text-success"></i>
+        <strong>No sales areas yet</strong><p>Create a main sales area for this branch.</p>
+        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-outlet-create' site_id=site.id %}">Create sales area</a>
+      </div>
+    {% endif %}
+  </section>
+  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}"><i class="bi bi-arrow-left"></i> Back to branches</a></p>
+</section>
+{% else %}
   <p class="staff-muted"><a href="{% url 'console-org-sites' %}">Branches</a> / {{ site.name }}</p>
-  <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Sections (outlets)<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-outlet-create' site_id=site.id %}">New section</a>
-  </div>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
-      <thead><tr><th>Name</th><th>Type</th><th></th></tr></thead>
-      <tbody>
-        {% for o in outlets %}
-          <tr>
-            <td>{{ o.name }}</td>
-            <td>{{ o.get_outlet_type_display }}</td>
-            <td><a href="{% url 'console-org-outlet-edit' outlet_id=o.id %}">Edit</a></td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="3" class="staff-muted">No sections yet.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <div class="staff-toolbar"><h1 class="staff-page-title mb-0">Sections (outlets)<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-outlet-create' site_id=site.id %}">New section</a></div>
+  <div class="staff-table-wrap"><table class="staff-table">
+    <thead><tr><th>Name</th><th>Type</th><th></th></tr></thead>
+    <tbody>{% for o in outlets %}<tr><td>{{ o.name }}</td><td>{{ o.get_outlet_type_display }}</td>
+      <td><a href="{% url 'console-org-outlet-edit' outlet_id=o.id %}">Edit</a></td></tr>
+      {% empty %}<tr><td colspan="3" class="staff-muted">No sections yet.</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
 {% endblock %}
