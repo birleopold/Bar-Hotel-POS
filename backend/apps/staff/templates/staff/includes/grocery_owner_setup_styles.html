@@ -172,3 +172,11 @@
 .grocery-owner-body .owner-home__stat strong{font-variant-numeric:tabular-nums}
 .grocery-owner-body .owner-home__steps li:hover{background:#f8fcf9}
 .grocery-owner-body .owner-home__activity:hover{background:#f7fbf9;color:#135b38}
+
+/* Setup guidance reflects real backend progress without adding another workflow. */
+.owner-home__step-status{display:inline-flex;align-items:center;gap:5px;font-size:.76rem;white-space:nowrap;color:#7b879c;font-weight:650}
+.owner-home__step-status.is-done{color:#00864a}
+.owner-home__steps li:has(.owner-home__step-status.is-done)>.owner-home__number{background:#099c57;color:white}
+.owner-home__steps li:has(.owner-home__step-status.is-done)>a{background:#f1f7f3}
+@media(max-width:680px){.owner-home__steps li{gap:8px}.owner-home__step-status{font-size:.7rem}.owner-home__steps li a{padding:8px}}
+@media(max-width:470px){.owner-home__steps li a{margin-left:0}.owner-home__step-status{margin-left:auto}}
