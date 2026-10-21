@@ -1,0 +1,6 @@
+.grocery-register-ready{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr);gap:1rem;align-items:start}
+.grocery-register-ready .staff-pos-order-side{position:sticky;top:1rem;max-height:calc(100vh - 2rem);overflow:auto}
+.grocery-register-ready .staff-pos-menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:.75rem}
+.grocery-register-ready .staff-pos-menu-tile{min-height:112px;border-radius:12px}
+.grocery-register-ready [data-pos-payment-form] button{min-height:52px;width:100%}
+@media(max-width:900px){.grocery-register-ready{display:flex;flex-direction:column}.grocery-register-ready .staff-pos-order-main,.grocery-register-ready .staff-pos-order-side{position:static;max-height:none;width:100%;overflow:visible}}
