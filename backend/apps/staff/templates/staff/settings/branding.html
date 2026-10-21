@@ -15,6 +15,23 @@
           namePreview.textContent = nameField.value.trim().replace(/\\s+/g, " ") || originalName;
         });
       }
+      if (greetingField && greetingPreview) {
+        greetingField.addEventListener("input", function () {
+          greetingPreview.textContent = greetingField.value.trim() || "Your personalised staff greeting appears here.";
+        });
+      }
+      if (backgroundField && backgroundPreview) {
+        backgroundField.addEventListener("input", function () {
+          const url = backgroundField.value.trim();
+          if (url.startsWith("https://")) {
+            backgroundPreview.src = url;
+            backgroundPreview.hidden = false;
+          } else {
+            backgroundPreview.removeAttribute("src");
+            backgroundPreview.hidden = true;
+          }
+        });
+      }
       if (colorField && brandPreview) {
         colorField.addEventListener("input", function () {
           if (/^#[0-9a-fA-F]{6}$/.test(colorField.value)) brandPreview.style.borderTopColor = colorField.value;
@@ -40,8 +57,9 @@
   <section class="staff-card mb-3" id="business-brand-preview" aria-label="Business identity preview" style="border-top:4px solid {{ tenant_settings.theme_primary|default:'#173C65' }};">
     <div class="d-flex align-items-center gap-3 flex-wrap">
       {% if tenant_settings.logo_url %}<img id="business-brand-logo" src="{{ tenant_settings.logo_url }}" alt="" style="height:56px;width:56px;object-fit:contain;border-radius:12px;">{% endif %}
-      <div><p class="staff-muted mb-1 small">Your staff will see</p><h2 class="h4 mb-1" id="business-brand-name">{{ request.tenant.name }}</h2><p class="staff-muted mb-0 small">Preview of your current workspace identity</p></div>
+      <div><p class="staff-muted mb-1 small">Your staff will see</p><h2 class="h4 mb-1" id="business-brand-name">{{ request.tenant.name }}</h2><p class="staff-muted mb-0 small" id="business-brand-greeting">{% if tenant_settings.login_welcome_message %}{{ tenant_settings.login_welcome_message }}{% else %}Your personalised staff greeting appears here.{% endif %}</p></div>
     </div>
+    <img id="business-brand-background" {% if tenant_settings.login_background_url %}src="{{ tenant_settings.login_background_url }}"{% else %}hidden{% endif %} alt="" style="display:block;max-width:100%;width:100%;height:130px;object-fit:cover;border-radius:10px;margin-top:16px;"{% if not tenant_settings.login_background_url %} hidden{% endif %}>
   </section>
   {% if form %}
     <form method="post" class="staff-card">
