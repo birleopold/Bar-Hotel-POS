@@ -1,6 +1,7 @@
 <section class="owner-home" aria-label="Store management overview">
   <header class="owner-home__welcome">
-    <div><p class="owner-home__eyebrow">STORE MANAGEMENT · {{ request.tenant.name }}</p><h1><span class="owner-home__greeting">Welcome back to {{ request.tenant.name }}.</span>Here's your store at a glance.</h1><p>Everything you need to manage your supermarket in one place.</p></div>
+    <div><p class="owner-home__eyebrow">STORE MANAGEMENT · {{ request.tenant.name }}</p><h1><span class="owner-home__greeting">Good afternoon!</span>Here's your store at a glance.</h1><p>Everything you need to manage your supermarket in one place.</p></div>
+    <div class="owner-home__banner" aria-label="Store values"><div class="owner-home__banner-art"><i class="bi bi-shop-window"></i><i class="bi bi-basket2"></i><i class="bi bi-box-seam"></i></div><div class="owner-home__banner-note">Quality products<br>Happy customers<br>Growing together</div></div>
     {% if staff_can_quick_create_order %}<form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}<button type="submit" class="owner-home__pos"><i class="bi bi-cart3"></i><span><strong>Open cashier POS</strong><small>Start a new sale</small></span><i class="bi bi-arrow-right"></i></button></form>{% else %}<a class="owner-home__pos" href="{% url 'staff-orders' %}"><i class="bi bi-cart3"></i><span><strong>Open sales workspace</strong><small>View supermarket sales</small></span><i class="bi bi-arrow-right"></i></a>{% endif %}
   </header>
   <div class="owner-home__stats" aria-label="Business snapshot">
