@@ -634,6 +634,12 @@ class StaffWorkspaceAccessTests(TestCase):
         r = self.client.get(reverse("staff-workspace-branding"))
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Save workspace settings")
+        self.assertContains(r, 'id="id_login_background_url"')
+        self.assertContains(r, 'id="id_login_welcome_message"')
+        self.assertContains(r, 'id="business-brand-logo"')
+        self.assertContains(r, 'id="business-brand-background"')
+        self.assertContains(r, "Business identity")
+
 
     def test_owner_modules_page_renders(self) -> None:
         user = User.objects.create_user(email="own-mod@test.local", password="TestPass9!")
