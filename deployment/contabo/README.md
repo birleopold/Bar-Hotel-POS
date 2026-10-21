@@ -53,6 +53,22 @@ The `ProtectSystem` and `ReadWritePaths` restrictions are starting points;
 adjust them to actual upload, log, cache and backup storage locations without
 granting the POS access to unrelated application directories.
 
+## Dedicated Nginx configuration
+
+The example `nginx-pos.conf.example` uses the POS Unix socket and a
+`pos.leosoftug.com`-only server block. Before installing it, issue the
+hostname-specific TLS certificate, configure the POS static-files directory
+and ensure no existing vhost owns the same `server_name`. Validate with
+`sudo nginx -t` **before** any POS-only reload.
+
+For platform workspace subdomains, use a separately reviewed wildcard vhost
+with DNS-01-issued wildcard TLS and correctly configured wildcard DNS;
+customer-owned domains each need ownership verification and an independently
+valid certificate. Do not widen the central vhost to arbitrary hostnames.
+
+From a checked-out repository, run `bash deployment/contabo/validate-config.sh`
+to check template consistency without changing the machine.
+
 ## Production env
 
 Use `pos.env.example` as a checklist; provision secrets securely rather than
