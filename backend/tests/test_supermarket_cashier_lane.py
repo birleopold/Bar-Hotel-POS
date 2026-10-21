@@ -45,6 +45,7 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Common actions")
         self.assertContains(page, "Needs your attention")
         self.assertContains(page, "Business activity")
+        self.assertNotContains(page, "staff-dash-hero--modern")
         self.assertContains(page, "Configure payments and tills")
         self.assertContains(page, 'href="' + reverse("staff-workspace-members") + '"')
         self.assertContains(page, 'href="' + reverse("staff-inventory-balances") + '"')
