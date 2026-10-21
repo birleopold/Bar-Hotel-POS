@@ -8,18 +8,20 @@
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
           <h1 class="staff-page-title mb-0">Start stock take<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Open a count session for one section.</p>
+          <p class="staff-dash-hero__tagline mb-0">{% if grocery_owner_shell %}Choose a shop section, then count the products on its shelves.{% else %}Open a count session for one section.{% endif %}</p>
         </div>
       </div>
     </div>
   </header>
-  <h2 class="staff-section-head">Session</h2>
-  <form method="post" class="staff-card">
+  <h2 class="staff-section-head">{% if grocery_owner_shell %}Where are you counting stock?{% else %}Session{% endif %}</h2>
+  <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-admin-form{% endif %}">
     {% csrf_token %}
+    {% if grocery_owner_shell %}<div class="grocery-admin-fields">{% endif %}
     {% for field in form %}
       <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
     {% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Start</button>
+    {% if grocery_owner_shell %}</div>{% endif %}
+    <button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Start stock count{% else %}Start{% endif %}</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-counts' %}">Cancel</a>
   </form>
 {% endblock %}
