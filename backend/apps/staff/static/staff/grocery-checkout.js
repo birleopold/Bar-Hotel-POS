@@ -50,9 +50,8 @@
         button.setAttribute("aria-label", delta > 0 ? "Increase item quantity" : "Decrease item quantity");
         button.addEventListener("click", function () {
           var current = Number(quantity.value);
-          var step = Number(quantity.step);
-          if (!(step > 0)) step = 1;
-          var updated = Math.round((current + delta * step) * 1000) / 1000;
+          // One-unit shortcuts; measured goods remain editable in the quantity field.
+          var updated = Math.round((current + delta) * 1000) / 1000;
           if (!(updated > 0)) return;
           quantity.value = String(updated);
           if (typeof quantityForm.requestSubmit === "function") quantityForm.requestSubmit();
