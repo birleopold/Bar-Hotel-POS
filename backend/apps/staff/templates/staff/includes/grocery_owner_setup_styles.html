@@ -98,3 +98,50 @@
 .owner-home__next--done{margin:0 0 10px}
 .owner-home__next>span:last-child{white-space:nowrap;font-weight:750}
 @media(max-width:550px){.owner-home__next{align-items:flex-start;flex-direction:column}}
+
+/* Approved full-screen owner shell. Restricted by dashboard body class. */
+.grocery-owner-body{background:#f5f8fc!important;color:#12203a}
+.grocery-owner-body .staff-app-shell{background:#f5f8fc}
+.grocery-owner-body .staff-sidebar{background:#f9fbfe!important;border-right:1px solid #e3eaf1;width:232px}
+.grocery-owner-body .staff-app-shell__body{min-width:0}
+.grocery-owner-body .staff-nav{background:#fff!important;border-bottom:1px solid #e4eaf0;box-shadow:0 2px 10px rgba(20,37,68,.025);min-height:72px}
+.grocery-owner-body .staff-main--dashboard{max-width:none!important;width:100%;padding:22px 24px 38px!important;background:#f5f8fc!important}
+.owner-side-brand{display:flex;align-items:center;gap:12px;padding:18px 15px 22px;text-decoration:none;color:#11223d}
+.owner-side-brand:hover{color:#11223d}
+.owner-side-brand>span:last-child,.owner-topbar__brand span{display:grid;gap:3px;min-width:0}
+.owner-side-brand strong{font-size:1.05rem;font-weight:800;line-height:1.15}
+.owner-side-brand small{font-size:.79rem;color:#67788e}
+.owner-side-logo{font-size:1.95rem;color:#079654}
+.owner-side-nav{padding:10px 10px;display:flex;flex-direction:column;gap:4px}
+.owner-side-nav a{display:flex;align-items:center;gap:16px;min-height:50px;padding:11px 15px;border-radius:10px;text-decoration:none;color:#475b7c;font-size:.97rem;font-weight:550}
+.owner-side-nav a i{font-size:1.21rem;width:24px;text-align:center}
+.owner-side-nav a:hover,.owner-side-nav a:focus-visible{background:#eaf4ee;color:#047840}
+.owner-side-nav a.is-active{background:#009b57;color:#fff;font-weight:700}
+.owner-side-foot{padding:20px 14px;margin-top:auto;border-top:1px solid #e2e8f0;display:grid;gap:12px}
+.owner-side-foot a,.owner-side-foot button{background:none;border:0;color:#485e7c;display:flex;gap:10px;align-items:center;text-decoration:none;font-size:.83rem;padding:8px;cursor:pointer;text-align:left}
+.owner-topbar{width:100%;display:flex;align-items:center;gap:22px;padding:10px 20px}
+.owner-topbar__brand{display:flex;align-items:center;gap:11px;min-width:210px;text-decoration:none;color:#112541}
+.owner-topbar__brand>i{font-size:1.95rem;color:#059850}
+.owner-topbar__brand strong{font-size:1.1rem;font-weight:800;line-height:1.1}
+.owner-topbar__brand small,.owner-topbar__account small{color:#748398;font-size:.75rem}
+.owner-topbar__branch{display:flex;align-items:center;gap:8px;border:1px solid #dce5ef;border-radius:9px;background:#fff;padding:8px 12px;min-width:165px}
+.owner-topbar__branch i{color:#008a4a}
+.owner-topbar__branch select{border:0;background:transparent;max-width:220px;width:100%;font-weight:600;color:#1e314d;outline-offset:4px}
+.owner-topbar__search{background:#f3f6fa;border-radius:9px;padding:13px 18px;color:#748398;display:flex;gap:12px;align-items:center;flex:1;min-width:0;font-size:.86rem}
+.owner-topbar__account{display:flex;align-items:center;gap:11px;white-space:nowrap}
+.owner-topbar__account>span:last-child{display:grid}
+.owner-topbar__account strong{font-size:.82rem;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.owner-topbar__avatar{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#0b9557;color:#fff;font-weight:750}
+.owner-topbar__signout{border:1px solid #d8e3ec;border-radius:8px;background:#fff;padding:9px 12px;color:#3b5069;white-space:nowrap}
+.grocery-owner-body .owner-home{padding:0}
+.grocery-owner-body .owner-home__welcome{min-height:112px;margin:0 0 16px}
+.grocery-owner-body .owner-home__welcome h1{font-size:clamp(1.65rem,2.2vw,2.15rem)}
+.grocery-owner-body .owner-home__stats{gap:10px;margin-bottom:14px}
+.grocery-owner-body .owner-home__stat{min-height:115px;padding:13px}
+.grocery-owner-body .owner-home__grid{gap:14px}
+.grocery-owner-body .owner-home__setup .owner-home__card-head{background:#eafaf0}
+.grocery-owner-body .owner-home__steps li{min-height:46px;padding:8px 0}
+.grocery-owner-body .owner-home__action-grid a{min-height:112px}
+@media(max-width:1150px){.owner-topbar__brand{display:none}.owner-topbar__search{display:none}}
+@media(max-width:800px){.grocery-owner-body .staff-sidebar{width:100%}.grocery-owner-body .staff-main--dashboard{padding:14px!important}.owner-side-brand{padding:12px}.owner-side-nav{flex-direction:row;overflow-x:auto;white-space:nowrap}.owner-side-nav a{flex:0 0 auto}.owner-topbar{padding:9px;gap:10px}.owner-topbar__account span:last-child{display:none}.owner-topbar__branch{min-width:0}}
+@media(max-width:520px){.owner-topbar__signout{font-size:.76rem}.grocery-owner-body .owner-home__welcome{min-height:0}}
