@@ -76,3 +76,60 @@
 .grocery-console-body .grocery-form-footer>div{display:flex;gap:10px;align-items:center}
 .grocery-console-body .grocery-form-links{margin:0 0 14px}
 @media(max-width:760px){.grocery-console-body .grocery-form-fields{grid-template-columns:1fr}.grocery-console-body .grocery-guided-form{padding:16px}.grocery-console-body .grocery-form-head{flex-direction:column}.grocery-console-body .grocery-form-footer{flex-direction:column;align-items:stretch}.grocery-console-body .grocery-form-footer>div{justify-content:flex-end}}
+
+
+/* Store-owner guided setup and catalogue surfaces. Scoped to retail owners only. */
+.grocery-console-body .grocery-setup{max-width:1260px;margin:0 auto}
+.grocery-console-body .grocery-setup__hero{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:20px}
+.grocery-console-body .grocery-setup__eyebrow{font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;font-weight:800;color:#087f4b;margin:0 0 7px}
+.grocery-console-body .grocery-setup__hero h1{font-size:clamp(1.7rem,2.5vw,2.2rem);font-weight:800;letter-spacing:-.035em;margin:0 0 8px}
+.grocery-console-body .grocery-setup__hero p:last-child{color:#64758b;max-width:700px;margin:0;line-height:1.55}
+.grocery-console-body .grocery-setup__hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.grocery-console-body .grocery-setup__progress{padding:20px 22px;margin:0 0 20px;background:#fff}
+.grocery-console-body .grocery-setup__progress-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 9px;font-size:.88rem}
+.grocery-console-body .grocery-setup__progress-heading strong{font-weight:750;color:#1c3651}
+.grocery-console-body .grocery-setup__progress-heading span{font-weight:850;color:#008d50}
+.grocery-console-body .grocery-setup__progress progress{width:100%;height:12px;display:block;accent-color:#009856}
+.grocery-console-body .grocery-setup__next{margin:12px 0 0;color:#536b80;font-size:.84rem}
+.grocery-console-body .grocery-setup__next a{color:#008b50;font-weight:800}
+.grocery-console-body .grocery-setup__layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(275px,.75fr);align-items:start;gap:18px}
+.grocery-console-body .grocery-setup__section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 11px}
+.grocery-console-body .grocery-setup__section-head h2{font-size:1.09rem;font-weight:800;margin:0}
+.grocery-console-body .grocery-setup__section-head span{color:#6a7c8f;font-size:.8rem}
+.grocery-console-body .grocery-setup__step{display:flex;align-items:flex-start;gap:13px;padding:18px!important;margin-bottom:10px;min-width:0}
+.grocery-console-body .grocery-setup__step-icon{flex:0 0 40px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#e9f7ee;color:#07874d;font-weight:850}
+.grocery-console-body .grocery-setup__step--done .grocery-setup__step-icon{background:#008e50;color:#fff}
+.grocery-console-body .grocery-setup__step--blocked .grocery-setup__step-icon{background:#fff1de;color:#9e661a}
+.grocery-console-body .grocery-setup__step-body{flex:1;min-width:0}
+.grocery-console-body .grocery-setup__step-body h3{font-size:.97rem;font-weight:770;margin:1px 0 5px}
+.grocery-console-body .grocery-setup__step-body p{font-size:.82rem;color:#60728a;margin:0 0 10px;line-height:1.5}
+.grocery-console-body .grocery-setup__step-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.grocery-console-body .grocery-setup__step-actions .staff-btn{font-size:.8rem;min-height:37px}
+.grocery-console-body .grocery-setup__status{font-size:.72rem;color:#65778b;font-weight:750;display:inline-flex;align-items:center;gap:5px}
+.grocery-console-body .grocery-setup__status--done{color:#00864a}
+.grocery-console-body .grocery-setup__status--blocked{color:#a56417}
+.grocery-console-body .grocery-setup__more{margin-top:9px}
+.grocery-console-body .grocery-setup__more summary{cursor:pointer;color:#546e87;font-size:.77rem;font-weight:700}
+.grocery-console-body .grocery-setup__more form{margin-top:9px;display:flex;gap:10px;flex-wrap:wrap}
+.grocery-console-body .grocery-setup__more button{font-size:.77rem;background:transparent;border:0;color:#536b80;text-decoration:underline;padding:4px}
+.grocery-console-body .grocery-setup__aside{display:grid;gap:14px}
+.grocery-console-body .grocery-setup__aside .staff-card{padding:19px}
+.grocery-console-body .grocery-setup__aside h2{font-size:1.03rem;font-weight:800;margin:0 0 9px}
+.grocery-console-body .grocery-setup__aside p{font-size:.82rem;color:#61748a;line-height:1.55}
+.grocery-console-body .grocery-setup__checks{list-style:none;margin:0;padding:0}
+.grocery-console-body .grocery-setup__checks li{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid #ecf0f4;font-size:.83rem}
+.grocery-console-body .grocery-setup__checks li:last-child{border:0}
+.grocery-console-body .grocery-setup__checks i{color:#0a8c51}
+.grocery-console-body .grocery-setup__checks a{color:#087947;font-weight:750}
+.grocery-console-body .grocery-setup__aside details summary{color:#1f3854;font-weight:800;cursor:pointer}
+.grocery-console-body .grocery-setup__profile label{font-size:.83rem}
+.grocery-console-body .grocery-setup__profile button{margin-top:12px}
+.grocery-console-body .grocery-setup__aside-links{display:grid;gap:8px}
+.grocery-console-body .grocery-setup__aside-links a{display:flex;align-items:center;gap:9px;padding:10px 12px;background:#f5faf7;border-radius:9px;text-decoration:none;color:#087a46;font-size:.84rem;font-weight:720}
+.grocery-console-body .grocery-setup__table-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.grocery-console-body .grocery-setup__table-actions a{color:#08794a;font-weight:700;font-size:.82rem;text-decoration:none}
+.grocery-console-body .grocery-setup__empty{text-align:center;padding:32px;color:#6a7e90}
+.grocery-console-body .grocery-setup__empty strong{display:block;color:#1d334e;margin:10px 0 5px}
+.grocery-console-body .grocery-setup__table-intro{color:#667a8e;margin:-4px 0 18px;font-size:.88rem}
+@media(max-width:1080px){.grocery-console-body .grocery-setup__layout{grid-template-columns:1fr}.grocery-console-body .grocery-setup__aside{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.grocery-console-body .grocery-setup__hero{flex-direction:column;align-items:stretch}.grocery-console-body .grocery-setup__aside{grid-template-columns:1fr}.grocery-console-body .grocery-setup__step{padding:14px!important}.grocery-console-body .grocery-setup__step-icon{flex-basis:33px;width:33px;height:33px}.grocery-console-body .grocery-setup__progress{padding:16px}.grocery-console-body .grocery-setup__table-actions{justify-content:flex-start}}
