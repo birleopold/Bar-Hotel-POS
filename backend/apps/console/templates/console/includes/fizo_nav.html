@@ -1,0 +1,6 @@
+<header class="staff-nav" role="banner">
+  <div class="fizo-shell-top">
+    <div><div class="fizo-shell-top__title">{{ console_active_tenant.name|default:"Fizo business" }}</div><div class="fizo-shell-top__subtitle">Unified business management</div></div>
+    <div class="fizo-shell-top__actions"><a href="{% url 'console-org-setup' %}"><i class="bi bi-list-check" aria-hidden="true"></i> Setup</a><a href="{% url 'staff-dashboard' %}"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i> Workspace</a><span class="fizo-shell-top__user">{{ request.user.email }}</span></div>
+  </div>
+</header>
