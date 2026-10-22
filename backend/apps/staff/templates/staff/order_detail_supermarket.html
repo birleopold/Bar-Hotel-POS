@@ -2,7 +2,7 @@
 {% load static %}
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.5">
+<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.6">
 {% endblock %}
 {% block order_extra %}
   <div class="staff-toolbar mt-2 mb-3"><a class="staff-btn staff-btn--ghost" target="_blank" rel="noopener" href="{% url 'staff-retail-customer-display' order_id=order.id %}">Open customer display on second screen</a>
@@ -286,6 +286,25 @@
 </script>
 
 <script>
+/* Shortcuts only select an allowed method and focus the existing payment form.
+   They never record a payment without the cashier's normal form submission. */
+document.addEventListener("click", function(event) {
+  var button = event.target.closest("[data-fizo-payment-method]");
+  if (!button) return;
+  var form = document.querySelector("[data-pos-payment-form]");
+  var method = form && form.querySelector('select[name="method"]');
+  var amount = form && form.querySelector('input[name="amount"]');
+  if (!method) return;
+  var choice = button.getAttribute("data-fizo-payment-method");
+  if (!Array.from(method.options).some(function(opt) { return opt.value === choice; })) return;
+  method.value = choice;
+  method.dispatchEvent(new Event("change", {bubbles:true}));
+  document.querySelectorAll("[data-fizo-payment-method]").forEach(function(candidate) {
+    candidate.setAttribute("aria-pressed", candidate === button ? "true" : "false");
+  });
+  if (amount) { amount.focus(); amount.select(); }
+});
+
 /* Quantity steppers submit the existing authenticated stock-adjustment form. */
 document.addEventListener("click", function (event) {
   var button = event.target.closest("[data-fizo-step]");
