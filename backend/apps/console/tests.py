@@ -262,6 +262,21 @@ class ConsoleAccessTests(TestCase):
                 self.assertContains(response, heading)
                 self.assertContains(response, "hospitality-console-body")
 
+    def test_price_upload_requires_its_own_file_field(self) -> None:
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        user = User.objects.create_user(email="csv-isolation-test@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["supermarket"])
+        self._login_with_tenant(user)
+        url = reverse("console-org-catalog-import")
+        sample = self.client.get(url + "?sample=1")
+        upload = SimpleUploadedFile("catalog-example.csv", sample.content, content_type="text/csv")
+        response = self.client.post(url, {"action": "preview_prices", "file": upload})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "This field is required")
+        self.assertNotContains(response, "Price CSV columns must be")
+
     def test_sample_catalog_csv_is_not_parsed_as_price_update(self) -> None:
         from django.core.files.uploadedfile import SimpleUploadedFile
 
