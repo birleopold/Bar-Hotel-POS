@@ -27,16 +27,7 @@
     <link rel="stylesheet" href="{% static 'staff/staff-density.css' %}?v=20261016.1">
   {% endif %}
   {% if grocery_owner_shell %}
-    <style>{% include "staff/includes/grocery_owner_setup_styles.html" %}</style>
-    <style>
-      .grocery-owner-body .staff-main:not(.staff-main--dashboard){max-width:none;width:100%;padding:22px 24px 38px;background:#f5f8fc}
-      .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-card,
-      .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-panel{border:1px solid #e1e9ef;border-radius:14px;background:#fff;box-shadow:0 3px 15px rgba(28,45,77,.04)}
-      .grocery-owner-body .staff-main:not(.staff-main--dashboard) h1,
-      .grocery-owner-body .staff-main:not(.staff-main--dashboard) h2{color:#172743}
-      .grocery-owner-body .staff-main:not(.staff-main--dashboard) .staff-btn--primary{background:#008c4d;border-color:#008c4d;color:#fff}
-      @media(max-width:800px){.grocery-owner-body .staff-main:not(.staff-main--dashboard){padding:14px}}
-    </style>
+    <link rel="stylesheet" href="{% static 'staff/fizo-retail-owner.css' %}?v=20261022.1">
   {% endif %}
   {% block extra_css %}{% endblock %}
 </head>
