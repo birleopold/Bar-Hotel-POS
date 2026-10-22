@@ -1,0 +1,42 @@
+/* Fizo setup administration design, canonical styles for every console/org page.
+   Replaces legacy grocery owner styles within setup and configuration routes. */
+.fizo-setup-area{--fizo-green:#008c4d;--fizo-ink:#172743;--fizo-border:#dfe8ef;background:#f5f8fa!important;color:var(--fizo-ink);min-width:0;padding:24px clamp(14px,2.5vw,32px) 44px!important;max-width:none!important}
+.fizo-setup-area :is(.grocery-setup,.fizo-entity){max-width:1300px;width:100%;margin-inline:auto;min-width:0}
+.fizo-setup-area :is(.grocery-setup__hero,.grocery-form-head,.fizo-entity__header,.staff-toolbar){display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.fizo-setup-area :is(.grocery-setup__hero h1,.grocery-form-head h1,.staff-page-title,.fizo-entity__header h1){font-size:clamp(1.7rem,2.6vw,2.35rem);font-weight:800;letter-spacing:-.035em;color:#162b3f}
+.fizo-setup-area :is(.grocery-setup__eyebrow,.grocery-form-kicker){font-size:.77rem;color:#07804a;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.fizo-setup-area :is(.staff-muted,.grocery-form-help){color:#63788d}
+.fizo-setup-area :is(.staff-card,.staff-panel,.grocery-guided-form,.fizo-entity__card){background:#fff;border:1px solid var(--fizo-border);border-radius:15px;box-shadow:0 3px 15px rgba(28,45,77,.045);padding:20px}
+.fizo-setup-area .grocery-guided-form{max-width:980px;padding:24px}
+.fizo-setup-area .grocery-form-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px 22px}
+.fizo-setup-area .grocery-form-field{min-width:0;display:flex;flex-direction:column;gap:6px}
+.fizo-setup-area :is(.grocery-form-field label,.staff-label){color:#263e55;font-size:.86rem;font-weight:750}
+.fizo-setup-area :is(input:not([type=checkbox]):not([type=radio]),select,textarea){min-height:43px;max-width:100%;border:1px solid #d6e2ec;border-radius:9px;padding:9px 11px;background:#fff;color:#182c42}
+.fizo-setup-area .grocery-form-field :is(input:not([type=checkbox]),select,textarea){width:100%}
+.fizo-setup-area .grocery-form-field:has(textarea){grid-column:1/-1}
+.fizo-setup-area .grocery-form-field:has(input[type=checkbox]){flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap}
+.fizo-setup-area .grocery-form-footer{border-top:1px solid #e7edf2;margin-top:22px;padding-top:17px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:.82rem;color:#74869a}
+.fizo-setup-area .grocery-form-footer>div,.fizo-setup-area .grocery-setup__hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.fizo-setup-area .staff-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:9px;min-height:40px;padding:9px 14px;font-size:.84rem;font-weight:700;text-decoration:none}
+.fizo-setup-area .staff-btn--primary{background:var(--fizo-green);border:1px solid var(--fizo-green);color:white}
+.fizo-setup-area .staff-btn--ghost{background:#fff;border:1px solid #d6e2ec;color:#263f58}
+.fizo-setup-area .staff-table-wrap{overflow-x:auto;border:1px solid #e4ecf1;border-radius:12px}
+.fizo-setup-area .staff-table{width:100%}
+.fizo-setup-area .staff-table thead th{background:#edf7f1;color:#344e62;font-weight:750}
+.fizo-setup-area .grocery-setup__empty{text-align:center;padding:30px}
+.fizo-setup-area .grocery-setup__action-link,.fizo-setup-area .grocery-setup__table-actions a{color:#087d48;font-weight:750;text-decoration:none}
+.fizo-setup-area .grocery-setup__table-actions{display:flex;flex-wrap:wrap;gap:12px}
+.fizo-setup-area .grocery-setup__progress progress{width:100%;height:12px;accent-color:var(--fizo-green)}
+.fizo-setup-area a:focus-visible,.fizo-setup-area button:focus-visible,.fizo-setup-area input:focus-visible,.fizo-setup-area select:focus-visible{outline:3px solid #e0b04d;outline-offset:2px}
+.fizo-setup-area .grocery-setup__layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(270px,.8fr);gap:18px}
+.fizo-setup-area .grocery-setup__step{display:flex;align-items:start;gap:13px;margin-bottom:12px}
+.fizo-setup-area .grocery-setup__step-body{flex:1;min-width:0}
+.fizo-setup-area .grocery-setup__step-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.fizo-setup-area .grocery-setup__aside{display:grid;gap:14px}
+.fizo-setup-area .grocery-setup__aside-links{display:grid;gap:8px}
+.fizo-setup-area .grocery-setup__aside-links a{color:#087d48}
+.fizo-setup-area .grocery-setup__step-icon{display:grid;place-items:center;min-width:35px;width:35px;height:35px;border-radius:50%;background:#e4f5eb;color:#008c4d}
+.fizo-setup-area .grocery-setup__step--done{background:#f4fbf7}
+.fizo-setup-area .grocery-setup__checks{list-style:none;padding:0}
+@media(max-width:1040px){.fizo-setup-area .grocery-setup__layout{grid-template-columns:1fr}}
+@media(max-width:720px){.fizo-setup-area .grocery-form-fields{grid-template-columns:1fr}.fizo-setup-area .grocery-guided-form{padding:16px}.fizo-setup-area .grocery-form-footer{align-items:stretch}.fizo-setup-area .grocery-setup__hero{flex-direction:column}.fizo-setup-area .staff-card{padding:15px}}
