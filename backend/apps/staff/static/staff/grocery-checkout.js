@@ -29,7 +29,9 @@
     title.className = "grocery-register-heading__title";
     var mark = document.createElement("span");
     mark.className = "grocery-register-heading__mark";
-    mark.textContent = "🛒";
+    var cartIcon = document.createElement("i");
+    cartIcon.className = "bi bi-cart3";
+    mark.appendChild(cartIcon);
     mark.setAttribute("aria-hidden", "true");
     var titleCopy = document.createElement("span");
     var storeName = document.querySelector(".staff-sidebar__brand-copy strong, .owner-topbar__brand strong");
