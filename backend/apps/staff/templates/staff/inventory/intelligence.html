@@ -1,16 +1,15 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Stock planning{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
+{% block main_class %}staff-main--wide fizo-inventory-workspace{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.3">{% endblock %}
 {% block content %}
+<div class="fizo-inventory fizo-inventory--intelligence">
+
 {% include "staff/inventory/includes/subnav.html" %}
-<header class="staff-page-hero">
-  <div class="staff-dash-hero__panel">
-    <p class="staff-dash-hero__eyebrow">Inventory</p>
-    <h1 class="staff-page-title">Stock planning</h1>
-    <p>See slow-moving stock, batch ages, recent usage and suggested restocking amounts. Figures come from recorded stock movements and deliveries, not guesses.</p>
-  </div>
-</header>
-<section class="staff-card mb-3">
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Supermarket / Inventory</p><h1>Stock planning</h1><p>Plan purchasing from actual usage and recorded stock, not estimates.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
+<section class="fizo-inventory__panel mb-3">
   <form class="row g-3 align-items-end" method="get">
     <div class="col-12 col-sm-5 col-lg-4">
       <label class="staff-label" for="safety-days">Extra days of stock to keep</label>
@@ -91,7 +90,8 @@
 </nav>
 {% endif %}
 <section class="staff-card mt-4">
-  <h2 class="staff-section-head">How to read this report</h2>
+  <h2 class="fizo-inventory__heading">How to read this report</h2>
   <p class="staff-muted mb-0">Only stock with recorded batch receipt dates has a reliable age. The movement ratio is a simple 30-day usage comparison, not a formal sell-through rate. Dead-stock flags require evidence of old receiving activity and 90 days without recorded usage. Check stock counts, missing supplier prices and purchase orders before making purchasing decisions.</p>
 </section>
+</div>
 {% endblock %}
