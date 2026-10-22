@@ -6,6 +6,8 @@ from django import forms
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.core.cache import cache
+from django.views.decorators.cache import never_cache
+from django.utils.decorators import method_decorator
 from django.utils.crypto import salted_hmac
 from .password_views import request_password_reset_for_email
 from django.views import View
@@ -20,6 +22,7 @@ class StaffPasswordRecoveryRequestForm(forms.Form):
     ))
 
 
+@method_decorator(never_cache, name="dispatch")
 class StaffPasswordRecoveryRequestView(View):
     """Self-initiated request; never emails a reset token before operator approval."""
     template_name = "password_reset/request.html"
@@ -63,6 +66,7 @@ class StaffPasswordResetForm(forms.Form):
         return values
 
 
+@method_decorator(never_cache, name="dispatch")
 class StaffPasswordResetConfirmView(View):
     """
     GET: show form when ``uid`` and ``token`` query params are present (from email link).
