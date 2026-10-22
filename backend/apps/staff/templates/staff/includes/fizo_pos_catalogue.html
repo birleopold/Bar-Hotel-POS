@@ -4,8 +4,6 @@
             <div><span class="staff-pos-menu-eyebrow">{% if is_supermarket_outlet %}PRODUCT CATALOGUE{% else %}ORDER MENU{% endif %}</span><h2 class="staff-card__title staff-card__title--pos mb-0">Add an item</h2></div>
             <span class="staff-pos-menu-hint">Tap a product to add it</span>
           </div>
-          {% if pos_menu_categories %}
-            <div class="staff-pos-menu-browser" data-pos-menu-browser>
               {% if is_supermarket_outlet %}
               <form method="get" class="fizo-server-catalogue-search" role="search">
                 <label for="fizo-catalogue-server-query">Search all available products</label>
@@ -15,6 +13,8 @@
                 {% if retail_catalogue_q %}<a href="?">Reset catalogue search</a>{% endif %}
               </form>
               {% endif %}
+          {% if pos_menu_categories %}
+            <div class="staff-pos-menu-browser" data-pos-menu-browser>
               <div class="staff-pos-menu-tools">
                 <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="{% if is_supermarket_outlet %}Search name, SKU or barcode{% else %}Search items{% endif %}" autocomplete="off" data-pos-menu-search></label>
                 {% if is_supermarket_outlet %}<button type="button" class="fizo-pos-search-clear" data-fizo-search-clear aria-label="Clear product search">Clear</button>{% endif %}<span class="staff-pos-menu-count">{{ add_line_form.menu_item.field.queryset.count }} items</span>
@@ -54,6 +54,7 @@
               <p class="visually-hidden" aria-live="polite" data-pos-menu-selection></p>
             </div>
           {% endif %}
+          {% if is_supermarket_outlet and not pos_menu_categories %}<div class="staff-empty-state"><p>No matching products. Try another name, SKU or barcode.</p></div>{% endif %}
           {% include "staff/includes/form_errors_block.html" with form=add_line_form title="Fix item details" %}
           <form method="post" class="staff-pos-add-item-form" data-fizo-add-line-form>
             {% csrf_token %}
