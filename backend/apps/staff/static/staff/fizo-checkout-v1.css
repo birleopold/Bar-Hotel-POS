@@ -74,3 +74,20 @@
 @media(max-width:1050px){.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.fizo-checkout-basket{position:static}.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:620px){.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-retail-pos-heading>.staff-btn{width:100%;justify-content:center}}
+
+/* Approved supermarket checkout — editable basket cards; operational server forms preserved */
+.fizo-retail-basket-items{display:flex;flex-direction:column;gap:0;background:white}
+.fizo-retail-basket-row{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:8px;border-bottom:1px solid #e2ebe6;padding:14px 4px;align-items:start}
+.fizo-retail-basket-row__info{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fizo-retail-basket-row__info strong{font-size:14px;font-weight:850;color:#162f3c;overflow-wrap:anywhere}
+.fizo-retail-basket-row__amount{font-weight:850;color:#00854a;font-size:14px}
+.fizo-retail-stepper{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.fizo-retail-stepper button{border:1px solid #dce6e0;border-radius:7px;background:#f2f7f4;min-height:36px;min-width:34px;color:#254654;font-weight:850}
+.fizo-retail-stepper input{width:57px!important;min-width:57px;text-align:center;min-height:36px;border:1px solid #e2ebe6;border-radius:7px}
+.fizo-retail-stepper .fizo-retail-stepper__save{background:#e0f6e9;color:#007e42;font-size:11px;padding:3px 7px}
+.fizo-retail-basket-row__void{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.fizo-retail-basket-row__void input{min-width:0;max-width:175px;width:100%;border:1px solid #e6ebe7;border-radius:7px;min-height:32px;padding:5px 8px;font-size:11px}
+.fizo-retail-basket-row__void button{border:0;background:transparent;color:#aa4d4d;text-decoration:underline;font-size:12px}
+.fizo-retail-basket-empty{text-align:center;padding:30px;color:#6d857c}.fizo-retail-basket-empty i{font-size:28px;color:#008849}
+.fizo-checkout-basket__lines .fizo-retail-basket-items{padding:0 10px 12px}
+@media(max-width:680px){.fizo-retail-basket-row{grid-template-columns:1fr}.fizo-retail-stepper{justify-content:flex-start}.fizo-retail-basket-row__void{grid-column:auto;justify-content:flex-start}}
