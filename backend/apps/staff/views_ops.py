@@ -1901,12 +1901,28 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
         ctx["menu_all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["can_manage_tv_details"] = membership_can_manage_workspace_settings(self.request.tenant_membership)
         ctx["menu_search_q"] = self.request.GET.get("q", "").strip()[:80]
-        ctx["quick_review_count"] = MenuItem.objects.filter(
+        quick_review_qs = MenuItem.objects.filter(
             tenant_id=self.request.tenant.id,
             category__name="Needs catalogue review",
             sku__startswith="QUICK-",
             is_active=True,
-        ).count()
+        )
+        if outlet:
+            quick_review_qs = quick_review_qs.filter(
+                pk__in=menu_items_for_outlet_queryset(
+                    self.request.tenant.id, outlet.id
+                ).values("pk")
+            )
+        elif outlets and ctx["menu_all_outlets_mode"]:
+            allowed_q = Q(pk__in=[])
+            for authorized_outlet in outlets:
+                allowed_q |= Q(pk__in=menu_items_for_outlet_queryset(
+                    self.request.tenant.id, authorized_outlet.id
+                ).values("pk"))
+            quick_review_qs = quick_review_qs.filter(allowed_q)
+        else:
+            quick_review_qs = quick_review_qs.none()
+        ctx["quick_review_count"] = quick_review_qs.count()
         ctx["quick_review_filter"] = self.request.GET.get("review") == "quick"
         # A supermarket staff member in an all-register view needs the same
         # product catalogue as when a single store register is selected.
