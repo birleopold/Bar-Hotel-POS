@@ -6,14 +6,7 @@
 {% endblock %}
 {% block order_extra %}
 
-{% if order.status == 'open' and not order.is_paid and not can_modify_open_order %}
-<div class="staff-alert staff-alert--warning fizo-cashier-blocker" role="status"><strong>Checkout is unavailable for this account.</strong> Your current role cannot add products to this sale. Ask a workspace manager to check your permissions and the selected outlet.</div>
-{% elif can_modify_open_order and not add_line_form %}
-<div class="staff-alert staff-alert--warning fizo-cashier-blocker" role="status"><strong>Product catalogue isn't enabled for this workspace.</strong> Enable the retail/supermarket catalogue in business setup to search and sell products.</div>
-{% elif can_modify_open_order and add_line_form and not pos_menu_categories %}
-<div class="staff-alert staff-alert--info fizo-cashier-blocker" role="status"><strong>No products appear in this outlet.</strong> Search another product name or check that active products are assigned to {{ order.outlet.name }}.</div>
-{% endif %}
-  {% if can_modify_open_order and order.status == 'open' and not order.is_paid %}
+ {% if can_modify_open_order and order.status == 'open' and not order.is_paid %}
   <details class="staff-card fizo-quick-product" id="fizo-quick-product">
     <summary><i class="bi bi-plus-square"></i> Product missing? Add &amp; sell now</summary>
     <p class="staff-muted small mt-2">Enter the name and selling price. Fizo adds the product to this basket, records who created it and flags its catalogue record for review. This does not create stock quantities.</p>
