@@ -1,0 +1,37 @@
+/* Fizo management shell — replaces the legacy staff-console visual foundation on /console/org/. */
+:root{--fizo-primary:#008b4b;--fizo-primary-soft:#e9f7ee;--fizo-page:#f5f8f7;--fizo-line:#e3ebe8;--fizo-text:#172a34;--fizo-muted:#677b85}
+*,*::before,*::after{box-sizing:border-box}
+body.fizo-console-body{margin:0;background:var(--fizo-page);color:var(--fizo-text);font:14px/1.55 "DM Sans",system-ui,sans-serif}
+.fizo-console-body a{color:#087c47}.fizo-console-body button,.fizo-console-body input,.fizo-console-body select{font:inherit}
+.fizo-console-body .console-app-shell{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100dvh}
+.fizo-console-body .console-sidebar{position:sticky;top:0;align-self:start;height:100dvh;width:232px;min-width:0;max-width:none;border-right:1px solid var(--fizo-line);background:#fff;overflow-y:auto;padding:17px 12px}
+.fizo-console-body .staff-app-shell__body{min-width:0;display:flex;flex-direction:column}
+.fizo-console-body .fizo-shell-brand{display:flex;align-items:center;gap:10px;color:#132934;text-decoration:none;font-size:24px;font-weight:850;letter-spacing:-.04em;padding:4px 12px 20px;border-bottom:1px solid var(--fizo-line)}
+.fizo-console-body .fizo-shell-brand__mark{display:grid;place-items:center;width:38px;height:38px;background:linear-gradient(135deg,#03a65a,#006a37);border-radius:11px;color:#fff;font-size:24px}
+.fizo-console-body .fizo-shell-context{display:block;color:#688078;font-size:11px;font-weight:700;padding:17px 12px 8px;text-transform:uppercase;letter-spacing:.08em}
+.fizo-console-body .fizo-shell-nav{display:grid;gap:4px}
+.fizo-console-body .fizo-shell-nav a{display:flex;align-items:center;gap:12px;min-height:42px;padding:10px 12px;color:#455a62;text-decoration:none;border-radius:9px;font-weight:650;line-height:1.3}
+.fizo-console-body .fizo-shell-nav a i{font-size:17px;width:19px;flex-shrink:0}
+.fizo-console-body .fizo-shell-nav a:hover{background:#f0f7f3;color:#006a39}
+.fizo-console-body .fizo-shell-nav a[aria-current="page"]{background:#e8f7ee;color:#007c43;font-weight:800}
+.fizo-console-body .fizo-shell-help{font-size:12px;color:#789087;border-top:1px solid var(--fizo-line);margin-top:22px;padding:14px 12px}
+.fizo-console-body .staff-nav{display:flex;min-height:65px;padding:12px 28px;background:#fff;border-bottom:1px solid var(--fizo-line);align-items:center;gap:16px}
+.fizo-console-body .fizo-shell-top{display:flex;align-items:center;justify-content:space-between;width:100%;gap:16px}
+.fizo-console-body .fizo-shell-top__title{font-size:15px;color:#172e38;font-weight:800}
+.fizo-console-body .fizo-shell-top__subtitle{color:#819094;font-size:12px}
+.fizo-console-body .fizo-shell-top__actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.fizo-console-body .fizo-shell-top__actions a{color:#007845;font-weight:750;text-decoration:none}
+.fizo-console-body .fizo-shell-top__user{max-width:240px;color:#60737c;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fizo-console-body .staff-main.console-main{width:100%;max-width:none;min-width:0;flex:1}
+.fizo-console-body .staff-card{border:1px solid var(--fizo-line);background:#fff;border-radius:14px}
+.fizo-console-body .staff-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:9px;text-decoration:none;min-height:40px;padding:9px 15px;font-size:13px;font-weight:750;cursor:pointer}
+.fizo-console-body .staff-btn--primary{background:var(--fizo-primary);border:1px solid var(--fizo-primary);color:#fff}
+.fizo-console-body .staff-btn--primary:hover{background:#006d3c;color:#fff}
+.fizo-console-body .staff-btn--ghost{background:#fff;border:1px solid #d7e4dd;color:#2a4650}
+.fizo-console-body .staff-alert{border-radius:11px;padding:13px 16px;margin-bottom:16px}
+.fizo-console-body .staff-alert--danger{background:#fff2f1;border:1px solid #ffd0ce;color:#952d34}
+.fizo-console-body .staff-alert--warning{background:#fff8e9;border:1px solid #f6dfab;color:#754a0c}
+.fizo-console-body .staff-table th,.fizo-console-body .staff-table td{text-align:left}
+.fizo-console-body :is(a,button,input,select,textarea):focus-visible{outline:3px solid #dbb556;outline-offset:2px}
+@media(max-width:900px){.fizo-console-body .console-app-shell{grid-template-columns:76px minmax(0,1fr)}.fizo-console-body .console-sidebar{width:76px;padding:12px 7px}.fizo-console-body .fizo-shell-brand{font-size:0;justify-content:center;padding:6px 0 15px}.fizo-console-body .fizo-shell-brand__mark{font-size:21px}.fizo-console-body .fizo-shell-nav a{justify-content:center;font-size:0;padding:10px}.fizo-console-body .fizo-shell-nav a i{font-size:20px;width:auto}.fizo-console-body .fizo-shell-context,.fizo-console-body .fizo-shell-help{display:none}}
+@media(max-width:560px){.fizo-console-body .console-app-shell{display:block}.fizo-console-body .console-sidebar{position:static;width:100%;height:auto;max-width:none;overflow:auto;border-right:0;border-bottom:1px solid var(--fizo-line)}.fizo-console-body .fizo-shell-brand{font-size:21px;justify-content:start;padding:0 6px 10px}.fizo-console-body .fizo-shell-nav{display:flex;overflow-x:auto;gap:3px}.fizo-console-body .fizo-shell-nav a{font-size:12px;white-space:nowrap;min-width:fit-content;gap:5px}.fizo-console-body .fizo-shell-nav a i{font-size:14px}.fizo-console-body .staff-nav{padding:11px 15px}.fizo-console-body .fizo-shell-top__user{display:none}}
