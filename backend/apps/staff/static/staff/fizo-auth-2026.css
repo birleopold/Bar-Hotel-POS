@@ -1,0 +1,41 @@
+/* Fizo universal staff authentication: password access and shared-terminal PIN. */
+:root{--fz-auth-green:#00884b;--fz-auth-ink:#172f3a;--fz-auth-muted:#5b7275;--fz-auth-border:#dce8e1}
+*,*::before,*::after{box-sizing:border-box}
+body.fizo-auth-body{margin:0;min-height:100svh;font-family:"DM Sans",system-ui,-apple-system,sans-serif;color:var(--fz-auth-ink);background:#f2f6f4}
+.fizo-auth{min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,520px);align-items:stretch}
+.fizo-auth__aside{display:flex;flex-direction:column;justify-content:space-between;padding:clamp(28px,5vw,70px);background:linear-gradient(145deg,#073c2d,#07523a);color:#f2fff9}
+.fizo-auth__brand{display:flex;align-items:center;gap:13px;font-size:19px;font-weight:850}
+.fizo-auth__mark{display:grid;place-items:center;flex:none;width:47px;height:47px;border-radius:13px;background:#f3fff8;color:#006e3f;font-size:25px;font-weight:900}
+.fizo-auth__brand img{width:47px;height:47px;object-fit:contain;border-radius:12px}
+.fizo-auth__eyebrow{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:#a5ddc5;font-weight:800}
+.fizo-auth__statement{font-size:clamp(32px,4vw,57px);font-weight:850;line-height:1.12;max-width:700px;letter-spacing:-.045em;margin:13px 0}
+.fizo-auth__aside p{max-width:500px;line-height:1.65;color:#c5e8d7}
+.fizo-auth__aside-foot{font-size:12px;color:#b7dccb}
+.fizo-auth__panel{display:flex;align-items:center;justify-content:center;padding:clamp(20px,4vw,58px);background:#fff}
+.fizo-auth__card{width:100%;max-width:440px}
+.fizo-auth__mobile-brand{display:none;margin-bottom:25px;font-weight:850;color:#0c6743}
+.fizo-auth__header{margin-bottom:22px}
+.fizo-auth__header h1{font-size:clamp(26px,3vw,35px);letter-spacing:-.035em;margin:0 0 10px;line-height:1.18}
+.fizo-auth__header p{color:var(--fz-auth-muted);font-size:14px;line-height:1.55;margin:0}
+.fizo-auth__tabs{display:flex;gap:6px;padding:5px;background:#eff5f1;border-radius:13px;margin:0 0 27px}
+.fizo-auth__tabs a{display:flex;align-items:center;justify-content:center;min-height:48px;padding:9px 15px;text-decoration:none;border-radius:9px;color:#42655c;font-weight:800;font-size:14px;flex:1}
+.fizo-auth__tabs a[aria-current=page]{background:#fff;color:#006e41;box-shadow:0 2px 8px #0a2b1915}
+.fizo-auth__form{display:grid;gap:16px}
+.fizo-auth__field{display:grid;gap:7px}
+.fizo-auth__field label{font-size:13px;font-weight:800}
+.fizo-auth__field .staff-input,.fizo-auth__field select,.fizo-auth__field input{display:block;width:100%;min-height:52px;border:1px solid var(--fz-auth-border);border-radius:11px;padding:12px 14px;color:var(--fz-auth-ink);background:#fff;font:inherit;font-size:16px}
+.fizo-auth__field :focus-visible,.fizo-auth__submit:focus-visible,.fizo-auth__tabs a:focus-visible,.fizo-auth__key:focus-visible{outline:3px solid #78cba4;outline-offset:2px}
+.fizo-auth__submit{display:block;width:100%;min-height:54px;border:none;border-radius:11px;background:var(--fz-auth-green);color:#fff;font-size:15px;font-weight:850;cursor:pointer}
+.fizo-auth__submit:hover{background:#00733e}
+.fizo-auth__errors{padding:11px 13px;border-radius:10px;background:#fff0f0;color:#8d2626;font-size:13px}
+.fizo-auth__footer{margin-top:22px;color:var(--fz-auth-muted);font-size:12px;line-height:1.55}
+.fizo-auth__keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:350px;margin:8px auto}
+.fizo-auth__key{height:clamp(52px,7vh,72px);background:#f8fbf9;border:1px solid var(--fz-auth-border);border-radius:12px;font-size:23px;font-weight:800;color:#193c35;cursor:pointer;touch-action:manipulation}
+.fizo-auth__key:active{background:#dcefe4}
+.fizo-auth__key[data-key=clear],.fizo-auth__key[data-key=delete]{font-size:13px}
+.fizo-auth__hint{font-size:12px;color:var(--fz-auth-muted);text-align:center;margin:0}
+@media(max-width:900px){.fizo-auth{grid-template-columns:1fr;min-height:100svh}.fizo-auth__aside{display:none}.fizo-auth__panel{padding:28px 24px;min-height:100svh}.fizo-auth__mobile-brand{display:flex;align-items:center;gap:11px}}
+@media(max-width:460px){.fizo-auth__panel{align-items:flex-start;padding:22px 18px 26px;min-height:100svh}.fizo-auth__header{margin-bottom:17px}.fizo-auth__tabs{margin-bottom:20px}.fizo-auth__keypad{gap:8px}.fizo-auth__key{height:54px}}
+@media(min-width:1500px){.fizo-auth{grid-template-columns:minmax(0,1fr) 600px}.fizo-auth__card{max-width:470px}}
+@media(max-height:690px) and (min-width:600px){.fizo-auth__panel{padding-block:16px}.fizo-auth__card{max-width:410px}.fizo-auth__header{margin-bottom:12px}.fizo-auth__tabs{margin-bottom:14px}.fizo-auth__form{gap:10px}.fizo-auth__key{height:48px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
