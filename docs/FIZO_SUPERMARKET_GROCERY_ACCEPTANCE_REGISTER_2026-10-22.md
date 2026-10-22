@@ -15,7 +15,7 @@ This register is specific to supermarket and grocery workflows and is a suppleme
 | 7 | Product catalogue (staff) | `staff-menu` | `staff/menu_list.html` | Fizo retail table source | UNVERIFIED |
 | 8 | Product/category administration | `console-org-menu-*` | `console/org/menu_item_*.html`, `menu_category_*.html` | Not audited | UNVERIFIED |
 | 9 | Product import / bulk prices | `console-org-catalog-import` | `console/org/catalog_import.html` | Not audited | UNVERIFIED |
-| 10 | Stock overview, lots and transactions | Inventory routes | `staff/inventory/balances.html`, `batches.html`, `movements.html` | Not audited | UNVERIFIED |
+| 10 | Stock overview, lots and transactions | Inventory routes | `staff/inventory/balances.html`, `batches.html`, `movements.html` | Balances page restructured in Fizo; batches and movements still outstanding | UNVERIFIED |
 | 11 | Stock counts, transfers and receipts | Inventory routes | `staff/inventory/count*.html`, `transfer*.html` | Not audited | UNVERIFIED |
 | 12 | Shelf locations and scale labels | Inventory routes | `staff/inventory/shelves.html`, `scale_labels.html` | Not audited | UNVERIFIED |
 | 13 | Stock intelligence / low stock | Inventory intelligence route | `staff/inventory/intelligence.html` | Not audited | UNVERIFIED |
@@ -47,3 +47,8 @@ Use four reference images supplied by the user: unified suite, owner supermarket
 5. Static deployment checked, no orphan legacy CSS, deploy revision and screenshot recorded.
 
 **No rows currently have sufficient acceptance evidence for DONE.**
+
+
+## Batch: Stock balances page
+
+Implemented dedicated `fizo-stock.css` and rebuilt `staff/inventory/balances.html` using product, outlet, quantity and reorder data from the existing view. Preserved search, low-stock filtering, pagination, and authorization gates on stock actions. Fixed duplicate low-stock query parameters in paging. Source-level template compilation and route tests were added but **have not yet been run**. Desktop/tablet/mobile browser testing and stock workflow acceptance are still outstanding.
