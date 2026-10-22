@@ -275,6 +275,20 @@ class ConsoleAccessTests(TestCase):
         self.assertNotContains(response, "grocery-owner-console.css")
         self.assertNotContains(response, "hospitality-console.css")
 
+    def test_modifier_and_service_lists_use_unified_layout(self) -> None:
+        user = User.objects.create_user(email="fizo-lists@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["bar", "services"])
+        self._login_with_tenant(user)
+        for route in ("console-org-modifier-groups", "console-org-service-offerings"):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "fizo-entity-list-page")
+                self.assertContains(response, "fizo-setup-area.css")
+                self.assertNotContains(response, "grocery-owner-console.css")
+                self.assertNotContains(response, "hospitality-console.css")
+
     def test_modifier_group_uses_fizo_form_without_old_css(self) -> None:
         user = User.objects.create_user(email="fizo-modifier-form@test.local", password="TestPass9!")
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
