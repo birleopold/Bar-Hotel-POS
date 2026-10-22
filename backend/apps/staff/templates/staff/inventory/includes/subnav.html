@@ -1,17 +1,17 @@
 {% with n=request.resolver_match.url_name %}
-<div class="staff-subnav-pills" aria-label="Stock sections">
-  <a class="staff-btn {% if n == 'staff-inventory-balances' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-balances' %}">Stock</a>
-  <a class="staff-btn {% if n == 'staff-inventory-batches' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
+<div class="fizo-inventory__tabs" aria-label="Stock sections">
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-balances' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-balances' %}">Stock</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-batches' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
   {% if 'supermarket' in request.tenant.settings.business_lines or 'retail' in request.tenant.settings.business_lines %}
-  <a class="staff-btn {% if n == 'staff-inventory-scale-labels' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-scale-labels' %}">Scale labels</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-scale-labels' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-scale-labels' %}">Scale labels</a>
   {% endif %}
-  <a class="staff-btn {% if n == 'staff-inventory-shelves' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-shelves' %}">Aisles &amp; shelves</a>
-  <a class="staff-btn {% if n == 'staff-inventory-intelligence' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-intelligence' %}">Stock planning</a>
-  <a class="staff-btn {% if n == 'staff-inventory-movements' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movements' %}">Ledger</a>
-  <a class="staff-btn {% if n == 'staff-inventory-movement-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
-  <a class="staff-btn {% if n == 'staff-inventory-movement-upload' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-movement-upload' %}">Upload CSV</a>
-  <a class="staff-btn {% if n == 'staff-inventory-transfer' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-transfer' %}">Transfer</a>
-  <a class="staff-btn {% if n == 'staff-inventory-transfer-receipts' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-transfer-receipts' %}">Transfers &amp; deliveries</a>
-  <a class="staff-btn {% if n == 'staff-inventory-counts' or n == 'staff-inventory-count-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-inventory-counts' %}">Stock take</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-shelves' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-shelves' %}">Aisles &amp; shelves</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-intelligence' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-intelligence' %}">Stock planning</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-movements' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-movements' %}">Ledger</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-movement-create' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-movement-upload' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-movement-upload' %}">Upload CSV</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-transfer' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-transfer' %}">Transfer</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-transfer-receipts' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-transfer-receipts' %}">Transfers &amp; deliveries</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-counts' or n == 'staff-inventory-count-create' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-counts' %}">Stock take</a>
 </div>
 {% endwith %}
