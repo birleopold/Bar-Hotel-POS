@@ -1,0 +1,22 @@
+/* Fizo supermarket product management: separate clean design, no legacy theme. */
+.fizo-retail-products{background:#f6f9f8}.fizo-products{max-width:1510px;margin:0 auto}
+.fizo-products__head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.fizo-products__eyebrow{font-size:11px;text-transform:uppercase;color:#008b4c;font-weight:850;letter-spacing:.07em;margin:0 0 8px}
+.fizo-products__head h1{font-size:clamp(26px,3vw,37px);font-weight:850;letter-spacing:-.035em;margin:0 0 5px;color:#142b34}
+.fizo-products__head p:last-child{max-width:680px;color:#6e8287;margin:0}
+.fizo-products__actions{display:flex;gap:9px;flex-wrap:wrap}.fizo-products__surface{background:white;border:1px solid #e0ebe6;border-radius:14px;padding:19px}
+.fizo-products__tools{display:flex;align-items:end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.fizo-products__search{flex:1;min-width:min(100%,310px);max-width:740px}.fizo-products__search label{display:block;color:#566c72;font-weight:800;font-size:12px;margin-bottom:7px}
+.fizo-products__search>div{display:flex;align-items:center;border:1px solid #d9e6df;border-radius:9px;padding:4px 4px 4px 13px;gap:9px}.fizo-products__search input{min-width:0;width:100%;border:0;outline:0;padding:9px;background:transparent;color:#263f42}
+.fizo-products__search button{background:#008a4a;border:0;border-radius:7px;color:#fff;font-weight:800;padding:10px 16px;cursor:pointer}
+.fizo-products__stat{display:flex;flex-direction:column;gap:1px;border-radius:9px;background:#edf9f1;padding:8px 17px;color:#007c43}.fizo-products__stat strong{font-size:23px}.fizo-products__stat span{font-size:11px;font-weight:750}
+.fizo-products__scope{margin:14px 0;color:#6c8083;font-size:13px}
+.fizo-products__table-wrap{overflow-x:auto}.fizo-products__table{border-collapse:collapse;width:100%;min-width:700px}
+.fizo-products__table thead{background:#f2f8f4}.fizo-products__table th{text-align:left;font-size:12px;color:#5d716b;font-weight:800;padding:12px}
+.fizo-products__table td{padding:11px 12px;border-bottom:1px solid #e8eeea;color:#36505a}.fizo-products__table tr:hover td{background:#fbfefa}
+.fizo-products__item{display:flex;align-items:center;gap:11px}.fizo-products__item img,.fizo-products__placeholder{width:43px;height:43px;border-radius:8px;object-fit:contain;background:#f1f7f4}
+.fizo-products__placeholder{display:grid;place-items:center;color:#008948;font-size:19px}.fizo-products__item strong{font-weight:800;color:#172d35}
+.fizo-products__price{font-weight:850;color:#007d47!important;white-space:nowrap}.fizo-products__muted{color:#7c8d8d;font-size:12px}
+.fizo-products__details summary{cursor:pointer;color:#008b4b;font-weight:800}.fizo-products__details form{display:grid;gap:8px;min-width:220px;max-width:320px;padding:14px;margin-top:9px;border:1px solid #e2ece5;border-radius:10px;background:#fff}
+.fizo-products__details label{font-size:12px;font-weight:700}.fizo-products__empty{text-align:center;padding:35px!important;color:#6e8288!important}
+@media(max-width:700px){.fizo-products__surface{padding:12px}.fizo-products__actions{width:100%}.fizo-products__search{max-width:none}.fizo-products__stat{display:none}.fizo-products__head h1{font-size:28px}}
