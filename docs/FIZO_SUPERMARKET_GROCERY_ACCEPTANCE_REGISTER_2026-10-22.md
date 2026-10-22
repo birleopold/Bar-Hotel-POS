@@ -7,7 +7,7 @@ This register is specific to supermarket and grocery workflows and is a suppleme
 | # | Page or workflow | Route name or route family | Primary template or UI | Source redesign | Acceptance |
 |---:|---|---|---|---|---|
 | 1 | Owner dashboard / setup / activity | `staff-dashboard` | `staff/dashboard.html` | Fizo v2 source | UNVERIFIED |
-| 2 | Sales POS landing, new sale, held sale, history | `staff-orders`, `staff-order-quick-create` | `staff/orders_list.html` | Legacy list DOM | UNVERIFIED |
+| 2 | Sales POS landing, new sale, held sale, history | `staff-orders`, `staff-order-quick-create` | `staff/orders_list.html` | Independent Fizo cashier sales landing source committed | UNVERIFIED |
 | 3 | Active cashier basket and payment | `staff-order-detail` | `staff/order_detail_supermarket.html`, base `order_detail.html` | Fizo catalogue/basket source | UNVERIFIED |
 | 4 | Barcode scan and shelf product selection | Order POST action | Checkout template and JS | Fizo source | UNVERIFIED |
 | 5 | Receipt view / printing | Order print routes | `staff/order_print.html` | Requires individual design | UNVERIFIED |
@@ -52,3 +52,8 @@ Use four reference images supplied by the user: unified suite, owner supermarket
 ## Batch: Stock balances page
 
 Implemented dedicated `fizo-stock.css` and rebuilt `staff/inventory/balances.html` using product, outlet, quantity and reorder data from the existing view. Preserved search, low-stock filtering, pagination, and authorization gates on stock actions. Fixed duplicate low-stock query parameters in paging. Source-level template compilation and route tests were added but **have not yet been run**. Desktop/tablet/mobile browser testing and stock workflow acceptance are still outstanding.
+
+
+## Cashier sales landing redesign (2026-10-22)
+
+`staff/orders_list.html` now routes only `show_supermarket_lane` to a fresh included DOM `staff/includes/fizo_retail_sales_landing.html` with `fizo-retail-sales.css`. Restaurant and bar retain their original ordering branch. The page retains register-shift gate, quick-create POST with CSRF, held baskets, active lanes, receipt status filtering, search, pagination and original order detail links. No customer is required for a walk-in checkout. New regression tests added but not executed; browser acceptance remains **UNVERIFIED**.
