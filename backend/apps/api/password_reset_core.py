@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from django.conf import settings
+from django.core.mail import send_mail
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 from django.db import transaction
@@ -89,4 +91,13 @@ def attempt_password_reset_confirm(*, uid: str, token: str, new_password: str) -
         approved.status = "used"
         approved.token_digest = ""
         approved.save(update_fields=["status", "token_digest"])
+        # No credentials in the notice; recovery itself never logs the user in.
+        transaction.on_commit(lambda recipient=user.email: send_mail(
+            "Your Fizo password was changed",
+            "The password for your Fizo account has been updated. "
+            "If you did not authorize this, contact your platform administrator immediately.",
+            settings.DEFAULT_FROM_EMAIL,
+            [recipient],
+            fail_silently=True,
+        ))
     return 200, {"detail": "Password updated. You can sign in with your new password."}
