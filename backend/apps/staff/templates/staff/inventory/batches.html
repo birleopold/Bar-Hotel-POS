@@ -1,14 +1,15 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Batches and expiry{% endblock %}
+{% block main_class %}staff-main--wide fizo-inventory-workspace{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
+<div class="fizo-inventory fizo-inventory--batches">
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Supermarket / Inventory</p><h1>Batches & expiry</h1><p>Monitor expiry, manage tracked lots and prevent invalid stock consumption.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
 {% include "staff/inventory/includes/subnav.html" %}
-<header class="staff-page-hero"><div class="staff-dash-hero__panel">
-  <p class="staff-dash-hero__eyebrow">Inventory</p>
-  <h1 class="staff-page-title">Batches and expiry</h1>
-  <p>See expiring, expired and held stock. Hold a batch or record damaged or expired goods. All changes are recorded.</p>
-</div></header>
-<section class="staff-card mb-3">
-  <h2 class="staff-section-head">Find and review batches</h2>
+
+<section class="fizo-inventory__panel mb-3">
+  <h2 class="fizo-inventory__heading">Find and review batches</h2>
   <form method="get" class="row g-2 align-items-end" role="search">
     <div class="col-12 col-md-5"><label class="staff-label" for="batch-search">Product, SKU or lot code</label>
       <input class="staff-input" id="batch-search" name="q" value="{{ batch_query }}" maxlength="80" placeholder="e.g. BATCH-27"></div>
@@ -28,7 +29,7 @@
   <p class="staff-muted small mt-2 mb-0">Expiry and held stock cannot be consumed by FEFO. CSV export includes up to 2,000 matching batch records from your permitted sections.</p>
 </section>
 {% if can_modify_inventory %}
-<details class="staff-card mb-3">
+<details class="fizo-inventory__panel mb-3">
   <summary><strong>Receive a new stock batch</strong></summary>
   <p class="staff-muted mt-2">Use this when receiving goods directly without a purchase order. If receiving against an existing purchase order, use Purchasing → Receive instead to keep the supplier receipt linked.</p>
   <form method="post" class="row g-3 mt-1">{% csrf_token %}
@@ -54,7 +55,7 @@
     <div class="col-12"><button class="staff-btn staff-btn--primary" type="submit">Receive and add stock</button></div>
   </form>
 </details>
-<details class="staff-card mb-3">
+<details class="fizo-inventory__panel mb-3">
   <summary><strong>Assign existing stock to batches</strong></summary>
   <p class="staff-muted mt-2">Use this only for stock that was recorded before batch tracking. It labels existing quantities; it does not add stock.</p>
   <form method="post" class="row g-3 mt-1">{% csrf_token %}
@@ -82,8 +83,8 @@
 </details>
 {% endif %}
 {% if batches %}
-<div class="staff-table-wrap">
-<table class="staff-table">
+<div class="fizo-inventory__tablewrap">
+<table class="fizo-inventory__table">
 <thead><tr><th>Section</th><th>Product</th><th>Batch</th><th>Remaining</th><th>Expiry</th><th>Status</th>{% if can_modify_inventory %}<th>Actions</th>{% endif %}</tr></thead>
 <tbody>
 {% for batch in batches %}
@@ -118,9 +119,9 @@
 {% else %}<p>No batches recorded for your selected sections.</p>{% endif %}
 {% if selected_batch %}
 <section class="staff-card mt-3" aria-label="Batch stock movement history">
-<h2 class="staff-section-head">History: {{ selected_batch.menu_item.name }} / {{ selected_batch.batch_code }}</h2>
+<h2 class="fizo-inventory__heading">History: {{ selected_batch.menu_item.name }} / {{ selected_batch.batch_code }}</h2>
 <p class="staff-muted">Stock movements linked to this batch. Older movements made before tracking was introduced may not appear here.</p>
-<div class="staff-table-wrap"><table class="staff-table">
+<div class="fizo-inventory__tablewrap"><table class="fizo-inventory__table">
 <thead><tr><th>When</th><th>Action</th><th>Batch quantity</th><th>Order or transfer</th></tr></thead>
 <tbody>{% for allocation in batch_history %}
 <tr><td>{{ allocation.stock_movement.created_at }}</td>
@@ -137,4 +138,5 @@
 <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
 {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ batch_query|urlencode }}&amp;status={{ batch_status|urlencode }}">Next</a>{% endif %}
 </nav>{% endif %}
+</div>
 {% endblock %}
