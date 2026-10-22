@@ -262,6 +262,19 @@ class ConsoleAccessTests(TestCase):
                 self.assertContains(response, heading)
                 self.assertContains(response, "hospitality-console-body")
 
+    def test_import_page_has_clean_title_and_canonical_theme(self) -> None:
+        user = User.objects.create_user(email="fizo-import-style@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["supermarket"])
+        self._login_with_tenant(user)
+        response = self.client.get(reverse("console-org-catalog-import"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<title>Import products")
+        self.assertNotContains(response, "<title>Import products<div>")
+        self.assertContains(response, "fizo-setup-area.css")
+        self.assertNotContains(response, "grocery-owner-console.css")
+        self.assertNotContains(response, "hospitality-console.css")
+
     def test_all_setup_routes_use_canonical_stylesheet(self) -> None:
         user = User.objects.create_user(email="setup-css-route@test.local", password="TestPass9!")
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
