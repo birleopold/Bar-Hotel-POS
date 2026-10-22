@@ -125,3 +125,8 @@
 .fizo-pos-quick-pick{border:1px solid #cde4d5;border-radius:8px;background:#eaf8ee;color:#156440;font-size:12px;font-weight:800;padding:8px 11px;min-height:38px;cursor:pointer}
 .fizo-pos-quick-pick:hover,.fizo-pos-quick-pick:focus-visible{background:#008848;color:#fff}
 @media(max-width:600px){.fizo-pos-favourites{flex-direction:column}.fizo-pos-favourites>span{padding:0}}
+
+.fizo-pos-load-more{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;border:1px solid #e0e9e2;border-radius:10px;background:#fff;padding:12px}
+.fizo-pos-load-more[hidden],.fizo-pos-load-more button[hidden]{display:none!important}
+.fizo-pos-load-more p{margin:0;font-size:12px;color:#597369}
+.fizo-pos-load-more button{min-height:42px;font-weight:800}
