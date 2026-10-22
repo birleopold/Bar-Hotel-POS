@@ -179,3 +179,18 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('"request_key": request_key', view)
         self.assertIn('name="quick_product_request_key"', checkout)
         self.assertIn('Order.objects.select_for_update().get(', view)
+
+
+    def test_quick_products_are_serialized_across_separate_orders(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        quick = view.split("def _post_quick_create_product", 1)[1].split("def _post_add_line", 1)[0]
+        self.assertIn("MenuCategory.objects.select_for_update().get(pk=category.pk)", quick)
+        self.assertLess(
+            quick.index("MenuCategory.objects.select_for_update().get(pk=category.pk)"),
+            quick.rindex('name__iexact=data["name"]'),
+        )
+        self.assertLess(
+            quick.index("MenuCategory.objects.select_for_update().get(pk=category.pk)"),
+            quick.index("item = MenuItem.objects.create("),
+        )
