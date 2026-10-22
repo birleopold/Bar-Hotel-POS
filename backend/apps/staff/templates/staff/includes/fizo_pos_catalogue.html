@@ -10,6 +10,12 @@
                 <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="{% if is_supermarket_outlet %}Search name, SKU or barcode{% else %}Search items{% endif %}" autocomplete="off" data-pos-menu-search></label>
                 {% if is_supermarket_outlet %}<button type="button" class="fizo-pos-search-clear" data-fizo-search-clear aria-label="Clear product search">Clear</button>{% endif %}<span class="staff-pos-menu-count">{{ add_line_form.menu_item.field.queryset.count }} items</span>
               </div>
+              {% if is_supermarket_outlet %}
+              <div class="fizo-pos-favourites" aria-label="Frequent product shortcuts">
+                <span><i class="bi bi-star"></i> Quick picks</span>
+                <div data-fizo-favourites><span class="fizo-pos-favourites__hint">Your frequently added products will appear here as you work on this register.</span></div>
+              </div>
+              {% endif %}
               <div class="staff-pos-menu-categories" role="group" aria-label="Filter by category">
                 <button type="button" class="staff-pos-category-filter is-active" data-pos-menu-filter="all" aria-pressed="true">{% if is_supermarket_outlet %}<i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> {% endif %}All items</button>
                 {% for category in pos_menu_categories %}<button type="button" class="staff-pos-category-filter" data-pos-menu-filter="{{ category.id }}" aria-pressed="false">{{ category.name }}</button>{% endfor %}
