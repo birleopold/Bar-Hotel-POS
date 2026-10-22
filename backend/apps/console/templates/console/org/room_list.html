@@ -1,26 +1,39 @@
 {% extends "console/base.html" %}
 {% block title %}Rooms{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
-  <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Rooms<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-create' %}">New room</a>
-  </div>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
-      <thead><tr><th>Branch</th><th>Type</th><th>Room</th><th>Status</th><th></th></tr></thead>
-      <tbody>
-        {% for r in rooms %}
-          <tr>
-            <td>{{ r.room_type.site.name }}</td>
-            <td>{{ r.room_type.name }}</td>
-            <td>{{ r.name }}</td>
-            <td>{{ r.get_status_display }}</td>
-            <td><a href="{% url 'console-org-room-edit' room_id=r.id %}">Edit</a></td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="5" class="staff-muted">No rooms.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<section class="grocery-setup hospitality-directory" aria-labelledby="directory-heading">
+  <header class="grocery-setup__hero">
+    <div>
+      <p class="grocery-setup__eyebrow"><a href="{% url 'console-org' %}">Business settings</a> / Hotel</p>
+      <h1 id="directory-heading">Rooms</h1>
+      <p>Manage rooms and availability.</p>
+    </div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add room</a>
+  </header>
+  <section class="staff-card" aria-label="Rooms list">
+    {% if rooms %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th scope="col">Branch</th><th scope="col">Room type</th><th scope="col">Room</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+        <tbody>{% for r in rooms %}<tr>
+          <td>{{ r.room_type.site.name }}</td>
+          <td>{{ r.room_type.name }}</td>
+          <td>{{ r.name }}</td>
+          <td><span class="grocery-setup__status">{{ r.get_status_display }}</span></td>
+          <td><a class="grocery-setup__action-link" href="{% url 'console-org-room-edit' room_id=r.id %}">Edit <span class="visually-hidden">rooms record</span><i class="bi bi-arrow-right" aria-hidden="true"></i></a></td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="grocery-setup__empty">
+        <i class="bi bi-building fs-1" aria-hidden="true"></i>
+        <strong>No rooms yet</strong>
+        <p>Add your first room to prepare for guest reservations.</p>
+        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-create' %}">Add room</a>
+      </div>
+    {% endif %}
+  </section>
+  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Business settings</a></p>
+</section>
 {% endblock %}
