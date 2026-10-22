@@ -1,0 +1,92 @@
+/* Reference-locked supermarket screen. Applied AFTER the legacy supermarket CSS.
+   Design authority: owner's three uploaded cashier references, October 2026. */
+.staff-main:has(.fizo-checkout-catalogue){background:#f4f7f9!important;padding:12px 15px 24px!important}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-layout{
+ display:grid!important;grid-template-columns:minmax(0,1.9fr) minmax(360px,.95fr)!important;gap:14px!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .staff-context-bar--pos{background:white!important;border-radius:13px!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity{
+ display:grid!important;grid-template-columns:minmax(190px,1fr) auto auto auto;gap:17px;
+ background:#fff!important;border:1px solid #e8eff2!important;border-radius:14px!important;padding:12px 16px!important
+}
+.reference-pos-brand{display:flex;align-items:center;gap:13px;min-width:0}
+.reference-pos-brand>i{font-size:29px;color:#009d50}
+.reference-pos-brand strong{display:block;font-size:clamp(17px,1.8vw,24px);font-weight:850;color:#091b39;line-height:1.2}
+.reference-pos-brand small{display:block;color:#405e89;font-size:13px;margin-top:3px}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity__person{order:4;margin:0}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity__register{order:3;border:1px solid #dce7f0;padding:8px 11px;border-radius:10px}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity>a{order:5}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-shortcuts{background:transparent!important;border:0!important;padding:4px 0!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-checkout-catalogue>.staff-card{padding:0!important;background:transparent!important;border:0!important}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{
+ display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:9px!important;
+ max-height:none!important;overflow:visible!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile{
+ display:flex!important;flex-direction:column!important;padding:8px!important;border:5px solid #fff!important;
+ border-radius:12px!important;min-height:206px!important;box-shadow:0 1px 9px #2448610c!important;
+ background:#fff!important;gap:5px!important;text-align:left!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__photo,
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__icon{
+ width:100%!important;height:116px!important;background:#f2f6f8!important;border-radius:8px!important;
+ display:flex!important;align-items:center!important;justify-content:center!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__photo img{object-fit:contain!important;height:110px!important;width:100%!important}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__name{font-size:13px!important;font-weight:800!important;color:#111c37!important}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__price{font-size:14px!important;color:#008a41!important;font-weight:850!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-tile-add{
+ display:block!important;background:#e2f8ea!important;color:#04713b!important;width:100%!important;
+ text-align:center!important;padding:8px 4px!important;border-radius:7px!important;font-weight:850!important;margin-top:auto!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-categories{
+ display:flex!important;gap:9px!important;overflow-x:auto!important;padding:4px 0 12px!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-category-filter{
+ min-width:108px!important;min-height:66px!important;border:0!important;border-radius:12px!important;
+ background:#eaf0f4!important;color:#192f52!important;font-weight:800!important;white-space:normal!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-category-filter.is-active{
+ background:#0f9b4d!important;color:#fff!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{min-width:0;position:sticky!important;top:8px!important;max-height:calc(100dvh - 16px)!important;overflow:auto!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-checkout-basket{
+ background:#fff!important;border:1px solid #edf2f6!important;border-radius:16px!important;padding:16px!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-checkout-basket__title{
+ display:flex!important;align-items:center!important;gap:12px!important;
+ background:#e6f8ee!important;color:#0a3941!important;border-radius:11px!important;padding:14px!important;
+ font-size:18px!important;font-weight:850!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-checkout-basket__title span{font-size:12px!important;color:#285c50!important;margin-left:auto}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-row{
+ display:grid!important;grid-template-columns:74px minmax(0,1fr)!important;gap:12px!important;
+ border-bottom:1px solid #e9eff3!important;padding:16px 0!important;align-items:start!important
+}
+.reference-basket-thumb{width:74px;height:78px;display:flex;align-items:center;justify-content:center;background:#f3f6f8;border-radius:9px;grid-row:span 3}
+.reference-basket-thumb img{width:100%;height:100%;object-fit:contain}
+.reference-basket-thumb i{font-size:30px;color:#aac0cc}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__info strong{font-size:14px!important;color:#091831!important}
+.reference-basket-unit{color:#008b49;font-size:13px;display:block;font-weight:700}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__amount{font-weight:850;color:#081e39;text-align:right}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-stepper{grid-column:2;justify-self:start}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__void{grid-column:2}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-summary__total strong{font-size:clamp(20px,2vw,28px)!important;color:#007f48!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-payment-summary{background:transparent!important;border:0!important;padding:0!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-payment-summary>span,
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-payment-summary>strong{display:none!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-pay-cta{
+ background:#009b4b!important;color:#fff!important;font-size:20px!important;
+ padding:19px 12px!important;border-radius:10px!important;min-height:65px!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-payment-shortcuts{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important
+}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-payment-shortcuts button{
+ min-height:57px!important;background:#fff!important;border:1px solid #dce7ef!important;
+ border-radius:10px!important;font-weight:700!important;color:#203854!important
+}
+@media(min-width:1650px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
+@media(max-width:1199px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity{grid-template-columns:1fr auto}}
+@media(max-width:850px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-layout{grid-template-columns:1fr!important}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{position:static!important;max-height:none!important;overflow:visible!important}.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity{display:flex!important;flex-wrap:wrap}}
+@media(max-width:520px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile{min-height:183px!important}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__photo{height:92px!important}.reference-pos-brand{width:100%}}
