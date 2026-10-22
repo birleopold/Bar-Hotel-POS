@@ -90,3 +90,8 @@ Reworked the individual workstation creation, browser-pairing and hardware-check
 ## Approved cashier layout, follow-up — 2026-10-22
 
 The supermarket **active order detail** (`staff/order_detail_supermarket.html`) has a dedicated cashier heading, the existing barcode scan form is moved to the top of the product catalogue after DOM load, keyboard F3 focuses the scanner, product tiles visibly say Add, a five-column desktop catalogue is styled in `fizo-checkout-v1.css`, and a persistent basket uses the original order and payment handlers. `/staff/orders/` remains the sale-selection/history page; it now has Resume sale cards, but opening a new sale still requires an authorized open shift. No retail product tiles are fabricated: photos only appear when actual `display_image_url` exists. This does **not** implement one-click card submission: cards select products, and the server-validating Add to basket form submits them. Browser visuals and real transactions remain **UNVERIFIED**.
+
+
+## Approved basket visual flow — 2026-10-22
+
+Updated the active supermarket checkout's real basket rows within `staff/order_detail.html` instead of replacing any backend. Basket rows now use `fizo-retail-basket-row` with per-line totals and +/− controls backed by existing `adjust_line_qty` POST; voids retain required reason and existing `void_line` POST. Added `test_fizo_retail_checkout_approved.py` assertions and styling in `fizo-checkout-v1.css`. **Source committed only.** No cashier browser acceptance or stock/money transactions were performed. Remaining reference gaps include main POS navigation/route, dedicated payment-method quick buttons, category icons and fully validated one-tap checkout.
