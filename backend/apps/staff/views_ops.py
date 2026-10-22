@@ -359,7 +359,7 @@ class StaffRetailPosEntryView(StaffTenantRequiredMixin, View):
         if current_sale:
             return redirect("staff-order-detail", order_id=current_sale.id)
         # Show a focused start screen; creation stays an authenticated POST.
-        return render(request, "staff/retail_pos_start.html", {"current_outlet": outlet, "current_shift": shift})
+        return render(request, "staff/retail_pos_start.html", {"current_outlet": outlet, "current_shift": shift, "checkout_currency": default_currency_for_tenant(request.tenant)})
 
 
 class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
