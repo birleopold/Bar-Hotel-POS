@@ -19,6 +19,7 @@ from django.db.models import Count, Prefetch, Q
 from apps.catalog.models import MenuItemModifierGroup, ModifierOption
 from apps.accounts.models import MembershipRole
 from apps.audit.services import log_audit
+from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -627,6 +628,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         hardware = _tenant_hardware_flags(order.tenant)
         ctx["hardware"] = hardware
         ctx["payment_request_key"] = uuid.uuid4()
+        ctx["quick_product_request_key"] = uuid.uuid4()
         from apps.customers.models import LoyaltyLedgerEntry
         from apps.customers.loyalty import eligible_spend_for_order
         from apps.tenants.models import TenantSettings
@@ -1201,6 +1203,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     messages.error(request, f"{field}: {error}")
             return redirect("staff-order-detail", order_id=order.id)
         data = form.cleaned_data
+        try:
+            request_key = str(uuid.UUID(request.POST.get("quick_product_request_key", "")))
+        except (ValueError, AttributeError, TypeError):
+            messages.error(request, "Quick-add form expired. Reload the checkout and try again.")
+            return redirect("staff-order-detail", order_id=order.id)
         if data["barcode"] and MenuItem.objects.filter(
             tenant_id=order.tenant_id, barcode=data["barcode"],
         ).exists():
@@ -1220,6 +1227,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 current = Order.objects.select_for_update().get(
                     pk=order.pk, tenant_id=order.tenant_id,
                 )
+                prior = AuditEvent.objects.filter(
+                    tenant_id=order.tenant_id, action="catalog.quick_product_created",
+                    payload__order_id=str(order.pk),
+                    payload__request_key=request_key,
+                ).first()
+                if prior:
+                    messages.info(request, "This product was already added; the repeated request was ignored.")
+                    return redirect("staff-order-detail", order_id=order.id)
                 if current.status != OrderStatus.OPEN or current.is_paid:
                     raise ValueError("This sale is no longer open; no product was created.")
                 # Recheck inside the write transaction to catch simultaneous cashier adds.
@@ -1258,6 +1273,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         "unit_price": str(data["unit_price"]),
                         "quantity": str(data["quantity"]), "requires_review": True,
                         "stock_tracked": False,
+                        "request_key": request_key,
                     },
                 )
         except (DRFValidationError, ValueError, TypeError) as exc:
