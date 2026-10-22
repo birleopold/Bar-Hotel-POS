@@ -15,6 +15,17 @@ from rest_framework import serializers
 from apps.accounts.models import User, PasswordRecoveryRequest
 
 
+def recovery_eligible(user: User) -> bool:
+    """Only current workers or platform operators may recover account access."""
+    return bool(
+        user.is_active
+        and (
+            user.is_superuser or user.is_platform_staff
+            or user.memberships.filter(is_active=True, tenant__is_active=True).exists()
+        )
+    )
+
+
 class PasswordResetConfirmSerializer(serializers.Serializer):
     uid = serializers.CharField()
     token = serializers.CharField()
@@ -44,9 +55,7 @@ def attempt_password_reset_confirm(*, uid: str, token: str, new_password: str) -
         return 400, {
             "error": {"code": "invalid_reset", "message": "Invalid or expired reset link."},
         }
-    if user.memberships.exists() and not user.memberships.filter(
-        is_active=True, tenant__is_active=True
-    ).exists():
+    if not recovery_eligible(user):
         return 400, {"error": {"code": "invalid_reset", "message": "Invalid or expired reset link."}}
     digest = sha256(vd["token"].encode()).hexdigest()
     approval = PasswordRecoveryRequest.objects.filter(
