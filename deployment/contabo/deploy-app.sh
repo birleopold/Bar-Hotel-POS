@@ -49,4 +49,18 @@ for asset in staff/fizo-setup-area.css staff/fizo-setup-wizard.css; do
 done
 sudo systemctl restart "$SERVICE"
 sudo systemctl is-active --quiet "$SERVICE"
+# Verify the public virtual host too. A different nginx alias or a proxy
+# can serve old/404 CSS despite collectstatic being correct.
+PUBLIC_ORIGIN="${POS_PUBLIC_ORIGIN:-https://fizo.pos.leosoftug.com}"
+PUBLIC_ORIGIN="${PUBLIC_ORIGIN%/}"
+for asset in staff/fizo-setup-area.css staff/fizo-setup-wizard.css; do
+  public_url="$PUBLIC_ORIGIN/static/$asset"
+  status="$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 15 "$public_url")"
+  if [[ "$status" != "200" ]]; then
+    echo "ERROR: Fizo CSS returned HTTP $status: $public_url" >&2
+    echo "Inspect the nginx/Caddy static alias for $PUBLIC_ORIGIN" >&2
+    exit 1
+  fi
+  echo "Fizo CSS served successfully: $public_url"
+done
 echo "POS deploy completed at $(git -C "$APP" rev-parse --short HEAD); check HTTPS and other applications before calling it certified."
