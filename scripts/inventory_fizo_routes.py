@@ -11,7 +11,6 @@ import csv
 import os
 import sys
 import inspect
-import re
 from collections import Counter
 from pathlib import Path
 
@@ -70,7 +69,10 @@ def patterns(resolver, prefix: str = ""):
             template = getattr(function, "template_name", None)
             if not isinstance(template, str):
                 template = ""
-            view_source = inspect.getsourcefile(function) or ""
+            try:
+                view_source = inspect.getsourcefile(function) or ""
+            except (TypeError, OSError):
+                view_source = ""
             namespace = "api" if path.startswith("api/") else "admin" if path.startswith("admin/") else "web"
             kind = ("API / data" if namespace == "api" else
                     "Generated admin" if namespace == "admin" else
