@@ -105,3 +105,23 @@
 .fizo-room-types__rates li:last-child{border-bottom:0}.fizo-room-types__rates small{display:block;color:#798b85;margin-top:4px}
 .fizo-room-types__rates strong{color:#008646;white-space:nowrap}
 @media(max-width:620px){.fizo-room-directory__search>div{flex-direction:column}.fizo-room-types__grid{grid-template-columns:1fr}.fizo-room-directory__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Hotel housekeeping and maintenance operations */
+.fizo-housekeeping .staff-chip-row,.fizo-maintenance .staff-chip-row{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0}
+.fizo-housekeeping .staff-chip-row .staff-btn,.fizo-maintenance .staff-chip-row .staff-btn{border-radius:10px;min-height:44px}
+.fizo-housekeeping .staff-section-head,.fizo-maintenance .staff-section-head{font-size:20px;font-weight:800;margin:19px 0 14px;color:#263f43}
+.fizo-housekeeping .row.g-3>.col-12 .staff-card{height:100%;border-radius:13px;background:#fff;border:1px solid #dce9e2;box-shadow:none;padding:18px}
+.fizo-housekeeping .staff-card__title,.fizo-maintenance .staff-card__title{font-size:17px;font-weight:800;color:#203d40}
+.fizo-housekeeping .staff-card .staff-page-hero__head{display:flex;align-items:start;justify-content:space-between;gap:10px}
+.fizo-housekeeping .staff-card .d-flex.flex-wrap{padding-top:12px;border-top:1px solid #eaf0ed}
+.fizo-housekeeping .staff-card button{min-height:40px}
+.fizo-housekeeping .staff-tag{background:#e8f7ed;border-radius:8px;padding:5px 9px;color:#087443;font-size:12px;font-weight:750}
+.fizo-maintenance .row.g-3>.col-12 .staff-card{border:1px solid #dce9e2;border-radius:13px;padding:18px}
+.fizo-maintenance .staff-table-wrap{overflow-x:auto}.fizo-maintenance .staff-table{min-width:700px}
+.fizo-maintenance .staff-table td,.fizo-maintenance .staff-table th{padding:12px 9px}
+.fizo-maintenance .staff-card--soft{background:#f4fbf6}
+.fizo-maintenance .staff-card form .staff-input{min-height:41px}
+.fizo-hotel .staff-subnav-pills{display:flex;align-items:center;gap:8px;overflow:auto;padding:6px 0 14px;margin-bottom:12px}
+.fizo-hotel .staff-subnav-pills>a{flex:none;white-space:nowrap;min-height:39px;border-radius:9px}
+@media(max-width:600px){.fizo-housekeeping .row.g-3,.fizo-maintenance .row.g-3{--bs-gutter-x:12px}.fizo-maintenance .row.g-3>.col-12 .staff-card{padding:12px}}
