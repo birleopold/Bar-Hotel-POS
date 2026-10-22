@@ -5,9 +5,39 @@ from __future__ import annotations
 from django import forms
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.core.cache import cache
+from django.utils.crypto import salted_hmac
+from .password_views import request_password_reset_for_email
 from django.views import View
 
 from apps.api.password_reset_core import attempt_password_reset_confirm
+
+
+
+class StaffPasswordRecoveryRequestForm(forms.Form):
+    email = forms.EmailField(max_length=254, widget=forms.EmailInput(
+        attrs={"class": "staff-input", "autocomplete": "email"}
+    ))
+
+
+class StaffPasswordRecoveryRequestView(View):
+    """Self-initiated request; never emails a reset token before operator approval."""
+    template_name = "password_reset/request.html"
+
+    def get(self, request):
+        return render(request, self.template_name, {"form": StaffPasswordRecoveryRequestForm()})
+
+    def post(self, request):
+        form = StaffPasswordRecoveryRequestForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data["email"].lower()
+            # Bound requests by IP and target without disclosing account existence.
+            ip = request.META.get("REMOTE_ADDR", "")[:80]
+            fingerprint = salted_hmac("staff-recovery-rate", ip + ":" + email).hexdigest()
+            if cache.add("recovery:" + fingerprint, "1", timeout=300):
+                request_password_reset_for_email(email=email)
+            return render(request, self.template_name, {"submitted": True})
+        return render(request, self.template_name, {"form": form})
 
 
 class StaffPasswordResetForm(forms.Form):
