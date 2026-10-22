@@ -154,3 +154,17 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('name="barcode"', page)
         self.assertIn('value="quick_create_product"', page)
         self.assertIn("{% csrf_token %}", page)
+
+    def test_quick_product_review_and_outlet_scoping(self):
+        root = Path(__file__).resolve().parent
+        views = (root / 'views_ops.py').read_text(encoding='utf-8')
+        catalogue = (root / 'templates/staff/menu_list.html').read_text(encoding='utf-8')
+        checkout = (root / 'templates/staff/order_detail_supermarket.html').read_text(encoding='utf-8')
+        self.assertIn('MenuItemOutlet.objects.create(menu_item=item, outlet=order.outlet)', views)
+        self.assertIn('Order.objects.select_for_update().get(', views)
+        self.assertIn('quick_review_qs', views)
+        self.assertIn('menu_items_for_outlet_queryset(', views)
+        self.assertIn('quick_review_filter', catalogue)
+        self.assertIn('console-org-menu-item-edit', catalogue)
+        self.assertIn('quickForm', checkout)
+        self.assertIn('data-fizo-quick-product-form', checkout)
