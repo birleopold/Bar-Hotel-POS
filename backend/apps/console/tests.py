@@ -275,6 +275,26 @@ class ConsoleAccessTests(TestCase):
         self.assertNotContains(response, "grocery-owner-console.css")
         self.assertNotContains(response, "hospitality-console.css")
 
+    def test_fizo_setup_forms_do_not_render_legacy_layout(self) -> None:
+        user = User.objects.create_user(email="fizo-forms@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["supermarket"])
+        self._login_with_tenant(user)
+        site = Site.objects.create(tenant=self.tenant, name="Test branch")
+        for route, kwargs in (
+            ("console-org-site-create", {}),
+            ("console-org-menu-category-create", {}),
+            ("console-org-outlet-create", {"site_id": site.id}),
+        ):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route, kwargs=kwargs))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "fizo-entity-form-page")
+                self.assertContains(response, "fizo-setup-area.css")
+                self.assertNotContains(response, "grocery-owner-console.css")
+                self.assertNotContains(response, "hospitality-console.css")
+                self.assertNotContains(response, "grocery-setup")
+
     def test_all_setup_routes_use_canonical_stylesheet(self) -> None:
         user = User.objects.create_user(email="setup-css-route@test.local", password="TestPass9!")
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
