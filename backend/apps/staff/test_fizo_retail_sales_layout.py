@@ -28,3 +28,13 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("{% csrf_token %}", landing)
         self.assertEqual(page.count("{% block "), page.count("{% endblock %}"))
         self.assertTrue((root / "static/staff/fizo-retail-sales.css").exists())
+
+
+    def test_all_register_view_selection_uses_retail_outlet_types(self):
+        root = Path(__file__).resolve().parent
+        source = (root / "views_ops.py").read_text(encoding="utf-8")
+        self.assertIn("visible_outlets = list(ctx[\"outlets\"])", source)
+        self.assertIn("all(item.outlet_type in retail_types for item in visible_outlets)", source)
+        self.assertIn('ctx["show_supermarket_lane"] = supermarket_lane', source)
+        self.assertIn('ctx["show_retail_catalogue"]', source)
+        self.assertIn("all(item.outlet_type in retail_types for item in outlets)", source)
