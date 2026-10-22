@@ -2,6 +2,11 @@
   "use strict";
   var root = document.querySelector(".staff-pos-order-layout");
   if (!root) return;
+  // Modern supermarket checkout already renders catalogue-left/basket-right.
+  // Legacy DOM reparenting would move the product catalogue into the basket
+  // column, leaving a large blank area where products belong.
+  if (root.querySelector(".fizo-checkout-catalogue") &&
+      root.querySelector(".fizo-checkout-basket")) return;
   var left = root.querySelector(".staff-pos-order-main");
   var right = root.querySelector(".staff-pos-order-side");
   if (!left || !right) return;
