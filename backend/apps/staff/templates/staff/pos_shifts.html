@@ -1,5 +1,8 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Shift close{% endblock %}
+{% block main_class %}staff-main--wide{% if not grocery_owner_shell %} hospitality-workflow{% endif %}{% endblock %}
+{% block extra_css %}{% if not grocery_owner_shell %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.4">{% endif %}{% endblock %}
 {% block content %}
   <header class="staff-page-hero">
     <div class="staff-dash-hero__panel">
