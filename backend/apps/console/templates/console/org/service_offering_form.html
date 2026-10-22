@@ -1,15 +1,30 @@
 {% extends "console/base.html" %}
-{% block title %}{% if object %}Edit service{% else %}New service{% endif %}{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block title %}{% if object %}Edit service{% else %}Add service{% endif %}{% endblock %}
+{% block main_class %}fizo-entity-form-page{% endblock %}
 {% block content %}
-  <h1 class="staff-page-title">{% if object %}Edit service{% else %}New service{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  {% if object %}
-    <p class="staff-muted"><a href="{% url 'console-org-service-offering-options' service_id=object.id %}">Manage packages</a></p>
-  {% endif %}
-  <form method="post" class="staff-card">
+<section class="fizo-entity" aria-labelledby="fizo-entity-title">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-form-kicker">FIZO / SERVICES</p><h1 id="fizo-entity-title">{% if object %}Edit service{% else %}Add service{% endif %}</h1><p class="staff-muted">Enter the required details and save. You can update them later.</p></div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-service-offerings' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to list</a>
+  </header>
+  {% if object %}<p class="fizo-entity__links"><a href="{% url 'console-org-service-offering-options' service_id=object.id %}">Manage service packages <i class="bi bi-arrow-right" aria-hidden="true"></i></a></p>{% endif %}
+  <form method="post" class="staff-card grocery-guided-form fizo-entity__card">
     {% csrf_token %}
-    {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<small class="staff-muted d-block">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Save</button>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-service-offerings' %}">Cancel</a>
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grocery-form-fields">
+      {% for field in form %}
+        <div class="grocery-form-field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+          {{ field }}
+          {% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<div class="grocery-form-errors" role="alert">{{ field.errors }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    <footer class="grocery-form-footer"><span>* Required field</span><div>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-service-offerings' %}">Cancel</a>
+      <button class="staff-btn staff-btn--primary" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> Save service</button>
+    </div></footer>
   </form>
+</section>
 {% endblock %}
