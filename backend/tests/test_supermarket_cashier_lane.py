@@ -66,6 +66,19 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(response, "grocery-console-links")
         self.assertContains(response, "Guided setup")
 
+    def test_grocery_setup_stays_styled_with_restaurant_module_enabled(self):
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        membership.role = MembershipRole.OWNER
+        membership.save(update_fields=["role"])
+        settings = TenantSettings.objects.get(tenant=self.tenant)
+        settings.business_lines = ["supermarket", "restaurant"]
+        settings.save(update_fields=["business_lines"])
+        page = self.client.get(reverse("console-org-setup"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "grocery-console-body")
+        self.assertContains(page, "grocery-owner-console.css")
+        self.assertContains(page, "grocery-setup__layout")
+
     def test_owner_administration_shell_persists_after_navigation(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
         membership.role = MembershipRole.OWNER
