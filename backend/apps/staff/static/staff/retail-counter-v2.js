@@ -53,6 +53,28 @@
       }
     });
   }
+  /* Barcode scanners normally type a code followed by Enter. Resolve only
+     unambiguous visible SKU/barcode matches; never silently sell an item. */
+  if(server){
+    server.addEventListener("keydown",function(event){
+      if(event.key!=="Enter"||event.isComposing)return;
+      var code=server.value.trim().toLowerCase();
+      if(!code)return;
+      var matched=Array.prototype.slice.call(root.querySelectorAll("[data-pos-menu-tile]")).filter(function(tile){
+        return (tile.dataset.itemBarcode||"").toLowerCase()===code ||
+          (tile.dataset.itemSku||"").toLowerCase()===code;
+      });
+      if(matched.length===1){
+        event.preventDefault();
+        /* Clicking the existing tile executes the same selection and
+           modifier rendering path as selecting with a mouse. */
+        matched[0].click();
+        if(qty)qty.focus();
+        if(live)live.textContent="Product found. Confirm quantity and choose Add to basket.";
+      }
+      /* An unknown barcode submits the full-catalogue GET search. */
+    });
+  }
   if(local&&server){
     /* The server endpoint searches the full catalogue; the local filter only
        covers products already loaded. Keep both explicitly distinguishable. */
@@ -76,10 +98,10 @@
       }
       addForm.dataset.submitting="1";
       var submit=addForm.querySelector('button[type="submit"]');
-      if(submit){submit.setAttribute("aria-disabled","true");submit.textContent="Adding…";}
+      if(submit){submit.dataset.originalLabel=submit.textContent;submit.setAttribute("aria-disabled","true");submit.textContent="Adding…";}
       window.addEventListener("pageshow",function(){
         addForm.dataset.submitting="";
-        if(submit){submit.removeAttribute("aria-disabled");submit.textContent="Add to basket";}
+        if(submit){submit.removeAttribute("aria-disabled");submit.textContent=submit.dataset.originalLabel||"Add to basket";}
       },{once:true});
     });
   }
