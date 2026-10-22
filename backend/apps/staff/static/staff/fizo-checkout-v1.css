@@ -110,3 +110,10 @@
 .staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side .staff-card--pos{border-color:#e0ebe6}
 .fizo-checkout-catalogue .staff-pos-menu-head .staff-pos-menu-hint{color:#647c76}
 @media(max-width:900px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{position:static;max-height:none;overflow:visible}}
+
+/* Discovery and shortcuts: no additional checkout submit endpoints. */
+.fizo-checkout-catalogue .fizo-pos-search-clear{border:1px solid #dce9e1;border-radius:8px;background:#fff;color:#007a42;padding:9px 12px;min-height:40px;font-weight:800;cursor:pointer}
+.fizo-checkout-catalogue .staff-pos-category-filter i{margin-right:4px}
+.fizo-retail-basket-tools{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0;padding:0 0 11px;border-bottom:1px solid #e2ebe6}
+.fizo-retail-basket-tools a{display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;color:#007e43;border:1px solid #d8e8df;border-radius:8px;background:#f8fcf9;padding:8px 10px;font-size:12px;font-weight:800;min-height:40px}
+.fizo-retail-basket-tools a:hover{background:#e4f5e9}
