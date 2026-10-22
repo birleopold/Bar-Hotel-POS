@@ -1,76 +1,28 @@
-<aside class="staff-sidebar" aria-label="Workspace navigation">
-{% if grocery_owner_shell %}
-  <a class="owner-side-brand" href="{% url 'staff-dashboard' %}"><span class="owner-side-logo"><i class="bi bi-cart3"></i></span><span><strong>{{ request.tenant.name }}</strong><small>Store management</small></span></a>
-  <nav class="owner-side-nav" aria-label="Store administration">
-    <a{% if request.resolver_match.url_name == "staff-dashboard" %} class="is-active"{% endif %} href="{% url 'staff-dashboard' %}"><i class="bi bi-columns-gap"></i> Overview</a>
-    {% if staff_nav.sales %}<a{% if request.resolver_match.url_name == 'staff-sales' %} class="is-active"{% endif %} href="{% url 'staff-sales' %}"><i class="bi bi-graph-up-arrow"></i> Sales</a>{% endif %}
-    {% if staff_nav.menu %}<a{% if request.resolver_match.url_name == 'staff-menu' %} class="is-active"{% endif %} href="{% url 'staff-menu' %}"><i class="bi bi-box"></i> Products</a>{% endif %}
-    {% if staff_nav.inventory %}<a{% if 'inventory' in request.path %} class="is-active"{% endif %} href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock</a>{% endif %}
-    {% if staff_nav.purchasing %}<a{% if 'purchasing' in request.path %} class="is-active"{% endif %} href="{% url 'staff-purchasing-orders' %}"><i class="bi bi-truck"></i> Purchasing</a>{% endif %}
-    <a{% if 'workspace/members' in request.path %} class="is-active"{% endif %} href="{% url 'staff-workspace-members' %}"><i class="bi bi-people"></i> Staff</a>
-    {% if staff_nav.sales %}<a href="{% url 'staff-sales' %}"><i class="bi bi-bar-chart"></i> Reports</a>{% endif %}
-    <a href="{% url 'console-org-setup' %}"><i class="bi bi-gear"></i> Settings</a>
-  </nav>
-  <div class="owner-side-foot"><a href="{% url 'staff-pin-setup' %}"><i class="bi bi-shield-lock"></i> Set terminal PIN</a><form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit"><i class="bi bi-lock"></i> Lock terminal</button></form></div>
-{% else %}
-  <div class="staff-sidebar__brand-wrap">
-    <a class="staff-sidebar__brand" href="{% url 'staff-dashboard' %}">
-      {% if tenant_settings.logo_url %}<span class="staff-sidebar__mark" aria-hidden="true"><img src="{{ tenant_settings.logo_url }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:contain;border-radius:inherit;"></span>{% else %}<span class="staff-sidebar__mark" aria-hidden="true">{{ request.tenant.name|default:"S"|slice:":1"|upper }}</span>{% endif %}
-      <span class="staff-sidebar__brand-copy"><strong>{{ request.tenant.name|default:"Staff workspace" }}</strong><small>{{ staff_product.workspace_label|default:"Operations workspace" }}</small></span>
-      <i class="bi bi-chevron-down staff-sidebar__brand-caret" aria-hidden="true"></i>
-    </a>
-  </div>
-
-  {% if user.is_authenticated %}
-    {% if staff_nav_outlets or staff_show_housekeeping_nav and staff_lodging_sites %}
-      <div class="staff-sidebar__scope">
-        <span class="staff-sidebar__scope-eyebrow">Working in</span>
-        {% if staff_nav_outlets %}
-          <form method="post" action="{% url 'staff-select-outlet' %}">
-            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-            <label class="visually-hidden" for="sidebar-outlet-select">{{ staff_product.scope_label|default:"Section" }}</label>
-            <span class="staff-sidebar__scope-icon"><i class="bi bi-geo-alt" aria-hidden="true"></i></span>
-            <select id="sidebar-outlet-select" name="outlet_id" onchange="this.form.submit()">
-              <option value="__all__"{% if staff_all_outlets %} selected{% endif %}>{{ staff_product.scope_all_label|default:"All sections" }}</option>
-              {% for o in staff_nav_outlets %}<option value="{{ o.id }}"{% if staff_nav_outlet and staff_nav_outlet.id == o.id and not staff_all_outlets %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
-            </select>
-            <i class="bi bi-chevron-expand staff-sidebar__scope-caret" aria-hidden="true"></i>
-          </form>
-        {% endif %}
-        {% if staff_show_housekeeping_nav and staff_lodging_sites %}
-          <form method="post" action="{% url 'staff-select-site' %}">
-            {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-            <label class="visually-hidden" for="sidebar-site-select">Branch</label>
-            <span class="staff-sidebar__scope-icon"><i class="bi bi-building" aria-hidden="true"></i></span>
-            <select id="sidebar-site-select" name="site_id" onchange="this.form.submit()">
-              {% for s in staff_lodging_sites %}<option value="{{ s.id }}"{% if staff_lodging_site and staff_lodging_site.id == s.id %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
-            </select>
-            <i class="bi bi-chevron-expand staff-sidebar__scope-caret" aria-hidden="true"></i>
-          </form>
-        {% endif %}
-      </div>
-    {% endif %}
-
-    {% if staff_can_quick_create_order %}
-      <form method="post" action="{% url 'staff-order-quick-create' %}" class="staff-sidebar__primary-action">
-        {% csrf_token %}
-        <input type="hidden" name="mode" value="">
-        <button type="submit"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>{% if staff_product.business_key == "retail" or staff_product.business_key == "supermarket" %}New sale{% else %}New order{% endif %}</span></button>
-      </form>
-    {% endif %}
-
-    <div class="staff-sidebar__scroll">
-      {% include "staff/includes/workbench_sidebar.html" %}
-    </div>
-
-    <div class="staff-sidebar__footer">
-      <div class="staff-sidebar__user"><span class="staff-sidebar__avatar" aria-hidden="true">{{ user.first_name|default:user.email|slice:":1"|upper }}</span><div><strong>{% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.email }}{% endif %}</strong><small>{{ active_membership.get_role_display|default:"Team member" }}</small></div></div>
-      <div class="staff-sidebar__footer-actions">
-        <a href="{% url 'staff-pin-setup' %}" title="Set terminal PIN"><i class="bi bi-shield-lock" aria-hidden="true"></i><span>Set PIN</span></a>
-        <form class="staff-sidebar__lock" method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit" title="Lock terminal"><i class="bi bi-lock" aria-hidden="true"></i><span>Lock terminal</span></button></form>
-        <form method="post" action="{% url 'staff-logout' %}">{% csrf_token %}<button type="submit" title="Sign out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i><span>Sign out</span></button></form>
-      </div>
-    </div>
+{% with u=request.resolver_match.url_name %}
+<aside class="staff-sidebar" aria-label="Fizo workspace navigation">
+  <a class="fz-brand" href="{% url 'staff-dashboard' %}"><span class="fz-brand__icon" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></span> Fizo</a>
+  {% if staff_nav_outlets %}
+  <div class="fz-scope"><form method="post" action="{% url 'staff-select-outlet' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+    <label for="fz-outlet">Working in</label><select id="fz-outlet" name="outlet_id" onchange="this.form.submit()">
+    <option value="__all__"{% if staff_all_outlets %} selected{% endif %}>All sections</option>
+    {% for o in staff_nav_outlets %}<option value="{{ o.id }}"{% if staff_nav_outlet and staff_nav_outlet.id == o.id and not staff_all_outlets %} selected{% endif %}>{{ o.name }}</option>{% endfor %}
+    </select></form></div>
   {% endif %}
-{% endif %}
+  {% if staff_show_housekeeping_nav and staff_lodging_sites %}<div class="fz-scope"><form method="post" action="{% url 'staff-select-site' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><label for="fz-site">Property</label><select id="fz-site" name="site_id" onchange="this.form.submit()">{% for s in staff_lodging_sites %}<option value="{{ s.id }}"{% if staff_lodging_site and staff_lodging_site.id == s.id %} selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></form></div>{% endif %}
+  <nav class="fz-nav" aria-label="Operations">
+    <a href="{% url 'staff-dashboard' %}"{% if u == 'staff-dashboard' %} aria-current="page"{% endif %}><i class="bi bi-grid"></i>Dashboard</a>
+    {% if staff_nav.orders %}<a href="{% url 'staff-orders' %}"{% if u == 'staff-orders' or u == 'staff-order-detail' %} aria-current="page"{% endif %}><i class="bi bi-cart3"></i>{% if staff_product.business_key == 'supermarket' or staff_product.business_key == 'retail' %}POS{% else %}Orders &amp; tabs{% endif %}</a>{% endif %}
+    {% if staff_nav.tables %}<a href="{% url 'staff-tables' %}"{% if u == 'staff-tables' %} aria-current="page"{% endif %}><i class="bi bi-grid-3x3-gap"></i>Tables</a>{% endif %}
+    {% if staff_nav.menu %}<a href="{% url 'staff-menu' %}"{% if u == 'staff-menu' %} aria-current="page"{% endif %}><i class="bi bi-box-seam"></i>{% if staff_product.business_key == 'supermarket' or staff_product.business_key == 'retail' %}Products{% else %}Menu{% endif %}</a>{% endif %}
+    {% if staff_nav.kitchen %}<a href="{% url 'staff-kds' %}"{% if u == 'staff-kds' %} aria-current="page"{% endif %}><i class="bi bi-fire"></i>Kitchen</a>{% endif %}
+    {% if staff_nav.inventory %}<a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes"></i>Stock</a>{% endif %}
+    {% if staff_nav.purchasing %}<a href="{% url 'staff-purchasing-orders' %}"><i class="bi bi-truck"></i>Purchasing</a>{% endif %}
+    {% if staff_nav.sales %}<a href="{% url 'staff-sales' %}"><i class="bi bi-bar-chart-line"></i>Sales &amp; reports</a>{% endif %}
+    {% if staff_nav.lodging and staff_show_lodging_nav %}<a href="{% url 'staff-lodging-reservations' %}"><i class="bi bi-calendar-check"></i>Reservations</a>{% endif %}
+    {% if staff_show_housekeeping_nav %}<a href="{% url 'staff-lodging-housekeeping' %}"><i class="bi bi-door-open"></i>Housekeeping</a>{% endif %}
+    {% if staff_nav.events %}<a href="{% url 'staff-events-bookings' %}"><i class="bi bi-calendar-event"></i>Events</a>{% endif %}
+    {% if staff_nav.workspace %}<a href="{% url 'staff-workspace-branding' %}"><i class="bi bi-gear"></i>Settings</a>{% endif %}
+  </nav>
+  <div class="fz-sidefoot"><a href="{% url 'staff-pin-setup' %}">Set PIN</a><form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit"><i class="bi bi-lock"></i> Lock terminal</button></form></div>
 </aside>
+{% endwith %}
