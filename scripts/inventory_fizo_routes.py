@@ -10,6 +10,9 @@ from __future__ import annotations
 import csv
 import os
 import sys
+import inspect
+import re
+from collections import Counter
 from pathlib import Path
 
 # Executing scripts/foo.py sets sys.path[0] to scripts/, not backend/.
@@ -64,10 +67,23 @@ def patterns(resolver, prefix: str = ""):
             cls = viewcls or getattr(view, "cls", None)
             function = cls or view
             location = getattr(function, "__module__", "") + "." + getattr(function, "__qualname__", "")
+            template = getattr(function, "template_name", None)
+            if not isinstance(template, str):
+                template = ""
+            view_source = inspect.getsourcefile(function) or ""
+            namespace = "api" if path.startswith("api/") else "admin" if path.startswith("admin/") else "web"
+            kind = ("API / data" if namespace == "api" else
+                    "Generated admin" if namespace == "admin" else
+                    "Action / service" if any(w in path.lower() for w in
+                     ("logout/", "lock/", "select-", "dismiss/", "resume/", "download/", "export/")) else
+                    "Visual candidate")
             yield {
                 "pattern": "/" + path,
                 "route_name": item.name or "",
                 "view": location,
+                "view_source": str(Path(view_source).resolve().relative_to(PROJECT_ROOT)) if view_source and Path(view_source).resolve().is_relative_to(PROJECT_ROOT) else "",
+                "declared_template": template,
+                "route_kind": kind,
                 "business_line": domain(path),
                 "verified": "NO",
                 "notes": "Generated pattern; dynamic converters/regex are not literal URLs",
@@ -78,7 +94,7 @@ root = PROJECT_ROOT
 rows = list(patterns(get_resolver()))
 dest = Path.cwd() / "fizo_resolved_routes.csv"
 with dest.open("w", newline="", encoding="utf-8") as handle:
-    writer = csv.DictWriter(handle, fieldnames=list(rows[0]) if rows else ["pattern", "route_name", "view", "business_line", "verified", "notes"])
+    writer = csv.DictWriter(handle, fieldnames=list(rows[0]) if rows else ["pattern", "route_name", "view", "view_source", "declared_template", "route_kind", "business_line", "verified", "notes"])
     writer.writeheader()
     writer.writerows(rows)
 
@@ -95,4 +111,24 @@ with (Path.cwd() / "fizo_templates.csv").open("w", newline="", encoding="utf-8")
 
 print("Resolved URL patterns:", len(rows), "=>", dest)
 print("Tracked template files:", len(templates), "=>", Path.cwd() / "fizo_templates.csv")
+# One row per potential human-facing screen, cross-referenced to its view.
+# Template resolution can be dynamic (e.g. outlet-dependent checkouts). Such
+# routes are flagged for manual tracing rather than assigned a guessed file.
+visual_rows = [r for r in rows if r["route_kind"] == "Visual candidate"]
+for row in visual_rows:
+    row["template_match"] = "Declared" if row["declared_template"] else "NEEDS VIEW TRACE"
+    row["redesign_status"] = "NOT VERIFIED"
+visual_file = Path.cwd() / "fizo_visual_screen_register.csv"
+with visual_file.open("w", newline="", encoding="utf-8") as handle:
+    writer = csv.DictWriter(handle, fieldnames=[
+        "pattern", "route_name", "view", "view_source", "declared_template",
+        "template_match", "business_line", "redesign_status",
+    ], extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(visual_rows)
+
+print("Visual candidates:", len(visual_rows), "=>", visual_file)
+print("Template links requiring trace:",
+      sum(not row["declared_template"] for row in visual_rows))
+print("Classification:", dict(Counter(r["route_kind"] for r in rows)))
 print("Includes Django admin, DRF router actions, and dynamic URL patterns.")
