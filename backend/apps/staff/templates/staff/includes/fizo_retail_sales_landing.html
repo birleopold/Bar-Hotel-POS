@@ -1,0 +1,73 @@
+<div class="fizo-sales" aria-label="Supermarket sales workspace">
+  <header class="fizo-sales__header">
+    <div><p class="fizo-sales__eyebrow">Fizo / Supermarket / Cashier</p>
+      <h1>{% if returns_task %}Returns &amp; refunds{% elif mine_filter %}My sales{% else %}Sales &amp; checkout{% endif %}</h1>
+      <p>{% if current_outlet %}{{ current_outlet.name }} · {% if supermarket_shift_open %}Register shift open{% else %}Register shift closed{% endif %}{% else %}Select a register to start selling or review receipts.{% endif %}</p>
+    </div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-pos-shifts' %}"><i class="bi bi-cash-register"></i> {% if supermarket_shift_open %}Manage open shift{% else %}Open register{% endif %}</a>
+  </header>
+  <section class="fizo-sales__start" aria-label="Start checkout">
+    <div class="fizo-sales__start-icon"><i class="bi bi-cart3"></i></div>
+    <div><h2>Ready for the next customer?</h2><p>Open a basket, scan or search for products, and accept payment. Walk-in sales do not require a customer account.</p></div>
+    {% if current_outlet and supermarket_shift_open %}
+      <form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}<button class="fizo-sales__primary" type="submit">Open cashier POS <i class="bi bi-arrow-right"></i></button></form>
+    {% elif not supermarket_shift_open %}
+      <a class="fizo-sales__primary" href="{% url 'staff-pos-shifts' %}">Open shift first <i class="bi bi-arrow-right"></i></a>
+    {% else %}
+      <span class="fizo-sales__notice">Select a register above</span>
+    {% endif %}
+  </section>
+  <div class="fizo-sales__metrics" aria-label="Current checkout overview">
+    <div><span><i class="bi bi-pause-circle"></i> Held baskets</span><strong>{{ held_tabs|length }}</strong></div>
+    <div><span><i class="bi bi-basket"></i> Open baskets</span><strong>{{ open_tabs|length }}</strong></div>
+    <div><span><i class="bi bi-clock-history"></i> Recent activity</span><strong>{{ recent_orders|length }}</strong></div>
+    <div><span><i class="bi bi-receipt"></i> Sales matching filters</span><strong>{{ page_obj.paginator.count }}</strong></div>
+  </div>
+  {% if ready_handoff_count %}<p class="staff-alert" role="status">{{ ready_handoff_count }} orders ready for handoff.</p>{% endif %}
+  <section class="fizo-sales__panel" aria-labelledby="fizo-checkout-active">
+    <div class="fizo-sales__sectionhead"><div><h2 id="fizo-checkout-active">Active checkouts</h2><p>Resume an open checkout or held basket.</p></div>
+      {% if current_outlet and supermarket_shift_open %}<form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}<input type="hidden" name="mode" value="hold"><button type="submit" class="staff-btn staff-btn--ghost">New held basket</button></form>{% endif %}
+    </div>
+    <div class="fizo-sales__lanes">{% include "staff/includes/orders_lanes.html" %}</div>
+  </section>
+  <section id="staff-orders-history" class="fizo-sales__panel" aria-labelledby="fizo-history-title">
+    <div class="fizo-sales__sectionhead"><div><h2 id="fizo-history-title">Sales history</h2><p>Find receipts, review completed sales and open authorized returns.</p></div><a href="{% url 'staff-orders' %}" class="staff-btn staff-btn--ghost">Reset filters</a></div>
+    {% if returns_task %}<p class="staff-alert">Refunds must be authorized and processed against the original sale. Open a receipt to review its eligible lines.</p>{% endif %}
+    <nav class="fizo-sales__filters" aria-label="Sale status">
+      <a href="{% url 'staff-orders' %}?{% if mine_filter %}mine=1&amp;{% endif %}{% if q_filter %}q={{ q_filter|urlencode }}{% endif %}"{% if not status_filter %} aria-current="page"{% endif %}>All sales</a>
+      <a href="?status=open{% if mine_filter %}&amp;mine=1{% endif %}{% if q_filter %}&amp;q={{ q_filter|urlencode }}{% endif %}"{% if status_filter == 'open' %} aria-current="page"{% endif %}>Open</a>
+      <a href="?status=closed{% if mine_filter %}&amp;mine=1{% endif %}{% if q_filter %}&amp;q={{ q_filter|urlencode }}{% endif %}"{% if status_filter == 'closed' %} aria-current="page"{% endif %}>Closed</a>
+      <a href="?status=cancelled{% if mine_filter %}&amp;mine=1{% endif %}{% if q_filter %}&amp;q={{ q_filter|urlencode }}{% endif %}"{% if status_filter == 'cancelled' %} aria-current="page"{% endif %}>Cancelled</a>
+      <a href="{% url 'staff-orders' %}{% if not mine_filter %}?mine=1{% endif %}">{% if mine_filter %}All staff{% else %}My sales{% endif %}</a>
+    </nav>
+    <form class="fizo-sales__search" method="get" action="{% url 'staff-orders' %}" role="search">
+      {% if returns_task %}<input type="hidden" name="task" value="returns">{% endif %}
+      {% if mine_filter %}<input type="hidden" name="mine" value="1">{% endif %}
+      {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+      <label for="fizo-receipt-search">Receipt / register / product</label><div><i class="bi bi-search"></i><input id="fizo-receipt-search" type="search" name="q" value="{{ q_filter }}" placeholder="Search receipts and orders"><button type="submit">Search</button></div>
+    </form>
+    <div class="fizo-sales__tablewrap">
+      <table class="fizo-sales__table"><thead><tr><th>Receipt</th><th>Register</th><th>Status</th><th>Total</th><th>Payment</th><th></th></tr></thead><tbody>
+        {% for o in orders %}
+        <tr>
+          <td><a href="{% url 'staff-order-detail' order_id=o.id %}">{{ o.bill_reference }}</a></td>
+          <td>{{ o.outlet.name }}</td>
+          <td><span class="fizo-sales__state fizo-sales__state--{{ o.status }}">{{ o.get_status_display }}</span></td>
+          <td class="fizo-sales__money">{{ o.currency }} {{ o.total }}</td>
+          <td>Paid {{ o.display_paid }}<small>Due {{ o.display_balance }}</small></td>
+          <td><a href="{% url 'staff-order-detail' order_id=o.id %}" aria-label="Open receipt {{ o.bill_reference }}"><i class="bi bi-arrow-up-right"></i></a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="fizo-sales__empty">No sales match the selected filters.</td></tr>
+        {% endfor %}
+      </tbody></table>
+    </div>
+    {% if is_paginated %}
+      <nav class="fizo-sales__pager" aria-label="Sales history pages">
+        {% if page_obj.has_previous %}<a rel="prev" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if returns_task %}&amp;task=returns{% endif %}{% if mine_filter %}&amp;mine=1{% endif %}{% if q_filter %}&amp;q={{ q_filter|urlencode }}{% endif %}">Previous</a>{% endif %}
+        <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a rel="next" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if returns_task %}&amp;task=returns{% endif %}{% if mine_filter %}&amp;mine=1{% endif %}{% if q_filter %}&amp;q={{ q_filter|urlencode }}{% endif %}">Next</a>{% endif %}
+      </nav>
+    {% endif %}
+  </section>
+</div>
