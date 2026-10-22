@@ -1,0 +1,16 @@
+/* Unified operational styling. Opt-in classes prevent supermarket changes. */
+.hospitality-workflow .staff-dash-hero__panel{background:#fff;border:1px solid #e1e9ef;border-radius:16px;box-shadow:0 3px 15px rgba(28,45,77,.04);padding:24px}
+.hospitality-workflow .staff-dash-hero__eyebrow{color:#07844b;font-size:.78rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.hospitality-workflow .staff-page-title{color:#172743;font-weight:800;letter-spacing:-.03em}
+.hospitality-workflow .staff-card,.hospitality-workflow .staff-table-wrap,.hospitality-workflow .staff-toolbar{background:#fff;border:1px solid #e1e9ef;border-radius:14px;box-shadow:0 3px 15px rgba(28,45,77,.035)}
+.hospitality-workflow .staff-toolbar{padding:14px 16px;gap:12px;flex-wrap:wrap}
+.hospitality-workflow .staff-table-wrap{overflow-x:auto}
+.hospitality-workflow .staff-table{min-width:570px}
+.hospitality-workflow .staff-table thead th{background:#eff7f2;color:#344b62}
+.hospitality-workflow .staff-btn{border-radius:10px;min-height:42px;font-weight:650}
+.hospitality-workflow .staff-btn--primary{background:#008c4d;border-color:#008c4d;color:#fff}
+.hospitality-workflow :is(a,button,input,select):focus-visible{outline:3px solid #e5ad43;outline-offset:2px}
+.hospitality-workflow .staff-chip-row{display:flex;gap:8px;flex-wrap:wrap}
+.hospitality-workflow .staff-chip-row [aria-current=page]{background:#008c4d;color:#fff;border-color:#008c4d}
+.hospitality-workflow .staff-section-head{font-size:1.1rem;font-weight:750;color:#243c57}
+@media(max-width:700px){.hospitality-workflow .staff-dash-hero__panel{padding:16px}.hospitality-workflow .staff-table{min-width:520px}.hospitality-workflow .staff-toolbar{padding:12px}}
