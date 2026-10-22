@@ -5,7 +5,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-retail-sales.css' %}?v=20261022.8">{% endblock %}
 {% block content %}
 <main class="fizo-sales fizo-sales--start">
-  <header class="fizo-sales__header"><div><p class="fizo-sales__eyebrow">Fizo / Supermarket / POS</p><h1>Ready for the next sale</h1><p>{{ current_outlet.name }} · Register open{% if current_shift.workstation %} · {{ current_shift.workstation.name }}{% endif %}</p></div>
+  <header class="fizo-sales__header"><div><p class="fizo-sales__eyebrow">{{ request.tenant.name }} / Checkout</p><h1>Ready for the next sale</h1><p>{{ current_outlet.name }} · Register open{% if current_shift.workstation %} · {{ current_shift.workstation.name }}{% endif %}</p><p class="staff-muted">Signed in: <strong>{{ request.user.get_full_name|default:request.user.email }}</strong>{% if request.tenant_membership %} · {{ request.tenant_membership.get_role_display }}{% endif %} · Currency: <strong>{{ checkout_currency }}</strong></p></div>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Sales history &amp; held baskets</a></header>
   <section class="fizo-sales__start" aria-labelledby="fizo-start-sale">
     <div class="fizo-sales__start-icon"><i class="bi bi-cart3"></i></div>
