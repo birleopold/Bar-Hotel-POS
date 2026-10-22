@@ -160,3 +160,14 @@
 .grocery-register-ready .grocery-basket-action--danger:hover{background:#fff0ee;color:#b42222;border-color:#e9b9b6}
 .grocery-register-ready .grocery-basket-action:focus-visible{outline:3px solid #e8b64c;outline-offset:2px}
 .grocery-register-ready .grocery-basket-action:disabled{opacity:.6;cursor:wait}
+
+/* Retail basket is not a kitchen ticket: hide preparation-only column. */
+.grocery-register-ready .grocery-basket-table .grocery-basket-prep{display:none}
+.grocery-register-ready .grocery-basket-table{width:100%;font-variant-numeric:tabular-nums}
+.grocery-register-ready .grocery-basket-table th{font-size:.76rem;text-transform:uppercase;letter-spacing:.035em;color:#5c7184}
+.grocery-register-ready .grocery-basket-table td{padding:11px 6px;border-color:#ebf0ed}
+.grocery-register-ready .grocery-basket-table .grocery-basket-product{font-weight:700;color:#142f48;min-width:110px}
+.grocery-register-ready .grocery-basket-table .grocery-basket-price{font-weight:750;color:#086a42;white-space:nowrap}
+.grocery-register-ready .grocery-basket-table .staff-table__actions-cell{min-width:170px}
+.grocery-register-ready [data-retail-scan-form] input[name=code]:focus{border-color:#088a50;box-shadow:0 0 0 3px rgba(8,138,80,.13)}
+@media(max-width:700px){.grocery-register-ready .grocery-basket-table td{padding:9px 5px}.grocery-register-ready .grocery-basket-table .staff-table__actions-cell{min-width:152px}}
