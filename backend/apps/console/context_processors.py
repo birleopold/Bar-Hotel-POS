@@ -25,6 +25,7 @@ def console_nav(request):
     base_ctx = {
         "console_nav": None,
         "grocery_console_shell": False,
+        "hospitality_console_shell": False,
         "console_memberships": memberships,
         "console_platform_tenants": platform_tenants,
         "console_is_platform_operator": platform_operator,
@@ -50,5 +51,10 @@ def console_nav(request):
         tm and membership_can_manage_org_console(tm)
         and has_store_line
         and not platform_operator
+    )
+    has_hospitality_line = bool(set(business_lines) & {"bar", "lounge", "restaurant", "cafeteria", "kitchen", "lodging"})
+    base_ctx["hospitality_console_shell"] = bool(
+        tm and membership_can_manage_org_console(tm)
+        and has_hospitality_line and not has_store_line and not platform_operator
     )
     return {**base_ctx, "console_nav": flags, **flags}
