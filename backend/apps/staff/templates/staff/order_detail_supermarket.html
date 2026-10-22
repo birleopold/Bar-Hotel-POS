@@ -2,7 +2,7 @@
 {% load static %}
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'staff/grocery-checkout.css' %}">
+<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.1">
 {% endblock %}
 {% block order_extra %}
   <div class="staff-toolbar mt-2 mb-3"><a class="staff-btn staff-btn--ghost" target="_blank" rel="noopener" href="{% url 'staff-retail-customer-display' order_id=order.id %}">Open customer display on second screen</a>
