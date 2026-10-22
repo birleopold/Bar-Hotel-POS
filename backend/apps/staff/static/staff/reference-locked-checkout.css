@@ -144,3 +144,9 @@ body:has(.fizo-checkout-catalogue) .fz-sidefoot{margin-top:auto!important}
  body:has(.fizo-checkout-catalogue) .fz-nav{display:flex!important;overflow-x:auto!important}
  body:has(.fizo-checkout-catalogue) .fz-nav a{min-width:76px!important}
 }
+
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-width:0!important;min-height:51px!important;padding:8px!important;border:1px solid #dce6ee!important;border-radius:9px!important;background:#fff!important;color:#24415b!important;font-size:12px!important;font-weight:800!important;text-decoration:none!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a.reference-clear-basket{color:#b32029!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a:hover{background:#f0f7f4!important}
+@media(max-width:390px){body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools{grid-template-columns:1fr!important}}
