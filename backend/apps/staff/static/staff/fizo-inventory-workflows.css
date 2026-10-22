@@ -1,0 +1,26 @@
+/* Fizo inventory: transactions, receiving forms and lot/expiry management. */
+.fizo-inventory-workspace{background:#f5f8f7}.fizo-inventory{max-width:1480px;margin:auto;color:#1a3440}
+.fizo-inventory__header{display:flex;align-items:start;justify-content:space-between;gap:15px;flex-wrap:wrap;margin:0 0 20px}
+.fizo-inventory__eyebrow{font-size:11px;letter-spacing:.08em;color:#008749;text-transform:uppercase;font-weight:850;margin:0 0 6px}
+.fizo-inventory__header h1{font-size:clamp(25px,3vw,35px);font-weight:850;letter-spacing:-.03em;margin:0 0 5px}
+.fizo-inventory__header p:last-child{color:#708489;max-width:740px;margin:0}
+.fizo-inventory__panel{background:white;border:1px solid #e0eae4;border-radius:13px;padding:18px;margin-bottom:16px}
+.fizo-inventory__heading{font-size:19px;color:#214045;font-weight:850;margin:16px 0 12px}
+.fizo-inventory__tablewrap{overflow-x:auto;background:#fff;border:1px solid #e2ece6;border-radius:12px}
+.fizo-inventory__table{width:100%;min-width:720px;border-collapse:collapse}
+.fizo-inventory__table th{text-align:left;background:#edf7f0;color:#526b62;font-weight:800;font-size:12px;padding:12px}
+.fizo-inventory__table td{border-bottom:1px solid #e7eee9;padding:13px 12px;font-size:13px}
+.fizo-inventory__table tbody tr:hover td{background:#fbfdfa}
+.fizo-inventory .staff-label,.fizo-inventory label{font-size:13px;font-weight:750;color:#3f5961}
+.fizo-inventory .staff-input,.fizo-inventory input:not([type=hidden]):not([type=checkbox]),.fizo-inventory select,.fizo-inventory textarea{border:1px solid #d9e6de;border-radius:8px;min-height:41px;max-width:100%}
+.fizo-inventory details.fizo-inventory__panel>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:17px;font-weight:850;cursor:pointer;color:#24423c}
+.fizo-inventory details.fizo-inventory__panel>summary:after{content:"+";color:#00874a;font-size:21px}
+.fizo-inventory details[open].fizo-inventory__panel>summary:after{content:"−"}
+.fizo-inventory details.fizo-inventory__panel>form{padding-top:16px}
+.fizo-inventory .staff-pager{display:flex;align-items:center;justify-content:center;gap:15px;padding:16px}
+.fizo-inventory .staff-pager a{color:#008b4b;text-decoration:none;font-weight:800}
+.fizo-inventory .staff-card{border:1px solid #e0eae4;border-radius:12px;padding:16px;background:#fff}
+.fizo-inventory .staff-card--soft{background:#f0faf4}
+.fizo-inventory__notice{border:1px solid #d0e7d7;background:#eaf8ee;border-radius:9px;color:#33664a;padding:12px 14px}
+.fizo-inventory a:focus-visible,.fizo-inventory button:focus-visible{outline:3px solid #e6c16e;outline-offset:2px}
+@media(max-width:700px){.fizo-inventory__panel{padding:12px}.fizo-inventory__header>.staff-btn{width:100%;justify-content:center}.fizo-inventory .row{--bs-gutter-x:12px}}
