@@ -60,3 +60,32 @@ class PasswordResetApiTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("BrandNewPass9!"))
+
+    def test_used_approval_cannot_reset_twice(self) -> None:
+        uid = urlsafe_base64_encode(force_bytes(str(self.user.pk)))
+        token = default_token_generator.make_token(self.user)
+        approval = PasswordRecoveryRequest.objects.create(
+            user=self.user, status="sent", token_digest=sha256(token.encode()).hexdigest(),
+            approved_at=timezone.now(), expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        payload = {"uid": uid, "token": token, "new_password": "BrandNewPass9!"}
+        first = self.client.post("/api/v1/auth/password/reset/confirm/", payload, format="json")
+        self.assertEqual(first.status_code, 200)
+        approval.refresh_from_db()
+        self.assertEqual(approval.status, "used")
+        self.assertEqual(approval.token_digest, "")
+        second = self.client.post("/api/v1/auth/password/reset/confirm/", payload, format="json")
+        self.assertEqual(second.status_code, 400)
+
+    def test_expired_approval_rejected(self) -> None:
+        uid = urlsafe_base64_encode(force_bytes(str(self.user.pk)))
+        token = default_token_generator.make_token(self.user)
+        PasswordRecoveryRequest.objects.create(
+            user=self.user, status="sent", token_digest=sha256(token.encode()).hexdigest(),
+            approved_at=timezone.now() - timedelta(hours=1),
+            expires_at=timezone.now() - timedelta(seconds=1),
+        )
+        resp = self.client.post("/api/v1/auth/password/reset/confirm/", {
+            "uid": uid, "token": token, "new_password": "BrandNewPass9!",
+        }, format="json")
+        self.assertEqual(resp.status_code, 400)
