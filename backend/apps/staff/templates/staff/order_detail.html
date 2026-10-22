@@ -176,7 +176,13 @@
         </div>
       {% endif %}
       {% if is_supermarket_outlet %}
-      <div class="fizo-checkout-basket" aria-label="Current basket">
+      <div class="fizo-checkout-basket" id="fizo-current-basket" aria-label="Current basket">
+        <div class="fizo-cashier-payment-summary" aria-label="Sale total and payment">
+          <span>Payable now</span><strong>{{ order.currency }} {{ balance_due }}</strong>
+          {% if can_record_payment %}
+          <a href="#fizo-cashier-payment" class="fizo-cashier-pay-cta"><i class="bi bi-credit-card" aria-hidden="true"></i> Take payment <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
         <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>Sale {{ order.bill_reference }}</span></h2>
         <nav class="fizo-retail-basket-tools" aria-label="Cashier shortcuts">
           {% if can_modify_open_order %}
@@ -246,6 +252,7 @@
             <button type="button" data-fizo-payment-method="mobile_money"><i class="bi bi-phone"></i> Mobile Money</button>
           </div>
           {% endif %}
+          {% if is_supermarket_outlet %}<div id="fizo-cashier-payment" class="fizo-cashier-pay-intro"><strong>Collect payment</strong><span>Choose a method, confirm the amount, then record the payment.</span></div>{% endif %}
           <form method="post" class="row g-2 align-items-end" data-pos-payment-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="record_payment">
