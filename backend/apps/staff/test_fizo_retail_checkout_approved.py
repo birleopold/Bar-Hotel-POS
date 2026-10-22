@@ -27,3 +27,16 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn("{% csrf_token %}",cards)
         self.assertIn("{% csrf_token %}",retail)
         self.assertIn("{% if is_supermarket_outlet %}",parent)
+
+    def test_visual_basket_keeps_authorized_stock_updates(self):
+        root = Path(__file__).resolve().parent
+        page = (root/"templates/staff/order_detail.html").read_text(encoding="utf-8")
+        retail = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn("fizo-retail-basket-row", page)
+        self.assertIn("data-fizo-qty-form", page)
+        self.assertIn('value="adjust_line_qty"', page)
+        self.assertIn('value="void_line"', page)
+        self.assertIn('name="reason"', page)
+        self.assertIn("{% csrf_token %}", page)
+        self.assertIn("data-fizo-step", retail)
+        self.assertIn("form.requestSubmit()", retail)
