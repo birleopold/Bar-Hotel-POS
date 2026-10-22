@@ -1,28 +1,41 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}New reservation{% endblock %}
-{% block main_class %}staff-main--wide hospitality-workflow{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
+{% block title %}New reservation · Fizo Hotel{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.3">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Lodging</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">New reservation<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">{{ current_site.name }}</p>
-        </div>
-      </div>
-    </div>
+<div class="fizo-hotel fizo-reservation-create">
+  <header class="fizo-hotel__head">
+    <div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Reservations</p><h1>New reservation</h1><p>{{ current_site.name }} · Create a confirmed guest stay</p></div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}"><i class="bi bi-arrow-left"></i> Back to reservations</a>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <h2 class="staff-section-head">Guest &amp; stay</h2>
-  <form method="post" class="staff-card">
-    {% csrf_token %}
-    {% for field in form %}
-      <div class="mb-3">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small class="staff-muted">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>
-    {% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Create</button>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}">Cancel</a>
-  </form>
+  <div class="fizo-reservation-create__layout">
+    <section class="fizo-hotel__panel" aria-labelledby="new-stay-heading">
+      <div class="fizo-hotel__section-head"><div><h2 id="new-stay-heading">Guest and stay details</h2><p>Complete the required fields, then save the reservation.</p></div></div>
+      {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <form method="post" class="fizo-reservation-create__form">
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="fizo-reservation-create__field{% if field.errors %} fizo-reservation-create__field--invalid{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span aria-label="required"> *</span>{% endif %}</label>
+            {{ field }}
+            {% if field.help_text %}<small class="fizo-reservation-create__help">{{ field.help_text }}</small>{% endif %}
+            {% if field.errors %}<div class="fizo-reservation-create__errors" role="alert">{{ field.errors }}</div>{% endif %}
+          </div>
+        {% endfor %}
+        <div class="fizo-reservation-create__actions">
+          <button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-check-circle"></i> Create reservation</button>
+          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}">Cancel</a>
+        </div>
+      </form>
+    </section>
+    <aside class="fizo-reservation-create__note">
+      <i class="bi bi-calendar2-check" aria-hidden="true"></i>
+      <h2>Front desk</h2>
+      <p>After saving, open the guest's reservation to assign a room, check in and manage the folio. Availability must be confirmed by the booking rules.</p>
+      <a href="{% url 'staff-lodging-availability' %}">Check room availability <i class="bi bi-arrow-right"></i></a>
+    </aside>
+  </div>
+</div>
 {% endblock %}
