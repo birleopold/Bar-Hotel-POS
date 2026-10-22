@@ -42,10 +42,13 @@ def console_nav(request):
         business_lines = normalize_business_lines(active_tenant.settings.business_lines)
     except TenantSettings.DoesNotExist:
         business_lines = []
-    retail_only = bool(business_lines) and set(business_lines) <= {"retail", "supermarket"}
+    # A store keeps its familiar administration shell when hospitality
+    # features are enabled alongside retail, rather than dropping to an
+    # unrelated console layout.
+    has_store_line = bool(set(business_lines) & {"retail", "supermarket"})
     base_ctx["grocery_console_shell"] = bool(
         tm and membership_can_manage_org_console(tm)
-        and retail_only
+        and has_store_line
         and not platform_operator
     )
     return {**base_ctx, "console_nav": flags, **flags}
