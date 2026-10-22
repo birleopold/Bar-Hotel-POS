@@ -74,3 +74,18 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn(".staff-main:has(.fizo-checkout-catalogue)", css)
         catalogue = (root/"templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
         self.assertIn("Add to basket", catalogue)
+
+
+    def test_dedicated_checkout_start_uses_safe_post(self):
+        from django.template.loader import get_template
+        get_template("staff/retail_pos_start.html")
+        root = Path(__file__).resolve().parent
+        page = (root/"templates/staff/retail_pos_start.html").read_text(encoding="utf-8")
+        self.assertIn('method="post"', page)
+        self.assertIn("staff-order-quick-create", page)
+        self.assertIn("{% csrf_token %}", page)
+        self.assertIn("current_shift", page)
+        view = (root/"views_ops.py").read_text(encoding="utf-8")
+        entry = view.split("class StaffRetailPosEntryView(", 1)[1].split("class StaffOrderQuickCreateView(", 1)[0]
+        self.assertIn('render(request, "staff/retail_pos_start.html"', entry)
+        self.assertNotIn("create_order_with_lines(", entry)
