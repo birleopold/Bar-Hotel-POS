@@ -262,6 +262,21 @@ class ConsoleAccessTests(TestCase):
                 self.assertContains(response, heading)
                 self.assertContains(response, "hospitality-console-body")
 
+    def test_all_setup_routes_use_canonical_stylesheet(self) -> None:
+        user = User.objects.create_user(email="setup-css-route@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        settings_obj = TenantSettings.objects.get(tenant=self.tenant)
+        settings_obj.business_lines = ["supermarket"]
+        settings_obj.save(update_fields=["business_lines", "updated_at"])
+        self._login_with_tenant(user)
+        routes = ("console-org-site-create", "console-org-menu-category-create")
+        for route in routes:
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "fizo-setup-area.css")
+                self.assertNotContains(response, "grocery-owner-console.css")
+
     def test_store_setup_renders_reference_layout_without_static_css(self) -> None:
         user = User.objects.create_user(email="fizo-reference-layout@test.local", password="TestPass9!")
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
