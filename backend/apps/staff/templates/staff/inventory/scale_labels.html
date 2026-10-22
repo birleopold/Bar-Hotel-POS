@@ -1,23 +1,24 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Variable-weight scale labels{% endblock %}
+{% block main_class %}staff-main--wide fizo-inventory-workspace{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.3">{% endblock %}
 {% block content %}
+<div class="fizo-inventory fizo-inventory--scale-labels">
+
 {% include "staff/inventory/includes/subnav.html" %}
-<header class="staff-page-hero"><div class="staff-dash-hero__panel">
-<p class="staff-dash-hero__eyebrow">Supermarket · Weighed products</p>
-<h1 class="staff-page-title">Configure scale-label barcodes</h1>
-<p class="staff-dash-hero__tagline">Use only when your real weighing scale prints the supported local EAN-13 layout: 2-digit prefix (20–29), 5-digit product, 5-digit net grams, checksum. This format is not universal.</p>
-</div></header>
-<section class="staff-card mb-3">
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Supermarket / Inventory</p><h1>Scale-label barcodes</h1><p>Manage supported variable-weight product barcode mappings.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
+<section class="fizo-inventory__panel mb-3">
 <h2 class="staff-card__title">Before enabling a scale</h2>
 <p class="staff-muted">Verify an actual label from your weighing scale against this exact format. The label encodes net grams; checkout calculates weight in kilograms and uses the configured price per kilogram, plus the existing tax rules. No automatic tare, calibration, hardware control or price-encoded label format is claimed.</p>
 <p class="staff-muted small">Only active, inventory-tracked kilogram products appear here. The prefix and product number are unique within this business. Enter both fields to enable a mapping, or clear both to disable it.</p>
 </section>
-<form method="get" class="staff-card mb-3" role="search">
+<form method="get" class="fizo-inventory__panel mb-3" role="search">
 <label for="scale-filter" class="staff-label">Find weighed product</label>
 <div class="d-flex flex-wrap gap-2"><input class="staff-input flex-grow-1" id="scale-filter" name="q" maxlength="80" placeholder="Product, SKU or barcode" value="{{ scale_q }}" style="min-width:12rem">
 <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Find</button></div></form>
 {% if scale_items %}
-<div class="staff-table-wrap"><table class="staff-table">
+<div class="fizo-inventory__tablewrap"><table class="fizo-inventory__table">
 <thead><tr><th>Product</th><th>Price per kilogram</th><th>Configured format</th>{% if can_configure %}<th>Update scale mapping</th>{% endif %}</tr></thead>
 <tbody>{% for item in scale_items %}
 <tr><td><strong>{{ item.name }}</strong><div class="staff-muted small">{{ item.sku|default:item.barcode|default:"No code" }}</div></td>
@@ -37,4 +38,5 @@
 {% endfor %}</tbody></table></div>
 {% else %}<div class="staff-card"><h2 class="staff-card__title">No kilogram items found</h2><p class="staff-muted">Add an active kilogram product with inventory tracking first, or try a different search.</p></div>{% endif %}
 {% if is_paginated %}<nav class="staff-pager" aria-label="Weighed products pagination">{% if page_obj.has_previous %}<a href="?q={{ scale_q|urlencode }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}<span>{{ page_obj.number }} of {{ paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?q={{ scale_q|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}</nav>{% endif %}
+</div>
 {% endblock %}
