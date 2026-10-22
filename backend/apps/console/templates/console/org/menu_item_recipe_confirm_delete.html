@@ -1,11 +1,20 @@
 {% extends "console/base.html" %}
-{% block title %}Remove ingredient{% endblock %}
+{% block title %}Remove ingredient from recipe?{% endblock %}
+{% block main_class %}fizo-entity-form-page{% endblock %}
 {% block content %}
-  <h1 class="staff-page-title">Remove from recipe?<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <p>{{ menu_item.name }} — {{ object.ingredient_item.name }}</p>
-  <form method="post" class="staff-card">
+<section class="fizo-entity" aria-labelledby="fizo-confirm-title">
+  <header class="fizo-entity__header"><div>
+    <p class="grocery-form-kicker">FIZO / CATALOGUE / CONFIRM CHANGE</p>
+    <h1 id="fizo-confirm-title">Remove ingredient from recipe?</h1>
+    <p class="staff-muted">Remove {{ object.ingredient_item.name }} from the recipe for {{ menu_item.name }}? This does not delete the ingredient product.</p>
+  </div></header>
+  <form method="post" class="staff-card fizo-entity__card">
     {% csrf_token %}
-    <button type="submit" class="staff-btn staff-btn--primary">Yes, remove</button>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-recipe' item_id=menu_item.id %}">Cancel</a>
+    <p>Please confirm this change before proceeding.</p>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-recipe' item_id=menu_item.id %}">Cancel and go back</a>
+      <button class="staff-btn staff-btn--danger" type="submit">Remove link</button>
+    </div>
   </form>
+</section>
 {% endblock %}
