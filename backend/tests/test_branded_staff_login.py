@@ -260,3 +260,17 @@ def test_unified_auth_templates_keep_existing_security_forms_and_touch_access():
     assert '@media(max-width:900px)' in styles
     assert '@media(max-width:460px)' in styles
     assert '@media(max-height:690px)' in styles
+
+
+def test_nested_login_routes_reference_root_relative_stylesheet_urls(settings):
+    from django.conf import settings as active_settings
+    from django.template.loader import render_to_string
+    from django.templatetags.static import static
+    assert active_settings.STATIC_URL.startswith("/")
+    assert static("staff/fizo-auth-2026.css").startswith("/static/")
+    for template_name in ("staff/login.html", "staff/terminal.html"):
+        html = render_to_string(template_name, {
+            "workers": [], "form": None, "login_brand": None,
+        })
+        assert 'href="/static/staff/fizo-auth-2026.css?' in html
+        assert 'href="static/staff/fizo-auth-2026.css?' not in html
