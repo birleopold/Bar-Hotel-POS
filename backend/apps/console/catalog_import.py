@@ -87,6 +87,11 @@ def parse_catalog_csv(*, tenant, uploaded):
     if len(records) > MAX_ITEMS:
         raise CatalogImportProblem(["Import at most 1,000 items per CSV."])
 
+    existing_names = {
+        value.casefold() for value in MenuItem.objects.filter(
+            tenant=tenant, is_active=True,
+        ).values_list("name", flat=True)
+    }
     existing_skus = {
         value.casefold() for value in MenuItem.objects.filter(
             tenant=tenant,
@@ -99,6 +104,7 @@ def parse_catalog_csv(*, tenant, uploaded):
     }
     seen_skus = set()
     seen_barcodes = set()
+    seen_names = set()
     rows = []
     errors = []
     valid_uom = {x.value for x in UnitOfMeasure}
@@ -123,6 +129,8 @@ def parse_catalog_csv(*, tenant, uploaded):
                 raise ValueError("Category (max 128) and name (max 255) are required.")
             if len(sku) > 64 or len(barcode) > 64:
                 raise ValueError("SKU and barcode must each be 64 characters or fewer.")
+            if name.casefold() in existing_names or name.casefold() in seen_names:
+                raise ValueError("Product name already exists in this business or file.")
             if sku and (sku.casefold() in existing_skus or sku.casefold() in seen_skus):
                 raise ValueError("SKU already exists in this business or file.")
             if barcode and (
@@ -154,6 +162,7 @@ def parse_catalog_csv(*, tenant, uploaded):
                 "tax_rate_percent": tax, "description": description,
             }
             rows.append(prepared)
+            seen_names.add(name.casefold())
             if sku:
                 seen_skus.add(sku.casefold())
             if barcode:
@@ -175,6 +184,12 @@ def import_catalog_items(*, tenant, rows):
     # Serialize concurrent imports for a business even if no menu items
     # exist yet; selecting only matching SKUs does not lock an empty table.
     Tenant.objects.select_for_update().get(pk=tenant.pk)
+    existing_names = {
+        v.casefold() for v in MenuItem.objects.filter(
+            tenant=tenant, is_active=True,
+        ).values_list("name", flat=True)
+    }
+    seen_names = set()
     existing_skus = {
         v.casefold() for v in MenuItem.objects.select_for_update().filter(
             tenant=tenant,
@@ -186,6 +201,10 @@ def import_catalog_items(*, tenant, rows):
         ).exclude(barcode="").values_list("barcode", flat=True)
     }
     for r in rows:
+        key = r["name"].casefold()
+        if key in existing_names or key in seen_names:
+            raise CatalogImportProblem(["Product name already exists: " + r["name"]])
+        seen_names.add(key)
         if r["sku"] and r["sku"].casefold() in existing_skus:
             raise CatalogImportProblem(["SKU already exists: " + r["sku"]])
         if r["barcode"] and r["barcode"].casefold() in existing_barcodes:
