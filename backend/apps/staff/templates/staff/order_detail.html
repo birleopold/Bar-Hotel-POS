@@ -80,6 +80,17 @@
 {% endif %}
  
   {% endif %}
+  {% if is_supermarket_outlet %}
+  <section class="fizo-cashier-shortcuts" aria-label="Cashier tools">
+    <div><strong>Fast checkout</strong><span>Search products, scan barcodes and collect payment from this screen.</span></div>
+    <nav aria-label="Checkout quick actions">
+      <a href="#fizo-pos-menu-search" data-fizo-focus-search><i class="bi bi-search" aria-hidden="true"></i> Find product</a>
+      <a href="#retail-fast-checkout" data-fizo-focus-scan><i class="bi bi-upc-scan" aria-hidden="true"></i> Scan <kbd>F3</kbd></a>
+      <a href="#fizo-current-basket"><i class="bi bi-basket3" aria-hidden="true"></i> Basket</a>
+      <a href="{% url 'staff-orders' %}"><i class="bi bi-clock-history" aria-hidden="true"></i> Held sales</a>
+    </nav>
+  </section>
+  {% endif %}
   <div class="staff-pos-order-layout">
     {% if is_supermarket_outlet %}
       <section class="staff-pos-order-main fizo-checkout-catalogue" aria-label="Select products">
