@@ -1,6 +1,8 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}{% if grocery_owner_shell %}Products{% else %}Menu items{% endif %}{% endblock %}
-{% block main_class %}staff-main--wide staff-main--menu-catalog{% endblock %}
+{% block main_class %}staff-main--wide staff-main--menu-catalog{% if not grocery_owner_shell %} hospitality-workflow{% endif %}{% endblock %}
+{% block extra_css %}{% if not grocery_owner_shell %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.2">{% endif %}{% endblock %}
 {% block content %}
   <header class="staff-page-hero staff-menu-hero">
     <div class="staff-dash-hero__panel">
@@ -9,7 +11,7 @@
           <p class="staff-dash-hero__eyebrow"><i class="bi bi-journal-richtext" aria-hidden="true"></i> {% if grocery_owner_shell %}Product catalogue{% else %}Menu catalog{% endif %}</p>
           <h1 class="staff-page-title mb-0">{% if grocery_owner_shell %}Products{% else %}Sellable items{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-dash-hero__tagline mb-0">
-            {% if menu_all_outlets_mode %}Showing items available across your sections.{% elif menu_scope_outlet %}Showing products available for {{ menu_scope_outlet.name }}.{% else %}Choose a section to see its products.{% endif %}
+            {% if menu_all_outlets_mode %}Showing items available across your sections.{% elif menu_scope_outlet %}Showing menu items available for {{ menu_scope_outlet.name }}.{% else %}Choose a section to see its menu items.{% endif %}
           </p>
         </div>
         <div class="staff-menu-hero__summary" aria-label="Catalog summary">
