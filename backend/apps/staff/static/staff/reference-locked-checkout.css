@@ -90,3 +90,13 @@
 @media(max-width:1199px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity{grid-template-columns:1fr auto}}
 @media(max-width:850px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-layout{grid-template-columns:1fr!important}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{position:static!important;max-height:none!important;overflow:visible!important}.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity{display:flex!important;flex-wrap:wrap}}
 @media(max-width:520px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile{min-height:183px!important}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__photo{height:92px!important}.reference-pos-brand{width:100%}}
+
+/* Keep the checkout order identical to the screenshot rather than the legacy
+   DOM order: basket heading > lines > totals > Pay > utility actions. */
+.staff-main:has(.fizo-checkout-catalogue) .fizo-checkout-basket{display:flex!important;flex-direction:column!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-checkout-basket__title{order:0}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-checkout-basket__lines{order:1}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-summary{order:2}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-payment-summary{order:3;margin-top:12px!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools{order:4;display:flex!important;gap:8px!important;flex-wrap:wrap!important;margin-top:12px!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a{flex:1;text-align:center;min-height:42px;min-width:86px}
