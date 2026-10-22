@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.shortcuts import redirect
 from django.urls import include, path
 
-from apps.api.web_password_reset import StaffPasswordResetConfirmView
+from apps.api.web_password_reset import StaffPasswordResetConfirmView, StaffPasswordRecoveryRequestView
 from apps.api.web_signup import PublicSignupView
 from config.admin_site import configure_platform_admin_site
 
@@ -18,6 +18,7 @@ def root_entry(request):
 urlpatterns = [
     path("", root_entry, name="root-entry"),
     path("signup/", PublicSignupView.as_view(), name="public-signup"),
+    path("password-reset/", StaffPasswordRecoveryRequestView.as_view(), name="staff-password-reset-request"),
     path("admin/", admin.site.urls),
     path(
         "password-reset/confirm/",
