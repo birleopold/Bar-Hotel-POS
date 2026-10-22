@@ -100,3 +100,21 @@
 .staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-payment-summary{order:3;margin-top:12px!important}
 .staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools{order:4;display:flex!important;gap:8px!important;flex-wrap:wrap!important;margin-top:12px!important}
 .staff-main:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a{flex:1;text-align:center;min-height:42px;min-width:86px}
+
+/* Reference screenshot: search is a full-width header control, not a small
+   secondary form above the catalogue. */
+.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity{grid-template-columns:minmax(170px,.8fr) minmax(300px,1.65fr) auto auto auto!important}
+.reference-top-search{display:flex;align-items:center;gap:10px;min-width:0;border:1px solid #d7e1ed;background:#fff;border-radius:11px;padding:7px 10px;min-height:50px;box-shadow:0 1px 3px #22435d0a}
+.reference-top-search>i{font-size:23px;color:#45688a}
+.reference-top-search input{border:0;outline:0;min-width:0;flex:1;font-size:15px;color:#173558;background:transparent}
+.reference-top-search input:focus-visible{outline:2px solid #21a968;outline-offset:3px}
+.reference-top-search button{border:1px solid #cfdaea;border-radius:7px;color:#244461;background:#f7fafc;padding:7px 9px;font-weight:800;min-height:34px}
+.reference-top-search button[type="submit"]{background:#e4f5eb;color:#006d40;border-color:#dcf0e4}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-server-catalogue-search{display:none!important}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-head{display:none!important}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-category-filter{display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;gap:7px!important}
+.staff-pos-category-filter .reference-category-icon{font-size:25px;line-height:1.1;display:block}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-menu-tools{margin:0 0 11px!important}
+.staff-main:has(.fizo-checkout-catalogue) .fizo-pos-favourites{display:none!important}
+@media(max-width:1199px){.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity{grid-template-columns:minmax(0,1fr) minmax(270px,1.5fr)!important}.reference-top-search{order:2}.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity__register{order:3}}
+@media(max-width:650px){.reference-top-search{width:100%;order:2}.staff-main:has(.fizo-checkout-catalogue) .fizo-cashier-identity{display:flex!important;flex-wrap:wrap!important}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-category-filter{min-width:98px!important}}
