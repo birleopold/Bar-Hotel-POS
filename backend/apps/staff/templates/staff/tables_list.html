@@ -1,7 +1,9 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Tables{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
-{% block main_class %}staff-main--wide staff-main--pos{% endblock %}
+{% block main_class %}hospitality-workflow staff-main--wide staff-main--pos{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
   <section class="staff-pos-orders-hero mb-3">
     <div class="staff-toolbar staff-toolbar--pos-head">
