@@ -2,17 +2,17 @@
 {% block title %}Setup wizard{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
-{% if grocery_console_shell %}
+{% if grocery_console_shell or hospitality_console_shell %}
 <section class="grocery-setup" aria-labelledby="store-setup-heading">
   <div class="grocery-setup__hero">
     <div>
-      <p class="grocery-setup__eyebrow">Store management / Guided setup</p>
-      <h1 id="store-setup-heading">Set up your store</h1>
-      <p>Follow these steps in order to prepare your products, stock, staff and checkout. You can come back to any step later.</p>
+      <p class="grocery-setup__eyebrow">{% if grocery_console_shell %}Store management{% else %}Hospitality management{% endif %} / Guided setup</p>
+      <h1 id="store-setup-heading">{% if grocery_console_shell %}Set up your store{% else %}Set up your business{% endif %}</h1>
+      <p>{% if grocery_console_shell %}Follow these steps in order to prepare your products, stock, staff and checkout.{% else %}Prepare your locations, services, team and daily operations. Only steps for your selected business lines appear.{% endif %} You can come back to any step later.</p>
     </div>
     <div class="grocery-setup__hero-actions">
-      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-dashboard' %}"><i class="bi bi-arrow-left"></i> Store overview</a>
-      {% if setup_complete %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-terminal' %}"><i class="bi bi-cart-check"></i> Open checkout</a>{% endif %}
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-dashboard' %}"><i class="bi bi-arrow-left"></i> Business overview</a>
+      {% if setup_complete %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-terminal' %}"><i class="bi bi-cart-check"></i> Open workspace</a>{% endif %}
     </div>
   </div>
   <div class="staff-card grocery-setup__progress">
@@ -77,7 +77,7 @@
         {% endfor %}
       {% endif %}
     </div>
-    <aside class="grocery-setup__aside" aria-label="Store setup help">
+    <aside class="grocery-setup__aside" aria-label="Business setup help">
       <section class="staff-card">
         <h2><i class="bi bi-check2-square text-success"></i> Before your first sale</h2>
         <p>These automatic checks help you spot missing setup. Confirm your hardware and payments in person before using the live till.</p>
@@ -107,7 +107,7 @@
           <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer"></i> Check registers and printers</a>
           <a href="{% url 'staff-workspace-invite-create' %}"><i class="bi bi-person-plus"></i> Add staff members</a>
           {% if show_catalog_import %}<a href="{% url 'console-org-practice-sale' %}"><i class="bi bi-play-circle"></i> Practice a sale</a>{% endif %}
-          <a href="{% url 'staff-dashboard' %}"><i class="bi bi-grid-1x2"></i> Open store dashboard</a>
+          <a href="{% url 'staff-dashboard' %}"><i class="bi bi-grid-1x2"></i> Open dashboard</a>
         </div>
       </section>
     </aside>
