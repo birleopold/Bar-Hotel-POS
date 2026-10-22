@@ -1,0 +1,21 @@
+/* Fizo restaurant floor: purpose-built page, independent of legacy hospitality CSS. */
+.fizo-floor{max-width:1440px;margin:0 auto;color:#18303b}
+.fizo-floor__header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:18px;margin-bottom:22px}
+.fizo-floor__eyebrow{font-size:12px;text-transform:uppercase;color:#008547;font-weight:800;letter-spacing:.07em;margin:0 0 8px}
+.fizo-floor__header h1{font-size:clamp(24px,2.6vw,36px);font-weight:850;letter-spacing:-.035em;margin:0 0 5px}
+.fizo-floor__header p:last-child{color:#70828a;margin:0}
+.fizo-floor__actions{display:flex;gap:9px;flex-wrap:wrap}
+.fizo-floor__surface{background:#fff;border:1px solid #e0ebe5;border-radius:16px;padding:21px}
+.fizo-floor__sectionhead{display:flex;justify-content:space-between;align-items:center;gap:13px;flex-wrap:wrap;margin-bottom:22px}
+.fizo-floor__sectionhead h2{font-size:19px;font-weight:800;margin:0 0 4px}
+.fizo-floor__sectionhead p{color:#71858c;margin:0}
+.fizo-floor__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:14px}
+.fizo-floor__table{display:flex;flex-direction:column;gap:9px;padding:17px;background:#fbfdfc;border:1px solid #dce8e2;border-radius:13px;min-height:182px;color:#203a42;text-decoration:none;transition:border-color .15s}
+a.fizo-floor__table:hover{border-color:#008f4f;color:#203a42;background:#f2faf5}
+.fizo-floor__table-icon{width:37px;height:37px;display:grid;place-items:center;border-radius:9px;background:#e1f6e9;color:#008744;font-size:19px}
+.fizo-floor__table-name{font-size:18px;font-weight:850}
+.fizo-floor__table-capacity{font-size:12px;color:#697f83}
+.fizo-floor__status{margin-top:auto;display:inline-block;width:fit-content;border-radius:7px;background:#e1f5e8;color:#007c42;padding:4px 9px;font-size:11px;font-weight:800}
+.fizo-floor__table--inactive{opacity:.6;background:#f4f5f5}.fizo-floor__status--inactive{background:#eceded;color:#6e7678}
+.fizo-floor__empty{grid-column:1/-1;text-align:center;padding:35px;color:#71848b}.fizo-floor__empty i{font-size:29px;color:#008747}.fizo-floor__empty h3{color:#243b42;font-size:18px;margin:9px 0}
+@media(max-width:650px){.fizo-floor__surface{padding:12px}.fizo-floor__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.fizo-floor__table{min-height:160px;padding:11px}.fizo-floor__actions{width:100%}}
