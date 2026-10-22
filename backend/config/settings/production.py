@@ -4,6 +4,17 @@ from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
 
+# Production never uses the development SQLite fallback, even if a caller
+# explicitly selects this settings module but forgets to load pos.env.
+if not env("DATABASE_URL", default="").strip():
+    raise ImproperlyConfigured(
+        "Production requires DATABASE_URL for the existing PostgreSQL database."
+    )
+if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
+    raise ImproperlyConfigured(
+        "Fizo production requires PostgreSQL; refusing SQLite or other databases."
+    )
+
 DEBUG = False
 
 _DEV_SECRET = "dev-only-change-in-production"
