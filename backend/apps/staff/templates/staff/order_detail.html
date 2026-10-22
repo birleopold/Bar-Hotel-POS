@@ -149,7 +149,7 @@
       {% endif %}
       {% if is_supermarket_outlet %}
       <div class="fizo-checkout-basket" aria-label="Current basket">
-        <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>{{ order.lines.count }} lines</span></h2>
+        <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>Sale {{ order.bill_reference }}</span></h2>
     <section class="fizo-checkout-basket__lines" aria-label="Basket items">
       <div class="fizo-retail-basket-items">
         {% for line in order.lines.all %}
@@ -189,6 +189,11 @@
         {% endfor %}
       </div>
     </section>
+    <div class="fizo-retail-basket-summary" aria-label="Sale totals">
+      <div><span>Subtotal</span><strong>{{ order.currency }} {{ order.subtotal }}</strong></div>
+      <div><span>Tax</span><strong>{{ order.currency }} {{ order.tax_total }}</strong></div>
+      <div class="fizo-retail-basket-summary__total"><span>Total due</span><strong>{{ order.currency }} {{ balance_due }}</strong></div>
+    </div>
       </div>
       {% endif %}
       {% if can_record_payment and payment_form %}
