@@ -1,7 +1,8 @@
 {% extends "staff/base.html" %}
 {% load static %}
+{% load static %}
 {% block title %}Equipment check · {{ station.name }}{% endblock %}
-{% block extra_css %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261022.2">
 <style>
 .hardware-check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:1rem}
 .hardware-check-card{min-width:0}
@@ -20,16 +21,13 @@
 </style>
 {% endblock %}
 {% block content %}
-<header class="staff-page-hero"><div class="staff-dash-hero__panel">
-<p class="staff-dash-hero__eyebrow">Workstations</p>
-<h1 class="staff-page-title">Equipment check: {{ station.name }}</h1>
-<p>{{ station.outlet.name }} · {{ station.code }}</p>
-</div></header>
+<div class="fizo-register fizo-register--workstation-test">
+<header class="fizo-register__header"><div><p class="fizo-register__eyebrow">Fizo / Cashier / Workstations</p><h1>Equipment check · {{ station.name }}</h1><p>{{ station.outlet.name }} · {{ station.code }} · Local equipment checks only</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">All workstations</a></header>
 <div class="d-flex flex-wrap gap-2 mb-3">
 <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">Back to workstations</a>
 {% if can_manage %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-edit' station.pk %}">Edit device configuration</a>{% endif %}
 </div>
-<section class="staff-card mb-3">
+<section class="fizo-register__panel mb-3">
 <h2 class="staff-section-head">Before testing</h2>
 <p>This page works in this browser and does not create sales, payments, stock movements or cash-drawer commands.
 {% if is_current_station %}This browser currently uses this workstation.{% else %}This workstation is not the one currently selected in this browser. Confirm the physical device you are testing.{% endif %}</p>
@@ -121,7 +119,7 @@
 <section class="staff-card my-4">
   <h2 class="staff-section-head">Recent observed checks</h2>
   <p class="staff-muted small">These are staff-reported observations, not independent hardware diagnostics or proof of an automatic print driver.</p>
-  <div class="staff-table-wrap"><table class="staff-table">
+  <div class="fizo-register__tablewrap"><table class="fizo-register__table">
     <thead><tr><th>Recorded</th><th>Equipment</th><th>Observed outcome</th><th>Operator</th><th>Notes</th></tr></thead>
     <tbody>
       {% for check in check_history %}
@@ -138,6 +136,7 @@
     </tbody>
   </table></div>
 </section>
+</div>
 {% endblock %}
 {% block extra_js %}
 <script>
