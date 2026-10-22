@@ -47,7 +47,7 @@ sudo rsync -a --delete "$APP/backend/staticfiles/" /var/www/leosoft-pos/static/
 sudo chmod -R a+rX /var/www/leosoft-pos/static
 # Critical Fizo CSS must exist in BOTH Django's output and nginx/Caddy's
 # publicly served tree. A successful git pull alone cannot validate styling.
-for asset in staff/fizo-fresh.css staff/fizo-console-shell.css staff/fizo-setup-area.css staff/fizo-setup-wizard.css staff/fizo-dashboard-v2.css staff/fizo-checkout-v1.css staff/fizo-hospitality-floor.css staff/fizo-hospitality-pos.css staff/fizo-hotel-frontdesk.css staff/fizo-retail-products.css staff/fizo-stock.css staff/fizo-retail-sales.css staff/fizo-inventory-workflows.css; do
+for asset in staff/fizo-fresh.css staff/fizo-console-shell.css staff/fizo-setup-area.css staff/fizo-setup-wizard.css staff/fizo-dashboard-v2.css staff/fizo-checkout-v1.css staff/fizo-hospitality-floor.css staff/fizo-hospitality-pos.css staff/fizo-hotel-frontdesk.css staff/fizo-retail-products.css staff/fizo-stock.css staff/fizo-retail-sales.css staff/fizo-inventory-workflows.css staff/fizo-purchasing.css; do
   source_asset="$APP/backend/staticfiles/$asset"
   published_asset="/var/www/leosoft-pos/static/$asset"
   test -s "$source_asset" || { echo "ERROR: collectstatic missing $source_asset" >&2; exit 1; }
