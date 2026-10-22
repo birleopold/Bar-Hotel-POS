@@ -18,6 +18,67 @@
   if (paymentCard && basket) right.insertBefore(paymentCard, basket.nextSibling);
   if (cash && paymentCard) right.insertBefore(cash, paymentCard.nextSibling);
   root.classList.add("grocery-register-ready");
+  // Reference-inspired register header reuses real order, outlet and print links.
+  var context = document.querySelector(".staff-context-bar--pos");
+  var totalRow = document.querySelector(".staff-pos-totals-row");
+  if (context) {
+    context.classList.add("grocery-register-context");
+    var header = document.createElement("div");
+    header.className = "grocery-register-heading";
+    var title = document.createElement("div");
+    title.className = "grocery-register-heading__title";
+    var mark = document.createElement("span");
+    mark.className = "grocery-register-heading__mark";
+    mark.textContent = "🛒";
+    mark.setAttribute("aria-hidden", "true");
+    var titleCopy = document.createElement("span");
+    var storeName = document.querySelector(".staff-sidebar__brand-copy strong, .owner-topbar__brand strong");
+    var store = document.createElement("strong");
+    store.textContent = storeName ? storeName.textContent.trim() : "Store checkout";
+    var sub = document.createElement("small");
+    sub.textContent = "Supermarket / Grocery Store";
+    titleCopy.appendChild(store);
+    titleCopy.appendChild(sub);
+    title.appendChild(mark);
+    title.appendChild(titleCopy);
+    var station = document.createElement("div");
+    station.className = "grocery-register-heading__status";
+    var register = paymentCard && paymentCard.querySelector(".staff-muted.small");
+    station.textContent = register ? register.textContent.trim().replace(/Choose till.*/, "").trim() : "Checkout register";
+    header.appendChild(title);
+    header.appendChild(station);
+    context.parentNode.insertBefore(header, context);
+  }
+  if (totalRow) totalRow.classList.add("grocery-register-summary");
+  if (basket) {
+    var basketSummary = document.createElement("div");
+    basketSummary.className = "grocery-basket-summary";
+    var sourceTotal = totalRow && totalRow.querySelector(".staff-pos-totals-row__total");
+    var sourceMeta = totalRow && totalRow.querySelector(".staff-pos-totals-row__meta");
+    if (sourceMeta) {
+      var subLine = document.createElement("span");
+      subLine.textContent = sourceMeta.textContent.trim();
+      basketSummary.appendChild(subLine);
+    }
+    if (sourceTotal) {
+      var dueLabel = document.createElement("strong");
+      dueLabel.textContent = "Sale total: " + sourceTotal.textContent.trim();
+      basketSummary.appendChild(dueLabel);
+    }
+    if (basketSummary.children.length) basket.appendChild(basketSummary);
+    var printLink = context && context.querySelector('a[href*="type=receipt"]');
+    if (printLink) {
+      var receipt = document.createElement("a");
+      receipt.className = "grocery-receipt-shortcut staff-btn staff-btn--ghost";
+      receipt.href = printLink.href;
+      receipt.target = "_blank";
+      receipt.rel = "noopener";
+      receipt.textContent = "Print receipt";
+      receipt.setAttribute("aria-label", "Print receipt using the configured format");
+      basket.appendChild(receipt);
+    }
+  }
+
   // On compact screens, offer a clear jump to the live basket rather than
   // forcing a cashier to scroll past a long product catalogue.
   if (basket) {
