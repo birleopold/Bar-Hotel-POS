@@ -99,3 +99,16 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         for token in ("tile.dataset.itemSku", "tile.dataset.itemBarcode",
                       "fizo-retail-basket-tools", "staff-order-print", 'href="#hold_label"'):
             self.assertIn(token, detail)
+
+    def test_popular_item_shortcuts_are_scoped_and_use_existing_tile_flow(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        template = (root / "templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
+        checkout = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        for key in ("retail_quick_pick_ids", "order__tenant_id=order.tenant_id",
+                    "order__outlet_id=order.outlet_id", "order__is_paid=True",
+                    "is_voided=False", "available_ids"):
+            self.assertIn(key, view)
+        self.assertIn("data-fizo-quick-pick", template)
+        self.assertIn("data-fizo-favourites", template)
+        self.assertIn("tile.click()", checkout)
