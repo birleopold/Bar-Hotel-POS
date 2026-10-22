@@ -1,20 +1,14 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Stock transfer{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.2">{% endblock %}
 {% block content %}
+<div class="fizo-inventory fizo-inventory--transfer-form">
+
   {% include "staff/inventory/includes/subnav.html" %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Stock</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Transfer stock<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Dispatch goods from one section to another. Only the sender's stock decreases now; the receiving section gets stock when a different worker confirms it.</p>
-        </div>
-      </div>
-    </div>
-  </header>
-  <h2 class="staff-section-head">Transfer</h2>
-  <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-admin-form{% endif %}" data-transfer-form>
+  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Inventory / Transfers</p><h1>Dispatch stock transfer</h1><p>Dispatch stock; the recipient confirms quantities before receiving them.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
+  <h2 class="fizo-inventory__heading">Transfer</h2>
+  <form method="post" class="fizo-inventory__panel{% if grocery_owner_shell %} grocery-admin-form{% endif %}" data-transfer-form>
     {% csrf_token %}
     {% if grocery_owner_shell %}<div class="grocery-admin-fields">{% endif %}
     {% for field in form %}
@@ -26,6 +20,7 @@
     <p class="staff-muted small mt-2" role="status" aria-live="polite" data-transfer-status></p>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Cancel</a>
   </form>
+</div>
 {% endblock %}
 
 {% block extra_js %}
