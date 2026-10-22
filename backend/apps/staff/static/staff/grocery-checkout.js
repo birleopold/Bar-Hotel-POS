@@ -125,6 +125,41 @@
       quantityForm.insertBefore(buttons, quantityForm.querySelector('button[type="submit"]'));
     });
   }
+  // Scanner shortcut: F2 focuses the actual scan input, without intercepting
+  // an active text field or submitting a duplicate scan.
+  var scanInput = scan && scan.querySelector('input[name="code"]');
+  if (scanInput) {
+    scanInput.setAttribute("autocomplete", "off");
+    scanInput.setAttribute("aria-keyshortcuts", "F2");
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "F2" || event.altKey || event.ctrlKey || event.metaKey) return;
+      event.preventDefault();
+      scanInput.focus();
+      scanInput.select();
+    });
+  }
+  // Retain kitchen/preparation columns for other POS lines, but give grocery
+  // baskets a compact, legible item / quantity / amount / actions presentation.
+  if (basket) {
+    var table = basket.querySelector("table.staff-table--pos");
+    if (table) {
+      table.classList.add("grocery-basket-table");
+      var headers = table.querySelectorAll("thead th");
+      if (headers.length >= 5) {
+        headers[0].textContent = "Product";
+        headers[1].textContent = "Qty";
+        headers[2].classList.add("grocery-basket-prep");
+        headers[3].textContent = "Total";
+      }
+      table.querySelectorAll("tbody tr").forEach(function (row) {
+        if (row.cells.length >= 5) {
+          row.cells[2].classList.add("grocery-basket-prep");
+          row.cells[0].classList.add("grocery-basket-product");
+          row.cells[3].classList.add("grocery-basket-price");
+        }
+      });
+    }
+  }
   var basketHeading = basket && basket.querySelector("h2");
   if (basketHeading) basketHeading.textContent = "Current basket";
   var catalogHeading = catalogCard && catalogCard.querySelector("h2");
