@@ -1,0 +1,47 @@
+      {% if can_modify_open_order and add_line_form %}
+        <div class="staff-card staff-card--pos">
+          <div class="staff-pos-menu-head">
+            <div><span class="staff-pos-menu-eyebrow">{% if is_supermarket_outlet %}PRODUCT CATALOGUE{% else %}ORDER MENU{% endif %}</span><h2 class="staff-card__title staff-card__title--pos mb-0">Add an item</h2></div>
+            <span class="staff-pos-menu-hint">Tap a tile to select</span>
+          </div>
+          {% if pos_menu_categories %}
+            <div class="staff-pos-menu-browser" data-pos-menu-browser>
+              <div class="staff-pos-menu-tools">
+                <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="Search items" autocomplete="off" data-pos-menu-search></label>
+                <span class="staff-pos-menu-count">{{ add_line_form.menu_item.field.queryset.count }} items</span>
+              </div>
+              <div class="staff-pos-menu-categories" role="group" aria-label="Filter by category">
+                <button type="button" class="staff-pos-category-filter is-active" data-pos-menu-filter="all" aria-pressed="true">All items</button>
+                {% for category in pos_menu_categories %}<button type="button" class="staff-pos-category-filter" data-pos-menu-filter="{{ category.id }}" aria-pressed="false">{{ category.name }}</button>{% endfor %}
+              </div>
+              <div class="staff-pos-menu-grid" data-pos-menu-grid>
+                {% for category in pos_menu_categories %}
+                  {% for item in category.menu_items %}
+                    <button type="button" class="staff-pos-menu-tile" data-pos-menu-tile data-item-id="{{ item.id }}" data-category-id="{{ category.id }}" data-item-name="{{ item.name|lower }}" aria-pressed="false">
+                      {% if is_supermarket_outlet and item.display_image_url %}
+                        <span class="staff-pos-menu-tile__photo"><img src="{{ item.display_image_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>
+                      {% else %}
+                        <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+                      {% endif %}
+                      <span class="staff-pos-menu-tile__name">{{ item.name }}</span>
+                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>
+                    </button>
+                  {% endfor %}
+                {% endfor %}
+              </div>
+              <p class="staff-pos-menu-empty" data-pos-menu-empty hidden>No items match that search.</p>
+              <p class="visually-hidden" aria-live="polite" data-pos-menu-selection></p>
+            </div>
+          {% endif %}
+          {% include "staff/includes/form_errors_block.html" with form=add_line_form title="Fix item details" %}
+          <form method="post" class="staff-pos-add-item-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_line">
+            <div class="staff-pos-add-item-form__selection"><label class="staff-label" for="{{ add_line_form.menu_item.id_for_label }}">Selected item</label>{{ add_line_form.menu_item }}</div>
+            <div class="staff-pos-add-item-form__quantity">{{ add_line_form.quantity.label_tag }}{{ add_line_form.quantity }}</div>
+            <div class="staff-pos-add-item-form__submit"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch"><i class="bi bi-plus-lg" aria-hidden="true"></i>{% if is_supermarket_outlet %} Add to basket{% else %} Add to order{% endif %}</button></div>
+            <div class="staff-pos-add-item-form__modifiers" id="staff-pos-add-line-modifiers" aria-live="polite"></div>
+          </form>
+        </div>
+      {% endif %}
+
