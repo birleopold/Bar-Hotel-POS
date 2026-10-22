@@ -1,5 +1,7 @@
 from drf_spectacular.utils import extend_schema_field
 from django.db.models import Prefetch
+from django.db import transaction
+from apps.tenants.models import Tenant
 from rest_framework import serializers
 
 from apps.tenants.models import Outlet
@@ -161,7 +163,28 @@ class MenuItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Category must belong to the current tenant.")
         return value
 
-    def create(self, validated_data):
+    def _save_with_tenant_lock(self, *, create, validated_data, instance=None):
+        request = self.context.get("request")
+        tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
+        if tenant_id is None:
+            raise serializers.ValidationError("Tenant context is required.")
+        name = str(validated_data.get("name", getattr(instance, "name", ""))).strip()
+        barcode = str(validated_data.get("barcode", getattr(instance, "barcode", "")) or "").strip()
+        with transaction.atomic():
+            # Shared lock with CSV import, manager console and retail quick-add.
+            Tenant.objects.select_for_update().get(pk=tenant_id)
+            existing = MenuItem.objects.filter(tenant_id=tenant_id)
+            if instance is not None:
+                existing = existing.exclude(pk=instance.pk)
+            if existing.filter(name__iexact=name, is_active=True).exists():
+                raise serializers.ValidationError({"name": "A product with this name already exists."})
+            if barcode and existing.filter(barcode=barcode).exists():
+                raise serializers.ValidationError({"barcode": "This barcode is already registered."})
+            if create:
+                return self._create_catalog_record(validated_data)
+            return self._update_catalog_record(instance, validated_data)
+
+    def _create_catalog_record(self, validated_data):
         outlet_ids = validated_data.pop("outlet_ids", None)
         mod_group_ids = validated_data.pop("modifier_group_ids", serializers.empty)
         item = super().create(validated_data)
@@ -170,7 +193,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
             self._sync_modifier_groups(item, mod_group_ids)
         return item
 
-    def update(self, instance, validated_data):
+    def _update_catalog_record(self, instance, validated_data):
         outlet_ids = validated_data.pop("outlet_ids", serializers.empty)
         mod_group_ids = validated_data.pop("modifier_group_ids", serializers.empty)
         item = super().update(instance, validated_data)
@@ -179,6 +202,14 @@ class MenuItemSerializer(serializers.ModelSerializer):
         if mod_group_ids is not serializers.empty:
             self._sync_modifier_groups(item, mod_group_ids)
         return item
+
+    def create(self, validated_data):
+        return self._save_with_tenant_lock(create=True, validated_data=validated_data)
+
+    def update(self, instance, validated_data):
+        return self._save_with_tenant_lock(
+            create=False, validated_data=validated_data, instance=instance
+        )
 
     def _sync_outlets(self, item: MenuItem, outlet_ids: list | None) -> None:
         if outlet_ids is None:
