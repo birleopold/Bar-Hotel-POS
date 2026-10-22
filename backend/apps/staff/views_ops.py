@@ -3,6 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
+from django import forms
+from django.db import transaction
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
@@ -580,6 +582,13 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         return redirect("staff-pos-shifts")
 
 
+class RetailQuickProductForm(forms.Form):
+    name = forms.CharField(max_length=255, min_length=2, strip=True)
+    unit_price = forms.DecimalField(min_value=Decimal("0.01"), max_digits=12, decimal_places=2)
+    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=10, decimal_places=3, initial=Decimal("1"))
+    barcode = forms.CharField(max_length=64, required=False, strip=True)
+
+
 class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
     staff_nav_capability = "orders"
     template_name = "staff/order_detail.html"
@@ -1026,6 +1035,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             else:
                 messages.success(request, "Remaining balance charged to the guest folio.")
             return redirect("staff-order-detail", order_id=order.id)
+        if action == "quick_create_product":
+            return self._post_quick_create_product(request, order)
         if action == "add_line":
             return self._post_add_line(request, order)
         if action == "add_service_line":
@@ -1174,6 +1185,60 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             _flash_drf_validation(request, exc)
         else:
             messages.success(request, "Payment recorded.")
+        return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_quick_create_product(self, request: HttpRequest, order: Order) -> HttpResponse:
+        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            messages.error(request, "Quick product creation is available only at retail checkouts.")
+            return redirect("staff-order-detail", order_id=order.id)
+        if not _tenant_item_catalog_enabled(order.tenant) or order.status != OrderStatus.OPEN or order.is_paid:
+            messages.error(request, "Open an unpaid retail sale before adding a new product.")
+            return redirect("staff-order-detail", order_id=order.id)
+        form = RetailQuickProductForm(request.POST)
+        if not form.is_valid():
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+            return redirect("staff-order-detail", order_id=order.id)
+        data = form.cleaned_data
+        if data["barcode"] and MenuItem.objects.filter(
+            tenant_id=order.tenant_id, barcode=data["barcode"],
+        ).exists():
+            messages.error(request, "This barcode already exists. Search for its registered product instead.")
+            return redirect("staff-order-detail", order_id=order.id)
+        try:
+            with transaction.atomic():
+                category, _ = MenuCategory.objects.get_or_create(
+                    tenant_id=order.tenant_id, name="Needs catalogue review",
+                    defaults={"is_active": True, "sort_order": 9999},
+                )
+                item = MenuItem.objects.create(
+                    tenant_id=order.tenant_id, category=category,
+                    name=data["name"], unit_price=data["unit_price"],
+                    sku="QUICK-" + uuid.uuid4().hex[:16].upper(),
+                    barcode=data["barcode"], is_active=True,
+                    track_inventory=False, unit_of_measure="each",
+                    description="Quick-added during checkout; cost, stock, tax and supplier details require catalogue review.",
+                )
+                add_line_to_open_order(
+                    order=order, menu_item=item, quantity=data["quantity"],
+                    user=request.user,
+                )
+                log_audit(
+                    tenant_id=order.tenant_id, user_id=request.user.pk,
+                    action="catalog.quick_product_created", entity_type="menu_item",
+                    entity_id=str(item.pk),
+                    payload={
+                        "order_id": str(order.pk), "outlet_id": str(order.outlet_id),
+                        "unit_price": str(data["unit_price"]),
+                        "quantity": str(data["quantity"]), "requires_review": True,
+                        "stock_tracked": False,
+                    },
+                )
+        except (DRFValidationError, ValueError, TypeError) as exc:
+            messages.error(request, f"Could not add product: {getattr(exc, 'detail', exc)}")
+        else:
+            messages.success(request, "New product saved and added to this sale. Catalogue review required.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_add_line(self, request: HttpRequest, order: Order) -> HttpResponse:
