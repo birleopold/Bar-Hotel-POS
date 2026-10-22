@@ -1,29 +1,18 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}{% if receiving_lane %}Receive stock{% else %}Purchase orders{% endif %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-purchasing.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Purchasing</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">{% if receiving_lane %}Receive stock{% else %}Purchase orders{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Order stock from suppliers and record goods received.</p>
-        </div>
-        <div class="staff-page-hero__actions">
-          {% if can_modify_purchasing %}
-            <a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-order-create' %}">New PO</a>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </header>
+<div class="fizo-purchasing fizo-purchasing--purchase-orders-list">
+
+  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">Fizo / Supermarket / Purchasing</p><h1>Purchase orders</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-order-create' %}">New PO</a></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   <nav class="staff-chip-row mb-3" aria-label="Purchasing tasks">
     <a class="staff-btn staff-btn--ghost" href="?lane=receiving"{% if receiving_lane %} aria-current="page"{% endif %}>Awaiting delivery</a>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All purchase orders</a>
   </nav>
   {% if receiving_lane %}<p class="staff-muted">Open a sent or partially received order to record the quantities delivered.</p>{% endif %}
-  <h2 class="staff-section-head">Status</h2>
+  <h2 class="fizo-purchasing__section-heading">Status</h2>
   <form class="mb-3" method="get">
     {% if receiving_lane %}<input type="hidden" name="lane" value="receiving">{% endif %}
     <label class="staff-label" for="purchase-order-status">Order status</label>
@@ -36,9 +25,9 @@
       <option value="cancelled"{% if status_filter == 'cancelled' %} selected{% endif %}>Cancelled</option>
     </select>
   </form>
-  <h2 class="staff-section-head">Orders</h2>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
+  <h2 class="fizo-purchasing__section-heading">Orders</h2>
+  <div class="fizo-purchasing__tablewrap">
+    <table class="fizo-purchasing__table">
       <thead><tr><th>Reference</th><th>Supplier</th><th>Section</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for po in purchase_orders %}
@@ -62,4 +51,5 @@
       {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% endif %}">Next</a>{% endif %}
     </nav>
   {% endif %}
+</div>
 {% endblock %}
