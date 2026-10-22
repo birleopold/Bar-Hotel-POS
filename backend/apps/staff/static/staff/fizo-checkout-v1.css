@@ -91,3 +91,10 @@
 .fizo-retail-basket-empty{text-align:center;padding:30px;color:#6d857c}.fizo-retail-basket-empty i{font-size:28px;color:#008849}
 .fizo-checkout-basket__lines .fizo-retail-basket-items{padding:0 10px 12px}
 @media(max-width:680px){.fizo-retail-basket-row{grid-template-columns:1fr}.fizo-retail-stepper{justify-content:flex-start}.fizo-retail-basket-row__void{grid-column:auto;justify-content:flex-start}}
+
+/* Quick payment selection stays beside the real secure payment POST. */
+.fizo-retail-payment-shortcuts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.fizo-retail-payment-shortcuts button{min-height:53px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;border:1px solid #dce7e0;border-radius:9px;background:#fff;color:#193746;font-size:12px;font-weight:800;cursor:pointer}
+.fizo-retail-payment-shortcuts i{font-size:19px;color:#00864c}
+.fizo-retail-payment-shortcuts button[aria-pressed=true],.fizo-retail-payment-shortcuts button:hover{border-color:#00864c;background:#e6f7ec;color:#007b43}
+@media(max-width:420px){.fizo-retail-payment-shortcuts{gap:4px}.fizo-retail-payment-shortcuts button{font-size:11px}}
