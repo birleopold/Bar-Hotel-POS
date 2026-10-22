@@ -57,3 +57,8 @@ Implemented dedicated `fizo-stock.css` and rebuilt `staff/inventory/balances.htm
 ## Cashier sales landing redesign (2026-10-22)
 
 `staff/orders_list.html` now routes only `show_supermarket_lane` to a fresh included DOM `staff/includes/fizo_retail_sales_landing.html` with `fizo-retail-sales.css`. Restaurant and bar retain their original ordering branch. The page retains register-shift gate, quick-create POST with CSRF, held baskets, active lanes, receipt status filtering, search, pagination and original order detail links. No customer is required for a walk-in checkout. New regression tests added but not executed; browser acceptance remains **UNVERIFIED**.
+
+
+## Inventory ledger, batches and receive/adjustment form (2026-10-22)
+
+Three more *individual* pages updated: `staff/inventory/movements.html`, `staff/inventory/batches.html`, and `staff/inventory/movement_form.html`. Each now uses a dedicated Fizo inventory workspace CSS and heading, with new table/panel classes rather than the rejected page hero. Existing queryset references, batch status/search, FEFO restrictions, receiving and labeling form actions, CSV export, permissions and CSRF tokens were preserved. Django parsing tests were added but not run. These rows are **SOURCE IMPLEMENTED, BROWSER UNVERIFIED**. 
