@@ -20,3 +20,11 @@
 .fizo-products__details summary{cursor:pointer;color:#008b4b;font-weight:800}.fizo-products__details form{display:grid;gap:8px;min-width:220px;max-width:320px;padding:14px;margin-top:9px;border:1px solid #e2ece5;border-radius:10px;background:#fff}
 .fizo-products__details label{font-size:12px;font-weight:700}.fizo-products__empty{text-align:center;padding:35px!important;color:#6e8288!important}
 @media(max-width:700px){.fizo-products__surface{padding:12px}.fizo-products__actions{width:100%}.fizo-products__search{max-width:none}.fizo-products__stat{display:none}.fizo-products__head h1{font-size:28px}}
+
+
+/* Cashier-created inventory follow-up is a first-class manager workflow. */
+.fizo-products__review-alert{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:#fffaf0;border:1px solid #e8d7a9;border-radius:12px;padding:14px 18px;margin:12px 0 18px}
+.fizo-products__review-alert strong{color:#77521a;font-weight:850}
+.fizo-products__review-alert p{margin:5px 0 0;color:#745f45;font-size:13px}
+.fizo-products__pending{display:block;margin-top:5px;width:max-content;border-radius:5px;background:#fff0c8;color:#80570b;padding:3px 6px;font-size:11px;font-weight:850}
+@media(max-width:680px){.fizo-products__review-alert>a{width:100%;justify-content:center}}
