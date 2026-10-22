@@ -326,6 +326,39 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         return super().render_to_response(context, **response_kwargs)
 
 
+class StaffRetailPosEntryView(StaffTenantRequiredMixin, View):
+    """A safe GET entry into retail checkout: resume, never create or pay on GET."""
+    staff_nav_capability = "orders"
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        if "pos" not in get_tenant_staff_modules(request.tenant):
+            return redirect("staff-dashboard")
+        outlets = staff_accessible_outlets(request.tenant_membership)
+        outlet = resolve_staff_outlet(request, outlets)
+        if outlet is None:
+            messages.info(request, "Select one supermarket register to begin checkout.")
+            return redirect("staff-orders")
+        if outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            return redirect("staff-orders")
+        shift = PosShift.objects.filter(
+            tenant=request.tenant, outlet=outlet, status=PosShiftStatus.OPEN,
+            workstation=selected_workstation(request, outlets=outlets),
+        ).first()
+        if shift is None:
+            messages.info(request, "Open your register shift before starting checkout.")
+            return redirect("staff-pos-shifts")
+        current_sale = (
+            Order.objects.filter(
+                tenant=request.tenant, outlet=outlet, status=OrderStatus.OPEN,
+                is_paid=False, created_by=request.user, table_label="",
+            ).order_by("-updated_at").first()
+        )
+        if current_sale:
+            return redirect("staff-order-detail", order_id=current_sale.id)
+        # New baskets are created exclusively through the authenticated POST.
+        return redirect("staff-orders")
+
+
 class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
     staff_nav_capability = "orders"
 
