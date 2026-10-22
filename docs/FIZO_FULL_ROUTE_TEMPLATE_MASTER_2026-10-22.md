@@ -421,3 +421,44 @@ Before DONE: resolved route name, view and template chain confirmed; target busi
 5. Hotel reservations, rooms, folios, housekeeping, audits.
 6. Shared staff, services/events, finance/reports, platform console.
 7. URL resolver exact enumeration and final per-route verification.
+
+## G. Runtime visual-screen crosswalk (added 2026-10-22)
+
+Run the updated inventory command in the configured Django production environment:
+
+```bash
+cd /home/admin/Bar-Hotel-POS/backend
+set -a
+source /etc/leosoft-pos/pos.env
+set +a
+../.venv/bin/python ../scripts/inventory_fizo_routes.py
+```
+
+It now generates three files:
+
+- `fizo_resolved_routes.csv`: every Django-resolved URL pattern, including Django admin and DRF routes. Contains route name, view source, declared template (when available), and route type.
+- `fizo_templates.csv`: every tracked HTML template.
+- `fizo_visual_screen_register.csv`: candidate human-facing routes, joined to their view and declared template when statically available, with an explicit `NEEDS VIEW TRACE` marker otherwise.
+
+**This does not magically verify or redesign the pages.** A URL can render different templates according to role, business line, permissions or outlet. The `declared_template` field is only an inspectable class attribute, not a guaranteed runtime template chain. Admin and API views remain in the resolved inventory and need separate functional inspection. The generated register is a starting work queue, not a claimed completion report.
+
+### Status rules and evidence required
+
+- `NOT VERIFIED`: route identified but no full user-flow acceptance evidence.
+- `IN DESIGN`: layout rebuilt with the approved Fizo reference.
+- `FUNCTIONALLY TESTED`: permitted and denied roles and form/action behavior exercised against test fixtures.
+- `BROWSER VERIFIED`: authenticated desktop, tablet and phone layouts reviewed against the reference; screenshots captured.
+- `PRODUCTION VERIFIED`: deployed assets, live navigation, full workflow and tenant isolation confirmed.
+- Only the final status above constitutes a finished screen. Keep PR/commit, screenshot, test command, tester and deployment revision with each entry.
+
+### Priority screens for the clean redesign
+
+1. Shared staff/console navigation and authentication for all roles.
+2. Supermarket cashier checkout, product catalogue, basket, hold, tender, receipt and shift.
+3. Supermarket management, catalogue, stock, purchasing and receiving.
+4. Restaurant floor status (not merely table setup), ordering, modifiers, KDS and settlement.
+5. Bar tabs, drinks, shared orders and closing shifts.
+6. Hotel front desk, room availability, reservations, occupancy, housekeeping, folios, night audit.
+7. Shared reports, finance, role management, services/events and platform-console pages.
+
+The route inventory is the source of truth for scope. Previously committed template/CSS changes remain `NOT VERIFIED` until tested and visually accepted.
