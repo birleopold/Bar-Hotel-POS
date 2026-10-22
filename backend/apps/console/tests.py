@@ -262,6 +262,22 @@ class ConsoleAccessTests(TestCase):
                 self.assertContains(response, heading)
                 self.assertContains(response, "hospitality-console-body")
 
+    def test_store_setup_renders_reference_layout_without_static_css(self) -> None:
+        user = User.objects.create_user(email="fizo-reference-layout@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        settings_obj = TenantSettings.objects.get(tenant=self.tenant)
+        settings_obj.business_lines = ["supermarket"]
+        settings_obj.save(update_fields=["business_lines", "updated_at"])
+        self._login_with_tenant(user)
+        response = self.client.get(reverse("console-org-setup"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "fizo-setup-page")
+        self.assertContains(response, "grocery-setup__step-visual")
+        self.assertContains(response, "Set up your store")
+        self.assertContains(response, "Required setup progress")
+        self.assertContains(response, "grocery-console-links")
+        self.assertContains(response, "Fizo")
+
     def test_hospitality_setup_uses_unified_shell(self) -> None:
         user = User.objects.create_user(email="hospitality-shell@test.local", password="TestPass9!")
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
