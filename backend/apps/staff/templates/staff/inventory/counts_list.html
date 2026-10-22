@@ -13,7 +13,7 @@
     <a class="staff-btn staff-btn--ghost" href="?status=draft" {% if status_filter == "draft" %}aria-current="page"{% endif %}>Drafts</a>
     <a class="staff-btn staff-btn--ghost" href="?status=completed" {% if status_filter == "completed" %}aria-current="page"{% endif %}>Completed</a>
   </nav>
-  <h2 class="fizo-inventory__heading">Sessions</h2>
+  <section class="fizo-inventory__section-head"><div><h2 class="fizo-inventory__heading">Stock take sessions</h2><p>Count the physical stock, submit for review and let an authorized manager reconcile differences.</p></div>{% if can_modify_inventory %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-count-create' %}"><i class="bi bi-plus-lg"></i> Start stock count</a>{% endif %}</section>
   <div class="fizo-inventory__tablewrap">
     <table class="fizo-inventory__table">
       <thead><tr><th>Started</th><th>Section</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
