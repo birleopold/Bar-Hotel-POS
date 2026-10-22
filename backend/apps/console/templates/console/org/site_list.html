@@ -1,44 +1,15 @@
 {% extends "console/base.html" %}
 {% block title %}Branches{% endblock %}
+{% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
-{% if grocery_console_shell %}
-<section class="grocery-setup" aria-labelledby="branches-heading">
-  <header class="grocery-setup__hero">
-    <div><p class="grocery-setup__eyebrow">Store management / Branches</p><h1 id="branches-heading">Your branches</h1>
-      <p>Keep your store locations in one place. Start with your main shop; you can add another branch whenever you expand.</p>
-    </div>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-site-create' %}"><i class="bi bi-plus-lg"></i> Add branch</a>
+<section class="fizo-entity fizo-entity--list" aria-labelledby="fizo-list-title">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-form-kicker">FIZO / BUSINESS / BRANCHES</p><h1 id="fizo-list-title">Branches</h1><p class="staff-muted">Manage your branches and their sales or service areas.</p></div>
+    <a href="{% url 'console-org-site-create' %}" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add branch</a>
   </header>
-  <section class="staff-card">
-    {% if sites %}
-      <p class="grocery-setup__table-intro">Select a branch to edit its details or manage the sales areas used at that location.</p>
-      <div class="staff-table-wrap">
-        <table class="staff-table">
-          <thead><tr><th scope="col">Branch name</th><th scope="col">City</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
-          <tbody>{% for s in sites %}
-            <tr><td><strong>{{ s.name }}</strong></td><td>{{ s.city|default:"—" }}</td>
-              <td><span class="grocery-setup__status{% if s.is_active %} grocery-setup__status--done{% endif %}">{% if s.is_active %}Active{% else %}Inactive{% endif %}</span></td>
-              <td><div class="grocery-setup__table-actions">
-                <a href="{% url 'console-org-site-edit' site_id=s.id %}">Edit details</a>
-                <a href="{% url 'console-org-outlets' site_id=s.id %}">Sales areas <i class="bi bi-arrow-right"></i></a>
-              </div></td>
-            </tr>{% endfor %}</tbody>
-        </table>
-      </div>
-    {% else %}
-      <div class="grocery-setup__empty"><i class="bi bi-shop fs-1 text-success"></i><strong>No branches yet</strong>
-        <p>Create your first branch so you can start adding products and preparing checkout.</p>
-        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-site-create' %}">Create first branch</a>
-      </div>
-    {% endif %}
+  <section class="staff-card fizo-entity__card">
+    <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Branch</th><th>City</th><th>Status</th><th>Actions</th></tr></thead><tbody>{% for s in sites %}<tr><td><strong>{{ s.name }}</strong></td><td>{{ s.city|default:"—" }}</td><td>{% if s.is_active %}Active{% else %}Inactive{% endif %}</td><td><a href="{% url 'console-org-site-edit' site_id=s.id %}">Edit</a> · <a href="{% url 'console-org-outlets' site_id=s.id %}">Sections</a></td></tr>{% empty %}<tr><td colspan="4" class="staff-muted">No branches yet. Add your first branch to continue setup.</td></tr>{% endfor %}</tbody></table></div>
   </section>
+  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-setup' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Guided setup</a></p>
 </section>
-{% else %}
-  <div class="staff-toolbar"><h1 class="staff-page-title mb-0">Branches (sites)<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-site-create' %}">New branch</a></div>
-  <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Name</th><th>City</th><th></th></tr></thead>
-    <tbody>{% for s in sites %}<tr><td>{{ s.name }}</td><td>{{ s.city|default:"—" }}</td>
-      <td><a href="{% url 'console-org-site-edit' site_id=s.id %}">Edit</a> · <a href="{% url 'console-org-outlets' site_id=s.id %}">Sections</a></td></tr>
-      {% empty %}<tr><td colspan="3" class="staff-muted">No branches yet.</td></tr>{% endfor %}</tbody></table></div>
-{% endif %}
 {% endblock %}
