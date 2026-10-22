@@ -1,9 +1,9 @@
 {% extends "console/base.html" %}
 {% block title %}{% if grocery_console_shell %}Products{% else %}Menu items{% endif %}{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
 {% if grocery_console_shell %}
-<section class="grocery-setup" aria-labelledby="products-heading">
+<section class="fizo-entity fizo-entity--list" aria-labelledby="products-heading">
   <header class="grocery-setup__hero">
     <div><p class="grocery-setup__eyebrow">Store management / Catalogue</p><h1 id="products-heading">Your products</h1>
       <p>Add products with their selling prices, barcodes and stock settings. Use CSV import when you already have a product list.</p>
@@ -43,7 +43,7 @@
   </section>
 </section>
 {% else %}
-<section class="grocery-setup hospitality-directory" aria-labelledby="hospitality-menu-heading">
+<section class="fizo-entity fizo-entity--list" aria-labelledby="hospitality-menu-heading">
   <header class="grocery-setup__hero">
     <div>
       <p class="grocery-setup__eyebrow">Hospitality management / Food &amp; drinks</p>
