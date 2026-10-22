@@ -1,10 +1,10 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}{% if grocery_owner_shell %}Products · Fizo{% else %}Menu items{% endif %}{% endblock %}
-{% block main_class %}staff-main--wide{% if grocery_owner_shell %} fizo-retail-products{% else %} staff-main--menu-catalog hospitality-workflow{% endif %}{% endblock %}
-{% block extra_css %}{% if grocery_owner_shell %}<link rel="stylesheet" href="{% static 'staff/fizo-retail-products.css' %}?v=20261022.1">{% else %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.2">{% endif %}{% endblock %}
+{% block title %}{% if show_retail_catalogue %}Products · Fizo{% else %}Menu items{% endif %}{% endblock %}
+{% block main_class %}staff-main--wide{% if show_retail_catalogue %} fizo-retail-products{% else %} staff-main--menu-catalog hospitality-workflow{% endif %}{% endblock %}
+{% block extra_css %}{% if show_retail_catalogue %}<link rel="stylesheet" href="{% static 'staff/fizo-retail-products.css' %}?v=20261022.1">{% else %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.2">{% endif %}{% endblock %}
 {% block content %}
-{% if grocery_owner_shell %}
+{% if show_retail_catalogue %}
 <div class="fizo-products">
   <header class="fizo-products__head">
     <div><p class="fizo-products__eyebrow">Fizo / Supermarket / Catalogue</p><h1>Products</h1><p>Search your sellable products by name, SKU or barcode. Manage product records in the catalogue console.</p></div>
@@ -46,8 +46,8 @@
     <div class="staff-dash-hero__panel">
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
-          <p class="staff-dash-hero__eyebrow"><i class="bi bi-journal-richtext" aria-hidden="true"></i> {% if grocery_owner_shell %}Product catalogue{% else %}Menu catalog{% endif %}</p>
-          <h1 class="staff-page-title mb-0">{% if grocery_owner_shell %}Products{% else %}Sellable items{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__eyebrow"><i class="bi bi-journal-richtext" aria-hidden="true"></i> {% if show_retail_catalogue %}Product catalogue{% else %}Menu catalog{% endif %}</p>
+          <h1 class="staff-page-title mb-0">{% if show_retail_catalogue %}Products{% else %}Sellable items{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
           <p class="staff-dash-hero__tagline mb-0">
             {% if menu_all_outlets_mode %}Showing items available across your sections.{% elif menu_scope_outlet %}Showing menu items available for {{ menu_scope_outlet.name }}.{% else %}Choose a section to see its menu items.{% endif %}
           </p>
