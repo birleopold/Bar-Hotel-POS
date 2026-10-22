@@ -61,3 +61,16 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         retail = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
         self.assertIn("method.dispatchEvent", retail)
         self.assertIn("data-fizo-payment-method", retail)
+
+
+    def test_basket_totals_are_server_rendered_and_only_retail_style_applies(self):
+        root = Path(__file__).resolve().parent
+        page = (root/"templates/staff/order_detail.html").read_text(encoding="utf-8")
+        css = (root/"static/staff/fizo-checkout-v1.css").read_text(encoding="utf-8")
+        self.assertIn("fizo-retail-basket-summary", page)
+        self.assertIn("{{ order.subtotal }}", page)
+        self.assertIn("{{ order.tax_total }}", page)
+        self.assertIn("{{ balance_due }}", page)
+        self.assertIn(".staff-main:has(.fizo-checkout-catalogue)", css)
+        catalogue = (root/"templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
+        self.assertIn("Add to basket", catalogue)
