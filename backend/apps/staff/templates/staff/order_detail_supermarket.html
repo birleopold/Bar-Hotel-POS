@@ -10,7 +10,7 @@
  {% if can_modify_open_order and order.status == 'open' and not order.is_paid %}
   <details class="staff-card fizo-quick-product" id="fizo-quick-product">
     <summary><i class="bi bi-plus-square"></i> Product missing? Add &amp; sell now</summary>
-    <p class="staff-muted small mt-2">Enter the name and selling price. Fizo adds the product to this basket, records who created it and flags its catalogue record for review. This does not create stock quantities.</p>
+    <p class="staff-muted small mt-2">Enter the name and selling price. The system adds the product to this basket, records who created it and flags its catalogue record for review. This does not create stock quantities.</p>
     <form method="post" class="fizo-quick-product__form" data-fizo-quick-product-form>
       {% csrf_token %}
       <input type="hidden" name="action" value="quick_create_product">
@@ -378,7 +378,7 @@ document.addEventListener("click", function (event) {
     if (!catalogue || !basket) return;
     var heading = document.createElement("header");
     heading.className = "fizo-retail-pos-heading";
-    heading.innerHTML = '<div><span class="fizo-retail-pos-heading__eyebrow">Fizo / Supermarket / POS</span><h1>Cashier checkout</h1><p>Scan or select products to build the current sale.</p></div><a href="{% url 'staff-orders' %}" class="staff-btn staff-btn--ghost">Sales history</a>';
+    heading.innerHTML = '<div><span class="fizo-retail-pos-heading__eyebrow">{{ request.tenant.name|escapejs }} / Checkout</span><h1>Cashier checkout</h1><p>Scan or select products to build the current sale.</p></div><a href="{% url 'staff-orders' %}" class="staff-btn staff-btn--ghost">Sales history</a>';
     var layout = catalogue.closest(".staff-pos-order-layout");
     if (layout) layout.parentNode.insertBefore(heading, layout);
     if (scanner) {
