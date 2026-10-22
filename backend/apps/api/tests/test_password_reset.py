@@ -91,3 +91,28 @@ class PasswordResetApiTests(TestCase):
             "uid": uid, "token": token, "new_password": "BrandNewPass9!",
         }, format="json")
         self.assertEqual(resp.status_code, 400)
+
+    def test_disabled_worker_cannot_request_or_use_reset_link(self) -> None:
+        from apps.tenants.models import Tenant
+        from apps.accounts.models import Membership, MembershipRole
+        tenant = Tenant.objects.create(name="Closed Shop", slug="closed-shop-reset")
+        self.user.is_platform_staff = False
+        self.user.save(update_fields=["is_platform_staff"])
+        Membership.objects.create(
+            tenant=tenant, user=self.user, role=MembershipRole.SERVER, is_active=False
+        )
+        response = self.client.post(
+            "/api/v1/auth/password/reset/", {"email": self.user.email}, format="json"
+        )
+        self.assertEqual(response.status_code, 202)
+        self.assertFalse(PasswordRecoveryRequest.objects.filter(user=self.user).exists())
+        uid = urlsafe_base64_encode(force_bytes(str(self.user.pk)))
+        token = default_token_generator.make_token(self.user)
+        PasswordRecoveryRequest.objects.create(
+            user=self.user, status="sent", token_digest=sha256(token.encode()).hexdigest(),
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        attempt = self.client.post("/api/v1/auth/password/reset/confirm/", {
+            "uid": uid, "token": token, "new_password": "BrandNewPass9!"
+        }, format="json")
+        self.assertEqual(attempt.status_code, 400)
