@@ -16,6 +16,8 @@ class PasswordResetApiTests(TestCase):
     def setUp(self) -> None:
         self.client = APIClient()
         self.user = User.objects.create_user(email="reset-user@example.com", password="InitialPass9!")
+        self.user.is_platform_staff = True  # Eligible operator without tenant membership.
+        self.user.save(update_fields=["is_platform_staff"])
 
     def test_request_unknown_email_still_202_no_mail(self) -> None:
         r = self.client.post(
