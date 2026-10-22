@@ -1,47 +1,35 @@
 {% extends "console/base.html" %}
-{% block title %}{% if grocery_console_shell %}Location prices{% else %}Outlet pricing{% endif %} · {{ menu_item.name }}{% endblock %}
+{% block title %}Sales area pricing · {{ menu_item.name }}{% endblock %}
+{% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
-{% if grocery_console_shell %}
-<section class="grocery-setup" aria-labelledby="location-prices-heading">
-  <header class="grocery-setup__hero">
-    <div><p class="grocery-setup__eyebrow"><a href="{% url 'console-org-menu-items' %}">Products</a> / {{ menu_item.name }}</p>
-      <h1 id="location-prices-heading">Prices by sales area</h1>
-      <p>Most products use one selling price everywhere. Only set a different price when a branch or sales area really needs one.</p>
+<section class="fizo-entity fizo-entity--list" aria-labelledby="area-price-heading">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-form-kicker">FIZO / CATALOGUE / SALES AREA PRICING</p>
+      <h1 id="area-price-heading">Prices by sales area</h1>
+      <p class="staff-muted">{{ menu_item.name }} · Use the standard price unless a particular sales area needs a different price.</p>
     </div>
-    {% if links %}<a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-outlet-create' item_id=menu_item.id %}"><i class="bi bi-plus-lg"></i> Add sales area</a>{% endif %}
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-outlet-create' item_id=menu_item.id %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add sales area price</a>
   </header>
-  <section class="staff-card">
+  <section class="staff-card fizo-entity__card">
     {% if links %}
-      <p class="grocery-setup__table-intro">Leaving the special price blank uses this product's normal selling price.</p>
-      <div class="staff-table-wrap"><table class="staff-table"><thead>
-        <tr><th scope="col">Branch and sales area</th><th scope="col">Special price</th><th scope="col">Actions</th></tr></thead>
-        <tbody>{% for link in links %}<tr>
-          <td><strong>{{ link.outlet.site.name }}</strong> — {{ link.outlet.name }}</td>
-          <td>{% if link.price_override is not None %}{{ link.price_override }}{% else %}Normal price{% endif %}</td>
-          <td><div class="grocery-setup__table-actions">
-            <a href="{% url 'console-org-menu-item-outlet-edit' item_id=menu_item.id link_id=link.id %}">Edit price</a>
-            <a href="{% url 'console-org-menu-item-outlet-delete' item_id=menu_item.id link_id=link.id %}">Remove sales area</a>
-          </div></td>
-        </tr>{% endfor %}</tbody></table></div>
+    <div class="staff-table-wrap"><table class="staff-table">
+      <thead><tr><th scope="col">Branch and sales area</th><th scope="col">Price</th><th scope="col">Actions</th></tr></thead>
+      <tbody>{% for link in links %}<tr>
+        <td><strong>{{ link.outlet.site.name }}</strong> — {{ link.outlet.name }}</td>
+        <td>{% if link.price_override is not None %}{{ link.price_override }}{% else %}Standard price{% endif %}</td>
+        <td><div class="grocery-setup__table-actions">
+          <a href="{% url 'console-org-menu-item-outlet-edit' item_id=menu_item.id link_id=link.id %}">Edit</a>
+          <a href="{% url 'console-org-menu-item-outlet-delete' item_id=menu_item.id link_id=link.id %}">Remove</a>
+        </div></td></tr>{% endfor %}</tbody>
+    </table></div>
     {% else %}
-      <div class="grocery-setup__empty"><i class="bi bi-tags fs-1 text-success"></i>
-        <strong>One price for all sales areas</strong>
-        <p>No special sales-area prices are set up. To add one, open this product and choose sales areas under Advanced product options.</p>
-        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-edit' item_id=menu_item.id %}">Edit product options</a>
-      </div>
+    <div class="grocery-setup__empty"><i class="bi bi-tags fs-1 text-success" aria-hidden="true"></i>
+      <strong>No sales-area pricing configured</strong>
+      <p>Use the standard item price, or add an individual sales-area price.</p>
+      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-outlet-create' item_id=menu_item.id %}">Add sales area price</a>
+    </div>
     {% endif %}
   </section>
-  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}"><i class="bi bi-arrow-left"></i> Back to products</a></p>
+  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to items</a></p>
 </section>
-{% else %}
-  <p class="staff-muted"><a href="{% url 'console-org-menu-items' %}">Items</a> / {{ menu_item.name }}</p>
-  <div class="staff-toolbar"><h1 class="staff-page-title mb-0">Outlet pricing<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-outlet-create' item_id=menu_item.id %}">Add outlet row</a></div>
-  <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Outlet</th><th>Price override</th><th></th></tr></thead>
-    <tbody>{% for link in links %}<tr><td>{{ link.outlet.site.name }} — {{ link.outlet.name }}</td>
-      <td>{{ link.price_override|default:"—" }}</td><td><a href="{% url 'console-org-menu-item-outlet-edit' item_id=menu_item.id link_id=link.id %}">Edit</a> ·
-        <a href="{% url 'console-org-menu-item-outlet-delete' item_id=menu_item.id link_id=link.id %}">Remove</a></td></tr>
-      {% empty %}<tr><td colspan="3" class="staff-muted">No outlet rows. Set “Limit to outlets” on the item first.</td></tr>{% endfor %}</tbody>
-  </table></div>
-{% endif %}
 {% endblock %}
