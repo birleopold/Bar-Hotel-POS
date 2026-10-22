@@ -33,3 +33,17 @@ class FizoCashierSupportTests(SimpleTestCase):
         for value in ("display_lines", "display_paid", "display_remaining",
                       "order.is_paid", 'content="4"', "order.total"):
             self.assertIn(value, display)
+
+    def test_supermarket_has_visible_cashier_identity_and_search_shortcuts(self):
+        root = Path(__file__).resolve().parent / "templates/staff"
+        main = (root / "order_detail.html").read_text(encoding="utf-8")
+        retail = (root / "order_detail_supermarket.html").read_text(encoding="utf-8")
+        for marker in ("fizo-cashier-identity", "fizo-cashier-shortcuts",
+                       "data-fizo-focus-search", "data-fizo-focus-scan",
+                       "fizo-checkout-catalogue", "fizo-checkout-basket"):
+            self.assertIn(marker, main)
+        for marker in ("fizo-pos-menu-search", "data-pos-menu-search",
+                       "data-retail-scan-form", "fizo-current-basket"):
+            self.assertIn(marker, retail)
+        get_template("staff/order_detail.html")
+        get_template("staff/order_detail_supermarket.html")
