@@ -156,3 +156,14 @@
 .fizo-cashier-blocker{border:1px solid #e8d5a0!important;border-radius:10px;margin:12px 0!important}
 .fizo-checkout-catalogue:empty{min-height:0}
 @media(max-width:700px){.fizo-cashier-identity{gap:12px;padding:12px}.fizo-cashier-identity>.staff-btn{width:100%;justify-content:center}}
+
+/* Point-of-sale cashier quick action strip: always visible above advanced tools. */
+.fizo-cashier-shortcuts{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;background:#fff;border:1px solid #dce9e2;border-radius:13px;padding:14px 16px;margin:12px 0;box-shadow:0 2px 12px rgba(20,55,39,.04)}
+.fizo-cashier-shortcuts>div{display:grid;gap:3px}
+.fizo-cashier-shortcuts>div strong{font-size:15px;color:#153842}
+.fizo-cashier-shortcuts>div span{font-size:12px;color:#687d84}
+.fizo-cashier-shortcuts nav{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.fizo-cashier-shortcuts nav a{display:inline-flex;align-items:center;gap:7px;min-height:43px;background:#f4faf6;border:1px solid #d8eae0;color:#006f43;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:750;text-decoration:none}
+.fizo-cashier-shortcuts nav a:hover,.fizo-cashier-shortcuts nav a:focus-visible{background:#e2f6e9;border-color:#72bc92}
+.fizo-cashier-shortcuts kbd{font-size:11px;background:#fff;color:#385763;border:1px solid #ccdcd3;border-radius:4px;padding:2px 4px}
+@media(max-width:700px){.fizo-cashier-shortcuts nav{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-cashier-shortcuts nav a{justify-content:center}}
