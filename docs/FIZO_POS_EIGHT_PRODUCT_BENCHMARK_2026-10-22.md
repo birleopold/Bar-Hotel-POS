@@ -38,3 +38,8 @@ Fizo already uses per-tenant Orders, OrderLines, Payments, PosShifts, station se
 8. Live cash/card/mobile-money receipt end-to-end test, never mark simulated payment as provider-confirmed.
 
 Status: research done; checkout entry source-implemented; all browser and transaction acceptance still pending.
+
+
+## Follow-up implementation: discovery and cashier shortcuts
+
+Implemented real catalogue search over product **name, SKU and barcode**, using already-rendered menu-item fields; added a clear-search control and improved the 'All items' category visual. Added contextual **Hold**, **Print** (only when receipt printing enabled) and **Sales** links alongside the basket. Hold uses the existing `hold_label` form, print uses existing `staff-order-print`, and Sales uses existing route; no new transaction or payment endpoint. Source regression checks updated. These changes do not yet implement database-backed favourites, product pagination or offline transactional changes. No server/browser tests performed in this batch.
