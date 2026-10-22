@@ -24,7 +24,7 @@
                         <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
                       {% endif %}
                       <span class="staff-pos-menu-tile__name">{{ item.name }}</span>
-                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>
+                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>{% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Add</span>{% endif %}
                     </button>
                   {% endfor %}
                 {% endfor %}
@@ -34,7 +34,7 @@
             </div>
           {% endif %}
           {% include "staff/includes/form_errors_block.html" with form=add_line_form title="Fix item details" %}
-          <form method="post" class="staff-pos-add-item-form">
+          <form method="post" class="staff-pos-add-item-form" data-fizo-add-line-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="add_line">
             <div class="staff-pos-add-item-form__selection"><label class="staff-label" for="{{ add_line_form.menu_item.id_for_label }}">Selected item</label>{{ add_line_form.menu_item }}</div>
