@@ -338,3 +338,36 @@ def test_catalog_import_rechecks_names_at_commit_and_rejects_duplicate_csv_rows(
     duplicates = "category,name,unit_price,sku\nFood,Fresh Soap,900.00,F-01\nFood,fresh soap,900.00,F-02\n"
     with pytest.raises(CatalogImportProblem, match="Product name already exists"):
         parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(duplicates))
+
+
+def test_catalog_api_uses_same_tenant_lock_as_import_and_cashier():
+    import inspect
+    from apps.catalog.serializers import MenuItemSerializer
+    src = inspect.getsource(MenuItemSerializer._save_with_tenant_lock)
+    assert "Tenant.objects.select_for_update().get(pk=tenant_id)" in src
+    assert "name__iexact=name" in src
+    assert "existing.filter(barcode=barcode)" in src
+    assert "with transaction.atomic()" in src
+
+
+@pytest.mark.django_db
+def test_catalog_api_rejects_name_collision_with_quick_registered_item():
+    from rest_framework.exceptions import ValidationError
+    from rest_framework.test import APIRequestFactory
+    from apps.catalog.serializers import MenuItemSerializer
+    a = _seed_tenant_bundle(
+        name="API Quick Collision", slug="api-quick-collision",
+        user_email="api-quick-collision@example.test",
+    )
+    MenuItem.objects.create(
+        tenant=a["tenant"], category=a["category"], name="New Arrival",
+        sku="QUICK-API-01", unit_price="1000.00",
+    )
+    request = APIRequestFactory().post("/api/catalog/items/", {})
+    request.tenant = a["tenant"]
+    serializer = MenuItemSerializer(context={"request": request})
+    with pytest.raises(ValidationError, match="name"):
+        serializer.create({
+            "tenant": a["tenant"], "category": a["category"],
+            "name": "new arrival", "unit_price": "1000.00",
+        })
