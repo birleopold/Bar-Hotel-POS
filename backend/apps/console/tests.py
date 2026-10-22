@@ -240,6 +240,27 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(r, "Guided setup")
         self.assertContains(r, "Finish business setup")
 
+    def test_hospitality_directories_use_shared_design(self) -> None:
+        user = User.objects.create_user(email="hospitality-directory@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        settings_obj = TenantSettings.objects.get(tenant=self.tenant)
+        settings_obj.business_lines = ["bar", "lodging"]
+        settings_obj.enabled_staff_modules = modules_for_business_lines(["bar", "lodging"])
+        settings_obj.save(update_fields=["business_lines", "enabled_staff_modules", "updated_at"])
+        self._login_with_tenant(user)
+        for route, heading in (
+            ("console-org-menu-items", "Menu items"),
+            ("console-org-rooms", "Rooms"),
+            ("console-org-room-types", "Room types"),
+            ("console-org-room-rates", "Rate windows"),
+        ):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'class="grocery-setup hospitality-directory"')
+                self.assertContains(response, heading)
+                self.assertContains(response, "hospitality-console-body")
+
     def test_hospitality_setup_uses_unified_shell(self) -> None:
         user = User.objects.create_user(email="hospitality-shell@test.local", password="TestPass9!")
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
