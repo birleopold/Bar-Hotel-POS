@@ -55,12 +55,20 @@ PUBLIC_ORIGIN="${POS_PUBLIC_ORIGIN:-https://fizo.pos.leosoftug.com}"
 PUBLIC_ORIGIN="${PUBLIC_ORIGIN%/}"
 for asset in staff/fizo-setup-area.css staff/fizo-setup-wizard.css; do
   public_url="$PUBLIC_ORIGIN/static/$asset"
-  status="$(curl -L -sS -o /dev/null -w '%{http_code}' --max-time 15 "$public_url")"
+  checked_css="$(mktemp)"
+  status="$(curl -L -sS -o "$checked_css" -w '%{http_code}' --max-time 15 "$public_url")"
   if [[ "$status" != "200" ]]; then
     echo "ERROR: Fizo CSS returned HTTP $status: $public_url" >&2
     echo "Inspect the nginx/Caddy static alias for $PUBLIC_ORIGIN" >&2
+    rm -f "$checked_css"
     exit 1
   fi
-  echo "Fizo CSS served successfully: $public_url"
+  if ! cmp -s "$checked_css" "/var/www/leosoft-pos/static/$asset"; then
+    echo "ERROR: live CSS is stale, rewritten, or not the deployed asset: $public_url" >&2
+    rm -f "$checked_css"
+    exit 1
+  fi
+  rm -f "$checked_css"
+  echo "Fizo CSS served successfully and matches deployed file: $public_url"
 done
 echo "POS deploy completed at $(git -C "$APP" rev-parse --short HEAD); check HTTPS and other applications before calling it certified."
