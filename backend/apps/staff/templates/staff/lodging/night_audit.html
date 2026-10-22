@@ -1,20 +1,17 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}Hotel night audit{% endblock %}
-{% block main_class %}hospitality-workflow staff-main--wide{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.8">{% endblock %}
 {% block content %}
+<div class="fizo-hotel fizo-hotel-workspace fizo-hotel-workspace--night-audit">
 {% include "staff/lodging/includes/subnav.html" %}
-<header class="staff-page-hero"><div class="staff-dash-hero__panel">
-<p class="staff-dash-hero__eyebrow">Hotel operations</p>
-<h1 class="staff-page-title">Night audit</h1>
-<p>Review room charges, arrivals, departures, guest accounts and open registers before recording a business-day close.</p>
-</div></header>
+<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p><h1>Night audit</h1><p>Business-day close and exceptions review · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div></header>
 <div class="staff-toolbar mb-3">
 <a class="staff-btn staff-btn--ghost" href="?business_date={{ business_date|date:'Y-m-d' }}&amp;format=csv">Download audit CSV</a>
 </div>
-<section class="staff-card mb-3">
-<h2 class="staff-section-head">{{ current_site.name }} · {{ business_date|date:"D, j M Y" }}</h2>
+<section class="fizo-hotel__panel fizo-hotel__workflow-card mb-3">
+<h2 class="fizo-hotel__section-title">{{ current_site.name }} · {{ business_date|date:"D, j M Y" }}</h2>
 <form method="get" class="row g-2 align-items-end">
 <div class="col-12 col-sm-6"><label class="staff-label" for="audit-date">Business date</label>
 <input class="staff-input" id="audit-date" name="business_date" type="date" value="{{ business_date|date:'Y-m-d' }}" required></div>
@@ -22,13 +19,13 @@
 </form>
 </section>
 {% if closed_audit %}
-<div class="staff-card mb-3" role="status"><strong>Closed</strong> — This day was closed by a manager at {{ closed_audit.closed_at }}.
+<div class="fizo-hotel__panel fizo-hotel__workflow-card mb-3" role="status"><strong>Closed</strong> — This day was closed by a manager at {{ closed_audit.closed_at }}.
 <p class="staff-muted">This archived close is not a payment or cash settlement transaction. Changes made later require separate review.</p>
 {% if closed_audit.note %}<p><strong>Handover:</strong> {{ closed_audit.note }}</p>{% endif %}
 </div>
 {% else %}
-<section class="staff-card mb-3">
-<h2 class="staff-section-head">Ready to close?</h2>
+<section class="fizo-hotel__panel fizo-hotel__workflow-card mb-3">
+<h2 class="fizo-hotel__section-title">Ready to close?</h2>
 {% if snapshot.blockers %}
 <p>Resolve these items before closing:</p>
 <ul>{% for reason in snapshot.blockers %}<li>{{ reason }}</li>{% endfor %}</ul>
@@ -36,25 +33,25 @@
 </section>
 {% endif %}
 <section class="mb-3">
-<h2 class="staff-section-head">Property overview</h2>
+<h2 class="fizo-hotel__section-title">Property overview</h2>
 <div class="staff-metric-row staff-metric-row--folio">
 <span><strong>{{ snapshot.occupied_count }} / {{ snapshot.room_count }}</strong><small>Occupied / active rooms</small></span>
 <span><strong>{{ snapshot.open_folio_count }}</strong><small>Open guest folios</small></span>
 <span><strong>{{ snapshot.pending_arrivals }}</strong><small>Pending arrivals</small></span>
 <span><strong>{{ snapshot.pending_departures }}</strong><small>Pending departures</small></span>
 </div>
-<div class="staff-metric-row staff-metric-row--folio mt-2">
+<div class="fizo-hotel__finance-summary mt-2">
 <span><strong>{{ snapshot.open_shifts }}</strong><small>Open cash register shifts</small></span>
 <span><strong>{{ snapshot.unmatched_pos_charges }}</strong><small>Room-charge orders needing review</small></span>
 <span><strong>{{ snapshot.missing|length }}</strong><small>Room nights needing review</small></span>
 <span><strong>{{ snapshot.duplicates|length }}</strong><small>Duplicate room nights</small></span>
 </div>
 </section>
-<section class="staff-card mb-3">
-<h2 class="staff-section-head">Guest folio amounts</h2>
+<section class="fizo-hotel__panel fizo-hotel__workflow-card mb-3">
+<h2 class="fizo-hotel__section-title">Guest folio amounts</h2>
 <p class="staff-muted">Open folios only. These are guest balances, not proof of bank or cash settlement. Amounts are not converted between currencies.</p>
 {% if snapshot.currency_totals %}
-<div class="staff-table-wrap"><table class="staff-table">
+<div class="fizo-hotel__table-scroll"><table class="fizo-hotel__table">
 <thead><tr><th>Currency</th><th>Charges</th><th>Payments</th><th>Guest balance</th></tr></thead>
 <tbody>{% for totals in snapshot.currency_totals %}
 <tr><td>{{ totals.currency }}</td><td>{{ totals.charges }}</td><td>{{ totals.payments }}</td><td>{{ totals.outstanding }}</td></tr>
@@ -62,11 +59,11 @@
 </table></div>
 {% else %}<p>No open guest folios in this property.</p>{% endif %}
 </section>
-<section class="staff-card mb-3">
-<h2 class="staff-section-head">Room nights to review</h2>
+<section class="fizo-hotel__panel fizo-hotel__workflow-card mb-3">
+<h2 class="fizo-hotel__section-title">Room nights to review</h2>
 <p class="staff-muted">Room nights already posted when guests checked in are detected and not charged again. A missing rate or closed folio must be fixed at the original record.</p>
 {% if snapshot.missing %}
-<div class="staff-table-wrap"><table class="staff-table">
+<div class="fizo-hotel__table-scroll"><table class="fizo-hotel__table">
 <thead><tr><th>Guest</th><th>Room</th><th>Issue</th><th>Rate</th><th>Action</th></tr></thead>
 <tbody>{% for row in snapshot.missing %}
 <tr><td>{{ row.guest }}</td><td>{{ row.room }}</td><td>{{ row.reason }}</td><td>{{ row.rate|default:"—" }}</td><td>
@@ -86,8 +83,8 @@
 <ul>{% for row in snapshot.duplicates %}<li>{{ row.guest }} — {{ row.description }}</li>{% endfor %}</ul>{% endif %}
 </section>
 {% if not closed_audit and can_close_audit %}
-<section class="staff-card mb-3">
-<h2 class="staff-section-head">Close this business day</h2>
+<section class="fizo-hotel__panel fizo-hotel__workflow-card mb-3">
+<h2 class="fizo-hotel__section-title">Close this business day</h2>
 <p>Complete the actual till/cash reconciliation and verify guest folios before confirming. This action records a locked audit result. It does not automatically move cash, alter POS dates or settle guest debts.</p>
 <form method="post">{% csrf_token %}
 <input type="hidden" name="action" value="close_audit">
@@ -99,9 +96,9 @@
 <button type="submit" class="staff-btn staff-btn--primary mt-2"{% if snapshot.blockers %} disabled{% endif %}>Record business-day close</button>
 </form></section>
 {% endif %}
-<section class="staff-card">
-<h2 class="staff-section-head">Recently closed dates</h2>
-{% if audit_history %}<div class="staff-table-wrap"><table class="staff-table">
+<section class="fizo-hotel__panel fizo-hotel__workflow-card">
+<h2 class="fizo-hotel__section-title">Recently closed dates</h2>
+{% if audit_history %}<div class="fizo-hotel__table-scroll"><table class="fizo-hotel__table">
 <thead><tr><th>Operating date</th><th>Closed at</th><th>Closed by</th><th>Remarks</th></tr></thead>
 <tbody>{% for entry in audit_history %}
 <tr><td><a href="?business_date={{ entry.business_date|date:'Y-m-d' }}">{{ entry.business_date }}</a></td>
@@ -110,4 +107,5 @@
 </table></div>
 {% else %}<p>No closed business dates recorded yet.</p>{% endif %}
 </section>
+</div>
 {% endblock %}
