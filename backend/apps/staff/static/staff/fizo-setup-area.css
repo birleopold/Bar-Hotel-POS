@@ -61,3 +61,16 @@
 .grocery-console-body .grocery-console-top__back{margin-left:auto;color:#008447;text-decoration:none;font-weight:700}
 .grocery-console-body .grocery-console-top__person{color:#718396;font-size:12px}
 @media(max-width:760px){.grocery-console-body .console-sidebar{min-width:0;max-width:none;width:100%}.grocery-console-body .grocery-console-links{flex-direction:row;overflow-x:auto;white-space:nowrap}.grocery-console-body .grocery-console-top{flex-wrap:wrap;padding:11px}.grocery-console-body .grocery-console-top__location,.grocery-console-body .grocery-console-top__person{display:none}}
+
+/* Read-only practice checkout. Retain actual form and safe preview calculations. */
+.fizo-setup-area .fizo-practice{width:100%;max-width:1180px;margin:0 auto}
+.fizo-setup-area .fizo-practice .staff-page-hero{margin-bottom:18px}
+.fizo-setup-area .fizo-practice .staff-dash-hero__panel{background:#fff;border:1px solid #e1e9ef;border-radius:16px;padding:24px;box-shadow:0 4px 18px rgba(28,45,77,.04)}
+.fizo-setup-area .fizo-practice .staff-page-title{margin:7px 0 10px}
+.fizo-setup-area .fizo-practice__safety{display:inline-flex;align-items:center;gap:8px;color:#087c47;background:#e9f7ee;border:1px solid #d2e9db;border-radius:8px;padding:9px 12px;font-size:13px;font-weight:750;margin-top:8px}
+.fizo-setup-area .fizo-practice__panels{align-items:stretch}
+.fizo-setup-area .fizo-practice__panels>div>.staff-card{height:100%}
+.fizo-setup-area .fizo-practice__panels .staff-section-head{font-size:19px;font-weight:800;color:#1d3549}
+.fizo-setup-area .fizo-practice__panels dl{border-top:1px solid #e5edf0;margin-top:16px;padding-top:13px}
+.fizo-setup-area .fizo-practice__panels dt,.fizo-setup-area .fizo-practice__panels dd{padding:9px 0;border-bottom:1px solid #edf1f4}
+@media(max-width:720px){.fizo-setup-area .fizo-practice .staff-dash-hero__panel{padding:16px}.fizo-setup-area .fizo-practice__safety{display:flex}}
