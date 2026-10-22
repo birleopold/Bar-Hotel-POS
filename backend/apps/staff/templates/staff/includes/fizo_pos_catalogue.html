@@ -36,6 +36,12 @@
                 {% endfor %}
               </div>
               <p class="staff-pos-menu-empty" data-pos-menu-empty hidden>No items match that search.</p>
+              {% if is_supermarket_outlet %}
+              <div class="fizo-pos-load-more" data-fizo-page-controls hidden>
+                <p data-fizo-visible-count aria-live="polite"></p>
+                <button type="button" class="staff-btn staff-btn--ghost" data-fizo-load-more>Show more products</button>
+              </div>
+              {% endif %}
               <p class="visually-hidden" aria-live="polite" data-pos-menu-selection></p>
             </div>
           {% endif %}
