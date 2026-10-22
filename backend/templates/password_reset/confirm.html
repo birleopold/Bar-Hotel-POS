@@ -1,44 +1,27 @@
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Set new password</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}">
-</head>
-<body class="staff-body">
-<div class="staff-login-wrap">
-  <div class="staff-login-card" style="max-width: 28rem;">
-    <h1>Set new password</h1>
-
-    {% if invalid_link %}
-      <div class="staff-alert staff-alert--danger" role="alert">
-        This reset link is invalid or incomplete. Request a new reset from your administrator.
-      </div>
-    {% elif success %}
-      <div class="staff-alert staff-alert--success" role="status">{{ success_message }}</div>
-      <p class="staff-muted" style="font-size: 0.9rem; margin-top: 1rem;">You can close this page and sign in with your new password at <a href="{% url 'staff-login' %}">staff login</a>.</p>
-    {% elif form %}
-      {% if form.non_field_errors %}
-        <div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>
-      {% endif %}
-      <form method="post" action="">
-        {% csrf_token %}
-        {{ form.uid }}
-        {{ form.token }}
-        {% if form.new_password.errors %}
-          <div class="staff-alert staff-alert--danger" style="font-size: 0.9rem;">{{ form.new_password.errors }}</div>
-        {% endif %}
-        <label class="staff-label" for="id_new_password">{{ form.new_password.label }}</label>
-        {{ form.new_password }}
-        <button type="submit" class="staff-btn staff-btn--primary" style="width: 100%; margin-top: 1rem;">Update password</button>
-      </form>
-    {% endif %}
-  </div>
-</div>
-</body>
-</html>
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Choose new password · Fizo</title>
+<link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}">
+<link rel="stylesheet" href="{% static 'staff/fizo-auth-2026.css' %}?v=1">
+</head><body class="fizo-auth-body">
+<main class="fizo-auth"><aside class="fizo-auth__aside">
+<div class="fizo-auth__brand"><span class="fizo-auth__mark">F</span> Fizo</div>
+<div><div class="fizo-auth__eyebrow">Secure account recovery</div><h2 class="fizo-auth__statement">A fresh start, securely.</h2><p>Only approved, unexpired links can update an account password. Your manager controls staff access independently.</p></div>
+<div class="fizo-auth__aside-foot">Private recovery · One-time link</div>
+</aside>
+<section class="fizo-auth__panel" aria-labelledby="reset-title"><div class="fizo-auth__card">
+<header class="fizo-auth__header"><h1 id="reset-title">Set a new password</h1><p>Choose a strong password you have not used before.</p></header>
+{% if invalid_link %}
+<div class="fizo-auth__errors" role="alert">This recovery link is incomplete or invalid. Request a new one through account recovery.</div>
+{% elif success %}
+<div class="fizo-auth__errors" role="status" style="background:#eaf7ef;color:#165c3b">{{ success_message }}</div>
+{% elif form %}
+<form method="post" class="fizo-auth__form">{% csrf_token %}{{ form.uid }}{{ form.token }}
+{% if form.non_field_errors %}<div class="fizo-auth__errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+<div class="fizo-auth__field"><label for="{{ form.new_password.id_for_label }}">New password</label>{{ form.new_password }}{% if form.new_password.errors %}<div class="fizo-auth__errors" role="alert">{{ form.new_password.errors }}</div>{% endif %}</div>
+<div class="fizo-auth__field"><label for="{{ form.confirm_password.id_for_label }}">Confirm new password</label>{{ form.confirm_password }}{% if form.confirm_password.errors %}<div class="fizo-auth__errors" role="alert">{{ form.confirm_password.errors }}</div>{% endif %}</div>
+<button class="fizo-auth__submit" type="submit">Update my password</button>
+</form>{% endif %}
+<p class="fizo-auth__footer"><a href="{% url 'staff-login' %}">Back to staff sign in</a> · <a href="{% url 'staff-password-reset-request' %}">Request another recovery link</a></p>
+</div></section></main></body></html>
