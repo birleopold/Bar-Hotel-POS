@@ -80,3 +80,8 @@ All **7 tracked purchasing HTML templates** were touched in this batch: `purchas
 ## Cashier shifts and workstations — 2026-10-22
 
 Updated `staff/pos_shifts.html` and `staff/workstations.html` with the approved Fizo white/green layout and dedicated `staff/fizo-register.css`. Preserved till open/close, cash movement, workstation pairing, role restrictions, forms and CSRF. Added Django compilation/source checks and deployment static asset verification. Source changes only: **not deployed, authenticated, or transaction tested** in this batch. Receipt print and customer display remain independently outstanding.
+
+
+## Cashier support screens — 2026-10-22
+
+Reworked the individual workstation creation, browser-pairing and hardware-check pages using the Fizo register foundation, plus the thermal/A4 receipt styling and second-screen checkout display. Kept real print page-size/margin variables, payment and refund detail conditions, auto-print, PIN terminal lock, pairing revocation security and local equipment testing controls. Customer display still refreshes automatically and does not reveal personal/payment-method details. Added tests that compile all five affected templates and assert source markers. **Source changes committed, but printer output, authenticated browser appearance, pairing and real device operation remain unverified.**
