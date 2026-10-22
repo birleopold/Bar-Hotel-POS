@@ -36,6 +36,13 @@
     </div>
   </div>
 
+  {% if currency_differs_from_settings %}
+  <div class="staff-alert staff-alert--warning" role="status">
+    <strong>This sale uses {{ order.currency }}, while the business is configured for {{ configured_currency }}.</strong>
+    The original sale currency is retained to protect its payment and accounting history.
+    Start a new sale to use the current business currency; do not treat the amounts as automatically converted.
+  </div>
+  {% endif %}
   {% if is_supermarket_outlet %}
   <section class="fizo-cashier-identity" aria-label="Current cashier and register">
   <div class="fizo-cashier-identity__person"><span class="fizo-cashier-identity__avatar" aria-hidden="true">{{ request.user.email|first|upper }}</span><span><strong>{{ request.user.get_full_name|default:request.user.email }}</strong><small>Signed in · {% if request.tenant_membership %}{{ request.tenant_membership.get_role_display }}{% else %}Staff{% endif %}</small></span></div>
