@@ -23,6 +23,7 @@ from apps.inventory.models import StockMovement, StockReason
 from apps.pos.models import Workstation
 from apps.lodging.models import RoomRateWindow, RoomType
 from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
+from apps.tenants.business_lines import modules_for_business_lines
 from apps.tenants.models import (
     BillingEvent,
     BillingEventType,
