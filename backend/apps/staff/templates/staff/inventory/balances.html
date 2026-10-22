@@ -1,65 +1,57 @@
 {% extends "staff/base.html" %}
-{% block title %}Stock balances{% endblock %}
+{% load static %}
+{% block title %}Stock balances · Fizo{% endblock %}
+{% block main_class %}staff-main--wide fizo-stock-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-stock.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
-  {% include "staff/inventory/includes/subnav.html" %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Stock</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Stock balances<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Quantities by section — filter to low stock for reorder.</p>
-        </div>
-        <div class="staff-page-hero__actions">
-          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
-          <a class="staff-btn staff-btn--ghost" href="?low_stock=1&amp;q={{ stock_q|urlencode }}">Low stock only</a>
-          {% if can_modify_inventory %}
-            <a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
-            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer' %}">Transfer</a>
-          {% endif %}
-        </div>
-      </div>
+<div class="fizo-stock">
+  <header class="fizo-stock__head">
+    <div><p class="fizo-stock__eyebrow">Fizo / Supermarket / Inventory</p><h1>Stock balances</h1><p>Track quantities in each section, identify low stock, and manage replenishment.</p></div>
+    <div class="fizo-stock__actions">
+      {% if can_modify_inventory %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}"><i class="bi bi-plus-lg"></i> Record stock</a><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer' %}">Transfer</a>{% endif %}
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
     </div>
   </header>
-  <form class="staff-card mb-3" method="get" role="search">
-    <label class="staff-label" for="balance-search">Find stock by item, SKU or barcode</label>
-    <div class="d-flex flex-wrap gap-2">
-      <input class="staff-input flex-grow-1" id="balance-search" name="q" maxlength="80"
-        value="{{ stock_q }}" placeholder="Search your stock" style="min-width:12rem">
-      {% if low_stock %}<input type="hidden" name="low_stock" value="1">{% endif %}
-      <button class="staff-btn staff-btn--primary" type="submit">Find stock</button>
+  {% include "staff/inventory/includes/subnav.html" %}
+  <section class="fizo-stock__panel" aria-label="Stock register">
+    <div class="fizo-stock__toolbar">
+      <form method="get" class="fizo-stock__search" role="search">
+        <label for="balance-search">Search stock</label>
+        <div class="fizo-stock__searchrow"><i class="bi bi-search" aria-hidden="true"></i><input id="balance-search" name="q" value="{{ stock_q }}" maxlength="80" placeholder="Product, SKU or barcode">{% if low_stock %}<input type="hidden" name="low_stock" value="1">{% endif %}<button type="submit">Search</button></div>
+      </form>
+      <nav class="fizo-stock__filters" aria-label="Stock filters">
+        <a href="{% url 'staff-inventory-balances' %}?q={{ stock_q|urlencode }}"{% if not low_stock %} aria-current="page"{% endif %}>All stock</a>
+        <a href="?low_stock=1&amp;q={{ stock_q|urlencode }}"{% if low_stock %} aria-current="page"{% endif %}>Low stock</a>
+      </nav>
     </div>
-  </form>
-  <h2 class="staff-section-head">Balances</h2>
-  {% if balances %}
-    <div class="staff-table-wrap">
-      <table class="staff-table">
-        <thead><tr><th>Section</th><th>Item</th><th>Qty</th><th>Reorder</th></tr></thead>
-        <tbody>
-          {% for b in balances %}
-            <tr>
-              <td>{{ b.outlet.name }}</td>
-              <td>{{ b.menu_item.name }}</td>
-              <td>{{ b.quantity }}</td>
-              <td>{% if b.menu_item.reorder_level %}{{ b.menu_item.reorder_level }}{% else %}—{% endif %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    {% if can_modify_inventory %}
-      {% url "staff-inventory-movement-create" as movement_create_url %}
-      {% include "staff/includes/empty_state.html" with title="No stock balances yet" message="Record your first stock movement to initialize on-hand quantities." action_url=movement_create_url action_label="Record stock movement" %}
+    {% if balances %}
+      <div class="fizo-stock__tablewrap">
+        <table class="fizo-stock__table">
+          <caption class="visually-hidden">Current stock quantities by outlet</caption>
+          <thead><tr><th>Product</th><th>Section</th><th>On hand</th><th>Reorder level</th><th>Stock state</th></tr></thead>
+          <tbody>
+            {% for b in balances %}
+              <tr>
+                <td><div class="fizo-stock__product"><span class="fizo-stock__producticon"><i class="bi bi-box-seam"></i></span><strong>{{ b.menu_item.name }}</strong></div></td>
+                <td>{{ b.outlet.name }}</td>
+                <td class="fizo-stock__quantity">{{ b.quantity }}</td>
+                <td>{{ b.menu_item.reorder_level|default:"—" }}</td>
+                <td>{% if b.menu_item.reorder_level and b.quantity <= b.menu_item.reorder_level %}<span class="fizo-stock__state fizo-stock__state--low">Low stock</span>{% else %}<span class="fizo-stock__state">Recorded</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     {% else %}
-      {% include "staff/includes/empty_state.html" with title="No stock balances yet" message="There are no balances in your current scope." %}
+      <div class="fizo-stock__empty"><i class="bi bi-box-seam" aria-hidden="true"></i><h2>No stock found</h2><p>{% if stock_q or low_stock %}Try clearing the search or changing the filter.{% else %}Stock balances will appear after stock movements are recorded.{% endif %}</p>{% if can_modify_inventory %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}">Record stock movement</a>{% endif %}</div>
     {% endif %}
-  {% endif %}
-  {% if is_paginated %}
-    <nav class="staff-pager">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;q={{ stock_q|urlencode }}{% if low_stock %}&amp;low_stock=1{% endif %}&low_stock={% if low_stock %}1{% endif %}">Previous</a>{% endif %}
-      <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ stock_q|urlencode }}{% if low_stock %}&amp;low_stock=1{% endif %}&low_stock={% if low_stock %}1{% endif %}">Next</a>{% endif %}
-    </nav>
-  {% endif %}
+    {% if is_paginated %}
+      <nav class="fizo-stock__pager" aria-label="Stock pages">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;q={{ stock_q|urlencode }}{% if low_stock %}&amp;low_stock=1{% endif %}">Previous</a>{% endif %}
+        <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ stock_q|urlencode }}{% if low_stock %}&amp;low_stock=1{% endif %}">Next</a>{% endif %}
+      </nav>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}
