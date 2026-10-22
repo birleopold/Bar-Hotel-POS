@@ -20,7 +20,7 @@
     }
   </style>
   {% endif %}
-  {% if grocery_console_shell %}<link rel="stylesheet" href="{% static 'staff/grocery-owner-console.css' %}?v=20261022.3">{% elif hospitality_console_shell %}<link rel="stylesheet" href="{% static 'staff/hospitality-console.css' %}?v=20261022.1">{% endif %}
+  {% if grocery_console_shell and request.resolver_match.url_name != 'console-org-setup' %}<link rel="stylesheet" href="{% static 'staff/grocery-owner-console.css' %}?v=20261022.3">{% elif hospitality_console_shell %}<link rel="stylesheet" href="{% static 'staff/hospitality-console.css' %}?v=20261022.1">{% endif %}
   {% block extra_css %}{% endblock %}
 </head>
 <body class="staff-body console-body{% if grocery_console_shell %} grocery-console-body{% elif hospitality_console_shell %} hospitality-console-body{% endif %}">
