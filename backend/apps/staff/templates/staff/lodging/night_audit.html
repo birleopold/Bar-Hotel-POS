@@ -6,10 +6,7 @@
 {% block content %}
 <div class="fizo-hotel fizo-hotel-workspace fizo-hotel-workspace--night-audit">
 {% include "staff/lodging/includes/subnav.html" %}
-<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p><h1>Night audit</h1><p>Business-day close and exceptions review · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div></header>
-<div class="staff-toolbar mb-3">
-<a class="staff-btn staff-btn--ghost" href="?business_date={{ business_date|date:'Y-m-d' }}&amp;format=csv">Download audit CSV</a>
-</div>
+<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p><h1>Night audit</h1><p>Business-day close and exceptions review · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div><a class="staff-btn staff-btn--ghost" href="?business_date={{ business_date|date:'Y-m-d' }}&amp;format=csv"><i class="bi bi-file-earmark-arrow-down"></i> Download CSV</a></header>
 <section class="fizo-hotel__panel fizo-hotel__workflow-card mb-3">
 <h2 class="fizo-hotel__section-title">{{ current_site.name }} · {{ business_date|date:"D, j M Y" }}</h2>
 <form method="get" class="row g-2 align-items-end">
@@ -34,7 +31,7 @@
 {% endif %}
 <section class="mb-3">
 <h2 class="fizo-hotel__section-title">Property overview</h2>
-<div class="staff-metric-row staff-metric-row--folio">
+<div class="fizo-hotel__finance-summary">
 <span><strong>{{ snapshot.occupied_count }} / {{ snapshot.room_count }}</strong><small>Occupied / active rooms</small></span>
 <span><strong>{{ snapshot.open_folio_count }}</strong><small>Open guest folios</small></span>
 <span><strong>{{ snapshot.pending_arrivals }}</strong><small>Pending arrivals</small></span>
