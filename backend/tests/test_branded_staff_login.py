@@ -232,3 +232,31 @@ class TenantSpecificPresentationTests(TestCase):
         self.assertEqual(staff_product_presentation(bar)["preparation_label"], "Drink prep")
         hotel = Tenant.objects.get(slug="brand-lodging")
         self.assertEqual(staff_product_presentation(hotel)["lodging_label"], "Front desk")
+
+
+def test_unified_auth_templates_keep_existing_security_forms_and_touch_access():
+    from pathlib import Path
+    from django.template.loader import get_template
+    root = Path(__file__).resolve().parents[1] / "apps" / "staff"
+    password = (root / "templates/staff/login.html").read_text(encoding="utf-8")
+    terminal = (root / "templates/staff/terminal.html").read_text(encoding="utf-8")
+    styles = (root / "static/staff/fizo-auth-2026.css").read_text(encoding="utf-8")
+    get_template("staff/login.html")
+    get_template("staff/terminal.html")
+    for template in (password, terminal):
+        assert "fizo-auth-2026.css" in template
+        assert "{% csrf_token %}" in template
+        assert "staff-terminal" in template
+        assert "staff-login" in template
+        assert "fizo-auth__tabs" in template
+    assert 'name="next"' in password
+    assert "form.username" in password
+    assert "form.password" in password
+    assert "form.worker" in terminal
+    assert "form.pin" in terminal
+    assert 'data-fizo-pin-pad' in terminal
+    assert 'data-key="delete"' in terminal
+    assert 'data-key="clear"' in terminal
+    assert '@media(max-width:900px)' in styles
+    assert '@media(max-width:460px)' in styles
+    assert '@media(max-height:690px)' in styles
