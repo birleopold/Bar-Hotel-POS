@@ -1,38 +1,27 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}Room types{% endblock %}
-{% block main_class %}staff-main--wide hospitality-workflow{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.2">{% endblock %}
+{% block title %}Room types & rates · Fizo Hotel{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.4">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Lodging</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Room types &amp; rates<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
-          <p class="staff-dash-hero__tagline mb-0">Nightly rate windows and occupancy limits.</p>
-        </div>
-      </div>
-    </div>
-  </header>
-  {% include "staff/lodging/includes/subnav.html" %}
-  <h2 class="staff-section-head">Types</h2>
-  {% for rt in room_types %}
-    <div class="staff-card">
-      <h2 class="staff-card__title">{{ rt.name }}</h2>
-      <p class="staff-muted">Max guests: {{ rt.max_occupancy }}</p>
-      {% if rt.rate_windows.all %}
-        <ul>
-          {% for w in rt.rate_windows.all %}
-            <li>{{ w.valid_from }}{% if w.valid_to %} – {{ w.valid_to }}{% else %}+{% endif %}: {{ w.nightly_amount }} / night{% if w.label %} ({{ w.label }}){% endif %}</li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="staff-muted mb-0">No rate windows configured.</p>
-      {% endif %}
-    </div>
-  {% empty %}
-    <p class="staff-muted">No room types.</p>
-  {% endfor %}
+<div class="fizo-hotel fizo-room-types">
+<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Room management</p><h1>Room types &amp; rates</h1><p>{{ current_site.name }} · Capacity, rate periods and nightly prices</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-rooms' %}"><i class="bi bi-door-open"></i> Rooms</a></header>
+{% include "staff/lodging/includes/subnav.html" %}
+<section class="fizo-hotel__panel" aria-labelledby="room-types-heading">
+<div class="fizo-hotel__section-head"><div><h2 id="room-types-heading">Accommodation types</h2><p>Rate periods are taken from the configured room-type records.</p></div></div>
+<div class="fizo-room-types__grid">
+{% for rt in room_types %}
+<article class="fizo-room-types__card">
+<div class="fizo-room-types__head"><span class="fizo-room-types__icon"><i class="bi bi-house-door"></i></span><div><h3>{{ rt.name }}</h3><p><i class="bi bi-people"></i> Up to {{ rt.max_occupancy }} guests</p></div></div>
+<h4>Nightly rates</h4>
+{% if rt.rate_windows.all %}
+<ul class="fizo-room-types__rates">{% for w in rt.rate_windows.all %}
+<li><span>{{ w.label|default:"Standard period" }}<small>{{ w.valid_from }}{% if w.valid_to %} – {{ w.valid_to }}{% else %} onward{% endif %}</small></span><strong>{{ w.nightly_amount }} / night</strong></li>
+{% endfor %}</ul>
+{% else %}<p class="fizo-hotel__muted">No nightly rate windows configured.</p>{% endif %}
+</article>
+{% empty %}
+<div class="fizo-hotel__empty"><i class="bi bi-house-door"></i><h3>No room types</h3><p>Room types and rates have not been configured for this branch.</p></div>
+{% endfor %}
+</div></section></div>
 {% endblock %}
