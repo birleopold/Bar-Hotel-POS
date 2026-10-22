@@ -13,6 +13,8 @@ class StaffPasswordResetPageTests(TestCase):
     def setUp(self) -> None:
         self.client = Client()
         self.user = User.objects.create_user(email="staff-page@example.com", password="OldPassw0rd!")
+        self.user.is_platform_staff = True  # Eligible operator without tenant membership.
+        self.user.save(update_fields=["is_platform_staff"])
 
     def test_get_without_query_shows_invalid(self) -> None:
         r = self.client.get("/password-reset/confirm/")
