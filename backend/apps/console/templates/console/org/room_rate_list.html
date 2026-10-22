@@ -1,27 +1,40 @@
 {% extends "console/base.html" %}
-{% block title %}Nightly rates{% endblock %}
+{% block title %}Rate windows{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
-  <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Rate windows<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-rate-create' %}">New rate window</a>
-  </div>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
-      <thead><tr><th>Branch</th><th>Room type</th><th>Valid from</th><th>Valid to</th><th>Nightly</th><th></th></tr></thead>
-      <tbody>
-        {% for w in windows %}
-          <tr>
-            <td>{{ w.room_type.site.name }}</td>
-            <td>{{ w.room_type.name }}</td>
-            <td>{{ w.valid_from }}</td>
-            <td>{{ w.valid_to|default:"—" }}</td>
-            <td>{{ w.nightly_amount }}</td>
-            <td><a href="{% url 'console-org-room-rate-edit' rate_id=w.id %}">Edit</a></td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="6" class="staff-muted">No rate windows.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<section class="grocery-setup hospitality-directory" aria-labelledby="directory-heading">
+  <header class="grocery-setup__hero">
+    <div>
+      <p class="grocery-setup__eyebrow"><a href="{% url 'console-org' %}">Business settings</a> / Hotel</p>
+      <h1 id="directory-heading">Rate windows</h1>
+      <p>Configure nightly pricing for room types.</p>
+    </div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-rate-create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add rate window</a>
+  </header>
+  <section class="staff-card" aria-label="Rate windows list">
+    {% if windows %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th scope="col">Branch</th><th scope="col">Room type</th><th scope="col">Valid from</th><th scope="col">Valid to</th><th scope="col">Nightly rate</th><th scope="col">Actions</th></tr></thead>
+        <tbody>{% for w in windows %}<tr>
+          <td>{{ w.room_type.site.name }}</td>
+          <td>{{ w.room_type.name }}</td>
+          <td>{{ w.valid_from }}</td>
+          <td>{{ w.valid_to|default:'—' }}</td>
+          <td>{{ w.nightly_amount }}</td>
+          <td><a class="grocery-setup__action-link" href="{% url 'console-org-room-rate-edit' rate_id=w.id %}">Edit <span class="visually-hidden">rate windows record</span><i class="bi bi-arrow-right" aria-hidden="true"></i></a></td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="grocery-setup__empty">
+        <i class="bi bi-building fs-1" aria-hidden="true"></i>
+        <strong>No rates yet</strong>
+        <p>Add a nightly rate window to start pricing accommodation.</p>
+        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-rate-create' %}">Add rate window</a>
+      </div>
+    {% endif %}
+  </section>
+  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Business settings</a></p>
+</section>
 {% endblock %}
