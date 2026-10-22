@@ -2,8 +2,8 @@
 {% load static %}
 {% block title %}{% if is_supermarket_outlet %}Sale{% else %}Order{% endif %} {{ order.bill_reference }}{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
-{% block main_class %}{% if not is_supermarket_outlet %}hospitality-workflow {% endif %}staff-main--wide staff-main--pos staff-main--pos-bleed{% endblock %}
-{% block extra_css %}{% if not is_supermarket_outlet %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.5">{% endif %}{% endblock %}
+{% block main_class %}{% if not is_supermarket_outlet %}fizo-hospitality-pos {% endif %}staff-main--wide staff-main--pos staff-main--pos-bleed{% endblock %}
+{% block extra_css %}{% if not is_supermarket_outlet %}<link rel="stylesheet" href="{% static 'staff/fizo-hospitality-pos.css' %}?v=20261022.1">{% endif %}{% endblock %}
 {% block content %}
   <div class="staff-pos-order-accent" aria-hidden="true"></div>
   <div class="staff-context-bar staff-context-bar--pos">
@@ -69,7 +69,16 @@
       {% include 'staff/includes/fizo_pos_catalogue.html' %}
       </section>
     {% else %}
-    <section class="staff-pos-order-main staff-pos-panel-scroll" aria-label="{% if is_supermarket_outlet %}Sale items{% else %}Order lines{% endif %}">
+      <section class="fizo-hospitality-catalogue" aria-label="Menu selection">
+        {% include 'staff/includes/fizo_pos_catalogue.html' %}
+      </section>
+    {% endif %}
+
+    <aside class="staff-pos-order-side staff-pos-panel-scroll" aria-label="{% if is_supermarket_outlet %}Checkout actions{% else %}Order actions{% endif %}">
+      {% if not is_supermarket_outlet %}
+        <div class="fizo-hospitality-bill" aria-label="Current order">
+          <h2><i class="bi bi-receipt" aria-hidden="true"></i> Current order <span>{{ order.bill_reference }}</span></h2>
+    <section class="fizo-hospitality-bill__lines" aria-label="{% if is_supermarket_outlet %}Sale items{% else %}Order lines{% endif %}">
       <div class="staff-card staff-card--pos mb-0">
         <h2 class="staff-card__title staff-card__title--pos">Lines</h2>
         <div class="staff-table-wrap staff-table-wrap--pos">
@@ -135,9 +144,9 @@
       </div>
     </section>
 
-    {% endif %}
 
-    <aside class="staff-pos-order-side staff-pos-panel-scroll" aria-label="{% if is_supermarket_outlet %}Checkout actions{% else %}Order actions{% endif %}">
+        </div>
+      {% endif %}
       {% if is_supermarket_outlet %}
       <div class="fizo-checkout-basket" aria-label="Current basket">
         <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>{{ order.lines.count }} lines</span></h2>
@@ -248,9 +257,6 @@
         </div>
       {% endif %}
 
-      {% if not is_supermarket_outlet %}
-      {% include 'staff/includes/fizo_pos_catalogue.html' %}
-      {% endif %}
       {% if can_modify_open_order and add_service_form and service_offerings %}
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Service</h2>
