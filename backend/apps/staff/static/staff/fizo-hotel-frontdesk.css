@@ -1,0 +1,34 @@
+/* Fizo Hotel Front Desk — independent reservations register */
+.fizo-hotel{max-width:1490px;margin:auto;color:#1a3037}
+.fizo-hotel__head{display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:22px}
+.fizo-hotel__eyebrow{color:#008848;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;margin:0 0 7px}
+.fizo-hotel__head h1{font-size:clamp(25px,3vw,37px);font-weight:850;letter-spacing:-.04em;margin:0 0 4px}
+.fizo-hotel__head p:last-child,.fizo-hotel__section-head p{color:#75868b;margin:0}
+.fizo-hotel__lanes{display:flex;gap:9px;overflow:auto;margin:12px 0 20px;padding-bottom:3px}
+.fizo-hotel__lanes a{display:inline-flex;align-items:center;padding:11px 16px;background:#fff;border:1px solid #dfebe5;color:#50656b;text-decoration:none;font-weight:750;border-radius:10px;white-space:nowrap;min-height:44px}
+.fizo-hotel__lanes a[aria-current=page]{background:#008b4c;border-color:#008b4c;color:#fff}
+.fizo-hotel__panel{background:#fff;border:1px solid #e1ebe5;border-radius:15px;padding:20px}
+.fizo-hotel__section-head{display:flex;justify-content:space-between;align-items:end;gap:15px;flex-wrap:wrap;margin-bottom:17px}
+.fizo-hotel__section-head h2{font-size:19px;font-weight:800;margin:0 0 5px}
+.fizo-hotel__filter{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.fizo-hotel__filter label{font-size:12px;font-weight:750;color:#556a70}
+.fizo-hotel__filter select{min-width:166px;width:auto}
+.fizo-hotel__table-scroll{overflow-x:auto}
+.fizo-hotel__table{border-collapse:collapse;width:100%;min-width:710px}
+.fizo-hotel__table th{text-align:left;background:#f1f8f3;color:#647a72;font-size:12px;padding:13px 14px;font-weight:800}
+.fizo-hotel__table td{border-bottom:1px solid #e8eeea;padding:16px 14px;font-size:13px}
+.fizo-hotel__table tr:hover td{background:#fbfdfb}
+.fizo-hotel__guest{font-weight:800;color:#21404a;text-decoration:none}
+.fizo-hotel__guest i{color:#008b4c;font-size:18px;margin-right:5px}
+.fizo-hotel__muted{color:#829091}
+.fizo-hotel__status{display:inline-flex;border-radius:8px;padding:6px 9px;background:#eff3f1;color:#53625c;font-weight:750;font-size:11px;white-space:nowrap}
+.fizo-hotel__status--confirmed,.fizo-hotel__status--checked_in{background:#e0f7e7;color:#007945}
+.fizo-hotel__status--cancelled{background:#fff0ef;color:#b33b44}
+.fizo-hotel__status--held{background:#fff6dc;color:#8c681d}
+.fizo-hotel__open{color:#00884b;text-decoration:none;font-weight:800;white-space:nowrap}
+.fizo-hotel__empty{text-align:center;padding:45px 16px;color:#6b8087}
+.fizo-hotel__empty>i{font-size:29px;color:#008b4b}
+.fizo-hotel__empty h3{font-size:19px;color:#253e45;font-weight:800;margin:12px 0 5px}
+.fizo-hotel__pager{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px;color:#71818b}
+.fizo-hotel__pager a{color:#00874b;text-decoration:none;font-weight:750}
+@media(max-width:620px){.fizo-hotel__panel{padding:13px}.fizo-hotel__filter,.fizo-hotel__filter select{width:100%}.fizo-hotel__filter button{width:100%}.fizo-hotel__head>.staff-btn{width:100%}}
