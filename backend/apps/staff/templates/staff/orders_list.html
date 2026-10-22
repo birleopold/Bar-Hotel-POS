@@ -1,7 +1,9 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}{{ staff_product.orders_label|default:"Orders" }}{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
-{% block main_class %}staff-main--wide staff-main--pos{% endblock %}
+{% block main_class %}staff-main--wide staff-main--pos{% if not show_supermarket_lane %} hospitality-workflow{% endif %}{% endblock %}
+{% block extra_css %}{% if not show_supermarket_lane %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endif %}{% endblock %}
 {% block content %}
   <div class="staff-pos-orders-shell">
     <div class="staff-pos-orders-top">
