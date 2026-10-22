@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Prefetch, Q
 
 from apps.catalog.models import MenuItemModifierGroup, ModifierOption
 from apps.accounts.models import MembershipRole
@@ -797,6 +797,25 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     }
                 grouped[key]["menu_items"].append(item)
             ctx["pos_menu_categories"] = list(grouped.values())
+            ctx["retail_quick_pick_ids"] = []
+            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+                # Actual successful paid sales, scoped to the current tenant/outlet.
+                # Restrict the resulting shortcuts to products in the visible catalogue.
+                available_ids = {str(item.id) for category in grouped.values() for item in category["menu_items"]}
+                popular = (
+                    OrderLine.objects.filter(
+                        order__tenant_id=order.tenant_id, order__outlet_id=order.outlet_id,
+                        order__status=OrderStatus.CLOSED, order__is_paid=True,
+                        order__created_at__gte=timezone.now() - timedelta(days=30),
+                        is_voided=False, menu_item_id__isnull=False,
+                    )
+                    .values("menu_item_id").annotate(sales_count=Count("id"))
+                    .order_by("-sales_count", "menu_item_id")[:40]
+                )
+                ctx["retail_quick_pick_ids"] = [
+                    str(row["menu_item_id"]) for row in popular
+                    if str(row["menu_item_id"]) in available_ids
+                ][:8]
             if services_enabled:
                 ctx["service_offerings"] = list(
                     ServiceOffering.objects.filter(tenant_id=order.tenant_id, is_active=True)
