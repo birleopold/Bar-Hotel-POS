@@ -1208,6 +1208,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         except (ValueError, AttributeError, TypeError):
             messages.error(request, "Quick-add form expired. Reload the checkout and try again.")
             return redirect("staff-order-detail", order_id=order.id)
+        if AuditEvent.objects.filter(
+            tenant_id=order.tenant_id, action="catalog.quick_product_created",
+            payload__order_id=str(order.pk), payload__request_key=request_key,
+        ).exists():
+            messages.info(request, "This product was already added; the repeated request was ignored.")
+            return redirect("staff-order-detail", order_id=order.id)
         if data["barcode"] and MenuItem.objects.filter(
             tenant_id=order.tenant_id, barcode=data["barcode"],
         ).exists():
