@@ -1,80 +1,75 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}{{ lane_title }}{% endblock %}
-{% block main_class %}staff-main--wide hospitality-workflow{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
+{% block title %}{{ lane_title }} · Fizo Hotel{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Lodging</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">{{ lane_title }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
-          <p class="staff-dash-hero__tagline mb-0">Stays, check-in, and room assignment.</p>
-        </div>
-        <div class="staff-page-hero__actions">
-          {% if can_modify_lodging %}
-            <a class="staff-btn staff-btn--primary" href="{% url 'staff-lodging-reservation-create' %}">New reservation</a>
-          {% endif %}
-        </div>
-      </div>
+<div class="fizo-hotel">
+  <header class="fizo-hotel__head">
+    <div>
+      <p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p>
+      <h1>{{ lane_title }}</h1>
+      <p>Guest stays{% if current_site %} · {{ current_site.name }}{% endif %}</p>
     </div>
+    {% if can_modify_lodging %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-lodging-reservation-create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> New reservation</a>{% endif %}
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <nav class="staff-chip-row mb-3" aria-label="Front desk tasks">
-    <a class="staff-btn staff-btn--ghost" href="?lane=arrivals"{% if lane_filter == 'arrivals' %} aria-current="page"{% endif %}>Arrivals</a>
-    <a class="staff-btn staff-btn--ghost" href="?lane=departures"{% if lane_filter == 'departures' %} aria-current="page"{% endif %}>Departures</a>
-    <a class="staff-btn staff-btn--ghost" href="?lane=in_house"{% if lane_filter == 'in_house' %} aria-current="page"{% endif %}>In-house</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}">All stays</a>
+  <nav class="fizo-hotel__lanes" aria-label="Front desk queues">
+    <a href="{% url 'staff-lodging-reservations' %}"{% if not lane_filter %} aria-current="page"{% endif %}>All stays</a>
+    <a href="?lane=arrivals"{% if lane_filter == 'arrivals' %} aria-current="page"{% endif %}>Arrivals</a>
+    <a href="?lane=in_house"{% if lane_filter == 'in_house' %} aria-current="page"{% endif %}>In house</a>
+    <a href="?lane=departures"{% if lane_filter == 'departures' %} aria-current="page"{% endif %}>Departures</a>
   </nav>
-  <h2 class="staff-section-head">Find a stay</h2>
-  <form class="staff-toolbar staff-toolbar--tight" method="get">
-    {% if lane_filter %}<input type="hidden" name="lane" value="{{ lane_filter }}">{% endif %}
-    <label class="staff-label" for="reservation-status">Status</label>
-    <select class="staff-input staff-filter-select" id="reservation-status" name="status" onchange="this.form.submit()">
-      <option value="">All statuses</option>
-      <option value="held"{% if status_filter == 'held' %} selected{% endif %}>Held</option>
-      <option value="confirmed"{% if status_filter == 'confirmed' %} selected{% endif %}>Confirmed</option>
-      <option value="checked_in"{% if status_filter == 'checked_in' %} selected{% endif %}>Checked in</option>
-      <option value="checked_out"{% if status_filter == 'checked_out' %} selected{% endif %}>Checked out</option>
-      <option value="cancelled"{% if status_filter == 'cancelled' %} selected{% endif %}>Cancelled</option>
-    </select>
-    <button class="staff-btn staff-btn--ghost" type="submit">Apply filter</button>
-  </form>
-  <h2 class="staff-section-head">Stays</h2>
-  {% if reservations %}
-    <div class="staff-table-wrap">
-      <table class="staff-table">
-        <caption class="visually-hidden">Reservations for {{ current_site.name }}</caption>
-        <thead><tr><th>Guest</th><th>Stay</th><th>Room</th><th>Status</th></tr></thead>
+  <section class="fizo-hotel__panel" aria-labelledby="fizo-reservations-title">
+    <div class="fizo-hotel__section-head">
+      <div><h2 id="fizo-reservations-title">Reservation register</h2><p>Open a stay to manage check-in, assignment and payment.</p></div>
+      <form method="get" class="fizo-hotel__filter">
+        {% if lane_filter %}<input type="hidden" name="lane" value="{{ lane_filter }}">{% endif %}
+        <label for="reservation-status">Status</label>
+        <select class="staff-input" id="reservation-status" name="status">
+          <option value="">All statuses</option>
+          <option value="held"{% if status_filter == 'held' %} selected{% endif %}>Held</option>
+          <option value="confirmed"{% if status_filter == 'confirmed' %} selected{% endif %}>Confirmed</option>
+          <option value="checked_in"{% if status_filter == 'checked_in' %} selected{% endif %}>Checked in</option>
+          <option value="checked_out"{% if status_filter == 'checked_out' %} selected{% endif %}>Checked out</option>
+          <option value="cancelled"{% if status_filter == 'cancelled' %} selected{% endif %}>Cancelled</option>
+        </select>
+        <button class="staff-btn staff-btn--primary" type="submit">Apply</button>
+      </form>
+    </div>
+    {% if reservations %}
+    <div class="fizo-hotel__table-scroll">
+      <table class="fizo-hotel__table">
+        <caption class="visually-hidden">Guest reservations</caption>
+        <thead><tr><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Room</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>
-          {% for r in reservations %}
-            <tr>
-              <td><a href="{% url 'staff-lodging-reservation-detail' reservation_id=r.id %}">{{ r.guest_name }}</a></td>
-              <td class="staff-stay-dates"><span>{{ r.check_in }}</span><span aria-hidden="true"> → </span><span>{{ r.check_out }}</span></td>
-              <td>{% if r.room %}{{ r.room.name }}{% else %}—{% endif %}</td>
-              <td><span class="staff-tag{% if r.status == 'checked_in' %} staff-tag--teal{% elif r.status == 'cancelled' %} staff-tag--magenta{% else %} staff-tag--citrus{% endif %}">{{ r.get_status_display }}</span></td>
-            </tr>
-          {% endfor %}
+        {% for r in reservations %}
+          <tr>
+            <td><a class="fizo-hotel__guest" href="{% url 'staff-lodging-reservation-detail' reservation_id=r.id %}"><i class="bi bi-person-circle" aria-hidden="true"></i> {{ r.guest_name }}</a></td>
+            <td>{{ r.check_in }}</td><td>{{ r.check_out }}</td>
+            <td>{% if r.room %}{{ r.room.name }}{% else %}<span class="fizo-hotel__muted">Unassigned</span>{% endif %}</td>
+            <td><span class="fizo-hotel__status fizo-hotel__status--{{ r.status }}">{{ r.get_status_display }}</span></td>
+            <td><a class="fizo-hotel__open" href="{% url 'staff-lodging-reservation-detail' reservation_id=r.id %}">Open <i class="bi bi-arrow-right" aria-hidden="true"></i></a></td>
+          </tr>
+        {% endfor %}
         </tbody>
       </table>
     </div>
-  {% else %}
-    {% if lane_filter or status_filter %}
-      {% include "staff/includes/empty_state.html" with title="No stays match this task" message="No reservations match the selected task and status in this branch." %}
-    {% elif can_modify_lodging %}
-      {% url "staff-lodging-reservation-create" as reservation_create_url %}
-      {% include "staff/includes/empty_state.html" with title="No reservations found" message="Create your first reservation to start front-desk operations for this branch." action_url=reservation_create_url action_label="New reservation" %}
     {% else %}
-      {% include "staff/includes/empty_state.html" with title="No reservations found" message="No reservations are visible in your current scope." %}
+    <div class="fizo-hotel__empty">
+      <i class="bi bi-calendar2-check" aria-hidden="true"></i>
+      <h3>No reservations in this view</h3>
+      <p>Try another queue or status{% if current_site %} for {{ current_site.name }}{% endif %}.</p>
+      {% if can_modify_lodging and not lane_filter and not status_filter %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-lodging-reservation-create' %}">Create reservation</a>{% endif %}
+    </div>
     {% endif %}
-  {% endif %}
-  {% if is_paginated %}
-    <nav class="staff-pager" aria-label="Reservation pages">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter|urlencode }}&lane={{ lane_filter }}">Previous</a>{% endif %}
-      <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}&lane={{ lane_filter }}">Next</a>{% endif %}
-    </nav>
-  {% endif %}
+    {% if is_paginated %}
+      <nav class="fizo-hotel__pager" aria-label="Reservation pages">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter|urlencode }}&lane={{ lane_filter }}">Previous</a>{% endif %}
+        <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}&lane={{ lane_filter }}">Next</a>{% endif %}
+      </nav>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}
