@@ -32,3 +32,20 @@ Do not use a public PIN-only login in place of initial account or device trust. 
 - No browser/production test run performed, nor does this change redesign console/platform-level sign-in forms if they are on separate routes.
 
 Status: source implemented and committed only; no authenticated browser acceptance or live deployment.
+
+## Admin-controlled password recovery — 2026-10-22 implementation
+
+The previous `/api/v1/auth/password/reset/` endpoint immediately sent a reset token for any active User, with no tenant-membership revocation check. That is now replaced by an approval-request workflow:
+1. Staff opens `/password-reset/` from the password login; submits work email. It returns a generic message. A per-email/IP cooldown reduces repeated submissions; existing, eligible active accounts receive one pending `PasswordRecoveryRequest`. No password or token is emailed yet.
+2. A platform operator reviews the pending account request in Django platform administration (`/admin/` → Password Recovery Requests) and selects **Approve and email recovery link** or **Deny**. The system checks active User/tenant membership; disabled or dismissed-only staff cannot be approved.
+3. Approval requires a configured HTTPS `PASSWORD_RESET_URL_TEMPLATE` ending in `/password-reset/confirm/` with `uid` and `token` placeholders. A fresh Django password reset token is emailed to the account owner only after the approved record commits. The server stores only SHA-256 of token (not token itself), an approval actor, and 30-minute expiry.
+4. Web and API confirmation share the same checks: active user, at least one active tenant membership if memberships exist, approved unexpired matching token digest, token validity, and Django password strength rules. A successful use changes password, invalidates the token and marks the request used.
+5. Historical sessions become invalid on subsequent Django session verification when password hash changes. Independently, **staff dismissal must deactivate membership and terminate device sessions** rather than rely on password recovery approval alone.
+
+Important limitations and required deployment verification:
+- New database migration `accounts.0006_passwordrecoveryrequest` **must be applied** before deploying routes; set a valid HTTPS reset URL and working email delivery.
+- Platform admins need real notification of new pending requests (currently admin list view; no push notification).
+- No manager-specific approval inside each tenant is implemented. A tenant manager does not automatically receive platform admin credentials; owners should report dismissed worker accounts via existing management process.
+- PIN reset remains password-authenticated via existing `staff-pin-setup` and terminal security.
+- Account-wide User passwords can span multiple tenants; disable individual Membership access independently.
+- Backend and UI security tests are added/adjusted but not executed in this session. Do not use production until expiry, revoked-membership, mail dispatch, account enumeration, session invalidation, and approval authorization are integration-tested.
