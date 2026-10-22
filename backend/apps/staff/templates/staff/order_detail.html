@@ -3,7 +3,7 @@
 {% block title %}{% if is_supermarket_outlet %}Sale{% else %}Order{% endif %} {{ order.bill_reference }}{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
 {% block main_class %}{% if not is_supermarket_outlet %}hospitality-workflow {% endif %}staff-main--wide staff-main--pos staff-main--pos-bleed{% endblock %}
-{% block extra_css %}{% if not is_supermarket_outlet %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endif %}{% endblock %}
+{% block extra_css %}{% if not is_supermarket_outlet %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.5">{% endif %}{% endblock %}
 {% block content %}
   <div class="staff-pos-order-accent" aria-hidden="true"></div>
   <div class="staff-context-bar staff-context-bar--pos">
