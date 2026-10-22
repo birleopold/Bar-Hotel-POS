@@ -1,13 +1,13 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}Shift close{% endblock %}
-{% block main_class %}staff-main--wide{% if grocery_owner_shell %} fizo-register-page{% else %} hospitality-workflow{% endif %}{% endblock %}
-{% block extra_css %}{% if grocery_owner_shell %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261022.1">{% else %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.4">{% endif %}{% endblock %}
+{% block main_class %}staff-main--wide fizo-register-page{% if not grocery_owner_shell %} hospitality-workflow{% endif %}{% endblock %}
+{% block extra_css %}{% if not grocery_owner_shell %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.4">{% endif %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261022.3">{% endblock %}
 {% block content %}
 <div class="fizo-register fizo-register--pos_shifts">
 
   <header class="fizo-register__header"><div><p class="fizo-register__eyebrow">Fizo / Supermarket / Cashier operations</p><h1>Register shifts & cash</h1><p>Open your till, track cash movement and reconcile the drawer at close.</p></div><div class="fizo-register__header-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">Workstations</a></div></header>
-  <h2 class="fizo-register__section-heading">Shift</h2>
+  <section class="fizo-register__workspace" aria-label="Register shift"><div class="fizo-register__workspace-head"><h2 class="fizo-register__section-heading">Shift</h2><span class="fizo-register__workflow-label">Cashier workflow</span></div>
   {% if not current_outlet %}
     <div class="staff-alert staff-alert--warning">Select one section in the header — not “All sections”.</div>
   {% else %}
@@ -96,7 +96,7 @@
       <a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstations' %}">Choose workstation</a></div>
     {% endif %}
     {% if recent_shifts %}
-      <h2 class="staff-section-title">Recent shifts</h2>
+      <section class="fizo-register__panel fizo-register__history" aria-labelledby="recent-shifts-title"><h2 class="staff-section-title" id="recent-shifts-title">Recent shifts</h2>
       <div class="fizo-register__tablewrap">
         <table class="fizo-register__table">
           <thead><tr><th>Workstation</th><th>Opened</th><th>Closed</th><th>Status</th><th>Expected</th><th>Counted</th><th>Difference</th></tr></thead>
@@ -114,8 +114,8 @@
             {% endfor %}
           </tbody>
         </table>
-      </div>
+      </div></section>
     {% endif %}
   {% endif %}
-</div>
+</section></div>
 {% endblock %}
