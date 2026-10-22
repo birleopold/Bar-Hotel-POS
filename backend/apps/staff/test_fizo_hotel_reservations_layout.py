@@ -80,3 +80,25 @@ class FizoHotelReservationsLayoutTests(SimpleTestCase):
         self.assertIn("rt.rate_windows.all", page)
         self.assertIn("w.nightly_amount", page)
         self.assertNotIn("hospitality-workflow.css", page)
+
+
+    def test_housekeeping_retains_all_real_room_actions(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/lodging/housekeeping.html").read_text(encoding="utf-8")
+        self.assertIn('class="fizo-hotel fizo-housekeeping"', page)
+        self.assertNotIn("hospitality-workflow.css", page)
+        for action in ("claim", "start", "finish", "inspect", "reopen"):
+            with self.subTest(action=action):
+                self.assertIn('value="' + action + '"', page)
+        self.assertIn("can_modify_lodging", page)
+        self.assertEqual(page.count("<form "), page.count("{% csrf_token %}"))
+
+    def test_maintenance_keeps_work_order_and_status_forms(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/lodging/maintenance.html").read_text(encoding="utf-8")
+        self.assertIn('class="fizo-hotel fizo-maintenance"', page)
+        self.assertNotIn("hospitality-workflow.css", page)
+        for action in ("status", "create"):
+            self.assertIn('value="' + action + '"', page)
+        self.assertIn("can_manage_housekeeping_workflows", page)
+        self.assertEqual(page.count("<form "), page.count("{% csrf_token %}"))
