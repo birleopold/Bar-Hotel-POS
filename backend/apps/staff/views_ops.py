@@ -775,6 +775,13 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 menu_qs = list(menu_qs[:81])
                 ctx["retail_catalogue_has_more"] = len(menu_qs) > 80
                 menu_qs = menu_qs[:80]
+                if self.request.method == "GET" and ctx["add_line_form"] is not None:
+                    # Only the visible choices need HTML option tags; POST binds and
+                    # validates against the complete outlet-scoped form queryset.
+                    ctx["add_line_form"].fields["menu_item"].queryset = MenuItem.objects.filter(
+                        tenant_id=order.tenant_id,
+                        pk__in=[item.pk for item in menu_qs],
+                    ).order_by("name")
             modifiers_by_item: dict[str, list] = {}
             for item in menu_qs:
                 groups_payload: list[dict] = []
