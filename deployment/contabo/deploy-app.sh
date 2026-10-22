@@ -37,6 +37,16 @@ SQL
 sudo install -d -o admin -g www-data -m 0755 /var/www/leosoft-pos/static
 sudo rsync -a --delete "$APP/backend/staticfiles/" /var/www/leosoft-pos/static/
 sudo chmod -R a+rX /var/www/leosoft-pos/static
+# Critical Fizo CSS must exist in BOTH Django's output and nginx/Caddy's
+# publicly served tree. A successful git pull alone cannot validate styling.
+for asset in staff/fizo-setup-area.css staff/fizo-setup-wizard.css; do
+  source_asset="$APP/backend/staticfiles/$asset"
+  published_asset="/var/www/leosoft-pos/static/$asset"
+  test -s "$source_asset" || { echo "ERROR: collectstatic missing $source_asset" >&2; exit 1; }
+  test -s "$published_asset" || { echo "ERROR: public static file missing $published_asset" >&2; exit 1; }
+  cmp -s "$source_asset" "$published_asset" || { echo "ERROR: published CSS differs: $asset" >&2; exit 1; }
+  echo "Fizo CSS verified on disk: $asset"
+done
 sudo systemctl restart "$SERVICE"
 sudo systemctl is-active --quiet "$SERVICE"
 echo "POS deploy completed at $(git -C "$APP" rev-parse --short HEAD); check HTTPS and other applications before calling it certified."
