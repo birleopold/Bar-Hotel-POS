@@ -38,3 +38,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('ctx["show_supermarket_lane"] = supermarket_lane', source)
         self.assertIn('ctx["show_retail_catalogue"]', source)
         self.assertIn("all(item.outlet_type in retail_types for item in outlets)", source)
+
+
+    def test_retail_active_baskets_are_resume_cards(self):
+        root = Path(__file__).resolve().parent
+        lanes = (root / "templates/staff/includes/orders_lanes.html").read_text(encoding="utf-8")
+        self.assertIn("{% if show_supermarket_lane %}", lanes)
+        self.assertIn("fizo-active-sales", lanes)
+        self.assertIn("Resume sale", lanes)
+        self.assertIn("Resume basket", lanes)
+        self.assertIn("staff-order-detail", lanes)
+        self.assertIn("{% else %}", lanes)
