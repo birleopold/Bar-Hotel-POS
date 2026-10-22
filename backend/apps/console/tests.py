@@ -295,6 +295,20 @@ class ConsoleAccessTests(TestCase):
         self.assertNotContains(response, "Price CSV columns must be")
         self.assertEqual(MenuItem.objects.filter(tenant=self.tenant).count(), 0)
 
+    def test_business_setup_uses_fizo_shell_not_legacy_staff_theme(self) -> None:
+        user = User.objects.create_user(email="fizo-shell-check@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["supermarket"])
+        self._login_with_tenant(user)
+        for route in ("console-org", "console-org-setup", "console-org-sites"):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "fizo-console-shell.css")
+                self.assertContains(response, "fizo-shell-nav")
+                self.assertNotContains(response, "staff/staff-theme.css")
+                self.assertNotContains(response, "grocery-owner-console.css")
+
     def test_import_page_has_clean_title_and_canonical_theme(self) -> None:
         user = User.objects.create_user(email="fizo-import-style@test.local", password="TestPass9!")
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
