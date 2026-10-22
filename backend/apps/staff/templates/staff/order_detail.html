@@ -150,6 +150,15 @@
       {% if is_supermarket_outlet %}
       <div class="fizo-checkout-basket" aria-label="Current basket">
         <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>Sale {{ order.bill_reference }}</span></h2>
+        <nav class="fizo-retail-basket-tools" aria-label="Cashier shortcuts">
+          {% if can_modify_open_order %}
+          <a href="#hold_label"><i class="bi bi-pause-circle"></i> Hold</a>
+          {% endif %}
+          {% if hardware.receipt_printer_enabled %}
+          <a href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=80mm" target="_blank" rel="noopener"><i class="bi bi-printer"></i> Print</a>
+          {% endif %}
+          <a href="{% url 'staff-orders' %}"><i class="bi bi-clock-history"></i> Sales</a>
+        </nav>
     <section class="fizo-checkout-basket__lines" aria-label="Basket items">
       <div class="fizo-retail-basket-items">
         {% for line in order.lines.all %}
