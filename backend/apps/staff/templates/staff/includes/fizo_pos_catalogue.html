@@ -2,7 +2,7 @@
         <div class="staff-card staff-card--pos">
           <div class="staff-pos-menu-head">
             <div><span class="staff-pos-menu-eyebrow">{% if is_supermarket_outlet %}PRODUCT CATALOGUE{% else %}ORDER MENU{% endif %}</span><h2 class="staff-card__title staff-card__title--pos mb-0">Add an item</h2></div>
-            <span class="staff-pos-menu-hint">Tap a tile to select</span>
+            <span class="staff-pos-menu-hint">Tap a product to add it</span>
           </div>
           {% if pos_menu_categories %}
             <div class="staff-pos-menu-browser" data-pos-menu-browser>
@@ -24,7 +24,7 @@
                         <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
                       {% endif %}
                       <span class="staff-pos-menu-tile__name">{{ item.name }}</span>
-                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>{% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Add</span>{% endif %}
+                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>{% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Add to basket</span>{% endif %}
                     </button>
                   {% endfor %}
                 {% endfor %}
