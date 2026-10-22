@@ -1,3 +1,31 @@
+{% if show_supermarket_lane %}
+<div class="fizo-active-sales" aria-label="Active supermarket baskets">
+  {% for o in held_tabs %}
+    <article class="fizo-active-sale">
+      <div class="fizo-active-sale__top"><span class="fizo-active-sale__status fizo-active-sale__status--held">Held basket</span><span>{{ o.outlet.name }}</span></div>
+      <h3>{{ o.table_label|default:o.bill_reference }}</h3>
+      <p>Receipt {{ o.bill_reference }}</p>
+      <a class="fizo-active-sale__resume" href="{% url 'staff-order-detail' order_id=o.id %}">Resume basket <i class="bi bi-arrow-right"></i></a>
+    </article>
+  {% endfor %}
+  {% for o in open_tabs %}
+    <article class="fizo-active-sale">
+      <div class="fizo-active-sale__top"><span class="fizo-active-sale__status">Open sale</span><span>{{ o.outlet.name }}</span></div>
+      <h3>{{ o.bill_reference }}</h3>
+      <p>Continue scanning products and complete checkout.</p>
+      <a class="fizo-active-sale__resume" href="{% url 'staff-order-detail' order_id=o.id %}">Resume sale <i class="bi bi-arrow-right"></i></a>
+    </article>
+  {% endfor %}
+  {% if not held_tabs and not open_tabs %}
+    <div class="fizo-active-sale fizo-active-sale--empty"><i class="bi bi-basket2"></i><h3>No active baskets</h3><p>Open a shift and start the next checkout.</p></div>
+  {% endif %}
+</div>
+{% if recent_orders %}
+  <details class="fizo-active-sales__recent"><summary>Recent finished sales ({{ recent_orders|length }})</summary>
+    {% for o in recent_orders %}<a href="{% url 'staff-order-detail' order_id=o.id %}">{{ o.bill_reference }} · {{ o.get_status_display }}</a>{% endfor %}
+  </details>
+{% endif %}
+{% else %}
 {# HTMX-style fragment: same context as orders list #}
 <div class="staff-grid-2 staff-grid-2--pos-lanes">
   {% if held_tabs %}
@@ -65,4 +93,6 @@
       <p>{% if current_outlet %}{% if show_supermarket_lane %}Scan an item to start the next sale.{% else %}Start a new order when your next guest is ready.{% endif %}{% else %}{% if show_supermarket_lane %}Choose a register to begin selling.{% else %}Choose a section above to start serving.{% endif %}{% endif %}</p>
     </div>
   </div>
+{% endif %}
+
 {% endif %}
