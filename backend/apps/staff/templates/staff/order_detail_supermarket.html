@@ -2,7 +2,7 @@
 {% load static %}
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.1">
+<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.5">
 {% endblock %}
 {% block order_extra %}
   <div class="staff-toolbar mt-2 mb-3"><a class="staff-btn staff-btn--ghost" target="_blank" rel="noopener" href="{% url 'staff-retail-customer-display' order_id=order.id %}">Open customer display on second screen</a>
@@ -282,6 +282,47 @@
     received.addEventListener("input", calculateChange);
     if (paymentMethod) paymentMethod.addEventListener("change", calculateChange);
   }
+})();
+</script>
+
+<script>
+/* Retail-only composition; existing POST forms still own all stock and payment rules. */
+(function () {
+  function initializeRetailWorkspace() {
+    var catalogue = document.querySelector(".fizo-checkout-catalogue");
+    var basket = document.querySelector(".fizo-checkout-basket");
+    var scanner = document.querySelector("#retail-fast-checkout");
+    if (!catalogue || !basket) return;
+    var heading = document.createElement("header");
+    heading.className = "fizo-retail-pos-heading";
+    heading.innerHTML = '<div><span class="fizo-retail-pos-heading__eyebrow">Fizo / Supermarket / POS</span><h1>Cashier checkout</h1><p>Scan or select products to build the current sale.</p></div><a href="{% url 'staff-orders' %}" class="staff-btn staff-btn--ghost">Sales history</a>';
+    var layout = catalogue.closest(".staff-pos-order-layout");
+    if (layout) layout.parentNode.insertBefore(heading, layout);
+    if (scanner) {
+      catalogue.insertBefore(scanner, catalogue.firstChild);
+      scanner.classList.add("fizo-retail-pos-scanner");
+      scanner.querySelectorAll("input").forEach(function (input) {
+        if (input.type === "text" || input.type === "search") {
+          input.setAttribute("placeholder", "Scan barcode or enter product code");
+          input.setAttribute("autocomplete", "off");
+        }
+      });
+    }
+    var input = scanner && scanner.querySelector('input[name="code"]');
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "F3" && input) {
+        event.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+    var cards = catalogue.querySelectorAll("[data-pos-menu-tile]");
+    cards.forEach(function (tile) {
+      tile.setAttribute("title", "Select " + (tile.dataset.itemName || "product") + " and add to basket");
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeRetailWorkspace);
+  else initializeRetailWorkspace();
 })();
 </script>
 {% endblock %}
