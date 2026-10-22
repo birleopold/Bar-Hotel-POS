@@ -167,3 +167,31 @@
 .fizo-cashier-shortcuts nav a:hover,.fizo-cashier-shortcuts nav a:focus-visible{background:#e2f6e9;border-color:#72bc92}
 .fizo-cashier-shortcuts kbd{font-size:11px;background:#fff;color:#385763;border:1px solid #ccdcd3;border-radius:4px;padding:2px 4px}
 @media(max-width:700px){.fizo-cashier-shortcuts nav{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-cashier-shortcuts nav a{justify-content:center}}
+
+/* Unified cashier workstation; no alternate checkout/payment implementation. */
+.staff-main:has(.fizo-checkout-catalogue){padding:12px 16px 22px!important}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-layout{grid-template-columns:minmax(0,1.7fr) minmax(340px,.95fr)!important;gap:14px!important;align-items:start}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.fizo-checkout-catalogue .staff-pos-menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:9px}
+.fizo-checkout-catalogue .staff-pos-menu-tile{min-height:175px;padding:8px;border-radius:11px}
+.fizo-checkout-catalogue .staff-pos-menu-tile__photo,.fizo-checkout-catalogue .staff-pos-menu-tile__icon{height:103px}
+.fizo-checkout-catalogue .staff-pos-menu-tools{position:sticky;top:0;z-index:2;background:#f5f8f9;padding:9px 0;margin:0 0 8px}
+.fizo-checkout-catalogue [data-pos-menu-search]{min-height:45px;font-size:15px}
+.fizo-checkout-catalogue .staff-pos-menu-categories{padding:7px 1px 12px}
+.fizo-checkout-catalogue .staff-pos-category-filter{min-height:50px}
+.fizo-checkout-basket{padding:13px}
+.fizo-cashier-payment-summary{display:grid;gap:8px;border-radius:12px;background:#eefaf2;padding:15px 14px;margin-bottom:14px;border:1px solid #c9ecd7}
+.fizo-cashier-payment-summary>span{color:#526d63;font-size:12px;font-weight:700}
+.fizo-cashier-payment-summary>strong{font-size:clamp(23px,2.4vw,31px);color:#006f3d;font-variant-numeric:tabular-nums;line-height:1.2}
+.fizo-cashier-pay-cta{display:flex;align-items:center;justify-content:center;gap:9px;min-height:52px;border-radius:10px;background:#00894a;color:#fff!important;text-decoration:none!important;font-weight:850;font-size:16px}
+.fizo-cashier-pay-cta:hover,.fizo-cashier-pay-cta:focus-visible{background:#006f3e;color:#fff}
+.fizo-cashier-pay-intro{display:grid;gap:3px;margin:10px 0 15px;scroll-margin-top:20px}
+.fizo-cashier-pay-intro strong{font-size:18px;color:#193e31}
+.fizo-cashier-pay-intro span{color:#687f80;font-size:12px}
+.fizo-retail-basket-row{border-bottom:1px solid #e6efea;padding:11px 0}
+.fizo-retail-basket-row__info strong{font-size:14px}
+.fizo-cashier-payment-summary~.fizo-checkout-basket__title{font-size:17px}
+.fizo-cashier-shortcuts{margin:8px 0}
+@media(max-width:1100px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-layout{grid-template-columns:minmax(0,1.3fr) minmax(320px,.9fr)!important}.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:850px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-layout{grid-template-columns:minmax(0,1fr)!important}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{position:static;max-height:none;overflow:visible}.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}}
+@media(max-width:420px){.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-checkout-catalogue .staff-pos-menu-tile__photo,.fizo-checkout-catalogue .staff-pos-menu-tile__icon{height:94px}.fizo-cashier-payment-summary>strong{font-size:24px}}
