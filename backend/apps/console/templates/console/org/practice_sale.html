@@ -2,18 +2,18 @@
 {% block title %}Practice checkout{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
-<header class="staff-page-hero">
+<section class="fizo-practice" aria-label="Practice checkout"><header class="staff-page-hero">
   <div class="staff-dash-hero__panel">
     <p class="staff-dash-hero__eyebrow">Setup · Training</p>
     <h1 class="staff-page-title">Practice a checkout</h1>
-    <p>Preview the item price, tax and total using the same calculation helpers as the live POS, without taking payment.</p>
+    <p>Review real catalog prices and tax calculations safely, without taking payment or changing inventory.</p><span class="fizo-practice__safety"><i class="bi bi-shield-check" aria-hidden="true"></i> Training preview only · No money or stock movement</span>
   </div>
 </header>
 <div class="d-flex flex-wrap gap-2 mb-3">
   <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-setup' %}">Back to setup</a>
   <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Edit item prices</a>
 </div>
-<div class="row g-3">
+<div class="row g-3 fizo-practice__panels">
   <div class="col-12 col-lg-6">
     <section class="staff-card">
       <h2 class="staff-section-head">Choose a test item</h2>
@@ -27,7 +27,7 @@
             {% if field.errors %}<div class="staff-field-error" role="alert">{{ field.errors }}</div>{% endif %}
           </div>
         {% endfor %}
-        <button type="submit" class="staff-btn staff-btn--primary">Preview checkout total</button>
+        <button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-calculator" aria-hidden="true"></i> Preview checkout total</button>
       </form>
       {% if practice_checked_at %}
         <p class="staff-muted small mt-3 mb-0">Last practice check: {{ practice_checked_at|date:"j M Y, H:i" }}{% if practice_checked_by %} by {{ practice_checked_by.email }}{% endif %}.</p>
@@ -58,4 +58,5 @@
     {% endif %}
   </div>
 </div>
+</section>
 {% endblock %}
