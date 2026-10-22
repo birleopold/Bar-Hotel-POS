@@ -1,30 +1,22 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}{{ reservation.guest_name }}{% endblock %}
-{% block main_class %}staff-main--wide hospitality-workflow{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.3">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Lodging</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">{{ reservation.guest_name }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">{{ reservation.check_in }} → {{ reservation.check_out }} · <span class="staff-tag staff-tag--citrus">{{ reservation.get_status_display }}</span></p>
-        </div>
-        <div class="staff-page-hero__actions">
-          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}">All reservations</a>
-        </div>
-      </div>
-    </div>
+<div class="fizo-hotel fizo-reservation-detail">
+  <header class="fizo-hotel__head">
+    <div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Guest stay</p><h1>{{ reservation.guest_name }}</h1>
+    <p>{{ reservation.check_in }} → {{ reservation.check_out }} · {{ reservation.get_status_display }}</p></div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}"><i class="bi bi-arrow-left"></i> All reservations</a>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <div class="staff-card mb-3"><h2 class="staff-card__title">Shared customer record</h2>
+  <div class="fizo-hotel__panel fizo-reservation-detail__panel mb-3"><h2>Guest record</h2>
     {% if reservation.customer %}<p><a href="{% url 'staff-customer-detail' reservation.customer.pk %}">{{ reservation.customer.name }}</a> · stay name: {{ reservation.guest_name }}</p>{% else %}<p class="staff-muted">No customer identity linked. Check the person before linking.</p>{% endif %}
     {% if can_modify_lodging %}<form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="set_customer"><label for="reservation-customer">Customer</label><select id="reservation-customer" class="staff-input" name="customer_id"><option value="">No linked customer</option>{% for person in customer_options %}<option value="{{ person.pk }}"{% if person.pk == reservation.customer_id %} selected{% endif %}>{{ person.name }}{% if person.phone %} · {{ person.phone }}{% endif %}</option>{% endfor %}</select><button class="staff-btn staff-btn--secondary" type="submit">Save customer link</button></form>{% endif %}
   </div>
-  <h2 class="staff-section-head">Room</h2>
-  <div class="staff-card mb-3">
+  <h2 class="fizo-reservation-detail__heading">Room assignment</h2>
+  <div class="fizo-hotel__panel fizo-reservation-detail__panel mb-3">
     {% if can_modify_lodging %}
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
@@ -45,7 +37,7 @@
     {% endif %}
   </div>
   {% if can_modify_lodging %}
-    <h2 class="staff-section-head">Actions</h2>
+    <h2 class="fizo-reservation-detail__heading">Stay actions</h2>
     <div class="staff-toolbar staff-toolbar--tight mb-3">
       <form method="post" class="d-inline">
         {% csrf_token %}<input type="hidden" name="action" value="check_in">
@@ -76,8 +68,8 @@
     </div>
   {% endif %}
   {% if open_folio %}
-    <h2 class="staff-section-head">Open folio</h2>
-    <div class="staff-card mb-3">
+    <h2 class="fizo-reservation-detail__heading">Guest folio</h2>
+    <div class="fizo-hotel__panel fizo-reservation-detail__panel mb-3">
       <p class="staff-muted">{{ open_folio.guest_name }} · {{ open_folio.get_status_display }}</p>
       <div class="staff-metric-row mb-3" aria-label="Folio totals">
         <span><strong>{{ open_folio.currency }} {{ folio_charges }}</strong><small>Charges</small></span>
@@ -106,4 +98,5 @@
       <p class="mb-0 mt-2"><a href="{% url 'staff-lodging-folio-detail' folio_id=open_folio.id %}">View folio</a></p>
     </div>
   {% endif %}
+</div>
 {% endblock %}
