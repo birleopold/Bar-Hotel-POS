@@ -125,3 +125,40 @@
 .fizo-hotel .staff-subnav-pills{display:flex;align-items:center;gap:8px;overflow:auto;padding:6px 0 14px;margin-bottom:12px}
 .fizo-hotel .staff-subnav-pills>a{flex:none;white-space:nowrap;min-height:39px;border-radius:9px}
 @media(max-width:600px){.fizo-housekeeping .row.g-3,.fizo-maintenance .row.g-3{--bs-gutter-x:12px}.fizo-maintenance .row.g-3>.col-12 .staff-card{padding:12px}}
+
+
+/* Lodging navigation + guest accounts + occupancy + safe night audit */
+.fizo-hotel-tabs{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:6px 0 15px;margin:8px 0 16px}
+.fizo-hotel-tabs__link{display:inline-flex;align-items:center;min-height:42px;white-space:nowrap;padding:10px 14px;border:1px solid #dde9e2;border-radius:10px;text-decoration:none;font-weight:750;font-size:13px;flex:none}
+.fizo-hotel-tabs__link--normal{color:#46625b;background:#fff}
+.fizo-hotel-tabs__link--active{color:#fff;background:#008b4b;border-color:#008b4b}
+.fizo-hotel-tabs__link:hover{border-color:#008b4b}
+.fizo-hotel__head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fizo-hotel__section-title{font-size:19px;font-weight:850;margin:20px 0 12px;color:#1d3941}
+.fizo-hotel__workflow-card{margin-bottom:17px}
+.fizo-hotel__table-scroll{width:100%;overflow-x:auto}
+.fizo-hotel__table{width:100%;min-width:600px;border-collapse:collapse}
+.fizo-hotel__table th{background:#f0f8f3;color:#546d64;font-size:12px;text-align:left;font-weight:800}
+.fizo-hotel__table th,.fizo-hotel__table td{padding:13px 12px;border-bottom:1px solid #e8eeea;vertical-align:middle}
+.fizo-hotel__table tbody tr:hover{background:#fbfdfb}
+.fizo-hotel__table a{color:#008545;font-weight:750;text-decoration:none}
+.fizo-hotel__finance-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;margin-bottom:17px}
+.fizo-hotel__finance-summary span{display:flex;flex-direction:column;gap:5px;padding:18px;background:#fff;border:1px solid #dce9e2;border-radius:12px}
+.fizo-hotel__finance-summary strong{font-size:21px;color:#007c43;font-weight:850}
+.fizo-hotel__finance-summary small{font-size:12px;color:#637c77}
+.fizo-hotel-workspace .staff-toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:end;margin:13px 0}
+.fizo-hotel-workspace .staff-toolbar label{font-size:13px;font-weight:750}
+.fizo-hotel-workspace .staff-toolbar select{width:auto;min-width:145px}
+.fizo-hotel-workspace .staff-pager{display:flex;gap:14px;align-items:center;justify-content:center;padding:18px}
+.fizo-hotel-workspace .staff-card .staff-table-wrap{overflow-x:auto}
+.fizo-hotel-workspace .staff-card .staff-table{width:100%;min-width:600px}
+.fizo-hotel-workspace .staff-card .staff-table th,.fizo-hotel-workspace .staff-card .staff-table td{padding:11px;border-bottom:1px solid #e8eeea}
+.fizo-hotel__tape{min-width:950px;text-align:center;font-size:12px}
+.fizo-hotel__tape td:first-child,.fizo-hotel__tape th:first-child{text-align:left;position:sticky;left:0;background:#fff;z-index:1;min-width:130px}
+.fizo-hotel__tape thead th:first-child{background:#eff7f1}
+.fizo-hotel__tape td:not(:first-child){min-width:86px;border-left:1px solid #ecf0ec}
+.fizo-hotel__tape td a{display:block;border-radius:7px;background:#e2f7eb;padding:6px 3px;color:#007941}
+.fizo-hotel-workspace--night-audit .fizo-hotel__workflow-card{border-left:3px solid #008949}
+.fizo-hotel-workspace--night-audit button[type=submit]{min-height:43px}
+.fizo-hotel-workspace--night-audit [disabled]{opacity:.52;cursor:not-allowed}
+@media(max-width:650px){.fizo-hotel-tabs{gap:6px}.fizo-hotel-tabs__link{font-size:12px;padding:8px 11px}.fizo-hotel__head-actions{width:100%}.fizo-hotel-workspace .staff-toolbar select{width:100%}.fizo-hotel__finance-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-hotel__finance-summary strong{font-size:17px}}
