@@ -105,3 +105,8 @@ Added GET-only `staff-retail-pos-entry` at `/staff/pos/checkout/`: checks access
 ## Checkout irregularities correction — 2026-10-22
 
 Addressed two source-level visual irregularities in the existing supermarket checkout: removed the misleading `order.lines.count` basket badge (which can include voided lines), replacing it with the real sale reference, and added order-derived subtotal, tax and amount-due rows inside the basket. The old redundant totals strip is hidden only on supermarket checkout pages. The right action column is sticky and internally scrollable on desktop, reverting to normal flow on narrow screens. Product tile call-to-action now says `Add to basket`, consistent with the existing fast-add POST for unmodified items; modifier-dependent items still require confirmation. Updated regression contracts. No authenticated browser test was performed and checkout/payment/void operations remain to be validated.
+
+
+## Eight-vendor workflow research and checkout entry (2026-10-22)
+
+Published docs reviewed for Square, Shopify, Lightspeed, Odoo, Loyverse, Erply, Toast, and SumUp; detailed evidence/priority matrix is in `docs/FIZO_POS_EIGHT_PRODUCT_BENCHMARK_2026-10-22.md`. Fizo's GET POS entry now renders a **dedicated** new-sale start screen when a selected retail outlet has an open shift but the cashier has no eligible basket, instead of confusingly bouncing to Sales history; creating the sale remains a CSRF-protected POST. Styles/tests added. No database schema changes were made because competitor feature comparison alone does not justify migrations. Status SOURCE COMMITTED, NOT AUTOMATED-TESTED OR LIVE-BROWSER ACCEPTED.
