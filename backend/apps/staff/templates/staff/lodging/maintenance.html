@@ -1,22 +1,12 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}Room maintenance{% endblock %}
-{% block main_class %}staff-main--wide hospitality-workflow{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.6">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Lodging operations</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Room maintenance<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
-          <p class="staff-dash-hero__tagline mb-0">Assign, prioritize, and resolve repairs that affect room readiness.</p>
-        </div>
-      </div>
-    </div>
-  </header>
-  {% include "staff/lodging/includes/subnav.html" %}
+<div class="fizo-hotel fizo-maintenance">
+  <header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Operations</p><h1>Room maintenance</h1><p>{{ current_site.name }} · Track repairs, priorities and room readiness.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-rooms' %}">View room directory</a></header>
+{% include "staff/lodging/includes/subnav.html" %}
 
   <div class="staff-chip-row mb-3" aria-label="Maintenance status filter">
     <a class="staff-btn staff-btn--sm {% if status_filter == 'active' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?status=active">Active</a>
@@ -75,4 +65,5 @@
       </div>
     {% endif %}
   </div>
+</div>
 {% endblock %}
