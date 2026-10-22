@@ -7,17 +7,17 @@
           {% if pos_menu_categories %}
             <div class="staff-pos-menu-browser" data-pos-menu-browser>
               <div class="staff-pos-menu-tools">
-                <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="Search items" autocomplete="off" data-pos-menu-search></label>
-                <span class="staff-pos-menu-count">{{ add_line_form.menu_item.field.queryset.count }} items</span>
+                <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="{% if is_supermarket_outlet %}Search name, SKU or barcode{% else %}Search items{% endif %}" autocomplete="off" data-pos-menu-search></label>
+                {% if is_supermarket_outlet %}<button type="button" class="fizo-pos-search-clear" data-fizo-search-clear aria-label="Clear product search">Clear</button>{% endif %}<span class="staff-pos-menu-count">{{ add_line_form.menu_item.field.queryset.count }} items</span>
               </div>
               <div class="staff-pos-menu-categories" role="group" aria-label="Filter by category">
-                <button type="button" class="staff-pos-category-filter is-active" data-pos-menu-filter="all" aria-pressed="true">All items</button>
+                <button type="button" class="staff-pos-category-filter is-active" data-pos-menu-filter="all" aria-pressed="true">{% if is_supermarket_outlet %}<i class="bi bi-grid-3x3-gap" aria-hidden="true"></i> {% endif %}All items</button>
                 {% for category in pos_menu_categories %}<button type="button" class="staff-pos-category-filter" data-pos-menu-filter="{{ category.id }}" aria-pressed="false">{{ category.name }}</button>{% endfor %}
               </div>
               <div class="staff-pos-menu-grid" data-pos-menu-grid>
                 {% for category in pos_menu_categories %}
                   {% for item in category.menu_items %}
-                    <button type="button" class="staff-pos-menu-tile" data-pos-menu-tile data-item-id="{{ item.id }}" data-category-id="{{ category.id }}" data-item-name="{{ item.name|lower }}" aria-pressed="false">
+                    <button type="button" class="staff-pos-menu-tile" data-pos-menu-tile data-item-id="{{ item.id }}" data-category-id="{{ category.id }}" data-item-name="{{ item.name|lower }}" data-item-sku="{{ item.sku|default_if_none:''|lower }}" data-item-barcode="{{ item.barcode|default_if_none:''|lower }}" aria-pressed="false">
                       {% if is_supermarket_outlet and item.display_image_url %}
                         <span class="staff-pos-menu-tile__photo"><img src="{{ item.display_image_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>
                       {% else %}
