@@ -43,3 +43,8 @@ Status: research done; checkout entry source-implemented; all browser and transa
 ## Follow-up implementation: discovery and cashier shortcuts
 
 Implemented real catalogue search over product **name, SKU and barcode**, using already-rendered menu-item fields; added a clear-search control and improved the 'All items' category visual. Added contextual **Hold**, **Print** (only when receipt printing enabled) and **Sales** links alongside the basket. Hold uses the existing `hold_label` form, print uses existing `staff-order-print`, and Sales uses existing route; no new transaction or payment endpoint. Source regression checks updated. These changes do not yet implement database-backed favourites, product pagination or offline transactional changes. No server/browser tests performed in this batch.
+
+
+## Popular-product shortcuts (2026-10-22)
+
+Implemented `retail_quick_pick_ids` in `StaffOrderDetailView` from non-voided order lines belonging to paid, closed orders for the **current tenant and current outlet** during the prior 30 days. Ranked by sale-line occurrences; shortlist limited to existing visible/authorized catalogue items (max eight). The checkout now renders Quick picks buttons which click existing product tiles, invoking the normal validated add-line flow. No invented product imagery and no new database table. Low-sales shops show an explanatory empty state. Source-level regression checks added; **SQL profiling, tests, authenticated browser and transactions unverified**. A large-catalogue production load test should precede adding or changing database indexes.
