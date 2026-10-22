@@ -89,3 +89,13 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         entry = view.split("class StaffRetailPosEntryView(", 1)[1].split("class StaffOrderQuickCreateView(", 1)[0]
         self.assertIn('render(request, "staff/retail_pos_start.html"', entry)
         self.assertNotIn("create_order_with_lines(", entry)
+
+    def test_search_uses_real_sku_and_barcode_and_shortcuts_use_existing_routes(self):
+        root = Path(__file__).resolve().parent
+        catalogue = (root/"templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
+        detail = (root/"templates/staff/order_detail.html").read_text(encoding="utf-8")
+        for token in ("data-item-sku", "data-item-barcode", "data-fizo-search-clear"):
+            self.assertIn(token, catalogue)
+        for token in ("tile.dataset.itemSku", "tile.dataset.itemBarcode",
+                      "fizo-retail-basket-tools", "staff-order-print", 'href="#hold_label"'):
+            self.assertIn(token, detail)
