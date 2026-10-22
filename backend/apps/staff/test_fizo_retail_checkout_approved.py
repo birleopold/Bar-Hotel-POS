@@ -194,3 +194,15 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
             quick.index("MenuCategory.objects.select_for_update().get(pk=category.pk)"),
             quick.index("item = MenuItem.objects.create("),
         )
+
+
+    def test_console_and_cashier_share_product_registration_lock(self):
+        root = Path(__file__).resolve().parent
+        cashier = (root / "views_ops.py").read_text(encoding="utf-8")
+        console = (root.parent / "console/views_catalog.py").read_text(encoding="utf-8")
+        self.assertIn("Tenant.objects.select_for_update().get(pk=order.tenant_id)", cashier)
+        self.assertIn("Tenant.objects.select_for_update().get(pk=view.request.tenant.pk)", console)
+        self.assertIn("candidates.filter(name__iexact=name).exists()", console)
+        self.assertIn("candidates.filter(barcode=barcode).exists()", console)
+        self.assertIn("return _save_catalog_item_safely(self, form, creating=True)", console)
+        self.assertIn("return _save_catalog_item_safely(self, form, creating=False)", console)
