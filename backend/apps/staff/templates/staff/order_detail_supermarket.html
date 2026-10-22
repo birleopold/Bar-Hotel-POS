@@ -2,7 +2,7 @@
 {% load static %}
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.7">
+<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.8">
 {% endblock %}
 {% block order_extra %}
   {% if can_modify_open_order and order.status == 'open' and not order.is_paid %}
@@ -358,6 +358,19 @@ document.addEventListener("click", function (event) {
           input.setAttribute("placeholder", "Scan barcode or enter product code");
           input.setAttribute("autocomplete", "off");
         }
+      });
+    }
+    var quickForm = document.querySelector("#fizo-quick-product");
+    if (quickForm) {
+      if (scanner) scanner.insertAdjacentElement("afterend", quickForm);
+      else catalogue.insertBefore(quickForm, catalogue.firstChild);
+      var quickSubmit = quickForm.querySelector('form[data-fizo-quick-product-form]');
+      if (quickSubmit) quickSubmit.addEventListener("submit", function (event) {
+        if (quickSubmit.dataset.submitted === "1") { event.preventDefault(); return; }
+        if (!quickSubmit.checkValidity()) return;
+        quickSubmit.dataset.submitted = "1";
+        var button = quickSubmit.querySelector('button[type="submit"]');
+        if (button) { button.disabled = true; button.textContent = "Adding product…"; }
       });
     }
     var input = scanner && scanner.querySelector('input[name="code"]');
