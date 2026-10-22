@@ -18,6 +18,17 @@ class FizoRegisterLayoutTests(SimpleTestCase):
         self.assertEqual(shift.count("<form "), shift.count("{% csrf_token %}"))
         self.assertEqual(shift.count("{% block "), shift.count("{% endblock %}"))
 
+    def test_shift_uses_register_styles_even_without_grocery_owner_shell(self):
+        root = Path(__file__).resolve().parent
+        shift = (root / "templates/staff/pos_shifts.html").read_text(encoding="utf-8")
+        self.assertIn("staff-main--wide fizo-register-page", shift)
+        self.assertIn("fizo-register.css", shift)
+        self.assertIn("fizo-register__history", shift)
+        self.assertIn("fizo-register__tablewrap", shift)
+        # In particular the register stylesheet cannot depend on the shell branch.
+        self.assertNotIn("{% if grocery_owner_shell %}<link rel=\"stylesheet\"", shift)
+        self.assertEqual(shift.count("<section"), shift.count("</section>"))
+
     def test_workstation_actions_and_permissions_retained(self):
         root = Path(__file__).resolve().parent
         station = (root / "templates/staff/workstations.html").read_text(encoding="utf-8")
