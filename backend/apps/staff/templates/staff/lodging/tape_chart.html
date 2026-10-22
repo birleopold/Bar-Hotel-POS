@@ -1,6 +1,8 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Occupancy tape{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block main_class %}hospitality-workflow staff-main--wide{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
   <header class="staff-page-hero">
     <div class="staff-dash-hero__panel">
