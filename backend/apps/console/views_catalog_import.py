@@ -52,6 +52,25 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
             raise Http404("Product catalog import is not enabled for this business type.")
         return super().dispatch(request, *args, **kwargs)
 
+    def get_form_kwargs(self):
+        """Bind only the file belonging to the submitted workflow.
+
+        Both forms previously used name="file", so selecting a catalog sample
+        could accidentally submit it to the price-update parser.
+        """
+        kwargs = super().get_form_kwargs()
+        if self.request.method == "POST":
+            action = (self.request.POST.get("action") or "").strip()
+            expected = "price_file" if action in {"preview_prices", "apply_prices"} else "file"
+            uploads = self.request.FILES
+            # Never silently use the other workflow's CSV as a fallback.
+            bound = uploads.copy()
+            bound.pop("file", None)
+            if expected in uploads:
+                bound.setlist("file", uploads.getlist(expected))
+            kwargs["files"] = bound
+        return kwargs
+
     def get(self, request, *args, **kwargs):
         if request.GET.get("price_template") == "1":
             response = HttpResponse(content_type="text/csv; charset=utf-8")
