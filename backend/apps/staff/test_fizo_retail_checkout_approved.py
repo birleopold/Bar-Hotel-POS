@@ -137,3 +137,20 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('name="catalogue_q"', template)
         self.assertIn("No matching products", template)
         self.assertIn("retail_catalogue_has_more", template)
+
+
+    def test_quick_create_product_keeps_sale_validation_and_audit(self):
+        root = Path(__file__).resolve().parent
+        view = (root/"views_ops.py").read_text(encoding="utf-8")
+        page = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn('if action == "quick_create_product":', view)
+        self.assertIn("RetailQuickProductForm", view)
+        self.assertIn("with transaction.atomic():", view)
+        self.assertIn("track_inventory=False", view)
+        self.assertIn("add_line_to_open_order(", view)
+        self.assertIn('action="catalog.quick_product_created"', view)
+        self.assertIn('order.status != OrderStatus.OPEN or order.is_paid', view)
+        self.assertIn('name="unit_price"', page)
+        self.assertIn('name="barcode"', page)
+        self.assertIn('value="quick_create_product"', page)
+        self.assertIn("{% csrf_token %}", page)
