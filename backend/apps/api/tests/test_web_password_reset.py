@@ -38,7 +38,7 @@ class StaffPasswordResetPageTests(TestCase):
         )
         r = self.client.post(
             "/password-reset/confirm/",
-            {"uid": uid, "token": token, "new_password": "NewStrongPass9!"},
+            {"uid": uid, "token": token, "new_password": "NewStrongPass9!", "confirm_password": "NewStrongPass9!"},
         )
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Password updated", status_code=200)
