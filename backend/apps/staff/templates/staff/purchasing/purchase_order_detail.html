@@ -1,26 +1,17 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}PO {{ po.reference|default:po.id }}{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-purchasing.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Purchasing</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">PO {{ po.reference|default:po.id }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">{{ po.supplier.name }} · {{ po.outlet.name }} · <span class="staff-tag staff-tag--citrus">{{ po.get_status_display }}</span></p>
-        </div>
-        <div class="staff-page-hero__actions">
-          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All orders</a>
-        </div>
-      </div>
-    </div>
-  </header>
+<div class="fizo-purchasing fizo-purchasing--purchase-order-detail">
+
+  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">Fizo / Supermarket / Purchasing</p><h1>Purchase order details</h1><p>Review ordered and received quantities, invoices and authorized actions.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All orders</a></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
-  <h2 class="staff-section-head">{% if grocery_owner_shell %}Products ordered{% else %}Line items{% endif %}</h2>
-  <div class="staff-card mb-3">
-    <div class="staff-table-wrap">
-      <table class="staff-table">
+  <h2 class="fizo-purchasing__section-heading">{% if grocery_owner_shell %}Products ordered{% else %}Line items{% endif %}</h2>
+  <div class="fizo-purchasing__panel mb-3">
+    <div class="fizo-purchasing__tablewrap">
+      <table class="fizo-purchasing__table">
         <thead><tr><th>Product</th><th>Ordered</th><th>Received</th><th>Still expected</th></tr></thead>
         <tbody>
           {% for line in po.lines.all %}
@@ -36,7 +27,7 @@
     </div>
   </div>
   {% if can_modify_purchasing or can_receive %}
-    <h2 class="staff-section-head">Status</h2>
+    <h2 class="fizo-purchasing__section-heading">Status</h2>
     <div class="staff-toolbar staff-toolbar--tight flex-wrap mb-3">
       {% if can_modify_purchasing %}
       {% if po.status == 'draft' %}
@@ -60,7 +51,7 @@
       {% endif %}
     </div>
     {% if can_receive %}
-      <h2 class="staff-section-head">Partial goods received</h2>
+      <h2 class="fizo-purchasing__section-heading">Partial goods received</h2>
       <p class="staff-muted">Enter loose units, full cartons or both. Cartons use the purchase order’s saved carton size; all stock and supplier amounts remain in individual units. For dated products, enter the batch code and expiry date alongside the delivered quantity. Products already tracked by batch require a batch code. A batch code can only be received once per item and section.</p>
       <div class="staff-card">
         <form method="post" data-goods-receive-form>
@@ -70,8 +61,8 @@
             <div class="col-12 col-md-5"><label class="staff-label" for="delivery-reference">Delivery reference</label><input class="staff-input" id="delivery-reference" name="delivery_reference" maxlength="128" placeholder="Delivery note or shipment number"></div>
             <div class="col-12 col-md-7"><label class="staff-label" for="receipt-note">Receiving note</label><input class="staff-input" id="receipt-note" name="receipt_note" maxlength="512" placeholder="Receiving notes"></div>
           </div>
-          <div class="staff-table-wrap">
-            <table class="staff-table">
+          <div class="fizo-purchasing__tablewrap">
+            <table class="fizo-purchasing__table">
               <thead><tr><th>Item</th><th>Remaining units</th><th>Loose units</th><th>Full cartons</th><th>Batch code</th><th>Expiry date</th></tr></thead>
               <tbody>
                 {% for line in po.lines.all %}
@@ -98,11 +89,11 @@
     {% endif %}
   {% endif %}
 
-  <h2 class="staff-section-head">Delivery history</h2>
+  <h2 class="fizo-purchasing__section-heading">Delivery history</h2>
   <section class="staff-card">
     {% if po.receipts.all %}
-      <div class="staff-table-wrap">
-        <table class="staff-table">
+      <div class="fizo-purchasing__tablewrap">
+        <table class="fizo-purchasing__table">
           <thead><tr><th>Received</th><th>Delivery</th><th>Items</th><th>Received by</th></tr></thead>
           <tbody>
             {% for receipt in po.receipts.all %}
@@ -119,11 +110,11 @@
     {% else %}<p class="staff-muted mb-0">No deliveries have been received against this purchase order.</p>{% endif %}
   </section>
 
-  <h2 class="staff-section-head">Return goods to supplier</h2>
-  <section class="staff-card mb-3" aria-label="Supplier goods returns">
+  <h2 class="fizo-purchasing__section-heading">Return goods to supplier</h2>
+  <section class="fizo-purchasing__panel mb-3" aria-label="Supplier goods returns">
     <p class="staff-muted">Physically send accepted goods back to a supplier. This removes those units from stock; it never automatically issues a credit note or refunds cash. Batch-tracked goods must still be in their original received lot.</p>
     {% if supplier_returns %}
-    <div class="staff-table-wrap"><table class="staff-table">
+    <div class="fizo-purchasing__tablewrap"><table class="fizo-purchasing__table">
       <thead><tr><th>Return reference</th><th>Item</th><th>Units</th><th>Reason</th></tr></thead><tbody>
       {% for ret in supplier_returns %}<tr><td>{{ ret.reference }}</td><td>{{ ret.receipt_line.purchase_order_line.menu_item.name }}</td><td>{{ ret.quantity }}</td><td>{{ ret.note }}</td></tr>{% endfor %}
       </tbody></table></div>{% endif %}
@@ -147,12 +138,12 @@
     </form>{% endif %}
   </section>
 
-  <h2 class="staff-section-head">Supplier invoices</h2>
-  <section class="staff-card mb-3" aria-label="Supplier invoices">
+  <h2 class="fizo-purchasing__section-heading">Supplier invoices</h2>
+  <section class="fizo-purchasing__panel mb-3" aria-label="Supplier invoices">
     <p class="staff-muted">Record the supplier invoice after receiving goods. This records the document and due date; it does not send money or post a new expense.</p>
     <p><strong>{{ purchase_currency }} {{ supplier_invoiced }}</strong> invoiced · <strong>{{ purchase_currency }} {{ supplier_credited }}</strong> credited · <strong>{{ purchase_currency }} {{ supplier_net_invoiced }}</strong> net invoiced.</p>
     {% if po.invoices.all %}
-    <div class="staff-table-wrap"><table class="staff-table">
+    <div class="fizo-purchasing__tablewrap"><table class="fizo-purchasing__table">
       <thead><tr><th>Invoice</th><th>Match evidence</th><th>Invoice date</th><th>Payment due</th><th>Invoiced</th><th>Credited</th><th>Paid to invoice</th><th>Unpaid</th></tr></thead>
       <tbody>{% for row in invoice_settlement_rows %}
         <tr><td>{{ row.invoice.reference }}</td><td>{% if row.invoice.matched_lines.all %}3-way matched{% else %}Legacy · no line evidence{% endif %}</td><td>{{ row.invoice.invoice_date }}</td><td>{{ row.invoice.due_date }}{% if row.overdue_days %}<small class="staff-muted"> · {{ row.overdue_days }} days overdue</small>{% endif %}</td><td>{{ purchase_currency }} {{ row.invoice.amount }}</td><td>{{ purchase_currency }} {{ row.credited }}</td><td>{{ purchase_currency }} {{ row.paid }}</td><td><strong>{{ purchase_currency }} {{ row.unpaid }}</strong></td></tr>
@@ -161,7 +152,7 @@
     {% if unallocated_supplier_payments %}
       <p class="staff-alert staff-alert--info">Unassigned historical payments: {{ purchase_currency }} {{ unallocated_supplier_payments }}. Invoice balances are not final until the original payment references are checked. No allocation was guessed.</p>
       {% if can_modify_purchasing %}
-        <h3 class="staff-section-head">Link an older payment to its invoice</h3>
+        <h3 class="fizo-purchasing__section-heading">Link an older payment to its invoice</h3>
         <p class="staff-muted small">Use this only when the full original payment belongs to one invoice. Splitting one payment across several invoices requires a separate reconciliation; linking does not send money again.</p>
         {% for payment in po.payments.all %}{% if not payment.invoice_id %}
           <form method="post" class="row g-2 align-items-end mb-3">
@@ -204,11 +195,11 @@
     </form>{% endif %}
   </section>
 
-  <h2 class="staff-section-head">Supplier credit notes</h2>
-  <section class="staff-card mb-3" aria-label="Supplier credit notes">
+  <h2 class="fizo-purchasing__section-heading">Supplier credit notes</h2>
+  <section class="fizo-purchasing__panel mb-3" aria-label="Supplier credit notes">
     <p class="staff-muted">Record a supplier-issued credit against an unpaid invoice. It reduces what remains payable, but does not move stock, refund cash, or automatically reverse older expenses. Any returned goods need their own stock record.</p>
     {% if po.credits.all %}
-      <div class="staff-table-wrap"><table class="staff-table">
+      <div class="fizo-purchasing__tablewrap"><table class="fizo-purchasing__table">
         <thead><tr><th>Credit note</th><th>Invoice</th><th>Date</th><th>Value</th><th>Reason</th></tr></thead>
         <tbody>{% for credit in po.credits.all %}
           <tr><td>{{ credit.reference }}</td><td>{{ credit.invoice.reference }}</td><td>{{ credit.credit_date }}</td><td>{{ purchase_currency }} {{ credit.amount }}</td><td>{{ credit.reason }}</td></tr>
@@ -227,7 +218,7 @@
     </form>{% endif %}
   </section>
 
-  <h2 class="staff-section-head">Supplier settlement</h2>
+  <h2 class="fizo-purchasing__section-heading">Supplier settlement</h2>
   <section class="staff-card" aria-label="Supplier settlement">
     <div class="staff-metric-row staff-metric-row--folio mb-3">
       <span><strong>{{ purchase_currency }} {{ received_value }}</strong><small>Value of costed goods received</small></span>
@@ -274,7 +265,7 @@
       <p class="staff-alert staff-alert--info">The recorded invoices have no balance remaining. Record the next verified invoice before another supplier payment.</p>
     {% endif %}
     {% if po.payments.all %}
-      <div class="staff-table-wrap"><table class="staff-table">
+      <div class="fizo-purchasing__tablewrap"><table class="fizo-purchasing__table">
         <caption class="visually-hidden">Payments to {{ po.supplier.name }}</caption>
         <thead><tr><th>Date</th><th>Invoice</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead>
         <tbody>{% for payment in po.payments.all %}<tr><td>{{ payment.created_at }}</td><td>{% if payment.invoice %}{{ payment.invoice.reference }}{% else %}Unassigned (historical){% endif %}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference|default:"—" }}</td><td class="staff-money">{{ purchase_currency }} {{ payment.amount }}</td></tr>{% endfor %}</tbody>
@@ -314,4 +305,5 @@
     });
   }());
   </script>
+</div>
 {% endblock %}
