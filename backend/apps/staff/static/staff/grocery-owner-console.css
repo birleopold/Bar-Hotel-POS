@@ -153,3 +153,26 @@
 .grocery-console-body .grocery-setup__hero .grocery-setup__eyebrow a{color:#087947;text-decoration:none}
 .grocery-console-body .grocery-setup__hero .grocery-setup__eyebrow a:hover{text-decoration:underline}
 @media(max-width:720px){.grocery-console-body .grocery-console-shortcuts{grid-template-columns:1fr}.grocery-console-body .grocery-console-shortcuts>a{min-height:90px}.grocery-console-body .grocery-setup__empty{padding:24px 10px}}
+
+/* Stable, bounded setup layout for mixed business-line store owners. */
+.grocery-console-body .console-app-shell{min-width:0}
+.grocery-console-body .staff-app-shell__body{min-width:0}
+.grocery-console-body .console-main{min-width:0;overflow-x:clip}
+.grocery-console-body .grocery-setup{width:100%;max-width:1440px}
+.grocery-console-body .grocery-setup__layout{grid-template-columns:minmax(0,1.55fr) minmax(265px,.8fr)}
+.grocery-console-body .grocery-setup__layout>div,.grocery-console-body .grocery-setup__aside{min-width:0}
+.grocery-console-body .grocery-setup__step-body{overflow-wrap:anywhere}
+.grocery-console-body .grocery-setup__step-actions a{max-width:100%;white-space:normal;text-align:center}
+.grocery-console-body .grocery-setup__hero{flex-wrap:wrap}
+.grocery-console-body .grocery-console-links a{white-space:normal}
+@media(max-width:1100px){
+ .grocery-console-body .grocery-setup__layout{grid-template-columns:1fr}
+ .grocery-console-body .grocery-setup__aside{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ .grocery-console-body .grocery-setup__aside{grid-template-columns:1fr}
+ .grocery-console-body .grocery-setup__step{padding:13px!important;gap:10px}
+ .grocery-console-body .grocery-setup__step-icon{width:34px;height:34px;flex-basis:34px}
+ .grocery-console-body .grocery-setup__hero-actions{width:100%}
+ .grocery-console-body .grocery-setup__progress{padding:15px}
+}
