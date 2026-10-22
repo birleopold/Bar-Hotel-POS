@@ -49,3 +49,14 @@ Important limitations and required deployment verification:
 - PIN reset remains password-authenticated via existing `staff-pin-setup` and terminal security.
 - Account-wide User passwords can span multiple tenants; disable individual Membership access independently.
 - Backend and UI security tests are added/adjusted but not executed in this session. Do not use production until expiry, revoked-membership, mail dispatch, account enumeration, session invalidation, and approval authorization are integration-tested.
+
+## Further recovery hardening
+
+Aligned request/approval/confirmation eligibility: only an active platform operator or a user with at least one **active membership at an active tenant** can request and redeem a reset. A dismissed worker with deleted memberships is therefore not considered eligible. Staff membership deactivation must still be enforced by each protected application route; a new password never restores a disabled membership.
+
+The branded confirmation form now requires a matching password confirmation; both public recovery views have cache-control protection and reset confirmation includes a no-referrer directive. Once the password is changed the application schedules an email **notice**, with no password content, to the account owner.
+
+Deployment configuration example for the Fizo production hostname:
+`PASSWORD_RESET_URL_TEMPLATE=https://fizo.pos.leosoftug.com/password-reset/confirm/?uid={uid}&token={token}`
+
+**Operational gate**: do not enable the new recovery routes in production until `accounts.0006_passwordrecoveryrequest` has migrated, outbound SMTP is verified, operator access to `/admin/` tested, and the end-to-end flow is checked on an active worker and a dismissed worker. Password change success emails currently use best-effort delivery, while a failed approval email may leave a sent record requiring a fresh recovery request. Owner/manager approval within each tenant and proactive platform-operator notifications are not yet implemented.
