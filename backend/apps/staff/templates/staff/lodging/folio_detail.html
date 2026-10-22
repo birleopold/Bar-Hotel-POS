@@ -1,35 +1,23 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}Folio {{ folio.guest_name }}{% endblock %}
-{% block main_class %}staff-main--wide hospitality-workflow{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.8">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Lodging</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Folio · {{ folio.guest_name }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">{{ folio.get_status_display }} · {{ current_site.name }}</p>
-        </div>
-        <div class="staff-page-hero__actions">
-          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-folios' %}">All folios</a>
-        </div>
-      </div>
-    </div>
-  </header>
+<div class="fizo-hotel fizo-hotel-workspace fizo-hotel-workspace--folio-detail">
+  <header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p><h1>Folio · {{ folio.guest_name }}</h1><p>Charges, payments and balance due · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-folios' %}">← All folios</a></header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <h2 class="staff-section-head">Guest balance</h2>
-  <div class="staff-metric-row staff-metric-row--folio mb-3" aria-label="Folio totals">
+  <h2 class="fizo-hotel__section-title">Guest balance</h2>
+  <div class="fizo-hotel__finance-summary mb-3" aria-label="Folio totals">
     <span><strong>{{ folio.currency }} {{ lines_grand_total }}</strong><small>Charges and credits</small></span>
     <span><strong>{{ folio.currency }} {{ payments_total }}</strong><small>Payments</small></span>
     <span><strong>{{ folio.currency }} {{ balance_due }}</strong><small>Balance due</small></span>
   </div>
-  <h2 class="staff-section-head">Charges and credits</h2>
-  <div class="staff-card">
+  <h2 class="fizo-hotel__section-title">Charges and credits</h2>
+  <div class="fizo-hotel__panel fizo-hotel__workflow-card">
     {% if folio.lines.all %}
-      <div class="staff-table-wrap">
-        <table class="staff-table">
+      <div class="fizo-hotel__table-scroll">
+        <table class="fizo-hotel__table">
           <caption class="visually-hidden">Charges and credits for {{ folio.guest_name }}</caption>
           <thead><tr><th>Description</th><th>Amount</th><th>Tax</th></tr></thead>
           <tbody>
@@ -47,10 +35,10 @@
       {% include "staff/includes/empty_state.html" with title="No folio charges yet" message="Post charges from reservations or POS to build this guest folio." %}
     {% endif %}
   </div>
-  <h2 class="staff-section-head">Payments</h2>
-  <div class="staff-card">
+  <h2 class="fizo-hotel__section-title">Payments</h2>
+  <div class="fizo-hotel__panel fizo-hotel__workflow-card">
     {% if folio.payments.all %}
-      <div class="staff-table-wrap mb-3"><table class="staff-table">
+      <div class="staff-table-wrap mb-3"><table class="fizo-hotel__table">
         <caption class="visually-hidden">Payments recorded for {{ folio.guest_name }}</caption>
         <thead><tr><th>Date</th><th>Method</th><th>Reference</th><th>Amount</th></tr></thead>
         <tbody>{% for payment in folio.payments.all %}<tr><td>{{ payment.created_at }}</td><td>{{ payment.get_method_display }}</td><td>{{ payment.reference|default:"—" }}</td><td class="staff-money">{{ folio.currency }} {{ payment.amount }}</td></tr>{% endfor %}</tbody>
@@ -67,4 +55,5 @@
       </form>
     {% elif folio.status == 'open' and balance_due <= 0 %}<p class="staff-tag staff-tag--teal mb-0">Fully settled · ready for checkout</p>{% endif %}
   </div>
+</div>
 {% endblock %}
