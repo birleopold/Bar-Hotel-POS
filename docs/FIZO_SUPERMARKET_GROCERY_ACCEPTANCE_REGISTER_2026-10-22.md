@@ -85,3 +85,8 @@ Updated `staff/pos_shifts.html` and `staff/workstations.html` with the approved 
 ## Cashier support screens — 2026-10-22
 
 Reworked the individual workstation creation, browser-pairing and hardware-check pages using the Fizo register foundation, plus the thermal/A4 receipt styling and second-screen checkout display. Kept real print page-size/margin variables, payment and refund detail conditions, auto-print, PIN terminal lock, pairing revocation security and local equipment testing controls. Customer display still refreshes automatically and does not reveal personal/payment-method details. Added tests that compile all five affected templates and assert source markers. **Source changes committed, but printer output, authenticated browser appearance, pairing and real device operation remain unverified.**
+
+
+## Approved cashier layout, follow-up — 2026-10-22
+
+The supermarket **active order detail** (`staff/order_detail_supermarket.html`) has a dedicated cashier heading, the existing barcode scan form is moved to the top of the product catalogue after DOM load, keyboard F3 focuses the scanner, product tiles visibly say Add, a five-column desktop catalogue is styled in `fizo-checkout-v1.css`, and a persistent basket uses the original order and payment handlers. `/staff/orders/` remains the sale-selection/history page; it now has Resume sale cards, but opening a new sale still requires an authorized open shift. No retail product tiles are fabricated: photos only appear when actual `display_image_url` exists. This does **not** implement one-click card submission: cards select products, and the server-validating Add to basket form submits them. Browser visuals and real transactions remain **UNVERIFIED**.
