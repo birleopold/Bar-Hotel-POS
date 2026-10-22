@@ -397,7 +397,7 @@
           var visibleCount = 0;
           tiles.forEach(function (tile) {
             var matchesCategory = activeCategory === "all" || tile.dataset.categoryId === activeCategory;
-            var matchesSearch = !query || (tile.dataset.itemName || "").indexOf(query) !== -1;
+            var matchesSearch = !query || [tile.dataset.itemName, tile.dataset.itemSku, tile.dataset.itemBarcode].some(function (value) { return (value || "").indexOf(query) !== -1; });
             var visible = matchesCategory && matchesSearch;
             tile.hidden = !visible;
             if (visible) visibleCount += 1;
@@ -417,6 +417,12 @@
           });
         });
         if (search) search.addEventListener("input", updateTiles);
+        var clearSearch = browser.querySelector("[data-fizo-search-clear]");
+        if (clearSearch && search) clearSearch.addEventListener("click", function () {
+          search.value = "";
+          search.focus();
+          updateTiles();
+        });
 
         tiles.forEach(function (tile) {
           tile.addEventListener("click", function () {
