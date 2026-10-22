@@ -112,3 +112,15 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn("data-fizo-quick-pick", template)
         self.assertIn("data-fizo-favourites", template)
         self.assertIn("tile.click()", checkout)
+
+
+    def test_catalogue_progressive_rendering_preserves_all_search_matches(self):
+        root = Path(__file__).resolve().parent
+        catalogue = (root/"templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
+        detail = (root/"templates/staff/order_detail.html").read_text(encoding="utf-8")
+        self.assertIn("data-fizo-page-controls", catalogue)
+        self.assertIn("data-fizo-load-more", catalogue)
+        self.assertIn("pageSize = browser.querySelector", detail)
+        self.assertIn("pageLimit += pageSize", detail)
+        self.assertIn("matchesCategory && matchesSearch", detail)
+        self.assertIn("found += 1", detail)
