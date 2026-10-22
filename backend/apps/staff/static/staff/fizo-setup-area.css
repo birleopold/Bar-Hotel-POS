@@ -122,3 +122,7 @@
 .fizo-setup-area .fizo-entity--list .grocery-setup__empty{padding:32px 18px}
 .fizo-setup-area .fizo-entity--list .grocery-setup__empty strong{display:block;font-size:1.05rem;margin:10px 0}
 @media(max-width:700px){.fizo-setup-area .fizo-entity--list .fizo-entity__card{padding:12px}.fizo-setup-area .fizo-entity--list .staff-table :is(td,th){padding:11px 10px}}
+
+/* Deliberately distinct destructive confirmation, never the normal green Save button. */
+.fizo-setup-area .staff-btn--danger{background:#b4232f;color:#fff;border:1px solid #b4232f}
+.fizo-setup-area .staff-btn--danger:hover{background:#91202a;color:#fff}
