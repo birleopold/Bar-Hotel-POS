@@ -1,29 +1,20 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}Shift close{% endblock %}
-{% block main_class %}staff-main--wide{% if not grocery_owner_shell %} hospitality-workflow{% endif %}{% endblock %}
-{% block extra_css %}{% if not grocery_owner_shell %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.4">{% endif %}{% endblock %}
+{% block main_class %}staff-main--wide{% if grocery_owner_shell %} fizo-register-page{% else %} hospitality-workflow{% endif %}{% endblock %}
+{% block extra_css %}{% if grocery_owner_shell %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261022.1">{% else %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.4">{% endif %}{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Till</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Shift close &amp; cash<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Open the register, track cash movement, and reconcile the drawer at close.</p>
-        </div>
-        <a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstations' %}">Workstations</a>
-      </div>
-    </div>
-  </header>
-  <h2 class="staff-section-head">Shift</h2>
+<div class="fizo-register fizo-register--pos_shifts">
+
+  <header class="fizo-register__header"><div><p class="fizo-register__eyebrow">Fizo / Supermarket / Cashier operations</p><h1>Register shifts & cash</h1><p>Open your till, track cash movement and reconcile the drawer at close.</p></div><div class="fizo-register__header-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">Workstations</a></div></header>
+  <h2 class="fizo-register__section-heading">Shift</h2>
   {% if not current_outlet %}
     <div class="staff-alert staff-alert--warning">Select one section in the header — not “All sections”.</div>
   {% else %}
     <p class="staff-muted">Register · <strong>{{ current_outlet.name }}</strong></p>
     <p class="staff-muted">This browser: {% if selected_station %}<strong>{{ selected_station.name }}</strong> · {{ selected_station.code }}{% else %}No workstation selected{% endif %} · <a href="{% url 'staff-workstations' %}">Choose device</a></p>
     {% if open_shift %}
-      <div class="staff-card">
+      <div class="fizo-register__panel">
         <div class="staff-register-head"><div><span class="staff-team-state staff-team-state--ready">Open</span><h2 class="staff-card__title">Current shift{% if open_shift.workstation %} · {{ open_shift.workstation.name }}{% endif %}</h2><p class="staff-muted mb-0">Opened {{ open_shift.opened_at }}{% if open_shift.opened_by %} by {{ open_shift.opened_by.get_full_name|default:open_shift.opened_by.email }}{% endif %}</p></div></div>
         <div class="staff-register-summary" aria-label="Cash expected in the drawer">
           <div><span>Opening float</span><strong>{{ shift_currency }} {{ open_shift.opening_cash }}</strong></div>
@@ -55,7 +46,7 @@
         </form>
       </div>
     {% elif not pending_handover %}
-      <div class="staff-card">
+      <div class="fizo-register__panel">
         <h2 class="staff-card__title">Start a register shift</h2>
         <p class="staff-muted">Count the opening cash float before taking the first sale.</p>
         <form method="post" class="staff-register-form">
@@ -69,7 +60,7 @@
       </div>
     {% endif %}
     {% if pending_handover %}
-      <section class="staff-card" aria-labelledby="handover-title">
+      <section class="fizo-register__panel" aria-labelledby="handover-title">
         <h2 class="staff-card__title" id="handover-title">Handover · {{ pending_handover.get_status_display }}</h2>
         <p class="staff-muted">Closed by {{ pending_handover.shift.closed_by.email|default:"Former worker" }} · expected {{ shift_currency }} {{ pending_handover.shift.expected_cash }} · submitted {{ shift_currency }} {{ pending_handover.shift.counted_cash }}{% if pending_handover.variance_explanation %} · {{ pending_handover.variance_explanation }}{% endif %}</p>
         {% if can_verify_handover %}
@@ -99,15 +90,15 @@
       </section>
     {% endif %}
     {% if other_open_shifts %}
-      <div class="staff-card"><h2 class="staff-card__title">Other open registers in {{ current_outlet.name }}</h2>
+      <div class="fizo-register__panel"><h2 class="staff-card__title">Other open registers in {{ current_outlet.name }}</h2>
       <p class="staff-muted">Select a workstation to reconcile that device. Close a section-wide or legacy shift before starting additional tills.</p>
       <ul>{% for shift in other_open_shifts %}<li>{{ shift.workstation.name|default:"Section register" }} · opened {{ shift.opened_at }}{% if not shift.cash_attribution %} · legacy cash calculation{% endif %}</li>{% endfor %}</ul>
       <a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstations' %}">Choose workstation</a></div>
     {% endif %}
     {% if recent_shifts %}
       <h2 class="staff-section-title">Recent shifts</h2>
-      <div class="staff-table-wrap">
-        <table class="staff-table">
+      <div class="fizo-register__tablewrap">
+        <table class="fizo-register__table">
           <thead><tr><th>Workstation</th><th>Opened</th><th>Closed</th><th>Status</th><th>Expected</th><th>Counted</th><th>Difference</th></tr></thead>
           <tbody>
             {% for s in recent_shifts %}
@@ -126,4 +117,5 @@
       </div>
     {% endif %}
   {% endif %}
+</div>
 {% endblock %}
