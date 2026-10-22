@@ -98,3 +98,15 @@
 .fizo-retail-payment-shortcuts i{font-size:19px;color:#00864c}
 .fizo-retail-payment-shortcuts button[aria-pressed=true],.fizo-retail-payment-shortcuts button:hover{border-color:#00864c;background:#e6f7ec;color:#007b43}
 @media(max-width:420px){.fizo-retail-payment-shortcuts{gap:4px}.fizo-retail-payment-shortcuts button{font-size:11px}}
+
+/* Cashier hierarchy: one clear basket total and payment immediately below it. */
+.fizo-retail-basket-summary{border-top:1px solid #dae8e0;background:#f9fdfa;border-radius:0 0 11px 11px;padding:14px 16px}
+.fizo-retail-basket-summary>div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;color:#526a70;font-size:13px}
+.fizo-retail-basket-summary>div strong{color:#213e42;font-weight:800}
+.fizo-retail-basket-summary>.fizo-retail-basket-summary__total{border-top:1px solid #e0eae4;margin-top:12px;padding-top:13px;color:#142f38;font-size:17px;font-weight:850}
+.fizo-retail-basket-summary__total strong{color:#007c43!important;font-size:clamp(17px,2vw,24px)}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-totals-row{display:none}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow-y:auto;scrollbar-width:thin}
+.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side .staff-card--pos{border-color:#e0ebe6}
+.fizo-checkout-catalogue .staff-pos-menu-head .staff-pos-menu-hint{color:#647c76}
+@media(max-width:900px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{position:static;max-height:none;overflow:visible}}
