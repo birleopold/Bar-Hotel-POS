@@ -1,32 +1,21 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Stock take{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.2">{% endblock %}
 {% block content %}
+<div class="fizo-inventory fizo-inventory--counts-list">
+
   {% include "staff/inventory/includes/subnav.html" %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Stock</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Stock take<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Physical counts, manager review and stock reconciliation.</p>
-        </div>
-        <div class="staff-page-hero__actions">
-          {% if can_modify_inventory %}
-            <a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-count-create' %}">Start stock take</a>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </header>
+  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Inventory / Stock take</p><h1>Stock counts</h1><p>Physical counting sessions, review and reconciliation.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
   <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filter stock counts">
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-counts' %}" {% if not status_filter %}aria-current="page"{% endif %}>All counts</a>
     <a class="staff-btn staff-btn--ghost" href="?status=review" {% if status_filter == "review" %}aria-current="page"{% endif %}>Awaiting approval</a>
     <a class="staff-btn staff-btn--ghost" href="?status=draft" {% if status_filter == "draft" %}aria-current="page"{% endif %}>Drafts</a>
     <a class="staff-btn staff-btn--ghost" href="?status=completed" {% if status_filter == "completed" %}aria-current="page"{% endif %}>Completed</a>
   </nav>
-  <h2 class="staff-section-head">Sessions</h2>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
+  <h2 class="fizo-inventory__heading">Sessions</h2>
+  <div class="fizo-inventory__tablewrap">
+    <table class="fizo-inventory__table">
       <thead><tr><th>Started</th><th>Section</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for s in sessions %}
@@ -49,4 +38,5 @@
       {% if page_obj.has_next %}<a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
     </nav>
   {% endif %}
+</div>
 {% endblock %}
