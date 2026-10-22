@@ -1243,7 +1243,13 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     return redirect("staff-order-detail", order_id=order.id)
                 if current.status != OrderStatus.OPEN or current.is_paid:
                     raise ValueError("This sale is no longer open; no product was created.")
-                # Recheck inside the write transaction to catch simultaneous cashier adds.
+                category, _ = MenuCategory.objects.get_or_create(
+                    tenant_id=order.tenant_id, name="Needs catalogue review",
+                    defaults={"is_active": True, "sort_order": 9999},
+                )
+                # Serialize quick-registration across separate orders for the
+                # same tenant, not just retries against one basket.
+                MenuCategory.objects.select_for_update().get(pk=category.pk)
                 if data["barcode"] and MenuItem.objects.filter(
                     tenant_id=order.tenant_id, barcode=data["barcode"]
                 ).exists():
@@ -1252,10 +1258,6 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     tenant_id=order.tenant_id, name__iexact=data["name"], is_active=True,
                 ).exists():
                     raise ValueError("This product name is already registered.")
-                category, _ = MenuCategory.objects.get_or_create(
-                    tenant_id=order.tenant_id, name="Needs catalogue review",
-                    defaults={"is_active": True, "sort_order": 9999},
-                )
                 item = MenuItem.objects.create(
                     tenant_id=order.tenant_id, category=category,
                     name=data["name"], unit_price=data["unit_price"],
