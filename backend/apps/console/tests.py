@@ -272,6 +272,8 @@ class ConsoleAccessTests(TestCase):
         response = self.client.get(reverse("console-org-setup"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "fizo-setup-page")
+        self.assertContains(response, "fizo-setup-wizard.css")
+        self.assertNotContains(response, "grocery-owner-console.css")
         self.assertContains(response, "grocery-setup__step-visual")
         self.assertContains(response, "Set up your store")
         self.assertContains(response, "Required setup progress")
