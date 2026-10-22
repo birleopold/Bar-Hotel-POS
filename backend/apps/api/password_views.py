@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
-from apps.accounts.models import User
+from apps.accounts.models import User, Membership, PasswordRecoveryRequest
 
 from .password_reset_core import PasswordResetConfirmSerializer, attempt_password_reset_confirm
 
@@ -84,9 +84,16 @@ def request_password_reset_for_email(*, email: str) -> None:
     user = User.objects.filter(email__iexact=normalized, is_active=True).first()
     if user is None:
         return
-    token = default_token_generator.make_token(user)
-    uid = _uid_b64(user)
-    _dispatch_password_reset_email(user=user, uid=uid, token=token)
+    # Never auto-email credentials. Platform operator must approve first.
+    # Revoked staff and disabled accounts are excluded from recovery.
+    if not user.is_active or (
+        user.memberships.exists() and not user.memberships.filter(
+            is_active=True, tenant__is_active=True
+        ).exists()
+    ):
+        return
+    if not PasswordRecoveryRequest.objects.filter(user=user, status="pending").exists():
+        PasswordRecoveryRequest.objects.create(user=user)
 
 
 @extend_schema(
@@ -110,7 +117,7 @@ class PasswordResetRequestView(APIView):
         ser.is_valid(raise_exception=True)
         request_password_reset_for_email(email=ser.validated_data["email"])
         return Response(
-            {"detail": "If an account exists for this email, password reset instructions were sent."},
+            {"detail": "If the account is eligible, its recovery request will be reviewed by an administrator."},
             status=status.HTTP_202_ACCEPTED,
         )
 
