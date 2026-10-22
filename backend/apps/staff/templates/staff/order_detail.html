@@ -426,22 +426,39 @@
           }
         }
 
+        var pageSize = browser.querySelector("[data-fizo-page-controls]") ? 40 : Infinity;
+        var pageLimit = pageSize;
+        var moreControls = browser.querySelector("[data-fizo-page-controls]");
+        var moreButton = browser.querySelector("[data-fizo-load-more]");
+        var visibleLabel = browser.querySelector("[data-fizo-visible-count]");
         function updateTiles() {
           var query = (search && search.value || "").trim().toLowerCase();
-          var visibleCount = 0;
+          var found = 0, visibleCount = 0;
           tiles.forEach(function (tile) {
             var matchesCategory = activeCategory === "all" || tile.dataset.categoryId === activeCategory;
             var matchesSearch = !query || [tile.dataset.itemName, tile.dataset.itemSku, tile.dataset.itemBarcode].some(function (value) { return (value || "").indexOf(query) !== -1; });
-            var visible = matchesCategory && matchesSearch;
-            tile.hidden = !visible;
-            if (visible) visibleCount += 1;
+            var match = matchesCategory && matchesSearch;
+            if (match) found += 1;
+            var shown = match && visibleCount < pageLimit;
+            tile.hidden = !shown;
+            if (shown) visibleCount += 1;
           });
-          if (empty) empty.hidden = visibleCount !== 0;
+          if (empty) empty.hidden = found !== 0;
+          if (moreControls) {
+            moreControls.hidden = found <= pageSize;
+            if (visibleLabel) visibleLabel.textContent = "Showing " + visibleCount + " of " + found + " matching products";
+            if (moreButton) moreButton.hidden = visibleCount >= found;
+          }
         }
+        if (moreButton) moreButton.addEventListener("click", function () {
+          pageLimit += pageSize;
+          updateTiles();
+        });
 
         filters.forEach(function (filter) {
           filter.addEventListener("click", function () {
             activeCategory = filter.dataset.posMenuFilter || "all";
+            pageLimit = pageSize;
             filters.forEach(function (other) {
               var active = other === filter;
               other.classList.toggle("is-active", active);
@@ -450,7 +467,7 @@
             updateTiles();
           });
         });
-        if (search) search.addEventListener("input", updateTiles);
+        if (search) search.addEventListener("input", function () { pageLimit = pageSize; updateTiles(); });
         var clearSearch = browser.querySelector("[data-fizo-search-clear]");
         if (clearSearch && search) clearSearch.addEventListener("click", function () {
           search.value = "";
