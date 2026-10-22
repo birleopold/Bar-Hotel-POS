@@ -40,3 +40,24 @@
 .fizo-setup-area .grocery-setup__checks{list-style:none;padding:0}
 @media(max-width:1040px){.fizo-setup-area .grocery-setup__layout{grid-template-columns:1fr}}
 @media(max-width:720px){.fizo-setup-area .grocery-form-fields{grid-template-columns:1fr}.fizo-setup-area .grocery-guided-form{padding:16px}.fizo-setup-area .grocery-form-footer{align-items:stretch}.fizo-setup-area .grocery-setup__hero{flex-direction:column}.fizo-setup-area .staff-card{padding:15px}}
+
+/* Canonical sidebar and navigation: applied across the full setup journey. */
+.grocery-console-body .console-sidebar{background:#fff;border-right:1px solid #e5edf0;min-width:240px;width:260px;max-width:260px}
+.grocery-console-body .grocery-console-brand{display:flex;gap:10px;align-items:center;padding:19px 17px;text-decoration:none;color:#142b37;border-bottom:1px solid #e7efea}
+.grocery-console-body .grocery-console-brand .fizo-brand-mark{width:39px;height:39px;display:grid;place-items:center;background:#e2f5e9;border-radius:10px;color:#008d4e;font-size:25px;flex-shrink:0}
+.grocery-console-body .grocery-console-brand span:last-child{display:grid;line-height:1.4}
+.grocery-console-body .grocery-console-brand small{color:#748696;font-size:12px}
+.grocery-console-body .grocery-console-links{display:flex;flex-direction:column;gap:6px;padding:17px 12px}
+.grocery-console-body .grocery-console-links a{display:flex;align-items:center;gap:14px;text-decoration:none;color:#40576a;font-size:14px;font-weight:650;padding:12px;border-radius:9px;min-height:44px}
+.grocery-console-body .grocery-console-links a i{width:19px;font-size:17px}
+.grocery-console-body .grocery-console-links a.is-active{background:#e6f6ec;color:#008445;border-left:3px solid #008d4e}
+.grocery-console-body .grocery-console-help{padding:18px;color:#768899;font-size:12px}
+.grocery-console-body .staff-nav{background:#fff;border-bottom:1px solid #e3eaee}
+.grocery-console-body .grocery-console-top{display:flex;align-items:center;gap:18px;padding:12px 22px;min-height:70px;width:100%}
+.grocery-console-body .grocery-console-top__brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:#18364b}
+.grocery-console-body .grocery-console-top__brand span{display:grid}
+.grocery-console-body .grocery-console-top__brand small{font-size:12px;color:#788a9b}
+.grocery-console-body .grocery-console-top__location{padding:9px 13px;border-radius:9px;border:1px solid #dce6ef}
+.grocery-console-body .grocery-console-top__back{margin-left:auto;color:#008447;text-decoration:none;font-weight:700}
+.grocery-console-body .grocery-console-top__person{color:#718396;font-size:12px}
+@media(max-width:760px){.grocery-console-body .console-sidebar{min-width:0;max-width:none;width:100%}.grocery-console-body .grocery-console-links{flex-direction:row;overflow-x:auto;white-space:nowrap}.grocery-console-body .grocery-console-top{flex-wrap:wrap;padding:11px}.grocery-console-body .grocery-console-top__location,.grocery-console-body .grocery-console-top__person{display:none}}
