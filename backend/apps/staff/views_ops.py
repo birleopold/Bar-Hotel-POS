@@ -646,6 +646,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         policy = TenantSettings.objects.filter(tenant_id=order.tenant_id).only(
             "loyalty_enabled", "loyalty_spend_per_point", "default_currency",
         ).first()
+        ctx["configured_currency"] = default_currency_for_tenant(order.tenant)
+        ctx["currency_differs_from_settings"] = order.currency != ctx["configured_currency"]
         ctx["loyalty_policy_active"] = bool(
             policy and policy.loyalty_enabled
             and order.currency == policy.default_currency
