@@ -43,22 +43,46 @@
   </section>
 </section>
 {% else %}
-  <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Menu items<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-modifier-groups' %}">Modifier groups</a>
-      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-catalog-import' %}">Import CSV</a>
-      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}">New item</a>
+<section class="grocery-setup hospitality-directory" aria-labelledby="hospitality-menu-heading">
+  <header class="grocery-setup__hero">
+    <div>
+      <p class="grocery-setup__eyebrow">Hospitality management / Food &amp; drinks</p>
+      <h1 id="hospitality-menu-heading">Menu items</h1>
+      <p>Manage food and drink prices, availability, recipes and section-specific pricing.</p>
     </div>
+    <div class="grocery-setup__hero-actions">
+      {% if console_has_fnb %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-modifier-groups' %}"><i class="bi bi-sliders" aria-hidden="true"></i> Modifiers</a>{% endif %}
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-catalog-import' %}"><i class="bi bi-upload" aria-hidden="true"></i> Import CSV</a>
+      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add menu item</a>
+    </div>
+  </header>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags" aria-hidden="true"></i> Categories</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}"><i class="bi bi-geo-alt" aria-hidden="true"></i> Branches &amp; sections</a>
   </div>
-  <div class="staff-table-wrap"><table class="staff-table">
-    <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>SKU</th><th>Track stock</th><th></th></tr></thead>
-    <tbody>{% for it in items %}<tr><td>{{ it.name }}</td><td>{{ it.category.name }}</td>
-      <td>{{ it.unit_price }}</td><td>{{ it.sku|default:"—" }}</td><td>{% if it.track_inventory %}Yes{% else %}No{% endif %}</td>
-      <td><a href="{% url 'console-org-menu-item-edit' item_id=it.id %}">Edit</a> ·
-        <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Outlets</a> ·
-        <a href="{% url 'console-org-menu-item-recipe' item_id=it.id %}">Recipe</a></td>
-    </tr>{% empty %}<tr><td colspan="6" class="staff-muted">No items.</td></tr>{% endfor %}</tbody>
-  </table></div>
+  <section class="staff-card">
+    {% if items %}
+      <div class="staff-table-wrap"><table class="staff-table">
+        <thead><tr><th scope="col">Item</th><th scope="col">Category</th><th scope="col">Selling price</th><th scope="col">SKU</th><th scope="col">Stock tracked</th><th scope="col">Actions</th></tr></thead>
+        <tbody>{% for it in items %}<tr>
+          <td><strong>{{ it.name }}</strong></td><td>{{ it.category.name }}</td><td>{{ it.unit_price }}</td><td>{{ it.sku|default:"—" }}</td>
+          <td>{% if it.track_inventory %}Yes{% else %}No{% endif %}</td>
+          <td><div class="grocery-setup__table-actions">
+            <a href="{% url 'console-org-menu-item-edit' item_id=it.id %}">Edit</a>
+            <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Section pricing</a>
+            <a href="{% url 'console-org-menu-item-recipe' item_id=it.id %}">Recipe</a>
+          </div></td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+    {% else %}
+      <div class="grocery-setup__empty">
+        <i class="bi bi-cup-hot fs-1" aria-hidden="true"></i>
+        <strong>No menu items yet</strong>
+        <p>Add your first food or drink item to begin preparing your menu.</p>
+        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}">Add first item</a>
+      </div>
+    {% endif %}
+  </section>
+</section>
 {% endif %}
 {% endblock %}
