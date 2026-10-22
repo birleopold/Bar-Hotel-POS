@@ -1,6 +1,6 @@
 {% with u=request.resolver_match.url_name %}
-<aside class="staff-sidebar" aria-label="Fizo workspace navigation">
-  <a class="fz-brand" href="{% url 'staff-dashboard' %}"><span class="fz-brand__icon" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></span> Fizo</a>
+<aside class="staff-sidebar" aria-label="Workspace navigation">
+  <a class="fz-brand" href="{% url 'staff-dashboard' %}"><span class="fz-brand__icon" aria-hidden="true"><i class="bi bi-cart3"></i></span> {% if request.tenant %}{{ request.tenant.name }}{% else %}POS{% endif %}</a>
   {% if staff_nav_outlets %}
   <div class="fz-scope"><form method="post" action="{% url 'staff-select-outlet' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
     <label for="fz-outlet">Working in</label><select id="fz-outlet" name="outlet_id" onchange="this.form.submit()">
