@@ -29,6 +29,30 @@
       document.activeElement.dispatchEvent(new Event("input",{bubbles:true}));
     }
   });
+  if(local){
+    local.addEventListener("keydown",function(event){
+      if(event.key!=="Enter"||event.isComposing)return;
+      var term=local.value.trim().toLowerCase();
+      if(!term)return;
+      var tiles=Array.prototype.slice.call(root.querySelectorAll("[data-pos-menu-tile]"));
+      var exact=tiles.filter(function(tile){
+        return (tile.dataset.itemBarcode||"").toLowerCase()===term ||
+          (tile.dataset.itemSku||"").toLowerCase()===term;
+      });
+      if(exact.length===1){
+        event.preventDefault();
+        exact[0].click();
+        if(live)live.textContent="Product matched. Confirm quantity and add to basket.";
+      } else if(server&&term.length>0&&tiles.every(function(tile){return tile.hidden;})){
+        /* The local filter does not cover unloaded products. Search the whole
+           outlet rather than silently pretending that no SKU exists. */
+        event.preventDefault();
+        server.value=local.value.trim();
+        if(serverForm&&serverForm.requestSubmit)serverForm.requestSubmit();
+        else if(serverForm)serverForm.submit();
+      }
+    });
+  }
   if(local&&server){
     /* The server endpoint searches the full catalogue; the local filter only
        covers products already loaded. Keep both explicitly distinguishable. */
