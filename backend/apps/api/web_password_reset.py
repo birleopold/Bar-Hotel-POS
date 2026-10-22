@@ -43,12 +43,24 @@ class StaffPasswordRecoveryRequestView(View):
 class StaffPasswordResetForm(forms.Form):
     uid = forms.CharField(widget=forms.HiddenInput)
     token = forms.CharField(widget=forms.HiddenInput)
+    confirm_password = forms.CharField(
+        label="Confirm new password",
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password", "class": "staff-input"})
+    )
     new_password = forms.CharField(
         label="New password",
         widget=forms.PasswordInput(
             attrs={"autocomplete": "new-password", "class": "staff-input"}
         ),
     )
+
+    def clean(self):
+        values = super().clean()
+        if values.get("new_password") and values.get("confirm_password") and (
+            values["new_password"] != values["confirm_password"]
+        ):
+            self.add_error("confirm_password", "Passwords do not match.")
+        return values
 
 
 class StaffPasswordResetConfirmView(View):
