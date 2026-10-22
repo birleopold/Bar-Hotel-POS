@@ -22,3 +22,18 @@ class FizoHotelReservationsLayoutTests(SimpleTestCase):
     def test_stylesheet_present(self):
         root = Path(__file__).resolve().parent
         self.assertTrue((root / "static/staff/fizo-hotel-frontdesk.css").is_file())
+
+    def test_availability_is_a_distinct_real_screen(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/lodging/availability.html").read_text(encoding="utf-8")
+        css = (root / "static/staff/fizo-hotel-frontdesk.css").read_text(encoding="utf-8")
+        self.assertIn("fizo-availability__search", page)
+        self.assertIn("fizo-availability__room", page)
+        self.assertIn("available_by_type.items", page)
+        self.assertIn("available_rooms|length", page)
+        self.assertIn('name="check_in"', page)
+        self.assertIn('name="check_out"', page)
+        self.assertIn("staff-lodging-availability", page)
+        self.assertNotIn("hospitality-workflow.css", page)
+        self.assertIn(".fizo-availability__grid", css)
+        self.assertEqual(page.count("{% if "), page.count("{% endif %}"))
