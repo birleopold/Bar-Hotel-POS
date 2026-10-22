@@ -152,5 +152,5 @@ class PasswordRecoveryRequest(models.Model):
 
     class Meta:
         ordering = ["-requested_at"]
-        indexes = [models.Index(fields=["user", "status", "requested_at"])]
+        indexes = [models.Index(fields=["user", "status", "requested_at"], name="accounts_pr_user_id_85d14d_idx")]
 
