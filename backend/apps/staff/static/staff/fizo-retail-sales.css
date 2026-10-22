@@ -36,3 +36,20 @@
 .fizo-sales__pager{display:flex;justify-content:center;align-items:center;gap:16px;padding-top:17px}.fizo-sales__pager a{color:#008447;text-decoration:none;font-weight:800}
 @media(max-width:1000px){.fizo-sales__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.fizo-sales__panel{padding:12px}.fizo-sales__start{padding:13px}.fizo-sales__start form,.fizo-sales__primary{width:100%;justify-content:center}.fizo-sales__metrics{gap:8px}.fizo-sales__metrics>div{padding:11px}.fizo-sales__metrics strong{font-size:23px}.fizo-sales__header>.staff-btn{width:100%;justify-content:center}}
+
+
+/* Active supermarket baskets: compact, actionable POS resume cards. */
+.fizo-active-sales{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.fizo-active-sale{border:1px solid #dfebe4;border-radius:12px;padding:16px;min-width:0;background:#fff;display:flex;flex-direction:column;gap:9px}
+.fizo-active-sale__top{display:flex;justify-content:space-between;align-items:center;gap:8px;color:#6d807b;font-size:11px;font-weight:700;flex-wrap:wrap}
+.fizo-active-sale__status{background:#dff7e9;color:#007d42;border-radius:7px;padding:5px 8px}
+.fizo-active-sale__status--held{background:#fff3d8;color:#8c6800}
+.fizo-active-sale h3{font-size:16px;font-weight:850;overflow-wrap:anywhere;margin:0;color:#163943}
+.fizo-active-sale p{font-size:12px;color:#697e7b;margin:0}
+.fizo-active-sale__resume{display:flex;justify-content:center;gap:10px;align-items:center;background:#008b49;color:#fff!important;font-weight:800;text-decoration:none;border-radius:8px;padding:11px 14px;margin-top:auto;min-height:44px}
+.fizo-active-sale__resume:hover{background:#007641}
+.fizo-active-sale--empty{align-items:center;justify-content:center;text-align:center;min-height:150px;background:#fbfdfb}
+.fizo-active-sale--empty>i{font-size:24px;color:#008b49}
+.fizo-active-sales__recent{margin-top:13px;border-top:1px solid #e7eee8;padding-top:12px}
+.fizo-active-sales__recent summary{font-weight:800;color:#436a5d;cursor:pointer}
+.fizo-active-sales__recent a{display:inline-flex;margin:8px 14px 0 0;font-size:12px;color:#00874a}
