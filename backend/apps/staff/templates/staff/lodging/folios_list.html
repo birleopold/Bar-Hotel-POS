@@ -1,23 +1,13 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}Guest folios{% endblock %}
-{% block main_class %}staff-main--wide hospitality-workflow{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.8">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Lodging</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Guest folios<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
-          <p class="staff-dash-hero__tagline mb-0">Room charges and posted extras until settlement.</p>
-        </div>
-      </div>
-    </div>
-  </header>
+<div class="fizo-hotel fizo-hotel-workspace fizo-hotel-workspace--folios-list">
+  <header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p><h1>Guest folios</h1><p>Guest balances and payment records · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div></header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <h2 class="staff-section-head">Find a folio</h2>
+  <h2 class="fizo-hotel__section-title">Find a folio</h2>
   <form class="staff-toolbar staff-toolbar--tight" method="get">
     <label class="staff-label" for="folio-status">Status</label>
     <select class="staff-input staff-filter-select" id="folio-status" name="status" onchange="this.form.submit()">
@@ -27,9 +17,9 @@
     </select>
     <button class="staff-btn staff-btn--ghost" type="submit">Apply filter</button>
   </form>
-  <h2 class="staff-section-head">Folios</h2>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
+  <h2 class="fizo-hotel__section-title">Folios</h2>
+  <div class="fizo-hotel__table-scroll">
+    <table class="fizo-hotel__table">
       <caption class="visually-hidden">Guest folios for {{ current_site.name }}</caption>
       <thead><tr><th>Guest</th><th>Status</th><th>Lines total</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
@@ -53,4 +43,5 @@
       {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}">Next</a>{% endif %}
     </nav>
   {% endif %}
+</div>
 {% endblock %}
