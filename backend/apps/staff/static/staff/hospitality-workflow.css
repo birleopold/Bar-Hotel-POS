@@ -34,3 +34,23 @@
   .hospitality-workflow .staff-page-hero__actions{width:100%;display:flex;flex-wrap:wrap}
   .hospitality-workflow .staff-pos-tables-grid{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}
 }
+
+/* Four-sector visual target: hospitality overview and task panels. */
+.hospitality-dashboard{background:#f5f8fc;color:#172743}
+.hospitality-dashboard .staff-dash-hero--modern .staff-dash-hero__panel{display:flex;justify-content:space-between;gap:22px;align-items:center;background:#fff;border:1px solid #e1e9ef;border-radius:16px;box-shadow:0 3px 15px rgba(28,45,77,.04);padding:24px}
+.hospitality-dashboard .staff-dash-hero__title{font-size:clamp(1.5rem,2.2vw,2.1rem);font-weight:800;letter-spacing:-.035em;color:#172743}
+.hospitality-dashboard .staff-dash-hero__tagline{color:#64768b;max-width:64ch}
+.hospitality-dashboard .staff-property-pulse{background:#fff;border:1px solid #e1e9ef;border-radius:16px;padding:22px;box-shadow:0 3px 15px rgba(28,45,77,.04)}
+.hospitality-dashboard .staff-property-pulse__title{color:#172743;font-weight:800}
+.hospitality-dashboard .staff-property-pulse__kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+.hospitality-dashboard .staff-property-kpi{background:#f7fbf9;border:1px solid #dfece4;border-radius:12px;min-width:0;text-decoration:none}
+.hospitality-dashboard .staff-property-kpi strong{color:#087b45;font-weight:800}
+.hospitality-dashboard .staff-tile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px}
+.hospitality-dashboard .staff-tile{background:#fff;border:1px solid #e1e9ef;border-radius:14px;box-shadow:0 2px 10px rgba(28,45,77,.035);height:100%;min-height:100px}
+.hospitality-dashboard .staff-tile:hover{border-color:#9dcfb4;background:#f8fcfa}
+.hospitality-dashboard .staff-tile--emphasis{border-color:#008c4d}
+.hospitality-dashboard .staff-tile__glyph{color:#008c4d}
+.hospitality-dashboard .staff-setup-banner{border:1px solid #d5e8dc;background:#f3faf6;border-radius:14px}
+.hospitality-dashboard .staff-room-health__bar{background:#e4efe8;border-radius:999px;overflow:hidden}
+.hospitality-dashboard .staff-room-health__bar span{background:#008c4d}
+@media(max-width:700px){.hospitality-dashboard .staff-dash-hero--modern .staff-dash-hero__panel{padding:16px;flex-direction:column;align-items:flex-start}.hospitality-dashboard .staff-property-pulse{padding:14px}.hospitality-dashboard .staff-property-pulse__kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hospitality-dashboard .staff-tile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
