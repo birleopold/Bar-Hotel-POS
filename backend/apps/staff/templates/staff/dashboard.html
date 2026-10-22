@@ -1,7 +1,7 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}Operations overview{% endblock %}
-{% block extra_css %}{{ block.super }}{% if staff_product.business_key != "supermarket" and staff_product.business_key != "retail" %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.3">{% endif %}{% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}<style>{% include "staff/includes/grocery_owner_setup_styles.html" %}</style>{% endif %}{% endblock %}
+{% block extra_css %}{{ block.super }}{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}<link rel="stylesheet" href="{% static 'staff/fizo-floor-dashboard.css' %}?v=20261022.1">{% endif %}{% if staff_product.business_key != "supermarket" and staff_product.business_key != "retail" %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.3">{% endif %}{% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}<style>{% include "staff/includes/grocery_owner_setup_styles.html" %}</style>{% endif %}{% endblock %}
 {% block body_class %}{% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}grocery-owner-body{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide staff-main--dashboard{% if staff_product.business_key != "supermarket" and staff_product.business_key != "retail" %} hospitality-workflow hospitality-dashboard{% endif %}{% endblock %}
 {% block content %}
@@ -63,6 +63,16 @@
           </form>
         </div>
       </div>
+    {% endif %}
+
+    {% if staff_nav.orders and staff_product.business_key == "supermarket" or staff_nav.orders and staff_product.business_key == "retail" %}
+    <section class="fizo-floor-pos-entry" aria-label="Supermarket point of sale">
+      <div class="fizo-floor-pos-entry__heading">
+        <span class="fizo-floor-pos-entry__icon"><i class="bi bi-cart3" aria-hidden="true"></i></span>
+        <div><p class="fizo-floor-pos-entry__eyebrow">Your checkout station</p><h2>Serve the next customer</h2><p>Start a sale, scan or search products, then take payment through the registered checkout flow.</p></div>
+      </div>
+      <a class="fizo-floor-pos-entry__button" href="{% url 'staff-orders' %}">Open point of sale <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    </section>
     {% endif %}
 
     {% if staff_dashboard_lodging_snapshot %}
