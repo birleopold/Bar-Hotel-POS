@@ -1,46 +1,33 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}Rooms{% endblock %}
-{% block main_class %}staff-main--wide hospitality-workflow{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.2">{% endblock %}
+{% block title %}Rooms · Fizo Hotel{% endblock %}
+{% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.4">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Lodging</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Rooms<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__meta mb-0">Branch · {{ current_site.name }}</p>
-          <p class="staff-dash-hero__tagline mb-0">Physical keys in the system — type and housekeeping status.</p>
-        </div>
-      </div>
-    </div>
+<div class="fizo-hotel fizo-room-directory">
+  <header class="fizo-hotel__head">
+    <div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Room management</p><h1>Rooms</h1><p>{{ current_site.name }} · Room directory and housekeeping status</p></div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-availability' %}"><i class="bi bi-calendar2-check"></i> Check availability</a>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
-  <form action="{% url 'staff-lodging-rooms' %}" method="get" class="staff-card mb-3" role="search">
-    <input type="hidden" name="site" value="{{ current_site.pk }}">
-    <label class="staff-label" for="room-directory-search">Find a room in {{ current_site.name }}</label>
-    <div class="d-flex flex-wrap gap-2">
-      <input class="staff-input flex-grow-1" id="room-directory-search" name="q" value="{{ room_search_q }}" maxlength="80"
-        placeholder="Room number or type" style="min-width:12rem">
-      <button type="submit" class="staff-btn staff-btn--primary">Find room</button>
+  <section class="fizo-hotel__panel" aria-labelledby="room-directory-title">
+    <div class="fizo-hotel__section-head"><div><h2 id="room-directory-title">Room directory</h2><p>Search by room name or room type. Status reflects the room record, not confirmed vacancy.</p></div></div>
+    <form action="{% url 'staff-lodging-rooms' %}" method="get" class="fizo-room-directory__search" role="search">
+      <input type="hidden" name="site" value="{{ current_site.pk }}">
+      <label for="room-directory-search">Search rooms</label>
+      <div><input class="staff-input" id="room-directory-search" name="q" value="{{ room_search_q }}" maxlength="80" placeholder="Room name or type"><button class="staff-btn staff-btn--primary" type="submit"><i class="bi bi-search"></i> Search</button></div>
+    </form>
+    <div class="fizo-room-directory__grid">
+      {% for r in rooms %}
+        <article class="fizo-room-directory__card">
+          <span class="fizo-room-directory__icon"><i class="bi bi-door-closed"></i></span>
+          <div><h3>{{ r.name }}</h3><p>{{ r.room_type.name }}</p></div>
+          <span class="fizo-room-directory__status">{{ r.get_status_display }}</span>
+        </article>
+      {% empty %}
+        <div class="fizo-hotel__empty"><i class="bi bi-door-closed"></i><h3>No rooms found</h3><p>{% if room_search_q %}Try a different room name or type.{% else %}No rooms are currently configured for this branch.{% endif %}</p></div>
+      {% endfor %}
     </div>
-  </form>
-  <h2 class="staff-section-head">Directory</h2>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
-      <thead><tr><th>Room</th><th>Type</th><th>Status</th></tr></thead>
-      <tbody>
-        {% for r in rooms %}
-          <tr>
-            <td>{{ r.name }}</td>
-            <td>{{ r.room_type.name }}</td>
-            <td>{{ r.get_status_display }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="3" class="staff-muted">No rooms.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  </section>
+</div>
 {% endblock %}
