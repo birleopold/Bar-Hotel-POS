@@ -27,7 +27,7 @@ cd backend
 # tell us whether existing migrations have been applied to the database.
 # Read Django's actual migration plan before requiring DB-owner credentials.
 migration_plan="$("$VENV/bin/python" manage.py showmigrations --plan)"
-if printf '%s\n' "$migration_plan" | grep -Eq '^[[:space:]]*\\[ \\]'; then
+if printf '%s\n' "$migration_plan" | grep -Eq '^[[:space:]]*\[ \]'; then
   if [[ -z "${MIGRATION_DATABASE_URL:-}" ]]; then
     echo 'ERROR: Database has unapplied migrations. Configure a separate DB-owner MIGRATION_DATABASE_URL before deploying.' >&2
     exit 1
