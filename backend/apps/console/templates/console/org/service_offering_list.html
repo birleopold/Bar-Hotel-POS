@@ -1,12 +1,15 @@
 {% extends "console/base.html" %}
-{% block title %}Services{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block title %}Services & packages{% endblock %}
+{% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
-  <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Services &amp; packages<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-service-offering-create' %}">New service</a>
-  </div>
-  <div class="staff-table-wrap">
+<section class="fizo-entity fizo-entity--list" aria-labelledby="fizo-entity-list-heading">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-form-kicker">FIZO / SERVICES / CATALOGUE</p>
+      <h1 id="fizo-entity-list-heading">Services &amp; packages</h1><p class="staff-muted">Manage services, available locations and their packages.</p></div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-service-offering-create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add service</a>
+  </header>
+  <div class="staff-card fizo-entity__card">
+    <div class="staff-table-wrap">
     <table class="staff-table">
       <thead><tr><th>Name</th><th>Outlets</th><th>Packages</th><th></th></tr></thead>
       <tbody>
@@ -26,4 +29,6 @@
       </tbody>
     </table>
   </div>
+  </div>
+</section>
 {% endblock %}
