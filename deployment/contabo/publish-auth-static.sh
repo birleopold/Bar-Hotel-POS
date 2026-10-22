@@ -28,5 +28,18 @@ for host in fizo.pos.leosoftug.com pos.leosoftug.com; do
   rm -f "$tmp"
   echo "Verified CSS on https://$host/static/$ASSET"
 done
+# Distinguish an absent CSS file from stale HTML that references a relative URL.
+for host in fizo.pos.leosoftug.com pos.leosoftug.com; do
+  page="$(curl -sSL --max-time 20 "https://$host/staff/terminal/" || true)"
+  css_href="$(printf '%s' "$page" | grep -oE 'href="[^"]*fizo-auth-2026\.css[^"]*"' | head -1 || true)"
+  if [[ -n "$css_href" ]]; then
+    echo "$host login HTML stylesheet: $css_href"
+    if [[ "$css_href" != href=\"/static/* ]]; then
+      echo "WARNING: $host still emits a relative CSS link; restart Django only after migration is complete." >&2
+    fi
+  else
+    echo "WARNING: $host did not expose the expected login stylesheet in anonymous page HTML." >&2
+  fi
+done
 echo "Login CSS published; Django migration is still pending."
 echo "If HTML still uses a relative URL, complete normal migration/deployment to reload login templates."
