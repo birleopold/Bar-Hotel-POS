@@ -1,62 +1,37 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% load static %}
-{% block title %}Tables{% endblock %}
-{% block body_class %}staff-body--pos{% endblock %}
-{% block main_class %}hospitality-workflow hospitality-workflow staff-main--wide staff-main--pos{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.2">{% endblock %}
+{% block title %}Tables · Fizo{% endblock %}
+{% block main_class %}staff-main--wide fizo-floor-page{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'staff/fizo-hospitality-floor.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
-  <section class="staff-pos-orders-hero mb-3">
-    <div class="staff-toolbar staff-toolbar--pos-head">
-      <div class="staff-pos-orders-hero__titles">
-        <p class="staff-dash-hero__eyebrow mb-1">Floor</p>
-        <h1 class="staff-page-title staff-page-title--pos mb-0">Tables<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-        <p class="staff-pos-orders-hero__lede mb-0">Table setup for this section. Active guest checks are on Orders.</p>
-      </div>
-      <div class="staff-pos-orders-hero__actions">
-        {% if staff_nav.orders and staff_show_ops_nav %}<a class="staff-btn staff-btn--ghost staff-btn--touch" href="{% url 'staff-orders' %}">Go to orders</a>{% endif %}
-        {% if current_outlet and can_modify_tables %}
-          <a class="staff-btn staff-btn--primary staff-btn--touch" href="{% url 'staff-table-create' %}">New table</a>
-        {% endif %}
-      </div>
+<div class="fizo-floor">
+  <header class="fizo-floor__header">
+    <div><p class="fizo-floor__eyebrow">Fizo / Restaurant / Floor</p><h1>Tables &amp; seating</h1><p>See your section's tables, seating capacity and configuration.</p></div>
+    <div class="fizo-floor__actions">
+      {% if staff_nav.orders %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}"><i class="bi bi-receipt"></i> Orders &amp; checks</a>{% endif %}
+      {% if current_outlet and can_modify_tables %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-table-create' %}"><i class="bi bi-plus-lg"></i> Add table</a>{% endif %}
     </div>
-  </section>
+  </header>
   {% if not current_outlet %}
-    <div class="staff-alert staff-alert--warning">Select one section above to see its tables.</div>
+    <div class="staff-alert">Choose a section in the workspace navigation to view its tables.</div>
   {% else %}
-    <div class="staff-pos-tables-shell">
-      <h2 class="staff-section-head">Floor layout</h2>
-      <div class="staff-toolbar staff-toolbar--tight mb-2 justify-content-between">
-        <span class="staff-muted mb-0 align-self-center">{{ current_outlet.name }} · {{ tables|length }} table{{ tables|length|pluralize }}{% if include_inactive %} including inactive{% endif %}</span>
-        <a class="staff-btn staff-btn--sm staff-btn--ghost staff-btn--touch" href="?include_inactive={% if include_inactive %}0{% else %}1{% endif %}">{% if include_inactive %}Hide inactive{% else %}Inactive{% endif %}</a>
+    <section class="fizo-floor__surface" aria-labelledby="fizo-floor-heading">
+      <div class="fizo-floor__sectionhead"><div><h2 id="fizo-floor-heading">{{ current_outlet.name }} floor plan</h2><p>{{ tables|length }} table{{ tables|length|pluralize }} {% if include_inactive %}including inactive{% endif %}</p></div>
+        <a href="?include_inactive={% if include_inactive %}0{% else %}1{% endif %}" class="staff-btn staff-btn--ghost">{% if include_inactive %}Show active only{% else %}Show inactive{% endif %}</a>
       </div>
-      <div class="staff-pos-panel-scroll staff-pos-grow">
-        <div class="staff-pos-tables-grid">
-          {% for t in tables %}
-            {% if can_modify_tables %}<a class="staff-pos-table-card staff-pos-table-card--editable{% if not t.is_active %} staff-pos-table-card--inactive{% endif %}" href="{% url 'staff-table-edit' table_id=t.id %}" aria-label="Edit {{ t.label }}, {{ t.capacity }} seat{{ t.capacity|pluralize }}{% if not t.is_active %}, inactive{% endif %}">{% else %}<div class="staff-pos-table-card{% if not t.is_active %} staff-pos-table-card--inactive{% endif %}">{% endif %}
-              <div class="staff-pos-table-card__main">
-                <div class="staff-pos-table-card__label">{{ t.label }}</div>
-                <div class="staff-pos-table-card__meta">
-                  <i class="bi bi-people me-1" aria-hidden="true"></i> {{ t.capacity }} seat{{ t.capacity|pluralize }}
-                  {% if not t.is_active %}<span class="staff-pos-table-card__status">Inactive</span>{% endif %}
-                </div>
-              </div>
-              {% if can_modify_tables %}
-                <div class="staff-pos-table-card__chevron">
-                  <i class="bi bi-arrow-up-right" aria-hidden="true"></i>
-                </div>
-              {% endif %}
-            {% if can_modify_tables %}</a>{% else %}</div>{% endif %}
-          {% empty %}
-            <div class="staff-pos-tables-empty">
-              <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
-              <div><h3>No tables to show</h3><p>{% if include_inactive %}This section has no tables yet.{% else %}There are no active tables in this section. Show inactive tables{% if can_modify_tables %} or add a new one{% endif %}.{% endif %}</p></div>
-              {% if can_modify_tables %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-table-create' %}">Add table</a>{% endif %}
-            </div>
-          {% endfor %}
-        </div>
+      <div class="fizo-floor__grid">
+        {% for t in tables %}
+          {% if can_modify_tables %}<a href="{% url 'staff-table-edit' table_id=t.id %}" class="fizo-floor__table{% if not t.is_active %} fizo-floor__table--inactive{% endif %}" aria-label="Edit {{ t.label }}">{% else %}<div class="fizo-floor__table{% if not t.is_active %} fizo-floor__table--inactive{% endif %}">{% endif %}
+            <span class="fizo-floor__table-icon"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i></span>
+            <span class="fizo-floor__table-name">{{ t.label }}</span>
+            <span class="fizo-floor__table-capacity"><i class="bi bi-people" aria-hidden="true"></i> {{ t.capacity }} seats</span>
+            <span class="fizo-floor__status{% if not t.is_active %} fizo-floor__status--inactive{% endif %}">{% if t.is_active %}Active{% else %}Inactive{% endif %}</span>
+          {% if can_modify_tables %}</a>{% else %}</div>{% endif %}
+        {% empty %}
+          <div class="fizo-floor__empty"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><h3>No tables in this view</h3><p>Add tables to configure the dining floor. Active orders are managed separately.</p>{% if can_modify_tables %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-table-create' %}">Add your first table</a>{% endif %}</div>
+        {% endfor %}
       </div>
-    </div>
+    </section>
   {% endif %}
+</div>
 {% endblock %}
