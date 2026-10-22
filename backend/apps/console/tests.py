@@ -240,6 +240,30 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(r, "Guided setup")
         self.assertContains(r, "Finish business setup")
 
+    def test_hospitality_setup_uses_unified_shell(self) -> None:
+        user = User.objects.create_user(email="hospitality-shell@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(user)
+        response = self.client.get(reverse("console-org-setup"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "hospitality-console-body")
+        self.assertContains(response, "Set up your business")
+        self.assertContains(response, "Hospitality management")
+        self.assertNotContains(response, "grocery-console-body")
+
+    def test_mixed_retail_and_hospitality_keeps_store_shell(self) -> None:
+        settings_obj = TenantSettings.objects.get(tenant=self.tenant)
+        settings_obj.business_lines = ["supermarket", "bar", "lodging"]
+        settings_obj.save(update_fields=["business_lines", "updated_at"])
+        user = User.objects.create_user(email="mixed-shell@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(user)
+        response = self.client.get(reverse("console-org-setup"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "grocery-console-body")
+        self.assertContains(response, "Set up your store")
+        self.assertNotContains(response, "hospitality-console-body")
+
     def test_org_setup_shows_first_step_when_workspace_empty(self) -> None:
         user = User.objects.create_user(email="co-setup-empty@test.local", password="TestPass9!")
         Membership.objects.create(
