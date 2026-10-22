@@ -95,3 +95,8 @@ The supermarket **active order detail** (`staff/order_detail_supermarket.html`) 
 ## Approved basket visual flow — 2026-10-22
 
 Updated the active supermarket checkout's real basket rows within `staff/order_detail.html` instead of replacing any backend. Basket rows now use `fizo-retail-basket-row` with per-line totals and +/− controls backed by existing `adjust_line_qty` POST; voids retain required reason and existing `void_line` POST. Added `test_fizo_retail_checkout_approved.py` assertions and styling in `fizo-checkout-v1.css`. **Source committed only.** No cashier browser acceptance or stock/money transactions were performed. Remaining reference gaps include main POS navigation/route, dedicated payment-method quick buttons, category icons and fully validated one-tap checkout.
+
+
+## POS direct-entry and payment shortcuts — 2026-10-22
+
+Added GET-only `staff-retail-pos-entry` at `/staff/pos/checkout/`: checks accessible selected supermarket/retail outlet and open register shift, resumes newest current user's open unpaid non-held basket. GET never creates an order or records payment. If there is no resumable sale, user goes to the existing `/staff/orders/` creation workflow. Supermarket sidebar now separates POS entry and Sales history, leaving hospitality navigation unchanged. Cash/Card/Mobile Money shortcuts now select a valid option in the existing authenticated `record_payment` form; they do NOT autonomously charge the customer. All changes committed, but Django tests/browser acceptance and deployment are still pending. A fully automatic new sale after GET navigation is intentionally not implemented because order creation must use authenticated POST and respect shift rules.
