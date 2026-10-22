@@ -60,27 +60,33 @@
         </article>
       {% endfor %}
       {% if setup_optional_steps %}
-        <div class="grocery-setup__section-head mt-4"><h2>Useful extras</h2><span>Optional</span></div>
-        {% for step in setup_optional_steps %}
-          <article class="staff-card grocery-setup__step">
-            <span class="grocery-setup__step-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
-            <div class="grocery-setup__step-body">
-              <h3>{{ step.name }}</h3><p>{{ step.description }}</p>
-              <div class="grocery-setup__step-actions">
-                <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.cta_url }}">{{ step.cta_label }} <i class="bi bi-arrow-right"></i></a>
-                {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
-                <span class="grocery-setup__status">{% if step.done %}Done{% elif step.status == 'skipped' %}Skipped{% else %}Optional{% endif %}</span>
-              </div>
-              <details class="grocery-setup__more"><summary>Other options</summary>
-                <form method="post" action="{{ setup_action_url }}">{% csrf_token %}
-                  <input type="hidden" name="step_key" value="{{ step.key }}"><input type="hidden" name="next" value="{% url 'console-org-setup' %}">
-                  <button type="submit" name="state" value="skipped">Skip for now</button>
-                  {% if step.manual_state %}<button type="submit" name="state" value="reset">Remove skip</button>{% endif %}
-                </form>
-              </details>
-            </div>
-          </article>
-        {% endfor %}
+        <section class="fizo-optional" aria-labelledby="fizo-optional-title">
+          <div class="grocery-setup__section-head"><h2 id="fizo-optional-title">Useful extras</h2><span>Optional · complete when ready</span></div>
+          <div class="fizo-optional__grid">
+            {% for step in setup_optional_steps %}
+              <article class="staff-card fizo-optional__card">
+                <div class="fizo-optional__head">
+                  <span class="fizo-optional__icon" aria-hidden="true"><i class="bi bi-{% if step.key == 'first_team_invite' %}person-plus{% elif step.key == 'first_purchase_receive' %}truck{% elif step.key == 'first_hardware_check' %}printer{% elif step.key == 'first_practice_sale' %}calculator{% elif step.key == 'first_paid_sale' %}receipt{% else %}check2-square{% endif %}"></i></span>
+                  <span class="grocery-setup__status{% if step.done %} grocery-setup__status--done{% endif %}">{% if step.done %}Done{% elif step.status == 'skipped' %}Skipped{% else %}Optional{% endif %}</span>
+                </div>
+                <h3>{{ step.name }}</h3>
+                <p>{{ step.description }}</p>
+                <div class="fizo-optional__actions">
+                  <a class="staff-btn {% if step.done %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}" href="{{ step.cta_url }}">{{ step.cta_label }} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                  {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
+                </div>
+                <details class="grocery-setup__more">
+                  <summary>Other options</summary>
+                  <form method="post" action="{{ setup_action_url }}">{% csrf_token %}
+                    <input type="hidden" name="step_key" value="{{ step.key }}"><input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+                    <button type="submit" name="state" value="skipped">Skip for now</button>
+                    {% if step.manual_state %}<button type="submit" name="state" value="reset">Remove skip</button>{% endif %}
+                  </form>
+                </details>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
       {% endif %}
     </div>
     <aside class="grocery-setup__aside" aria-label="Business setup help">
@@ -94,9 +100,9 @@
         </ul>
         {% if go_live_ready %}<p class="grocery-setup__status grocery-setup__status--done mt-2"><i class="bi bi-check-circle-fill"></i> Automatic checks passed</p>{% endif %}
       </section>
-      <section class="staff-card grocery-setup__profile">
+      <section class="staff-card grocery-setup__profile" id="business-profile-heading" aria-label="Business profile">
         <details {% if business_profile_form.errors %}open{% endif %}>
-          <summary>Change business type</summary>
+          <summary><i class="bi bi-sliders2" aria-hidden="true"></i> Change business type</summary>
           <p class="mt-2">Only choose what this business sells. Changing these settings also changes which pages your staff can access.</p>
           {% include "staff/includes/form_errors_block.html" with form=business_profile_form title="Fix the business profile" %}
           <form method="post">{% csrf_token %}
@@ -107,7 +113,7 @@
         </details>
       </section>
       <section class="staff-card">
-        <h2>Helpful shortcuts</h2>
+        <h2><i class="bi bi-lightning-charge" aria-hidden="true"></i> Helpful shortcuts</h2>
         <div class="grocery-setup__aside-links">
           {% if show_catalog_import %}<a href="{% url 'console-org-catalog-import' %}"><i class="bi bi-file-earmark-spreadsheet"></i> Import products from CSV</a>{% endif %}
           <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer"></i> Check registers and printers</a>
