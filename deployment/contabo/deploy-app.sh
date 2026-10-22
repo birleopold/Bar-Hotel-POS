@@ -23,16 +23,24 @@ export DJANGO_SETTINGS_MODULE=config.settings.production
 cd backend
 "$VENV/bin/python" manage.py check --deploy
 "$VENV/bin/python" manage.py makemigrations --check --dry-run
-if [[ -z "${MIGRATION_DATABASE_URL:-}" ]]; then
-  echo 'MIGRATION_DATABASE_URL must be set to a separate DB-owner connection for schema migrations.' >&2
-  exit 1
-fi
-DATABASE_URL="$MIGRATION_DATABASE_URL" "$VENV/bin/python" manage.py migrate --noinput
-# Newly created tables/sequences must be readable by the separate non-owner runtime role.
-psql "$MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+# makemigrations --check only verifies model/migration files; it does not
+# tell us whether existing migrations have been applied to the database.
+# Read Django's actual migration plan before requiring DB-owner credentials.
+migration_plan="$("$VENV/bin/python" manage.py showmigrations --plan)"
+if printf '%s\n' "$migration_plan" | grep -Eq '^[[:space:]]*\\[ \\]'; then
+  if [[ -z "${MIGRATION_DATABASE_URL:-}" ]]; then
+    echo 'ERROR: Database has unapplied migrations. Configure a separate DB-owner MIGRATION_DATABASE_URL before deploying.' >&2
+    exit 1
+  fi
+  DATABASE_URL="$MIGRATION_DATABASE_URL" "$VENV/bin/python" manage.py migrate --noinput
+  # Newly created tables/sequences need permissions for the runtime role.
+  psql "$MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO leosoft_pos_app;
 GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO leosoft_pos_app;
 SQL
+else
+  echo 'Database migration plan is already applied; DB-owner connection not needed for this deploy.'
+fi
 "$VENV/bin/python" manage.py collectstatic --noinput
 sudo install -d -o admin -g www-data -m 0755 /var/www/leosoft-pos/static
 sudo rsync -a --delete "$APP/backend/staticfiles/" /var/www/leosoft-pos/static/
