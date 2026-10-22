@@ -88,6 +88,7 @@ class PasswordRecoveryRequestAdmin(PlatformOperatorModelAdmin):
         from django.db import transaction
         from django.utils import timezone
         from apps.api.password_views import _dispatch_password_reset_email, _uid_b64
+        from apps.api.password_reset_core import recovery_eligible
         from urllib.parse import urlsplit
         template = getattr(settings, "PASSWORD_RESET_URL_TEMPLATE", "") or ""
         url = urlsplit(template)
@@ -102,11 +103,7 @@ class PasswordRecoveryRequestAdmin(PlatformOperatorModelAdmin):
         done = 0
         for item in queryset.filter(status="pending").select_related("user"):
             user = item.user
-            if not user.is_active:
-                continue
-            if user.memberships.exists() and not user.memberships.filter(
-                is_active=True, tenant__is_active=True
-            ).exists():
+            if not recovery_eligible(user):
                 continue
             # A platform operator approves an account recovery, not re-employment.
             token = default_token_generator.make_token(user)
