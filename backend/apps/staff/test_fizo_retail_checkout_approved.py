@@ -168,3 +168,14 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('console-org-menu-item-edit', catalogue)
         self.assertIn('quickForm', checkout)
         self.assertIn('data-fizo-quick-product-form', checkout)
+
+
+    def test_quick_product_retry_key_and_audit_deduplication(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        checkout = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn('ctx["quick_product_request_key"] = uuid.uuid4()', view)
+        self.assertIn('payload__request_key=request_key', view)
+        self.assertIn('"request_key": request_key', view)
+        self.assertIn('name="quick_product_request_key"', checkout)
+        self.assertIn('Order.objects.select_for_update().get(', view)
