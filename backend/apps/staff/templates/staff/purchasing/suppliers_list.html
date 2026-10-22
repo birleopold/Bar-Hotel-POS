@@ -1,24 +1,13 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Suppliers{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-purchasing.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Purchasing</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Suppliers<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Vendors you buy from on purchase orders.</p>
-        </div>
-        <div class="staff-page-hero__actions">
-          {% if can_modify_purchasing %}
-            <a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-supplier-create' %}">New supplier</a>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </header>
+<div class="fizo-purchasing fizo-purchasing--suppliers-list">
+
+  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">Fizo / Supermarket / Purchasing</p><h1>Suppliers</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-supplier-create' %}">New supplier</a></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
-  <form method="get" class="staff-card mb-3" role="search">
+  <form method="get" class="fizo-purchasing__panel mb-3" role="search">
     <label class="staff-label" for="supplier-directory-search">Find a supplier</label>
     <div class="d-flex flex-wrap gap-2">
       <input id="supplier-directory-search" class="staff-input flex-grow-1" name="q"
@@ -27,9 +16,9 @@
       <button type="submit" class="staff-btn staff-btn--primary">Find supplier</button>
     </div>
   </form>
-  <h2 class="staff-section-head">Directory</h2>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
+  <h2 class="fizo-purchasing__section-heading">Directory</h2>
+  <div class="fizo-purchasing__tablewrap">
+    <table class="fizo-purchasing__table">
       <thead><tr><th>Name</th><th>Contact</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for s in suppliers %}
@@ -57,4 +46,5 @@
       {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ supplier_search_q|urlencode }}">Next</a>{% endif %}
     </nav>
   {% endif %}
+</div>
 {% endblock %}
