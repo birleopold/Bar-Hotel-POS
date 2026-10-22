@@ -53,3 +53,5 @@
 .fizo-active-sales__recent{margin-top:13px;border-top:1px solid #e7eee8;padding-top:12px}
 .fizo-active-sales__recent summary{font-weight:800;color:#436a5d;cursor:pointer}
 .fizo-active-sales__recent a{display:inline-flex;margin:8px 14px 0 0;font-size:12px;color:#00874a}
+
+.fizo-sales__resume-banner{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;border:1px solid #cfe9d9;border-radius:12px;padding:17px;margin:0 0 13px;background:#fff}.fizo-sales__resume-banner strong{font-size:17px;color:#143c30}.fizo-sales__resume-banner p{font-size:13px;color:#647d78;margin:5px 0 0}@media(max-width:650px){.fizo-sales__resume-banner .fizo-sales__primary{width:100%}}
