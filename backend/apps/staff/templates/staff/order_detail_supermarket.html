@@ -2,9 +2,25 @@
 {% load static %}
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.6">
+<link rel="stylesheet" href="{% static 'staff/fizo-checkout-v1.css' %}?v=20261022.7">
 {% endblock %}
 {% block order_extra %}
+  {% if can_modify_open_order and order.status == 'open' and not order.is_paid %}
+  <details class="staff-card fizo-quick-product" id="fizo-quick-product">
+    <summary><i class="bi bi-plus-square"></i> Product missing? Add &amp; sell now</summary>
+    <p class="staff-muted small mt-2">Enter the name and selling price. Fizo adds the product to this basket, records who created it and flags its catalogue record for review. This does not create stock quantities.</p>
+    <form method="post" class="fizo-quick-product__form" data-fizo-quick-product-form>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="quick_create_product">
+      <label>Product name<input class="staff-input" name="name" required minlength="2" maxlength="255" autocomplete="off" placeholder="e.g. New kitchen soap"></label>
+      <label>Unit selling price ({{ order.currency }})<input class="staff-input" name="unit_price" type="number" inputmode="decimal" min="0.01" step="0.01" required></label>
+      <label>Quantity<input class="staff-input" name="quantity" type="number" inputmode="decimal" min="0.001" step="0.001" value="1" required></label>
+      <label>Barcode (optional)<input class="staff-input" name="barcode" maxlength="64" autocomplete="off" placeholder="Only if known"></label>
+      <button class="staff-btn staff-btn--primary" type="submit">Save product &amp; add to basket</button>
+    </form>
+  </details>
+  {% endif %}
+
   <div class="staff-toolbar mt-2 mb-3"><a class="staff-btn staff-btn--ghost" target="_blank" rel="noopener" href="{% url 'staff-retail-customer-display' order_id=order.id %}">Open customer display on second screen</a>
     <p class="staff-muted small mb-0">Read-only, staff-session protected. Move this tab to the second monitor; public access is disabled.</p></div>
   {% if can_modify_open_order and scan_add_form %}
