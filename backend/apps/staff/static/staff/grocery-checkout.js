@@ -191,6 +191,50 @@
     right.insertBefore(detail, section);
     detail.appendChild(section);
   });
+  // Fast basket actions reuse existing hold and void workflows and permissions.
+  if (basket) {
+    var holdAction = right.querySelector('input[name="action"][value="hold_order"]');
+    var voidAction = right.querySelector('input[name="action"][value="void_order"]');
+    if (holdAction || voidAction) {
+      var bar = document.createElement("div");
+      bar.className = "grocery-basket-actions";
+      if (holdAction) {
+        var holdButton = document.createElement("button");
+        holdButton.type = "button";
+        holdButton.className = "grocery-basket-action";
+        holdButton.textContent = "Hold sale";
+        holdButton.addEventListener("click", function () {
+          var form = holdAction.form;
+          var note = form.querySelector('[name="hold_label"]');
+          if (note && !note.value.trim()) note.value = "Held at checkout";
+          if (form.checkValidity()) {
+            holdButton.disabled = true;
+            if (form.requestSubmit) form.requestSubmit(); else form.submit();
+          }
+        });
+        bar.appendChild(holdButton);
+      }
+      if (voidAction) {
+        var clearButton = document.createElement("button");
+        clearButton.type = "button";
+        clearButton.className = "grocery-basket-action grocery-basket-action--danger";
+        clearButton.textContent = "Clear basket";
+        clearButton.addEventListener("click", function () {
+          var reason = voidAction.form.querySelector('[name="reason"]');
+          if (!reason) return;
+          var input = window.prompt("Void this entire sale? Enter a reason to confirm.");
+          if (input === null || !input.trim()) return;
+          reason.value = input.trim().slice(0, 255);
+          if (voidAction.form.checkValidity()) {
+            clearButton.disabled = true;
+            if (voidAction.form.requestSubmit) voidAction.form.requestSubmit(); else voidAction.form.submit();
+          }
+        });
+        bar.appendChild(clearButton);
+      }
+      basket.appendChild(bar);
+    }
+  }
   var action = payment && payment.querySelector('button[type="submit"]');
   if (action) action.textContent = "Take payment";
   // Quick payment-method choices mirror the existing form's available options.
