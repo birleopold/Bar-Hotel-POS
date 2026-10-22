@@ -134,3 +134,23 @@ class UserInvite(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"Invite {self.email} → {self.tenant.slug}"
+
+
+class PasswordRecoveryRequest(models.Model):
+    """Platform-reviewed recovery; never store a plaintext reset token."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="recovery_requests")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=16, default="pending", choices=[
+        ("pending", "Pending review"), ("sent", "Approved and emailed"),
+        ("used", "Used"), ("denied", "Denied"),
+    ])
+    approved_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="approved_recoveries")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    token_digest = models.CharField(max_length=64, blank=True, editable=False)
+
+    class Meta:
+        ordering = ["-requested_at"]
+        indexes = [models.Index(fields=["user", "status", "requested_at"])]
+
