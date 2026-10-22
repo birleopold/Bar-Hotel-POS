@@ -2,9 +2,12 @@
 {% load static %}
 {% block title %}{{ staff_product.orders_label|default:"Orders" }}{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
-{% block main_class %}staff-main--wide staff-main--pos{% if not show_supermarket_lane %} hospitality-workflow{% endif %}{% endblock %}
-{% block extra_css %}{% if not show_supermarket_lane %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endif %}{% endblock %}
+{% block main_class %}staff-main--wide staff-main--pos{% if show_supermarket_lane %} fizo-retail-sales-page{% else %} hospitality-workflow{% endif %}{% endblock %}
+{% block extra_css %}{% if show_supermarket_lane %}<link rel="stylesheet" href="{% static 'staff/fizo-retail-sales.css' %}?v=20261022.1">{% else %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.1">{% endif %}{% endblock %}
 {% block content %}
+{% if show_supermarket_lane %}
+  {% include "staff/includes/fizo_retail_sales_landing.html" %}
+{% else %}
   <div class="staff-pos-orders-shell">
     <div class="staff-pos-orders-top">
     <section class="staff-pos-orders-hero">
@@ -182,4 +185,5 @@
     {% endif %}
     </section>
   </div>
+{% endif %}
 {% endblock %}
