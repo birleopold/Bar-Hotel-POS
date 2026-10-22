@@ -1,31 +1,17 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Stock movements{% endblock %}
+{% block main_class %}staff-main--wide fizo-inventory-workspace{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
+<div class="fizo-inventory fizo-inventory--movements">
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Supermarket / Inventory</p><h1>Stock movement ledger</h1><p>Every receiving, adjustment and waste movement in your authorized sections.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
   {% include "staff/inventory/includes/subnav.html" %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Stock</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Stock ledger<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">Every receive, adjustment, and waste line.</p>
-        </div>
-        <div class="staff-page-hero__actions">
-          {% if can_modify_inventory %}
-            <a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
-            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-movement-upload' %}">Upload CSV</a>
-            {% if has_upload_error_report %}
-              <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-movement-upload-errors' %}">Download last error report</a>
-            {% endif %}
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </header>
-  <h2 class="staff-section-head">Movements</h2>
+  
+  <h2 class="fizo-inventory__heading">Movements</h2>
   {% if movements %}
-    <div class="staff-table-wrap">
-      <table class="staff-table">
+    <div class="fizo-inventory__tablewrap">
+      <table class="fizo-inventory__table">
         <thead><tr><th>When</th><th>Section</th><th>Item</th><th>Δ</th><th>Reason</th><th>By</th></tr></thead>
         <tbody>
           {% for m in movements %}
@@ -56,4 +42,5 @@
       {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
     </nav>
   {% endif %}
+</div>
 {% endblock %}
