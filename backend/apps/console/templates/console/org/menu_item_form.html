@@ -1,21 +1,21 @@
 {% extends "console/base.html" %}
 {% block title %}{% if object %}Edit product{% else %}Add product{% endif %}{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block main_class %}fizo-entity-form-page{% endblock %}
 {% block content %}
-  <div class="grocery-form-head">
+  <section class="fizo-entity" aria-label="Product details"><header class="fizo-entity__header">
     <div><p class="grocery-form-kicker">{% if grocery_console_shell %}STORE / PRODUCTS{% else %}PRODUCT CATALOGUE{% endif %}</p>
       <h1 class="staff-page-title">{% if object %}Edit product{% else %}Add a product{% endif %}</h1>
       <p class="staff-muted">Fill in the details you know, then save. You can edit the product later.</p>
     </div>
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}"><i class="bi bi-arrow-left"></i> Products</a>
-  </div>
+  </header>
   {% if object %}
     <div class="grocery-form-links">
       <a href="{% url 'console-org-menu-item-outlets' item_id=object.id %}">{% if grocery_console_shell %}Branch pricing{% else %}Outlet pricing{% endif %}</a>
       {% if not grocery_console_shell %} · <a href="{% url 'console-org-menu-item-recipe' item_id=object.id %}">Recipe / bill of materials</a>{% endif %}
     </div>
   {% endif %}
-  <form method="post" class="staff-card grocery-guided-form">
+  <form method="post" class="staff-card grocery-guided-form fizo-entity__card">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     <div class="grocery-form-fields">
@@ -54,4 +54,5 @@
       </div>
     </div>
   </form>
+</section>
 {% endblock %}
