@@ -1,19 +1,14 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Stock movement{% endblock %}
+{% block main_class %}staff-main--wide fizo-inventory-workspace{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
+<div class="fizo-inventory fizo-inventory--movement-form">
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Supermarket / Inventory</p><h1>Receive or adjust stock</h1><p>Record a receiving, adjustment or waste transaction with your authorized section.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
   {% include "staff/inventory/includes/subnav.html" %}
-  <header class="staff-page-hero">
-    <div class="staff-dash-hero__panel">
-      <p class="staff-dash-hero__eyebrow">Stock</p>
-      <div class="staff-page-hero__head">
-        <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">{% if grocery_owner_shell %}Receive or adjust stock{% else %}Stock movement{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">{% if grocery_owner_shell %}Choose a product, enter its quantity and select why the stock is changing.{% else %}Stock receive, adjustment, or waste — one line at a time.{% endif %}</p>
-        </div>
-      </div>
-    </div>
-  </header>
-  <h2 class="staff-section-head">{% if grocery_owner_shell %}Stock details{% else %}Line{% endif %}</h2>
+  
+  <h2 class="fizo-inventory__heading">{% if grocery_owner_shell %}Stock details{% else %}Line{% endif %}</h2>
   {% if not has_tracked_menu_items %}
     <div class="staff-card staff-card--soft mb-4">
       <p class="mb-2">No tracked items yet. Create one quickly or use the console catalog.</p>
@@ -41,4 +36,5 @@
     <button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Save stock record{% else %}Save movement{% endif %}</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-movements' %}">Cancel</a>
   </form>
+</div>
 {% endblock %}
