@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
+from django.db.models import Q
+from apps.tenants.models import Tenant
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
@@ -94,6 +96,32 @@ class OrgMenuItemListView(ConsoleOrgAdminRequiredMixin, ListView):
         )
 
 
+def _save_catalog_item_safely(view, form, *, creating):
+    """Serialize console and cashier product registrations per tenant."""
+    with transaction.atomic():
+        Tenant.objects.select_for_update().get(pk=view.request.tenant.pk)
+        name = form.cleaned_data["name"].strip()
+        barcode = (form.cleaned_data.get("barcode") or "").strip()
+        candidates = MenuItem.objects.filter(tenant=view.request.tenant)
+        if not creating:
+            candidates = candidates.exclude(pk=view.object.pk)
+        if candidates.filter(name__iexact=name).exists():
+            form.add_error("name", "A product with this name already exists. Edit the existing product.")
+            return view.form_invalid(form)
+        if barcode and candidates.filter(barcode=barcode).exists():
+            form.add_error("barcode", "This barcode is already registered to another product.")
+            return view.form_invalid(form)
+        instance = form.save(commit=False)
+        if creating:
+            instance.tenant = view.request.tenant
+        instance.save()
+        sync_menu_item_outlet_links(instance, form.cleaned_data.get("outlets"))
+        sync_menu_item_modifier_groups(instance, form.cleaned_data.get("modifier_groups"))
+        view.object = instance
+    messages.success(view.request, f"Item “{view.object.name}” {'created' if creating else 'saved'}.")
+    return redirect(view.get_success_url())
+
+
 class OrgMenuItemCreateView(ConsoleOrgAdminRequiredMixin, CreateView):
     model = MenuItem
     form_class = ConsoleMenuItemForm
@@ -106,14 +134,7 @@ class OrgMenuItemCreateView(ConsoleOrgAdminRequiredMixin, CreateView):
         return kw
 
     def form_valid(self, form):
-        instance = form.save(commit=False)
-        instance.tenant = self.request.tenant
-        instance.save()
-        sync_menu_item_outlet_links(instance, form.cleaned_data.get("outlets"))
-        sync_menu_item_modifier_groups(instance, form.cleaned_data.get("modifier_groups"))
-        self.object = instance
-        messages.success(self.request, f"Item “{self.object.name}” created.")
-        return redirect(self.get_success_url())
+        return _save_catalog_item_safely(self, form, creating=True)
 
 
 class OrgMenuItemUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
@@ -137,13 +158,7 @@ class OrgMenuItemUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
         return ctx
 
     def form_valid(self, form):
-        instance = form.save(commit=False)
-        instance.save()
-        sync_menu_item_outlet_links(instance, form.cleaned_data.get("outlets"))
-        sync_menu_item_modifier_groups(instance, form.cleaned_data.get("modifier_groups"))
-        self.object = instance
-        messages.success(self.request, f"Item “{self.object.name}” saved.")
-        return redirect(self.get_success_url())
+        return _save_catalog_item_safely(self, form, creating=False)
 
 
 class OrgMenuItemOutletListView(MenuItemScopedMixin, ListView):
