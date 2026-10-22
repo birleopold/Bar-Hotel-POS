@@ -1,0 +1,30 @@
+{% with u=request.resolver_match.url_name %}
+<aside class="console-sidebar" aria-label="Business management navigation">
+  <a class="fizo-shell-brand" href="{% url 'console-org' %}"><span class="fizo-shell-brand__mark" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></span>Fizo</a>
+  <span class="fizo-shell-context">Business management</span>
+  <nav class="fizo-shell-nav" aria-label="Business sections">
+    <a href="{% url 'console-org' %}"{% if u == 'console-org' %} aria-current="page"{% endif %}><i class="bi bi-grid-1x2" aria-hidden="true"></i>Overview</a>
+    <a href="{% url 'console-org-setup' %}"{% if u == 'console-org-setup' %} aria-current="page"{% endif %}><i class="bi bi-list-check" aria-hidden="true"></i>Guided setup</a>
+    <a href="{% url 'console-org-sites' %}"{% if u == 'console-org-sites' or u == 'console-org-site-create' or u == 'console-org-site-edit' or u == 'console-org-outlets' or u == 'console-org-outlet-create' or u == 'console-org-outlet-edit' %} aria-current="page"{% endif %}><i class="bi bi-geo-alt" aria-hidden="true"></i>Branches</a>
+    {% if console_has_fnb or console_has_retail %}
+    <a href="{% url 'console-org-menu-items' %}"{% if u == 'console-org-menu-items' or u == 'console-org-menu-item-create' or u == 'console-org-menu-item-edit' or u == 'console-org-catalog-import' %} aria-current="page"{% endif %}><i class="bi bi-box-seam" aria-hidden="true"></i>{% if grocery_console_shell %}Products{% else %}Menu items{% endif %}</a>
+    <a href="{% url 'console-org-menu-categories' %}"{% if u == 'console-org-menu-categories' or u == 'console-org-menu-category-create' or u == 'console-org-menu-category-edit' %} aria-current="page"{% endif %}><i class="bi bi-tags" aria-hidden="true"></i>Categories</a>
+    {% endif %}
+    {% if console_has_fnb %}
+    <a href="{% url 'console-org-modifier-groups' %}"><i class="bi bi-sliders2" aria-hidden="true"></i>Modifiers</a>
+    {% endif %}
+    {% if console_has_services %}
+    <a href="{% url 'console-org-service-offerings' %}"><i class="bi bi-calendar-check" aria-hidden="true"></i>Services</a>
+    {% endif %}
+    {% if console_has_lodging %}
+    <a href="{% url 'console-org-rooms' %}"><i class="bi bi-door-open" aria-hidden="true"></i>Rooms</a>
+    <a href="{% url 'console-org-room-types' %}"><i class="bi bi-house" aria-hidden="true"></i>Room types</a>
+    <a href="{% url 'console-org-room-rates' %}"><i class="bi bi-cash-stack" aria-hidden="true"></i>Rates</a>
+    {% endif %}
+    <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people" aria-hidden="true"></i>Staff</a>
+    <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer" aria-hidden="true"></i>Registers</a>
+    <a href="{% url 'staff-dashboard' %}"><i class="bi bi-speedometer2" aria-hidden="true"></i>Operations</a>
+  </nav>
+  <div class="fizo-shell-help">One Fizo workspace for your enabled business lines.</div>
+</aside>
+{% endwith %}
