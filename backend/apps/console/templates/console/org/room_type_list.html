@@ -1,25 +1,38 @@
 {% extends "console/base.html" %}
 {% block title %}Room types{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
-  <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Room types<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-type-create' %}">New room type</a>
-  </div>
-  <div class="staff-table-wrap">
-    <table class="staff-table">
-      <thead><tr><th>Branch</th><th>Name</th><th>Max guests</th><th></th></tr></thead>
-      <tbody>
-        {% for rt in room_types %}
-          <tr>
-            <td>{{ rt.site.name }}</td>
-            <td>{{ rt.name }}</td>
-            <td>{{ rt.max_occupancy }}</td>
-            <td><a href="{% url 'console-org-room-type-edit' room_type_id=rt.id %}">Edit</a></td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="4" class="staff-muted">No room types.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<section class="grocery-setup hospitality-directory" aria-labelledby="directory-heading">
+  <header class="grocery-setup__hero">
+    <div>
+      <p class="grocery-setup__eyebrow"><a href="{% url 'console-org' %}">Business settings</a> / Hotel</p>
+      <h1 id="directory-heading">Room types</h1>
+      <p>Organize accommodation categories and guest capacity.</p>
+    </div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-type-create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add room type</a>
+  </header>
+  <section class="staff-card" aria-label="Room types list">
+    {% if room_types %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th scope="col">Branch</th><th scope="col">Room type</th><th scope="col">Max guests</th><th scope="col">Actions</th></tr></thead>
+        <tbody>{% for rt in room_types %}<tr>
+          <td>{{ rt.site.name }}</td>
+          <td>{{ rt.name }}</td>
+          <td>{{ rt.max_occupancy }}</td>
+          <td><a class="grocery-setup__action-link" href="{% url 'console-org-room-type-edit' room_type_id=rt.id %}">Edit <span class="visually-hidden">room types record</span><i class="bi bi-arrow-right" aria-hidden="true"></i></a></td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="grocery-setup__empty">
+        <i class="bi bi-building fs-1" aria-hidden="true"></i>
+        <strong>No room types yet</strong>
+        <p>Create a room type before adding rooms.</p>
+        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-room-type-create' %}">Add room type</a>
+      </div>
+    {% endif %}
+  </section>
+  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Business settings</a></p>
+</section>
 {% endblock %}
