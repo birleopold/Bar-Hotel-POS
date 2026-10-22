@@ -590,6 +590,16 @@ class RetailQuickProductForm(forms.Form):
     barcode = forms.CharField(max_length=64, required=False, strip=True)
 
 
+def _can_operate_retail_checkout(membership, order) -> bool:
+    """Retail floor workers can serve assigned sales without admin privileges."""
+    return bool(
+        membership
+        and membership.role == MembershipRole.SERVER
+        and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        and staff_outlet_allowed_for_membership(membership, order.outlet_id)
+    )
+
+
 class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
     staff_nav_capability = "orders"
     template_name = "staff/order_detail.html"
@@ -658,7 +668,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["amount_paid"] = p
         ctx["balance_due"] = b
         can_pay = (
-            membership_can_modify_lodging(self.request.tenant_membership)
+            (membership_can_modify_lodging(self.request.tenant_membership) or _can_operate_retail_checkout(self.request.tenant_membership, order))
             and staff_outlet_allowed_for_membership(self.request.tenant_membership, order.outlet_id)
             and order.status == OrderStatus.OPEN
             and not order.is_paid
@@ -669,7 +679,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["settlement_station"] = selected_workstation(self.request, outlets=staff_accessible_outlets(self.request.tenant_membership))
         m = self.request.tenant_membership
         can_modify_open = (
-            membership_can_modify_lodging(m)
+            (membership_can_modify_lodging(m) or _can_operate_retail_checkout(m, order))
             and staff_outlet_allowed_for_membership(m, order.outlet_id)
             and order.status == OrderStatus.OPEN
             and not order.is_paid
@@ -948,7 +958,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             # The refund handler supplies its own manager check and actionable
             # feedback, including for workers who cannot edit settled orders.
             return self._post_record_refund(request, order)
-        if not membership_can_modify_lodging(m):
+        cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order"}
+        if not (membership_can_modify_lodging(m) or (
+            action in cashier_actions and _can_operate_retail_checkout(m, order)
+        )):
             messages.error(request, "Your role cannot modify orders or payments.")
             return redirect("staff-order-detail", order_id=order.id)
 
