@@ -11,7 +11,7 @@
   var product=addForm&&addForm.querySelector('select[name="menu_item"]');
   var live=document.querySelector("[data-pos-menu-selection]");
   function focusSearch(barcode){
-    var input=barcode?(server||local):(local||server);
+    var input=barcode?(document.querySelector('[data-retail-scan-form] input[name="code"]')||server||local):(local||server);
     if(input){input.focus();input.select();input.scrollIntoView({block:"nearest"});}
   }
   document.querySelectorAll("[data-fizo-focus-search]").forEach(function(a){
@@ -110,16 +110,5 @@
       if(qty)qty.focus({preventScroll:true});
     });
   });
-  document.querySelectorAll("[data-fizo-qty-form]").forEach(function(form){
-    var input=form.querySelector('input[name="quantity"]');
-    form.querySelectorAll("[data-fizo-step]").forEach(function(button){
-      button.addEventListener("click",function(){
-        if(!input)return;
-        var value=Number(input.value),step=Number(input.step)||1;
-        if(!Number.isFinite(value))value=1;
-        var next=Math.max(Number(input.min)||0.001,Math.round((value+Number(button.dataset.fizoStep)*step)*1000)/1000);
-        input.value=String(next);
-      });
-    });
-  });
+  /* Quantity stepper submission is owned by order_detail_supermarket.html. */
 })();
