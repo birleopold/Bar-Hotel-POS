@@ -1,12 +1,12 @@
 {% extends "staff/base.html" %}
+{% load static %}
 {% block title %}Stock transfers{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.2">{% endblock %}
 {% block content %}
+<div class="fizo-inventory fizo-inventory--transfer-receipts">
+
 {% include "staff/inventory/includes/subnav.html" %}
-<header class="staff-page-hero"><div class="staff-dash-hero__panel">
-<p class="staff-dash-hero__eyebrow">Inventory · Handover</p>
-<h1 class="staff-page-title">Stock transfers and deliveries</h1>
-<p class="staff-dash-hero__tagline">Staged transfers leave the sender at dispatch and enter the receiver's stock only after physical confirmation. Older immediate transfers remain unchanged.</p>
-</div></header>
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Inventory / Transfers</p><h1>Transfer deliveries</h1><p>Verify deliveries, investigate discrepancies and resolve transfer records.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
 <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filter transfer deliveries">
 <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer-receipts' %}">All</a>
 <a class="staff-btn staff-btn--ghost" href="?status=in_transit">In transit</a>
@@ -17,8 +17,8 @@
 <a class="staff-btn staff-btn--ghost" href="?status=matched">Matched</a>
 <a class="staff-btn staff-btn--ghost" href="?status=resolved">Resolved</a></nav>
 {% for receipt in receipts %}
-<section class="staff-card mb-3" aria-label="Delivery {{ receipt.transfer_batch }}">
-<h2 class="staff-section-head">{{ receipt.menu_item.name }} · {{ receipt.dispatched_quantity }} units</h2>
+<section class="fizo-inventory__panel mb-3" aria-label="Delivery {{ receipt.transfer_batch }}">
+<h2 class="fizo-inventory__heading">{{ receipt.menu_item.name }} · {{ receipt.dispatched_quantity }} units</h2>
 <p class="staff-muted">{{ receipt.from_outlet.name }} → {{ receipt.to_outlet.name }} · {{ receipt.created_at }} · {{ receipt.get_status_display }}</p>
 <p class="staff-muted small">Reference {{ receipt.transfer_batch }} · {% if receipt.mode == "staged" %}In transit {{ receipt.outstanding_quantity }} units{% else %}Historical immediate transfer{% endif %}</p>
 {% if receipt.status == "in_transit" or receipt.status == "awaiting" %}
@@ -76,4 +76,5 @@
 {% if page_obj.has_previous %}<a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
 <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
 {% if page_obj.has_next %}<a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}</nav>{% endif %}
+</div>
 {% endblock %}
