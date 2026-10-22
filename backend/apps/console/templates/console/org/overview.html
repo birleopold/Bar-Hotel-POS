@@ -1,106 +1,50 @@
 {% extends "console/base.html" %}
-{% block title %}{% if grocery_console_shell %}Store settings{% else %}Organization{% endif %}{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block title %}Business overview{% endblock %}
+{% block main_class %}staff-main--wide fizo-business-overview{% endblock %}
 {% block content %}
-{% if grocery_console_shell %}
-<section class="grocery-setup" aria-labelledby="store-settings-heading">
-  <header class="grocery-setup__hero">
+<section class="fizo-overview" aria-labelledby="fizo-overview-title">
+  <header class="fizo-overview__hero">
     <div>
-      <p class="grocery-setup__eyebrow">Store management / Business settings</p>
-      <h1 id="store-settings-heading">Your store settings</h1>
-      <p>Manage branches, products, staff and checkout from one place. New to the system? Start with guided setup.</p>
+      <p class="grocery-setup__eyebrow">Fizo / Business management</p>
+      <h1 id="fizo-overview-title">{{ request.tenant.name }} overview</h1>
+      <p>Manage your locations, team and the services enabled for this business.</p>
     </div>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-setup' %}"><i class="bi bi-list-check"></i> Guided setup</a>
+    <a href="{% url 'console-org-setup' %}" class="staff-btn staff-btn--primary"><i class="bi bi-list-check" aria-hidden="true"></i> Guided setup</a>
   </header>
-  <section class="staff-card grocery-setup__progress" aria-label="Business setup progress">
-    <div class="grocery-setup__progress-heading">
-      <strong>Business setup</strong><span>{{ setup_state.required_completion_percent }}% complete</span>
-    </div>
-    <progress max="100" value="{{ setup_state.required_completion_percent }}">{{ setup_state.required_completion_percent }}%</progress>
-    {% if show_setup_prompt %}
-      <p class="grocery-setup__next">Some setup steps are not finished. <a href="{{ setup_url }}">Continue guided setup <i class="bi bi-arrow-right"></i></a></p>
-    {% else %}
-      <p class="grocery-setup__next"><i class="bi bi-check-circle-fill text-success"></i> Required setup complete. Check devices and payment methods before live sales.</p>
-    {% endif %}
+  <section class="staff-card fizo-overview__progress" aria-label="Business setup progress">
+    <div class="grocery-setup__progress-heading"><strong>Setup progress</strong><span>{{ setup_state.required_completion_percent }}% complete</span></div>
+    <progress max="100" value="{{ setup_state.required_completion_percent }}" aria-label="Required business setup">{{ setup_state.required_completion_percent }}%</progress>
+    {% if show_setup_prompt %}<p>There are setup steps to finish. <a href="{{ setup_url }}">Continue setup <i class="bi bi-arrow-right" aria-hidden="true"></i></a></p>
+    {% else %}<p><i class="bi bi-check-circle-fill" aria-hidden="true"></i> Required steps complete. Verify physical equipment and payment providers before live sales.</p>{% endif %}
   </section>
-  <div class="grocery-setup__layout">
-    <div>
-      <div class="grocery-setup__section-head"><h2>Manage your store</h2><span>Choose what you want to change</span></div>
-      <div class="grocery-console-shortcuts">
-        <a href="{% url 'console-org-sites' %}"><i class="bi bi-geo-alt"></i><span><strong>Branches</strong><small>{{ site_count }} location{{ site_count|pluralize }}. Manage store locations and sales areas.</small></span><i class="bi bi-chevron-right"></i></a>
-        <a href="{% url 'console-org-menu-items' %}"><i class="bi bi-box-seam"></i><span><strong>Products</strong><small>Edit selling prices, barcodes and product details.</small></span><i class="bi bi-chevron-right"></i></a>
-        <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people"></i><span><strong>Staff</strong><small>Manage team members and their access.</small></span><i class="bi bi-chevron-right"></i></a>
-        <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer"></i><span><strong>Registers &amp; devices</strong><small>Prepare your checkout tills and receipt printers.</small></span><i class="bi bi-chevron-right"></i></a>
-        <a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes"></i><span><strong>Stock</strong><small>Check stock levels across all branches.</small></span><i class="bi bi-chevron-right"></i></a>
-        <a href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags"></i><span><strong>Product categories</strong><small>Organise products so staff can find them quickly.</small></span><i class="bi bi-chevron-right"></i></a>
-      </div>
-    </div>
-    <aside class="grocery-setup__aside" aria-label="Store help">
-      <section class="staff-card">
-        <h2>Store at a glance</h2>
-        <ul class="grocery-setup__checks">
-          <li><i class="bi bi-shop" aria-hidden="true"></i><span><strong>{{ site_count }}</strong> branches</span></li>
-          <li><i class="bi bi-diagram-3" aria-hidden="true"></i><span><strong>{{ outlet_count }}</strong> sales areas</span></li>
-        </ul>
-        <p class="mt-2 mb-0">Your products, stock and tills are managed separately to keep daily operations simple.</p>
-      </section>
-      <section class="staff-card">
-        <h2>Ready for checkout?</h2>
-        <p>Finish store setup, check your registers and printers, then open checkout.</p>
-        <div class="grocery-setup__aside-links">
-          <a href="{% url 'console-org-setup' %}"><i class="bi bi-list-check"></i> Review setup</a>
-          <a href="{% url 'staff-terminal' %}"><i class="bi bi-cart-check"></i> Open checkout</a>
-          <a href="{% url 'staff-dashboard' %}"><i class="bi bi-speedometer2"></i> Store overview</a>
-        </div>
-      </section>
-    </aside>
+  <div class="fizo-overview__metrics" aria-label="Business configuration totals">
+    <div class="staff-card"><span class="fizo-overview__metric-icon"><i class="bi bi-buildings" aria-hidden="true"></i></span><strong>{{ site_count }}</strong><span>Branches</span></div>
+    <div class="staff-card"><span class="fizo-overview__metric-icon"><i class="bi bi-grid" aria-hidden="true"></i></span><strong>{{ outlet_count }}</strong><span>Sections</span></div>
+    {% if console_has_lodging %}<div class="staff-card"><span class="fizo-overview__metric-icon"><i class="bi bi-door-open" aria-hidden="true"></i></span><strong>{{ room_count }}</strong><span>Rooms</span></div>{% endif %}
+    {% if console_has_services %}<div class="staff-card"><span class="fizo-overview__metric-icon"><i class="bi bi-stars" aria-hidden="true"></i></span><strong>{{ service_count }}</strong><span>Active services</span></div>{% endif %}
   </div>
+  <section aria-labelledby="fizo-overview-manage">
+    <div class="fizo-overview__section-head"><h2 id="fizo-overview-manage">Manage your business</h2><span>Open a section to view or update its details</span></div>
+    <div class="fizo-overview__links">
+      <a href="{% url 'console-org-sites' %}"><i class="bi bi-geo-alt" aria-hidden="true"></i><span><strong>Branches &amp; sections</strong><small>Manage properties, shop locations and service areas</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      {% if console_has_fnb or console_has_retail %}
+      <a href="{% url 'console-org-menu-items' %}"><i class="bi bi-box-seam" aria-hidden="true"></i><span><strong>{% if grocery_console_shell %}Products{% else %}Menu items{% endif %}</strong><small>Prices, availability and item details</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      <a href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags" aria-hidden="true"></i><span><strong>Categories</strong><small>Organize the items offered to customers</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      {% endif %}
+      {% if console_has_services %}<a href="{% url 'console-org-service-offerings' %}"><i class="bi bi-calendar-check" aria-hidden="true"></i><span><strong>Services</strong><small>Manage appointments, packages and pricing</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if console_has_lodging %}
+      <a href="{% url 'console-org-rooms' %}"><i class="bi bi-door-open" aria-hidden="true"></i><span><strong>Rooms</strong><small>Room inventory and status</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      <a href="{% url 'console-org-room-types' %}"><i class="bi bi-house" aria-hidden="true"></i><span><strong>Room types</strong><small>Categories and guest capacity</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      <a href="{% url 'console-org-room-rates' %}"><i class="bi bi-cash-stack" aria-hidden="true"></i><span><strong>Nightly rates</strong><small>Accommodation pricing windows</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      {% endif %}
+      <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people" aria-hidden="true"></i><span><strong>Staff &amp; permissions</strong><small>Team access and roles</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      {% if console_has_retail or console_has_fnb %}<a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes" aria-hidden="true"></i><span><strong>Stock</strong><small>Review quantities and stock movements</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
+      <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer" aria-hidden="true"></i><span><strong>Devices &amp; registers</strong><small>Configure workstations and printers</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    </div>
+  </section>
+  <section class="staff-card fizo-overview__footer">
+    <div><h2>Ready for daily operations?</h2><p>Finish the required setup and check your devices before serving customers.</p></div>
+    <div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-setup' %}">Review setup</a><a class="staff-btn staff-btn--primary" href="{% url 'staff-dashboard' %}">Open workspace</a></div>
+  </section>
 </section>
-{% else %}
-  <h1 class="staff-page-title">Organization overview<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <p class="staff-lead">{{ request.tenant.name }} — the setup and operations selected for this business.</p>
-  <div class="staff-grid-2 mb-4">
-    <div class="staff-card staff-card--soft">
-      <h2 class="staff-card__title">Counts</h2>
-      <ul class="mb-0">
-        <li>Branches (sites): <strong>{{ site_count }}</strong></li>
-        <li>Sections (outlets): <strong>{{ outlet_count }}</strong></li>
-        {% if console_has_lodging %}<li>Room types: <strong>{{ room_type_count }}</strong></li>{% endif %}
-        {% if console_has_lodging %}<li>Rooms: <strong>{{ room_count }}</strong></li>{% endif %}
-        {% if console_has_services %}<li>Active services: <strong>{{ service_count }}</strong></li>{% endif %}
-      </ul>
-    </div>
-    <div class="staff-card staff-card--soft">
-      <h2 class="staff-card__title">Business lines</h2>
-      <ul class="mb-0 small">
-        <li>F&amp;B: {% if console_has_fnb %}Yes{% else %}—{% endif %}</li>
-        <li>Retail / supermarket: {% if console_has_retail %}Yes{% else %}—{% endif %}</li>
-        <li>Lodging: {% if console_has_lodging %}Yes{% else %}—{% endif %}</li>
-        <li>Events: {% if console_has_events %}Yes{% else %}—{% endif %}</li>
-      </ul>
-    </div>
-  </div>
-  {% if show_setup_prompt %}
-    <div class="staff-card mb-4">
-      <h2 class="staff-card__title">Business setup</h2>
-      <h2 class="staff-card__title">Guided setup</h2>
-      <p class="staff-muted">Required steps: {{ setup_state.required_completion_percent }}% complete.</p>
-      <a class="staff-btn staff-btn--primary" href="{{ setup_url }}">Finish business setup</a>
-    </div>
-  {% endif %}
-  <h2 class="staff-section-title">Quick links</h2>
-  <div class="staff-quick-links mb-4">
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}">Branches</a>
-    {% if console_has_fnb or console_has_retail %}
-      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}">Menu categories</a>
-      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Menu items</a>
-    {% endif %}
-    {% if console_has_services %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-service-offerings' %}">Services</a>{% endif %}
-    {% if console_has_lodging %}
-      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-types' %}">Room types</a>
-      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-rooms' %}">Rooms</a>
-      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-room-rates' %}">Nightly rates</a>
-    {% endif %}
-  </div>
-{% endif %}
 {% endblock %}
