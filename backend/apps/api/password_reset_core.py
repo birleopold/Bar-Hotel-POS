@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
+from django.db import transaction
+from hashlib import sha256
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 
-from apps.accounts.models import User
+from apps.accounts.models import User, PasswordRecoveryRequest
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
@@ -41,6 +44,16 @@ def attempt_password_reset_confirm(*, uid: str, token: str, new_password: str) -
         return 400, {
             "error": {"code": "invalid_reset", "message": "Invalid or expired reset link."},
         }
+    if user.memberships.exists() and not user.memberships.filter(
+        is_active=True, tenant__is_active=True
+    ).exists():
+        return 400, {"error": {"code": "invalid_reset", "message": "Invalid or expired reset link."}}
+    digest = sha256(vd["token"].encode()).hexdigest()
+    approval = PasswordRecoveryRequest.objects.filter(
+        user=user, status="sent", token_digest=digest, expires_at__gt=timezone.now()
+    ).order_by("-approved_at").first()
+    if approval is None:
+        return 400, {"error": {"code": "invalid_reset", "message": "Invalid or expired reset link."}}
     if not default_token_generator.check_token(user, vd["token"]):
         return 400, {
             "error": {"code": "invalid_reset", "message": "Invalid or expired reset link."},
@@ -55,6 +68,16 @@ def attempt_password_reset_confirm(*, uid: str, token: str, new_password: str) -
                 "fields": {"new_password": list(exc.messages)},
             }
         }
-    user.set_password(vd["new_password"])
-    user.save(update_fields=["password"])
+    with transaction.atomic():
+        approved = PasswordRecoveryRequest.objects.select_for_update().filter(
+            pk=approval.pk, status="sent", token_digest=digest,
+            expires_at__gt=timezone.now()
+        ).first()
+        if approved is None:
+            return 400, {"error": {"code": "invalid_reset", "message": "Invalid or expired reset link."}}
+        user.set_password(vd["new_password"])
+        user.save(update_fields=["password"])
+        approved.status = "used"
+        approved.token_digest = ""
+        approved.save(update_fields=["status", "token_digest"])
     return 200, {"detail": "Password updated. You can sign in with your new password."}
