@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.core.exceptions import PermissionDenied
+from django.db import connection, transaction
 
 from apps.common.admin_mixins import PlatformOperatorModelAdmin
 
@@ -48,6 +50,47 @@ class UserAdmin(DjangoUserAdmin):
     )
 
     filter_horizontal = ("groups", "user_permissions")
+
+    def save_formset(self, request, form, formset, change):
+        """Save tenant memberships within their own RLS scope.
+
+        The central platform host has no request tenant. Django's default
+        inline formset save() otherwise writes accounts_membership with no
+        app.tenant_id and PostgreSQL correctly rejects it.
+        """
+        if formset.model is not Membership:
+            return super().save_formset(request, form, formset, change)
+        if not (
+            request.user.is_authenticated
+            and (request.user.is_superuser or getattr(request.user, "is_platform_staff", False))
+        ):
+            raise PermissionDenied("Only platform operators may edit tenant memberships.")
+
+        # Django has validated all inline forms before calling save_formset.
+        # Keep each membership and its sites/outlets m2m writes in the *same*
+        # transaction with a tenant-specific SET LOCAL scope.
+        for inline_form in formset.forms:
+            if not inline_form.cleaned_data:
+                continue
+            instance = inline_form.instance
+            deleting = bool(inline_form.cleaned_data.get("DELETE"))
+            if not deleting and not inline_form.has_changed():
+                continue
+            tenant = inline_form.cleaned_data.get("tenant") or getattr(instance, "tenant", None)
+            if tenant is None:
+                raise ValueError("Membership must have a tenant before saving.")
+            if instance.pk and str(instance.tenant_id) != str(tenant.pk):
+                raise PermissionDenied("Move memberships by deleting and re-creating them.")
+            with transaction.atomic():
+                if connection.vendor == "postgresql":
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT set_config('app.tenant_id', %s, true)", [str(tenant.pk)])
+                if deleting:
+                    if instance.pk:
+                        instance.delete()
+                else:
+                    inline_form.save()
+
 
 
 @admin.register(UserInvite)
