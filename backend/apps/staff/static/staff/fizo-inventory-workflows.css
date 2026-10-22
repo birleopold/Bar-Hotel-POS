@@ -24,3 +24,23 @@
 .fizo-inventory__notice{border:1px solid #d0e7d7;background:#eaf8ee;border-radius:9px;color:#33664a;padding:12px 14px}
 .fizo-inventory a:focus-visible,.fizo-inventory button:focus-visible{outline:3px solid #e6c16e;outline-offset:2px}
 @media(max-width:700px){.fizo-inventory__panel{padding:12px}.fizo-inventory__header>.staff-btn{width:100%;justify-content:center}.fizo-inventory .row{--bs-gutter-x:12px}}
+
+
+/* Consistent inventory section tabs and final stock workflow pages */
+.fizo-inventory__tabs{display:flex;align-items:center;gap:7px;overflow-x:auto;padding:7px 0 15px;margin:3px 0 18px}
+.fizo-inventory__tab{white-space:nowrap;flex:none;display:inline-flex;align-items:center;min-height:40px;padding:9px 12px;border-radius:9px;border:1px solid #deebe3;font-size:12px;font-weight:800;text-decoration:none}
+.fizo-inventory__tab--normal{color:#4a685e;background:#fff}
+.fizo-inventory__tab--active{color:#fff;background:#008a49;border-color:#008a49}
+.fizo-inventory__section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.fizo-inventory__section-head p{color:#73878a;font-size:13px}
+.fizo-inventory--movement-upload .fizo-inventory__panel{max-width:880px}
+.fizo-inventory--movement-upload input[type=file]{padding:12px;width:100%;background:#f8fbf9}
+.fizo-inventory--shelves .fizo-inventory__table,.fizo-inventory--scale-labels .fizo-inventory__table{min-width:850px}
+.fizo-inventory--shelves details,.fizo-inventory--scale-labels details{max-width:550px}
+.fizo-inventory--shelves details>summary,.fizo-inventory--scale-labels details>summary{cursor:pointer}
+.fizo-inventory--intelligence .staff-metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:11px}
+.fizo-inventory--intelligence .staff-metric-row span{border:1px solid #e0ebe6;border-radius:11px;background:#fff;padding:15px;display:flex;flex-direction:column}
+.fizo-inventory--intelligence .staff-metric-row strong{color:#008949;font-size:22px}
+.fizo-inventory--intelligence .staff-metric-row small{font-size:12px;color:#6e8081}
+.fizo-inventory--intelligence .staff-card{height:100%}
+@media(max-width:650px){.fizo-inventory__tabs{gap:5px}.fizo-inventory__tab{font-size:11px;padding:8px 10px}.fizo-inventory__section-head>.staff-btn{width:100%;justify-content:center}}
