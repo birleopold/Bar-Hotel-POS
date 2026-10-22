@@ -1249,6 +1249,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 )
                 # Serialize quick-registration across separate orders for the
                 # same tenant, not just retries against one basket.
+                # Coordinate with console product creation/edit using the tenant row.
+                from apps.tenants.models import Tenant
+                Tenant.objects.select_for_update().get(pk=order.tenant_id)
                 MenuCategory.objects.select_for_update().get(pk=category.pk)
                 if data["barcode"] and MenuItem.objects.filter(
                     tenant_id=order.tenant_id, barcode=data["barcode"]
