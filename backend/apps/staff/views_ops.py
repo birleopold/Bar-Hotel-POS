@@ -760,6 +760,21 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 )
                 .order_by("category__sort_order", "category__name", "name")
             )
+            is_retail_catalogue = order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            if is_retail_catalogue:
+                # Bound initial catalogue data and modifier prefetch; code scanning
+                # continues through the independent validated scan_add_line handler.
+                catalogue_search = (self.request.GET.get("catalogue_q") or "").strip()[:80]
+                ctx["retail_catalogue_q"] = catalogue_search
+                if catalogue_search:
+                    menu_qs = menu_qs.filter(
+                        Q(name__icontains=catalogue_search)
+                        | Q(sku__icontains=catalogue_search)
+                        | Q(barcode__icontains=catalogue_search)
+                    )
+                menu_qs = list(menu_qs[:81])
+                ctx["retail_catalogue_has_more"] = len(menu_qs) > 80
+                menu_qs = menu_qs[:80]
             modifiers_by_item: dict[str, list] = {}
             for item in menu_qs:
                 groups_payload: list[dict] = []
