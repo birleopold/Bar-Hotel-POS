@@ -75,3 +75,8 @@ All **14 tracked inventory templates**, including shared `includes/subnav.html`,
 ## Purchasing and supplier templates — 2026-10-22
 
 All **7 tracked purchasing HTML templates** were touched in this batch: `purchase_orders_list.html`, `purchase_order_create.html`, `purchase_order_detail.html`, `supplier_balances.html`, `supplier_form.html`, `suppliers_list.html`, and `includes/subnav.html`. They now use a dedicated `fizo-purchasing.css` and Fizo headings, cards, tables and navigation. Backend PO, receiving, supplier obligations, approvals, payments and authorization logic was not changed. Source-level compilation checks were added and deployed CSS verification was configured. **Status: source-updated; not browser-accepted, transaction-tested or production-deployed.**
+
+
+## Cashier shifts and workstations — 2026-10-22
+
+Updated `staff/pos_shifts.html` and `staff/workstations.html` with the approved Fizo white/green layout and dedicated `staff/fizo-register.css`. Preserved till open/close, cash movement, workstation pairing, role restrictions, forms and CSRF. Added Django compilation/source checks and deployment static asset verification. Source changes only: **not deployed, authenticated, or transaction tested** in this batch. Receipt print and customer display remain independently outstanding.
