@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from django.test import SimpleTestCase
+from django.template.loader import get_template
 
 
 class FizoHotelReservationsLayoutTests(SimpleTestCase):
@@ -139,3 +140,16 @@ class FizoHotelReservationsLayoutTests(SimpleTestCase):
                      "membership_can_manage_housekeeping_workflows"):
             self.assertIn(gate, page)
         self.assertNotIn("staff-subnav-pills", page)
+
+    def test_all_thirteen_hotel_templates_compile(self):
+        """Django parses each page, include and inherited block at test time."""
+        names = (
+            "availability.html", "folio_detail.html", "folios_list.html",
+            "housekeeping.html", "includes/subnav.html", "maintenance.html",
+            "night_audit.html", "reservation_detail.html", "reservation_form.html",
+            "reservations_list.html", "room_types_list.html", "rooms_list.html",
+            "tape_chart.html",
+        )
+        for name in names:
+            with self.subTest(template=name):
+                get_template("staff/lodging/" + name)
