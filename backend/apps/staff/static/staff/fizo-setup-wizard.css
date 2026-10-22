@@ -1,5 +1,5 @@
 /* Fizo setup wizard: canonical design, no template-inline fallback. */
-/* Inline safety net: the setup page remains styled if collected static CSS is stale/missing. */
+/* Setup-specific structure. Shared form controls live in fizo-setup-area.css. */
 .fizo-setup-page{background:#f5f8fa!important;padding:26px 32px 45px!important;width:100%;max-width:none!important;min-width:0;font-family:"DM Sans",system-ui,sans-serif;color:#162638}
 .fizo-setup-page .grocery-setup{width:100%;max-width:1400px;margin:auto}
 .fizo-setup-page .grocery-setup__hero{display:flex;justify-content:space-between;align-items:start;gap:18px;flex-wrap:wrap;margin:0 0 22px}
@@ -67,3 +67,23 @@
 .grocery-console-body .grocery-console-links a.is-active{background:#e6f6ec!important;color:#008445!important;border-left:3px solid #008d4e}
 .grocery-console-body .grocery-console-help{padding:18px;color:#768899;font-size:12px}
 @media(max-width:700px){.grocery-console-body .console-sidebar{width:100%;max-width:none;min-width:0}.grocery-console-body .grocery-console-links{flex-direction:row;overflow-x:auto;white-space:nowrap}}
+
+/* Secondary setup content: no legacy stacked cards or giant sidebar controls. */
+.fizo-setup-page .fizo-optional{margin-top:26px}
+.fizo-setup-page .fizo-optional__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.fizo-setup-page .fizo-optional__card{display:flex;flex-direction:column;min-height:216px;padding:20px!important;gap:10px}
+.fizo-setup-page .fizo-optional__head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.fizo-setup-page .fizo-optional__icon{height:40px;width:40px;display:grid;place-items:center;border-radius:10px;background:#e9f7ef;color:#008d4e;font-size:19px}
+.fizo-setup-page .fizo-optional__card h3{font-size:16px;font-weight:800;margin:0;color:#182c40}
+.fizo-setup-page .fizo-optional__card p{font-size:13px;line-height:1.55;color:#6e8091;margin:0;flex:1}
+.fizo-setup-page .fizo-optional__actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fizo-setup-page .fizo-optional__card .grocery-setup__more{grid-column:auto;margin:0}
+.fizo-setup-page .grocery-setup__aside{width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.fizo-setup-page .grocery-setup__aside .staff-card{min-width:0}
+.fizo-setup-page .grocery-setup__aside-links a{display:flex;align-items:center;gap:10px;padding:9px 10px;background:#f3faf6;border-radius:9px}
+.fizo-setup-page .grocery-setup__aside .grocery-setup__profile summary{cursor:pointer;font-weight:800;color:#20374b}
+.fizo-setup-page .grocery-setup__profile .staff-checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0}
+.fizo-setup-page .grocery-setup__profile .staff-checklist label{display:flex;gap:8px;align-items:center;min-width:0;font-size:13px}
+.fizo-setup-page .grocery-setup__profile .staff-checklist input{width:auto;min-height:0}
+@media(max-width:1000px){.fizo-setup-page .grocery-setup__aside{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.fizo-setup-page .fizo-optional__grid,.fizo-setup-page .grocery-setup__aside{grid-template-columns:1fr}.fizo-setup-page .grocery-setup__profile .staff-checklist{grid-template-columns:1fr}}
