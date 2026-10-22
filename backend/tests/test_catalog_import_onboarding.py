@@ -300,3 +300,41 @@ def test_bulk_price_confirmation_is_exposed_on_catalog_page():
     template = Path(__file__).resolve().parents[1] / "apps" / "console" / "templates" / "console" / "org" / "catalog_import.html"
     assert 'name="confirm_price_changes"' in template.read_text(encoding="utf-8")
     assert 'self.request.POST.get("confirm_price_changes") != "yes"' in inspect.getsource(OrgCatalogImportView.form_valid)
+
+
+@pytest.mark.django_db
+def test_catalog_import_rejects_existing_quick_product_name_without_sku_collision():
+    a = _seed_tenant_bundle(
+        name="CSV Quick Name", slug="csv-quick-name-guard",
+        user_email="csv-quick-name@example.test",
+    )
+    MenuItem.objects.create(
+        tenant=a["tenant"], category=a["category"],
+        name="New Kitchen Soap", sku="QUICK-123456",
+        unit_price="5000.00", track_inventory=False,
+    )
+    csv_text = "category,name,unit_price,sku,barcode\nCleaning,new kitchen soap,5000.00,SOAP-02,\n"
+    with pytest.raises(CatalogImportProblem, match="Product name already exists"):
+        parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(csv_text))
+
+
+@pytest.mark.django_db
+def test_catalog_import_rechecks_names_at_commit_and_rejects_duplicate_csv_rows():
+    a = _seed_tenant_bundle(
+        name="CSV Name Race", slug="csv-name-race",
+        user_email="csv-name-race@example.test",
+    )
+    csv_text = "category,name,unit_price,sku\nFood,New Arrival,800.00,A-01\n"
+    prepared = parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(csv_text))
+    MenuItem.objects.create(
+        tenant=a["tenant"], category=a["category"],
+        name="new arrival", sku="OTHER-01", unit_price="800.00",
+    )
+    before = MenuItem.objects.filter(tenant=a["tenant"]).count()
+    with pytest.raises(CatalogImportProblem, match="Product name already exists"):
+        import_catalog_items(tenant=a["tenant"], rows=prepared)
+    assert MenuItem.objects.filter(tenant=a["tenant"]).count() == before
+
+    duplicates = "category,name,unit_price,sku\nFood,Fresh Soap,900.00,F-01\nFood,fresh soap,900.00,F-02\n"
+    with pytest.raises(CatalogImportProblem, match="Product name already exists"):
+        parse_catalog_csv(tenant=a["tenant"], uploaded=file_of(duplicates))
