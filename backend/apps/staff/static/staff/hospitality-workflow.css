@@ -14,3 +14,23 @@
 .hospitality-workflow .staff-chip-row [aria-current=page]{background:#008c4d;color:#fff;border-color:#008c4d}
 .hospitality-workflow .staff-section-head{font-size:1.1rem;font-weight:750;color:#243c57}
 @media(max-width:700px){.hospitality-workflow .staff-dash-hero__panel{padding:16px}.hospitality-workflow .staff-table{min-width:520px}.hospitality-workflow .staff-toolbar{padding:12px}}
+
+/* Visual alignment with the approved Fizo four-sector dashboard concept. */
+.hospitality-workflow{--hospitality-green:#008c4d;--hospitality-ink:#172743;--hospitality-border:#e1e9ef}
+.hospitality-workflow .staff-pos-orders-hero,.hospitality-workflow .staff-menu-hero .staff-dash-hero__panel{border:1px solid var(--hospitality-border);border-radius:16px;background:#fff;box-shadow:0 3px 15px rgba(28,45,77,.04)}
+.hospitality-workflow .staff-pos-orders-hero{padding:18px 22px}
+.hospitality-workflow .staff-pos-table-card{background:#fff;border:1px solid var(--hospitality-border);border-radius:13px;min-height:110px}
+.hospitality-workflow .staff-pos-table-card:hover{border-color:#8ecdb0;box-shadow:0 5px 16px rgba(0,140,77,.08)}
+.hospitality-workflow .staff-menu-category{border:1px solid var(--hospitality-border);border-radius:15px;background:#fff;overflow:hidden}
+.hospitality-workflow .staff-menu-item-card{border:1px solid var(--hospitality-border);border-radius:12px;background:#fff}
+.hospitality-workflow .staff-menu-category__head{background:#f7fbf9}
+.hospitality-workflow .staff-menu-hero__summary,.hospitality-workflow .staff-metric-row>span{background:#f1f8f4;border:1px solid #d8eade;border-radius:12px}
+.hospitality-workflow .staff-tag--teal{color:#087b45;background:#e6f6ed}
+.hospitality-workflow .staff-input{border-radius:9px;border:1px solid #d6e2ea;min-height:42px}
+.hospitality-workflow .staff-card__title{color:var(--hospitality-ink);font-weight:750}
+@media(max-width:700px){
+  .hospitality-workflow .staff-pos-orders-hero{padding:14px}
+  .hospitality-workflow .staff-page-hero__head{flex-wrap:wrap;gap:12px}
+  .hospitality-workflow .staff-page-hero__actions{width:100%;display:flex;flex-wrap:wrap}
+  .hospitality-workflow .staff-pos-tables-grid{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}
+}
