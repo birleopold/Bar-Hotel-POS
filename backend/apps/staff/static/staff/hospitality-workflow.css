@@ -54,3 +54,16 @@
 .hospitality-dashboard .staff-room-health__bar{background:#e4efe8;border-radius:999px;overflow:hidden}
 .hospitality-dashboard .staff-room-health__bar span{background:#008c4d}
 @media(max-width:700px){.hospitality-dashboard .staff-dash-hero--modern .staff-dash-hero__panel{padding:16px;flex-direction:column;align-items:flex-start}.hospitality-dashboard .staff-property-pulse{padding:14px}.hospitality-dashboard .staff-property-pulse__kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.hospitality-dashboard .staff-tile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Kitchen queue, live service, and cash reconciliation share Fizo surfaces. */
+.hospitality-workflow .staff-pos-kds-head{background:#fff;border:1px solid #e1e9ef;border-radius:15px;padding:18px 22px;box-shadow:0 3px 15px rgba(28,45,77,.04)}
+.hospitality-workflow .kds-toolbar{background:#fff;border:1px solid #e1e9ef;border-radius:12px;padding:12px 16px}
+.hospitality-workflow .staff-kds-summary{background:#fff;border:1px solid #e1e9ef;border-radius:14px;overflow:hidden}
+.hospitality-workflow .staff-kds-summary__metric{background:#f7fbf9}
+.hospitality-workflow .staff-kds-summary__metric strong{color:#087b45}
+.hospitality-workflow .staff-register-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.hospitality-workflow .staff-register-summary>div{background:#f7fbf9;border:1px solid #dfece4;border-radius:11px;padding:12px}
+.hospitality-workflow .staff-register-summary__total{background:#e9f7ee!important;border-color:#9ed4b6!important}
+.hospitality-workflow .staff-pos-lane-card{border:1px solid #e1e9ef;border-radius:14px;background:#fff}
+.hospitality-workflow .staff-pos-lane-card__row{border-bottom:1px solid #eef2f5;min-height:46px;padding:8px 2px}
+@media(max-width:700px){.hospitality-workflow .staff-pos-kds-head{padding:14px}.hospitality-workflow .kds-toolbar{padding:10px}.hospitality-workflow .staff-register-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
