@@ -47,3 +47,19 @@ class FizoCashierSupportTests(SimpleTestCase):
             self.assertIn(marker, retail)
         get_template("staff/order_detail.html")
         get_template("staff/order_detail_supermarket.html")
+
+    def test_retail_checkout_cashier_and_payment_contract(self):
+        root = Path(__file__).resolve().parent
+        views = (root / "views_ops.py").read_text(encoding="utf-8")
+        checkout = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        styles = (root / "static/staff/fizo-checkout-v1.css").read_text(encoding="utf-8")
+        self.assertIn("def _can_operate_retail_checkout(", views)
+        self.assertIn("MembershipRole.SERVER", views)
+        self.assertIn('"record_payment"', views)
+        self.assertIn('"scan_add_line"', views)
+        self.assertIn('"adjust_line_qty"', views)
+        self.assertIn('class="fizo-cashier-payment-summary"', checkout)
+        self.assertIn('id="fizo-cashier-payment"', checkout)
+        self.assertIn('data-pos-payment-form', checkout)
+        self.assertIn("fizo-cashier-pay-cta", styles)
+        self.assertIn("grid-template-columns:minmax(0,1fr)!important", styles)
