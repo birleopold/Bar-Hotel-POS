@@ -10,6 +10,28 @@
   var qty=addForm&&addForm.querySelector('input[name="quantity"]');
   var product=addForm&&addForm.querySelector('select[name="menu_item"]');
   var live=document.querySelector("[data-pos-menu-selection]");
+  document.querySelectorAll("[data-reference-scan-focus]").forEach(function(button){
+    button.addEventListener("click",function(){
+      var input=document.querySelector('[data-retail-scan-form] input[name="code"]');
+      if(input){input.focus();input.select();input.scrollIntoView({block:"nearest"});}
+    });
+  });
+  var icons=[
+    [/^all/i,"bi-grid"],[/grain|food|flour|rice/i,"bi-flower1"],
+    [/drink|beverage|water/i,"bi-cup-straw"],[/dairy|milk/i,"bi-cup-hot"],
+    [/snack|biscuit|cookie/i,"bi-cookie"],[/fruit|veg|produce/i,"bi-apple"],
+    [/house|home|clean/i,"bi-house"],[/personal|beauty|care/i,"bi-droplet"],
+    [/other|misc/i,"bi-three-dots"]
+  ];
+  root.querySelectorAll("[data-pos-menu-filter]").forEach(function(button){
+    if(button.querySelector(".reference-category-icon"))return;
+    var label=(button.textContent||"").trim();
+    var found=icons.find(function(entry){return entry[0].test(label);});
+    var icon=document.createElement("i");
+    icon.className="bi "+(found?found[1]:"bi-grid-3x3-gap")+" reference-category-icon";
+    icon.setAttribute("aria-hidden","true");
+    button.insertBefore(icon,button.firstChild);
+  });
   function focusSearch(barcode){
     var input=barcode?(document.querySelector('[data-retail-scan-form] input[name="code"]')||server||local):(local||server);
     if(input){input.focus();input.select();input.scrollIntoView({block:"nearest"});}
