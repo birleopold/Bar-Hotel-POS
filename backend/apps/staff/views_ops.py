@@ -1206,8 +1206,25 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ).exists():
             messages.error(request, "This barcode already exists. Search for its registered product instead.")
             return redirect("staff-order-detail", order_id=order.id)
+        # Prevent a second quick-entry for an already catalogued product.
+        duplicate = MenuItem.objects.filter(
+            tenant_id=order.tenant_id, name__iexact=data["name"],
+            is_active=True,
+        ).first()
+        if duplicate:
+            messages.error(request, "A product with this name already exists. Search the catalogue before creating another.")
+            return redirect("staff-order-detail", order_id=order.id)
         try:
             with transaction.atomic():
+                # Recheck inside the write transaction to catch simultaneous cashier adds.
+                if data["barcode"] and MenuItem.objects.filter(
+                    tenant_id=order.tenant_id, barcode=data["barcode"]
+                ).exists():
+                    raise ValueError("This barcode is already registered.")
+                if MenuItem.objects.filter(
+                    tenant_id=order.tenant_id, name__iexact=data["name"], is_active=True,
+                ).exists():
+                    raise ValueError("This product name is already registered.")
                 category, _ = MenuCategory.objects.get_or_create(
                     tenant_id=order.tenant_id, name="Needs catalogue review",
                     defaults={"is_active": True, "sort_order": 9999},
@@ -1850,6 +1867,11 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
         else:
             item_qs = MenuItem.objects.none()
 
+        if self.request.GET.get("review") == "quick":
+            item_qs = item_qs.filter(
+                category__name="Needs catalogue review",
+                sku__startswith="QUICK-",
+            )
         query = self.request.GET.get("q", "").strip()[:80]
         if query:
             item_qs = item_qs.filter(
@@ -1871,6 +1893,13 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
         ctx["menu_all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["can_manage_tv_details"] = membership_can_manage_workspace_settings(self.request.tenant_membership)
         ctx["menu_search_q"] = self.request.GET.get("q", "").strip()[:80]
+        ctx["quick_review_count"] = MenuItem.objects.filter(
+            tenant_id=self.request.tenant.id,
+            category__name="Needs catalogue review",
+            sku__startswith="QUICK-",
+            is_active=True,
+        ).count()
+        ctx["quick_review_filter"] = self.request.GET.get("review") == "quick"
         # A supermarket staff member in an all-register view needs the same
         # product catalogue as when a single store register is selected.
         retail_types = {OutletType.SUPERMARKET, OutletType.RETAIL}
