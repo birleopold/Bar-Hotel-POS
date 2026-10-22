@@ -1,356 +1,132 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}Operations overview{% endblock %}
-{% block extra_css %}{{ block.super }}{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}<link rel="stylesheet" href="{% static 'staff/fizo-floor-dashboard.css' %}?v=20261022.1">{% endif %}{% if staff_product.business_key != "supermarket" and staff_product.business_key != "retail" %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.3">{% endif %}{% endblock %}
-{% block body_class %}{% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}grocery-owner-body{% endif %}{% endblock %}
-{% block main_class %}staff-main--wide staff-main--dashboard{% if staff_product.business_key != "supermarket" and staff_product.business_key != "retail" %} hospitality-workflow hospitality-dashboard{% endif %}{% endblock %}
+{% block title %}Dashboard · Fizo{% endblock %}
+{% block main_class %}staff-main--wide fizo-dashboard-page{% endblock %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'staff/fizo-dashboard-v2.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
-  {% if not show_workspace_admin_tools or staff_product.business_key != "supermarket" and staff_product.business_key != "retail" %}
-  <header class="staff-dash-hero staff-dash-hero--modern">
-    <div class="staff-dash-hero__panel">
-      <div class="staff-dash-hero__copy">
-        <p class="staff-dash-hero__eyebrow"><i class="bi bi-grid-1x2" aria-hidden="true"></i> {{ staff_product.workspace_label|default:"Operations workspace" }} <span aria-hidden="true">·</span> Overview</p>
-        <h1 class="staff-dash-hero__title">{{ staff_workspace_title|default:"Your day, at a glance" }}{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
-        <p class="staff-dash-hero__tagline">{{ staff_product.tagline|default:"Manage sales, service, and daily operations in one workspace." }}</p>
-      </div>
-      <div class="staff-dash-hero__right">
-        <span class="staff-dash-date"><i class="bi bi-calendar3" aria-hidden="true"></i>{% now "l, j F" %}</span>
-      </div>
+<div class="fizo-dash" aria-label="Fizo business dashboard">
+  <header class="fizo-dash__head">
+    <div><div class="fizo-dash__eyebrow"><i class="bi bi-grid-1x2" aria-hidden="true"></i> Fizo / {{ staff_product.workspace_label|default:"Business" }}</div>
+      <h1>{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard{% elif staff_product.business_key == "restaurant" or staff_product.business_key == "cafeteria" or staff_product.business_key == "kitchen" %}Restaurant dashboard{% elif staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Bar dashboard{% elif staff_product.business_key == "lodging" %}Hotel dashboard{% else %}Operations dashboard{% endif %}</h1>
+      <p>Welcome back{% if user.first_name %}, {{ user.first_name }}{% endif %}. Your workspace at a glance.</p>
     </div>
+    <span class="fizo-dash__pill"><i class="bi bi-calendar3" aria-hidden="true"></i> {% now "l, j F" %}</span>
   </header>
-  {% endif %}
 
   {% if not active_membership %}
-    <div class="staff-card staff-card--soft staff-empty-split">
-      <div class="staff-empty-copy">
-        <h2 class="staff-card__title">Pick a workspace</h2>
-        <p class="staff-muted">No workspace selected</p>
-        <p class="staff-muted">Choose where you’re working.</p>
-        {% if memberships %}
-          <form method="post" action="{% url 'staff-select-tenant' %}" class="mt-3">
-            {% csrf_token %}
-            <label class="staff-label" for="dash-tenant">Workspace</label>
-            <select class="staff-input mb-3" id="dash-tenant" name="tenant_id" required>
-              {% for m in memberships %}
-                <option value="{{ m.tenant_id }}">{{ m.tenant.name }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="staff-btn staff-btn--primary">Open</button>
-          </form>
-        {% endif %}
-      </div>
-      <div class="staff-workspace-preview" aria-hidden="true">
-        <span class="staff-workspace-preview__mark"><i class="bi bi-buildings"></i></span>
-        <span class="staff-workspace-preview__line"></span>
-        <span class="staff-workspace-preview__line staff-workspace-preview__line--short"></span>
-        <span class="staff-workspace-preview__caption">One place for your shift</span>
-      </div>
-    </div>
-  {% else %}
-    {% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}
-      {% include "staff/includes/grocery_owner_dashboard.html" %}
-    {% else %}
-
-    {% if show_workspace_setup_cta and tenant_setup_state and tenant_setup_progress %}
-      <div class="staff-setup-banner">
-        <p class="staff-setup-banner__text">Finish business setup</p>
-        <p class="staff-muted mb-0">Core setup is {{ tenant_setup_state.required_completion_percent }}% complete.</p>
-        <div class="staff-setup-banner__actions">
-          <a class="staff-btn staff-btn--primary" href="{{ tenant_setup_url }}">Continue</a>
-          <form method="post" action="{{ tenant_setup_dismiss_url }}" class="d-inline">
-            {% csrf_token %}
-            <button type="submit" class="staff-btn staff-btn--ghost">Later</button>
-          </form>
-        </div>
-      </div>
-    {% endif %}
-
-    {% if staff_nav.orders and staff_product.business_key == "supermarket" or staff_nav.orders and staff_product.business_key == "retail" %}
-    <section class="fizo-floor-pos-entry" aria-label="Supermarket point of sale">
-      <div class="fizo-floor-pos-entry__heading">
-        <span class="fizo-floor-pos-entry__icon"><i class="bi bi-cart3" aria-hidden="true"></i></span>
-        <div><p class="fizo-floor-pos-entry__eyebrow">Your checkout station</p><h2>Serve the next customer</h2><p>Start a sale, scan or search products, then take payment through the registered checkout flow.</p></div>
-      </div>
-      <a class="fizo-floor-pos-entry__button" href="{% url 'staff-orders' %}">Open point of sale <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+    <section class="fizo-dash__panel">
+      <h2>Select a workspace</h2><p>Choose the business where you are working.</p>
+      {% if memberships %}<form method="post" action="{% url 'staff-select-tenant' %}">{% csrf_token %}
+        <label for="fizo-workspace">Workspace</label>
+        <select class="staff-input" id="fizo-workspace" name="tenant_id" required>{% for m in memberships %}<option value="{{ m.tenant_id }}">{{ m.tenant.name }}</option>{% endfor %}</select>
+        <button class="fizo-dash__action" type="submit">Open workspace</button>
+      </form>{% endif %}
     </section>
-    {% endif %}
-
-    {% if staff_dashboard_lodging_snapshot %}
-      <section class="staff-property-pulse" aria-labelledby="property-pulse-title">
-        <div class="staff-property-pulse__head">
-          <div>
-            <p class="staff-dash-hero__eyebrow mb-1">Property pulse</p>
-            <h2 id="property-pulse-title" class="staff-property-pulse__title">Today at {{ staff_dashboard_lodging_snapshot.site_name }}</h2>
-          </div>
-          <div class="staff-chip-row">
-            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_lodging_snapshot.tape_url }}">View tape</a>
-            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}">Housekeeping</a>
-            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_lodging_snapshot.maintenance_url }}">Maintenance · {{ staff_dashboard_lodging_snapshot.open_maintenance }}</a>
-          </div>
-        </div>
-        <div class="staff-property-pulse__kpis">
-          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=arrivals" class="staff-property-kpi staff-property-kpi--arrival"><strong>{{ staff_dashboard_lodging_snapshot.arrivals }}</strong><span>Arrivals</span></a>
-          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=in_house" class="staff-property-kpi staff-property-kpi--inhouse"><strong>{{ staff_dashboard_lodging_snapshot.in_house }}</strong><span>In house</span></a>
-          <a href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=departures" class="staff-property-kpi"><strong>{{ staff_dashboard_lodging_snapshot.departures }}</strong><span>Departures</span></a>
-          <a href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}" class="staff-property-kpi staff-property-kpi--ready"><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong><span>Rooms ready</span></a>
-          <a href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}" class="staff-property-kpi staff-property-kpi--attention"><strong>{{ staff_dashboard_lodging_snapshot.dirty_rooms }}</strong><span>Need cleaning</span></a>
-          <a href="{{ staff_dashboard_lodging_snapshot.tape_url }}" class="staff-property-kpi"><strong>{{ staff_dashboard_lodging_snapshot.occupancy_percent }}%</strong><span>Occupied</span></a>
-        </div>
-        <div class="staff-property-pulse__lower">
-          <div>
-            <h3 class="staff-property-pulse__subhead">Arriving today</h3>
-            {% if staff_dashboard_lodging_snapshot.arrival_rows %}
-              <ul class="staff-property-arrivals">
-                {% for row in staff_dashboard_lodging_snapshot.arrival_rows %}
-                  <li><a href="{{ row.detail_url }}"><span><strong>{{ row.guest_name }}</strong><small>{{ row.status_label }}</small></span><span class="staff-tag">{{ row.room_label }}</span></a></li>
-                {% endfor %}
-              </ul>
-            {% else %}<p class="staff-muted small mb-0">No arrivals waiting for check-in.</p>{% endif %}
-          </div>
-          <div class="staff-room-health">
-            <h3 class="staff-property-pulse__subhead">Room readiness</h3>
-            <div class="staff-room-health__bar" aria-label="{{ staff_dashboard_lodging_snapshot.ready_rooms }} of {{ staff_dashboard_lodging_snapshot.total_rooms }} rooms ready"><span style="width: {% widthratio staff_dashboard_lodging_snapshot.ready_rooms staff_dashboard_lodging_snapshot.total_rooms 100 %}%"></span></div>
-            <p><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong> ready · {{ staff_dashboard_lodging_snapshot.dirty_rooms }} dirty · {{ staff_dashboard_lodging_snapshot.out_of_order_rooms }} out of order</p>
-          </div>
-        </div>
+  {% else %}
+    {% if staff_nav.orders %}
+      <section class="fizo-dash__launch" aria-label="Start serving">
+        <div><h2>{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Ready for the next checkout?{% elif staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Ready to serve the next tab?{% else %}Ready for the next order?{% endif %}</h2>
+          <p>Use your existing authorized ordering and payment workflow.</p></div>
+        <a class="fizo-dash__action" href="{% url 'staff-orders' %}"><i class="bi bi-cart3" aria-hidden="true"></i> Open POS <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      </section>
+    {% elif staff_show_lodging_nav and staff_nav.lodging %}
+      <section class="fizo-dash__launch">
+        <div><h2>Front desk</h2><p>Review arrivals, departures and room availability.</p></div>
+        <a class="fizo-dash__action" href="{% url 'staff-lodging-reservations' %}">Open reservations <i class="bi bi-arrow-right"></i></a>
       </section>
     {% endif %}
 
-    {% if staff_dashboard_primary_actions %}
-      <h2 class="staff-section-head">Start here</h2>
-      <div class="staff-tile-grid">
-        {% for a in staff_dashboard_primary_actions %}
-          {% if a.method == "post" %}<form class="staff-tile-form" method="post" action="{{ a.url }}">{% csrf_token %}<button type="submit" class="staff-tile staff-tile--primary{% if forloop.first %} staff-tile--emphasis{% endif %}"><span class="staff-tile__glyph" aria-hidden="true"><i class="bi bi-{{ a.icon }}"></i></span><span class="staff-tile__label">{{ a.label }}</span></button></form>{% else %}
-          <a
-            href="{{ a.url }}"
-            class="staff-tile staff-tile--primary{% if forloop.first %} staff-tile--emphasis{% endif %}"
-            {% if a.hint %}title="{{ a.hint }}"{% endif %}
-          >
-            <span class="staff-tile__glyph" aria-hidden="true"><i class="bi bi-{{ a.icon }}"></i></span>
-            <span class="staff-tile__label">{{ a.label }}</span>
-            {% if a.hint %}<span class="staff-tile__hint">{{ a.hint }}</span>{% endif %}
-            <i class="bi bi-arrow-up-right staff-tile__arrow" aria-hidden="true"></i>
-          </a>
-          {% endif %}
-        {% endfor %}
-      </div>
-    {% endif %}
+    <section class="fizo-dash__section" aria-labelledby="fizo-kpi-title">
+      <div class="fizo-dash__sectionhead"><h2 id="fizo-kpi-title">Today at a glance</h2><p>Live figures for your authorized workspace scope</p></div>
+      {% if staff_dashboard_lodging_snapshot %}
+        <div class="fizo-dash__kpis">
+          <a class="fizo-dash__kpi" href="{{ staff_dashboard_lodging_snapshot.tape_url }}"><small>Occupancy</small><strong>{{ staff_dashboard_lodging_snapshot.occupancy_percent }}%</strong><i class="bi bi-building"></i></a>
+          <a class="fizo-dash__kpi" href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=arrivals"><small>Arrivals</small><strong>{{ staff_dashboard_lodging_snapshot.arrivals }}</strong><i class="bi bi-box-arrow-in-right"></i></a>
+          <a class="fizo-dash__kpi" href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=departures"><small>Departures</small><strong>{{ staff_dashboard_lodging_snapshot.departures }}</strong><i class="bi bi-box-arrow-right"></i></a>
+          <a class="fizo-dash__kpi" href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}"><small>Rooms ready</small><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong><i class="bi bi-door-open"></i></a>
+        </div>
+      {% elif staff_dashboard_sales_snapshot %}
+        <div class="fizo-dash__kpis">
+          <a class="fizo-dash__kpi" href="{{ staff_dashboard_sales_snapshot.detail_url }}"><small>Net sales · {{ staff_dashboard_sales_snapshot.currency_code }}</small><strong>{{ staff_dashboard_sales_snapshot.net_sales }}</strong><i class="bi bi-graph-up"></i></a>
+          <a class="fizo-dash__kpi" href="{{ staff_dashboard_sales_snapshot.detail_url }}"><small>Payments</small><strong>{{ staff_dashboard_sales_snapshot.payments_count }}</strong><i class="bi bi-receipt"></i></a>
+          <a class="fizo-dash__kpi" href="{{ staff_dashboard_sales_snapshot.detail_url }}"><small>Gross sales</small><strong>{{ staff_dashboard_sales_snapshot.gross_sales }}</strong><i class="bi bi-cash-stack"></i></a>
+          <a class="fizo-dash__kpi" href="{{ staff_dashboard_sales_snapshot.detail_url }}"><small>Refunds</small><strong>{{ staff_dashboard_sales_snapshot.refunds_total }}</strong><i class="bi bi-arrow-counterclockwise"></i></a>
+        </div>
+      {% elif staff_dashboard_operations_snapshot %}
+        <div class="fizo-dash__kpis">{% for metric in staff_dashboard_operations_snapshot %}
+          <a class="fizo-dash__kpi" href="{{ metric.url }}"><small>{{ metric.label }}</small><strong>{{ metric.value }}</strong><span class="fizo-dash__muted">{{ metric.detail }}</span></a>
+        {% endfor %}</div>
+      {% else %}
+        <div class="fizo-dash__panel fizo-dash__empty">No reporting data is available for your current role or selected section. Use the relevant actions below to begin.</div>
+      {% endif %}
+    </section>
 
-    {% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}
-      <section class="grocery-owner-setup staff-card mb-3" aria-labelledby="grocery-owner-title">
-        <div class="grocery-owner-setup__head">
-          <div>
-            <p class="grocery-owner-setup__eyebrow">BUSINESS OWNER · GETTING STARTED</p>
-            <h2 id="grocery-owner-title">Set up your shop, one step at a time</h2>
-            <p>Follow these steps from left to right. You can return whenever you need to change something.</p>
+    <div class="fizo-dash__layout fizo-dash__section">
+      <section class="fizo-dash__panel" aria-labelledby="fizo-work-title">
+        <div class="fizo-dash__sectionhead"><h2 id="fizo-work-title">{% if staff_dashboard_lodging_snapshot %}Room status{% elif staff_dashboard_sales_snapshot %}Popular items{% else %}Work needing attention{% endif %}</h2></div>
+        {% if staff_dashboard_lodging_snapshot %}
+          <div class="fizo-dash__roomgrid">
+            <div><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong><small>Ready</small></div>
+            <div><strong>{{ staff_dashboard_lodging_snapshot.dirty_rooms }}</strong><small>Need cleaning</small></div>
+            <div><strong>{{ staff_dashboard_lodging_snapshot.out_of_order_rooms }}</strong><small>Out of order</small></div>
           </div>
-          {% if tenant_setup_state %}<div class="grocery-owner-setup__progress"><strong>{{ tenant_setup_state.required_completion_percent }}%</strong><span>Core setup done</span></div>{% endif %}
-        </div>
-        {% if tenant_setup_state %}<progress class="grocery-owner-setup__bar" max="100" value="{{ tenant_setup_state.required_completion_percent }}" aria-label="Business setup progress">{{ tenant_setup_state.required_completion_percent }}%</progress>{% endif %}
-        <div class="grocery-owner-setup__steps">
-          <a href="{{ tenant_setup_url|default:'#' }}" class="grocery-owner-setup__step">
-            <span class="grocery-owner-setup__number">1</span><i class="bi bi-shop" aria-hidden="true"></i>
-            <strong>My business</strong><small>Shop name, location, currency and receipt details</small><span class="grocery-owner-setup__go">Open setup <i class="bi bi-arrow-right"></i></span>
-          </a>
-          <a href="{% url 'staff-menu' %}" class="grocery-owner-setup__step">
-            <span class="grocery-owner-setup__number">2</span><i class="bi bi-upc-scan" aria-hidden="true"></i>
-            <strong>My products</strong><small>Add names, barcodes and selling prices</small><span class="grocery-owner-setup__go">Manage products <i class="bi bi-arrow-right"></i></span>
-          </a>
-          <a href="{% url 'staff-inventory-balances' %}" class="grocery-owner-setup__step">
-            <span class="grocery-owner-setup__number">3</span><i class="bi bi-box-seam" aria-hidden="true"></i>
-            <strong>My stock</strong><small>Check what you have and record stock arriving</small><span class="grocery-owner-setup__go">Check stock <i class="bi bi-arrow-right"></i></span>
-          </a>
-          <a href="{% url 'staff-workspace-members' %}" class="grocery-owner-setup__step">
-            <span class="grocery-owner-setup__number">4</span><i class="bi bi-people" aria-hidden="true"></i>
-            <strong>My workers</strong><small>Invite cashiers and choose what they may do</small><span class="grocery-owner-setup__go">Manage team <i class="bi bi-arrow-right"></i></span>
-          </a>
-          <a href="{% url 'staff-workstations' %}" class="grocery-owner-setup__step">
-            <span class="grocery-owner-setup__number">5</span><i class="bi bi-printer" aria-hidden="true"></i>
-            <strong>My checkout</strong><small>Set up tills, receipt printing and devices</small><span class="grocery-owner-setup__go">Set up register <i class="bi bi-arrow-right"></i></span>
-          </a>
-        </div>
-        <div class="grocery-owner-setup__footer">
-          <span><i class="bi bi-shield-check" aria-hidden="true"></i> Changes stay in your own business workspace.</span>
-          <a class="staff-btn staff-btn--primary" href="{{ tenant_setup_url|default:'#' }}">Continue guided setup <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-        </div>
+          <p class="fizo-dash__muted mt-3">Room availability is based on the selected property.</p>
+        {% elif staff_dashboard_sales_snapshot and staff_dashboard_sales_snapshot.top_items %}
+          <ul class="fizo-dash__list">{% for row in staff_dashboard_sales_snapshot.top_items %}
+            <li><a href="{{ staff_dashboard_sales_snapshot.detail_url }}"><span><strong>{{ row.name }}</strong><small class="d-block">{{ row.quantity_sold }} sold</small></span><span>{{ row.revenue }}</span></a></li>
+          {% endfor %}</ul>
+        {% elif staff_dashboard_operations_snapshot %}
+          <ul class="fizo-dash__list">{% for metric in staff_dashboard_operations_snapshot %}
+            <li><a href="{{ metric.url }}"><span><strong>{{ metric.label }}</strong><small class="d-block">{{ metric.detail }}</small></span><strong>{{ metric.value }} <i class="bi bi-arrow-right" aria-hidden="true"></i></strong></a></li>
+          {% endfor %}</ul>
+        {% else %}<p class="fizo-dash__empty">Nothing requiring attention is available yet.</p>{% endif %}
       </section>
-    {% endif %}
-    {% if show_workspace_admin_tools %}
-      <div class="staff-card staff-admin-compact mb-3">
-        <div>
-          <h2 class="staff-card__title mb-1">Administration</h2>
-          <p class="staff-muted mb-0">Team & onboarding</p>
-        </div>
-        <div class="staff-chip-row staff-admin-compact__actions">
-          <a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Open admin console</a>
-          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-member-create' %}">New worker</a>
-          <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-members' %}">Team</a>
-        </div>
-      </div>
-    {% endif %}
-
-    {% if staff_dashboard_operations_snapshot %}
-      <section class="staff-operations-pulse" aria-labelledby="operations-pulse-title">
-        <div class="staff-operations-pulse__head">
-          <div>
-            <p class="staff-dash-hero__eyebrow mb-1">Operations pulse</p>
-            <h2 id="operations-pulse-title" class="staff-operations-pulse__title">Work needing attention</h2>
-          </div>
-          <p class="staff-muted small mb-0">Live for your current branch and section scope.</p>
-        </div>
-        <div class="staff-operations-pulse__grid">
-          {% for metric in staff_dashboard_operations_snapshot %}
-            <a class="staff-operations-metric{% if metric.tone %} staff-operations-metric--{{ metric.tone }}{% endif %}" href="{{ metric.url }}">
-              <span class="staff-operations-metric__value">{{ metric.value }}</span>
-              <span class="staff-operations-metric__copy"><strong>{{ metric.label }}</strong><small>{{ metric.detail }}</small></span>
-              <i class="bi bi-arrow-right" aria-hidden="true"></i>
-            </a>
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
-
-    {% if staff_dashboard_secondary_actions %}
-      <h2 class="staff-section-head">Quick</h2>
-      <div class="staff-chip-row">
-        {% for a in staff_dashboard_secondary_actions %}
-          {% if a.method == "post" %}<form method="post" action="{{ a.url }}">{% csrf_token %}<button class="staff-btn staff-btn--ghost" type="submit">{{ a.label }}</button></form>{% else %}<a class="staff-btn staff-btn--ghost" href="{{ a.url }}"{% if a.hint %} title="{{ a.hint }}"{% endif %}>{{ a.label }}</a>{% endif %}
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    {% if staff_dashboard_sales_snapshot %}
-      <section class="staff-dash-sales" aria-labelledby="dash-sales-title">
-        <div class="staff-dash-sales__head">
-          <div>
-            <h2 id="dash-sales-title" class="staff-dash-sales__title">
-              <i class="bi bi-graph-up-arrow me-2" aria-hidden="true"></i>Sales snapshot
-            </h2>
-            <p class="staff-muted small mb-0">{{ staff_dashboard_sales_snapshot.range_caption }} · {{ staff_dashboard_sales_snapshot.currency_code }}</p>
-          </div>
-          <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_sales_snapshot.detail_url }}">Full report</a>
-        </div>
-        <div class="staff-dash-sales__kpis">
-          <div class="staff-dash-sales__kpi">
-            <div class="staff-dash-sales__kpi-top">
-              <span class="staff-dash-sales__kpi-icon" aria-hidden="true"><i class="bi bi-cash-stack"></i></span>
-              <span class="staff-dash-sales__kpi-label">Net sales</span>
-            </div>
-            <span class="staff-dash-sales__kpi-value">{{ staff_dashboard_sales_snapshot.net_sales }}</span>
-          </div>
-          <div class="staff-dash-sales__kpi">
-            <div class="staff-dash-sales__kpi-top">
-              <span class="staff-dash-sales__kpi-icon" aria-hidden="true"><i class="bi bi-receipt"></i></span>
-              <span class="staff-dash-sales__kpi-label">Payments</span>
-            </div>
-            <span class="staff-dash-sales__kpi-value">{{ staff_dashboard_sales_snapshot.payments_count }}</span>
-          </div>
-          <div class="staff-dash-sales__kpi staff-dash-sales__kpi--muted">
-            <div class="staff-dash-sales__kpi-top">
-              <span class="staff-dash-sales__kpi-icon" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></span>
-              <span class="staff-dash-sales__kpi-label">Gross / refunds</span>
-            </div>
-            <span class="staff-dash-sales__kpi-sub">{{ staff_dashboard_sales_snapshot.gross_sales }} / {{ staff_dashboard_sales_snapshot.refunds_total }}</span>
-          </div>
-        </div>
-        {% if staff_dashboard_sales_snapshot.top_items %}
-          <h3 class="staff-dash-sales__subhead">Top items by quantity</h3>
-          <ul class="staff-dash-sales__top">
-            {% for row in staff_dashboard_sales_snapshot.top_items %}
-              <li class="staff-dash-sales__top-row">
-                <span class="staff-dash-sales__top-name">{{ row.name }}</span>
-                <span class="staff-dash-sales__top-qty">{{ row.quantity_sold }} sold</span>
-                <span class="staff-dash-sales__top-rev">{{ row.revenue }}</span>
-              </li>
-            {% endfor %}
-          </ul>
+      <section class="fizo-dash__panel" aria-labelledby="fizo-activity-title">
+        <div class="fizo-dash__sectionhead"><h2 id="fizo-activity-title">{% if staff_dashboard_lodging_snapshot %}Today's arrivals{% elif staff_dashboard_low_stock_rows %}Stock alerts{% else %}Quick access{% endif %}</h2></div>
+        {% if staff_dashboard_lodging_snapshot and staff_dashboard_lodging_snapshot.arrival_rows %}
+          <ul class="fizo-dash__list">{% for row in staff_dashboard_lodging_snapshot.arrival_rows %}<li><a href="{{ row.detail_url }}"><span><strong>{{ row.guest_name }}</strong><small class="d-block">{{ row.status_label }}</small></span><span class="fizo-dash__pill">{{ row.room_label }}</span></a></li>{% endfor %}</ul>
+        {% elif staff_dashboard_low_stock_rows %}
+          <ul class="fizo-dash__list">{% for row in staff_dashboard_low_stock_rows %}<li><span><strong>{{ row.menu_item_name }}</strong><small class="d-block">{{ row.outlet_name }}</small></span><strong>{{ row.quantity }}</strong></li>{% endfor %}</ul>
+          {% if staff_dashboard_low_stock_url %}<a class="fizo-dash__action fizo-dash__action--secondary mt-3" href="{{ staff_dashboard_low_stock_url }}">Review stock</a>{% endif %}
         {% else %}
-          <p class="staff-muted small mb-0 mt-2">No line-level sales in this range yet.</p>
+          <div class="fizo-dash__links">
+            {% if staff_nav.orders %}<a href="{% url 'staff-orders' %}">Orders</a>{% endif %}
+            {% if staff_nav.menu %}<a href="{% url 'staff-menu' %}">Items</a>{% endif %}
+            {% if staff_nav.inventory %}<a href="{% url 'staff-inventory-balances' %}">Stock</a>{% endif %}
+            {% if staff_nav.lodging %}<a href="{% url 'staff-lodging-reservations' %}">Reservations</a>{% endif %}
+          </div>
         {% endif %}
       </section>
-    {% endif %}
+    </div>
 
-    {% if staff_dashboard_low_stock_rows %}
-      <section class="staff-dash-insight staff-dash-insight--stock" aria-labelledby="dash-low-stock-title">
-        <div class="staff-dash-insight__head">
-          <h2 id="dash-low-stock-title" class="staff-dash-insight__title">
-            <i class="bi bi-box-seam me-2" aria-hidden="true"></i>Low stock
-          </h2>
-          {% if staff_dashboard_low_stock_url %}
-            <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ staff_dashboard_low_stock_url }}">View on hand</a>
-          {% endif %}
-        </div>
-        <p class="staff-muted small mb-2 mb-md-3">At or below reorder level for the outlet(s) you’re scoped to.</p>
-        <ul class="staff-dash-insight__list">
-          {% for row in staff_dashboard_low_stock_rows %}
-            <li class="staff-dash-insight__row">
-              <span class="staff-dash-insight__name">{{ row.menu_item_name }}</span>
-              <span class="staff-dash-insight__meta">{{ row.outlet_name }}</span>
-              <span class="staff-dash-insight__qty"><strong>{{ row.quantity }}</strong> / reorder {{ row.reorder_level }}</span>
-            </li>
-          {% endfor %}
-        </ul>
-      </section>
-    {% endif %}
-
-    {% if staff_role_at_work %}
-      <div class="staff-role-strip">
-        <strong>Role</strong> — {% for line in staff_role_at_work %}{{ line }}{% if not forloop.last %} {% endif %}{% endfor %}
-      </div>
-    {% endif %}
-
-    {% if staff_workbench_playbook %}
-      <h2 class="staff-section-head">All tools</h2>
-      {% for section in staff_workbench_playbook %}
-        <div class="staff-workbench-block">
-          <h3 class="staff-card__title mb-1">{{ section.title }}</h3>
-          {% if section.subtitle %}<p class="staff-workbench-block__subtitle">{{ section.subtitle }}</p>{% endif %}
-          <div class="staff-tile-grid">
-            {% for link in section.links %}
-              <a
-                href="{{ link.url }}"
-                class="staff-tile staff-tile--dense {% if link.emphasis %}staff-tile--emphasis{% endif %}"
-                {% if link.hint %}title="{{ link.hint }}"{% endif %}
-              >
-                <span class="staff-tile__glyph" aria-hidden="true"><i class="bi bi-arrow-up-right"></i></span>
-                <span class="staff-tile__label">{{ link.label }}</span>
-                {% if link.hint %}<span class="staff-tile__hint">{{ link.hint }}</span>{% endif %}
-              </a>
-            {% endfor %}
-          </div>
-        </div>
-      {% endfor %}
-    {% endif %}
-
-    {% if sites_with_outlets %}
-      <h2 class="staff-section-head">Branches</h2>
-      <div class="staff-card staff-branches-card">
-        {% for block in sites_with_outlets %}
-          <p class="staff-branches-card__site">{{ block.site.name }}</p>
-          <ul>
-            {% for o in block.outlets %}
-              <li>{{ o.name }} <span class="staff-muted">· {{ o.get_outlet_type_display }}</span></li>
-            {% empty %}
-              <li class="staff-muted">No outlets</li>
-            {% endfor %}
-          </ul>
+    {% if staff_dashboard_primary_actions or staff_dashboard_secondary_actions %}
+    <section class="fizo-dash__section" aria-labelledby="fizo-shortcuts-title">
+      <div class="fizo-dash__sectionhead"><h2 id="fizo-shortcuts-title">Quick actions</h2></div>
+      <div class="fizo-dash__shortcuts">
+        {% for action in staff_dashboard_primary_actions %}
+          {% if action.method == "post" %}<form method="post" action="{{ action.url }}">{% csrf_token %}<button type="submit"><i class="bi bi-{{ action.icon }}" aria-hidden="true"></i>{{ action.label }}</button></form>
+          {% else %}<a href="{{ action.url }}"><i class="bi bi-{{ action.icon }}" aria-hidden="true"></i>{{ action.label }}</a>{% endif %}
+        {% endfor %}
+        {% for action in staff_dashboard_secondary_actions %}
+          {% if action.method == "post" %}<form method="post" action="{{ action.url }}">{% csrf_token %}<button type="submit"><i class="bi bi-arrow-up-right" aria-hidden="true"></i>{{ action.label }}</button></form>
+          {% else %}<a href="{{ action.url }}"><i class="bi bi-arrow-up-right" aria-hidden="true"></i>{{ action.label }}</a>{% endif %}
         {% endfor %}
       </div>
-    {% endif %}
+    </section>{% endif %}
 
+    {% if show_workspace_admin_tools %}
+    <section class="fizo-dash__panel fizo-dash__section">
+      <div class="fizo-dash__sectionhead"><h2>Business management</h2></div>
+      <div class="fizo-dash__links"><a href="{% url 'console-org' %}">Business overview</a><a href="{% url 'console-org-setup' %}">Guided setup</a><a href="{% url 'staff-workspace-members' %}">Staff</a></div>
+    </section>{% elif show_workspace_setup_cta %}
+    <section class="fizo-dash__panel fizo-dash__section"><p>Business setup needs attention.</p><a href="{{ tenant_setup_url }}" class="fizo-dash__action">Review setup</a></section>
+    {% endif %}
     {% if memberships|length > 1 %}
-      <h2 class="staff-section-head">Workspace</h2>
-      <form method="post" action="{% url 'staff-select-tenant' %}" class="staff-card staff-switch-inline">
-        {% csrf_token %}
-        <label class="staff-label" for="switch-tenant">Switch</label>
-        <select class="staff-input mb-3" id="switch-tenant" name="tenant_id" required>
-          {% for m in memberships %}
-            <option value="{{ m.tenant_id }}"{% if active_membership and m.tenant_id == active_membership.tenant_id %} selected{% endif %}>{{ m.tenant.name }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="staff-btn staff-btn--ghost">Apply</button>
+      <form method="post" action="{% url 'staff-select-tenant' %}" class="fizo-dash__panel fizo-dash__section">{% csrf_token %}
+        <label for="fizo-switch">Change workspace</label><select id="fizo-switch" class="staff-input" name="tenant_id">{% for m in memberships %}<option value="{{ m.tenant_id }}"{% if m.tenant_id == active_membership.tenant_id %} selected{% endif %}>{{ m.tenant.name }}</option>{% endfor %}</select>
+        <button class="fizo-dash__action" type="submit">Switch</button>
       </form>
     {% endif %}
-    {% endif %}
   {% endif %}
+</div>
 {% endblock %}
