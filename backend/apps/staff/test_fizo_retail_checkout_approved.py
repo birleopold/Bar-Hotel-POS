@@ -124,3 +124,16 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn("pageLimit += pageSize", detail)
         self.assertIn("matchesCategory && matchesSearch", detail)
         self.assertIn("found += 1", detail)
+
+
+    def test_server_catalogue_is_bounded_without_weakening_post_validation(self):
+        root = Path(__file__).resolve().parent
+        view = (root/"views_ops.py").read_text(encoding="utf-8")
+        template = (root/"templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
+        self.assertIn('self.request.GET.get("catalogue_q")', view)
+        self.assertIn("menu_qs = list(menu_qs[:81])", view)
+        self.assertIn('self.request.method == "GET"', view)
+        self.assertIn("ctx[\"add_line_form\"].fields[\"menu_item\"].queryset", view)
+        self.assertIn('name="catalogue_q"', template)
+        self.assertIn("No matching products", template)
+        self.assertIn("retail_catalogue_has_more", template)
