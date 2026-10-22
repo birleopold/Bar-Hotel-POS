@@ -10,6 +10,17 @@
     <div><p class="fizo-products__eyebrow">Fizo / Supermarket / Catalogue</p><h1>Products</h1><p>Search your sellable products by name, SKU or barcode. Manage product records in the catalogue console.</p></div>
     <div class="fizo-products__actions">{% if staff_nav.workspace %}<a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}"><i class="bi bi-plus-lg"></i> Add product</a><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-catalog-import' %}">Import products</a>{% endif %}</div>
   </header>
+  {% if quick_review_count %}
+  <div class="fizo-products__review-alert" role="status">
+    <div><strong><i class="bi bi-exclamation-circle"></i> {{ quick_review_count }} quick-added product{{ quick_review_count|pluralize }} awaiting catalogue review</strong>
+      <p>Cashiers sold these before full registration. Complete tax, cost, category and stock details before enabling stock tracking.</p></div>
+    {% if quick_review_filter %}
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-menu' %}">Show all products</a>
+    {% else %}
+      <a class="staff-btn staff-btn--primary" href="{% url 'staff-menu' %}?review=quick">Review quick-added</a>
+    {% endif %}
+  </div>
+  {% endif %}
   <section class="fizo-products__surface">
     <div class="fizo-products__tools">
       <form method="get" role="search" class="fizo-products__search"><label for="fizo-product-search">Search products</label><div><i class="bi bi-search" aria-hidden="true"></i><input id="fizo-product-search" name="q" type="search" maxlength="80" value="{{ menu_search_q }}" placeholder="Name, SKU or barcode"><button type="submit">Search</button></div></form>
@@ -25,9 +36,9 @@
             {% for item in cat.items.all %}
               <tr>
                 <td><div class="fizo-products__item">{% if item.display_image_url %}<img src="{{ item.display_image_url }}" alt="" loading="lazy">{% else %}<span class="fizo-products__placeholder"><i class="bi bi-box-seam"></i></span>{% endif %}<strong>{{ item.name }}</strong></div></td>
-                <td>{{ cat.name }}</td><td class="fizo-products__price">{{ item.unit_price }}</td>
+                <td>{{ cat.name }}{% if cat.name == 'Needs catalogue review' and item.sku|slice:":6" == 'QUICK-' %}<span class="fizo-products__pending">Review required</span>{% endif %}</td><td class="fizo-products__price">{{ item.unit_price }}</td>
                 <td>{{ item.sku|default:"—" }}</td>
-                <td>{% if can_manage_tv_details and menu_scope_outlet and not menu_all_outlets_mode %}<details class="fizo-products__details"><summary>Edit display</summary><form method="post">{% csrf_token %}<input type="hidden" name="action" value="display_details"><input type="hidden" name="item_id" value="{{ item.id }}"><label><input type="checkbox" name="is_featured" {% if item.is_featured %}checked{% endif %}> Featured</label><label>Image URL<input class="staff-input" type="url" name="display_image_url" maxlength="200" value="{{ item.display_image_url }}"></label><label>Availability note<input class="staff-input" type="text" name="availability_note" maxlength="160" value="{{ item.availability_note }}"></label><button class="staff-btn staff-btn--primary" type="submit">Save</button></form></details>{% else %}<span class="fizo-products__muted">View only</span>{% endif %}</td>
+                <td>{% if cat.name == 'Needs catalogue review' and item.sku|slice:":6" == 'QUICK-' and staff_nav.workspace %}<a class="staff-btn staff-btn--sm staff-btn--primary" href="{% url 'console-org-menu-item-edit' item_id=item.id %}">Complete product</a>{% elif can_manage_tv_details and menu_scope_outlet and not menu_all_outlets_mode %}<details class="fizo-products__details"><summary>Edit display</summary><form method="post">{% csrf_token %}<input type="hidden" name="action" value="display_details"><input type="hidden" name="item_id" value="{{ item.id }}"><label><input type="checkbox" name="is_featured" {% if item.is_featured %}checked{% endif %}> Featured</label><label>Image URL<input class="staff-input" type="url" name="display_image_url" maxlength="200" value="{{ item.display_image_url }}"></label><label>Availability note<input class="staff-input" type="text" name="availability_note" maxlength="160" value="{{ item.availability_note }}"></label><button class="staff-btn staff-btn--primary" type="submit">Save</button></form></details>{% else %}<span class="fizo-products__muted">View only</span>{% endif %}</td>
               </tr>
             {% empty %}
               <tr><td colspan="5" class="fizo-products__empty">No active products in {{ cat.name }}.</td></tr>
