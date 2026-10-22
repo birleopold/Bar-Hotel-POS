@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User, Membership, PasswordRecoveryRequest
 
-from .password_reset_core import PasswordResetConfirmSerializer, attempt_password_reset_confirm
+from .password_reset_core import PasswordResetConfirmSerializer, attempt_password_reset_confirm, recovery_eligible
 
 
 class PasswordResetRequestThrottle(AnonRateThrottle):
@@ -86,11 +86,7 @@ def request_password_reset_for_email(*, email: str) -> None:
         return
     # Never auto-email credentials. Platform operator must approve first.
     # Revoked staff and disabled accounts are excluded from recovery.
-    if not user.is_active or (
-        user.memberships.exists() and not user.memberships.filter(
-            is_active=True, tenant__is_active=True
-        ).exists()
-    ):
+    if not recovery_eligible(user):
         return
     if not PasswordRecoveryRequest.objects.filter(user=user, status="pending").exists():
         PasswordRecoveryRequest.objects.create(user=user)
