@@ -1,44 +1,35 @@
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{% if login_brand %}{{ login_brand.name }} · Staff sign in{% else %}Staff sign in{% endif %}</title>
-  {% if login_brand and login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
-  <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#173C65{% endif %}">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20261006.3">
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %} · Sign in</title>
+{% if login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
+<meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#00884b{% endif %}">
+<link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20261006.3">
+<link rel="stylesheet" href="{% static 'staff/fizo-auth-2026.css' %}?v=1">
 </head>
-<body class="staff-body"{% if login_brand %} style="--staff-primary:{{ login_brand.primary }}; --brand-primary:{{ login_brand.primary }}"{% endif %}>
-  <main class="staff-login-screen"{% if login_brand.background_url %} style="position:relative;isolation:isolate;overflow:hidden"{% endif %}>
-    {% if login_brand.background_url %}<img src="{{ login_brand.background_url }}" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;pointer-events:none">{% endif %}
-    <section class="staff-login-card" aria-labelledby="staff-login-title"{% if login_brand.background_url %} style="position:relative"{% endif %}>
-      <div class="staff-login-brand">{% if login_brand and login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="" style="width:48px;height:48px;object-fit:contain;border-radius:9px">{% else %}<span class="staff-login-brand__mark" aria-hidden="true">{% if login_brand %}{{ login_brand.name|slice:":1" }}{% else %}S{% endif %}</span>{% endif %}<span><strong>{% if login_brand %}{{ login_brand.name }}{% else %}Staff workspace{% endif %}</strong><small>{% if login_brand %}PRIVATE STAFF WORKSPACE{% else %}SECURE STAFF SIGN IN{% endif %}</small></span></div>
-      <div class="staff-login-intro"><p>{% if login_brand %}{{ login_brand.name }}{% else %}Welcome back{% endif %}</p><h1 id="staff-login-title">Staff sign in</h1>{% if login_brand.welcome_message %}<p>{{ login_brand.welcome_message }}</p>{% endif %}<span>{% if login_brand %}{{ login_brand.workspace_label }} · {{ login_brand.name }}.{% else %}Use your account to continue to your workspace.{% endif %}</span></div>
-      <form method="post" action="{% url 'staff-login' %}" novalidate>
+<body class="fizo-auth-body"{% if login_brand %} style="--fz-auth-green:{{ login_brand.primary }};--staff-primary:{{ login_brand.primary }}"{% endif %}>
+<main class="fizo-auth" id="staff-main-content">
+  <aside class="fizo-auth__aside">
+    <div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</span></div>
+    <div><div class="fizo-auth__eyebrow">Your business. One workspace.</div><h2 class="fizo-auth__statement">One secure place to run your day.</h2><p>Sales, customers, inventory and operations — all in one connected workspace.</p></div>
+    <div class="fizo-auth__aside-foot">Fizo · Secure staff access</div>
+  </aside>
+  <section class="fizo-auth__panel" aria-labelledby="staff-login-title">
+    <div class="fizo-auth__card">
+      <div class="fizo-auth__mobile-brand">{% if login_brand.logo_url %}<img width="38" height="38" src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %} {% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</div>
+      <header class="fizo-auth__header"><h1 id="staff-login-title">Welcome back</h1><p>{% if login_brand.welcome_message %}{{ login_brand.welcome_message }}{% else %}Sign in securely to continue your work.{% endif %}</p></header>
+      <nav class="fizo-auth__tabs" aria-label="Sign-in method"><a href="{% url 'staff-login' %}" aria-current="page">Email &amp; password</a><a href="{% url 'staff-terminal' %}">Staff PIN</a></nav>
+      <form method="post" action="{% url 'staff-login' %}" class="fizo-auth__form" novalidate>
         {% csrf_token %}
-        {% if form.non_field_errors %}
-          <div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>
-        {% endif %}
-        <div class="mb-3">
-          <label class="staff-label" for="id_username">Email</label>
-          {{ form.username }}
-          {% if form.username.errors %}<div class="staff-alert staff-alert--danger">{{ form.username.errors }}</div>{% endif %}
-        </div>
-        <div class="mb-3">
-          <label class="staff-label" for="id_password">Password</label>
-          {{ form.password }}
-          {% if form.password.errors %}<div class="staff-alert staff-alert--danger">{{ form.password.errors }}</div>{% endif %}
-        </div>
+        {% if form.non_field_errors %}<div role="alert" class="fizo-auth__errors">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="fizo-auth__field"><label for="{{ form.username.id_for_label }}">Email address</label>{{ form.username }}{% if form.username.errors %}<div role="alert" class="fizo-auth__errors">{{ form.username.errors }}</div>{% endif %}</div>
+        <div class="fizo-auth__field"><label for="{{ form.password.id_for_label }}">Password</label>{{ form.password }}{% if form.password.errors %}<div role="alert" class="fizo-auth__errors">{{ form.password.errors }}</div>{% endif %}</div>
         <input type="hidden" name="next" value="{{ next }}">
-        <button type="submit" class="staff-btn staff-btn--primary">Sign in</button>
+        <button class="fizo-auth__submit" type="submit">Sign in to workspace</button>
       </form>
-      <p class="staff-terminal__login-link"><a href="{% url 'staff-terminal' %}">Use worker PIN on this terminal</a></p>
-      <p class="staff-login-secure"><span aria-hidden="true">●</span> Your account keeps your work private.</p>
-    </section>
-  </main>
-</body>
-</html>
+      <p class="fizo-auth__footer">Use your own account. On a shared cashier terminal, choose Staff PIN to switch between authorized workers.</p>
+    </div>
+  </section>
+</main>
+</body></html>
