@@ -298,8 +298,18 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         outlet = ctx["current_outlet"]
         supermarket_lane = False
         shift_open = None
-        if outlet is not None and outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-            supermarket_lane = True
+        retail_types = {OutletType.SUPERMARKET, OutletType.RETAIL}
+        # Owners reviewing all supermarket registers must retain the retail UI.
+        # Mixed hospitality/retail workspaces keep the neutral shared list until
+        # a specific outlet is selected; never show bar tables as retail baskets.
+        visible_outlets = list(ctx["outlets"])
+        supermarket_lane = (
+            outlet.outlet_type in retail_types
+            if outlet is not None
+            else bool(visible_outlets)
+            and all(item.outlet_type in retail_types for item in visible_outlets)
+        )
+        if outlet is not None and supermarket_lane:
             shift_open = PosShift.objects.filter(
                 tenant=self.request.tenant,
                 outlet=outlet,
@@ -1722,6 +1732,14 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
         ctx["menu_all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["can_manage_tv_details"] = membership_can_manage_workspace_settings(self.request.tenant_membership)
         ctx["menu_search_q"] = self.request.GET.get("q", "").strip()[:80]
+        # A supermarket staff member in an all-register view needs the same
+        # product catalogue as when a single store register is selected.
+        retail_types = {OutletType.SUPERMARKET, OutletType.RETAIL}
+        ctx["show_retail_catalogue"] = (
+            outlet.outlet_type in retail_types
+            if outlet is not None
+            else bool(outlets) and all(item.outlet_type in retail_types for item in outlets)
+        )
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
