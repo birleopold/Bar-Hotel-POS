@@ -15,7 +15,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
     def test_retail_branch_has_real_product_data_and_actions(self):
         root = Path(__file__).resolve().parent
         s = (root / "templates/staff/menu_list.html").read_text(encoding="utf-8")
-        self.assertIn("{% if grocery_owner_shell %}", s)
+        self.assertIn("{% if show_retail_catalogue %}", s)
         self.assertIn("fizo-retail-products.css", s)
         self.assertIn("fizo-products__table", s)
         self.assertIn("cat.items.all", s)
