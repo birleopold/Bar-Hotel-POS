@@ -40,3 +40,24 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn("{% csrf_token %}", page)
         self.assertIn("data-fizo-step", retail)
         self.assertIn("form.requestSubmit()", retail)
+
+
+    def test_checkout_entry_is_non_mutating_and_payment_quick_choices(self):
+        from django.urls import reverse, resolve
+        self.assertEqual(resolve(reverse("staff-retail-pos-entry")).url_name, "staff-retail-pos-entry")
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        marker = view.split("class StaffRetailPosEntryView(", 1)[1].split("class StaffOrderQuickCreateView(", 1)[0]
+        self.assertIn("PosShiftStatus.OPEN", marker)
+        self.assertIn("created_by=request.user", marker)
+        self.assertIn('redirect("staff-order-detail"', marker)
+        self.assertNotIn("create_order_with_lines(", marker)
+        sidebar = (root/"templates/staff/includes/sidebar.html").read_text(encoding="utf-8")
+        self.assertIn("staff-retail-pos-entry", sidebar)
+        self.assertIn("Sales</a>", sidebar)
+        detail = (root/"templates/staff/order_detail.html").read_text(encoding="utf-8")
+        for value in ("cash", "card", "mobile_money"):
+            self.assertIn('data-fizo-payment-method="' + value + '"', detail)
+        retail = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn("method.dispatchEvent", retail)
+        self.assertIn("data-fizo-payment-method", retail)
