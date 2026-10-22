@@ -9,7 +9,14 @@ from __future__ import annotations
 
 import csv
 import os
+import sys
 from pathlib import Path
+
+# Executing scripts/foo.py sets sys.path[0] to scripts/, not backend/.
+# Always resolve the Django project relative to this script.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = PROJECT_ROOT / "backend"
+sys.path.insert(0, str(BACKEND_DIR))
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.production")
 import django
@@ -67,7 +74,7 @@ def patterns(resolver, prefix: str = ""):
             }
 
 
-root = Path(__file__).resolve().parents[1]
+root = PROJECT_ROOT
 rows = list(patterns(get_resolver()))
 dest = Path.cwd() / "fizo_resolved_routes.csv"
 with dest.open("w", newline="", encoding="utf-8") as handle:
