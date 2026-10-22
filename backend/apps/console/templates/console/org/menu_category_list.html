@@ -1,34 +1,15 @@
 {% extends "console/base.html" %}
-{% block title %}{% if grocery_console_shell %}Product categories{% else %}Menu categories{% endif %}{% endblock %}
+{% block title %}Categories{% endblock %}
+{% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
-{% if grocery_console_shell %}
-<section class="grocery-setup" aria-labelledby="categories-heading">
-  <header class="grocery-setup__hero">
-    <div><p class="grocery-setup__eyebrow">Store management / Products / Categories</p>
-      <h1 id="categories-heading">Product categories</h1><p>Organise similar products together, such as Drinks, Groceries or Cleaning supplies, so staff can find them quickly.</p></div>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-category-create' %}"><i class="bi bi-plus-lg"></i> Add category</a>
+<section class="fizo-entity fizo-entity--list" aria-labelledby="fizo-list-title">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-form-kicker">FIZO / CATALOGUE / CATEGORIES</p><h1 id="fizo-list-title">Categories</h1><p class="staff-muted">Organise your products, food or drinks so your team can find items quickly.</p></div>
+    <a href="{% url 'console-org-menu-category-create' %}" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add category</a>
   </header>
-  <p><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}"><i class="bi bi-arrow-left"></i> Back to products</a></p>
-  <section class="staff-card">
-    {% if categories %}
-      <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th scope="col">Category</th><th scope="col">Display order</th><th scope="col">Actions</th></tr></thead>
-        <tbody>{% for c in categories %}<tr><td><strong>{{ c.name }}</strong></td><td>{{ c.sort_order }}</td>
-          <td><a href="{% url 'console-org-menu-category-edit' category_id=c.id %}" class="grocery-setup__action-link">Edit category <i class="bi bi-arrow-right"></i></a></td></tr>{% endfor %}</tbody>
-      </table></div>
-    {% else %}
-      <div class="grocery-setup__empty"><i class="bi bi-tags fs-1 text-success"></i><strong>No categories yet</strong>
-        <p>Start with one category to organise products as you add them.</p>
-        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-category-create' %}">Create category</a></div>
-    {% endif %}
+  <section class="staff-card fizo-entity__card">
+    <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Name</th><th>Display order</th><th>Actions</th></tr></thead><tbody>{% for c in categories %}<tr><td><strong>{{ c.name }}</strong></td><td>{{ c.sort_order }}</td><td><a href="{% url 'console-org-menu-category-edit' category_id=c.id %}">Edit</a></td></tr>{% empty %}<tr><td colspan="3" class="staff-muted">No categories yet. Create a category to organise items.</td></tr>{% endfor %}</tbody></table></div>
   </section>
+  <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-setup' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Guided setup</a></p>
 </section>
-{% else %}
-  <div class="staff-toolbar"><h1 class="staff-page-title mb-0">Menu categories<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-category-create' %}">New category</a></div>
-  <div class="staff-table-wrap"><table class="staff-table">
-    <thead><tr><th>Sort</th><th>Name</th><th></th></tr></thead>
-    <tbody>{% for c in categories %}<tr><td>{{ c.sort_order }}</td><td>{{ c.name }}</td>
-      <td><a href="{% url 'console-org-menu-category-edit' category_id=c.id %}">Edit</a></td></tr>
-      {% empty %}<tr><td colspan="3" class="staff-muted">No categories.</td></tr>{% endfor %}</tbody></table></div>
-{% endif %}
 {% endblock %}
