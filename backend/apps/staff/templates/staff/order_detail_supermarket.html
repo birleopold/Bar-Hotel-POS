@@ -286,6 +286,23 @@
 </script>
 
 <script>
+/* Quantity steppers submit the existing authenticated stock-adjustment form. */
+document.addEventListener("click", function (event) {
+  var button = event.target.closest("[data-fizo-step]");
+  if (!button) return;
+  var form = button.closest("[data-fizo-qty-form]");
+  if (!form || form.dataset.submitting === "1") return;
+  var input = form.querySelector('input[name="quantity"]');
+  if (!input) return;
+  var current = Number(input.value), delta = Number(button.dataset.fizoStep);
+  if (!Number.isFinite(current) || !Number.isFinite(delta)) return;
+  var next = Math.round((current + delta) * 1000) / 1000;
+  if (next < 0.001) return;
+  input.value = String(next);
+  form.dataset.submitting = "1";
+  if (form.requestSubmit) form.requestSubmit(); else form.submit();
+});
+
 /* Retail-only composition; existing POST forms still own all stock and payment rules. */
 (function () {
   function initializeRetailWorkspace() {
