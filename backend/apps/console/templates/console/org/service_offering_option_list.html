@@ -1,12 +1,15 @@
 {% extends "console/base.html" %}
-{% block title %}Packages · {{ service.name }}{% endblock %}
+{% block title %}Service packages{% endblock %}
+{% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
-  <p class="staff-muted"><a href="{% url 'console-org-service-offerings' %}">Services</a> / {{ service.name }}</p>
-  <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Packages<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-service-offering-option-create' service_id=service.id %}">New package</a>
-  </div>
-  <div class="staff-table-wrap">
+<section class="fizo-entity fizo-entity--list" aria-labelledby="fizo-entity-list-heading">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-form-kicker">FIZO / SERVICES / PACKAGES</p>
+      <h1 id="fizo-entity-list-heading">Service packages</h1><p class="staff-muted">Manage packages available for {{ service.name }}.</p></div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-service-offering-option-create' service_id=service.id %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add package</a>
+  </header>
+  <div class="staff-card fizo-entity__card">
+    <div class="staff-table-wrap">
     <table class="staff-table">
       <thead><tr><th>Sort</th><th>Name</th><th>Price</th><th>Active</th><th></th></tr></thead>
       <tbody>
@@ -24,4 +27,6 @@
       </tbody>
     </table>
   </div>
+  </div>
+</section>
 {% endblock %}
