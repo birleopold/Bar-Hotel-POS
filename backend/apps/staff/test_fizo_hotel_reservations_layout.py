@@ -60,3 +60,23 @@ class FizoHotelReservationsLayoutTests(SimpleTestCase):
         self.assertIn("can_modify_lodging", page)
         self.assertNotIn("hospitality-workflow.css", page)
         self.assertEqual(page.count("{% block "), page.count("{% endblock %}"))
+
+
+    def test_rooms_directory_retains_real_search_and_data(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/lodging/rooms_list.html").read_text(encoding="utf-8")
+        self.assertIn("fizo-room-directory__grid", page)
+        self.assertIn('name="q"', page)
+        self.assertIn("room_search_q", page)
+        self.assertIn("r.get_status_display", page)
+        self.assertIn("r.room_type.name", page)
+        self.assertNotIn("hospitality-workflow.css", page)
+
+    def test_room_types_show_real_rate_windows(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/lodging/room_types_list.html").read_text(encoding="utf-8")
+        self.assertIn("fizo-room-types__grid", page)
+        self.assertIn("rt.max_occupancy", page)
+        self.assertIn("rt.rate_windows.all", page)
+        self.assertIn("w.nightly_amount", page)
+        self.assertNotIn("hospitality-workflow.css", page)
