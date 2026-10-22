@@ -22,7 +22,7 @@ from apps.audit.services import log_audit
 from apps.customers.models import Customer
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from apps.catalog.models import MenuCategory, MenuItem, ServiceOffering, ServiceOfferingOption
+from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, ServiceOffering, ServiceOfferingOption
 from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table
 from apps.pos.services import (
     adjust_open_order_line_quantity,
@@ -1216,6 +1216,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-order-detail", order_id=order.id)
         try:
             with transaction.atomic():
+                # Serialize edits to this basket and reject a concurrent settlement.
+                current = Order.objects.select_for_update().get(
+                    pk=order.pk, tenant_id=order.tenant_id,
+                )
+                if current.status != OrderStatus.OPEN or current.is_paid:
+                    raise ValueError("This sale is no longer open; no product was created.")
                 # Recheck inside the write transaction to catch simultaneous cashier adds.
                 if data["barcode"] and MenuItem.objects.filter(
                     tenant_id=order.tenant_id, barcode=data["barcode"]
@@ -1237,6 +1243,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     track_inventory=False, unit_of_measure="each",
                     description="Quick-added during checkout; cost, stock, tax and supplier details require catalogue review.",
                 )
+                # Quick-added stock is only available at the originating store.
+                MenuItemOutlet.objects.create(menu_item=item, outlet=order.outlet)
                 add_line_to_open_order(
                     order=order, menu_item=item, quantity=data["quantity"],
                     user=request.user,
