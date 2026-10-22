@@ -102,3 +102,40 @@ class FizoHotelReservationsLayoutTests(SimpleTestCase):
             self.assertIn('value="' + action + '"', page)
         self.assertIn("can_manage_housekeeping_workflows", page)
         self.assertEqual(page.count("<form "), page.count("{% csrf_token %}"))
+
+
+    def test_remaining_hotel_screens_retire_legacy_theme_and_keep_actions(self):
+        root = Path(__file__).resolve().parent
+        lodging = root / "templates/staff/lodging"
+        for name in ("folios_list.html", "folio_detail.html", "tape_chart.html", "night_audit.html"):
+            with self.subTest(page=name):
+                page = (lodging / name).read_text(encoding="utf-8")
+                self.assertIn("fizo-hotel-frontdesk.css", page)
+                self.assertIn('class="fizo-hotel ', page)
+                self.assertNotIn("hospitality-workflow.css", page)
+                self.assertEqual(page.count("{% block "), page.count("{% endblock %}"))
+        folio = (lodging / "folio_detail.html").read_text(encoding="utf-8")
+        self.assertIn("Record payment", folio)
+        self.assertIn("payment_form.amount", folio)
+        self.assertIn("membership_can_manage_folios", folio)
+        self.assertIn("{% csrf_token %}", folio)
+        audit = (lodging / "night_audit.html").read_text(encoding="utf-8")
+        self.assertIn('value="post_room_night"', audit)
+        self.assertIn('value="close_audit"', audit)
+        self.assertIn("snapshot.blockers", audit)
+        self.assertEqual(audit.count('<form '), 3)
+        self.assertEqual(audit.count('{% csrf_token %}'), 2)
+        tape = (lodging / "tape_chart.html").read_text(encoding="utf-8")
+        self.assertIn("tape_dates", tape)
+        self.assertIn("tape_rows", tape)
+        self.assertIn("staff-lodging-reservation-detail", tape)
+
+    def test_hotel_subnav_respects_existing_access_gates(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/lodging/includes/subnav.html").read_text(encoding="utf-8")
+        self.assertIn('class="fizo-hotel-tabs"', page)
+        for gate in ("membership_can_manage_reservations", "membership_can_manage_folios",
+                     "membership_can_manage_room_inventory", "membership_can_access_housekeeping",
+                     "membership_can_manage_housekeeping_workflows"):
+            self.assertIn(gate, page)
+        self.assertNotIn("staff-subnav-pills", page)
