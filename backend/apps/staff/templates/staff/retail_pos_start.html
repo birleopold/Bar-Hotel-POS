@@ -1,0 +1,27 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Start checkout{% endblock %}
+{% block main_class %}staff-main--wide fizo-retail-sales-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-retail-sales.css' %}?v=20261022.8">{% endblock %}
+{% block content %}
+<main class="fizo-sales fizo-sales--start">
+  <header class="fizo-sales__header"><div><p class="fizo-sales__eyebrow">Fizo / Supermarket / POS</p><h1>Ready for the next sale</h1><p>{{ current_outlet.name }} · Register open{% if current_shift.workstation %} · {{ current_shift.workstation.name }}{% endif %}</p></div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Sales history &amp; held baskets</a></header>
+  <section class="fizo-sales__start" aria-labelledby="fizo-start-sale">
+    <div class="fizo-sales__start-icon"><i class="bi bi-cart3"></i></div>
+    <div><h2 id="fizo-start-sale">Start a walk-in checkout</h2><p>Scan products, build the basket, then confirm payment. Customer information is optional.</p></div>
+    <form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}
+      <button class="fizo-sales__primary" type="submit"><i class="bi bi-plus-lg"></i> New sale</button>
+    </form>
+  </section>
+  <section class="fizo-sales__panel" aria-label="Register shortcuts">
+    <h2>Cashier shortcuts</h2>
+    <p>Open baskets can be resumed from Sales history. Use workstation settings to choose another physical register.</p>
+    <div class="fizo-sales__start-links">
+      <a href="{% url 'staff-orders' %}"><i class="bi bi-pause-circle"></i> Resume or review sales</a>
+      <a href="{% url 'staff-pos-shifts' %}"><i class="bi bi-cash-register"></i> Shift and drawer</a>
+      <a href="{% url 'staff-workstations' %}"><i class="bi bi-display"></i> Register devices</a>
+    </div>
+  </section>
+</main>
+{% endblock %}
