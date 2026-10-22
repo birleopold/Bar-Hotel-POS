@@ -88,6 +88,17 @@ class PasswordRecoveryRequestAdmin(PlatformOperatorModelAdmin):
         from django.db import transaction
         from django.utils import timezone
         from apps.api.password_views import _dispatch_password_reset_email, _uid_b64
+        from urllib.parse import urlsplit
+        template = getattr(settings, "PASSWORD_RESET_URL_TEMPLATE", "") or ""
+        url = urlsplit(template)
+        if url.scheme != "https" or not url.hostname or not url.path.endswith("/password-reset/confirm/"):
+            self.message_user(
+                request,
+                "Set PASSWORD_RESET_URL_TEMPLATE to an HTTPS URL ending in "
+                "/password-reset/confirm/?uid={uid}&token={token} before approving requests.",
+                level=messages.ERROR,
+            )
+            return
         done = 0
         for item in queryset.filter(status="pending").select_related("user"):
             user = item.user
