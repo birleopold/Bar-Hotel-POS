@@ -141,3 +141,18 @@
 .fizo-quick-product__form .staff-input{min-width:0;min-height:42px}
 .fizo-quick-product__form button{grid-column:1/-1;min-height:46px}
 @media(max-width:600px){.fizo-quick-product__form{grid-template-columns:1fr}}
+
+/* Cashier identity is server-rendered, not dependent on JavaScript enhancements. */
+.fizo-cashier-identity{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;background:#fff;border:1px solid #dce9e2;border-radius:13px;margin:10px 0 14px;color:#163441}
+.fizo-cashier-identity__person,.fizo-cashier-identity__register{display:flex;align-items:center;gap:11px;min-width:0}
+.fizo-cashier-identity__person{flex:1 1 245px}
+.fizo-cashier-identity__register{flex:1 1 220px}
+.fizo-cashier-identity__avatar{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:50%;background:#e5effb;color:#143e8c;font-weight:850;font-size:18px}
+.fizo-cashier-identity__register>i{display:grid;place-items:center;background:#e5f8eb;border-radius:10px;color:#008849;width:42px;height:42px;font-size:21px}
+.fizo-cashier-identity strong,.fizo-cashier-identity small{display:block;overflow-wrap:anywhere}
+.fizo-cashier-identity strong{font-size:14px;font-weight:800}
+.fizo-cashier-identity small{font-size:12px;color:#698087;margin-top:2px}
+.fizo-cashier-identity>.staff-btn{min-height:42px}
+.fizo-cashier-blocker{border:1px solid #e8d5a0!important;border-radius:10px;margin:12px 0!important}
+.fizo-checkout-catalogue:empty{min-height:0}
+@media(max-width:700px){.fizo-cashier-identity{gap:12px;padding:12px}.fizo-cashier-identity>.staff-btn{width:100%;justify-content:center}}
