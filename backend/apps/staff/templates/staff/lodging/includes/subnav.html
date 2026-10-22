@@ -1,17 +1,17 @@
 {% if request.resolver_match %}
 {% with n=request.resolver_match.url_name %}
-<div class="staff-subnav-pills" aria-label="Lodging sections">
+<div class="fizo-hotel-tabs" aria-label="Lodging sections">
   {% if membership_can_manage_reservations %}
-    <a class="staff-btn {% if n == 'staff-lodging-reservations' or n == 'staff-lodging-reservation-detail' or n == 'staff-lodging-reservation-create' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-reservations' %}">Reservations</a>
-    <a class="staff-btn {% if n == 'staff-lodging-availability' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-availability' %}">Availability</a>
-    <a class="staff-btn {% if n == 'staff-lodging-tape' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-tape' %}">Tape</a>
+    <a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-reservations' or n == 'staff-lodging-reservation-detail' or n == 'staff-lodging-reservation-create' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-reservations' %}">Reservations</a>
+    <a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-availability' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-availability' %}">Availability</a>
+    <a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-tape' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-tape' %}">Tape</a>
   {% endif %}
-  {% if membership_can_manage_folios %}<a class="staff-btn {% if n == 'staff-lodging-night-audit' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-night-audit' %}">Night audit</a>{% endif %}
-  {% if membership_can_manage_folios %}<a class="staff-btn {% if n == 'staff-lodging-folios' or n == 'staff-lodging-folio-detail' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-folios' %}">Folios</a>{% endif %}
-  {% if membership_can_manage_room_inventory %}<a class="staff-btn {% if n == 'staff-lodging-rooms' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-rooms' %}">Rooms</a>{% endif %}
-  {% if membership_can_access_housekeeping %}<a class="staff-btn {% if n == 'staff-lodging-housekeeping' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a>{% endif %}
-  {% if membership_can_manage_housekeeping_workflows %}<a class="staff-btn {% if n == 'staff-lodging-maintenance' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-maintenance' %}">Maintenance</a>{% endif %}
-  {% if membership_can_manage_room_inventory %}<a class="staff-btn {% if n == 'staff-lodging-room-types' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %} staff-btn--sm" href="{% url 'staff-lodging-room-types' %}">Types &amp; rates</a>{% endif %}
+  {% if membership_can_manage_folios %}<a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-night-audit' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-night-audit' %}">Night audit</a>{% endif %}
+  {% if membership_can_manage_folios %}<a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-folios' or n == 'staff-lodging-folio-detail' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-folios' %}">Folios</a>{% endif %}
+  {% if membership_can_manage_room_inventory %}<a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-rooms' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-rooms' %}">Rooms</a>{% endif %}
+  {% if membership_can_access_housekeeping %}<a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-housekeeping' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-housekeeping' %}">Housekeeping</a>{% endif %}
+  {% if membership_can_manage_housekeeping_workflows %}<a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-maintenance' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-maintenance' %}">Maintenance</a>{% endif %}
+  {% if membership_can_manage_room_inventory %}<a class="fizo-hotel-tabs__link {% if n == 'staff-lodging-room-types' %}fizo-hotel-tabs__link--active{% else %}fizo-hotel-tabs__link--normal{% endif %}" href="{% url 'staff-lodging-room-types' %}">Types &amp; rates</a>{% endif %}
 </div>
 {% endwith %}
 {% endif %}
