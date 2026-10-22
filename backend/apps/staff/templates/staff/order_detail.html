@@ -151,72 +151,44 @@
       <div class="fizo-checkout-basket" aria-label="Current basket">
         <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>{{ order.lines.count }} lines</span></h2>
     <section class="fizo-checkout-basket__lines" aria-label="Basket items">
-      <div class="staff-card staff-card--pos mb-0">
-        <h2 class="staff-card__title staff-card__title--pos">Lines</h2>
-        <div class="staff-table-wrap staff-table-wrap--pos">
-          <table class="staff-table staff-table--pos">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Qty</th>
-                <th>Prep</th>
-                <th>Amt</th>
-                <th class="staff-table__actions-head">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for line in order.lines.all %}
-                {% if not line.is_voided %}
-                  <tr>
-                    <td>
-                      {{ line.label }}{% if line.line_discount_amount %} <span class="staff-muted">(disc.)</span>{% endif %}
-                      {% if line.modifiers_snapshot %}
-                        <div class="staff-muted small mt-1">
-                          {% for m in line.modifiers_snapshot %}{{ m.group }}: {{ m.name }}{% if not forloop.last %} · {% endif %}{% endfor %}
-                        </div>
-                      {% endif %}
-                    </td>
-                    <td>{{ line.quantity }}</td>
-                    <td><span class="staff-tag staff-tag--citrus">{{ line.get_kds_status_display }}</span>{% if line.kds_station %} <span class="staff-muted">{{ line.kds_station }}</span>{% endif %}</td>
-                    <td>{{ line.line_total }}</td>
-                    <td class="staff-table--pos-actions staff-table__actions-cell">
-                      {% if line.id|stringformat:"s" in ready_line_ids and can_ack_ready_handoff %}
-                        <form method="post" class="d-inline">
-                          {% csrf_token %}
-                          <input type="hidden" name="action" value="ack_ready_line">
-                          <input type="hidden" name="line_id" value="{{ line.id }}">
-                          <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Ack</button>
-                        </form>
-                      {% endif %}
-                      {% if can_modify_open_order %}
-                        <form method="post" class="staff-pos-line-actions">
-                          {% csrf_token %}
-                          <input type="hidden" name="action" value="adjust_line_qty">
-                          <input type="hidden" name="line_id" value="{{ line.id }}">
-                          <input class="staff-input staff-input--pos-qty" type="number" name="quantity" step="0.001" min="0.001" value="{{ line.quantity }}" aria-label="Quantity">
-                          <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Set</button>
-                        </form>
-                        <form method="post" class="staff-pos-line-actions mt-1">
-                          {% csrf_token %}
-                          <input type="hidden" name="action" value="void_line">
-                          <input type="hidden" name="line_id" value="{{ line.id }}">
-                          <input class="staff-input staff-input--pos-reason" type="text" name="reason" placeholder="Why void" aria-label="Void reason">
-                          <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Void</button>
-                        </form>
-                      {% endif %}
-                    </td>
-                  </tr>
-                {% endif %}
-              {% empty %}
-                <tr><td colspan="5"><div class="staff-empty-state"><p class="staff-empty-state__title">{% if is_supermarket_outlet %}Basket empty{% else %}No order lines yet{% endif %}</p><p class="staff-empty-state__copy">{% if is_supermarket_outlet %}Scan a barcode or choose a product to start the sale.{% else %}Add items or services from the action panel to build this bill.{% endif %}</p></div></td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div class="fizo-retail-basket-items">
+        {% for line in order.lines.all %}
+          {% if not line.is_voided %}
+            <article class="fizo-retail-basket-row">
+              <div class="fizo-retail-basket-row__info">
+                <strong>{{ line.label }}</strong>
+                {% if line.line_discount_amount %}<span class="staff-muted small">Discount applied</span>{% endif %}
+                {% if line.modifiers_snapshot %}<span class="staff-muted small">{% for modifier in line.modifiers_snapshot %}{{ modifier.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+                <span class="fizo-retail-basket-row__amount">{{ order.currency }} {{ line.line_total }}</span>
+              </div>
+              {% if can_modify_open_order %}
+                <form method="post" class="fizo-retail-stepper" data-fizo-qty-form>
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="adjust_line_qty">
+                  <input type="hidden" name="line_id" value="{{ line.id }}">
+                  <button type="button" data-fizo-step="-1" aria-label="Decrease quantity of {{ line.label }}">−</button>
+                  <input type="number" name="quantity" min="0.001" step="0.001" value="{{ line.quantity }}" aria-label="Quantity of {{ line.label }}">
+                  <button type="button" data-fizo-step="1" aria-label="Increase quantity of {{ line.label }}">+</button>
+                  <button type="submit" class="fizo-retail-stepper__save">Update</button>
+                </form>
+                <form method="post" class="fizo-retail-basket-row__void">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="void_line">
+                  <input type="hidden" name="line_id" value="{{ line.id }}">
+                  <label class="visually-hidden" for="reason-{{ line.id }}">Reason for removing {{ line.label }}</label>
+                  <input id="reason-{{ line.id }}" name="reason" type="text" maxlength="200" placeholder="Removal reason" required>
+                  <button type="submit">Remove</button>
+                </form>
+              {% else %}
+                <span class="fizo-retail-basket-row__quantity">Qty {{ line.quantity }}</span>
+              {% endif %}
+            </article>
+          {% endif %}
+        {% empty %}
+          <div class="fizo-retail-basket-empty"><i class="bi bi-basket2"></i><p>Basket empty. Scan a barcode or select a product to begin.</p></div>
+        {% endfor %}
       </div>
     </section>
-
-
       </div>
       {% endif %}
       {% if can_record_payment and payment_form %}
