@@ -51,3 +51,37 @@
 .fizo-availability__ready{font-size:12px;font-weight:800;color:#007843;background:#e3f7e9;border-radius:7px;padding:4px 8px}
 @media(max-width:880px){.fizo-availability__fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:540px){.fizo-availability__fields{grid-template-columns:1fr}.fizo-availability__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Reservation creation and guest-stay detail, independent of rejected theme. */
+.fizo-reservation-create__layout{display:grid;grid-template-columns:minmax(0,1fr) 295px;gap:18px;align-items:start;margin-top:17px}
+.fizo-reservation-create__form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.fizo-reservation-create__field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fizo-reservation-create__field label{font-weight:750;color:#36565d;font-size:13px}
+.fizo-reservation-create__field input,.fizo-reservation-create__field select,.fizo-reservation-create__field textarea{width:100%;border:1px solid #d7e5dd;background:#fff;border-radius:9px;min-height:43px;padding:10px;color:#1d343c}
+.fizo-reservation-create__field textarea{min-height:88px}
+.fizo-reservation-create__field--invalid input,.fizo-reservation-create__field--invalid select{border-color:#b84248}
+.fizo-reservation-create__field label span{color:#ab4147}
+.fizo-reservation-create__help{color:#647b81}
+.fizo-reservation-create__errors{color:#ac323c;font-size:12px}
+.fizo-reservation-create__actions{grid-column:1/-1;display:flex;gap:11px;align-items:center;flex-wrap:wrap;padding-top:14px;border-top:1px solid #e5eee8}
+.fizo-reservation-create__actions>.staff-btn{min-height:47px}
+.fizo-reservation-create__note{border:1px solid #dcece2;border-radius:14px;background:#ecf8ef;padding:20px;color:#3b6251}
+.fizo-reservation-create__note>i{font-size:29px;color:#00874a}
+.fizo-reservation-create__note h2{color:#1c4030;font-size:19px;font-weight:850;margin:12px 0}
+.fizo-reservation-create__note p{font-size:13px;line-height:1.7}
+.fizo-reservation-create__note a{font-weight:800;color:#007f44;text-decoration:none}
+.fizo-reservation-detail{max-width:1100px}
+.fizo-reservation-detail__panel{margin:14px 0}
+.fizo-reservation-detail__panel h2,.fizo-reservation-detail__heading{font-size:19px;font-weight:820;margin:0 0 15px;color:#203940}
+.fizo-reservation-detail__panel form{margin-top:13px}
+.fizo-reservation-detail__panel label{font-weight:750;color:#4b6467;font-size:13px}
+.fizo-reservation-detail__panel .staff-input{margin:5px 0}
+.fizo-reservation-detail__panel .staff-metric-row{display:flex;gap:14px;flex-wrap:wrap}
+.fizo-reservation-detail__panel .staff-metric-row span{display:flex;flex-direction:column;gap:5px;padding:13px;border:1px solid #e0ebe5;border-radius:9px;min-width:145px}
+.fizo-reservation-detail__panel .staff-metric-row strong{color:#007f43;font-size:17px}
+.fizo-reservation-detail__panel .staff-metric-row small{color:#657982}
+.fizo-reservation-detail .staff-toolbar{display:flex;gap:12px;flex-wrap:wrap;background:#fff;padding:16px;border:1px solid #e0ebe5;border-radius:12px}
+.fizo-reservation-detail .staff-toolbar form{min-width:0}
+@media(max-width:960px){.fizo-reservation-create__layout{grid-template-columns:1fr}.fizo-reservation-create__note{max-width:none}}
+@media(max-width:620px){.fizo-reservation-create__form{grid-template-columns:1fr}.fizo-reservation-create__actions{flex-direction:column;align-items:stretch}.fizo-reservation-create__actions>.staff-btn{width:100%}}
