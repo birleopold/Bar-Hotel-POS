@@ -1,0 +1,186 @@
+/* Shared hospitality administration treatment. Separate from retail shell and data rules. */
+/* Hospitality administration shell aligned to retail visual language. */
+.hospitality-console-body{background:#f5f8fc;color:#172743}
+.hospitality-console-body .staff-app-shell{background:#f5f8fc}
+.hospitality-console-body .console-sidebar{background:#f9fbfe;border-right:1px solid #e2eaf2}
+.hospitality-console-body .console-sidebar .staff-sidebar__brand-wrap{padding:15px;border-bottom:1px solid #e7edf1}
+.hospitality-console-body .console-sidebar .staff-sidebar__brand{border-radius:12px;background:#fff;color:#15324b;box-shadow:0 2px 10px rgba(18,46,70,.035)}
+.hospitality-console-body .console-sidebar .staff-sidebar__mark{background:#e5f7ee!important;color:#07894c!important}
+.hospitality-console-body .console-sidebar .wb-nav-group__label{color:#64768b;font-size:.72rem;font-weight:750;letter-spacing:.05em}
+.hospitality-console-body .console-sidebar .wb-nav-link{border-radius:10px;min-height:43px;color:#496078;padding:10px 12px}
+.hospitality-console-body .console-sidebar .wb-nav-link:hover{background:#eef8f2;color:#057b45}
+.hospitality-console-body .console-sidebar .wb-nav-link--active{background:#008d4e!important;color:#fff!important;font-weight:750}
+.hospitality-console-body .staff-nav{background:#fff;border-bottom:1px solid #e1e9ef;box-shadow:0 2px 10px rgba(20,37,68,.025)}
+.hospitality-console-body .staff-nav__brand{color:#14314a;font-weight:800}
+.hospitality-console-body .staff-nav__dot{background:#068b50}
+.hospitality-console-body .staff-nav__link{color:#405872;border-radius:9px}
+.hospitality-console-body .staff-nav__link:hover{background:#ecf8f0;color:#067d48}
+.hospitality-console-body .staff-context-pill{border-color:#d4e8de;background:#f0faf4;color:#0d7041}
+.hospitality-console-body .console-main{max-width:none;width:100%;padding:22px 24px 38px;background:#f5f8fc}
+.hospitality-console-body .console-main .staff-page-hero{margin:0 0 18px}
+.hospitality-console-body .console-main .staff-dash-hero__panel,.hospitality-console-body .console-main .staff-card,.hospitality-console-body .console-main .staff-panel{background:#fff;border:1px solid #e1e9ef;border-radius:14px;box-shadow:0 3px 15px rgba(28,45,77,.04)}
+.hospitality-console-body .console-main .staff-dash-hero__panel,.hospitality-console-body .console-main .staff-card{padding:18px}
+.hospitality-console-body .console-main h1,.hospitality-console-body .console-main h2{color:#172743}
+.hospitality-console-body .console-main .staff-page-title{font-size:clamp(1.55rem,2.3vw,2rem);font-weight:790;letter-spacing:-.03em}
+.hospitality-console-body .console-main .staff-dash-hero__eyebrow{color:#09834b;font-size:.77rem;font-weight:750}
+.hospitality-console-body .console-main .staff-dash-hero__tagline,.hospitality-console-body .console-main .staff-muted{color:#62748a}
+.hospitality-console-body .console-main .staff-btn{border-radius:10px;min-height:40px;font-weight:650}
+.hospitality-console-body .console-main .staff-btn--primary{background:#008c4d;border-color:#008c4d;color:#fff}
+.hospitality-console-body .console-main .staff-btn--ghost{background:#fff;border-color:#d6e1eb;color:#304a65}
+.hospitality-console-body .console-main .staff-label{font-size:.82rem;color:#354d69;font-weight:650}
+.hospitality-console-body .console-main :is(input[type=text],input[type=number],input[type=email],input[type=search],select,textarea){background:#fff;border:1px solid #d7e3ec;border-radius:10px;min-height:43px}
+.hospitality-console-body .console-main :is(a,button,input,select,textarea):focus-visible{outline:3px solid #e5ad43;outline-offset:2px}
+.hospitality-console-body .console-main :is(.staff-table-wrap,.table-responsive){overflow-x:auto;border-radius:12px}
+.hospitality-console-body .console-main table thead th{background:#eff7f2;color:#344b62;font-weight:750}
+.hospitality-console-body .console-main table tbody tr:hover{background:#f7fbf9}
+@media(max-width:800px){.hospitality-console-body .console-main{padding:14px}.hospitality-console-body .console-main .staff-card{padding:14px}.hospitality-console-body .staff-nav__links{overflow-x:auto}}
+
+/* Hospitality setup surface shared across enabled service lines. */
+.grocery-console-top{display:flex;align-items:center;gap:22px;width:100%;padding:12px 22px;min-height:72px}
+.grocery-console-top__brand,.grocery-console-brand{display:flex;align-items:center;gap:12px;color:#16304a;text-decoration:none}
+.grocery-console-top__brand i,.grocery-console-brand i{font-size:1.85rem;color:#008d4e}
+.grocery-console-top__brand span,.grocery-console-brand span{display:grid;line-height:1.22}
+.grocery-console-top__brand strong,.grocery-console-brand strong{font-size:1.04rem;font-weight:800}
+.grocery-console-top__brand small,.grocery-console-brand small{font-size:.77rem;color:#748499}
+.grocery-console-top__location{display:flex;align-items:center;gap:8px;padding:11px 16px;border:1px solid #dce6ef;border-radius:9px;background:#fff;font-weight:650;color:#304964}
+.grocery-console-top__location i{color:#008e50}
+.grocery-console-top__back{margin-left:auto;text-decoration:none;color:#087947;font-weight:700;white-space:nowrap}
+.grocery-console-top__person{color:#64758b;font-size:.81rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:210px}
+.grocery-console-brand{padding:19px 15px;border-bottom:1px solid #e3eaf1}
+.grocery-console-links{display:flex;flex-direction:column;gap:5px;padding:15px 12px}
+.grocery-console-links a{display:flex;align-items:center;gap:15px;text-decoration:none;border-radius:10px;color:#465b79;padding:12px 14px;min-height:48px;font-weight:600}
+.grocery-console-links a i{width:23px;font-size:1.16rem}
+.grocery-console-links a:hover,.grocery-console-links a:focus-visible{background:#ecf8f0;color:#087b46}
+.grocery-console-links a.is-active{background:#008e50;color:#fff}
+.grocery-console-help{border-top:1px solid #e2ebee;margin-top:auto;padding:22px 16px;color:#63778a;font-size:.82rem;display:flex;gap:12px;line-height:1.45}
+.grocery-console-help i{font-size:1.25rem;color:#06874e}
+@media(max-width:900px){.grocery-console-top__person{display:none}.grocery-console-top{gap:12px;padding:10px 12px}.grocery-console-top__location{display:none}}
+@media(max-width:700px){.grocery-console-links{flex-direction:row;overflow-x:auto;white-space:nowrap}.grocery-console-links a{flex:0 0 auto}.grocery-console-brand{padding:12px}.grocery-console-help{display:none}}
+
+/* Beginner-friendly product editor with consistent forms throughout owner setup. */
+.hospitality-console-body .grocery-form-head{display:flex;align-items:start;justify-content:space-between;gap:16px;margin:0 0 20px}
+.hospitality-console-body .grocery-form-kicker{color:#07844b;font-size:.75rem;font-weight:800;letter-spacing:.08em;margin:0 0 8px}
+.hospitality-console-body .grocery-form-head h1{font-size:clamp(1.55rem,2.5vw,2rem);letter-spacing:-.025em;font-weight:790;margin:0 0 8px}
+.hospitality-console-body .grocery-form-head p:last-child{margin-bottom:0}
+.hospitality-console-body .grocery-guided-form{max-width:1020px;padding:24px}
+.hospitality-console-body .grocery-form-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}
+.hospitality-console-body .grocery-form-field{min-width:0;display:flex;flex-direction:column;align-items:stretch}
+.hospitality-console-body .grocery-form-field label{font-size:.85rem;font-weight:700;color:#243c57;margin-bottom:7px}
+.hospitality-console-body .grocery-form-field label span{color:#bd4b26}
+.hospitality-console-body .grocery-form-field>input:not([type=checkbox]),.hospitality-console-body .grocery-form-field>select,.hospitality-console-body .grocery-form-field>textarea{width:100%;padding:10px 12px;max-width:100%}
+.hospitality-console-body .grocery-form-field:has(textarea){grid-column:1/-1}
+.hospitality-console-body .grocery-form-field:has(input[type=checkbox]){flex-direction:row;align-items:center;flex-wrap:wrap;gap:10px;border:1px solid #e3ebe5;background:#f8fbf9;padding:13px;border-radius:10px}
+.hospitality-console-body .grocery-form-field:has(input[type=checkbox]) label{margin:0}
+.hospitality-console-body .grocery-form-help{color:#66788b;font-size:.76rem;margin:5px 0 0;line-height:1.4}
+.hospitality-console-body .grocery-form-errors{color:#aa2833;font-size:.81rem;margin-top:4px}
+.hospitality-console-body .grocery-form-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;border-top:1px solid #e3ebe9;margin-top:22px;padding-top:18px;color:#77879a;font-size:.79rem}
+.hospitality-console-body .grocery-form-footer>div{display:flex;gap:10px;align-items:center}
+.hospitality-console-body .grocery-form-links{margin:0 0 14px}
+@media(max-width:760px){.hospitality-console-body .grocery-form-fields{grid-template-columns:1fr}.hospitality-console-body .grocery-guided-form{padding:16px}.hospitality-console-body .grocery-form-head{flex-direction:column}.hospitality-console-body .grocery-form-footer{flex-direction:column;align-items:stretch}.hospitality-console-body .grocery-form-footer>div{justify-content:flex-end}}
+
+
+/* Store-owner guided setup and catalogue surfaces. Scoped to retail owners only. */
+.hospitality-console-body .grocery-setup{max-width:1260px;margin:0 auto}
+.hospitality-console-body .grocery-setup__hero{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:20px}
+.hospitality-console-body .grocery-setup__eyebrow{font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;font-weight:800;color:#087f4b;margin:0 0 7px}
+.hospitality-console-body .grocery-setup__hero h1{font-size:clamp(1.7rem,2.5vw,2.2rem);font-weight:800;letter-spacing:-.035em;margin:0 0 8px}
+.hospitality-console-body .grocery-setup__hero p:last-child{color:#64758b;max-width:700px;margin:0;line-height:1.55}
+.hospitality-console-body .grocery-setup__hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.hospitality-console-body .grocery-setup__progress{padding:20px 22px;margin:0 0 20px;background:#fff}
+.hospitality-console-body .grocery-setup__progress-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 9px;font-size:.88rem}
+.hospitality-console-body .grocery-setup__progress-heading strong{font-weight:750;color:#1c3651}
+.hospitality-console-body .grocery-setup__progress-heading span{font-weight:850;color:#008d50}
+.hospitality-console-body .grocery-setup__progress progress{width:100%;height:12px;display:block;accent-color:#009856}
+.hospitality-console-body .grocery-setup__next{margin:12px 0 0;color:#536b80;font-size:.84rem}
+.hospitality-console-body .grocery-setup__next a{color:#008b50;font-weight:800}
+.hospitality-console-body .grocery-setup__layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(275px,.75fr);align-items:start;gap:18px}
+.hospitality-console-body .grocery-setup__section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 11px}
+.hospitality-console-body .grocery-setup__section-head h2{font-size:1.09rem;font-weight:800;margin:0}
+.hospitality-console-body .grocery-setup__section-head span{color:#6a7c8f;font-size:.8rem}
+.hospitality-console-body .grocery-setup__step{display:flex;align-items:flex-start;gap:13px;padding:18px!important;margin-bottom:10px;min-width:0}
+.hospitality-console-body .grocery-setup__step-icon{flex:0 0 40px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#e9f7ee;color:#07874d;font-weight:850}
+.hospitality-console-body .grocery-setup__step--done .grocery-setup__step-icon{background:#008e50;color:#fff}
+.hospitality-console-body .grocery-setup__step--blocked .grocery-setup__step-icon{background:#fff1de;color:#9e661a}
+.hospitality-console-body .grocery-setup__step-body{flex:1;min-width:0}
+.hospitality-console-body .grocery-setup__step-body h3{font-size:.97rem;font-weight:770;margin:1px 0 5px}
+.hospitality-console-body .grocery-setup__step-body p{font-size:.82rem;color:#60728a;margin:0 0 10px;line-height:1.5}
+.hospitality-console-body .grocery-setup__step-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.hospitality-console-body .grocery-setup__step-actions .staff-btn{font-size:.8rem;min-height:37px}
+.hospitality-console-body .grocery-setup__status{font-size:.72rem;color:#65778b;font-weight:750;display:inline-flex;align-items:center;gap:5px}
+.hospitality-console-body .grocery-setup__status--done{color:#00864a}
+.hospitality-console-body .grocery-setup__status--blocked{color:#a56417}
+.hospitality-console-body .grocery-setup__more{margin-top:9px}
+.hospitality-console-body .grocery-setup__more summary{cursor:pointer;color:#546e87;font-size:.77rem;font-weight:700}
+.hospitality-console-body .grocery-setup__more form{margin-top:9px;display:flex;gap:10px;flex-wrap:wrap}
+.hospitality-console-body .grocery-setup__more button{font-size:.77rem;background:transparent;border:0;color:#536b80;text-decoration:underline;padding:4px}
+.hospitality-console-body .grocery-setup__aside{display:grid;gap:14px}
+.hospitality-console-body .grocery-setup__aside .staff-card{padding:19px}
+.hospitality-console-body .grocery-setup__aside h2{font-size:1.03rem;font-weight:800;margin:0 0 9px}
+.hospitality-console-body .grocery-setup__aside p{font-size:.82rem;color:#61748a;line-height:1.55}
+.hospitality-console-body .grocery-setup__checks{list-style:none;margin:0;padding:0}
+.hospitality-console-body .grocery-setup__checks li{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid #ecf0f4;font-size:.83rem}
+.hospitality-console-body .grocery-setup__checks li:last-child{border:0}
+.hospitality-console-body .grocery-setup__checks i{color:#0a8c51}
+.hospitality-console-body .grocery-setup__checks a{color:#087947;font-weight:750}
+.hospitality-console-body .grocery-setup__aside details summary{color:#1f3854;font-weight:800;cursor:pointer}
+.hospitality-console-body .grocery-setup__profile label{font-size:.83rem}
+.hospitality-console-body .grocery-setup__profile button{margin-top:12px}
+.hospitality-console-body .grocery-setup__aside-links{display:grid;gap:8px}
+.hospitality-console-body .grocery-setup__aside-links a{display:flex;align-items:center;gap:9px;padding:10px 12px;background:#f5faf7;border-radius:9px;text-decoration:none;color:#087a46;font-size:.84rem;font-weight:720}
+.hospitality-console-body .grocery-setup__table-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.hospitality-console-body .grocery-setup__table-actions a{color:#08794a;font-weight:700;font-size:.82rem;text-decoration:none}
+.hospitality-console-body .grocery-setup__empty{text-align:center;padding:32px;color:#6a7e90}
+.hospitality-console-body .grocery-setup__empty strong{display:block;color:#1d334e;margin:10px 0 5px}
+.hospitality-console-body .grocery-setup__table-intro{color:#667a8e;margin:-4px 0 18px;font-size:.88rem}
+@media(max-width:1080px){.hospitality-console-body .grocery-setup__layout{grid-template-columns:1fr}.hospitality-console-body .grocery-setup__aside{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.hospitality-console-body .grocery-setup__hero{flex-direction:column;align-items:stretch}.hospitality-console-body .grocery-setup__aside{grid-template-columns:1fr}.hospitality-console-body .grocery-setup__step{padding:14px!important}.hospitality-console-body .grocery-setup__step-icon{flex-basis:33px;width:33px;height:33px}.hospitality-console-body .grocery-setup__progress{padding:16px}.hospitality-console-body .grocery-setup__table-actions{justify-content:flex-start}}
+
+
+/* Consistent management choices, inline actions and progressive disclosure. */
+.hospitality-console-body .grocery-console-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hospitality-console-body .grocery-console-shortcuts>a{display:flex;align-items:center;gap:12px;min-height:116px;padding:16px;border-radius:13px;background:#fff;border:1px solid #e1e9ef;color:#172c49;text-decoration:none;box-shadow:0 3px 15px rgba(28,45,77,.035)}
+.hospitality-console-body .grocery-console-shortcuts>a:hover,.hospitality-console-body .grocery-console-shortcuts>a:focus-visible{border-color:#51b88b;background:#f9fdfa}
+.hospitality-console-body .grocery-console-shortcuts>a>.bi:first-child{font-size:1.5rem;color:#008e50;flex:0 0 34px}
+.hospitality-console-body .grocery-console-shortcuts>a>.bi:last-child{margin-left:auto;color:#7891a4}
+.hospitality-console-body .grocery-console-shortcuts span{display:grid;gap:5px;min-width:0;flex:1}
+.hospitality-console-body .grocery-console-shortcuts strong{font-size:.91rem;font-weight:800}
+.hospitality-console-body .grocery-console-shortcuts small{font-size:.78rem;line-height:1.45;color:#6b7c8f}
+.hospitality-console-body .grocery-setup__action-link{color:#087947;font-size:.84rem;font-weight:750;text-decoration:none}
+.hospitality-console-body .grocery-advanced-settings{margin:19px 0 0;padding:15px;background:#f8fbf9;border:1px solid #dce9e1;border-radius:12px}
+.hospitality-console-body .grocery-advanced-settings>summary{cursor:pointer;color:#1d3d30;font-weight:800;font-size:.88rem}
+.hospitality-console-body .grocery-advanced-settings>summary i{color:#087d4b;margin-right:7px}
+.hospitality-console-body .grocery-advanced-settings .grocery-form-fields{margin-top:16px}
+.hospitality-console-body .grocery-advanced-settings .staff-muted{margin-top:12px}
+.hospitality-console-body .grocery-setup__hero .grocery-setup__eyebrow a{color:#087947;text-decoration:none}
+.hospitality-console-body .grocery-setup__hero .grocery-setup__eyebrow a:hover{text-decoration:underline}
+@media(max-width:720px){.hospitality-console-body .grocery-console-shortcuts{grid-template-columns:1fr}.hospitality-console-body .grocery-console-shortcuts>a{min-height:90px}.hospitality-console-body .grocery-setup__empty{padding:24px 10px}}
+
+/* Stable, bounded setup layout for mixed business-line store owners. */
+.hospitality-console-body .console-app-shell{min-width:0}
+.hospitality-console-body .staff-app-shell__body{min-width:0}
+.hospitality-console-body .console-main{min-width:0;overflow-x:clip}
+.hospitality-console-body .grocery-setup{width:100%;max-width:1440px}
+.hospitality-console-body .grocery-setup__layout{grid-template-columns:minmax(0,1.55fr) minmax(265px,.8fr)}
+.hospitality-console-body .grocery-setup__layout>div,.hospitality-console-body .grocery-setup__aside{min-width:0}
+.hospitality-console-body .grocery-setup__step-body{overflow-wrap:anywhere}
+.hospitality-console-body .grocery-setup__step-actions a{max-width:100%;white-space:normal;text-align:center}
+.hospitality-console-body .grocery-setup__hero{flex-wrap:wrap}
+.hospitality-console-body .grocery-console-links a{white-space:normal}
+@media(max-width:1100px){
+ .hospitality-console-body .grocery-setup__layout{grid-template-columns:1fr}
+ .hospitality-console-body .grocery-setup__aside{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ .hospitality-console-body .grocery-setup__aside{grid-template-columns:1fr}
+ .hospitality-console-body .grocery-setup__step{padding:13px!important;gap:10px}
+ .hospitality-console-body .grocery-setup__step-icon{width:34px;height:34px;flex-basis:34px}
+ .hospitality-console-body .grocery-setup__hero-actions{width:100%}
+ .hospitality-console-body .grocery-setup__progress{padding:15px}
+}
+
+/* Keep the classic navigation structure but give it the shared visual polish. */
+.hospitality-console-body .console-sidebar .wb-nav-link{display:block;font-weight:650}
+.hospitality-console-body .console-sidebar .wb-nav-group{padding-bottom:10px}
+.hospitality-console-body .console-main .staff-card{min-width:0}
+.hospitality-console-body .staff-checklist label{display:inline-flex;gap:8px;align-items:center;margin:6px 12px 6px 0}
+@media(max-width:700px){.hospitality-console-body .console-main{padding:12px}.hospitality-console-body .console-main .staff-card{padding:14px}}
