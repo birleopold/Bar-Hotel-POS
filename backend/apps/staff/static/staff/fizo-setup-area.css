@@ -74,3 +74,35 @@
 .fizo-setup-area .fizo-practice__panels dl{border-top:1px solid #e5edf0;margin-top:16px;padding-top:13px}
 .fizo-setup-area .fizo-practice__panels dt,.fizo-setup-area .fizo-practice__panels dd{padding:9px 0;border-bottom:1px solid #edf1f4}
 @media(max-width:720px){.fizo-setup-area .fizo-practice .staff-dash-hero__panel{padding:16px}.fizo-setup-area .fizo-practice__safety{display:flex}}
+
+/* Canonical business overview; replaces the two former retail/hospitality layouts. */
+.fizo-setup-area .fizo-overview{max-width:1300px;margin:0 auto}
+.fizo-setup-area .fizo-overview__hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:20px}
+.fizo-setup-area .fizo-overview__hero h1{font-size:clamp(1.8rem,3vw,2.5rem);font-weight:800;letter-spacing:-.035em;color:#172743;margin:8px 0}
+.fizo-setup-area .fizo-overview__hero p:last-child{color:#63788d;margin:0}
+.fizo-setup-area .fizo-overview__progress{margin:0 0 19px}
+.fizo-setup-area .fizo-overview__progress .grocery-setup__progress-heading{display:flex;gap:12px;justify-content:space-between;font-weight:800;margin-bottom:13px}
+.fizo-setup-area .fizo-overview__progress progress{width:100%;height:12px;accent-color:#008c4d}
+.fizo-setup-area .fizo-overview__progress p{margin:11px 0 0;font-size:.86rem;color:#60758a}
+.fizo-setup-area .fizo-overview__progress a{color:#087d48;text-decoration:none;font-weight:750}
+.fizo-setup-area .fizo-overview__metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:13px;margin-bottom:29px}
+.fizo-setup-area .fizo-overview__metrics .staff-card{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fizo-setup-area .fizo-overview__metrics strong{font-size:1.7rem;font-weight:850;color:#192d40}
+.fizo-setup-area .fizo-overview__metrics span:last-child{font-size:.82rem;color:#718397}
+.fizo-setup-area .fizo-overview__metric-icon{width:37px;height:37px;border-radius:9px;display:grid;place-items:center;background:#e8f7ee;color:#008d4e;margin-bottom:6px}
+.fizo-setup-area .fizo-overview__section-head{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;margin:0 0 13px}
+.fizo-setup-area .fizo-overview__section-head h2{font-size:1.3rem;font-weight:800;margin:0}
+.fizo-setup-area .fizo-overview__section-head span{color:#728497;font-size:.82rem}
+.fizo-setup-area .fizo-overview__links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.fizo-setup-area .fizo-overview__links>a{display:flex;gap:13px;align-items:center;min-width:0;padding:18px;background:#fff;border:1px solid #e1e9ef;border-radius:13px;text-decoration:none;color:#1a3045;min-height:95px}
+.fizo-setup-area .fizo-overview__links>a:hover{border-color:#9bd3b3;background:#f9fcfa}
+.fizo-setup-area .fizo-overview__links>a>.bi:first-child{color:#008c4d;background:#e9f7ef;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:19px;flex:0 0 40px}
+.fizo-setup-area .fizo-overview__links>a>.bi:last-child{margin-left:auto;color:#738b9d}
+.fizo-setup-area .fizo-overview__links>a span{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fizo-setup-area .fizo-overview__links strong{font-size:.94rem;font-weight:800}
+.fizo-setup-area .fizo-overview__links small{font-size:.79rem;color:#73859a;line-height:1.4}
+.fizo-setup-area .fizo-overview__footer{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;margin-top:23px}
+.fizo-setup-area .fizo-overview__footer h2{font-size:1.1rem;font-weight:800}
+.fizo-setup-area .fizo-overview__footer p{font-size:.85rem;color:#63788d;margin:0}
+.fizo-setup-area .fizo-overview__footer>div:last-child{display:flex;gap:9px;flex-wrap:wrap}
+@media(max-width:760px){.fizo-setup-area .fizo-overview__links{grid-template-columns:1fr}.fizo-setup-area .fizo-overview__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
