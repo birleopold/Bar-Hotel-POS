@@ -32,3 +32,22 @@
 .fizo-hotel__pager{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px;color:#71818b}
 .fizo-hotel__pager a{color:#00874b;text-decoration:none;font-weight:750}
 @media(max-width:620px){.fizo-hotel__panel{padding:13px}.fizo-hotel__filter,.fizo-hotel__filter select{width:100%}.fizo-hotel__filter button{width:100%}.fizo-hotel__head>.staff-btn{width:100%}}
+
+
+/* Availability screen — fresh guest-room search and responsive room cards. */
+.fizo-availability__search{margin:16px 0}
+.fizo-availability__fields{display:grid;grid-template-columns:minmax(145px,1fr) minmax(145px,1fr) auto auto;gap:12px;align-items:end}
+.fizo-availability__fields label{display:block;font-weight:750;color:#435e63;margin:0 0 6px}
+.fizo-availability__fields .staff-btn{min-height:43px;white-space:nowrap}
+.fizo-availability__results{margin-top:15px}
+.fizo-availability__count{display:inline-grid;place-items:center;font-size:13px;border-radius:30px;background:#e4f7eb;color:#007b46;padding:5px 9px;margin-left:6px}
+.fizo-availability__group{border-top:1px solid #e2ece6;padding:16px 0}
+.fizo-availability__group h3{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:800;margin:0 0 14px}
+.fizo-availability__group h3 span{color:#7a8c87;font-size:12px;font-weight:650}
+.fizo-availability__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:11px}
+.fizo-availability__room{display:flex;align-items:center;flex-direction:column;gap:9px;padding:20px 12px;background:#f9fcfa;border:1px solid #dbeae1;border-radius:11px}
+.fizo-availability__room-icon{display:grid;place-items:center;width:43px;height:43px;border-radius:12px;background:#e0f5e7;color:#007e46;font-size:23px}
+.fizo-availability__room strong{font-size:16px}
+.fizo-availability__ready{font-size:12px;font-weight:800;color:#007843;background:#e3f7e9;border-radius:7px;padding:4px 8px}
+@media(max-width:880px){.fizo-availability__fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:540px){.fizo-availability__fields{grid-template-columns:1fr}.fizo-availability__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
