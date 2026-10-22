@@ -2,19 +2,18 @@
 {% block title %}{% if grocery_console_shell %}Products{% else %}Menu items{% endif %}{% endblock %}
 {% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
-{% if grocery_console_shell %}
 <section class="fizo-entity fizo-entity--list" aria-labelledby="products-heading">
   <header class="grocery-setup__hero">
-    <div><p class="grocery-setup__eyebrow">Store management / Catalogue</p><h1 id="products-heading">Your products</h1>
-      <p>Add products with their selling prices, barcodes and stock settings. Use CSV import when you already have a product list.</p>
+    <div><p class="grocery-setup__eyebrow">Fizo / Catalogue</p><h1 id="products-heading">{% if grocery_console_shell %}Your products{% else %}Menu items{% endif %}</h1>
+      <p>Manage retail products, food and drinks with prices, categories and stock settings.</p>
     </div>
     <div class="grocery-setup__hero-actions">
       <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-catalog-import' %}"><i class="bi bi-upload"></i> Import CSV</a>
-      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}"><i class="bi bi-plus-lg"></i> Add product</a>
+      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}"><i class="bi bi-plus-lg"></i> Add item</a>
     </div>
   </header>
   <div class="d-flex flex-wrap gap-2 mb-3">
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags"></i> Product categories</a>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags"></i> Categories</a>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes"></i> View stock levels</a>
   </div>
   <section class="staff-card">
@@ -29,7 +28,8 @@
               <td><span class="grocery-setup__status{% if it.track_inventory %} grocery-setup__status--done{% endif %}">{% if it.track_inventory %}Yes{% else %}No{% endif %}</span></td>
               <td><div class="grocery-setup__table-actions">
                 <a href="{% url 'console-org-menu-item-edit' item_id=it.id %}">Edit</a>
-                <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Branch pricing</a>
+                <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Area pricing</a>
+                {% if console_has_fnb %}<a href="{% url 'console-org-menu-item-recipe' item_id=it.id %}">Recipe</a>{% endif %}
               </div></td></tr>
           {% endfor %}</tbody>
         </table>
@@ -42,47 +42,4 @@
     {% endif %}
   </section>
 </section>
-{% else %}
-<section class="fizo-entity fizo-entity--list" aria-labelledby="hospitality-menu-heading">
-  <header class="grocery-setup__hero">
-    <div>
-      <p class="grocery-setup__eyebrow">Hospitality management / Food &amp; drinks</p>
-      <h1 id="hospitality-menu-heading">Menu items</h1>
-      <p>Manage food and drink prices, availability, recipes and section-specific pricing.</p>
-    </div>
-    <div class="grocery-setup__hero-actions">
-      {% if console_has_fnb %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-modifier-groups' %}"><i class="bi bi-sliders" aria-hidden="true"></i> Modifiers</a>{% endif %}
-      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-catalog-import' %}"><i class="bi bi-upload" aria-hidden="true"></i> Import CSV</a>
-      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add menu item</a>
-    </div>
-  </header>
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags" aria-hidden="true"></i> Categories</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-sites' %}"><i class="bi bi-geo-alt" aria-hidden="true"></i> Branches &amp; sections</a>
-  </div>
-  <section class="staff-card">
-    {% if items %}
-      <div class="staff-table-wrap"><table class="staff-table">
-        <thead><tr><th scope="col">Item</th><th scope="col">Category</th><th scope="col">Selling price</th><th scope="col">SKU</th><th scope="col">Stock tracked</th><th scope="col">Actions</th></tr></thead>
-        <tbody>{% for it in items %}<tr>
-          <td><strong>{{ it.name }}</strong></td><td>{{ it.category.name }}</td><td>{{ it.unit_price }}</td><td>{{ it.sku|default:"—" }}</td>
-          <td>{% if it.track_inventory %}Yes{% else %}No{% endif %}</td>
-          <td><div class="grocery-setup__table-actions">
-            <a href="{% url 'console-org-menu-item-edit' item_id=it.id %}">Edit</a>
-            <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Section pricing</a>
-            <a href="{% url 'console-org-menu-item-recipe' item_id=it.id %}">Recipe</a>
-          </div></td>
-        </tr>{% endfor %}</tbody>
-      </table></div>
-    {% else %}
-      <div class="grocery-setup__empty">
-        <i class="bi bi-cup-hot fs-1" aria-hidden="true"></i>
-        <strong>No menu items yet</strong>
-        <p>Add your first food or drink item to begin preparing your menu.</p>
-        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}">Add first item</a>
-      </div>
-    {% endif %}
-  </section>
-</section>
-{% endif %}
 {% endblock %}
