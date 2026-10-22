@@ -1,13 +1,15 @@
 {% extends "console/base.html" %}
-{% block title %}Options · {{ modifier_group.name }}{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block title %}Modifier options{% endblock %}
+{% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
-  <p class="staff-muted"><a href="{% url 'console-org-modifier-groups' %}">Modifier groups</a> / {{ modifier_group.name }}</p>
-  <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Options<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-modifier-option-create' group_id=modifier_group.id %}">New option</a>
-  </div>
-  <div class="staff-table-wrap">
+<section class="fizo-entity fizo-entity--list" aria-labelledby="fizo-entity-list-heading">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-form-kicker">FIZO / CATALOGUE / MODIFIERS</p>
+      <h1 id="fizo-entity-list-heading">Modifier options</h1><p class="staff-muted">Manage options and price changes for {{ modifier_group.name }}.</p></div>
+    <a class="staff-btn staff-btn--primary" href="{% url 'console-org-modifier-option-create' group_id=modifier_group.id %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add option</a>
+  </header>
+  <div class="staff-card fizo-entity__card">
+    <div class="staff-table-wrap">
     <table class="staff-table">
       <thead><tr><th>Sort</th><th>Name</th><th>Price +</th><th>Active</th><th></th></tr></thead>
       <tbody>
@@ -25,4 +27,6 @@
       </tbody>
     </table>
   </div>
+  </div>
+</section>
 {% endblock %}
