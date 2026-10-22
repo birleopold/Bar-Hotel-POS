@@ -137,3 +137,17 @@
 .grocery-register-ready .grocery-basket-quantity .staff-input--pos-qty{min-width:64px;max-width:86px;text-align:center}
 .grocery-register-ready .grocery-basket-quantity .staff-btn{min-height:34px}
 @media(max-width:600px){.grocery-register-ready .grocery-qty-shortcut{min-height:42px;min-width:42px}}
+
+/* Reference-matched cashier identity and accessible transaction summary. */
+.grocery-register-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 18px;margin:0 0 10px;background:#fff;border:1px solid #e2e9ee;border-radius:13px;min-height:75px}
+.grocery-register-heading__title{display:flex;align-items:center;gap:12px;min-width:0}
+.grocery-register-heading__mark{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:10px;background:#e8f8ee;font-size:1.7rem}
+.grocery-register-heading__title>span:last-child{display:flex;flex-direction:column;min-width:0}
+.grocery-register-heading__title strong{font-size:1.32rem;color:#132440;line-height:1.2;overflow-wrap:anywhere}
+.grocery-register-heading__title small{color:#59708b;font-size:.83rem;margin-top:3px}
+.grocery-register-heading__status{padding:11px 16px;border:1px solid #d8e4e8;border-radius:10px;background:#f9fcfa;font-size:.83rem;font-weight:700;color:#0e6948;max-width:45%;text-align:right}
+.grocery-register-summary{border-radius:12px;background:#f7fbf8;padding:10px 14px}
+.grocery-basket-summary{display:flex;flex-direction:column;gap:6px;padding:15px 12px;margin:14px 0;border-top:1px solid #dde8e2;background:#f4faf6;border-radius:10px;color:#536881;font-size:.88rem}
+.grocery-basket-summary strong{display:block;font-size:1.25rem;color:#006d40;font-variant-numeric:tabular-nums}
+.grocery-receipt-shortcut{display:inline-flex;align-items:center;justify-content:center;min-height:45px;width:100%;margin:8px 0}
+@media(max-width:700px){.grocery-register-heading{padding:10px;gap:10px}.grocery-register-heading__title strong{font-size:1rem}.grocery-register-heading__status{padding:8px;font-size:.71rem;max-width:43%}}
