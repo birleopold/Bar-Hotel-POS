@@ -26,6 +26,7 @@ def console_nav(request):
         "console_nav": None,
         "grocery_console_shell": False,
         "hospitality_console_shell": False,
+        "fizo_setup_area": path.startswith("/console/org/"),
         "console_memberships": memberships,
         "console_platform_tenants": platform_tenants,
         "console_is_platform_operator": platform_operator,
