@@ -130,3 +130,14 @@
 .fizo-pos-load-more[hidden],.fizo-pos-load-more button[hidden]{display:none!important}
 .fizo-pos-load-more p{margin:0;font-size:12px;color:#597369}
 .fizo-pos-load-more button{min-height:42px;font-weight:800}
+
+/* Quick add unshelved product without interrupting a sale */
+.fizo-quick-product{border:1px solid #cfe5d9!important;background:#fbfefc!important}
+.fizo-quick-product summary{list-style:none;cursor:pointer;font-weight:850;color:#007d46;padding:3px 0}
+.fizo-quick-product summary::-webkit-details-marker{display:none}
+.fizo-quick-product summary i{margin-right:8px}
+.fizo-quick-product__form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.fizo-quick-product__form label{display:flex;flex-direction:column;gap:6px;font-weight:750;font-size:12px;color:#284c49}
+.fizo-quick-product__form .staff-input{min-width:0;min-height:42px}
+.fizo-quick-product__form button{grid-column:1/-1;min-height:46px}
+@media(max-width:600px){.fizo-quick-product__form{grid-template-columns:1fr}}
