@@ -262,6 +262,24 @@ class ConsoleAccessTests(TestCase):
                 self.assertContains(response, heading)
                 self.assertContains(response, "hospitality-console-body")
 
+    def test_sample_catalog_csv_is_not_parsed_as_price_update(self) -> None:
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        user = User.objects.create_user(email="csv-workflow-test@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["supermarket"])
+        self._login_with_tenant(user)
+        sample = self.client.get(reverse("console-org-catalog-import") + "?sample=1")
+        self.assertEqual(sample.status_code, 200)
+        upload = SimpleUploadedFile("catalog-example.csv", sample.content, content_type="text/csv")
+        response = self.client.post(reverse("console-org-catalog-import"), {
+            "action": "preview", "file": upload,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "rows passed validation")
+        self.assertNotContains(response, "Price CSV columns must be")
+        self.assertEqual(MenuItem.objects.filter(tenant=self.tenant).count(), 0)
+
     def test_import_page_has_clean_title_and_canonical_theme(self) -> None:
         user = User.objects.create_user(email="fizo-import-style@test.local", password="TestPass9!")
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
