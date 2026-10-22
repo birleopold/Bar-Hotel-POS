@@ -1,0 +1,33 @@
+/* Fizo dashboard V2. Purpose-built operational dashboard; no inherited tile layout. */
+.fizo-dash{--green:#008d4a;--ink:#142d35;--line:#e4ece8;max-width:1450px;margin:auto;color:var(--ink);padding:0 0 32px}
+.fizo-dash__head{display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:14px;margin:0 0 22px}
+.fizo-dash__eyebrow{font-size:12px;color:#087a45;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.fizo-dash__head h1{font-size:clamp(24px,2.7vw,36px);font-weight:850;letter-spacing:-.04em;margin:5px 0 4px}
+.fizo-dash__head p{margin:0;color:#6b7d83}
+.fizo-dash__head a,.fizo-dash__action{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:9px;text-decoration:none;font-weight:750;min-height:43px}
+.fizo-dash__action{background:var(--green);color:#fff!important}
+.fizo-dash__action--secondary{background:#fff;color:#087547!important;border:1px solid #cfe2d7}
+.fizo-dash__panel{background:#fff;border:1px solid var(--line);border-radius:15px;padding:20px;min-width:0}
+.fizo-dash__section{margin-top:24px}
+.fizo-dash__sectionhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:11px}
+.fizo-dash__sectionhead h2{font-size:18px;font-weight:800;margin:0}
+.fizo-dash__sectionhead p{color:#73868c;font-size:13px;margin:0}
+.fizo-dash__kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.fizo-dash__kpi{display:flex;flex-direction:column;gap:6px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:17px;min-width:0;text-decoration:none;color:inherit}
+.fizo-dash__kpi small{color:#677d81;font-weight:650}.fizo-dash__kpi strong{font-size:clamp(19px,2vw,29px);letter-spacing:-.03em;color:#152d35}.fizo-dash__kpi i{color:#008d4a}
+.fizo-dash__layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,1fr);gap:14px}
+.fizo-dash__list{list-style:none;margin:0;padding:0}.fizo-dash__list li+li{border-top:1px solid #edf1ef}
+.fizo-dash__list a{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 3px;text-decoration:none;color:#263e45}
+.fizo-dash__list strong{font-size:14px}.fizo-dash__list small{color:#78858c;font-size:12px}
+.fizo-dash__launch{display:flex;align-items:center;justify-content:space-between;gap:14px;background:#ecf9f1;border:1px solid #d4ebdd;border-radius:13px;padding:19px;flex-wrap:wrap}
+.fizo-dash__launch h2{font-size:19px;font-weight:850;margin:0 0 4px}.fizo-dash__launch p{color:#567366;font-size:13px;margin:0}
+.fizo-dash__shortcuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}
+.fizo-dash__shortcuts a,.fizo-dash__shortcuts button{display:flex;align-items:center;gap:10px;text-decoration:none;color:#1f3c40;background:#fff;border:1px solid var(--line);padding:13px 15px;border-radius:11px;font-weight:750;min-height:55px;width:100%;text-align:left}
+.fizo-dash__shortcuts a:hover,.fizo-dash__shortcuts button:hover{border-color:#7dcca4;background:#f4fbf6}.fizo-dash__shortcuts i{font-size:19px;color:var(--green)}
+.fizo-dash__pill{display:inline-block;padding:5px 9px;border-radius:7px;background:#e3f6e9;color:#007e43;font-size:11px;font-weight:800}
+.fizo-dash__empty{color:#75848b;font-size:13px}.fizo-dash__links{display:flex;flex-wrap:wrap;gap:9px}.fizo-dash__links a{color:#087a45;font-size:13px;font-weight:750}
+.fizo-dash__roomgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.fizo-dash__roomgrid div{background:#f3f9f5;border-radius:9px;padding:11px}.fizo-dash__roomgrid strong{display:block;font-size:23px}.fizo-dash__roomgrid small{color:#637d72}
+.fizo-dash__muted{color:#6f8288;font-size:13px}
+@media(max-width:980px){.fizo-dash__kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-dash__layout{grid-template-columns:1fr}}
+@media(max-width:550px){.fizo-dash__kpis{gap:8px}.fizo-dash__kpi,.fizo-dash__panel{padding:12px}.fizo-dash__roomgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-dash__launch .fizo-dash__action{width:100%}}
