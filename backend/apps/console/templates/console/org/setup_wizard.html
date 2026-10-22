@@ -1,6 +1,78 @@
 {% extends "console/base.html" %}
 {% block title %}Setup wizard{% endblock %}
-{% block main_class %}staff-main--wide{% endblock %}
+{% block main_class %}staff-main--wide fizo-setup-page{% endblock %}
+{% block extra_css %}
+{{ block.super }}
+<style>
+/* Inline safety net: the setup page remains styled if collected static CSS is stale/missing. */
+.fizo-setup-page{background:#f5f8fa!important;padding:26px 32px 45px!important;width:100%;max-width:none!important;min-width:0;font-family:"DM Sans",system-ui,sans-serif;color:#162638}
+.fizo-setup-page .grocery-setup{width:100%;max-width:1400px;margin:auto}
+.fizo-setup-page .grocery-setup__hero{display:flex;justify-content:space-between;align-items:start;gap:18px;flex-wrap:wrap;margin:0 0 22px}
+.fizo-setup-page .grocery-setup__hero>div:first-child{flex:1;min-width:250px}
+.fizo-setup-page .grocery-setup__eyebrow{font-size:13px;color:#577188;margin:0 0 14px}
+.fizo-setup-page .grocery-setup__hero h1{font-weight:800;font-size:clamp(28px,3vw,40px);letter-spacing:-.04em;margin:0 0 9px;color:#13243a}
+.fizo-setup-page .grocery-setup__hero p:last-child{color:#596d80;font-size:15px;max-width:800px;margin:0}
+.fizo-setup-page .grocery-setup__hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+.fizo-setup-page .staff-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;border-radius:9px;min-height:40px;padding:9px 16px;font-size:13px;font-weight:700;white-space:normal}
+.fizo-setup-page .staff-btn--primary{background:#008d4e!important;border:1px solid #008d4e!important;color:#fff!important}
+.fizo-setup-page .staff-btn--ghost{background:#fff!important;border:1px solid #dce6ec!important;color:#213a51!important}
+.fizo-setup-page .staff-card{background:#fff!important;border:1px solid #e6edf0!important;border-radius:14px!important;box-shadow:0 4px 19px rgba(23,45,66,.045)!important}
+.fizo-setup-page .grocery-setup__progress{padding:24px!important;margin:0 0 26px}
+.fizo-setup-page .grocery-setup__progress-heading{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;font-size:15px}
+.fizo-setup-page .grocery-setup__progress-heading strong{font-weight:800}
+.fizo-setup-page .grocery-setup__progress-heading span{color:#637488}
+.fizo-setup-page .grocery-setup__progress progress{display:block;width:100%;height:13px;accent-color:#008d4e;border:0;border-radius:999px;overflow:hidden}
+.fizo-setup-page .grocery-setup__progress progress::-webkit-progress-bar{background:#e6ecef;border-radius:999px}
+.fizo-setup-page .grocery-setup__progress progress::-webkit-progress-value{background:#008d4e;border-radius:999px}
+.fizo-setup-page .grocery-setup__progress progress::-moz-progress-bar{background:#008d4e}
+.fizo-setup-page .grocery-setup__next{margin:14px 0 0;color:#40556c}
+.fizo-setup-page .grocery-setup__next a{color:#008447;font-weight:800;text-decoration:none}
+.fizo-setup-page .grocery-setup__layout{display:flex;flex-direction:column;gap:24px;min-width:0}
+.fizo-setup-page .grocery-setup__layout>div{width:100%;min-width:0}
+.fizo-setup-page .grocery-setup__section-head{margin:0 0 14px}
+.fizo-setup-page .grocery-setup__section-head h2{font-size:25px;letter-spacing:-.035em;font-weight:800;margin:0 0 4px}
+.fizo-setup-page .grocery-setup__section-head span{color:#768799;font-size:14px}
+.fizo-setup-page .grocery-setup__step{display:grid;grid-template-columns:36px 52px minmax(0,1fr) auto;gap:15px;align-items:center;padding:18px 22px!important;margin-bottom:12px;min-height:94px}
+.fizo-setup-page .grocery-setup__step--done{background:#f3fbf6!important;border-color:#dbefe3!important}
+.fizo-setup-page .grocery-setup__step-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#e9edf0;color:#20334b;font-size:14px;font-weight:800}
+.fizo-setup-page .grocery-setup__step--done .grocery-setup__step-icon{background:#d7f3e3;color:#078548}
+.fizo-setup-page .grocery-setup__step-visual{display:grid;place-items:center;width:52px;height:52px;background:#edf9f2;color:#008d4e;border-radius:11px;font-size:23px}
+.fizo-setup-page .grocery-setup__step-body{min-width:0}
+.fizo-setup-page .grocery-setup__step-body h3{font-size:17px;font-weight:800;color:#182b3e;margin:0 0 5px}
+.fizo-setup-page .grocery-setup__step-body p{font-size:13px;color:#708094;margin:0;line-height:1.5}
+.fizo-setup-page .grocery-setup__step-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.fizo-setup-page .grocery-setup__status{font-size:12px;font-weight:700;color:#718196}
+.fizo-setup-page .grocery-setup__status--done{color:#00854a;background:#dff5e7;padding:6px 10px;border-radius:7px}
+.fizo-setup-page .grocery-setup__more{grid-column:3/-1;font-size:12px;margin:0}
+.fizo-setup-page .grocery-setup__more summary{cursor:pointer;color:#8290a0}
+.fizo-setup-page .grocery-setup__more form{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0}
+.fizo-setup-page .grocery-setup__more button{background:transparent;border:0;color:#297f55;text-decoration:underline;font-size:12px}
+.fizo-setup-page .grocery-setup__aside{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.fizo-setup-page .grocery-setup__aside .staff-card{padding:18px}
+.fizo-setup-page .grocery-setup__aside h2{font-size:16px;font-weight:800}
+.fizo-setup-page .grocery-setup__aside p,.fizo-setup-page .grocery-setup__checks{font-size:12px}
+.fizo-setup-page .grocery-setup__checks{list-style:none;padding:0}
+.fizo-setup-page .grocery-setup__checks li{display:flex;gap:7px;margin-bottom:9px}
+.fizo-setup-page .grocery-setup__checks i{color:#008d4e}
+.fizo-setup-page .grocery-setup__aside-links{display:grid;gap:8px}
+.fizo-setup-page .grocery-setup__aside-links a{color:#087c47;text-decoration:none;font-size:13px}
+.fizo-setup-page a:focus-visible,.fizo-setup-page button:focus-visible{outline:3px solid #d79b28;outline-offset:2px}
+@media(max-width:1100px){.fizo-setup-page .grocery-setup__aside{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-setup-page .grocery-setup__step{grid-template-columns:34px 45px minmax(0,1fr)}.fizo-setup-page .grocery-setup__step-actions{grid-column:3;justify-content:flex-start}.fizo-setup-page .grocery-setup__more{grid-column:3}}
+@media(max-width:700px){.fizo-setup-page{padding:15px!important}.fizo-setup-page .grocery-setup__step{padding:14px!important;gap:10px;grid-template-columns:30px 40px minmax(0,1fr)}.fizo-setup-page .grocery-setup__step-visual{width:40px;height:40px;font-size:19px}.fizo-setup-page .grocery-setup__step-actions,.fizo-setup-page .grocery-setup__more{grid-column:1/-1}.fizo-setup-page .grocery-setup__aside{grid-template-columns:1fr}.fizo-setup-page .grocery-setup__progress{padding:16px!important}}
+/* Sidebar fallback: repairs the unstyled blue text/navigation visible on Fizo. */
+.grocery-console-body .console-sidebar{background:#fff!important;border-right:1px solid #e5edf0!important;min-width:240px;width:260px;max-width:260px}
+.grocery-console-body .grocery-console-brand{display:flex;gap:10px;align-items:center;padding:19px 17px;text-decoration:none;color:#142b37;border-bottom:1px solid #e7efea}
+.grocery-console-body .grocery-console-brand i{color:#008d4e;font-size:25px}
+.grocery-console-body .grocery-console-brand span{display:grid;line-height:1.4}
+.grocery-console-body .grocery-console-brand small{color:#748696;font-size:12px}
+.grocery-console-body .grocery-console-links{display:flex;flex-direction:column;gap:6px;padding:17px 12px}
+.grocery-console-body .grocery-console-links a{display:flex;align-items:center;gap:14px;text-decoration:none!important;color:#40576a!important;font-size:14px;font-weight:650;padding:12px;border-radius:9px;min-height:44px}
+.grocery-console-body .grocery-console-links a i{width:19px;font-size:17px}
+.grocery-console-body .grocery-console-links a.is-active{background:#e6f6ec!important;color:#008445!important;border-left:3px solid #008d4e}
+.grocery-console-body .grocery-console-help{padding:18px;color:#768899;font-size:12px}
+@media(max-width:700px){.grocery-console-body .console-sidebar{width:100%;max-width:none;min-width:0}.grocery-console-body .grocery-console-links{flex-direction:row;overflow-x:auto;white-space:nowrap}}
+</style>
+{% endblock %}
 {% block content %}
 {% if grocery_console_shell or hospitality_console_shell %}
 <section class="grocery-setup" aria-labelledby="store-setup-heading">
@@ -29,11 +101,13 @@
       <div class="grocery-setup__section-head"><h2>Complete these steps</h2><span>Start from the top</span></div>
       {% for step in setup_steps %}
         <article class="staff-card grocery-setup__step{% if step.done %} grocery-setup__step--done{% elif step.status == 'blocked' %} grocery-setup__step--blocked{% endif %}">
-          <span class="grocery-setup__step-icon" aria-hidden="true">{% if step.done %}<i class="bi bi-check-lg"></i>{% else %}{{ forloop.counter }}{% endif %}</span>
+          <span class="grocery-setup__step-icon" aria-hidden="true">{{ forloop.counter }}</span>
+          <span class="grocery-setup__step-visual" aria-hidden="true"><i class="bi {% if step.key == 'business_profile' %}bi-shop{% elif step.key == 'first_property' %}bi-building{% elif step.key == 'first_outlet' %}bi-geo-alt{% elif step.key == 'first_menu_item' %}bi-box-seam{% elif step.key == 'first_team_invite' %}bi-people{% else %}bi-check2-square{% endif %}"></i></span>
           <div class="grocery-setup__step-body">
             <h3>{{ step.name }}</h3>
             <p>{{ step.description }}</p>
-            <div class="grocery-setup__step-actions">
+          </div>
+          <div class="grocery-setup__step-actions">
               <a class="staff-btn staff-btn--sm {% if step.done %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}" href="{{ step.cta_url }}">{{ step.cta_label }} <i class="bi bi-arrow-right"></i></a>
               {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
               <span class="grocery-setup__status{% if step.done %} grocery-setup__status--done{% elif step.status == 'blocked' %} grocery-setup__status--blocked{% endif %}">{% if step.done %}<i class="bi bi-check-circle-fill"></i> Done{% elif step.status == 'blocked' %}<i class="bi bi-exclamation-circle"></i> Needs attention{% else %}Not started{% endif %}</span>
@@ -50,7 +124,6 @@
               </form>
             </details>
             {% endif %}
-          </div>
         </article>
       {% endfor %}
       {% if setup_optional_steps %}
