@@ -50,3 +50,27 @@
 @media(max-width:1250px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-layout{grid-template-columns:minmax(0,1.2fr) minmax(305px,1fr)}.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-layout{grid-template-columns:1fr}.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.staff-main:has(.fizo-checkout-catalogue) .staff-pos-order-side{max-width:none}}
 @media(max-width:620px){.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-checkout-catalogue .staff-pos-menu-tile{min-height:175px}.staff-main:has(.fizo-checkout-catalogue) [data-pos-payment-form]{grid-template-columns:1fr}.staff-main:has(.fizo-checkout-catalogue) [data-pos-payment-form]>.col-12:last-child{grid-column:auto}}
+
+
+/* Approved cashier composition, one active order with real forms and live totals. */
+.fizo-retail-pos-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:9px 4px 16px}
+.fizo-retail-pos-heading__eyebrow{color:#008b49;font-size:11px;text-transform:uppercase;font-weight:850;letter-spacing:.08em}
+.fizo-retail-pos-heading h1{font-size:clamp(23px,2.4vw,33px);font-weight:850;color:#17333e;letter-spacing:-.03em;margin:4px 0}
+.fizo-retail-pos-heading p{margin:0;color:#708087;font-size:13px}
+.fizo-retail-pos-scanner{background:#fff!important;border:1px solid #d9e8df!important;border-radius:12px!important;padding:13px!important;margin:0 0 16px!important}
+.fizo-retail-pos-scanner h2{font-size:16px;font-weight:850}
+.fizo-retail-pos-scanner form{margin-top:8px}
+.fizo-retail-pos-scanner input{min-height:45px}
+.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.fizo-checkout-catalogue .staff-pos-menu-tile{padding:8px;gap:6px;min-height:205px}
+.fizo-checkout-catalogue .staff-pos-menu-tile__photo,.fizo-checkout-catalogue .staff-pos-menu-tile__icon{height:115px}
+.fizo-checkout-catalogue .staff-pos-menu-tile::after{display:none}
+.fizo-checkout-catalogue .staff-pos-menu-tile__name{line-height:1.25}
+.fizo-tile-add{display:block;margin-top:auto;background:#e5f8eb;color:#007d42;border-radius:7px;text-align:center;font-size:12px;font-weight:850;padding:7px}
+.fizo-checkout-catalogue [data-pos-menu-tile][aria-pressed=true] .fizo-tile-add{background:#008b49;color:#fff}
+.fizo-checkout-basket{position:sticky;top:14px}
+.fizo-checkout-basket__title{font-weight:850!important}
+@media(max-width:1350px){.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1050px){.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.fizo-checkout-basket{position:static}.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:620px){.fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-retail-pos-heading>.staff-btn{width:100%;justify-content:center}}
