@@ -400,6 +400,31 @@
         var empty = browser.querySelector("[data-pos-menu-empty]");
         var announcement = browser.querySelector("[data-pos-menu-selection]");
         var activeCategory = "all";
+        var quickPicks = browser.querySelector("[data-fizo-favourites]");
+        if (quickPicks) {
+          var ranked = tiles.filter(function (tile) { return tile.dataset.fizoQuickPick === "1"; });
+          if (ranked.length) {
+            quickPicks.textContent = "";
+            ranked.forEach(function (tile) {
+              var shortcut = document.createElement("button");
+              shortcut.type = "button";
+              shortcut.className = "fizo-pos-quick-pick";
+              shortcut.textContent = tile.querySelector(".staff-pos-menu-tile__name").textContent;
+              shortcut.addEventListener("click", function () {
+                activeCategory = "all";
+                filters.forEach(function (filter) {
+                  var active = filter.dataset.posMenuFilter === "all";
+                  filter.classList.toggle("is-active", active);
+                  filter.setAttribute("aria-pressed", active ? "true" : "false");
+                });
+                if (search) search.value = "";
+                updateTiles();
+                tile.click();
+              });
+              quickPicks.appendChild(shortcut);
+            });
+          }
+        }
 
         function updateTiles() {
           var query = (search && search.value || "").trim().toLowerCase();
