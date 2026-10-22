@@ -54,6 +54,7 @@ urlpatterns = [
     path("setup/prompt/resume/", views.StaffSetupPromptResumeView.as_view(), name="staff-setup-prompt-resume"),
     path("select-tenant/", views.StaffSelectTenantView.as_view(), name="staff-select-tenant"),
     path("select-outlet/", views_ops.StaffSelectOutletView.as_view(), name="staff-select-outlet"),
+    path("pos/checkout/", views_ops.StaffRetailPosEntryView.as_view(), name="staff-retail-pos-entry"),
     path("orders/", views_ops.StaffOrdersListView.as_view(), name="staff-orders"),
     path("orders/new/", views_ops.StaffOrderQuickCreateView.as_view(), name="staff-order-quick-create"),
     path("orders/<uuid:order_id>/", views_ops.StaffOrderDetailView.as_view(), name="staff-order-detail"),
