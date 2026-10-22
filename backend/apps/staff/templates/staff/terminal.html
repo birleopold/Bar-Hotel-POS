@@ -1,37 +1,61 @@
 {% load static %}
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>{% if login_brand %}{{ login_brand.name }} · Staff terminal{% else %}Staff terminal{% endif %}</title>
-  {% if login_brand and login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
-  <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#173C65{% endif %}">
-  <link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20260930.1">
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %} · Staff PIN</title>
+{% if login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
+<meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#00884b{% endif %}">
+<link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20261006.3">
+<link rel="stylesheet" href="{% static 'staff/fizo-auth-2026.css' %}?v=1">
 </head>
-<body class="staff-body staff-terminal-body"{% if login_brand %} style="--staff-primary:{{ login_brand.primary }}; --brand-primary:{{ login_brand.primary }}"{% endif %}>
-  <main class="staff-terminal" id="staff-main-content"{% if login_brand.background_url %} style="position:relative;isolation:isolate;overflow:hidden"{% endif %}>
-    {% if login_brand.background_url %}<img src="{{ login_brand.background_url }}" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;pointer-events:none">{% endif %}
-    <div class="staff-terminal__masthead"><span class="staff-terminal__mark" aria-hidden="true">◼</span><span>{% if login_brand %}{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="" style="width:28px;height:28px;object-fit:contain;vertical-align:middle;margin-right:8px">{% endif %}{{ login_brand.name }}{% else %}Staff workspace{% endif %}</span><span class="staff-terminal__status">Terminal locked</span></div>
-    <section class="staff-terminal__panel" aria-labelledby="terminal-title">
-      <div class="staff-terminal__eyebrow">{% if login_brand %}{{ login_brand.name }} · STAFF TERMINAL{% else %}READY FOR THE NEXT WORKER{% endif %}</div>
-      <h1 id="terminal-title">{% if login_brand %}Welcome to {{ login_brand.name }}{% else %}Your turn to serve.{% endif %}</h1>
-      {% if login_brand.welcome_message %}<p>{{ login_brand.welcome_message }}</p>{% endif %}
-      <p class="staff-terminal__intro">{% if login_brand %}{{ login_brand.workspace_label }}. {% endif %}Your turn to serve. Choose your name and enter your PIN; your work stays under your own account.</p>
-      {% if workers %}
-        <form method="post" action="{% url 'staff-terminal' %}" class="staff-terminal__form" novalidate>
-          {% csrf_token %}
-          {% if form.non_field_errors %}<div class="staff-terminal__error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-          <div><label class="staff-label" for="{{ form.worker.id_for_label }}">Worker</label>{{ form.worker }}{{ form.worker.errors }}</div>
-          <div><label class="staff-label" for="{{ form.pin.id_for_label }}">PIN</label>{{ form.pin }}{{ form.pin.errors }}</div>
-          <button class="staff-btn staff-btn--primary staff-terminal__submit" type="submit">Unlock workspace</button>
-        </form>
-      {% else %}
-        <p class="staff-terminal__empty">No staff accounts are available on this terminal. Sign in with your work account to set up your PIN, or ask your manager to check the terminal assignment.</p>
-      {% endif %}
-      <a class="staff-terminal__alternative" href="{% url 'staff-login' %}">Sign in with email and password <span aria-hidden="true">→</span></a>
-    </section>
-    <p class="staff-terminal__foot">Finished serving? Choose <strong>Lock terminal</strong> before handing it over.</p>
-  </main>
-</body>
-</html>
+<body class="fizo-auth-body"{% if login_brand %} style="--fz-auth-green:{{ login_brand.primary }};--staff-primary:{{ login_brand.primary }}"{% endif %}>
+<main class="fizo-auth" id="staff-main-content">
+<aside class="fizo-auth__aside">
+<div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</span></div>
+<div><div class="fizo-auth__eyebrow">Shared staff terminal</div><h2 class="fizo-auth__statement">Ready for the next person.</h2><p>Choose your account, enter your own PIN and get back to serving. Each sale stays linked to the worker who served.</p></div>
+<div class="fizo-auth__aside-foot">Lock after serving · Protect your staff PIN</div>
+</aside>
+<section class="fizo-auth__panel" aria-labelledby="terminal-title">
+<div class="fizo-auth__card">
+<div class="fizo-auth__mobile-brand">{% if login_brand.logo_url %}<img width="38" height="38" src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %} {% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</div>
+<header class="fizo-auth__header"><h1 id="terminal-title">Unlock terminal</h1><p>Choose your name and enter your private 6–8 digit PIN.</p></header>
+<nav class="fizo-auth__tabs" aria-label="Sign-in method"><a href="{% url 'staff-login' %}">Email &amp; password</a><a href="{% url 'staff-terminal' %}" aria-current="page">Staff PIN</a></nav>
+{% if workers %}
+<form method="post" action="{% url 'staff-terminal' %}" class="fizo-auth__form" novalidate>
+{% csrf_token %}
+{% if form.non_field_errors %}<div class="fizo-auth__errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+<div class="fizo-auth__field"><label for="{{ form.worker.id_for_label }}">Staff member</label>{{ form.worker }}{% if form.worker.errors %}<div class="fizo-auth__errors" role="alert">{{ form.worker.errors }}</div>{% endif %}</div>
+<div class="fizo-auth__field"><label for="{{ form.pin.id_for_label }}">Your PIN</label>{{ form.pin }}{% if form.pin.errors %}<div class="fizo-auth__errors" role="alert">{{ form.pin.errors }}</div>{% endif %}</div>
+<div class="fizo-auth__keypad" aria-label="On-screen PIN keypad" data-fizo-pin-pad>
+{% for n in '123456789' %}<button class="fizo-auth__key" type="button" data-key="{{ n }}" aria-label="Digit {{ n }}">{{ n }}</button>{% endfor %}
+<button class="fizo-auth__key" type="button" data-key="clear">Clear</button>
+<button class="fizo-auth__key" type="button" data-key="0" aria-label="Digit 0">0</button>
+<button class="fizo-auth__key" type="button" data-key="delete">Delete</button>
+</div>
+<button class="fizo-auth__submit" type="submit">Unlock workspace</button>
+<p class="fizo-auth__hint">You can also type your PIN using a keyboard.</p>
+</form>
+{% else %}
+<div class="fizo-auth__errors" role="status">No PIN-enabled staff accounts are available on this terminal. Sign in with your work account or ask your manager to check terminal access.</div>
+{% endif %}
+<p class="fizo-auth__footer">Finished serving? Lock your terminal before handing it to another worker.</p>
+</div>
+</section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var pad=document.querySelector("[data-fizo-pin-pad]");
+  var pin=document.querySelector('input[name="pin"]');
+  if (!pad||!pin) return;
+  pad.addEventListener("click",function(event){
+    var key=event.target.closest("button[data-key]");
+    if(!key)return;
+    var value=key.getAttribute("data-key");
+    if(value==="clear")pin.value="";
+    else if(value==="delete")pin.value=pin.value.slice(0,-1);
+    else if(/^\d$/.test(value) && pin.value.length<8)pin.value+=value;
+    pin.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+})();
+</script>
+</body></html>
