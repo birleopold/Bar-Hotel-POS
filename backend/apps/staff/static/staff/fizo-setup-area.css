@@ -106,3 +106,19 @@
 .fizo-setup-area .fizo-overview__footer p{font-size:.85rem;color:#63788d;margin:0}
 .fizo-setup-area .fizo-overview__footer>div:last-child{display:flex;gap:9px;flex-wrap:wrap}
 @media(max-width:760px){.fizo-setup-area .fizo-overview__links{grid-template-columns:1fr}.fizo-setup-area .fizo-overview__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Canonical list/detail surfaces: one structure across modifiers, services, recipes and pricing. */
+.fizo-setup-area .fizo-entity--list{max-width:1240px;margin-inline:auto}
+.fizo-setup-area .fizo-entity--list .fizo-entity__header{margin-bottom:19px}
+.fizo-setup-area .fizo-entity--list .fizo-entity__header p.staff-muted{font-size:.89rem;line-height:1.55;max-width:710px;margin:6px 0 0}
+.fizo-setup-area .fizo-entity--list .fizo-entity__card{padding:18px}
+.fizo-setup-area .fizo-entity--list .staff-table-wrap{border-radius:10px;overflow-x:auto}
+.fizo-setup-area .fizo-entity--list .staff-table{border-collapse:separate;border-spacing:0;min-width:550px}
+.fizo-setup-area .fizo-entity--list .staff-table :is(td,th){padding:13px 14px;vertical-align:middle;border-bottom:1px solid #ebeff3}
+.fizo-setup-area .fizo-entity--list .staff-table tbody tr:last-child td{border-bottom:0}
+.fizo-setup-area .fizo-entity--list .staff-table tbody tr:hover{background:#f9fcfa}
+.fizo-setup-area .fizo-entity--list .staff-table a{color:#087d48;font-weight:700;text-decoration:none}
+.fizo-setup-area .fizo-entity--list .staff-table a:hover{text-decoration:underline}
+.fizo-setup-area .fizo-entity--list .grocery-setup__empty{padding:32px 18px}
+.fizo-setup-area .fizo-entity--list .grocery-setup__empty strong{display:block;font-size:1.05rem;margin:10px 0}
+@media(max-width:700px){.fizo-setup-area .fizo-entity--list .fizo-entity__card{padding:12px}.fizo-setup-area .fizo-entity--list .staff-table :is(td,th){padding:11px 10px}}
