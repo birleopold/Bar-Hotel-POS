@@ -505,3 +505,31 @@ body:has(.fizo-checkout-catalogue) .reference-basket-more .staff-input{min-heigh
 body:has(.fizo-checkout-catalogue) .reference-basket-more:not([open]){
  max-height:27px!important;overflow:hidden!important
 }
+
+/* Browser-audit fix: payment methods should remain visible even when the
+   basket is empty (disabled in that state; never record a zero-value sale). */
+body:has(.fizo-checkout-catalogue) .reference-payment-idle{
+ order:4!important;flex:0 0 auto!important;background:#fff!important;
+ padding:8px 0!important;display:block!important
+}
+body:has(.fizo-checkout-catalogue) .reference-payment-idle h2{
+ font-size:13px!important;font-weight:800!important;margin:0 0 6px!important
+}
+body:has(.fizo-checkout-catalogue) .reference-payment-idle p{
+ font-size:11px!important;color:#607585!important;margin:5px 0 0!important
+}
+body:has(.fizo-checkout-catalogue) .reference-payment-idle .fizo-retail-payment-shortcuts{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important
+}
+body:has(.fizo-checkout-catalogue) .reference-payment-idle button{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ gap:5px!important;font-size:12px!important;min-height:38px!important;
+ border:1px solid #dce6e9!important;border-radius:8px!important;
+ background:#f3f6f7!important;color:#65767f!important;opacity:1!important;cursor:not-allowed!important
+}
+@media(min-width:1100px){
+ body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{
+  grid-template-columns:repeat(auto-fill,minmax(125px,150px))!important;
+  justify-content:start!important
+ }
+}
