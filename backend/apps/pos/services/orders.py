@@ -336,6 +336,43 @@ def add_line_to_open_order(
     eff_unit = unit_price + per_unit_mod
     sub = line_total(quantity, eff_unit)
     tax = line_tax(sub, menu_item.tax_rate_percent)
+    # Retail baskets group identical products on one row. The order row lock
+    # serializes concurrent scans; only pristine, undiscounted menu-price lines
+    # can absorb another add. Hospitality/KDS keeps its separate-line behavior.
+    if locked.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+        existing = (
+            locked.lines.select_for_update().filter(
+                menu_item_id=menu_item.pk,
+                is_voided=False,
+                pricing_source="menu",
+                unit_price=unit_price,
+                label=menu_item.name,
+                line_discount_amount=Decimal("0"),
+            ).order_by("sort_order")
+        )
+        for candidate in existing:
+            if candidate.line_discount_percent is not None:
+                continue
+            if (candidate.modifiers_snapshot or []) != (mod_snapshot or []):
+                continue
+            if candidate.kds_status not in ("pending", ""):
+                continue
+            new_qty = candidate.quantity + quantity
+            candidate.quantity = new_qty
+            candidate.line_total = line_total(new_qty, eff_unit)
+            candidate.tax_amount = line_tax(candidate.line_total, menu_item.tax_rate_percent)
+            candidate.save(update_fields=["quantity", "line_total", "tax_amount", "updated_at"])
+            recalculate_order_totals(locked)
+            log_audit(
+                tenant_id=locked.tenant_id,
+                user_id=user.id if user else None,
+                action="order.line_quantity_merged",
+                entity_type="order_line",
+                entity_id=str(candidate.id),
+                payload={"order_id": str(locked.id), "added_quantity": str(quantity),
+                         "new_quantity": str(new_qty), "menu_item_id": str(menu_item.pk)},
+            )
+            return candidate
     mx = locked.lines.aggregate(m=Max("sort_order"))["m"]
     next_sort = (mx if mx is not None else -1) + 1
     line = OrderLine.objects.create(
