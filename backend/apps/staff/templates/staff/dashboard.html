@@ -7,7 +7,7 @@
 <div class="fizo-dash fz-industry-dashboard" data-business="{{ staff_product.business_key|default:'general' }}" aria-label="Fizo business dashboard">
   <header class="fizo-dash__head fz-page-heading">
     <div><div class="fizo-dash__eyebrow"><i class="bi bi-grid-1x2" aria-hidden="true"></i> Fizo / {{ staff_product.workspace_label|default:"Business" }}</div>
-      <h1>{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard{% elif staff_product.business_key == "restaurant" or staff_product.business_key == "cafeteria" or staff_product.business_key == "kitchen" %}Restaurant dashboard{% elif staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Bar dashboard{% elif staff_product.business_key == "lodging" %}Hotel dashboard{% else %}Operations dashboard{% endif %}</h1>
+      <h1>{% if staff_product.business_key == "supermarket" %}Supermarket dashboard{% elif staff_product.business_key == "retail" %}Retail dashboard{% elif staff_product.business_key == "restaurant" or staff_product.business_key == "cafeteria" or staff_product.business_key == "kitchen" %}Restaurant dashboard{% elif staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Bar dashboard{% elif staff_product.business_key == "lodging" %}Hotel dashboard{% else %}Operations dashboard{% endif %}</h1>
       <p>Welcome back{% if user.first_name %}, {{ user.first_name }}{% endif %}. Your workspace at a glance.</p>
     </div>
     <span class="fizo-dash__pill"><i class="bi bi-calendar3" aria-hidden="true"></i> {% now "l, j F" %}</span>
