@@ -18,7 +18,7 @@ The four columns in the reference show supermarket, restaurant, bar, and hotel. 
 - `fizo-fresh.css`: shared tokens, navigation, cards, controls, tables, common responsiveness.
 - `retail-cashier.css`: supermarket cashier-specific composition (legacy base and approved overrides combined in original cascade order).
 - `retail-counter-v2.css` and `fizo-retail-sales.css`: retail workflow-specific styles, pending dependency-aware review and convergence.
-- `fizo-hospitality-pos.css`: restaurant/bar ordering composition, pending specialization audit.
+- `hospitality-workflows.css`: restaurant/bar ordering composition, migrated from `fizo-hospitality-pos.css`, with existing styling preserved; further specialization and visual comparisons pending.
 - Hotel-specific styles must remain separately scoped until room/reservation screens are compared and verified.
 
 ### Required acceptance before declaring pixel parity
