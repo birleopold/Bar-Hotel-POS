@@ -52,6 +52,20 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
         self.assertIn(".fizo-dash__kpis", core)
         self.assertIn(".fizo-dash__roomgrid", core)
 
+    def test_staff_static_stylesheet_references_resolve(self):
+        """Every literal staff stylesheet URL in staff templates must exist."""
+        pattern = re.compile(r"\\{%\\s*static\\s+['\\\"]staff/([^'\\\"]+\\.css)['\\\"]\\s*%\\}")
+        for template in TEMPLATES.rglob("*.html"):
+            html = template.read_text(encoding="utf-8")
+            for css_path in pattern.findall(html):
+                with self.subTest(template=str(template), asset=css_path):
+                    self.assertTrue((STATIC / css_path).is_file())
+
+    def test_current_management_styles_do_not_reference_retired_assets(self):
+        source = (TEMPLATES / "menu_list.html").read_text(encoding="utf-8")
+        self.assertNotIn("fizo-retail-products.css", source)
+        self.assertNotIn("hospitality-workflow.css", source)
+
     def test_required_stylesheets_exist(self):
         for name in ("fizo-fresh.css", "retail-cashier.css", "retail-workflows.css", "hospitality-workflows.css",
                      "management-workflows.css"):
@@ -61,7 +75,8 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
     def test_removed_retail_stylesheets_stay_removed(self):
         for name in ("fizo-checkout-v1.css", "reference-locked-checkout.css",
                      "retail-counter-v2.css", "fizo-retail-sales.css",
-                     "fizo-hospitality-pos.css", "fizo-dashboard-v2.css"):
+                     "fizo-hospitality-pos.css", "fizo-dashboard-v2.css",
+                     "fizo-retail-products.css", "hospitality-workflow.css"):
             with self.subTest(stylesheet=name):
                 self.assertFalse((STATIC / name).exists())
 
@@ -84,7 +99,8 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
     def test_no_removed_stylesheet_references_in_staff_templates(self):
         retired = ("fizo-checkout-v1.css", "reference-locked-checkout.css",
                    "retail-counter-v2.css", "fizo-retail-sales.css",
-                   "fizo-hospitality-pos.css", "fizo-dashboard-v2.css")
+                   "fizo-hospitality-pos.css", "fizo-dashboard-v2.css",
+                   "fizo-retail-products.css", "hospitality-workflow.css")
         for template in TEMPLATES.rglob("*.html"):
             source = template.read_text(encoding="utf-8")
             for name in retired:
