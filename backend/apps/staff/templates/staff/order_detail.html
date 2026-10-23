@@ -267,7 +267,7 @@
         </section>
       {% endif %}
       {% if can_record_payment and payment_form %}
-        <div class="staff-card staff-card--pos">
+        <div class="staff-card staff-card--pos{% if is_supermarket_outlet %} reference-payment-card{% endif %}">
           <h2 class="staff-card__title staff-card__title--pos">Pay</h2>
           <p class="staff-muted small">Register: {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}Automatic when one shift is open{% endif %} · <a href="{% url 'staff-workstations' %}">Choose till</a></p>
           <p class="staff-muted staff-pos-side-hint">Due <strong>{{ order.currency }} {{ balance_due }}</strong> · Paid {{ order.currency }} {{ amount_paid }}</p>
