@@ -54,7 +54,7 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
 
     def test_staff_static_stylesheet_references_resolve(self):
         """Every literal staff stylesheet URL in staff templates must exist."""
-        pattern = re.compile(r"\\{%\\s*static\\s+['\\\"]staff/([^'\\\"]+\\.css)['\\\"]\\s*%\\}")
+        pattern = re.compile(r"""\{%\s*static\s+['"]staff/([^'"]+\.css)['"]\s*%\}""")
         for template in TEMPLATES.rglob("*.html"):
             html = template.read_text(encoding="utf-8")
             for css_path in pattern.findall(html):
