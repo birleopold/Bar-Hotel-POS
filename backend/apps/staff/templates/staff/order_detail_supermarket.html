@@ -207,36 +207,8 @@
 {{ block.super }}
 <script src="{% static 'staff/grocery-checkout.js' %}?v=20261022.2" defer></script>
 <script>
-/* Fast add reuses the authenticated Django add_line handler and existing stock validation.
-   Modifier-bearing items remain in the standard choice-and-confirm flow. */
-(function () {
-  var browser = document.querySelector('[data-pos-menu-browser]');
-  var form = document.querySelector('.staff-pos-add-item-form');
-  if (!browser || !form || !window.HTMLFormElement) return;
-  var modifiers = document.getElementById('staff-pos-menu-modifiers');
-  var config = {};
-  if (modifiers) {
-    try { config = JSON.parse(modifiers.textContent || '{}'); } catch (_) { config = {}; }
-  }
-  var busy = false;
-  browser.addEventListener('click', function (event) {
-    var tile = event.target.closest('[data-pos-menu-tile]');
-    if (!tile || busy || tile.hidden) return;
-    var id = tile.dataset.itemId;
-    if (!id || (config[id] && config[id].length)) return;
-    var chosen = form.querySelector('select[name="menu_item"]');
-    var qty = form.querySelector('input[name="quantity"]');
-    if (!chosen || chosen.value !== id || !form.checkValidity()) return;
-    if (qty) qty.value = '1';
-    busy = true;
-    tile.disabled = true;
-    if (form.requestSubmit) form.requestSubmit();
-    else {
-      var submit = form.querySelector('button[type="submit"]');
-      if (submit) submit.click();
-    }
-  });
-})();
+/* Manual selection never submits a sale. Only the explicit Add button does.
+   Barcode submission continues through the dedicated scanner form. */
 </script>
 
 <script>
