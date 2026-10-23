@@ -31,9 +31,10 @@ The four columns in the reference show supermarket, restaurant, bar, and hotel. 
 ## Implementation status
 - [x] Combine two cashier CSS files while preserving cascade order, update template/tests and delete those superseded files.
 - [x] Normalize shared green active-nav, common cards, controls and tables in `fizo-fresh.css`.
-- [ ] Audit all CSS dependencies and deduplicate across remaining business lines.
+- [ ] Audit all CSS dependencies and deduplicate across remaining business lines (retail counter and sales-start consolidated into `retail-workflows.css`; restaurant/bar/hotel work remains).
 - [ ] Build and validate distinct restaurant, bar, hotel panels against approved reference.
 - [ ] Capture and compare actual browser screenshots pixel by pixel.
+- [x] Add repository regression tests for consolidated retail stylesheet references (`test_unified_css_architecture.py`); execution pending.
 - [ ] Run test suite, confirm production deploy and check all supported breakpoints.
 
 **Caution:** A reference image alone is insufficient evidence of pixel-perfect parity. No browser screenshot or deployment verification is claimed by this document.
