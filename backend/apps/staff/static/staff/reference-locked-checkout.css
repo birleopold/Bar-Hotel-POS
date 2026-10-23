@@ -229,3 +229,23 @@ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a{min-height:41px!i
 body:has(.fizo-checkout-catalogue) #retail-fast-checkout{display:block!important}
 body:has(.fizo-checkout-catalogue) .staff-nav{display:none!important}
 }
+
+/* Screenshot fidelity refinement: denser cards and basket rows, without
+   changing checkout endpoints or product visibility. */
+@media(min-width:851px){
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile{min-height:154px!important;padding:5px!important;gap:3px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__photo,
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__icon{height:81px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__photo img{height:77px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__name{font-size:12px!important;line-height:1.25!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__price{font-size:13px!important;line-height:1.2!important}
+body:has(.fizo-checkout-catalogue) .fizo-tile-add{padding:5px!important;font-size:12px!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row{padding:6px 0!important;gap:7px!important}
+body:has(.fizo-checkout-catalogue) .reference-basket-thumb{height:46px!important;width:49px!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row{grid-template-columns:49px minmax(0,1fr)!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-stepper input{min-height:29px!important;width:53px!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-stepper button{min-height:29px!important;padding:2px 8px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form{opacity:.87!important;max-width:100%!important}
+}
+@media(min-width:1650px){body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
