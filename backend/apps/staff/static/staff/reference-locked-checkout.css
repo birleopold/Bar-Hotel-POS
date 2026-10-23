@@ -258,3 +258,44 @@ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__void button{
   min-width:34px!important;min-height:34px!important;padding:5px!important
 }
 body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__void button:hover{color:#b42330!important;background:#fff3f3!important}
+
+/* Approved UI density pass: balanced 5-column catalogue on conventional wide
+   desktop, with the basket remaining visible and not consuming half the screen. */
+@media(min-width:1200px){
+ body:has(.fizo-checkout-catalogue) .staff-pos-order-layout{
+  grid-template-columns:minmax(0,2.1fr) minmax(340px,.95fr)!important;
+  gap:11px!important
+ }
+ body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:7px!important
+ }
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity{
+  grid-template-columns:minmax(160px,.85fr) minmax(260px,1.6fr) auto auto auto!important
+ }
+}
+/* Horizontal screenshot categories: more categories fit without wrapping. */
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-categories{gap:6px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-category-filter{
+ min-width:84px!important;min-height:69px!important;padding:7px 9px!important;
+ font-size:11px!important;line-height:1.2!important
+}
+body:has(.fizo-checkout-catalogue) .staff-pos-category-filter .reference-category-icon{font-size:22px!important}
+/* A selected manual product is an explicit action, not an automatic sale.
+   Retain its form, but keep it a secondary single-line checkout control. */
+body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form{
+ background:#fff!important;border:1px solid #e8eef2!important;border-radius:11px!important;
+ padding:9px!important;gap:7px!important
+}
+body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form label{font-size:11px!important;margin-bottom:2px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form select,
+body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form input{min-height:35px!important;padding:5px 7px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form__quantity{flex-basis:74px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form__submit button{min-height:37px!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__info{
+ display:flex!important;flex-direction:column!important;gap:2px!important;min-width:0!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__amount{margin-top:0!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-summary__total{border-top:1px solid #e6edf0!important;margin-top:4px!important;padding-top:9px!important}
+@media(max-width:1250px) and (min-width:851px){
+ body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+}
