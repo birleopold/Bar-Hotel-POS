@@ -337,3 +337,24 @@ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-summary__total{border-top
  body:has(.fizo-checkout-catalogue) .reference-payment-card .fizo-retail-payment-shortcuts button{min-height:38px!important}
  body:has(.fizo-checkout-catalogue) .reference-payment-card [data-pos-payment-form] button{min-height:38px!important}
 }
+
+/* Retail second monitor must be accessible from the fixed cashier header,
+   not a clipped staff-toolbar below the viewport. */
+body:has(.fizo-checkout-catalogue) .reference-customer-display-link{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ gap:7px!important;min-height:40px!important;white-space:nowrap!important;
+ padding:8px 10px!important;border:1px solid #cfe4db!important;
+ border-radius:9px!important;background:#effaf4!important;color:#087647!important;
+ text-decoration:none!important;font-weight:750!important
+}
+body:has(.fizo-checkout-catalogue) .reference-customer-display-link:hover{background:#dff4e8!important}
+body:has(.fizo-checkout-catalogue) .fizo-cashier-identity{
+ display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:10px!important;
+}
+body:has(.fizo-checkout-catalogue) .fizo-cashier-identity .reference-top-search{flex:1 1 280px!important}
+body:has(.fizo-checkout-catalogue) .reference-register-settings{display:none!important}
+body:has(.fizo-checkout-catalogue) .staff-toolbar:has(a[href*="customer-display"]){display:none!important}
+@media(max-width:900px){
+ body:has(.fizo-checkout-catalogue) .reference-customer-display-link span{display:none}
+ body:has(.fizo-checkout-catalogue) .reference-customer-display-link{min-width:42px}
+}
