@@ -28,6 +28,16 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
             with self.subTest(route=route):
                 self.assertIn("u == '" + route + "'", sidebar)
 
+    def test_hotel_room_status_uses_shared_design_without_replacing_data(self):
+        dashboard = (TEMPLATES / "dashboard.html").read_text(encoding="utf-8")
+        styles = (STATIC / "fizo-fresh.css").read_text(encoding="utf-8")
+        self.assertIn("staff_dashboard_lodging_snapshot.ready_rooms", dashboard)
+        self.assertIn("staff_dashboard_lodging_snapshot.dirty_rooms", dashboard)
+        self.assertIn("staff_dashboard_lodging_snapshot.out_of_order_rooms", dashboard)
+        self.assertIn(".fizo-dash__roomgrid>div:first-child", styles)
+        self.assertIn(".fizo-dash__roomgrid>div:nth-child(2)", styles)
+        self.assertIn(".fizo-dash__roomgrid>div:nth-child(3)", styles)
+
     def test_catalogues_load_unified_management_styles(self):
         page = (TEMPLATES / "menu_list.html").read_text(encoding="utf-8")
         css = (STATIC / "management-workflows.css").read_text(encoding="utf-8")
