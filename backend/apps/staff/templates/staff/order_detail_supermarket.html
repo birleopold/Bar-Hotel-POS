@@ -405,14 +405,7 @@ document.addEventListener("click", function (event) {
         if (button) { button.disabled = true; button.textContent = "Adding product…"; }
       });
     }
-    var input = scanner && scanner.querySelector('input[name="code"]');
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "F3" && input) {
-        event.preventDefault();
-        input.focus();
-        input.select();
-      }
-    });
+    // F3 is handled by retail-counter-v2.js through the visible header.
     var cards = catalogue.querySelectorAll("[data-pos-menu-tile]");
     cards.forEach(function (tile) {
       tile.setAttribute("title", "Select " + (tile.dataset.itemName || "product") + " and add to basket");
