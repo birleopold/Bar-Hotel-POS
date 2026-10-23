@@ -299,3 +299,41 @@ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-summary__total{border-top
 @media(max-width:1250px) and (min-width:851px){
  body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
 }
+
+/* Reference basket: product text, quantity +/- and row price align on one
+   compact checkout card. Keep visible Save for typed quantity corrections. */
+@media(min-width:851px){
+ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row{
+  grid-template-columns:48px minmax(0,1fr) auto!important;column-gap:7px!important;
+  align-items:center!important;padding:8px 0!important
+ }
+ body:has(.fizo-checkout-catalogue) .reference-basket-thumb{grid-row:1/span 2!important;width:48px!important;height:49px!important}
+ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__info{grid-column:2!important;grid-row:1!important}
+ body:has(.fizo-checkout-catalogue) .fizo-retail-stepper{
+  grid-column:2 / 4!important;grid-row:2!important;justify-self:start!important;
+  display:flex!important;align-items:center!important;gap:4px!important
+ }
+ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__void{
+  grid-column:3!important;grid-row:1!important
+ }
+ body:has(.fizo-checkout-catalogue) .fizo-retail-stepper__save{
+  font-size:11px!important;min-height:30px!important;border:1px solid #d5e8dd!important;
+  color:#06784a!important;background:#effaf3!important;border-radius:7px!important
+ }
+}
+/* Content-specific scrolling: products and basket items scroll, while checkout
+   totals and Pay remain visible at the bottom of the desktop basket. */
+@media(min-width:851px){
+ body:has(.fizo-checkout-catalogue) .fizo-checkout-basket{height:100%!important;min-height:0!important;overflow:hidden!important}
+ body:has(.fizo-checkout-catalogue) .fizo-checkout-basket__lines{min-height:50px!important;overflow-y:auto!important;flex:1 1 auto!important;scrollbar-width:thin}
+ body:has(.fizo-checkout-catalogue) .fizo-checkout-basket__title,
+ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-summary,
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-payment-summary,
+ body:has(.fizo-checkout-catalogue) .reference-payment-card,
+ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools{flex-shrink:0!important}
+ body:has(.fizo-checkout-catalogue) .fizo-retail-payment-shortcuts button{min-height:44px!important}
+}
+@media(max-height:700px) and (min-width:851px){
+ body:has(.fizo-checkout-catalogue) .reference-payment-card .fizo-retail-payment-shortcuts button{min-height:38px!important}
+ body:has(.fizo-checkout-catalogue) .reference-payment-card [data-pos-payment-form] button{min-height:38px!important}
+}
