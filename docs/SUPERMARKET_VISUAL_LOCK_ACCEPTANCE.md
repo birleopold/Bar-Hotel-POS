@@ -35,7 +35,7 @@ The retail/supermarket checkout **must visually match the references**. Do not r
 - Never claim pixel parity solely from CSS being committed; record gaps and evidence.
 
 ## Current implementation
-Styles: `backend/apps/staff/static/staff/reference-locked-checkout.css` loaded **after** existing supermarket CSS by `order_detail_supermarket.html`.
+Styles: `backend/apps/staff/static/staff/retail-cashier.css` consolidates the earlier base and approved reference rules, preserving their original order; it is loaded by `order_detail_supermarket.html`.
 Basket markup and tenant identity: `backend/apps/staff/templates/staff/order_detail.html`.
 Server-side permissions, totals and posts: `backend/apps/staff/views_ops.py` and existing POS services.
 **State:** implementation in progress; browser screenshot parity and production certification unverified.
