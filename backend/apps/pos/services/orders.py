@@ -629,6 +629,8 @@ def adjust_open_order_line_quantity(
     )
     if locked_ln.is_voided:
         raise ValidationError("Cannot edit a voided line.")
+    if locked_o.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL} and locked_ln.menu_item_id:
+        quantity = normalize_supermarket_quantity(menu_item=locked_ln.menu_item, quantity=quantity)
     tax_rate = Decimal("0")
     if locked_ln.menu_item is not None and locked_ln.menu_item.tax_rate_percent is not None:
         tax_rate = locked_ln.menu_item.tax_rate_percent
