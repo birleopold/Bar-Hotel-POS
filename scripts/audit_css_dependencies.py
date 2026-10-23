@@ -23,8 +23,9 @@ def tracked_files():
     result = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True)
     return [ROOT / item.decode("utf-8") for item in result.stdout.split(b"\0") if item]
 
-def audit():
-    files = tracked_files()
+def audit(root=ROOT, files=None):
+    root = Path(root).resolve()
+    files = tracked_files() if files is None else [Path(p).resolve() for p in files]
     tracked = set(files)
     css = [p for p in files if p.suffix.lower() == ".css"]
     consumers = {}
@@ -39,39 +40,39 @@ def audit():
         except (UnicodeError, OSError):
             continue
         if DYNAMIC.search(text) and src.suffix == ".html":
-            dynamic.append(str(src.relative_to(ROOT)))
+            dynamic.append(str(src.relative_to(root)))
         for raw in RAW_CSS_URL.findall(text):
-            hardcoded.append({"source": str(src.relative_to(ROOT)), "asset": raw})
+            hardcoded.append({"source": str(src.relative_to(root)), "asset": raw})
             rel = raw.removeprefix("/static/")
-            destination = ROOT / "backend" / "apps" / "staff" / "static" / rel
-            consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
+            destination = root / "backend" / "apps" / "staff" / "static" / rel
+            consumers.setdefault(str(destination.relative_to(root)), []).append(str(src.relative_to(root)))
             if destination not in tracked:
-                missing.append({"source": str(src.relative_to(ROOT)), "asset": raw})
+                missing.append({"source": str(src.relative_to(root)), "asset": raw})
         for rel in CSS_URL.findall(text):
-            destination = ROOT / "backend" / "apps" / "staff" / "static" / rel if rel.startswith("staff/") else None
+            destination = root / "backend" / "apps" / "staff" / "static" / rel if rel.startswith("staff/") else None
             if destination is None:
                 # Django finders may resolve a stylesheet elsewhere in installed apps.
                 continue
-            consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
+            consumers.setdefault(str(destination.relative_to(root)), []).append(str(src.relative_to(root)))
             if destination not in tracked:
-                missing.append({"source": str(src.relative_to(ROOT)), "asset": rel})
+                missing.append({"source": str(src.relative_to(root)), "asset": rel})
         if src.suffix == ".css":
             for uri in IMPORT.findall(text):
                 if uri.startswith(("http:", "https:", "/", "//")):
                     continue
                 destination = (src.parent / uri).resolve()
                 if destination in tracked:
-                    consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
+                    consumers.setdefault(str(destination.relative_to(root)), []).append(str(src.relative_to(root)))
                 if destination not in tracked:
-                    missing.append({"source": str(src.relative_to(ROOT)), "asset": uri})
+                    missing.append({"source": str(src.relative_to(root)), "asset": uri})
     consumers = {key: sorted(set(value)) for key, value in sorted(consumers.items())}
     missing.sort(key=lambda item: (item["source"], item["asset"]))
     hardcoded.sort(key=lambda item: (item["source"], item["asset"]))
     referenced = set(consumers)
-    unreferenced = [str(p.relative_to(ROOT)) for p in css if str(p.relative_to(ROOT)) not in referenced]
+    unreferenced = [str(p.relative_to(root)) for p in css if str(p.relative_to(root)) not in referenced]
     report = {
         "tracked_css_count": len(css),
-        "tracked_css_files": sorted(str(p.relative_to(ROOT)) for p in css),
+        "tracked_css_files": sorted(str(p.relative_to(root)) for p in css),
         "literal_staff_css_consumers": consumers,
         "dynamic_template_static_tags": sorted(set(dynamic)),
         "missing_references": missing,
