@@ -2,7 +2,7 @@
         <div class="staff-card staff-card--pos">
           <div class="staff-pos-menu-head">
             <div><span class="staff-pos-menu-eyebrow">{% if is_supermarket_outlet %}PRODUCT CATALOGUE{% else %}ORDER MENU{% endif %}</span><h2 class="staff-card__title staff-card__title--pos mb-0">Add an item</h2></div>
-            <span class="staff-pos-menu-hint">Tap a product to add it</span>
+            <span class="staff-pos-menu-hint">Choose a product, set its quantity, then add to basket</span>
           </div>
               {% if is_supermarket_outlet %}
               <form method="get" class="fizo-server-catalogue-search" role="search">
@@ -36,10 +36,10 @@
                       {% if is_supermarket_outlet and item.display_image_url %}
                         <span class="staff-pos-menu-tile__photo"><img src="{{ item.display_image_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>
                       {% else %}
-                        <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+                        <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-box-seam"></i></span>
                       {% endif %}
                       <span class="staff-pos-menu-tile__name">{{ item.name }}</span>
-                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>{% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Add</span>{% endif %}
+                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>{% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Select</span>{% endif %}
                     </button>
                   {% endfor %}
                 {% endfor %}
