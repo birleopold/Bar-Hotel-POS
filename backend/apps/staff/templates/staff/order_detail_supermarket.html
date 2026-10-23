@@ -251,14 +251,14 @@
     if (input && button) {
       input.setAttribute("aria-label", "Barcode or product lookup code");
       input.setAttribute("enterkeyhint", "done");
-      if (document.activeElement === document.body || document.activeElement === null) input.focus();
+      // Header search owns initial focus on desktop; never focus a hidden scanner.
       document.addEventListener("keydown", function (event) {
         if (event.key !== "/" || event.ctrlKey || event.altKey || event.metaKey || event.repeat) return;
         var target = event.target;
         if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
         event.preventDefault();
-        input.focus();
-        input.select();
+        var top = document.getElementById("reference-top-catalogue-search");
+        if(top){top.focus();top.select();}else{input.focus();input.select();}
       });
       var submitted = false;
       form.addEventListener("submit", function (event) {
@@ -377,11 +377,7 @@ document.addEventListener("click", function (event) {
     var basket = document.querySelector(".fizo-checkout-basket");
     var scanner = document.querySelector("#retail-fast-checkout");
     if (!catalogue || !basket) return;
-    var heading = document.createElement("header");
-    heading.className = "fizo-retail-pos-heading";
-    heading.innerHTML = '<div><span class="fizo-retail-pos-heading__eyebrow">{{ request.tenant.name|escapejs }} / Checkout</span><h1>Cashier checkout</h1><p>Scan or select products to build the current sale.</p></div><a href="{% url 'staff-orders' %}" class="staff-btn staff-btn--ghost">Sales history</a>';
-    var layout = catalogue.closest(".staff-pos-order-layout");
-    if (layout) layout.parentNode.insertBefore(heading, layout);
+    // Brand and search already live in the actual cashier header; no duplicate heading.
     if (scanner) {
       catalogue.insertBefore(scanner, catalogue.firstChild);
       scanner.classList.add("fizo-retail-pos-scanner");
