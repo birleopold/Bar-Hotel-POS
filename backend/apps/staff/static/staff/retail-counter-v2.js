@@ -13,6 +13,10 @@
     paymentCard.classList.add("reference-payment-card");
     basket.appendChild(paymentCard);
   }
+  // Empty baskets have no eligible payment form. Still present the methods
+  // in their intended fixed position, disabled until there is an amount due.
+  var idlePayment=document.querySelector(".reference-payment-idle");
+  if(basket&&idlePayment&&!basket.contains(idlePayment))basket.appendChild(idlePayment);
   // Keep Hold/Clear actions accessible without showing their bulky staff card
   // in the cashier workspace. Reuse the existing, authenticated forms.
   var holdForm=document.querySelector('input[name="action"][value="hold_order"]');
