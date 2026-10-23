@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CSS_URL = re.compile(r"""{%\s*static\s+['"]([^'"]+\.css)['"]\s*%}""")
 IMPORT = re.compile(r"""@import\s+(?:url\(\s*)?['"]([^'"]+\.css)['"]""")
 DYNAMIC = re.compile(r"""{%\s*static\s+(?!['"])""")
+# Also cover hardcoded CSS assets; these bypass Django's configured static URL.
+RAW_CSS_URL = re.compile(r"""(?:href\s*=\s*['"])(/static/staff/[^'"?#]+\.css)(?:\?[^'"]*)?['"]""")
+
 def tracked_files():
     result = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True)
     return [ROOT / item.decode("utf-8") for item in result.stdout.split(b"\0") if item]
@@ -35,6 +38,12 @@ def audit():
             continue
         if DYNAMIC.search(text) and src.suffix == ".html":
             dynamic.append(str(src.relative_to(ROOT)))
+        for raw in RAW_CSS_URL.findall(text):
+            rel = raw.removeprefix("/static/")
+            destination = ROOT / "backend" / "apps" / "staff" / "static" / rel
+            consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
+            if not destination.is_file():
+                missing.append({"source": str(src.relative_to(ROOT)), "asset": raw})
         for rel in CSS_URL.findall(text):
             destination = ROOT / "backend" / "apps" / "staff" / "static" / rel if rel.startswith("staff/") else None
             if destination is None:
@@ -56,6 +65,7 @@ def audit():
         "literal_staff_css_consumers": consumers,
         "dynamic_template_static_tags": sorted(set(dynamic)),
         "missing_references": missing,
+        "hardcoded_static_css_policy": "Hardcoded /static/staff/*.css references are audited; prefer Django {% static %} in templates.",
         "note": "CSS classes used in JS and template inheritance need browser and manual verification before deleting files.",
     }
     print(json.dumps(report, indent=2))
