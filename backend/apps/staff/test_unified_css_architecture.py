@@ -28,6 +28,13 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
             with self.subTest(route=route):
                 self.assertIn("u == '" + route + "'", sidebar)
 
+    def test_catalogues_load_unified_management_styles(self):
+        page = (TEMPLATES / "menu_list.html").read_text(encoding="utf-8")
+        css = (STATIC / "management-workflows.css").read_text(encoding="utf-8")
+        self.assertIn("management-workflows.css", page)
+        self.assertIn(".fizo-products", css)
+        self.assertIn(".hospitality-workflow", css)
+
     def test_dashboard_uses_shared_foundation(self):
         dashboard = (TEMPLATES / "dashboard.html").read_text(encoding="utf-8")
         core = (STATIC / "fizo-fresh.css").read_text(encoding="utf-8")
@@ -36,7 +43,8 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
         self.assertIn(".fizo-dash__roomgrid", core)
 
     def test_required_stylesheets_exist(self):
-        for name in ("fizo-fresh.css", "retail-cashier.css", "retail-workflows.css", "hospitality-workflows.css"):
+        for name in ("fizo-fresh.css", "retail-cashier.css", "retail-workflows.css", "hospitality-workflows.css",
+                     "management-workflows.css"):
             with self.subTest(stylesheet=name):
                 self.assertTrue((STATIC / name).is_file())
 
