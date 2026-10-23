@@ -255,6 +255,17 @@
     </div>
       </div>
       {% endif %}
+      {% if is_supermarket_outlet and not can_record_payment %}
+        <section class="reference-payment-idle" aria-label="Payment methods">
+          <h2>Payment</h2>
+          <div class="fizo-retail-payment-shortcuts" role="group" aria-label="Payment methods unavailable until items added">
+            <button type="button" disabled aria-disabled="true"><i class="bi bi-cash-stack"></i> Cash</button>
+            <button type="button" disabled aria-disabled="true"><i class="bi bi-credit-card"></i> Card</button>
+            <button type="button" disabled aria-disabled="true"><i class="bi bi-phone"></i> Mobile Money</button>
+          </div>
+          <p>Add an item to enable payment.</p>
+        </section>
+      {% endif %}
       {% if can_record_payment and payment_form %}
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Pay</h2>
