@@ -235,9 +235,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="void_line">
                   <input type="hidden" name="line_id" value="{{ line.id }}">
-                  <label class="visually-hidden" for="reason-{{ line.id }}">Reason for removing {{ line.label }}</label>
-                  <input id="reason-{{ line.id }}" name="reason" type="text" maxlength="200" placeholder="Removal reason" required>
-                  <button type="submit">Remove</button>
+                  <button type="submit" aria-label="Remove {{ line.label }} from unpaid basket"><i class="bi bi-x-lg" aria-hidden="true"></i><span class="visually-hidden">Remove</span></button>
                 </form>
               {% else %}
                 <span class="fizo-retail-basket-row__quantity">Qty {{ line.quantity }}</span>
