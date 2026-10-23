@@ -45,3 +45,11 @@ The four columns in the reference show supermarket, restaurant, bar, and hotel. 
 - The test also checks retired management stylesheet names in templates.
 - **Not yet verified:** full application CSS inventory outside `backend/apps/staff`, dynamically generated stylesheet URLs, CSS `@import` chains, test execution in a Django environment, live screenshots, and hotel reservation template dependency mapping.
 - Do not delete more files without tracing their consumers and running integration tests; a reduction in filenames alone is not proof of visual equivalence.
+
+## Visual component adoption — 2026-10-23
+- [x] Dashboard template now uses the common `fz-industry-dashboard`, `fz-page-heading`, `fz-kpi-grid`, `fz-kpi`, and `fz-dashboard-panels` classes with existing bound KPI values preserved.
+- [x] Retail product management now uses shared heading, toolbar, and table component classes; hospitality menu uses the shared management page heading scope.
+- [x] Regression tests assert the actual template integration and dynamic sales/product values remain bound.
+- [ ] Compare screenshot against approved reference at target viewport; still blocked by unauthenticated browser profile.
+- [ ] Confirm responsive regressions, style precedence, and automated tests in a full repo checkout.
+- [ ] Finish bar, restaurant and hotel management/transaction screen parity; common class adoption does not mean pixel-perfect rendering.
