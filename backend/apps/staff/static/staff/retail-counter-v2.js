@@ -169,10 +169,22 @@
       },{once:true});
     });
   }
+  function adjustUnitStep(tile){
+    if(!qty||!tile)return;
+    var fractional=tile.dataset.fractionalQuantity==="1";
+    qty.step=fractional?"0.001":"1";
+    qty.min=fractional?"0.001":"1";
+    if(!fractional&&Number(qty.value)%1!==0)qty.value="1";
+  }
   root.querySelectorAll("[data-pos-menu-tile]").forEach(function(tile){
     tile.addEventListener("click",function(){
+      adjustUnitStep(tile);
       if(qty)qty.focus({preventScroll:true});
     });
+  });
+  if(product)product.addEventListener("change",function(){
+    var tile=root.querySelector('[data-pos-menu-tile][data-item-id="'+product.value+'"]');
+    adjustUnitStep(tile);
   });
   /* Quantity stepper submission is owned by order_detail_supermarket.html. */
 })();
