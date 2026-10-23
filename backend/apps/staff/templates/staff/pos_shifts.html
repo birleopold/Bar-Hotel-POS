@@ -6,7 +6,7 @@
 {% block content %}
 <div class="fizo-register fizo-register--pos_shifts">
 
-  <header class="fizo-register__header"><div><p class="fizo-register__eyebrow">{% if grocery_owner_shell %}Retail / Cashier operations{% else %}{{ staff_product.business_key|default:"Business"|title }} / Register operations{% endif %}</p><h1>Register shifts & cash</h1><p>Open your till, track cash movement and reconcile the drawer at close.</p></div><div class="fizo-register__header-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">Workstations</a></div></header>
+  <header class="fizo-register__header"><div><p class="fizo-register__eyebrow">{% if grocery_owner_shell %}{% if staff_product.business_key == "supermarket" %}Supermarket{% else %}Retail{% endif %} / Cashier operations{% else %}{{ staff_product.workspace_label|default:"Business" }} / Register operations{% endif %}</p><h1>Register shifts & cash</h1><p>Open your till, track cash movement and reconcile the drawer at close.</p></div><div class="fizo-register__header-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">Workstations</a></div></header>
   <section class="fizo-register__workspace" aria-label="Register shift"><div class="fizo-register__workspace-head"><h2 class="fizo-register__section-heading">Shift</h2><span class="fizo-register__workflow-label">Cashier workflow</span></div>
   {% if not current_outlet %}
     <div class="staff-alert staff-alert--warning">Select one section in the header — not “All sections”.</div>
