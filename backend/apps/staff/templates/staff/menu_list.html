@@ -5,8 +5,8 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261023.1">{% endblock %}
 {% block content %}
 {% if show_retail_catalogue %}
-<div class="fizo-products">
-  <header class="fizo-products__head">
+<div class="fizo-products fz-management-page" data-business="retail">
+  <header class="fizo-products__head fz-page-heading">
     <div><p class="fizo-products__eyebrow">Fizo / Supermarket / Catalogue</p><h1>Products</h1><p>Search your sellable products by name, SKU or barcode. Manage product records in the catalogue console.</p></div>
     <div class="fizo-products__actions">{% if staff_nav.workspace %}<a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}"><i class="bi bi-plus-lg"></i> Add product</a><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-catalog-import' %}">Import products</a>{% endif %}</div>
   </header>
@@ -22,13 +22,13 @@
   </div>
   {% endif %}
   <section class="fizo-products__surface">
-    <div class="fizo-products__tools">
+    <div class="fizo-products__tools fz-management-toolbar">
       <form method="get" role="search" class="fizo-products__search"><label for="fizo-product-search">Search products</label><div><i class="bi bi-search" aria-hidden="true"></i><input id="fizo-product-search" name="q" type="search" maxlength="80" value="{{ menu_search_q }}" placeholder="Name, SKU or barcode"><button type="submit">Search</button></div></form>
       <div class="fizo-products__stat"><strong>{{ categories|length }}</strong><span>Categories in view</span></div>
     </div>
     {% if menu_all_outlets_mode %}<p class="fizo-products__scope">Showing items across your authorized sections.</p>{% elif menu_scope_outlet %}<p class="fizo-products__scope">Catalogue for <strong>{{ menu_scope_outlet.name }}</strong></p>{% else %}<p class="fizo-products__scope">Select an authorized section to see its products.</p>{% endif %}
-    <div class="fizo-products__table-wrap">
-      <table class="fizo-products__table">
+    <div class="fizo-products__table-wrap staff-table-wrap">
+      <table class="fizo-products__table staff-table">
         <caption class="visually-hidden">Products and categories</caption>
         <thead><tr><th>Product</th><th>Category</th><th>Unit price</th><th>SKU</th><th>Details</th></tr></thead>
         <tbody>
@@ -53,7 +53,7 @@
 </div>
 {% else %}
 
-  <header class="staff-page-hero staff-menu-hero">
+  <header class="staff-page-hero staff-menu-hero fz-management-page">
     <div class="staff-dash-hero__panel">
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
