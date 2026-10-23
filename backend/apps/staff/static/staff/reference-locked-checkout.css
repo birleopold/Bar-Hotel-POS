@@ -150,3 +150,29 @@ body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a{display:flex!impo
 body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a.reference-clear-basket{color:#b32029!important}
 body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a:hover{background:#f0f7f4!important}
 @media(max-width:390px){body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools{grid-template-columns:1fr!important}}
+
+/* Checkout settlement belongs to the same right-side basket, below the Pay
+   action. Existing Django payment form remains the only settlement path. */
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket .reference-payment-card{
+ order:4!important;border:0!important;box-shadow:none!important;background:transparent!important;
+ padding:0!important;margin:0!important;min-width:0!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket .reference-payment-card>.staff-card__title{
+ font-size:13px!important;font-weight:800!important;margin:11px 0 5px!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket .reference-payment-card>.staff-muted{font-size:11px!important}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket .fizo-retail-payment-shortcuts{margin:8px 0 11px!important}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket .fizo-retail-payment-shortcuts button[aria-pressed="true"]{
+ background:#e4f8ed!important;border-color:#00964c!important;color:#006838!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket [data-pos-payment-form]{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin:0!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket [data-pos-payment-form]>div{
+ flex:none!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket [data-pos-payment-form]>div:last-child{grid-column:1/-1}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket [data-pos-payment-form] button[type="submit"]{
+ width:100%!important;min-height:48px!important;background:#008d45!important;color:#fff!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket .fizo-retail-basket-tools{order:5!important}
