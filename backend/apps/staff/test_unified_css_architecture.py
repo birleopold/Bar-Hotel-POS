@@ -14,6 +14,20 @@ STATIC = ROOT / "static" / "staff"
 
 
 class UnifiedCssArchitectureTests(unittest.TestCase):
+    def test_shared_dashboard_primitives_and_active_navigation(self):
+        css = (STATIC / "fizo-fresh.css").read_text(encoding="utf-8")
+        sidebar = (TEMPLATES / "includes" / "sidebar.html").read_text(encoding="utf-8")
+        for token in (".fz-kpi-grid", ".fz-dashboard-panels",
+                      ".fz-management-toolbar", ".fz-status",
+                      ".fz-nav a[aria-current=\\\"page\\\"]"):
+            with self.subTest(token=token):
+                self.assertIn(token.replace('\\\"', '"'), css)
+        for route in ("staff-inventory-balances", "staff-purchasing-orders",
+                      "staff-lodging-reservations", "staff-lodging-housekeeping",
+                      "staff-workspace-branding"):
+            with self.subTest(route=route):
+                self.assertIn("u == '" + route + "'", sidebar)
+
     def test_required_stylesheets_exist(self):
         for name in ("fizo-fresh.css", "retail-cashier.css", "retail-workflows.css", "hospitality-workflows.css"):
             with self.subTest(stylesheet=name):
