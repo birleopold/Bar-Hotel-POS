@@ -45,6 +45,20 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
         self.assertIn(".fizo-products", css)
         self.assertIn(".hospitality-workflow", css)
 
+    def test_real_pages_use_shared_visual_components(self):
+        dashboard = (TEMPLATES / "dashboard.html").read_text(encoding="utf-8")
+        menu = (TEMPLATES / "menu_list.html").read_text(encoding="utf-8")
+        for cls in ("fz-industry-dashboard", "fz-page-heading", "fz-kpi-grid",
+                    "fz-dashboard-panels", "fz-kpi"):
+            with self.subTest(page="dashboard", cls=cls):
+                self.assertIn(cls, dashboard)
+        for cls in ("fz-management-page", "fz-management-toolbar", "staff-table-wrap",
+                    "staff-table"):
+            with self.subTest(page="menu", cls=cls):
+                self.assertIn(cls, menu)
+        self.assertIn("{{ staff_dashboard_sales_snapshot.net_sales }}", dashboard)
+        self.assertIn("{{ item.unit_price }}", menu)
+
     def test_dashboard_uses_shared_foundation(self):
         dashboard = (TEMPLATES / "dashboard.html").read_text(encoding="utf-8")
         core = (STATIC / "fizo-fresh.css").read_text(encoding="utf-8")
