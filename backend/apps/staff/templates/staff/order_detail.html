@@ -200,7 +200,7 @@
           <a href="#fizo-cashier-payment" class="fizo-cashier-pay-cta"><i class="bi bi-credit-card" aria-hidden="true"></i> Take payment <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
           {% endif %}
         </div>
-        <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>{{ order.lines.count }} lines · {{ order.bill_reference }}</span></h2>
+        <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>{{ active_basket_line_count }} lines · {{ order.bill_reference }}</span></h2>
         <nav class="fizo-retail-basket-tools" aria-label="Cashier shortcuts">
           {% if can_modify_open_order and order.status == 'open' and not order.is_paid %}
           <a href="#hold_label"><i class="bi bi-pause-circle" aria-hidden="true"></i> Hold Sale</a>
