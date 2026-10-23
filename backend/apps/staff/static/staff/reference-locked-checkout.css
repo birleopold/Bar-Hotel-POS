@@ -533,3 +533,35 @@ body:has(.fizo-checkout-catalogue) .reference-payment-idle button{
   justify-content:start!important
  }
 }
+
+/* TinyFish gap closure: category tiles and sparse product catalogues. */
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-categories{
+ display:flex!important;align-items:stretch!important;flex-wrap:nowrap!important;
+ gap:8px!important;overflow-x:auto!important;overscroll-behavior-x:contain!important;
+ scrollbar-width:thin!important;padding:4px 0 9px!important
+}
+body:has(.fizo-checkout-catalogue) .staff-pos-category-filter{
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ flex-direction:column!important;flex:0 0 106px!important;min-width:106px!important;
+ min-height:64px!important;gap:5px!important;text-align:center!important;
+ border-radius:10px!important;padding:7px!important;line-height:1.15!important;
+ font-size:12px!important;box-shadow:0 1px 2px #17293c12!important
+}
+body:has(.fizo-checkout-catalogue) .staff-pos-category-filter .reference-category-icon{
+ display:block!important;font-size:20px!important;line-height:1!important
+}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__icon{
+ background:#eff5f6!important;color:#90a6af!important
+}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__icon i{
+ font-size:33px!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-tile-add{
+ background:#e3f6eb!important;color:#087544!important;font-weight:800!important
+}
+@media(min-width:1050px){
+ body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{
+  grid-template-columns:repeat(auto-fill,minmax(128px,155px))!important;
+  justify-content:start!important
+ }
+}
