@@ -21,3 +21,57 @@ html{font-family:"DM Sans",system-ui,sans-serif}body.staff-body{margin:0;backgro
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #e0b956;outline-offset:2px}
 @media(max-width:900px){.staff-app-shell{grid-template-columns:74px minmax(0,1fr)}.staff-sidebar{padding:12px 6px}.fz-brand{font-size:0;padding:4px 0 16px;justify-content:center}.fz-nav a{font-size:0;justify-content:center}.fz-nav i{font-size:21px;width:auto}.fz-scope,.fz-sidefoot{display:none}}
 @media(max-width:600px){.staff-app-shell{display:block}.staff-sidebar{height:auto;position:static;overflow:auto;border-right:0;border-bottom:1px solid var(--fz-border);padding:9px}.fz-brand{font-size:20px;justify-content:flex-start;padding:5px}.fz-nav{display:flex;overflow-x:auto;padding:7px 0}.fz-nav a{font-size:12px;white-space:nowrap;gap:5px}.fz-nav i{font-size:15px}.staff-nav{padding:10px 14px}.staff-main{padding:16px}}
+
+/*
+ * UNIFIED FIZO DESIGN CONTRACT — October 2026
+ * Reference: "Unified POS Experience Across Industries(8).png".
+ * Shared tokens/components only; business-specific workspace grids belong
+ * to their respective retail, hospitality, or hotel stylesheets.
+ */
+:root {
+  --fz:#008b4b;
+  --fz-green-hover:#007b43;
+  --fz-soft:#eaf8ef;
+  --fz-bg:#f5f8f7;
+  --fz-text:#162a35;
+  --fz-muted:#697e86;
+  --fz-border:#e0ebe5;
+  --fz-radius:12px;
+  --fz-card-gap:12px;
+  --fz-control-height:40px;
+  --fz-shadow:0 2px 12px rgb(22 42 53 / 3%);
+}
+.staff-card,.staff-panel {
+  box-shadow:var(--fz-shadow);
+}
+.fz-nav a[aria-current="page"] {
+  background:var(--fz);
+  color:#fff;
+}
+.fz-nav a[aria-current="page"] i {color:inherit}
+.staff-btn--primary:hover,.staff-btn--success:hover {
+  background:var(--fz-green-hover);
+  border-color:var(--fz-green-hover);
+  color:#fff;
+}
+.staff-input:focus-visible,
+input.staff-input:focus-visible,
+select.staff-input:focus-visible,
+textarea.staff-input:focus-visible {
+  border-color:var(--fz);
+}
+.staff-table th,.staff-table td {
+  vertical-align:middle;
+}
+.staff-table th {
+  background:#f6faf8;
+  color:var(--fz-text);
+}
+.staff-card h1,.staff-card h2,.staff-panel h1,.staff-panel h2 {
+  letter-spacing:-.025em;
+}
+@media(max-width:600px) {
+  .staff-card,.staff-panel {padding:14px}
+  .staff-btn {min-height:44px}
+  .staff-input,input.staff-input,select.staff-input,textarea.staff-input {min-height:44px}
+}
