@@ -383,3 +383,31 @@ body:has(.fizo-checkout-catalogue) .staff-toolbar:has(a[href*="customer-display"
  body:has(.fizo-checkout-catalogue) .fizo-cashier-identity{grid-template-columns:minmax(120px,.8fr) minmax(180px,1.8fr) minmax(110px,.8fr) auto!important}
  body:has(.fizo-checkout-catalogue) .fizo-cashier-identity__register{display:none!important}
 }
+
+/* TinyFish live audit 2026-10-23: two products must NOT stretch into two
+   oversized columns. Auto-fill preserves card width with sparse catalogues. */
+@media(min-width:851px){
+ body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{
+   display:grid!important;
+   grid-template-columns:repeat(auto-fill,minmax(128px,155px))!important;
+   justify-content:start!important;align-content:start!important;gap:9px!important;
+ }
+ body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile{
+   min-width:0!important;width:100%!important;min-height:162px!important;
+ }
+ body:has(.fizo-checkout-catalogue) .staff-pos-order-side{
+   overflow:hidden!important;min-height:0!important
+ }
+ body:has(.fizo-checkout-catalogue) .fizo-checkout-basket{
+   min-height:0!important;max-height:100%!important
+ }
+}
+/* Keep management utilities out of the uninterrupted retail selling surface;
+   these forms remain available on the ordinary staff/admin workflows. */
+body:has(.fizo-checkout-catalogue) .staff-pos-order-side>.staff-card:not(.fizo-checkout-basket):not(.reference-payment-card){
+  display:none!important
+}
+body:has(.fizo-checkout-catalogue) .staff-pos-order-side .staff-pos-panel-scroll>.staff-card:not(.fizo-checkout-basket):not(.reference-payment-card){
+  display:none!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-empty{padding:18px 8px!important}
