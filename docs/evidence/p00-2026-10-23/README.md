@@ -100,3 +100,10 @@ These edits correct stale layout assertions, not financial or operational behavi
 Corrected the existing `staff/pos_shifts.html` owner in place: a supermarket till uses **Supermarket / Cashier operations**, an independent retailer uses **Retail / Cashier operations**, and hospitality displays the business workspace label instead of exposing internal business keys. The existing retail regression test now covers this distinction and template compilation. Commits `cc108b498d8c6c337360dc4a4ae1c6859f7139a7` and `4c832fabb49d0ad18b6064691b0a3878182b8b47`.
 
 CI run for the preceding `a8d8268` checkpoint was in progress when checked; no passing test or visual result is asserted. No CSS overrides or duplicate templates introduced. P00 remains open until complete audit, current CI and authenticated viewport comparisons are verified.
+
+## P00 fixture coverage for CSS discovery — 24 October 2026
+
+- Made the CSS auditor accept an explicit isolated root and tracked-file inventory while retaining its normal repository invocation. This permits deterministic regression fixtures without altering checkout CSS or creating aliases.
+- Added `scripts/test_audit_css_dependencies.py` with isolated coverage for valid Django static references, missing static references, hardcoded missing URLs, and an existing-but-untracked CSS file which must still be reported missing. Use `python -m unittest discover -s scripts -p 'test_audit_css_dependencies.py'` in the repository root.
+- Source commits: `373642014486d7fe8395cc52839449d87ba92357` and `7d929329804ca85f792113443d95e1d32a2b2cbc`.
+- **Evidence boundary:** The files are committed; test execution in CI and the full live/browser audit are not yet verified. P00 remains open. No product stylesheet or production data was changed.
