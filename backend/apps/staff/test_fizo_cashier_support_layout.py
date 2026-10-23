@@ -62,7 +62,9 @@ class FizoCashierSupportTests(SimpleTestCase):
         self.assertIn('id="fizo-cashier-payment"', checkout)
         self.assertIn('data-pos-payment-form', checkout)
         self.assertIn("fizo-cashier-pay-cta", styles)
-        self.assertIn("grid-template-columns:minmax(0,1fr)!important", styles)
+        self.assertIn("grid-template-columns:minmax(0,1fr) var(--retail-basket)", styles)
+        self.assertIn("--retail-basket:minmax(390px,33.5%)", styles)
+        self.assertNotIn("grid-template-columns:minmax(0,1fr)!important", styles)
 
     def test_legacy_grocery_script_does_not_reparent_modern_catalogue(self):
         root = Path(__file__).resolve().parent / "static/staff"
