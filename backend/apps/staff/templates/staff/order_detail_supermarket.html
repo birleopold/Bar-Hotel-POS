@@ -175,109 +175,85 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-(function(){
-  function start(){
-    var catalog=document.querySelector('.fizo-checkout-catalogue');
-    var basket=document.querySelector('.fizo-checkout-basket');
-    var search=document.querySelector('[data-pos-menu-search]');
-    var scan=document.querySelector('[data-retail-scan-form] input[name="code"]');
-    if(basket) basket.id='fizo-current-basket';
-    if(search){ search.id='fizo-pos-menu-search'; search.setAttribute('aria-label','Find product by name, barcode or SKU'); }
-    function activate(selector,input){
-      var link=document.querySelector(selector);
-      if(!link)return;
-      link.addEventListener('click',function(e){
-        if(!input)return;
-        e.preventDefault();input.focus();input.select();
-        if(catalog && input===search)catalog.scrollIntoView({behavior:'smooth',block:'start'});
-      });
-    }
-    activate('[data-fizo-focus-search]',search);
-    activate('[data-fizo-focus-scan]',scan);
-    document.addEventListener('keydown',function(e){
-      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&search){e.preventDefault();search.focus();search.select();}
-    });
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
-})();
-</script>
-
 {{ block.super }}
-<script>
-/* Manual selection never submits a sale. Only the explicit Add button does.
-   Barcode submission continues through the dedicated scanner form. */
-</script>
-
 <script>
 (function () {
   "use strict";
-  var form = document.querySelector("[data-retail-scan-form]");
-  if (form) {
-    var input = form.querySelector('input[name="code"]');
-    var quantity = form.querySelector('input[name="quantity"]');
-    var button = form.querySelector("[data-retail-scan-submit]");
-    var status = document.querySelector("[data-retail-scan-status]");
-    if (input && button) {
-      input.setAttribute("aria-label", "Barcode or product lookup code");
-      input.setAttribute("enterkeyhint", "done");
-      // Header search owns initial focus on desktop; never focus a hidden scanner.
-      document.addEventListener("keydown", function (event) {
-        if (event.key !== "/" || event.ctrlKey || event.altKey || event.metaKey || event.repeat) return;
-        var target = event.target;
-        if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-        event.preventDefault();
-        var top = document.getElementById("reference-top-catalogue-search");
-        if(top){top.focus();top.select();}else{input.focus();input.select();}
-      });
-      var submitted = false;
-      form.addEventListener("submit", function (event) {
-        if (submitted) { event.preventDefault(); return; }
-        if (!input.value.trim()) {
-          event.preventDefault();
-          input.focus();
-          if (status) status.textContent = "Scan a barcode or type a PLU first.";
-          return;
-        }
-        var qty = quantity ? Number(quantity.value) : 1;
-        if (!Number.isFinite(qty) || qty <= 0 || Math.round(qty * 1000) !== qty * 1000) {
-          event.preventDefault();
-          if (quantity) quantity.focus();
-          if (status) status.textContent = "Enter a positive quantity with at most three decimal places.";
-          return;
-        }
-        submitted = true;
-        button.disabled = true;
-        if (status) status.textContent = "Adding item to basket…";
-      });
+
+  /* The visible header owns search/scan focus and payment-method selection.
+     This wrapper only protects the real authenticated POST forms. */
+  var scanForm = document.querySelector("[data-retail-scan-form]");
+  if (scanForm) {
+    var scanInput = scanForm.querySelector('input[name="code"]');
+    var scanQuantity = scanForm.querySelector('input[name="quantity"]');
+    var scanButton = scanForm.querySelector("[data-retail-scan-submit]");
+    var scanStatus = document.querySelector("[data-retail-scan-status]");
+    var scanPending = false;
+    if (scanInput) {
+      scanInput.setAttribute("aria-label", "Barcode or product lookup code");
+      scanInput.setAttribute("enterkeyhint", "done");
     }
+    scanForm.addEventListener("submit", function (event) {
+      if (scanPending) { event.preventDefault(); return; }
+      if (!scanInput || !scanInput.value.trim()) {
+        event.preventDefault();
+        if (scanInput) scanInput.focus();
+        if (scanStatus) scanStatus.textContent = "Scan a barcode or type a PLU first.";
+        return;
+      }
+      var qty = scanQuantity ? Number(scanQuantity.value) : 1;
+      if (!Number.isFinite(qty) || qty <= 0 || Math.round(qty * 1000) !== qty * 1000) {
+        event.preventDefault();
+        if (scanQuantity) scanQuantity.focus();
+        if (scanStatus) scanStatus.textContent = "Enter a positive quantity with at most three decimal places.";
+        return;
+      }
+      scanPending = true;
+      if (scanButton) scanButton.disabled = true;
+      if (scanStatus) scanStatus.textContent = "Adding item to basket…";
+    });
+    window.addEventListener("pageshow", function () {
+      scanPending = false;
+      if (scanButton) scanButton.disabled = false;
+    });
   }
-  var paymentSubmitForm = document.querySelector("[data-pos-payment-form]");
-  if (paymentSubmitForm) {
+
+  var paymentForm = document.querySelector("[data-pos-payment-form]");
+  if (paymentForm) {
     var paymentPending = false;
-    paymentSubmitForm.addEventListener("submit", function (event) {
+    paymentForm.addEventListener("submit", function (event) {
       if (paymentPending) { event.preventDefault(); return; }
-      if (!paymentSubmitForm.checkValidity()) return;
+      if (!paymentForm.checkValidity()) return;
       paymentPending = true;
-      var submitButton = paymentSubmitForm.querySelector('button[type="submit"]');
+      var submitButton = paymentForm.querySelector('button[type="submit"]');
       if (submitButton) {
         submitButton.disabled = true;
         submitButton.textContent = "Recording payment…";
       }
     });
+    window.addEventListener("pageshow", function () {
+      paymentPending = false;
+      var submitButton = paymentForm.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Record payment";
+      }
+    });
   }
+
   var cashPanel = document.querySelector("[data-retail-cash-panel]");
   if (cashPanel) {
     var received = cashPanel.querySelector("[data-retail-cash-received]");
     var change = cashPanel.querySelector("[data-retail-change]");
     var tenderStatus = cashPanel.querySelector("[data-retail-tender-status]");
     var paymentAction = document.querySelector('form input[name="action"][value="record_payment"]');
-    var paymentForm = paymentAction && paymentAction.form;
-    var paymentAmount = paymentForm && paymentForm.querySelector('input[name="amount"]');
-    var paymentMethod = paymentForm && paymentForm.querySelector('select[name="method"]');
+    var realPaymentForm = paymentAction && paymentAction.form;
+    var paymentAmount = realPaymentForm && realPaymentForm.querySelector('input[name="amount"]');
+    var paymentMethod = realPaymentForm && realPaymentForm.querySelector('select[name="method"]');
     var dueRaw = Number(cashPanel.getAttribute("data-balance-due"));
     var dueCents = Math.round(dueRaw * 100);
     function calculateChange() {
+      if (!received || !change || !tenderStatus) return;
       var raw = received.value.trim();
       var tender = raw === "" ? NaN : Number(raw);
       var cents = Math.round(tender * 100);
@@ -297,88 +273,33 @@
         paymentAmount.value = (dueCents / 100).toFixed(2);
       }
     }
-    received.addEventListener("input", calculateChange);
+    if (received) received.addEventListener("input", calculateChange);
     if (paymentMethod) paymentMethod.addEventListener("change", calculateChange);
   }
-})();
-</script>
 
-<script>
-/* Shortcuts only select an allowed method and focus the existing payment form.
-   They never record a payment without the cashier's normal form submission. */
-document.addEventListener("click", function(event) {
-  var button = event.target.closest("[data-fizo-payment-method]");
-  if (!button) return;
-  var form = document.querySelector("[data-pos-payment-form]");
-  var method = form && form.querySelector('select[name="method"]');
-  var amount = form && form.querySelector('input[name="amount"]');
-  if (!method) return;
-  var choice = button.getAttribute("data-fizo-payment-method");
-  if (!Array.from(method.options).some(function(opt) { return opt.value === choice; })) return;
-  method.value = choice;
-  method.dispatchEvent(new Event("change", {bubbles:true}));
-  document.querySelectorAll("[data-fizo-payment-method]").forEach(function(candidate) {
-    candidate.setAttribute("aria-pressed", candidate === button ? "true" : "false");
+  /* Quantity buttons submit the existing authenticated quantity form.
+     Ordinary products move in whole units; fractional products retain their
+     server-rendered 0.001 step for weighed/measured goods. */
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-fizo-step]");
+    if (!button) return;
+    var form = button.closest("[data-fizo-qty-form]");
+    if (!form || form.dataset.submitting === "1") return;
+    var input = form.querySelector('input[name="quantity"]');
+    if (!input) return;
+    var current = Number(input.value);
+    var delta = Number(button.dataset.fizoStep);
+    if (!Number.isFinite(current) || !Number.isFinite(delta)) return;
+    var step = Number(input.step || "1");
+    if (!Number.isFinite(step) || step <= 0) step = 1;
+    var next = step < 1
+      ? Math.round((current + delta * step) * 1000) / 1000
+      : Math.round(current + delta);
+    if (next < Number(input.min || step)) return;
+    input.value = String(next);
+    form.dataset.submitting = "1";
+    if (form.requestSubmit) form.requestSubmit(); else form.submit();
   });
-  if (amount) { amount.focus(); amount.select(); }
-});
-
-/* Quantity steppers submit the existing authenticated stock-adjustment form. */
-document.addEventListener("click", function (event) {
-  var button = event.target.closest("[data-fizo-step]");
-  if (!button) return;
-  var form = button.closest("[data-fizo-qty-form]");
-  if (!form || form.dataset.submitting === "1") return;
-  var input = form.querySelector('input[name="quantity"]');
-  if (!input) return;
-  var current = Number(input.value), delta = Number(button.dataset.fizoStep);
-  if (!Number.isFinite(current) || !Number.isFinite(delta)) return;
-  var next = Math.round((current + delta) * 1000) / 1000;
-  if (next < 0.001) return;
-  input.value = String(next);
-  form.dataset.submitting = "1";
-  if (form.requestSubmit) form.requestSubmit(); else form.submit();
-});
-
-/* Retail-only composition; existing POST forms still own all stock and payment rules. */
-(function () {
-  function initializeRetailWorkspace() {
-    var catalogue = document.querySelector(".fizo-checkout-catalogue");
-    var basket = document.querySelector(".fizo-checkout-basket");
-    var scanner = document.querySelector("#retail-fast-checkout");
-    if (!catalogue || !basket) return;
-    // Brand and search already live in the actual cashier header; no duplicate heading.
-    if (scanner) {
-      catalogue.insertBefore(scanner, catalogue.firstChild);
-      scanner.classList.add("fizo-retail-pos-scanner");
-      scanner.querySelectorAll("input").forEach(function (input) {
-        if (input.type === "text" || input.type === "search") {
-          input.setAttribute("placeholder", "Scan barcode or enter product code");
-          input.setAttribute("autocomplete", "off");
-        }
-      });
-    }
-    var quickForm = document.querySelector("#fizo-quick-product");
-    if (quickForm) {
-      if (scanner) scanner.insertAdjacentElement("afterend", quickForm);
-      else catalogue.insertBefore(quickForm, catalogue.firstChild);
-      var quickSubmit = quickForm.querySelector('form[data-fizo-quick-product-form]');
-      if (quickSubmit) quickSubmit.addEventListener("submit", function (event) {
-        if (quickSubmit.dataset.submitted === "1") { event.preventDefault(); return; }
-        if (!quickSubmit.checkValidity()) return;
-        quickSubmit.dataset.submitted = "1";
-        var button = quickSubmit.querySelector('button[type="submit"]');
-        if (button) { button.disabled = true; button.textContent = "Adding product…"; }
-      });
-    }
-    // F3 is handled by retail-counter-v2.js through the visible header.
-    var cards = catalogue.querySelectorAll("[data-pos-menu-tile]");
-    cards.forEach(function (tile) {
-      tile.setAttribute("title", "Select " + (tile.dataset.itemName || "product") + " and add to basket");
-    });
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initializeRetailWorkspace);
-  else initializeRetailWorkspace();
-})();
+}());
 </script>
 {% endblock %}
