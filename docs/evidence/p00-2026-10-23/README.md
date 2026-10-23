@@ -38,3 +38,13 @@ No migrations, financial writes, stock mutations, API changes or live service ch
 - Enhanced `scripts/audit_css_dependencies.py` to include hard-coded `/static/staff/*.css` links alongside existing Django static tags and relative stylesheet imports. This catches a class of references previously outside the audit.
 - Verified the three changed files were persisted to `main` by fetching their contents back from GitHub.
 - This checkpoint **does not** assert a completed source inventory, resolved eight-reference baseline, browser pixel match, passing full suite, live deployment or P00 completion. Re-run the audit and capture fresh CI/browser evidence at the next verification gate; the earlier 83-failure snapshot cannot be treated as current test results.
+
+## Continuation: stylesheet ownership evidence — 23 October 2026
+
+At commit `e212ed37b03ef89b33737b8f60f8a09a1e6e530a`, the CSS dependency scanner now also:
+
+- Records hardcoded CSS URL consumers separately from Django `static` template tags.
+- Records relative `@import` file-to-file ownership edges, not merely missing imports.
+- Reports CSS files with no *literal* consumers as candidates requiring manual tracing; this is **not** proof those files are unused and is not authorization to delete them.
+
+The historical `css-dependencies.json` remains baseline evidence rather than a current report. Current broken-reference totals and P00 certification still require execution of the updated script, Django source/runtime trace, live browser screenshots, and CI verification. No stylesheet was removed or replaced in this checkpoint.
