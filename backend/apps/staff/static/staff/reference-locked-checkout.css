@@ -249,3 +249,12 @@ body:has(.fizo-checkout-catalogue) .fizo-retail-stepper button{min-height:29px!i
 body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form{opacity:.87!important;max-width:100%!important}
 }
 @media(min-width:1650px){body:has(.fizo-checkout-catalogue) .staff-pos-menu-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}}
+
+/* Unpaid basket removal is a one-tap X; the service still audits the void.
+   No reason is required unless the transaction is already paid/locked. */
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__void{justify-content:flex-end!important;width:auto!important;margin:0!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__void button{
+  background:transparent!important;border:0!important;color:#496582!important;
+  min-width:34px!important;min-height:34px!important;padding:5px!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row__void button:hover{color:#b42330!important;background:#fff3f3!important}
