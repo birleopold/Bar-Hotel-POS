@@ -176,3 +176,56 @@ body:has(.fizo-checkout-catalogue) .fizo-checkout-basket [data-pos-payment-form]
  width:100%!important;min-height:48px!important;background:#008d45!important;color:#fff!important
 }
 body:has(.fizo-checkout-catalogue) .fizo-checkout-basket .fizo-retail-basket-tools{order:5!important}
+
+/* COMPACT COUNTER CONTRACT: one viewport, one header, one catalogue, one basket.
+   Only on retail order page; expanded management actions remain reachable via
+   native "More sale tools" detail rather than occupying checkout space. */
+@media(min-width:851px){
+body:has(.fizo-checkout-catalogue){height:100dvh!important;overflow:hidden!important}
+body:has(.fizo-checkout-catalogue) .staff-app-shell{height:100dvh!important;min-height:0!important;overflow:hidden!important}
+body:has(.fizo-checkout-catalogue) .staff-app-shell__body{height:100dvh!important;overflow:hidden!important}
+body:has(.fizo-checkout-catalogue) .staff-main{height:100%!important;overflow:hidden!important;min-height:0!important;padding:8px 12px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-order-layout{height:calc(100dvh - 112px)!important;min-height:0!important;overflow:hidden!important}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-catalogue{height:100%!important;overflow:auto!important;min-height:0!important;scrollbar-width:thin}
+body:has(.fizo-checkout-catalogue) .staff-pos-order-side{height:100%!important;max-height:none!important;overflow:auto!important;scrollbar-width:thin;position:static!important}
+body:has(.fizo-checkout-catalogue) .staff-sidebar{height:100dvh!important;scrollbar-width:thin}
+}
+body:has(.fizo-checkout-catalogue) .staff-nav,
+body:has(.fizo-checkout-catalogue) .staff-context-bar--pos,
+body:has(.fizo-checkout-catalogue) .fizo-cashier-shortcuts,
+body:has(.fizo-checkout-catalogue) .fizo-retail-pos-heading,
+body:has(.fizo-checkout-catalogue) .staff-pos-totals-row{display:none!important}
+body:has(.fizo-checkout-catalogue) .fizo-cashier-identity{margin:0 0 8px!important;padding:7px 12px!important;min-height:68px!important;border:0!important}
+body:has(.fizo-checkout-catalogue) .reference-pos-brand strong{font-size:17px!important}
+body:has(.fizo-checkout-catalogue) .reference-pos-brand small{font-size:11px!important}
+body:has(.fizo-checkout-catalogue) .reference-top-search{min-height:43px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-categories{margin:0 0 7px!important;padding:0 0 6px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-category-filter{min-height:73px!important;min-width:94px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tools{display:none!important}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-catalogue .staff-pos-menu-tile{min-height:178px!important;padding:6px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__photo,
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__icon{height:100px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-menu-tile__photo img{height:96px!important}
+body:has(.fizo-checkout-catalogue) .staff-pos-add-item-form{margin-top:8px!important;padding-top:8px!important}
+body:has(.fizo-checkout-catalogue) .fizo-cashier-payment-summary{margin:6px 0!important}
+body:has(.fizo-checkout-catalogue) .fizo-cashier-pay-cta{min-height:52px!important;padding:11px!important;font-size:17px!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row{padding:9px 0!important}
+body:has(.fizo-checkout-catalogue) .reference-basket-thumb{height:56px;width:60px!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-row{grid-template-columns:60px minmax(0,1fr)!important}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket{padding:10px!important}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket__title{padding:10px!important;margin:0!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-summary{margin:5px 0!important;padding:4px 0!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-summary>div{padding:2px 0!important}
+body:has(.fizo-checkout-catalogue) .reference-payment-card>.staff-card__title,
+body:has(.fizo-checkout-catalogue) .reference-payment-card>.staff-muted,
+body:has(.fizo-checkout-catalogue) .fizo-cashier-pay-intro{display:none!important}
+/* The scanner remains a real authenticated POST form, but it does not need a
+   second prominent pane when the header can operate it. */
+body:has(.fizo-checkout-catalogue) #retail-fast-checkout{display:none!important}
+body:has(.fizo-checkout-catalogue) #fizo-quick-product{display:none!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools{gap:5px!important;margin-top:5px!important}
+body:has(.fizo-checkout-catalogue) .fizo-retail-basket-tools a{min-height:41px!important;padding:5px!important}
+@media(max-width:850px){
+body:has(.fizo-checkout-catalogue) #retail-fast-checkout{display:block!important}
+body:has(.fizo-checkout-catalogue) .staff-nav{display:none!important}
+}
