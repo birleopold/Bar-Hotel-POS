@@ -38,3 +38,10 @@ The four columns in the reference show supermarket, restaurant, bar, and hotel. 
 - [ ] Run test suite, confirm production deploy and check all supported breakpoints.
 
 **Caution:** A reference image alone is insufficient evidence of pixel-perfect parity. No browser screenshot or deployment verification is claimed by this document.
+
+## CSS cleanup verification update — 2026-10-23
+- Eight retired stylesheets from the retail, dashboard, and management consolidation passes are expected to be absent.
+- A repository-level test now checks literal Django `{% static 'staff/…css' %}` links in **all staff templates**, rather than only the few known pages. This detects broken links when executed against the checkout.
+- The test also checks retired management stylesheet names in templates.
+- **Not yet verified:** full application CSS inventory outside `backend/apps/staff`, dynamically generated stylesheet URLs, CSS `@import` chains, test execution in a Django environment, live screenshots, and hotel reservation template dependency mapping.
+- Do not delete more files without tracing their consumers and running integration tests; a reduction in filenames alone is not proof of visual equivalence.
