@@ -135,3 +135,39 @@ textarea.staff-input:focus-visible {
 @media(max-width:980px){.fizo-dash__kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-dash__layout{grid-template-columns:1fr}}
 @media(max-width:550px){.fizo-dash__kpis{gap:8px}.fizo-dash__kpi,.fizo-dash__panel{padding:12px}.fizo-dash__roomgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-dash__launch .fizo-dash__action{width:100%}}
 
+/* Hotel dashboard room status — shared reference geometry, scoped to existing
+   room-status component. No impact on cashier, bar or restaurant screens. */
+.fizo-dash__roomgrid>div {
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:86px;
+  gap:5px;
+  border:1px solid var(--fz-border);
+  background:#f8fbf9;
+  border-radius:var(--fz-radius);
+  padding:14px;
+}
+.fizo-dash__roomgrid strong {
+  font-size:clamp(20px,2vw,28px);
+  line-height:1.15;
+  font-variant-numeric:tabular-nums;
+  color:var(--fz-text);
+}
+.fizo-dash__roomgrid small {font-size:12px;font-weight:650}
+.fizo-dash__roomgrid>div:first-child {
+  background:#eaf8ef;
+  border-color:#cde9d7;
+}
+.fizo-dash__roomgrid>div:nth-child(2) {
+  background:#fff8e9;
+  border-color:#f0e3c7;
+}
+.fizo-dash__roomgrid>div:nth-child(3) {
+  background:#f8f3f3;
+  border-color:#ecdede;
+}
+@media(max-width:480px) {
+  .fizo-dash__roomgrid {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fizo-dash__roomgrid>div {min-height:75px;padding:11px}
+}
