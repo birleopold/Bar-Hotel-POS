@@ -13,6 +13,28 @@
     paymentCard.classList.add("reference-payment-card");
     basket.appendChild(paymentCard);
   }
+  // Keep Hold/Clear actions accessible without showing their bulky staff card
+  // in the cashier workspace. Reuse the existing, authenticated forms.
+  var holdForm=document.querySelector('input[name="action"][value="hold_order"]');
+  var holdCard=holdForm&&holdForm.closest(".staff-card");
+  var tools=basket&&basket.querySelector(".fizo-retail-basket-tools");
+  if(basket&&tools&&holdCard&&!basket.contains(holdCard)){
+    var details=document.createElement("details");
+    details.className="reference-basket-more";
+    var summary=document.createElement("summary");
+    summary.textContent="Hold or clear sale";
+    details.appendChild(summary);
+    details.appendChild(holdCard);
+    basket.appendChild(details);
+    tools.querySelectorAll('a[href="#hold_label"],a[href="#void_reason"]').forEach(function(link){
+      link.addEventListener("click",function(event){
+        event.preventDefault();
+        details.open=true;
+        var target=document.querySelector(link.getAttribute("href"));
+        if(target){target.focus();target.scrollIntoView({block:"nearest"});}
+      });
+    });
+  }
   var payLink=document.querySelector(".fizo-cashier-pay-cta");
   if(payLink&&paymentForm){
     payLink.addEventListener("click",function(event){
