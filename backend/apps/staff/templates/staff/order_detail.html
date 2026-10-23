@@ -229,7 +229,7 @@
                   <button type="button" data-fizo-step="-1" aria-label="Decrease quantity of {{ line.label }}">−</button>
                   <input type="number" name="quantity" min="{% if line.menu_item.supermarket_profile.allow_fractional_quantity %}0.001{% else %}1{% endif %}" step="{% if line.menu_item.supermarket_profile.allow_fractional_quantity %}0.001{% else %}1{% endif %}" value="{{ line.quantity }}" aria-label="Quantity of {{ line.label }}">
                   <button type="button" data-fizo-step="1" aria-label="Increase quantity of {{ line.label }}">+</button>
-                  <button type="submit" class="fizo-retail-stepper__save">Update</button>
+                  <button type="submit" class="fizo-retail-stepper__save" aria-label="Save updated quantity">Update</button>
                 </form>
                 <form method="post" class="fizo-retail-basket-row__void">
                   {% csrf_token %}
