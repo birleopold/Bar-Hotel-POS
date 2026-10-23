@@ -75,3 +75,27 @@ textarea.staff-input:focus-visible {
   .staff-btn {min-height:44px}
   .staff-input,input.staff-input,select.staff-input,textarea.staff-input {min-height:44px}
 }
+
+/* Shared dashboard/management primitives from the approved four-line POS reference.
+   Opt-in classes prevent changing transaction workspaces accidentally. */
+.fz-page-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 16px}
+.fz-page-heading h1{margin:0;color:var(--fz-text);font-size:clamp(21px,2vw,28px);line-height:1.2;font-weight:800;letter-spacing:-.03em}
+.fz-page-heading p{margin:5px 0 0;color:var(--fz-muted)}
+.fz-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--fz-card-gap);margin-bottom:14px}
+.fz-kpi{min-width:0;background:#fff;border:1px solid var(--fz-border);border-radius:var(--fz-radius);padding:14px;box-shadow:var(--fz-shadow)}
+.fz-kpi__label{display:block;color:var(--fz-muted);font-size:12px;font-weight:650}
+.fz-kpi__value{display:block;margin-top:5px;color:var(--fz-text);font-size:clamp(19px,2.2vw,27px);font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
+.fz-kpi__delta{display:block;margin-top:7px;font-size:12px;font-weight:750;color:#007b43}
+.fz-kpi__delta--negative{color:#b42332}
+.fz-dashboard-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--fz-card-gap)}
+.fz-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.fz-section-head h2{margin:0;color:var(--fz-text);font-size:16px;font-weight:800}
+.fz-management-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.fz-management-toolbar .staff-input{width:auto;flex:1 1 170px}
+.fz-status{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:750;background:#e5f6ec;color:#087745;white-space:nowrap}
+.fz-status--warning{background:#fff4df;color:#9c6305}
+.fz-status--danger{background:#fff0f0;color:#a8323e}
+.fz-status--neutral{background:#edf2f4;color:#4b6570}
+@media(max-width:1100px){.fz-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.fz-dashboard-panels{grid-template-columns:1fr}}
+@media(max-width:480px){.fz-kpi-grid{gap:8px}.fz-kpi{padding:12px}.fz-kpi__value{font-size:19px}.fz-management-toolbar .staff-input{flex-basis:100%}}
