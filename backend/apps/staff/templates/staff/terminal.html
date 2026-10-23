@@ -4,7 +4,7 @@
 <title>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %} · Staff PIN</title>
 {% if login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
 <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#00884b{% endif %}">
-<link rel="stylesheet" href="{% static 'staff/staff-theme.css' %}?v=20261006.3">
+<link rel="stylesheet" href="{% static 'staff/fizo-fresh.css' %}?v=20261006.3">
 <link rel="stylesheet" href="/static/staff/fizo-auth-2026.css?v=20261022.2">
 </head>
 <body class="fizo-auth-body"{% if login_brand %} style="--fz-auth-green:{{ login_brand.primary }};--staff-primary:{{ login_brand.primary }}"{% endif %}>
