@@ -29,6 +29,7 @@ def audit():
     consumers = {}
     missing = []
     dynamic = []
+    hardcoded = []
     for src in files:
         if src.suffix.lower() not in {".html", ".css", ".js", ".py"}:
             continue
@@ -39,6 +40,7 @@ def audit():
         if DYNAMIC.search(text) and src.suffix == ".html":
             dynamic.append(str(src.relative_to(ROOT)))
         for raw in RAW_CSS_URL.findall(text):
+            hardcoded.append({"source": str(src.relative_to(ROOT)), "asset": raw})
             rel = raw.removeprefix("/static/")
             destination = ROOT / "backend" / "apps" / "staff" / "static" / rel
             consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
@@ -57,14 +59,21 @@ def audit():
                 if uri.startswith(("http:", "https:", "/", "//")):
                     continue
                 destination = (src.parent / uri).resolve()
+                if destination.is_file() and destination.is_relative_to(ROOT):
+                    consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
                 if not destination.is_file():
                     missing.append({"source": str(src.relative_to(ROOT)), "asset": uri})
+    referenced = set(consumers)
+    unreferenced = [str(p.relative_to(ROOT)) for p in css if str(p.relative_to(ROOT)) not in referenced]
     report = {
         "tracked_css_count": len(css),
         "tracked_css_files": sorted(str(p.relative_to(ROOT)) for p in css),
         "literal_staff_css_consumers": consumers,
         "dynamic_template_static_tags": sorted(set(dynamic)),
         "missing_references": missing,
+        "hardcoded_static_css_references": hardcoded,
+        "unreferenced_css_candidates": sorted(unreferenced),
+        "unreferenced_css_warning": "Candidate only: JS, CSS imports, computed asset names and runtime loads require tracing before deletion.",
         "hardcoded_static_css_policy": "Hardcoded /static/staff/*.css references are audited; prefer Django {% static %} in templates.",
         "note": "CSS classes used in JS and template inheritance need browser and manual verification before deleting files.",
     }
