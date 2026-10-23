@@ -15,13 +15,14 @@ STATIC = ROOT / "static" / "staff"
 
 class UnifiedCssArchitectureTests(unittest.TestCase):
     def test_required_stylesheets_exist(self):
-        for name in ("fizo-fresh.css", "retail-cashier.css", "retail-workflows.css", "fizo-hospitality-pos.css"):
+        for name in ("fizo-fresh.css", "retail-cashier.css", "retail-workflows.css", "hospitality-workflows.css"):
             with self.subTest(stylesheet=name):
                 self.assertTrue((STATIC / name).is_file())
 
     def test_removed_retail_stylesheets_stay_removed(self):
         for name in ("fizo-checkout-v1.css", "reference-locked-checkout.css",
-                     "retail-counter-v2.css", "fizo-retail-sales.css"):
+                     "retail-counter-v2.css", "fizo-retail-sales.css",
+                     "fizo-hospitality-pos.css"):
             with self.subTest(stylesheet=name):
                 self.assertFalse((STATIC / name).exists())
 
@@ -32,13 +33,19 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
         self.assertIn("{{ block.super }}", child)
         self.assertIn("retail-cashier.css", child)
 
+    def test_hospitality_loads_only_for_non_supermarket_orders(self):
+        page = (TEMPLATES / "order_detail.html").read_text(encoding="utf-8")
+        self.assertIn("hospitality-workflows.css", page)
+        self.assertIn("{% if is_supermarket_outlet %}", page)
+
     def test_retail_sales_start_loads_consolidated_styles(self):
         page = (TEMPLATES / "retail_pos_start.html").read_text(encoding="utf-8")
         self.assertIn("retail-workflows.css", page)
 
     def test_no_removed_stylesheet_references_in_staff_templates(self):
         retired = ("fizo-checkout-v1.css", "reference-locked-checkout.css",
-                   "retail-counter-v2.css", "fizo-retail-sales.css")
+                   "retail-counter-v2.css", "fizo-retail-sales.css",
+                   "fizo-hospitality-pos.css")
         for template in TEMPLATES.rglob("*.html"):
             source = template.read_text(encoding="utf-8")
             for name in retired:
