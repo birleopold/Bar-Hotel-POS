@@ -482,3 +482,26 @@ body:has(.fizo-checkout-catalogue) .reference-basket-more .staff-input{min-heigh
    grid-template-columns:repeat(4,minmax(0,1fr))!important
  }
 }
+
+/* 2026-10-23 visual stability: on retail POS only, one independent basket
+   scrolling region and never any phantom space from hidden management cards. */
+@media(min-width:1050px){
+ body:has(.fizo-checkout-catalogue) .staff-pos-order-side>.staff-pos-panel-scroll{
+  display:flex!important;flex-direction:column!important;min-height:0!important;
+  height:100%!important;overflow:hidden!important
+ }
+ body:has(.fizo-checkout-catalogue) .staff-pos-order-side .fizo-checkout-basket{
+  flex:1 1 auto!important;min-height:0!important;max-height:100%!important
+ }
+ body:has(.fizo-checkout-catalogue) .staff-pos-order-side .fizo-checkout-basket__lines{
+  flex:1 1 auto!important;min-height:0!important;overscroll-behavior:contain!important
+ }
+ body:has(.fizo-checkout-catalogue) .staff-pos-order-side .fizo-retail-basket-tools,
+ body:has(.fizo-checkout-catalogue) .staff-pos-order-side .reference-payment-card{
+  flex-shrink:0!important
+ }
+}
+/* Prevent special / optional forms from overflowing the sale window. */
+body:has(.fizo-checkout-catalogue) .reference-basket-more:not([open]){
+ max-height:27px!important;overflow:hidden!important
+}
