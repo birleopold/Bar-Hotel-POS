@@ -1,6 +1,7 @@
 {% extends "staff/base.html" %}
 {% load static %}
 {% block title %}Dashboard · Fizo{% endblock %}
+{% block extra_css %}{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}<link rel="stylesheet" href="{% static 'staff/retail-workflows.css' %}?v=20261023.5">{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide fizo-dashboard-page{% endblock %}
 {% block content %}
 <div class="fizo-dash fz-industry-dashboard" data-business="{{ staff_product.business_key|default:'general' }}" aria-label="Fizo business dashboard">
@@ -26,7 +27,7 @@
       <section class="fizo-dash__launch" aria-label="Start serving">
         <div><h2>{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Ready for the next checkout?{% elif staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Ready to serve the next tab?{% else %}Ready for the next order?{% endif %}</h2>
           <p>Use your existing authorized ordering and payment workflow.</p></div>
-        <a class="fizo-dash__action" href="{% url 'staff-orders' %}"><i class="bi bi-cart3" aria-hidden="true"></i> Open POS <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+        <a class="fizo-dash__action" href="{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}{% url 'staff-retail-pos-entry' %}{% else %}{% url 'staff-orders' %}{% endif %}"><i class="bi bi-cart3" aria-hidden="true"></i> {% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Open cashier POS{% else %}Open POS{% endif %} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       </section>
     {% elif staff_show_lodging_nav and staff_nav.lodging %}
       <section class="fizo-dash__launch">
@@ -99,7 +100,7 @@
     </div>
 
     {% if staff_dashboard_primary_actions or staff_dashboard_secondary_actions %}
-    <section class="fizo-dash__section" aria-labelledby="fizo-shortcuts-title">
+    <section class="fizo-dash__section fizo-dash__quick-actions" aria-labelledby="fizo-shortcuts-title">
       <div class="fizo-dash__sectionhead"><h2 id="fizo-shortcuts-title">Quick actions</h2></div>
       <div class="fizo-dash__shortcuts">
         {% for action in staff_dashboard_primary_actions %}
@@ -114,12 +115,12 @@
     </section>{% endif %}
 
     {% if show_workspace_admin_tools %}
-    <section class="fizo-dash__panel fizo-dash__section">
+    <section class="fizo-dash__panel fizo-dash__section fizo-dash__management">
       <div class="fizo-dash__sectionhead"><h2>Business management</h2></div>
       <div class="fizo-dash__links"><a href="{% url 'console-org' %}">Business overview</a><a href="{% url 'console-org-setup' %}">Guided setup</a><a href="{% url 'staff-workspace-members' %}">Staff</a></div>
     </section>{% endif %}
     {% if show_workspace_setup_cta %}
-    <section class="fizo-dash__panel fizo-dash__section" aria-labelledby="setup-heading">
+    <section class="fizo-dash__panel fizo-dash__section fizo-dash__setup" aria-labelledby="setup-heading">
       <h2 id="setup-heading">Finish business setup</h2>
       <p>Core setup is {{ tenant_setup_state.required_completion_percent }}% complete.</p>
       <progress value="{{ tenant_setup_state.required_completion_percent }}" max="100" aria-label="Business setup progress">{{ tenant_setup_state.required_completion_percent }}%</progress>
@@ -129,10 +130,10 @@
       </div>
     </section>
     {% elif tenant_setup_progress.suppress_dashboard_prompt %}
-    <section class="fizo-dash__panel fizo-dash__section"><p>Setup checklist hidden</p><form method="post" action="{{ tenant_setup_resume_url }}">{% csrf_token %}<button class="staff-btn staff-btn--ghost" type="submit">Resume setup</button></form></section>
+    <section class="fizo-dash__panel fizo-dash__section fizo-dash__setup fizo-dash__setup--hidden"><p>Setup checklist hidden</p><form method="post" action="{{ tenant_setup_resume_url }}">{% csrf_token %}<button class="staff-btn staff-btn--ghost" type="submit">Resume setup</button></form></section>
     {% endif %}
     {% if memberships|length > 1 %}
-      <form method="post" action="{% url 'staff-select-tenant' %}" class="fizo-dash__panel fizo-dash__section">{% csrf_token %}
+      <form method="post" action="{% url 'staff-select-tenant' %}" class="fizo-dash__panel fizo-dash__section fizo-dash__switch">{% csrf_token %}
         <label for="fizo-switch">Change workspace</label><select id="fizo-switch" class="staff-input" name="tenant_id">{% for m in memberships %}<option value="{{ m.tenant_id }}"{% if m.tenant_id == active_membership.tenant_id %} selected{% endif %}>{{ m.tenant.name }}</option>{% endfor %}</select>
         <button class="fizo-dash__action" type="submit">Switch</button>
       </form>
