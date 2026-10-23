@@ -31,12 +31,32 @@
   var qty=addForm&&addForm.querySelector('input[name="quantity"]');
   var product=addForm&&addForm.querySelector('select[name="menu_item"]');
   var live=document.querySelector("[data-pos-menu-selection]");
+  var topSearch=document.getElementById("reference-top-catalogue-search");
+  var scannerForm=document.querySelector("[data-retail-scan-form]");
+  var scannerInput=scannerForm&&scannerForm.querySelector('input[name="code"]');
+  var scanMode=false;
+  function setHeaderScanMode(enabled){
+    scanMode=enabled;
+    if(!topSearch)return;
+    topSearch.placeholder=enabled?"Scan barcode and press Enter to add item":"Scan barcode or search products...";
+    topSearch.focus();topSearch.select();
+  }
   document.querySelectorAll("[data-reference-scan-focus]").forEach(function(button){
-    button.addEventListener("click",function(){
-      var input=document.querySelector('[data-retail-scan-form] input[name="code"]');
-      if(input){input.focus();input.select();input.scrollIntoView({block:"nearest"});}
-    });
+    button.addEventListener("click",function(){setHeaderScanMode(true);});
   });
+  if(topSearch){
+    topSearch.addEventListener("keydown",function(event){
+      if(event.key==="Escape"){setHeaderScanMode(false);topSearch.value="";return;}
+      if(event.key!=="Enter"||!scanMode||event.isComposing)return;
+      event.preventDefault();
+      var code=topSearch.value.trim();
+      if(!code||!scannerForm||!scannerInput)return;
+      scannerInput.value=code;
+      var quantity=scannerForm.querySelector('input[name="quantity"]');
+      if(quantity)quantity.value="1";
+      if(scannerForm.requestSubmit)scannerForm.requestSubmit();
+    });
+  }
   var icons=[
     [/^all/i,"bi-grid"],[/grain|food|flour|rice/i,"bi-flower1"],
     [/drink|beverage|water/i,"bi-cup-straw"],[/dairy|milk/i,"bi-cup-hot"],
@@ -54,7 +74,8 @@
     button.insertBefore(icon,button.firstChild);
   });
   function focusSearch(barcode){
-    var input=barcode?(document.querySelector('[data-retail-scan-form] input[name="code"]')||server||local):(local||server);
+    if(barcode){setHeaderScanMode(true);return;}
+    var input=topSearch||local||server;
     if(input){input.focus();input.select();input.scrollIntoView({block:"nearest"});}
   }
   document.querySelectorAll("[data-fizo-focus-search]").forEach(function(a){
@@ -65,7 +86,7 @@
   });
   document.addEventListener("keydown",function(e){
     if(e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;
-    if(e.key==="F2"){e.preventDefault();focusSearch(false);}
+    if(e.key==="F2"){e.preventDefault();setHeaderScanMode(false);focusSearch(false);}
     if(e.key==="F3"){e.preventDefault();focusSearch(true);}
     if(e.key==="Escape"&&(document.activeElement===server||document.activeElement===local)){
       document.activeElement.value="";
