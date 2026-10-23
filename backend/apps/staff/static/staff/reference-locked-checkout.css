@@ -565,3 +565,20 @@ body:has(.fizo-checkout-catalogue) .fizo-tile-add{
   justify-content:start!important
  }
 }
+
+/* Checkout resilience: the permission-gated payment card has a server-rendered
+   class, so it must never vanish solely because enhancement JS is delayed. */
+body:has(.fizo-checkout-catalogue) .staff-pos-order-side>.reference-payment-card{
+ display:block!important;position:relative!important;visibility:visible!important;
+ flex:0 0 auto!important;background:#fff!important;z-index:1!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket>.reference-payment-card{
+ display:block!important;visibility:visible!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket>.reference-payment-card .staff-card__title,
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket>.reference-payment-card .fizo-retail-payment-shortcuts{
+ display:block!important
+}
+body:has(.fizo-checkout-catalogue) .fizo-checkout-basket>.reference-payment-card .fizo-retail-payment-shortcuts{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important
+}
