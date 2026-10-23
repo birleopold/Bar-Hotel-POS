@@ -28,7 +28,7 @@
 
 | Phase | Workstream | State | Exit gate |
 |---|---|---|---|
-| P00 | Discover and freeze baseline | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P00 | Discover and freeze baseline | In progress — [source inventory and CI baseline](evidence/p00-2026-10-23/README.md); browser baseline pending | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
 | P01 | Architecture and CSS clean replacement | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
 | P02 | Shared components and mobile responsiveness | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
 | P03 | Tenant setup and true isolation | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
@@ -49,6 +49,8 @@
 ### P00 — Discover and freeze baseline
 
 Inventory routes, templates, includes, CSS, JS, API views, model writes, events, permission checks, responsive breakpoints and current screenshots. Build route-to-template-to-CSS-to-controller crosswalk; mark dead/duplicate files, gather pixel baselines. No deletions before reference and dependency analysis.
+
+Checkpoint: source `8d45fb3` has 636 resolved URL patterns, 156 tracked templates, 28 visual candidates needing dynamic tracing and eight missing stylesheet references. Exact-source CI has 83 failing tests. See the linked P00 evidence; no phase completion or production verification is implied.
 
 **Required artifacts:** exact changed-file list; routes/screens impacted; CSS owner and removed selectors; screenshots side-by-side; migration/data-safety note; real-browser pass; automated tests; push SHA; verified production outcome. No phase marked done without evidence.
 

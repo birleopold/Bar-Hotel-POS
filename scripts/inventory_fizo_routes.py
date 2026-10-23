@@ -11,6 +11,8 @@ import csv
 import os
 import sys
 import inspect
+import re
+import subprocess
 from collections import Counter
 from pathlib import Path
 
@@ -100,12 +102,32 @@ with dest.open("w", newline="", encoding="utf-8") as handle:
     writer.writeheader()
     writer.writerows(rows)
 
-html_paths = sorted(root.glob("backend/**/*.html"))
+# A recursive backend glob also inventories virtualenv/package templates. P00
+# describes repository-owned screens, so use Git's tracked-file inventory.
+tracked = subprocess.run(
+    ["git", "ls-files", "-z", "--", "backend"], cwd=root,
+    capture_output=True, check=True,
+).stdout.decode("utf-8").split("\0")
+html_paths = sorted(root / name for name in tracked if name.endswith(".html"))
+template_edge = re.compile(r'''{%\s*(extends|include)\s+['"]([^'"]+)['"]''')
+asset_edge = re.compile(r'''{%\s*static\s+['"]([^'"]+\.(?:css|js))['"]''')
 templates = []
+dependencies = []
 for file in html_paths:
     p = file.relative_to(root).as_posix()
     kind = "Included/shared" if "/includes/" in p or p.endswith("/base.html") else "Screen/other"
     templates.append({"template": p, "business_line": domain(p), "kind": kind, "verified": "NO"})
+    source = file.read_text(encoding="utf-8")
+    for relation, target in template_edge.findall(source):
+        dependencies.append({"source": p, "relation": relation, "target": target,
+                             "scope": "Literal reference; conditional reachability needs trace"})
+    for target in asset_edge.findall(source):
+        dependencies.append({"source": p, "relation": "stylesheet" if target.endswith(".css") else "controller",
+                             "target": target, "scope": "Literal reference; inherited load order needs trace"})
+with (Path.cwd() / "fizo_template_dependencies.csv").open("w", newline="", encoding="utf-8") as handle:
+    writer = csv.DictWriter(handle, fieldnames=["source", "relation", "target", "scope"])
+    writer.writeheader()
+    writer.writerows(dependencies)
 with (Path.cwd() / "fizo_templates.csv").open("w", newline="", encoding="utf-8") as handle:
     writer = csv.DictWriter(handle, fieldnames=["template", "business_line", "kind", "verified"])
     writer.writeheader()

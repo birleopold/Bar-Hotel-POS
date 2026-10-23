@@ -4,6 +4,8 @@ Authoritative execution plan · requested 30 September 2026.
 
 ## Live delivery and progress boards
 
+- **Latest execution order:** [23 October complete roadmap](FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md), currently P00 discovery. [Fresh baseline evidence](evidence/p00-2026-10-23/README.md) records 83 failing tests and eight broken stylesheet links. This does not advance any of the 34 product phase completion states.
+
 - **[Implementation progress overview](IMPLEMENTATION_PROGRESS.md)** — all 34 phases, dependencies, evidence states and completion rules. Update when any phase changes.
 - **[Supermarket and retail checklist](SUPERMARKET_IMPLEMENTATION_CHECKLIST.md)** — 36 supermarket capabilities, verified foundations, unfinished journeys, P0/P1/P2 priorities and acceptance. This is a required workstream, not an optional appendix. A retail-related phase cannot be completed without checking its linked supermarket IDs.
 - For every SM-ID update the supermarket tracker, corresponding numbered phase and commit/test evidence. Record **implemented**, **CI-verified** and **hardware/browser certified** separately.

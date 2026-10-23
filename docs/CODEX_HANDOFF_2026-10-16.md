@@ -2,6 +2,8 @@
 
 ## Quick start
 
+**Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
+
 This handoff is in the GitHub repository itself. After pulling latest main, Codex should read `AGENTS.md`, **this handoff**, `docs/SUITE_IMPLEMENTATION_TODO.md`, `docs/RELEASE_CERTIFICATION.md`, and `.github/workflows/quality.yml`. The handoff does not replace examining actual code and running tests.
 
 ```bash

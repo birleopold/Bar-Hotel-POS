@@ -1,0 +1,157 @@
+template,business_line,kind,verified
+backend/apps/console/templates/console/base.html,Shared / cross-business,Included/shared,NO
+backend/apps/console/templates/console/includes/fizo_nav.html,Shared / cross-business,Included/shared,NO
+backend/apps/console/templates/console/includes/fizo_sidebar.html,Shared / cross-business,Included/shared,NO
+backend/apps/console/templates/console/includes/nav.html,Shared / cross-business,Included/shared,NO
+backend/apps/console/templates/console/includes/sidebar.html,Shared / cross-business,Included/shared,NO
+backend/apps/console/templates/console/index.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/catalog_import.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/menu_category_form.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/menu_category_list.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/menu_item_form.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/menu_item_list.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/menu_item_outlet_confirm_delete.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/menu_item_outlet_form.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/menu_item_outlet_list.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/menu_item_recipe_confirm_delete.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/console/templates/console/org/menu_item_recipe_form.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/console/templates/console/org/menu_item_recipe_list.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/console/templates/console/org/modifier_group_form.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/console/templates/console/org/modifier_group_list.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/console/templates/console/org/modifier_option_form.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/console/templates/console/org/modifier_option_list.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/console/templates/console/org/outlet_form.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/outlet_list.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/overview.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/practice_sale.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/room_form.html,Hotel,Screen/other,NO
+backend/apps/console/templates/console/org/room_list.html,Hotel,Screen/other,NO
+backend/apps/console/templates/console/org/room_rate_form.html,Hotel,Screen/other,NO
+backend/apps/console/templates/console/org/room_rate_list.html,Hotel,Screen/other,NO
+backend/apps/console/templates/console/org/room_type_form.html,Hotel,Screen/other,NO
+backend/apps/console/templates/console/org/room_type_list.html,Hotel,Screen/other,NO
+backend/apps/console/templates/console/org/service_offering_form.html,Services,Screen/other,NO
+backend/apps/console/templates/console/org/service_offering_list.html,Services,Screen/other,NO
+backend/apps/console/templates/console/org/service_offering_option_form.html,Services,Screen/other,NO
+backend/apps/console/templates/console/org/service_offering_option_list.html,Services,Screen/other,NO
+backend/apps/console/templates/console/org/setup_wizard.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/site_form.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/org/site_list.html,Shared / cross-business,Screen/other,NO
+backend/apps/console/templates/console/platform/plan_form.html,Platform administration,Screen/other,NO
+backend/apps/console/templates/console/platform/plan_list.html,Platform administration,Screen/other,NO
+backend/apps/console/templates/console/platform/tenant_control_plane.html,Platform administration,Screen/other,NO
+backend/apps/console/templates/console/platform/tenant_form.html,Platform administration,Screen/other,NO
+backend/apps/console/templates/console/platform/tenant_list.html,Platform administration,Screen/other,NO
+backend/apps/staff/templates/staff/base.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/business_date.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/customers/detail.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/customers/form.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/customers/list.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/dashboard.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/events/booking_detail.html,Events,Screen/other,NO
+backend/apps/staff/templates/staff/events/booking_form.html,Events,Screen/other,NO
+backend/apps/staff/templates/staff/events/bookings_list.html,Events,Screen/other,NO
+backend/apps/staff/templates/staff/events/calendar_week.html,Events,Screen/other,NO
+backend/apps/staff/templates/staff/events/includes/subnav.html,Events,Included/shared,NO
+backend/apps/staff/templates/staff/events/space_form.html,Services,Screen/other,NO
+backend/apps/staff/templates/staff/events/spaces_list.html,Services,Screen/other,NO
+backend/apps/staff/templates/staff/finance/category_form.html,Shared finance / reporting,Screen/other,NO
+backend/apps/staff/templates/staff/finance/entries_list.html,Shared finance / reporting,Screen/other,NO
+backend/apps/staff/templates/staff/finance/entry_form.html,Shared finance / reporting,Screen/other,NO
+backend/apps/staff/templates/staff/includes/documentary_photo.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/empty_state.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/exception_assessment_fields.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/fizo_pos_catalogue.html,Shared POS,Included/shared,NO
+backend/apps/staff/templates/staff/includes/fizo_retail_sales_landing.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/form_errors_block.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/grocery_owner_dashboard.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/messages.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/nav.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/orders_lanes.html,Shared POS,Included/shared,NO
+backend/apps/staff/templates/staff/includes/service_tv_ticket.html,Services,Included/shared,NO
+backend/apps/staff/templates/staff/includes/sidebar.html,Shared / cross-business,Included/shared,NO
+backend/apps/staff/templates/staff/includes/workspace_subnav.html,Services,Included/shared,NO
+backend/apps/staff/templates/staff/inventory/balances.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/batches.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/count_create.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/count_detail.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/counts_list.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/includes/subnav.html,Supermarket / Retail / Shared stock,Included/shared,NO
+backend/apps/staff/templates/staff/inventory/intelligence.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/movement_form.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/movement_upload.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/movements.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/scale_labels.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/shelves.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/transfer_form.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/inventory/transfer_receipts.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/kds/queue.html,Restaurant / kitchen,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/availability.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/folio_detail.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/folios_list.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/housekeeping.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/includes/subnav.html,Hotel,Included/shared,NO
+backend/apps/staff/templates/staff/lodging/maintenance.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/night_audit.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/reservation_detail.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/reservation_form.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/reservations_list.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/room_types_list.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/rooms_list.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/lodging/tape_chart.html,Hotel,Screen/other,NO
+backend/apps/staff/templates/staff/login.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/management.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/management_shift.html,Shared POS,Screen/other,NO
+backend/apps/staff/templates/staff/management_source.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/menu_list.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/notifications/inbox.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/order_detail.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/order_detail_supermarket.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/order_print.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/orders_list.html,Shared POS,Screen/other,NO
+backend/apps/staff/templates/staff/pending_approval.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/pin_setup.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/pos/customer_display.html,Shared POS,Screen/other,NO
+backend/apps/staff/templates/staff/pos/offline_queue.html,Shared POS,Screen/other,NO
+backend/apps/staff/templates/staff/pos/pickups.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/pos/wholesale_pricing.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/pos_shifts.html,Shared POS,Screen/other,NO
+backend/apps/staff/templates/staff/promotion_detail.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/promotion_form.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/promotions_list.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/purchasing/includes/subnav.html,Supermarket / Retail / Shared stock,Included/shared,NO
+backend/apps/staff/templates/staff/purchasing/purchase_order_create.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/purchasing/purchase_order_detail.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/purchasing/purchase_orders_list.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/purchasing/supplier_balances.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/purchasing/supplier_form.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/purchasing/suppliers_list.html,Supermarket / Retail / Shared stock,Screen/other,NO
+backend/apps/staff/templates/staff/retail_pos_start.html,Shared POS,Screen/other,NO
+backend/apps/staff/templates/staff/sales_summary.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/search/index.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/search/palette.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/service_tv.html,Services,Screen/other,NO
+backend/apps/staff/templates/staff/settings/audit_log.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/branding.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/efris_settings.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/includes/subnav.html,Shared authentication / settings,Included/shared,NO
+backend/apps/staff/templates/staff/settings/integration_form.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/integrations_list.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/invite_form.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/invites_list.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/member_form.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/members_list.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/modules.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/settings/owner_reports.html,Shared finance / reporting,Screen/other,NO
+backend/apps/staff/templates/staff/settings/worker_form.html,Shared authentication / settings,Screen/other,NO
+backend/apps/staff/templates/staff/table_form.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/staff/templates/staff/tables_list.html,Restaurant / Bar / Shared catalogue,Screen/other,NO
+backend/apps/staff/templates/staff/terminal.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/workstation_form.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/workstation_pair.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/workstation_test.html,Shared / cross-business,Screen/other,NO
+backend/apps/staff/templates/staff/workstations.html,Shared / cross-business,Screen/other,NO
+backend/templates/includes/phase4_control_panel.html,Shared / cross-business,Included/shared,NO
+backend/templates/password_reset/confirm.html,Shared authentication / settings,Screen/other,NO
+backend/templates/password_reset/request.html,Shared authentication / settings,Screen/other,NO
+backend/templates/public/signup.html,Shared authentication / settings,Screen/other,NO

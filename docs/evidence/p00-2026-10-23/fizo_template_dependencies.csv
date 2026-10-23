@@ -1,0 +1,273 @@
+source,relation,target,scope
+backend/apps/console/templates/console/base.html,include,console/includes/fizo_sidebar.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/base.html,include,console/includes/sidebar.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/base.html,include,console/includes/fizo_nav.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/base.html,include,console/includes/nav.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/base.html,include,staff/includes/messages.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/base.html,stylesheet,staff/fizo-console-shell.css,Literal reference; inherited load order needs trace
+backend/apps/console/templates/console/base.html,stylesheet,staff/fizo-fresh.css,Literal reference; inherited load order needs trace
+backend/apps/console/templates/console/base.html,stylesheet,staff/fizo-setup-area.css,Literal reference; inherited load order needs trace
+backend/apps/console/templates/console/index.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/catalog_import.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_category_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_category_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_item_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_item_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_item_outlet_confirm_delete.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_item_outlet_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_item_outlet_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_item_recipe_confirm_delete.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_item_recipe_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/menu_item_recipe_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/modifier_group_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/modifier_group_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/modifier_option_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/modifier_option_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/outlet_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/outlet_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/overview.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/practice_sale.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/room_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/room_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/room_rate_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/room_rate_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/room_type_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/room_type_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/service_offering_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/service_offering_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/service_offering_option_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/service_offering_option_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/setup_wizard.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/setup_wizard.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/setup_wizard.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/setup_wizard.html,stylesheet,staff/fizo-setup-wizard.css,Literal reference; inherited load order needs trace
+backend/apps/console/templates/console/org/site_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/org/site_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/platform/plan_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/platform/plan_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/platform/tenant_control_plane.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/platform/tenant_form.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/console/templates/console/platform/tenant_list.html,extends,console/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/base.html,include,staff/includes/sidebar.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/base.html,include,staff/includes/nav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/base.html,include,staff/includes/messages.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/base.html,include,staff/search/palette.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/base.html,stylesheet,staff/fizo-fresh.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/business_date.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/customers/detail.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/customers/form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/customers/list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/dashboard.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/dashboard.html,stylesheet,staff/retail-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/events/booking_detail.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/booking_detail.html,include,staff/events/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/booking_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/booking_form.html,include,staff/events/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/bookings_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/bookings_list.html,include,staff/events/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/calendar_week.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/calendar_week.html,include,staff/events/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/space_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/space_form.html,include,staff/events/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/spaces_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/events/spaces_list.html,include,staff/events/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/finance/category_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/finance/entries_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/finance/entries_list.html,include,staff/includes/empty_state.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/finance/entry_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/includes/fizo_pos_catalogue.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/includes/fizo_retail_sales_landing.html,include,staff/includes/orders_lanes.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/balances.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/balances.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/balances.html,stylesheet,staff/fizo-stock.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/batches.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/batches.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/batches.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/count_create.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/count_create.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/count_create.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/count_detail.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/count_detail.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/count_detail.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/counts_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/counts_list.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/counts_list.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/intelligence.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/intelligence.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/intelligence.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/movement_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/movement_form.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/movement_form.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/movement_upload.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/movement_upload.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/movement_upload.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/movements.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/movements.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/movements.html,include,staff/includes/empty_state.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/movements.html,include,staff/includes/empty_state.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/movements.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/scale_labels.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/scale_labels.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/scale_labels.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/shelves.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/shelves.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/shelves.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/transfer_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/transfer_form.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/transfer_form.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/inventory/transfer_receipts.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/transfer_receipts.html,include,staff/inventory/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/inventory/transfer_receipts.html,stylesheet,staff/fizo-inventory-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/kds/queue.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/kds/queue.html,stylesheet,staff/staff-kds-operations.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/kds/queue.html,stylesheet,staff/hospitality-workflow.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/kds/queue.html,controller,staff/staff-kds-live.js,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/availability.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/availability.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/availability.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/folio_detail.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/folio_detail.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/folio_detail.html,include,staff/includes/empty_state.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/folio_detail.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/folio_detail.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/folios_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/folios_list.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/folios_list.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/housekeeping.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/housekeeping.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/housekeeping.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/maintenance.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/maintenance.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/maintenance.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/night_audit.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/night_audit.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/night_audit.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/reservation_detail.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/reservation_detail.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/reservation_detail.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/reservation_detail.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/reservation_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/reservation_form.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/reservation_form.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/reservations_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/reservations_list.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/reservations_list.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/room_types_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/room_types_list.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/room_types_list.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/rooms_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/rooms_list.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/rooms_list.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/lodging/tape_chart.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/tape_chart.html,include,staff/lodging/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/lodging/tape_chart.html,stylesheet,staff/fizo-hotel-frontdesk.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/login.html,stylesheet,staff/staff-theme.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/management.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/management.html,include,staff/includes/exception_assessment_fields.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/management.html,include,staff/includes/exception_assessment_fields.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/management_shift.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/management_source.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/menu_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/menu_list.html,stylesheet,staff/management-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/notifications/inbox.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,include,staff/includes/fizo_pos_catalogue.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,include,staff/includes/fizo_pos_catalogue.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail.html,stylesheet,staff/retail-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/order_detail.html,stylesheet,staff/hospitality-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/order_detail.html,controller,staff/retail-counter-v2.js,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/order_detail_supermarket.html,extends,staff/order_detail.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail_supermarket.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail_supermarket.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/order_detail_supermarket.html,stylesheet,staff/retail-cashier.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/orders_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/orders_list.html,include,staff/includes/fizo_retail_sales_landing.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/orders_list.html,include,staff/includes/orders_lanes.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/orders_list.html,include,staff/includes/empty_state.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/orders_list.html,include,staff/includes/empty_state.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/orders_list.html,stylesheet,staff/fizo-retail-sales.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/orders_list.html,stylesheet,staff/hospitality-workflow.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/pending_approval.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/pin_setup.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/pos/offline_queue.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/pos/pickups.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/pos/wholesale_pricing.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/pos_shifts.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/pos_shifts.html,stylesheet,staff/hospitality-workflow.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/pos_shifts.html,stylesheet,staff/fizo-register.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/promotion_detail.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/promotion_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/promotions_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_order_create.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_order_create.html,include,staff/purchasing/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_order_create.html,stylesheet,staff/fizo-purchasing.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_order_detail.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_order_detail.html,include,staff/purchasing/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_order_detail.html,stylesheet,staff/fizo-purchasing.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_orders_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_orders_list.html,include,staff/purchasing/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/purchase_orders_list.html,stylesheet,staff/fizo-purchasing.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/purchasing/supplier_balances.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/supplier_balances.html,include,staff/purchasing/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/supplier_balances.html,stylesheet,staff/fizo-purchasing.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/purchasing/supplier_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/supplier_form.html,include,staff/purchasing/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/supplier_form.html,stylesheet,staff/fizo-purchasing.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/purchasing/suppliers_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/suppliers_list.html,include,staff/purchasing/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/purchasing/suppliers_list.html,stylesheet,staff/fizo-purchasing.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/retail_pos_start.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/retail_pos_start.html,stylesheet,staff/retail-workflows.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/sales_summary.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/search/index.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/search/palette.html,controller,staff/staff-command.js,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/service_tv.html,include,staff/includes/service_tv_ticket.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/service_tv.html,include,staff/includes/service_tv_ticket.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/service_tv.html,include,staff/includes/service_tv_ticket.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/audit_log.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/audit_log.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/branding.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/branding.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/efris_settings.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/efris_settings.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/efris_settings.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/integration_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/integration_form.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/integration_form.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/integrations_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/integrations_list.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/integrations_list.html,include,staff/includes/empty_state.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/integrations_list.html,include,staff/includes/empty_state.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/invite_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/invite_form.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/invites_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/invites_list.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/member_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/member_form.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/members_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/members_list.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/modules.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/modules.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/owner_reports.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/worker_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/settings/worker_form.html,include,staff/settings/includes/subnav.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/table_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/table_form.html,stylesheet,staff/hospitality-workflow.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/tables_list.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/tables_list.html,stylesheet,staff/fizo-hospitality-floor.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/terminal.html,stylesheet,staff/staff-theme.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/workstation_form.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/workstation_form.html,stylesheet,staff/fizo-register.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/workstation_pair.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/workstation_pair.html,include,staff/includes/form_errors_block.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/workstation_pair.html,stylesheet,staff/fizo-register.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/workstation_test.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/workstation_test.html,stylesheet,staff/fizo-register.css,Literal reference; inherited load order needs trace
+backend/apps/staff/templates/staff/workstations.html,extends,staff/base.html,Literal reference; conditional reachability needs trace
+backend/apps/staff/templates/staff/workstations.html,stylesheet,staff/fizo-register.css,Literal reference; inherited load order needs trace
+backend/templates/public/signup.html,stylesheet,staff/staff-theme.css,Literal reference; inherited load order needs trace

@@ -1,0 +1,156 @@
+{
+  "tracked_css_count": 20,
+  "tracked_css_files": [
+    "backend\\apps\\staff\\static\\staff\\fizo-auth-2026.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-console-shell.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-fresh.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-hospitality-floor.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-hotel-frontdesk.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-inventory-workflows.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-purchasing.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-register.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-setup-area.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-setup-wizard.css",
+    "backend\\apps\\staff\\static\\staff\\fizo-stock.css",
+    "backend\\apps\\staff\\static\\staff\\grocery-checkout.css",
+    "backend\\apps\\staff\\static\\staff\\grocery-owner-console.css",
+    "backend\\apps\\staff\\static\\staff\\hospitality-console.css",
+    "backend\\apps\\staff\\static\\staff\\hospitality-workflows.css",
+    "backend\\apps\\staff\\static\\staff\\management-workflows.css",
+    "backend\\apps\\staff\\static\\staff\\retail-cashier.css",
+    "backend\\apps\\staff\\static\\staff\\retail-workflows.css",
+    "backend\\apps\\staff\\static\\staff\\staff-kds-operations.css",
+    "backend\\apps\\staff\\static\\staff\\staff-workbench.css"
+  ],
+  "literal_staff_css_consumers": {
+    "backend\\apps\\staff\\static\\staff\\fizo-console-shell.css": [
+      "backend\\apps\\console\\templates\\console\\base.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-fresh.css": [
+      "backend\\apps\\console\\templates\\console\\base.html",
+      "backend\\apps\\staff\\templates\\staff\\base.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-setup-area.css": [
+      "backend\\apps\\console\\templates\\console\\base.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-setup-wizard.css": [
+      "backend\\apps\\console\\templates\\console\\org\\setup_wizard.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\retail-workflows.css": [
+      "backend\\apps\\staff\\templates\\staff\\dashboard.html",
+      "backend\\apps\\staff\\templates\\staff\\order_detail.html",
+      "backend\\apps\\staff\\templates\\staff\\retail_pos_start.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-stock.css": [
+      "backend\\apps\\staff\\templates\\staff\\inventory\\balances.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-inventory-workflows.css": [
+      "backend\\apps\\staff\\templates\\staff\\inventory\\batches.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\count_create.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\count_detail.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\counts_list.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\intelligence.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\movement_form.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\movement_upload.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\movements.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\scale_labels.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\shelves.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\transfer_form.html",
+      "backend\\apps\\staff\\templates\\staff\\inventory\\transfer_receipts.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\staff-kds-operations.css": [
+      "backend\\apps\\staff\\templates\\staff\\kds\\queue.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\hospitality-workflow.css": [
+      "backend\\apps\\staff\\templates\\staff\\kds\\queue.html",
+      "backend\\apps\\staff\\templates\\staff\\orders_list.html",
+      "backend\\apps\\staff\\templates\\staff\\pos_shifts.html",
+      "backend\\apps\\staff\\templates\\staff\\table_form.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-hotel-frontdesk.css": [
+      "backend\\apps\\staff\\templates\\staff\\lodging\\availability.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\folio_detail.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\folios_list.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\housekeeping.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\maintenance.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\night_audit.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\reservation_detail.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\reservation_form.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\reservations_list.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\room_types_list.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\rooms_list.html",
+      "backend\\apps\\staff\\templates\\staff\\lodging\\tape_chart.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\staff-theme.css": [
+      "backend\\apps\\staff\\templates\\staff\\login.html",
+      "backend\\apps\\staff\\templates\\staff\\terminal.html",
+      "backend\\templates\\public\\signup.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\management-workflows.css": [
+      "backend\\apps\\staff\\templates\\staff\\menu_list.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\hospitality-workflows.css": [
+      "backend\\apps\\staff\\templates\\staff\\order_detail.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\retail-cashier.css": [
+      "backend\\apps\\staff\\templates\\staff\\order_detail_supermarket.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-retail-sales.css": [
+      "backend\\apps\\staff\\templates\\staff\\orders_list.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-register.css": [
+      "backend\\apps\\staff\\templates\\staff\\pos_shifts.html",
+      "backend\\apps\\staff\\templates\\staff\\workstation_form.html",
+      "backend\\apps\\staff\\templates\\staff\\workstation_pair.html",
+      "backend\\apps\\staff\\templates\\staff\\workstation_test.html",
+      "backend\\apps\\staff\\templates\\staff\\workstations.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-purchasing.css": [
+      "backend\\apps\\staff\\templates\\staff\\purchasing\\purchase_order_create.html",
+      "backend\\apps\\staff\\templates\\staff\\purchasing\\purchase_order_detail.html",
+      "backend\\apps\\staff\\templates\\staff\\purchasing\\purchase_orders_list.html",
+      "backend\\apps\\staff\\templates\\staff\\purchasing\\supplier_balances.html",
+      "backend\\apps\\staff\\templates\\staff\\purchasing\\supplier_form.html",
+      "backend\\apps\\staff\\templates\\staff\\purchasing\\suppliers_list.html"
+    ],
+    "backend\\apps\\staff\\static\\staff\\fizo-hospitality-floor.css": [
+      "backend\\apps\\staff\\templates\\staff\\tables_list.html"
+    ]
+  },
+  "dynamic_template_static_tags": [],
+  "missing_references": [
+    {
+      "source": "backend\\apps\\staff\\templates\\staff\\kds\\queue.html",
+      "asset": "staff/hospitality-workflow.css"
+    },
+    {
+      "source": "backend\\apps\\staff\\templates\\staff\\login.html",
+      "asset": "staff/staff-theme.css"
+    },
+    {
+      "source": "backend\\apps\\staff\\templates\\staff\\orders_list.html",
+      "asset": "staff/fizo-retail-sales.css"
+    },
+    {
+      "source": "backend\\apps\\staff\\templates\\staff\\orders_list.html",
+      "asset": "staff/hospitality-workflow.css"
+    },
+    {
+      "source": "backend\\apps\\staff\\templates\\staff\\pos_shifts.html",
+      "asset": "staff/hospitality-workflow.css"
+    },
+    {
+      "source": "backend\\apps\\staff\\templates\\staff\\table_form.html",
+      "asset": "staff/hospitality-workflow.css"
+    },
+    {
+      "source": "backend\\apps\\staff\\templates\\staff\\terminal.html",
+      "asset": "staff/staff-theme.css"
+    },
+    {
+      "source": "backend\\templates\\public\\signup.html",
+      "asset": "staff/staff-theme.css"
+    }
+  ],
+  "note": "CSS classes used in JS and template inheritance need browser and manual verification before deleting files."
+}
