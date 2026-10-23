@@ -3,7 +3,7 @@
 {% block title %}{% if is_supermarket_outlet %}Sale{% else %}Order{% endif %} {{ order.bill_reference }}{% endblock %}
 {% block body_class %}staff-body--pos{% endblock %}
 {% block main_class %}{% if not is_supermarket_outlet %}fizo-hospitality-pos {% endif %}staff-main--wide staff-main--pos staff-main--pos-bleed{% endblock %}
-{% block extra_css %}{% if is_supermarket_outlet %}<link rel="stylesheet" href="{% static 'staff/retail-workflows.css' %}?v=20261023.3">{% else %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflows.css' %}?v=20261023.1">{% endif %}{% endblock %}
+{% block extra_css %}{% if is_supermarket_outlet %}<link rel="stylesheet" href="{% static 'staff/retail-workflows.css' %}?v=20261023.4">{% else %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflows.css' %}?v=20261023.1">{% endif %}{% endblock %}
 {% block content %}
   <div class="staff-pos-order-accent" aria-hidden="true"></div>
   <div class="staff-context-bar staff-context-bar--pos">
@@ -392,7 +392,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261023.15"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261023.16"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>
