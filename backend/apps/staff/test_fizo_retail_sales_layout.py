@@ -42,6 +42,15 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_register_shift_heading_is_business_specific(self):
+        root = Path(__file__).resolve().parent
+        shifts = (root / "templates/staff/pos_shifts.html").read_text(encoding="utf-8")
+        self.assertIn('staff_product.business_key == "supermarket"', shifts)
+        self.assertIn('Supermarket{% else %}Retail{% endif %} / Cashier operations', shifts)
+        self.assertIn('staff_product.workspace_label|default:"Business"', shifts)
+        self.assertNotIn('Retail / Cashier operations{% else %}', shifts)
+        get_template("staff/pos_shifts.html")
+
     def test_all_register_view_selection_uses_retail_outlet_types(self):
         root = Path(__file__).resolve().parent
         source = (root / "views_ops.py").read_text(encoding="utf-8")
