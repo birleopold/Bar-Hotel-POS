@@ -358,3 +358,28 @@ body:has(.fizo-checkout-catalogue) .staff-toolbar:has(a[href*="customer-display"
  body:has(.fizo-checkout-catalogue) .reference-customer-display-link span{display:none}
  body:has(.fizo-checkout-catalogue) .reference-customer-display-link{min-width:42px}
 }
+
+/* Regression fix: keep the customer-display shortcut within ONE cashier header
+   row; flex wrapping previously consumed basket viewport height. */
+@media(min-width:851px){
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity{
+   display:grid!important;grid-template-columns:minmax(135px,.8fr) minmax(220px,1.5fr) minmax(130px,.8fr) minmax(145px,.8fr) auto!important;
+   gap:8px!important;align-items:center!important;flex-wrap:nowrap!important;
+   min-height:58px!important;max-height:70px!important;overflow:hidden!important;
+ }
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity .reference-top-search{width:100%!important;min-width:0!important;flex:auto!important}
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity__person,
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity__register{min-width:0!important}
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity__person strong,
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity__register strong,
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity__register small{
+   overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;display:block!important
+ }
+ body:has(.fizo-checkout-catalogue) .reference-customer-display-link{min-width:42px!important;padding:8px!important;font-size:12px!important}
+ body:has(.fizo-checkout-catalogue) .reference-customer-display-link span{display:none!important}
+ body:has(.fizo-checkout-catalogue) .staff-pos-order-layout{height:calc(100dvh - 90px)!important;min-height:0!important}
+}
+@media(max-width:1200px) and (min-width:851px){
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity{grid-template-columns:minmax(120px,.8fr) minmax(180px,1.8fr) minmax(110px,.8fr) auto!important}
+ body:has(.fizo-checkout-catalogue) .fizo-cashier-identity__register{display:none!important}
+}
