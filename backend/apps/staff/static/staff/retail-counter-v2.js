@@ -39,8 +39,28 @@
       });
     });
   }
+  // Keep refunds, wholesale, quick-create and other uncommon authenticated
+  // workflows available without letting them dominate the selling surface.
+  var side=document.querySelector(".staff-pos-order-side");
+  if(side&&basket){
+    var more=document.createElement("details");
+    more.className="fizo-retail-more-tools";
+    var moreSummary=document.createElement("summary");
+    moreSummary.textContent="More checkout tools";
+    more.appendChild(moreSummary);
+    Array.prototype.slice.call(side.children).forEach(function(child){
+      if(child===basket||child===paymentCard||child===idlePayment)return;
+      if(child.classList&&child.classList.contains("staff-alert"))return;
+      more.appendChild(child);
+    });
+    if(more.children.length>1)basket.appendChild(more);
+  }
   var payLink=document.querySelector(".fizo-cashier-pay-cta");
   if(payLink&&paymentForm){
+    var dueLabel=document.querySelector(".fizo-retail-basket-summary__total strong");
+    if(dueLabel){
+      payLink.innerHTML='<i class="bi bi-credit-card" aria-hidden="true"></i><span>Pay '+dueLabel.textContent.trim()+'</span><i class="bi bi-arrow-right" aria-hidden="true"></i>';
+    }
     payLink.addEventListener("click",function(event){
       event.preventDefault();
       paymentCard.scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -48,6 +68,21 @@
       var amount=paymentForm.querySelector('input[name="amount"]');
       if(method)method.focus({preventScroll:true});
       else if(amount)amount.focus({preventScroll:true});
+    });
+    var paymentMethod=paymentForm.querySelector('select[name="method"]');
+    document.querySelectorAll("[data-fizo-payment-method]").forEach(function(button){
+      function reflect(){
+        button.setAttribute("aria-pressed",String(!!paymentMethod&&paymentMethod.value===button.dataset.fizoPaymentMethod));
+      }
+      button.addEventListener("click",function(){
+        if(!paymentMethod)return;
+        paymentMethod.value=button.dataset.fizoPaymentMethod;
+        paymentMethod.dispatchEvent(new Event("change",{bubbles:true}));
+        document.querySelectorAll("[data-fizo-payment-method]").forEach(function(other){
+          other.setAttribute("aria-pressed",String(other===button));
+        });
+      });
+      reflect();
     });
   }
   var server=root.querySelector("#fizo-catalogue-server-query");
@@ -71,6 +106,11 @@
     button.addEventListener("click",function(){setHeaderScanMode(true);});
   });
   if(topSearch){
+    topSearch.addEventListener("input",function(){
+      if(scanMode||!local)return;
+      local.value=topSearch.value;
+      local.dispatchEvent(new Event("input",{bubbles:true}));
+    });
     topSearch.addEventListener("keydown",function(event){
       if(event.key==="Escape"){setHeaderScanMode(false);topSearch.value="";return;}
       if(event.key!=="Enter"||!scanMode||event.isComposing)return;
@@ -214,6 +254,7 @@
     if(direct&&addForm&&addForm.requestSubmit&&label)label.textContent="Add";
     tile.addEventListener("click",function(){
       adjustUnitStep(tile);
+      if(addForm)addForm.classList.toggle("is-required",!direct);
       if(direct&&addForm&&addForm.requestSubmit&&product&&product.value===tile.dataset.itemId){
         if(addForm.dataset.submitting==="1")return;
         qty.value="1";
@@ -226,6 +267,11 @@
   if(product)product.addEventListener("change",function(){
     var tile=root.querySelector('[data-pos-menu-tile][data-item-id="'+product.value+'"]');
     adjustUnitStep(tile);
+    if(addForm&&tile){
+      var groups=modifierMap&&modifierMap[tile.dataset.itemId]||[];
+      var direct=modifierMap!==null&&groups.length===0&&tile.dataset.fractionalQuantity!=="1";
+      addForm.classList.toggle("is-required",!direct);
+    }
   });
   /* Quantity stepper submission is owned by order_detail_supermarket.html. */
 })();
