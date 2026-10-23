@@ -197,6 +197,8 @@ def normalize_supermarket_quantity(*, menu_item: MenuItem, quantity: Decimal) ->
     qty = quantity.quantize(Decimal("0.001"))
     profile = getattr(menu_item, "supermarket_profile", None)
     if profile is None:
+        if qty != qty.quantize(Decimal("1")):
+            raise ValidationError({"quantity": f"{menu_item.name} only allows whole units."})
         return qty
     if not profile.allow_fractional_quantity and profile.weighted_pricing_mode == WeightedPricingMode.UNIT:
         if qty != qty.quantize(Decimal("1")):
@@ -332,6 +334,8 @@ def add_line_to_open_order(
         menu_item=menu_item,
         option_ids=modifier_option_ids,
     )
+    if locked.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+        quantity = normalize_supermarket_quantity(menu_item=menu_item, quantity=quantity)
     unit_price = menu_item.unit_price_for_outlet(locked.outlet_id)
     eff_unit = unit_price + per_unit_mod
     sub = line_total(quantity, eff_unit)
