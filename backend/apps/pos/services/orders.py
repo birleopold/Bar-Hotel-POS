@@ -344,7 +344,7 @@ def add_line_to_open_order(
             locked.lines.select_for_update().filter(
                 menu_item_id=menu_item.pk,
                 is_voided=False,
-                pricing_source="menu",
+                pricing_source__in=("menu", "barcode", "plu"),
                 unit_price=unit_price,
                 label=menu_item.name,
                 line_discount_amount=Decimal("0"),
