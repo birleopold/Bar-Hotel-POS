@@ -4,7 +4,7 @@
 Run from the repository root:
     python scripts/audit_css_dependencies.py
 Produces a JSON inventory and fails on missing literal Django static CSS links
-and missing relative @import paths. Dynamic paths are reported for manual review.
+and missing relative @import paths. Only Git-tracked assets count as present. Dynamic paths are reported for manual review.
 """
 import json
 import re
@@ -25,6 +25,7 @@ def tracked_files():
 
 def audit():
     files = tracked_files()
+    tracked = set(files)
     css = [p for p in files if p.suffix.lower() == ".css"]
     consumers = {}
     missing = []
@@ -44,7 +45,7 @@ def audit():
             rel = raw.removeprefix("/static/")
             destination = ROOT / "backend" / "apps" / "staff" / "static" / rel
             consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
-            if not destination.is_file():
+            if destination not in tracked:
                 missing.append({"source": str(src.relative_to(ROOT)), "asset": raw})
         for rel in CSS_URL.findall(text):
             destination = ROOT / "backend" / "apps" / "staff" / "static" / rel if rel.startswith("staff/") else None
@@ -52,17 +53,20 @@ def audit():
                 # Django finders may resolve a stylesheet elsewhere in installed apps.
                 continue
             consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
-            if not destination.is_file():
+            if destination not in tracked:
                 missing.append({"source": str(src.relative_to(ROOT)), "asset": rel})
         if src.suffix == ".css":
             for uri in IMPORT.findall(text):
                 if uri.startswith(("http:", "https:", "/", "//")):
                     continue
                 destination = (src.parent / uri).resolve()
-                if destination.is_file() and destination.is_relative_to(ROOT):
+                if destination in tracked:
                     consumers.setdefault(str(destination.relative_to(ROOT)), []).append(str(src.relative_to(ROOT)))
-                if not destination.is_file():
+                if destination not in tracked:
                     missing.append({"source": str(src.relative_to(ROOT)), "asset": uri})
+    consumers = {key: sorted(set(value)) for key, value in sorted(consumers.items())}
+    missing.sort(key=lambda item: (item["source"], item["asset"]))
+    hardcoded.sort(key=lambda item: (item["source"], item["asset"]))
     referenced = set(consumers)
     unreferenced = [str(p.relative_to(ROOT)) for p in css if str(p.relative_to(ROOT)) not in referenced]
     report = {
