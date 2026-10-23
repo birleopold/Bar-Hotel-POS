@@ -411,3 +411,20 @@ body:has(.fizo-checkout-catalogue) .staff-pos-order-side .staff-pos-panel-scroll
   display:none!important
 }
 body:has(.fizo-checkout-catalogue) .fizo-retail-basket-empty{padding:18px 8px!important}
+
+/* TinyFish follow-up: contextual hold/clear utilities stay reachable without
+   forcing wholesale, discounts and other management panels into the till. */
+body:has(.fizo-checkout-catalogue) .reference-basket-more{
+ order:6!important;margin-top:5px!important;border-top:1px solid #e6edf1!important;
+ padding-top:5px!important;flex-shrink:0!important;max-height:35%!important;overflow:auto!important
+}
+body:has(.fizo-checkout-catalogue) .reference-basket-more summary{
+ cursor:pointer!important;color:#57718a!important;font-size:12px!important;
+ font-weight:700!important;padding:5px!important
+}
+body:has(.fizo-checkout-catalogue) .reference-basket-more>.staff-card{
+ display:block!important;padding:7px!important;margin:0!important;box-shadow:none!important;
+ border:0!important;background:transparent!important
+}
+body:has(.fizo-checkout-catalogue) .reference-basket-more .staff-card__title{display:none!important}
+body:has(.fizo-checkout-catalogue) .reference-basket-more .staff-input{min-height:34px!important}
