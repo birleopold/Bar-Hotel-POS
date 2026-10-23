@@ -67,3 +67,290 @@
 .fizo-sales__start-links a:hover{background:#e8f7ed}
 .fizo-sales__start-links i{font-size:19px}
 @media(max-width:800px){.fizo-sales__start-links{grid-template-columns:1fr}}
+
+/* Supermarket / retail management dashboard.
+ * Reference hierarchy: store glance + cashier launch, KPI strip, setup/common
+ * actions, then operating panels. Scoped to retail business keys only. */
+.fz-industry-dashboard[data-business="supermarket"],
+.fz-industry-dashboard[data-business="retail"]{
+  --retail-dash-green:#009b50;
+  --retail-dash-green-dark:#007f43;
+  --retail-dash-ink:#10213d;
+  --retail-dash-muted:#65758e;
+  --retail-dash-line:#dfe8ee;
+  --retail-dash-bg:#f7f9fb;
+  max-width:none;
+  display:grid;
+  grid-template-columns:minmax(0,1.5fr) minmax(330px,.95fr);
+  gap:14px;
+  align-items:start;
+  padding:0 0 26px;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__section,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__section{margin-top:0}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__head,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__head{
+  grid-column:1;
+  grid-row:1;
+  min-height:106px;
+  margin:0;
+  padding:8px 8px 8px 4px;
+  align-items:center;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__eyebrow,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__eyebrow{
+  color:#2e5074;
+  font-size:11px;
+  letter-spacing:.04em;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__head h1,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__head h1{
+  margin:4px 0 4px;
+  color:var(--retail-dash-ink);
+  font-size:clamp(29px,3vw,43px);
+  line-height:1.02;
+  letter-spacing:-.045em;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__head p,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__head p{
+  color:var(--retail-dash-muted);
+  font-size:14px;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__head>.fizo-dash__pill,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__head>.fizo-dash__pill{
+  align-self:flex-start;
+  background:#fff;
+  border:1px solid var(--retail-dash-line);
+  color:#49617e;
+  border-radius:8px;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__launch,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__launch{
+  grid-column:2;
+  grid-row:1;
+  min-height:88px;
+  margin-top:9px;
+  padding:18px 20px;
+  border:0;
+  border-radius:10px;
+  background:linear-gradient(100deg,#009b50,#00a95a);
+  color:#fff;
+  box-shadow:0 4px 15px rgb(0 139 75 / 11%);
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__launch h2,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__launch h2{
+  margin:0 0 3px;color:#fff;font-size:18px;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__launch p,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__launch p{color:#e9fff2}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__launch .fizo-dash__action,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__launch .fizo-dash__action{
+  min-height:48px;
+  padding:10px 15px;
+  border:1px solid rgb(255 255 255 / 35%);
+  background:#fff;
+  color:#007c41!important;
+  white-space:nowrap;
+}
+
+/* KPI row */
+.fz-industry-dashboard[data-business="supermarket"]>section[aria-labelledby="fizo-kpi-title"],
+.fz-industry-dashboard[data-business="retail"]>section[aria-labelledby="fizo-kpi-title"]{
+  grid-column:1/-1;
+  grid-row:2;
+}
+.fz-industry-dashboard[data-business="supermarket"]>section[aria-labelledby="fizo-kpi-title"]>.fizo-dash__sectionhead,
+.fz-industry-dashboard[data-business="retail"]>section[aria-labelledby="fizo-kpi-title"]>.fizo-dash__sectionhead{
+  display:none;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpis,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__kpis{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpi,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__kpi{
+  position:relative;
+  min-height:112px;
+  padding:18px 14px 16px 78px;
+  justify-content:center;
+  gap:4px;
+  border:1px solid var(--retail-dash-line);
+  border-radius:10px;
+  box-shadow:0 2px 8px rgb(16 33 61 / 3%);
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpi small,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__kpi small{
+  color:#365172;font-size:12px;font-weight:700;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpi strong,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__kpi strong{
+  color:var(--retail-dash-ink);
+  font-size:clamp(19px,1.8vw,27px);
+  font-variant-numeric:tabular-nums;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpi i,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__kpi i{
+  position:absolute;
+  left:16px;
+  top:50%;
+  transform:translateY(-50%);
+  display:grid;
+  place-items:center;
+  width:46px;height:46px;
+  border-radius:9px;
+  background:#dff5e7;
+  color:#008f49;
+  font-size:23px;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpi:nth-child(2) i,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__kpi:nth-child(2) i{
+  background:#e2f1ff;color:#0a73d4;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpi:nth-child(3) i,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__kpi:nth-child(3) i{
+  background:#fff0dc;color:#dd7300;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpi:nth-child(4) i,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__kpi:nth-child(4) i{
+  background:#eee8ff;color:#6d3bd2;
+}
+
+/* Setup progress and common actions sit together like the approved dashboard. */
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__setup,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__setup{
+  grid-column:1;
+  grid-row:3;
+  min-height:210px;
+  margin:0;
+  padding:20px 22px;
+  border:1px solid #cfeadb;
+  border-radius:11px;
+  background:linear-gradient(120deg,#f4fff8,#edfbf2);
+  box-shadow:none;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__setup h2,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__setup h2{
+  margin:0 0 4px;color:#133c2e;font-size:20px;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__setup p,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__setup p{color:#5a766b}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__setup progress,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__setup progress{
+  width:100%;height:11px;margin:10px 0 16px;border:0;border-radius:999px;overflow:hidden;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__setup progress::-webkit-progress-bar,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__setup progress::-webkit-progress-bar{background:#ceeada}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__setup progress::-webkit-progress-value,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__setup progress::-webkit-progress-value{background:#00a457}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__setup progress::-moz-progress-bar,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__setup progress::-moz-progress-bar{background:#00a457}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__quick-actions,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__quick-actions{
+  grid-column:2;
+  grid-row:3;
+  min-height:210px;
+  padding:18px;
+  border:1px solid var(--retail-dash-line);
+  border-radius:11px;
+  background:#fff;
+  box-shadow:0 2px 8px rgb(16 33 61 / 3%);
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__quick-actions .fizo-dash__sectionhead,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__quick-actions .fizo-dash__sectionhead{
+  margin-bottom:12px;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__quick-actions .fizo-dash__shortcuts,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__quick-actions .fizo-dash__shortcuts{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__quick-actions .fizo-dash__shortcuts a,
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__quick-actions .fizo-dash__shortcuts button,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__quick-actions .fizo-dash__shortcuts a,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__quick-actions .fizo-dash__shortcuts button{
+  min-height:68px;
+  padding:12px;
+  border-radius:9px;
+  background:#fff;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__quick-actions .fizo-dash__shortcuts i,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__quick-actions .fizo-dash__shortcuts i{
+  display:grid;place-items:center;width:35px;height:35px;flex:none;border-radius:50%;
+  background:#e4f6eb;color:#008e49;
+}
+.fz-industry-dashboard[data-business="supermarket"]:not(:has(>.fizo-dash__setup))>.fizo-dash__quick-actions,
+.fz-industry-dashboard[data-business="retail"]:not(:has(>.fizo-dash__setup))>.fizo-dash__quick-actions{
+  grid-column:1/-1;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__setup--hidden,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__setup--hidden{
+  min-height:0;padding:14px 18px;
+}
+
+/* Operational panels */
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__layout,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__layout{
+  grid-column:1/-1;
+  grid-row:4;
+  grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);
+  gap:14px;
+  margin:0;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__layout>.fizo-dash__panel,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__layout>.fizo-dash__panel{
+  min-height:215px;
+  padding:16px;
+  border-radius:11px;
+  border:1px solid var(--retail-dash-line);
+  box-shadow:0 2px 8px rgb(16 33 61 / 3%);
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__list li,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__list li{
+  min-height:48px;
+}
+.fz-industry-dashboard[data-business="supermarket"] .fizo-dash__list a,
+.fz-industry-dashboard[data-business="retail"] .fizo-dash__list a{
+  padding:10px 4px;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__management,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__management{
+  grid-column:1/-1;
+  grid-row:5;
+  margin:0;
+}
+.fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__switch,
+.fz-industry-dashboard[data-business="retail"]>.fizo-dash__switch{
+  grid-column:1/-1;
+  grid-row:6;
+  margin:0;
+}
+@media(max-width:1150px){
+  .fz-industry-dashboard[data-business="supermarket"],
+  .fz-industry-dashboard[data-business="retail"]{
+    grid-template-columns:minmax(0,1.25fr) minmax(300px,.85fr);
+  }
+  .fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpis,
+  .fz-industry-dashboard[data-business="retail"] .fizo-dash__kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:820px){
+  .fz-industry-dashboard[data-business="supermarket"],
+  .fz-industry-dashboard[data-business="retail"]{display:block}
+  .fz-industry-dashboard[data-business="supermarket"]>*,
+  .fz-industry-dashboard[data-business="retail"]>*{margin-bottom:12px!important}
+  .fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__launch,
+  .fz-industry-dashboard[data-business="retail"]>.fizo-dash__launch{min-height:0}
+  .fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__layout,
+  .fz-industry-dashboard[data-business="retail"]>.fizo-dash__layout{grid-template-columns:1fr}
+}
+@media(max-width:540px){
+  .fz-industry-dashboard[data-business="supermarket"] .fizo-dash__kpis,
+  .fz-industry-dashboard[data-business="retail"] .fizo-dash__kpis{grid-template-columns:1fr}
+  .fz-industry-dashboard[data-business="supermarket"]>.fizo-dash__quick-actions .fizo-dash__shortcuts,
+  .fz-industry-dashboard[data-business="retail"]>.fizo-dash__quick-actions .fizo-dash__shortcuts{grid-template-columns:1fr}
+  .fz-industry-dashboard[data-business="supermarket"] .fizo-dash__head h1,
+  .fz-industry-dashboard[data-business="retail"] .fizo-dash__head h1{font-size:30px}
+}
+
