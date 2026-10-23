@@ -15,13 +15,13 @@
     {% if staff_nav.tables %}<a href="{% url 'staff-tables' %}"{% if u == 'staff-tables' %} aria-current="page"{% endif %}><i class="bi bi-grid-3x3-gap"></i>Tables</a>{% endif %}
     {% if staff_nav.menu %}<a href="{% url 'staff-menu' %}"{% if u == 'staff-menu' %} aria-current="page"{% endif %}><i class="bi bi-box-seam"></i>{% if staff_product.business_key == 'supermarket' or staff_product.business_key == 'retail' %}Products{% else %}Menu{% endif %}</a>{% endif %}
     {% if staff_nav.kitchen %}<a href="{% url 'staff-kds' %}"{% if u == 'staff-kds' %} aria-current="page"{% endif %}><i class="bi bi-fire"></i>Kitchen</a>{% endif %}
-    {% if staff_nav.inventory %}<a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes"></i>Stock</a>{% endif %}
-    {% if staff_nav.purchasing %}<a href="{% url 'staff-purchasing-orders' %}"><i class="bi bi-truck"></i>Purchasing</a>{% endif %}
-    {% if staff_nav.sales %}<a href="{% url 'staff-sales' %}"><i class="bi bi-bar-chart-line"></i>Sales &amp; reports</a>{% endif %}
-    {% if staff_nav.lodging and staff_show_lodging_nav %}<a href="{% url 'staff-lodging-reservations' %}"><i class="bi bi-calendar-check"></i>Reservations</a>{% endif %}
-    {% if staff_show_housekeeping_nav %}<a href="{% url 'staff-lodging-housekeeping' %}"><i class="bi bi-door-open"></i>Housekeeping</a>{% endif %}
-    {% if staff_nav.events %}<a href="{% url 'staff-events-bookings' %}"><i class="bi bi-calendar-event"></i>Events</a>{% endif %}
-    {% if staff_nav.workspace %}<a href="{% url 'staff-workspace-branding' %}"><i class="bi bi-gear"></i>Settings</a>{% endif %}
+    {% if staff_nav.inventory %}<a href="{% url 'staff-inventory-balances' %}"{% if u == 'staff-inventory-balances' %} aria-current="page"{% endif %}><i class="bi bi-boxes"></i>Stock</a>{% endif %}
+    {% if staff_nav.purchasing %}<a href="{% url 'staff-purchasing-orders' %}"{% if u == 'staff-purchasing-orders' %} aria-current="page"{% endif %}><i class="bi bi-truck"></i>Purchasing</a>{% endif %}
+    {% if staff_nav.sales %}<a href="{% url 'staff-sales' %}"{% if u == 'staff-sales' %} aria-current="page"{% endif %}><i class="bi bi-bar-chart-line"></i>Sales &amp; reports</a>{% endif %}
+    {% if staff_nav.lodging and staff_show_lodging_nav %}<a href="{% url 'staff-lodging-reservations' %}"{% if u == 'staff-lodging-reservations' %} aria-current="page"{% endif %}><i class="bi bi-calendar-check"></i>Reservations</a>{% endif %}
+    {% if staff_show_housekeeping_nav %}<a href="{% url 'staff-lodging-housekeeping' %}"{% if u == 'staff-lodging-housekeeping' %} aria-current="page"{% endif %}><i class="bi bi-door-open"></i>Housekeeping</a>{% endif %}
+    {% if staff_nav.events %}<a href="{% url 'staff-events-bookings' %}"{% if u == 'staff-events-bookings' %} aria-current="page"{% endif %}><i class="bi bi-calendar-event"></i>Events</a>{% endif %}
+    {% if staff_nav.workspace %}<a href="{% url 'staff-workspace-branding' %}"{% if u == 'staff-workspace-branding' %} aria-current="page"{% endif %}><i class="bi bi-gear"></i>Settings</a>{% endif %}
   </nav>
   <div class="fz-sidefoot"><a href="{% url 'staff-pin-setup' %}">Set PIN</a><form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit"><i class="bi bi-lock"></i> Lock terminal</button></form></div>
 </aside>
