@@ -28,6 +28,13 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
             with self.subTest(route=route):
                 self.assertIn("u == '" + route + "'", sidebar)
 
+    def test_dashboard_uses_shared_foundation(self):
+        dashboard = (TEMPLATES / "dashboard.html").read_text(encoding="utf-8")
+        core = (STATIC / "fizo-fresh.css").read_text(encoding="utf-8")
+        self.assertNotIn("fizo-dashboard-v2.css", dashboard)
+        self.assertIn(".fizo-dash__kpis", core)
+        self.assertIn(".fizo-dash__roomgrid", core)
+
     def test_required_stylesheets_exist(self):
         for name in ("fizo-fresh.css", "retail-cashier.css", "retail-workflows.css", "hospitality-workflows.css"):
             with self.subTest(stylesheet=name):
@@ -36,7 +43,7 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
     def test_removed_retail_stylesheets_stay_removed(self):
         for name in ("fizo-checkout-v1.css", "reference-locked-checkout.css",
                      "retail-counter-v2.css", "fizo-retail-sales.css",
-                     "fizo-hospitality-pos.css"):
+                     "fizo-hospitality-pos.css", "fizo-dashboard-v2.css"):
             with self.subTest(stylesheet=name):
                 self.assertFalse((STATIC / name).exists())
 
@@ -59,7 +66,7 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
     def test_no_removed_stylesheet_references_in_staff_templates(self):
         retired = ("fizo-checkout-v1.css", "reference-locked-checkout.css",
                    "retail-counter-v2.css", "fizo-retail-sales.css",
-                   "fizo-hospitality-pos.css")
+                   "fizo-hospitality-pos.css", "fizo-dashboard-v2.css")
         for template in TEMPLATES.rglob("*.html"):
             source = template.read_text(encoding="utf-8")
             for name in retired:
