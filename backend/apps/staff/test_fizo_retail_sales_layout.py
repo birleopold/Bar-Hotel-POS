@@ -34,6 +34,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertTrue((root / "static/staff/retail-workflows.css").exists())
 
 
+    def test_retail_dashboard_has_independent_business_heading(self):
+        root = Path(__file__).resolve().parent
+        dashboard = (root / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn('staff_product.business_key == "supermarket" %}Supermarket dashboard', dashboard)
+        self.assertIn('staff_product.business_key == "retail" %}Retail dashboard', dashboard)
+        self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
+        get_template("staff/dashboard.html")
+
     def test_all_register_view_selection_uses_retail_outlet_types(self):
         root = Path(__file__).resolve().parent
         source = (root / "views_ops.py").read_text(encoding="utf-8")
