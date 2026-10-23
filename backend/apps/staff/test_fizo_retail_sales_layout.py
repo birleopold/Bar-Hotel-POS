@@ -16,7 +16,8 @@ class RetailSalesLandingTests(SimpleTestCase):
         page = (root / "templates/staff/orders_list.html").read_text(encoding="utf-8")
         landing = (root / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
         self.assertIn("{% if show_supermarket_lane %}", page)
-        self.assertIn("fizo-retail-sales.css", page)
+        self.assertIn("staff/retail-workflows.css", page)
+        self.assertNotIn("fizo-retail-sales.css", page)
         self.assertIn("supermarket_shift_open", landing)
         self.assertIn("current_outlet", landing)
         self.assertIn("staff-order-quick-create", landing)
@@ -27,7 +28,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("page_obj.has_next", landing)
         self.assertIn("{% csrf_token %}", landing)
         self.assertEqual(page.count("{% block "), page.count("{% endblock %}"))
-        self.assertTrue((root / "static/staff/fizo-retail-sales.css").exists())
+        self.assertTrue((root / "static/staff/retail-workflows.css").exists())
 
 
     def test_all_register_view_selection_uses_retail_outlet_types(self):
