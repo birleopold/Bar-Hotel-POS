@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{% if show_retail_catalogue %}Products · Fizo{% else %}Menu items{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide{% if show_retail_catalogue %} fizo-retail-products{% else %} staff-main--menu-catalog hospitality-workflow{% endif %}{% endblock %}
-{% block extra_css %}{% if show_retail_catalogue %}<link rel="stylesheet" href="{% static 'staff/fizo-retail-products.css' %}?v=20261022.1">{% else %}<link rel="stylesheet" href="{% static 'staff/hospitality-workflow.css' %}?v=20261022.2">{% endif %}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261023.1">{% endblock %}
 {% block content %}
 {% if show_retail_catalogue %}
 <div class="fizo-products">
