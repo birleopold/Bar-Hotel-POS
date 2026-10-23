@@ -52,7 +52,7 @@ class FizoCashierSupportTests(SimpleTestCase):
         root = Path(__file__).resolve().parent
         views = (root / "views_ops.py").read_text(encoding="utf-8")
         checkout = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
-        styles = (root / "static/staff/fizo-checkout-v1.css").read_text(encoding="utf-8")
+        styles = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
         self.assertIn("def _can_operate_retail_checkout(", views)
         self.assertIn("MembershipRole.SERVER", views)
         self.assertIn('"record_payment"', views)
