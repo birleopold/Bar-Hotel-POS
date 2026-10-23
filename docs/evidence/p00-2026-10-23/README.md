@@ -107,3 +107,9 @@ CI run for the preceding `a8d8268` checkpoint was in progress when checked; no p
 - Added `scripts/test_audit_css_dependencies.py` with isolated coverage for valid Django static references, missing static references, hardcoded missing URLs, and an existing-but-untracked CSS file which must still be reported missing. Use `python -m unittest discover -s scripts -p 'test_audit_css_dependencies.py'` in the repository root.
 - Source commits: `373642014486d7fe8395cc52839449d87ba92357` and `7d929329804ca85f792113443d95e1d32a2b2cbc`.
 - **Evidence boundary:** The files are committed; test execution in CI and the full live/browser audit are not yet verified. P00 remains open. No product stylesheet or production data was changed.
+
+## P00 CI enforcement — 24 October 2026
+
+Source change `9924b6d85eea7f1a39fd9a44af4965266ea2624b` places the tracked-CSS audit and its isolated regression tests in the **SQLite CI job before Django checks**. On new `main` pushes, CI executes `python -m unittest discover -s scripts -p 'test_audit_css_dependencies.py' -v` and `python scripts/audit_css_dependencies.py > css-dependencies-current.json`. This is a true gate: missing CSS assets produce a nonzero exit code and fail CI, rather than merely recording a document.
+
+The previous workflow did not invoke either audit command, so earlier passing Django checks would not have established CSS integrity. The new workflow is committed; its resulting CI run has not yet completed and **must not be described as passing**. Browser parity, the broad Django regression suite, and P00 closure remain outstanding.
