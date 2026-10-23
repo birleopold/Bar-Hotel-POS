@@ -3,6 +3,27 @@
   "use strict";
   var root=document.querySelector(".fizo-checkout-catalogue");
   if(!root)return;
+  // Keep settlement immediately below the basket pay action, as in the owner's
+  // references. Move only the existing permission-gated payment card; do not
+  // clone forms or generate new POST endpoints.
+  var basket=document.querySelector(".fizo-checkout-basket");
+  var paymentForm=document.querySelector("[data-pos-payment-form]");
+  var paymentCard=paymentForm&&paymentForm.closest(".staff-card--pos");
+  if(basket&&paymentCard&&!basket.contains(paymentCard)){
+    paymentCard.classList.add("reference-payment-card");
+    basket.appendChild(paymentCard);
+  }
+  var payLink=document.querySelector(".fizo-cashier-pay-cta");
+  if(payLink&&paymentForm){
+    payLink.addEventListener("click",function(event){
+      event.preventDefault();
+      paymentCard.scrollIntoView({behavior:"smooth",block:"nearest"});
+      var method=paymentForm.querySelector('select[name="method"]');
+      var amount=paymentForm.querySelector('input[name="amount"]');
+      if(method)method.focus({preventScroll:true});
+      else if(amount)amount.focus({preventScroll:true});
+    });
+  }
   var server=root.querySelector("#fizo-catalogue-server-query");
   var local=root.querySelector("[data-pos-menu-search]");
   var addForm=root.querySelector("[data-fizo-add-line-form]");
