@@ -36,13 +36,13 @@
     {% endif %}
 
     <section class="fizo-dash__section" aria-labelledby="fizo-kpi-title">
-      <div class="fizo-dash__sectionhead"><h2 id="fizo-kpi-title">Today at a glance</h2><p>Live figures for your authorized workspace scope</p></div>
+      <div class="fizo-dash__sectionhead"><h2 id="fizo-kpi-title">{% if staff_dashboard_sales_snapshot and not staff_dashboard_lodging_snapshot %}Sales snapshot{% else %}Today at a glance{% endif %}</h2><p>{% if staff_dashboard_sales_snapshot and not staff_dashboard_lodging_snapshot %}{{ staff_dashboard_sales_snapshot.range_caption }}{% else %}Figures for your selected location{% endif %}</p></div>
       {% if staff_dashboard_lodging_snapshot %}
         <div class="fizo-dash__kpis fz-kpi-grid">
           <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_lodging_snapshot.tape_url }}"><small>Occupancy</small><strong>{{ staff_dashboard_lodging_snapshot.occupancy_percent }}%</strong><i class="bi bi-building"></i></a>
           <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=arrivals"><small>Arrivals</small><strong>{{ staff_dashboard_lodging_snapshot.arrivals }}</strong><i class="bi bi-box-arrow-in-right"></i></a>
           <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=departures"><small>Departures</small><strong>{{ staff_dashboard_lodging_snapshot.departures }}</strong><i class="bi bi-box-arrow-right"></i></a>
-          <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}"><small>Rooms ready</small><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong><i class="bi bi-door-open"></i></a>
+          <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_lodging_snapshot.reservations_url }}?lane=in_house"><small>In-house</small><strong>{{ staff_dashboard_lodging_snapshot.in_house }}</strong><i class="bi bi-door-open"></i></a>
         </div>
       {% elif staff_dashboard_sales_snapshot %}
         <div class="fizo-dash__kpis">
@@ -117,8 +117,19 @@
     <section class="fizo-dash__panel fizo-dash__section">
       <div class="fizo-dash__sectionhead"><h2>Business management</h2></div>
       <div class="fizo-dash__links"><a href="{% url 'console-org' %}">Business overview</a><a href="{% url 'console-org-setup' %}">Guided setup</a><a href="{% url 'staff-workspace-members' %}">Staff</a></div>
-    </section>{% elif show_workspace_setup_cta %}
-    <section class="fizo-dash__panel fizo-dash__section"><p>Business setup needs attention.</p><a href="{{ tenant_setup_url }}" class="fizo-dash__action">Review setup</a></section>
+    </section>{% endif %}
+    {% if show_workspace_setup_cta %}
+    <section class="fizo-dash__panel fizo-dash__section" aria-labelledby="setup-heading">
+      <h2 id="setup-heading">Finish business setup</h2>
+      <p>Core setup is {{ tenant_setup_state.required_completion_percent }}% complete.</p>
+      <progress value="{{ tenant_setup_state.required_completion_percent }}" max="100" aria-label="Business setup progress">{{ tenant_setup_state.required_completion_percent }}%</progress>
+      <div class="fizo-dash__links">
+        <a href="{{ tenant_setup_url }}" class="fizo-dash__action">Continue setup</a>
+        <form method="post" action="{{ tenant_setup_dismiss_url }}">{% csrf_token %}<button class="staff-btn staff-btn--ghost" type="submit">Hide setup checklist</button></form>
+      </div>
+    </section>
+    {% elif tenant_setup_progress.suppress_dashboard_prompt %}
+    <section class="fizo-dash__panel fizo-dash__section"><p>Setup checklist hidden</p><form method="post" action="{{ tenant_setup_resume_url }}">{% csrf_token %}<button class="staff-btn staff-btn--ghost" type="submit">Resume setup</button></form></section>
     {% endif %}
     {% if memberships|length > 1 %}
       <form method="post" action="{% url 'staff-select-tenant' %}" class="fizo-dash__panel fizo-dash__section">{% csrf_token %}

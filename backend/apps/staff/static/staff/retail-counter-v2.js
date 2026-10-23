@@ -202,9 +202,24 @@
     qty.min=fractional?"0.001":"1";
     if(!fractional&&Number(qty.value)%1!==0)qty.value="1";
   }
+  // Enhance ordinary retail tiles into direct Add actions. Measured goods and
+  // products with options keep the existing quantity/modifier confirmation.
+  var modifierData=document.getElementById("staff-pos-menu-modifiers");
+  var modifierMap=null;
+  try{modifierMap=JSON.parse(modifierData.textContent);}catch(error){}
   root.querySelectorAll("[data-pos-menu-tile]").forEach(function(tile){
+    var groups=modifierMap&&modifierMap[tile.dataset.itemId]||[];
+    var direct=modifierMap!==null&&groups.length===0&&tile.dataset.fractionalQuantity!=="1";
+    var label=tile.querySelector(".fizo-tile-add");
+    if(direct&&addForm&&addForm.requestSubmit&&label)label.textContent="Add";
     tile.addEventListener("click",function(){
       adjustUnitStep(tile);
+      if(direct&&addForm&&addForm.requestSubmit&&product&&product.value===tile.dataset.itemId){
+        if(addForm.dataset.submitting==="1")return;
+        qty.value="1";
+        addForm.requestSubmit();
+        return;
+      }
       if(qty)qty.focus({preventScroll:true});
     });
   });
