@@ -19,9 +19,9 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
         sidebar = (TEMPLATES / "includes" / "sidebar.html").read_text(encoding="utf-8")
         for token in (".fz-kpi-grid", ".fz-dashboard-panels",
                       ".fz-management-toolbar", ".fz-status",
-                      ".fz-nav a[aria-current=\\\"page\\\"]"):
+                      '.fz-nav a[aria-current="page"]'):
             with self.subTest(token=token):
-                self.assertIn(token.replace('\\\"', '"'), css)
+                self.assertIn(token, css)
         for route in ("staff-inventory-balances", "staff-purchasing-orders",
                       "staff-lodging-reservations", "staff-lodging-housekeeping",
                       "staff-workspace-branding"):
@@ -60,6 +60,16 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
             for css_path in pattern.findall(html):
                 with self.subTest(template=str(template), asset=css_path):
                     self.assertTrue((STATIC / css_path).is_file())
+
+    def test_all_staff_css_imports_resolve(self):
+        """Check relative CSS imports in every staff stylesheet."""
+        import_pattern = re.compile(r"""@import\s+(?:url\(\s*)?['"]([^'"]+\.css)['"]""")
+        for stylesheet in STATIC.rglob("*.css"):
+            for imported in import_pattern.findall(stylesheet.read_text(encoding="utf-8")):
+                if imported.startswith(("http:", "https:", "//", "/")):
+                    continue
+                with self.subTest(stylesheet=str(stylesheet), imported=imported):
+                    self.assertTrue((stylesheet.parent / imported).resolve().is_file())
 
     def test_current_management_styles_do_not_reference_retired_assets(self):
         source = (TEMPLATES / "menu_list.html").read_text(encoding="utf-8")
