@@ -39,7 +39,7 @@
                         <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
                       {% endif %}
                       <span class="staff-pos-menu-tile__name">{{ item.name }}</span>
-                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>{% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Add to basket</span>{% endif %}
+                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>{% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Add</span>{% endif %}
                     </button>
                   {% endfor %}
                 {% endfor %}
