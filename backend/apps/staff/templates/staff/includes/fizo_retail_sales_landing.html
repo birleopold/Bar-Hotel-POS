@@ -1,6 +1,6 @@
-<div class="fizo-sales" aria-label="Supermarket sales workspace">
+<div class="fizo-sales" aria-label="{% if staff_product.business_key == 'retail' %}Retail{% else %}Supermarket{% endif %} sales workspace">
   <header class="fizo-sales__header">
-    <div><p class="fizo-sales__eyebrow">Fizo / Supermarket / Cashier</p>
+    <div><p class="fizo-sales__eyebrow">{% if staff_product.business_key == "retail" %}Retail{% else %}Supermarket{% endif %} / Cashier</p>
       <h1>{% if returns_task %}Returns &amp; refunds{% elif mine_filter %}My sales{% else %}Sales &amp; checkout{% endif %}</h1>
       <p>{% if current_outlet %}{{ current_outlet.name }} · {% if supermarket_shift_open %}Register shift open{% else %}Register shift closed{% endif %}{% else %}Select a register to start selling or review receipts.{% endif %}</p>
     </div>
