@@ -648,6 +648,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ).first()
         ctx["configured_currency"] = default_currency_for_tenant(order.tenant)
         ctx["currency_differs_from_settings"] = order.currency != ctx["configured_currency"]
+        ctx["active_basket_line_count"] = order.lines.filter(is_voided=False).count()
         ctx["loyalty_policy_active"] = bool(
             policy and policy.loyalty_enabled
             and order.currency == policy.default_currency
