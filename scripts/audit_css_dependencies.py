@@ -15,7 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CSS_URL = re.compile(r"""{%\s*static\s+['"]([^'"]+\.css)['"]\s*%}""")
 # Accept quoted @import, url("file.css"), and url(file.css) with optional query strings.
-IMPORT = re.compile(r"""@import\\s+(?:url\\(\\s*)?['"]?([^'"\\s)]+\\.css)(?:\\?[^'"\\s)]*)?['"]?""")
+IMPORT = re.compile(r"""@import\s+(?:url\(\s*)?['"]?([^'"\s)]+\.css)(?:\?[^'"\s)]*)?['"]?""")
 DYNAMIC = re.compile(r"""{%\s*static\s+(?!['"])""")
 # Also cover hardcoded CSS assets; these bypass Django's configured static URL.
 RAW_CSS_URL = re.compile(r"""(?:href\s*=\s*['"])(/static/staff/[^'"?#]+\.css)(?:\?[^'"]*)?['"]""")
