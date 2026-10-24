@@ -5,7 +5,7 @@
 {% block content %}
 <div class="fizo-purchasing fizo-purchasing--supplier-balances">
 
-<header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">Fizo / Supermarket / Purchasing</p><h1>Supplier balances</h1><p>Review supplier obligations using recorded receipts and invoices.</p></div><div class="fizo-purchasing__head-actions"></div></header>
+<header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Supplier balances</h1><p>Review supplier obligations using recorded receipts and invoices.</p></div><div class="fizo-purchasing__head-actions"></div></header>
 {% include "staff/purchasing/includes/subnav.html" %}
 <section class="fizo-purchasing__panel mb-3">
   <div class="staff-metric-row staff-metric-row--folio mb-2">
