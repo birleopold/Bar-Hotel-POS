@@ -6,6 +6,13 @@ from django.urls import reverse
 
 
 class FizoRetailProductsLayoutTests(SimpleTestCase):
+    def test_checkout_start_distinguishes_missing_register_from_closed_shift(self):
+        page = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
+        self.assertIn("{% elif not current_outlet %}", page)
+        self.assertIn("Select register", page)
+        self.assertIn("{% elif not supermarket_shift_open %}", page)
+        self.assertIn("Open shift first", page)
+
     def test_cashier_sales_landing_has_real_hold_basket_action(self):
         page = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
         self.assertIn("Hold basket</button>", page)
