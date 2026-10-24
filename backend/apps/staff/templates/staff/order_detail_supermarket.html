@@ -292,7 +292,26 @@
         paymentAmount.value = (dueCents / 100).toFixed(2);
       }
     }
-    if (received) received.addEventListener("input", calculateChange);
+    function publishCustomerTender() {
+      if (!received) return;
+      var amount = received.value.trim() === "" ? NaN : Number(received.value);
+      try {
+        var key = "pos:tender:{{ order.id }}";
+        if (!Number.isFinite(amount) || amount < 0) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, JSON.stringify({
+            received: amount, due: dueRaw, updated: Date.now()
+          }));
+        }
+      } catch (error) {
+        // Local storage can be unavailable in restricted browsers.
+      }
+    }
+    if (received) received.addEventListener("input", function () {
+      calculateChange();
+      publishCustomerTender();
+    });
     if (paymentMethod) paymentMethod.addEventListener("change", calculateChange);
   }
 
