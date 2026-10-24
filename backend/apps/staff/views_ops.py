@@ -616,7 +616,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
 class RetailQuickProductForm(forms.Form):
     name = forms.CharField(max_length=255, min_length=2, strip=True)
     unit_price = forms.DecimalField(min_value=Decimal("0.01"), max_digits=12, decimal_places=2)
-    quantity = forms.DecimalField(min_value=Decimal("0.001"), max_digits=10, decimal_places=3, initial=Decimal("1"))
+    quantity = forms.IntegerField(min_value=1, initial=1, help_text="Quick-added products are sold in whole units.")
     barcode = forms.CharField(max_length=64, required=False, strip=True)
 
 
