@@ -169,6 +169,5 @@ textarea.staff-input:focus-visible {
   border-color:#ecdede;
 }
 @media(max-width:480px) {
-  .fizo-dash__roomgrid {grid-template-columns:repeat(2,minmax(0,1fr))}
   .fizo-dash__roomgrid>div {min-height:75px;padding:11px}
 }
