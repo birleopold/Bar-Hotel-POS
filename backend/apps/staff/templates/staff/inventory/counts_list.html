@@ -6,7 +6,7 @@
 <div class="fizo-inventory fizo-inventory--counts-list">
 
   {% include "staff/inventory/includes/subnav.html" %}
-  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Inventory / Stock take</p><h1>Stock counts</h1><p>Physical counting sessions, review and reconciliation.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
+  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory / Stock take</p><h1>Stock counts</h1><p>Physical counting sessions, review and reconciliation.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
   <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filter stock counts">
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-counts' %}" {% if not status_filter %}aria-current="page"{% endif %}>All counts</a>
     <a class="staff-btn staff-btn--ghost" href="?status=review" {% if status_filter == "review" %}aria-current="page"{% endif %}>Awaiting approval</a>
