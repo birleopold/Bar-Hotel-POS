@@ -540,6 +540,33 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"paymentPending" in page.content
             assert b"Recording payment" in page.content
 
+    def test_quantity_reduction_cannot_drop_below_money_already_taken(self):
+        from rest_framework.exceptions import ValidationError
+        from apps.pos.models import OrderLine, Payment
+        from apps.pos.services import adjust_open_order_line_quantity
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("3000"), total=Decimal("3000"), currency="UGX",
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Water", quantity=Decimal("2"),
+            unit_price=Decimal("1500"), line_total=Decimal("3000"),
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=order, recorded_by=self.user,
+            amount=Decimal("2500"), idempotency_key="part-paid-quantity-test",
+        )
+        with self.assertRaises(ValidationError):
+            adjust_open_order_line_quantity(
+                order=order, line=line, quantity=Decimal("1"), user=self.user,
+            )
+        line.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal("2"))
+        self.assertEqual(order.total, Decimal("3000"))
+        self.assertEqual(order.payments.count(), 1)
+
     def test_part_paid_basket_can_be_held_but_not_voided(self):
         from rest_framework.exceptions import ValidationError
         from apps.pos.models import Payment, OrderStatus
