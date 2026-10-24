@@ -130,14 +130,18 @@ def test_same_cashier_separate_browser_sessions_cannot_hijack_display():
     second_detail = reverse("staff-order-detail", kwargs={"order_id": second.pk})
     assert till_a.get(first_detail).status_code == 200
     assert till_b.get(second_detail).status_code == 200
-    customer_url = reverse("staff-retail-customer-display", kwargs={"order_id": first.pk})
-    a = till_a.get(customer_url)
-    b = till_b.get(customer_url)
+    first_customer_url = reverse("staff-retail-customer-display", kwargs={"order_id": first.pk})
+    second_customer_url = reverse("staff-retail-customer-display", kwargs={"order_id": second.pk})
+    a = till_a.get(first_customer_url)
+    b = till_b.get(second_customer_url)
     assert a.status_code == 200 and b.status_code == 200
     assert first.bill_reference.encode() in a.content
     assert second.bill_reference.encode() not in a.content
     assert second.bill_reference.encode() in b.content
     assert first.bill_reference.encode() not in b.content
+    # A stale link from a different cashier/register must not reveal another
+    # session's current checkout, even when the same user owns both sales.
+    assert b"Welcome!" in till_b.get(first_customer_url).content
 
 
 @pytest.mark.django_db
