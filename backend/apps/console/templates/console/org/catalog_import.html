@@ -55,6 +55,7 @@
     <section class="staff-card">
       <h2 class="staff-section-head">Upload your file</h2>
       <p class="staff-muted">The importer checks all rows first. If one row has an error, no items will be saved. Existing SKUs and barcodes are never silently overwritten.</p>
+      <p class="staff-muted">Photos are optional. Import products first, then open <a href="{% url 'console-org-menu-items' %}">Products</a> and choose <strong>Add photo</strong> for any item. Upload from this computer, or use <strong>Copy phone link</strong> on the product editor to take or choose a photo from your phone while continuing desktop edits.</p>
       {% if import_issues %}
       <div class="staff-alert staff-alert--warning" role="alert">
         <strong>Please correct these CSV rows:</strong>
