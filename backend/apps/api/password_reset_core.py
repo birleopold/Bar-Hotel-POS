@@ -93,8 +93,8 @@ def attempt_password_reset_confirm(*, uid: str, token: str, new_password: str) -
         approved.save(update_fields=["status", "token_digest"])
         # No credentials in the notice; recovery itself never logs the user in.
         transaction.on_commit(lambda recipient=user.email: send_mail(
-            "Your Fizo password was changed",
-            "The password for your Fizo account has been updated. "
+            "Your POS account password was changed",
+            "The password for your POS account has been updated. "
             "If you did not authorize this, contact your platform administrator immediately.",
             settings.DEFAULT_FROM_EMAIL,
             [recipient],
