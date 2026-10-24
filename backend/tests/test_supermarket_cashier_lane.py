@@ -695,6 +695,41 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(changed.line_total, Decimal("24000"))
         self.assertEqual(order.total, Decimal("24000"))
 
+    def test_ajax_quantity_update_recalculates_due_after_partial_payment(self):
+        """Retail edit response must distinguish gross sale and unpaid balance."""
+        from apps.pos.models import OrderLine, Payment
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("6000"), total=Decimal("6000"),
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Laundry", quantity=Decimal("2"),
+            unit_price=Decimal("3000"), line_total=Decimal("6000"),
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=order, recorded_by=self.user,
+            amount=Decimal("2000"), idempotency_key="ajax-quantity-partial",
+        )
+        response = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": order.pk}),
+            {"action": "adjust_line_qty", "line_id": str(line.pk), "quantity": "3"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["currency"], "UGX")
+        self.assertEqual(Decimal(data["quantity"]), Decimal("3"))
+        self.assertEqual(Decimal(data["line_total"]), Decimal("9000"))
+        self.assertEqual(Decimal(data["subtotal"]), Decimal("9000"))
+        self.assertEqual(Decimal(data["total"]), Decimal("9000"))
+        self.assertEqual(Decimal(data["paid"]), Decimal("2000"))
+        self.assertEqual(Decimal(data["due"]), Decimal("7000"))
+        order.refresh_from_db()
+        line.refresh_from_db()
+        self.assertEqual(order.total, Decimal("9000"))
+        self.assertEqual(line.quantity, Decimal("3"))
+
     def test_quantity_ajax_response_updates_without_redirect(self):
         from apps.pos.models import OrderLine
         order = Order.objects.create(
