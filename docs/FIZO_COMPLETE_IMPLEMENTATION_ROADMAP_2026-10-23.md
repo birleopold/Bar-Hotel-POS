@@ -84,6 +84,16 @@ A shared-shell source review identified and corrected real navigation and staff-
 - Removed a mathematically redundant mobile `.fizo-dash__roomgrid` breakpoint rule from the **existing** `fizo-fresh.css` (`f4d1e402`), keeping the 550px two-column breakpoint and the independent 480px card sizing. No stylesheet was created; no deletion of unverified business-line CSS.
 - **Acceptance:** P00 still open. Current runtime stylesheet dependency counts, five-size screenshot parity, accessibility audit, CSS cascade measurements and focused/full CI remain unverified. This is limited P00/P01/P02 source progress, not completion or production certification.
 
+### P00/P01/P03/P04/P15 integrated delivery — 24 October follow-on
+
+**Implemented in existing files, pending CI/browser acceptance:**
+
+- P00 CSS ownership: `scripts/audit_css_dependencies.py` now reports literal Django `extends`/`include` relationships, unresolved template links, dynamic inclusion candidates and inherited CSS candidates for each tracked template. The graph is **not proof** that conditional branches render together. Commits `7ea2a730` and `61b0912a`; the original report remains available.
+- P01 audit test ownership: moved the temporary-file CSS graph/duplicate/missing-asset fixture into the **existing** canonical `scripts/test_audit_css_dependencies.py`, which already runs under CI (`6d7b3bd`). Removed the duplicate fixture from cashier tests (`ef023edc`). No new test or CSS files were created.
+- P15 PostgreSQL coverage: `.github/workflows/quality.yml` now explicitly executes the real quantity-lock, nullable service-return and cross-tenant-return regressions against PostgreSQL, not only SQLite (`a8970627`). This is a CI gate, **not evidence it passed**.
+- P03/P04 cashier terminal: source review exposed a genuine contradiction: client allowed retail PIN idle for 15 minutes but `StaffTerminalIdleMiddleware` rejected sessions after a fixed 2 minutes. `staff_pin_idle_seconds(request)` now derives the limit from an *authorized, tenant-matching selected outlet* (retail/supermarket 900 s, shared hospitality 120 s); for an unselected outlet the longer limit is available only to retail-only businesses. The staff context processor exposes the same policy to the existing browser timer, replacing both duplicated client constants. Commits `c8fb80e8`, `23e4e1a6`, `18b6438a`. An unauthorized/foreign outlet cannot extend a PIN session. Regression test `60db2133` covers dedicated retail, shared bar and foreign tenant selection.
+- **Outstanding:** execute the updated CI, PostgreSQL and CSS audit; browser-check both timer modes, all outlets, mobile tabs, exact approved screenshots and cashier +/−. No phase signoff; no migrations or production payment changes; no new stylesheets or alternative handlers.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
