@@ -492,6 +492,8 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(receipt, "Mobile money")
         self.assertContains(receipt, "Net paid UGX 35000.00")
         self.assertContains(receipt, "Balance UGX 0.00")
+        self.assertContains(receipt, "Paid in full")
+        self.assertNotContains(receipt, "Payment outstanding")
         self.assertContains(receipt, "Tax UGX")
         from pathlib import Path
         print_template = (Path(__file__).resolve().parents[1] /
@@ -563,6 +565,28 @@ class SupermarketCashierLaneTests(TestCase):
             self.assertContains(response, "20000.00")
             self.assertContains(response, "15000.00")
             self.assertEqual(response.context["payment_form"].initial["amount"], Decimal("20000.00"))
+
+    def test_part_paid_receipt_identifies_balance_without_marking_sale_paid(self):
+        from apps.pos.models import Payment
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("35000.00"),
+            total=Decimal("35000.00"),
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=order, amount=Decimal("15000.00"),
+            method="cash", idempotency_key="receipt-part-paid-test",
+            recorded_by=self.user,
+        )
+        response = self.client.get(reverse("staff-order-print", kwargs={"order_id": order.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Net paid UGX 15000.00")
+        self.assertContains(response, "Balance UGX 20000.00")
+        self.assertContains(response, "Payment outstanding")
+        self.assertNotContains(response, "Paid in full")
+        order.refresh_from_db()
+        self.assertEqual(order.status, "open")
+        self.assertFalse(order.is_paid)
 
     def test_held_partial_payment_visible_in_lanes_and_searchable(self):
         """Cashier sees outstanding balance and can locate an older parked sale."""
