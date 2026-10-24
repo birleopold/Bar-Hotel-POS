@@ -32,8 +32,9 @@ def audit(root=ROOT, files=None):
     missing = []
     dynamic = []
     hardcoded = []
+    # Inspect real web assets; Python test fixtures may embed deliberately missing CSS tags.
     for src in files:
-        if src.suffix.lower() not in {".html", ".css", ".js", ".py"}:
+        if src.suffix.lower() not in {".html", ".css", ".js"}:
             continue
         try:
             text = src.read_text(encoding="utf-8")
