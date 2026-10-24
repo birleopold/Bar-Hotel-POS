@@ -16,6 +16,13 @@ Roadmap signoff remains at P00, with P07 only partially implemented. The shared 
 
 Next execution: on disposable test database run `backend/tests/test_supermarket_cashier_lane.py` against PostgreSQL under CI settings, verify the original quantity operation and returned non-product line with correct tenant scope, then capture P00 route/CSS/visual evidence. Do not mutate production baskets to pass tests.
 
+## P00 continuation checkpoint — 24 October (after `9aa86c6`)
+
+- Corrected another *existing* PostgreSQL-invalid nullable related row lock, this time only inside `process_supermarket_line_return` (`fed8494b`). No duplicate services, CSS, routes or migrations.
+- Extended the existing supermarket checkout test file: nullable service return (`e3cd7c65`), captured PostgreSQL SQL lock assertions on quantity and returns (`bfc77761`), and rejected cross-tenant return lines (`1c7cd8c9`). This links P00 with partial P03/P07/P15 coverage.
+- **Not yet run:** focused SQLite/PostgreSQL suite or full CI against these commits; live checkout/returns and reference-image viewport acceptance. P00 remains open; P03/P07/P15 unaccepted. Do not run cross-tenant write tests against production data.
+- Next: run tests in disposable DB, verify actual SQL and HTTP flows, then resume P00 CSS route/ownership trace and baseline screenshots. A failed test must drive replacement of the faulty change, not another workaround layer.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
