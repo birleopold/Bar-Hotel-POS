@@ -39,6 +39,15 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
+    def test_phone_photo_sync_has_manual_recovery_and_login_feedback(self):
+        root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
+        page = (root / "menu_item_form.html").read_text(encoding="utf-8")
+        self.assertIn("data-refresh-phone-photo", page)
+        self.assertIn('refresh.addEventListener("click", checkPhoto)', page)
+        self.assertIn("Confirm you are still signed in", page)
+        self.assertIn('aria-live="polite"', page)
+        get_template("console/org/menu_item_form.html")
+
     def test_desktop_photo_sync_tracks_effective_image_url(self):
         root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
         source = (root / "menu_item_form.html").read_text(encoding="utf-8")
