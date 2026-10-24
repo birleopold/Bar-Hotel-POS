@@ -1619,7 +1619,13 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if order.status != OrderStatus.OPEN or order.is_paid:
             messages.error(request, "Only open, unpaid orders can be put on hold.")
             return redirect("staff-order-detail", order_id=order.id)
-        form = StaffOrderHoldForm(request.POST)
+        hold_data = request.POST.copy()
+        if (order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+                and not (hold_data.get("hold_label") or "").strip()):
+            # Retail tills handle queues; a basket reference is sufficient.
+            # Hospitality retains its required explicit table/guest label.
+            hold_data["hold_label"] = "Held " + order.bill_reference
+        form = StaffOrderHoldForm(hold_data)
         if not form.is_valid():
             for fld, err_list in form.errors.items():
                 for err in err_list:
