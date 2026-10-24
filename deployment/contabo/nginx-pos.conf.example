@@ -32,6 +32,16 @@ server {
         add_header Cache-Control "public";
     }
 
+    # Product photographs are public display assets, not private uploads.
+    # Set MEDIA_ROOT=/var/www/leosoft-pos/media in the app service environment.
+    location /media/ {
+        alias /var/www/leosoft-pos/media/;
+        autoindex off;
+        expires 7d;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Cache-Control "public";
+    }
+
     location / {
         proxy_pass http://unix:/run/leosoft-pos/gunicorn.sock:;
         proxy_set_header Host $host;
