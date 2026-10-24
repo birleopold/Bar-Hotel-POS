@@ -135,6 +135,13 @@ The original sale, received partial tenders and outstanding balance continue to 
 - Included the two receipt integration cases in the existing PostgreSQL CI job (`9f56dc0e`).
 - **Verification:** changes were committed directly on `main`; combined commit status reported no statuses at inspection. New tests and production printing **not observed passing**. P04/P07/P15 remain unaccepted; printer formats, tenant roles, mobile and all approved viewport comparisons still need end-to-end acceptance.
 
+### P06/P07/P15 checkout completion and receipt regression correction — 24 October
+
+- Existing thermal receipt print page was aligned with shared user/tenant-scoped terminal lock and real idle policy, with currency-explicit net payment and refund summaries. The prior mixed-tender receipt test created an order with implicit model-default currency, even though the new assertions expected **UGX**. Commit `e279f2b8` corrects the fixture to specify `currency="UGX"` rather than weakening the receipt assertion.
+- **Customer-facing closeout bug:** `customer_display.html` already carried a full-payment thank-you branch, but the view deliberately selects only `status="open", is_paid=False`, making that branch unreachable. Existing `views_customer_display.py` now writes a **short, 12-second session-scoped completion marker** only on successful fully paid/closed retail settlement, clears the old active pointer, and serves the **existing idle template** with a generic thank-you without showing items, receipt details or tender values (`6cd4a76b`, `fb1be10d`, `0223e9af`). The next active checkout clears the acknowledgment. Once elapsed, the idle screen returns to its ordinary welcome.
+- Existing database cashier test now covers the post-payment thank-you, absence of old customer items/payment values, a completed sale remaining inactive and explicit expiry (`8345bc15`, `b1ee3036`, `6dddb1e8`). Existing PostgreSQL CI includes this case (`c1e3a7c4`).
+- **Acceptance remains outstanding:** CI and browser verification, multi-monitor session expiration, physical receipt print parity, and five-viewport approved cashier screenshot comparison. These commits are **source-implemented, not accepted or production-certified**. No new routes, CSS, migrations, or external services.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
