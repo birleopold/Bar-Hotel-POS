@@ -20,6 +20,14 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertNotIn("Math.round(qty * 1000) !== qty * 1000", source)
         get_template("staff/order_detail_supermarket.html")
 
+    def test_quick_product_whole_unit_quantity_contract(self):
+        root = Path(__file__).resolve().parent
+        template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        from apps.staff.views_ops import RetailQuickProductForm
+        self.assertTrue(RetailQuickProductForm({"name": "Soap", "unit_price": "2500", "quantity": "2"}).is_valid())
+        self.assertFalse(RetailQuickProductForm({"name": "Soap", "unit_price": "2500", "quantity": "1.5"}).is_valid())
+        self.assertIn('name="quantity" type="number" inputmode="numeric" min="1" step="1"', template)
+
     def test_paid_sale_next_customer_uses_server_idempotency(self):
         root = Path(__file__).resolve().parent
         template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
