@@ -231,6 +231,63 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Grocery milk")
         self.assertContains(page, "milk.png")
 
+    def test_settlement_rejects_combined_direct_and_recipe_stock_overdraw(self):
+        from rest_framework.exceptions import ValidationError
+        from apps.catalog.models import MenuItemRecipeLine
+        from apps.inventory.models import StockBalance, StockMovement
+        from apps.inventory.services import validate_and_consume_stock_for_paid_order
+        from apps.pos.models import OrderLine
+
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Assembly")
+        ingredient = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Shared flour",
+            sku="SHARED-FLOUR", unit_price=Decimal("2000"),
+            track_inventory=True,
+        )
+        assembled = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Prepared pastry",
+            sku="PASTRY", unit_price=Decimal("4000"),
+            track_inventory=False, consume_recipe_on_sale=True,
+        )
+        MenuItemRecipeLine.objects.create(
+            parent_item=assembled, ingredient_item=ingredient,
+            quantity_per_unit=Decimal("2"),
+        )
+        balance = StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.outlet,
+            menu_item=ingredient, quantity=Decimal("4"),
+        )
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX",
+        )
+        for item, qty in ((ingredient, "3"), (assembled, "1")):
+            OrderLine.objects.create(
+                order=sale, menu_item=item, label=item.name,
+                quantity=Decimal(qty), unit_price=item.unit_price,
+                line_total=item.unit_price * Decimal(qty),
+            )
+        # Direct sale 3 + pastry recipe 2 = 5, not the 4 in stock.
+        with self.assertRaises(ValidationError):
+            validate_and_consume_stock_for_paid_order(sale, self.user)
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("4"))
+        self.assertFalse(StockMovement.objects.filter(order=sale).exists())
+
+        # Once purchasing/receiving adds the missing unit, retain separate
+        # SALE/RECIPE movements while deducting the combined five units.
+        balance.quantity = Decimal("5")
+        balance.save(update_fields=["quantity"])
+        validate_and_consume_stock_for_paid_order(sale, self.user)
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("0"))
+        self.assertEqual(
+            sorted(StockMovement.objects.filter(order=sale).values_list(
+                "reason", "quantity_change",
+            )),
+            [("recipe", Decimal("-2")), ("sale", Decimal("-3"))],
+        )
+
     def test_cashier_catalogue_search_finds_active_plu_in_current_tenant(self):
         category = MenuCategory.objects.create(tenant=self.tenant, name="Checkout products")
         product = MenuItem.objects.create(
