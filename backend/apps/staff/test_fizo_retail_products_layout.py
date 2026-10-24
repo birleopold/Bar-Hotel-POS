@@ -36,7 +36,9 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn('event.preventDefault()', source)
         self.assertIn('form.querySelectorAll("button")', source)
         self.assertIn('delete form.dataset.submitting', source)
-        self.assertIn('if (form.requestSubmit) form.requestSubmit(); else form.submit();', source)
+        self.assertIn('form.requestSubmit();', source)
+        self.assertIn("if (save) save.click();", source)
+        self.assertNotIn("else form.submit();", source)
         self.assertNotIn('form.dataset.submitting = "1";\\n    if (form.requestSubmit)', source)
 
     def test_quick_product_whole_unit_quantity_contract(self):
