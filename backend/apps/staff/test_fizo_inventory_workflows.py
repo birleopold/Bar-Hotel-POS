@@ -40,6 +40,15 @@ class FizoInventoryWorkflowTests(SimpleTestCase):
                 self.assertIn('request.tenant.name|default:"Business"', source)
                 self.assertNotIn('Fizo / {{ staff_product.workspace_label', source)
 
+    def test_category_and_pricing_editors_use_current_business_name(self):
+        root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
+        for name in ("menu_category_form.html", "menu_item_outlet_form.html"):
+            with self.subTest(name=name):
+                source = (root / name).read_text(encoding="utf-8")
+                self.assertIn('request.tenant.name|default:"Business"', source)
+                self.assertNotIn("FIZO /", source)
+                get_template("console/org/" + name)
+
     def test_branch_pricing_explains_default_price_and_uses_tenant_brand(self):
         root = Path(__file__).resolve().parents[1]
         source = (root / "console/templates/console/org/menu_item_outlet_list.html").read_text(encoding="utf-8")
