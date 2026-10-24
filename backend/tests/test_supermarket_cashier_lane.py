@@ -540,6 +540,30 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"paymentPending" in page.content
             assert b"Recording payment" in page.content
 
+    def test_part_paid_quantity_reduction_surfaces_error_not_http_500(self):
+        from apps.pos.models import OrderLine, Payment
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("3000"), total=Decimal("3000"), currency="UGX",
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Bottled Water", quantity=Decimal("2"),
+            unit_price=Decimal("1500"), line_total=Decimal("3000"),
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=order, recorded_by=self.user,
+            amount=Decimal("2500"), idempotency_key="quantity-http-safety",
+        )
+        response = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": order.pk}),
+            {"action": "adjust_line_qty", "line_id": str(line.pk), "quantity": "1"},
+        )
+        self.assertEqual(response.status_code, 302)
+        line.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal("2"))
+        self.assertEqual(order.total, Decimal("3000"))
+
     def test_refunded_partial_tender_allows_quantity_reduction_and_full_cancel(self):
         from apps.pos.models import OrderLine, Payment, Refund, OrderStatus
         from apps.pos.services import (
