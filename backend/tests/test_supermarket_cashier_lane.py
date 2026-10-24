@@ -405,6 +405,72 @@ class SupermarketCashierLaneTests(TestCase):
         active_again = self.client.get(monitor)
         self.assertContains(active_again, 'data-active-order="' + str(sale.pk) + '"')
 
+    def test_held_sale_is_protected_at_shared_service_boundary(self):
+        """Direct API/service callers cannot bypass the cashier's hold state."""
+        from rest_framework.exceptions import ValidationError
+        from apps.pos.models import OrderLine, Payment
+        from apps.pos.services import (
+            adjust_open_order_line_quantity, record_order_payment,
+            apply_supermarket_line_discount,
+        )
+
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            table_label="Shopper collecting balance", currency="UGX",
+            subtotal=Decimal("6000"), total=Decimal("6000"),
+        )
+        line = OrderLine.objects.create(
+            order=sale, label="Service", quantity=Decimal("2"),
+            unit_price=Decimal("3000"), line_total=Decimal("6000"),
+        )
+        with self.assertRaises(ValidationError):
+            adjust_open_order_line_quantity(
+                order=sale, line=line, quantity=Decimal("3"), user=self.user,
+            )
+        with self.assertRaises(ValidationError):
+            apply_supermarket_line_discount(
+                order=sale, line=line, discount_amount=Decimal("500"),
+                user=self.user,
+            )
+        with self.assertRaises(ValidationError):
+            record_order_payment(
+                order=sale, user=self.user, amount=Decimal("1000"),
+                method="cash", idempotency_key="parked-direct-payment",
+            )
+        self.assertFalse(Payment.objects.filter(order=sale).exists())
+        line.refresh_from_db()
+        sale.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal("2"))
+        self.assertEqual(sale.total, Decimal("6000"))
+
+    def test_discount_nullable_service_line_avoids_postgresql_outer_join_lock(self):
+        from apps.pos.models import OrderLine
+        from apps.pos.services import apply_supermarket_line_discount
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("6000"), total=Decimal("6000"),
+        )
+        line = OrderLine.objects.create(
+            order=order, menu_item=None, label="Service",
+            quantity=Decimal("2"), unit_price=Decimal("3000"),
+            line_total=Decimal("6000"),
+        )
+        with CaptureQueriesContext(connection) as queries:
+            discounted = apply_supermarket_line_discount(
+                order=order, line=line, user=self.user,
+                discount_amount=Decimal("500"),
+            )
+        if connection.vendor == "postgresql":
+            line_locks = [
+                q["sql"].upper() for q in queries
+                if "FOR UPDATE" in q["sql"].upper() and "POS_ORDERLINE" in q["sql"].upper()
+            ]
+            self.assertTrue(line_locks)
+            self.assertTrue(all("LEFT OUTER JOIN" not in sql for sql in line_locks))
+        self.assertEqual(discounted.line_total, Decimal("5500"))
+        order.refresh_from_db()
+        self.assertEqual(order.total, Decimal("5500"))
+
     def test_held_sale_denies_payment_and_quantity_edit_until_resumed(self):
         """A parked basket is inactive even when an old checkout tab remains open."""
         from apps.pos.models import OrderLine, Payment
