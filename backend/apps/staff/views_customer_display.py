@@ -6,7 +6,6 @@ browser access and direct cash-drawer/terminal control are NOT provided.
 from decimal import Decimal
 
 from django.db.models import Sum
-from django.core.cache import cache
 from django.http import Http404
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
@@ -20,33 +19,29 @@ from .services import staff_accessible_outlets
 
 
 def customer_display_active_key(request, outlet_id):
-    """Private, register-specific pointer shared only by same staff browser session.
+    """Session-backed pointer for this cashier's outlet/register.
 
-    Never key solely by cashier ID: a cashier may use multiple tills or tabs.
-    The paired screen must share this browser's authenticated session.
+    Unlike LocMemCache, the authenticated Django session is shared across
+    multiple gunicorn workers. Never use an outlet-global pointer: another
+    cashier's basket must not appear on this customer monitor.
     """
     from .workstations import selected_workstation
     outlets = staff_accessible_outlets(request.tenant_membership)
     station = selected_workstation(request, outlets=outlets)
     register = str(station.pk) if station and station.outlet_id == outlet_id else "unselected"
-    if not request.session.session_key:
-        request.session.save()
-    return "pos:customer-screen:v2:%s:%s:%s:%s" % (
-        request.tenant.pk, outlet_id, register, request.session.session_key,
-    )
+    return "customer_screen_active:%s:%s:%s" % (request.tenant.pk, outlet_id, register)
 
 
 def mark_customer_display_active(order, request):
     if (order.created_by_id == request.user.pk and order.status == "open"
             and not order.is_paid):
-        cache.set(customer_display_active_key(request, order.outlet_id),
-                  str(order.pk), timeout=60 * 60 * 12)
+        request.session[customer_display_active_key(request, order.outlet_id)] = str(order.pk)
 
 
 def clear_customer_display_active(order, request):
     key = customer_display_active_key(request, order.outlet_id)
-    if cache.get(key) == str(order.pk):
-        cache.delete(key)
+    if request.session.get(key) == str(order.pk):
+        request.session.pop(key, None)
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -66,7 +61,7 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
         # A stale receipt URL cannot resurrect paid/held orders.
         active = None
         if order.created_by_id == request.user.pk:
-            active_id = cache.get(customer_display_active_key(request, order.outlet_id))
+            active_id = request.session.get(customer_display_active_key(request, order.outlet_id))
             if active_id:
                 active = Order.objects.filter(
                     pk=active_id, tenant=request.tenant, outlet_id=order.outlet_id,
