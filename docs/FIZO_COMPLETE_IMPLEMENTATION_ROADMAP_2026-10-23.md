@@ -61,6 +61,12 @@ CI example at `896f27e`: PostgreSQL integration job passed, SQLite checks failed
 - Documentation basis: Django QuerySet `select_for_update()` explicitly documents PostgreSQL's nullable-relation outer-join restriction and `of=("self",)` row-only locking. Evidence **not yet collected**: passing PostgreSQL test run at these commits, full CI, device/browser baseline, denied tenant/role paths, live return workflow and owner visual approval.
 - **Phases remain P00 in progress and P07 partially implemented/unaccepted.** Do not change the historical 4/34 suite count or declare a phase finished.
 
+### P00/P03/P07/P15 regression hardening — 24 October, follow-on
+
+- The PostgreSQL nullable-product lock change was extended only to the existing line-return service, with no new controller or stylesheet. Tests in `backend/tests/test_supermarket_cashier_lane.py` now inspect captured PostgreSQL locking SQL to reject nullable LEFT OUTER JOINs (`bfc77761`) and exercise an attempted cross-tenant line return (`1c7cd8c9`). These cover P03 tenant isolation, P07 transaction correctness and P15 SQL-level verification together.
+- **Evidence status:** code committed and fetched back from main. The focused tests have **not yet been executed**, and no PostgreSQL test-environment, current GitHub CI outcome, five-viewport screenshots or deployed browser acceptance evidence has been collected for these commits. P00 is still in progress; no phase completion marker changed.
+- Before deploying, run focused tests against a disposable test database and check the complete action log. Do **not** run the test suite against production PostgreSQL or create cross-tenant test data in real tenant accounts.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
