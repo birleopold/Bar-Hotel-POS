@@ -272,6 +272,8 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(response.status_code, 302)
         order.refresh_from_db()
         self.assertEqual(order.table_label, "Held " + order.bill_reference)
+        self.assertEqual(response["Location"], reverse("staff-retail-pos-entry"))
+        self.assertNotIn(str(order.pk), response["Location"])
 
     def test_quick_create_idempotency_returns_same_basket_on_retry(self):
         import uuid
