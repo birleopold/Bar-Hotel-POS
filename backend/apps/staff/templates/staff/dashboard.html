@@ -81,7 +81,7 @@
 
     <div class="fizo-dash__layout fizo-dash__section fz-dashboard-panels">
       <section class="fizo-dash__panel staff-panel" aria-labelledby="fizo-work-title">
-        <div class="fizo-dash__sectionhead"><h2 id="fizo-work-title">{% if staff_dashboard_lodging_snapshot %}Room status{% elif staff_dashboard_sales_snapshot %}Popular items{% else %}Getting started{% endif %}</h2></div>
+        <div class="fizo-dash__sectionhead"><h2 id="fizo-work-title">{% if staff_dashboard_lodging_snapshot %}Room status{% elif staff_dashboard_sales_snapshot and staff_dashboard_sales_snapshot.top_items %}Popular items{% elif staff_dashboard_sales_snapshot %}Sales activity{% else %}Getting started{% endif %}</h2></div>
         {% if staff_dashboard_lodging_snapshot %}
           <div class="fizo-dash__roomgrid" aria-label="Current room condition summary">
             <div><strong>{{ staff_dashboard_lodging_snapshot.ready_rooms }}</strong><small>Ready</small></div>
