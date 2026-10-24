@@ -4,7 +4,7 @@
 {% block content %}
 <section class="fizo-entity fizo-entity--list" aria-labelledby="fizo-list-title">
   <header class="fizo-entity__header">
-    <div><p class="grocery-form-kicker">FIZO / CATALOGUE / CATEGORIES</p><h1 id="fizo-list-title">Categories</h1><p class="staff-muted">Organise your products, food or drinks so your team can find items quickly.</p></div>
+    <div><p class="grocery-form-kicker">{{ request.tenant.name|default:"Business" }} / Catalogue / Categories</p><h1 id="fizo-list-title">{% if grocery_console_shell %}Product categories{% else %}Categories{% endif %}</h1><p class="staff-muted">Organise your products, food or drinks so your team can find items quickly.</p></div>
     <a href="{% url 'console-org-menu-category-create' %}" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add category</a>
   </header>
   <section class="staff-card fizo-entity__card">
