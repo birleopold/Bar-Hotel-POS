@@ -20,7 +20,7 @@
     <h2>Add a photo from your phone</h2>
     <p>Open this secure link on your phone, sign in to the same business, then take or upload a photo. Continue editing product details on this computer. Photos are optional.</p>
     <div class="grocery-form-links"><a href="{% url 'console-org-menu-item-photo' item_id=object.pk %}" target="_blank" rel="noopener">Phone photo upload</a>
-    <button type="button" class="staff-btn staff-btn--ghost" data-copy-photo-link>Copy phone link</button></div>
+    <button type="button" class="staff-btn staff-btn--ghost" data-copy-photo-link>Copy phone link</button><button type="button" class="staff-btn staff-btn--ghost" data-refresh-phone-photo>Check for photo</button></div>
     <p class="staff-muted" data-phone-photo-status aria-live="polite">Waiting for a photo is optional.</p>
   </section>
   {% else %}
@@ -104,8 +104,10 @@
         img.src = data.image_url;
       } else if (img) img.remove();
       if (status) status.textContent = data.image_url ? "Phone photo received. Continue editing here." : "No product photo.";
-    }).catch(function () {});
+    }).catch(function () { if (status) status.textContent = "Could not check for a photo. Confirm you are still signed in and try Check for photo."; });
   }
+  var refresh = document.querySelector("[data-refresh-phone-photo]");
+  if (refresh) refresh.addEventListener("click", checkPhoto);
   window.setInterval(checkPhoto, 8000);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) checkPhoto(); });
 }());
