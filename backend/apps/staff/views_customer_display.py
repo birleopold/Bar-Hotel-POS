@@ -19,25 +19,32 @@ from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets
 
 
-def customer_display_active_key(order):
-    return "pos:customer-screen:%s:%s:%s" % (
-        order.tenant_id, order.outlet_id, order.created_by_id,
+def customer_display_active_key(request, outlet_id):
+    """Private, register-specific pointer shared only by same staff browser session.
+
+    Never key solely by cashier ID: a cashier may use multiple tills or tabs.
+    The paired screen must share this browser's authenticated session.
+    """
+    from .workstations import selected_workstation
+    outlets = staff_accessible_outlets(request.tenant_membership)
+    station = selected_workstation(request, outlets=outlets)
+    register = str(station.pk) if station and station.outlet_id == outlet_id else "unselected"
+    if not request.session.session_key:
+        request.session.save()
+    return "pos:customer-screen:v2:%s:%s:%s:%s" % (
+        request.tenant.pk, outlet_id, register, request.session.session_key,
     )
 
 
-def mark_customer_display_active(order, actor):
-    # A manager inspecting another cashier's sale must never redirect that
-    # cashier's customer-facing screen.
-    if (order.created_by_id == actor.pk and order.status == "open"
+def mark_customer_display_active(order, request):
+    if (order.created_by_id == request.user.pk and order.status == "open"
             and not order.is_paid):
-        cache.set(customer_display_active_key(order), str(order.pk), timeout=60 * 60 * 12)
+        cache.set(customer_display_active_key(request, order.outlet_id),
+                  str(order.pk), timeout=60 * 60 * 12)
 
 
-def clear_customer_display_active(order):
-    """Blank this cashier's paired display when their active basket is held."""
-    if not order.created_by_id:
-        return
-    key = customer_display_active_key(order)
+def clear_customer_display_active(order, request):
+    key = customer_display_active_key(request, order.outlet_id)
     if cache.get(key) == str(order.pk):
         cache.delete(key)
 
@@ -59,7 +66,7 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
         # A stale receipt URL cannot resurrect paid/held orders.
         active = None
         if order.created_by_id:
-            active_id = cache.get(customer_display_active_key(order))
+            active_id = cache.get(customer_display_active_key(request, order.outlet_id))
             if active_id:
                 active = Order.objects.filter(
                     pk=active_id, tenant=request.tenant, outlet_id=order.outlet_id,
