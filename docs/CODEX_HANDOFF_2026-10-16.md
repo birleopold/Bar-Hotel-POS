@@ -23,6 +23,12 @@ Next execution: on disposable test database run `backend/tests/test_supermarket_
 - **Not yet run:** focused SQLite/PostgreSQL suite or full CI against these commits; live checkout/returns and reference-image viewport acceptance. P00 remains open; P03/P07/P15 unaccepted. Do not run cross-tenant write tests against production data.
 - Next: run tests in disposable DB, verify actual SQL and HTTP flows, then resume P00 CSS route/ownership trace and baseline screenshots. A failed test must drive replacement of the faulty change, not another workaround layer.
 
+## Larger P00–P06 integrated shell bundle (24 October evening)
+
+Directly on `origin/main` (no branches): `staff/base.html` now scopes cross-tab terminal-lock localStorage keys to tenant plus user (`c97a3d2`); the staff header POS shortcut uses the real supermarket/retail register URL rather than the sales list (`328a51a`); staff header identifies the signed-in operator (`795aa7f`, neutral wording in `8eaffc7`) with responsive rules in existing `fizo-fresh.css` (`c119a1d`). All business lines continue sharing the same template/CSS; no new feature-specific stylesheet. Regression source checks added to existing staff test file (`ad4915c`). P00 CSS dependency audit reports duplicate literal stylesheet links from the same source (`7e842a4`) without auto-deleting assets.
+
+Acceptance still pending: actual browser tests with two accounts/tenants and terminal lock, approved screenshot comparisons at five widths, CSS audit fresh output, and SQL/CI tests. Avoid declaring P00/P02/P03/P04/P06 complete, even if code is merged. Next review the audit findings, resolve verified missing/doubled CSS at their canonical owner, and complete deployed user journeys.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
