@@ -28,6 +28,7 @@
               <td><span class="grocery-setup__status{% if it.track_inventory %} grocery-setup__status--done{% endif %}">{% if it.track_inventory %}Yes{% else %}No{% endif %}</span></td>
               <td><div class="grocery-setup__table-actions">
                 <a href="{% url 'console-org-menu-item-edit' item_id=it.id %}">Edit</a>
+                <a href="{% url 'console-org-menu-item-photo' item_id=it.id %}">{% if it.product_image_src %}Change photo{% else %}Add photo{% endif %}</a>
                 <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Area pricing</a>
                 {% if console_has_fnb %}<a href="{% url 'console-org-menu-item-recipe' item_id=it.id %}">Recipe</a>{% endif %}
               </div></td></tr>
