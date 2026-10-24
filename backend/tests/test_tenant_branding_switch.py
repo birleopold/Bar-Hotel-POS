@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
-from apps.pos.models import Order
+from apps.pos.models import Order, Payment, PaymentMethod
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.models import StockBalance, StockMovement, StockReason
 from apps.purchasing.models import Supplier, PurchaseOrder
@@ -61,6 +61,33 @@ class SharedTenantBrandingTests(TestCase):
                 self.assertEqual(movements.status_code, 200)
                 self.assertContains(movements, active[2].name)
                 self.assertNotContains(movements, foreign[2].name)
+
+    def test_foreign_tenant_payment_cannot_be_viewed_or_refunded_through_order(self):
+        first, second = self.tenants
+        foreign_order = Order.objects.create(
+            tenant=second[0], outlet=second[1], created_by=self.user,
+            currency="UGX", bill_reference="PRIVATE-PAID-ORDER",
+            subtotal=Decimal("5000"), total=Decimal("5000"),
+        )
+        payment = Payment.objects.create(
+            tenant=second[0], order=foreign_order, amount=Decimal("5000"),
+            method=PaymentMethod.CASH, idempotency_key="private-payment-test",
+            recorded_by=self.user,
+        )
+        self._choose(*first)
+        url = reverse("staff-order-detail", kwargs={"order_id": foreign_order.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+        for action in ("record_payment", "record_refund"):
+            with self.subTest(action=action):
+                response = self.client.post(url, {
+                    "action": action, "amount": "1000", "payment_id": str(payment.pk),
+                    "reason": "Cross-tenant test",
+                    "idempotency_key": f"blocked-{action}",
+                })
+                self.assertEqual(response.status_code, 404)
+        self.assertEqual(Payment.objects.filter(order=foreign_order).count(), 1)
+        self.assertEqual(foreign_order.refunds.count(), 0)
 
     def test_purchasing_lists_and_details_never_expose_other_tenants(self):
         purchases = []
