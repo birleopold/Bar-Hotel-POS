@@ -148,3 +148,9 @@ Verification boundary: new CI and browser confirmation pending. Historical 69 fa
 Inspected `backend/tests/test_grocery_owner_console_pages.py` after CI exposed the retail owner's missing `aria-label="Store management"`. The management sidebar is now rendered through `console/includes/fizo_sidebar.html` for the Fizo setup area, and its nav had the generic label `Business sections` despite already knowing `grocery_console_shell`. Corrected that **existing sidebar's nav label in place**: retail/supermarket shows **Store management** and other business lines retain **Business sections**, using the same enabled-business condition as the visible title. No alternate sidebar or CSS layer was introduced.
 
 Source commit `2dd6192ae8a13dac02b30f0043902b6c3e5dc690`. Await current CI and authenticated browser confirmation before marking the corresponding route family or P00 completed. The broader 69-failure baseline remains the last completed full-suite result recorded before these changes.
+
+## Dashboard sourced-insight restoration — 24 October 2026
+
+Root cause: the simplified canonical staff dashboard retained tenant/outlet-scoped `staff_dashboard_operations_snapshot`, `staff_dashboard_low_stock_rows`, and `staff_dashboard_sales_snapshot` in view context but omitted the named operational pulse/low-stock sections and direct report link. Fixed `staff/dashboard.html` in place to display these only when scoped data exists; no demo values, new endpoint, or CSS layer. Consolidated conditional render branches to avoid duplicating stock lists and workload panels. Commits: `b132ef04f0033046957f1fd5748bbd7712056afe`, `45c6872927a5167bf9ac062ef8f04c3b1babadf4`.
+
+This correction addresses real user-facing visibility alongside existing dashboard regression assertions. Browser screenshots and post-commit CI are **not yet verified**. P00 remains open until all gates are independently evidenced.
