@@ -47,6 +47,9 @@ def test_offline_cash_ceiling_rejects_different_currency_without_exchange_rate(a
     settings.offline_cash_payment_limit = Decimal("500000")
     settings.save(update_fields=["default_currency", "offline_cash_payment_limit"])
     order = _create_open_order(tenant=data["tenant"], outlet=data["outlet"], total="10.00")
+    # Simulate a genuine legacy USD transaction; Order.save now correctly
+    # defaults new orders to the tenant currency (UGX).
+    Order.objects.filter(pk=order.pk).update(currency="USD")
     assert api_client.login(username=data["user"].email, password="TestPass9!")
     response = api_client.post(
         "/api/v1/pos/offline-sync/",
