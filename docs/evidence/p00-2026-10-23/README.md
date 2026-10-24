@@ -142,3 +142,9 @@ Inspected the failing `tests/test_branded_staff_login.py` cases and traced the a
 Commits: `23565942de048023c5eb9888d671bc013c36d371`, `5e917e6b9b31aa2f6f78bdadf64559041ce7582c`, `dd4608149f49329f61a6803e0f6a512ad874fefc`. These are direct replacements in existing owners, not duplicate CSS or templates.
 
 Verification boundary: new CI and browser confirmation pending. Historical 69 failing SQLite tests belong to the earlier `b23bd823` CI run, **not** to these commits. P00 still open.
+
+## Canonical owner-navigation accessibility correction — 24 October 2026
+
+Inspected `backend/tests/test_grocery_owner_console_pages.py` after CI exposed the retail owner's missing `aria-label="Store management"`. The management sidebar is now rendered through `console/includes/fizo_sidebar.html` for the Fizo setup area, and its nav had the generic label `Business sections` despite already knowing `grocery_console_shell`. Corrected that **existing sidebar's nav label in place**: retail/supermarket shows **Store management** and other business lines retain **Business sections**, using the same enabled-business condition as the visible title. No alternate sidebar or CSS layer was introduced.
+
+Source commit `2dd6192ae8a13dac02b30f0043902b6c3e5dc690`. Await current CI and authenticated browser confirmation before marking the corresponding route family or P00 completed. The broader 69-failure baseline remains the last completed full-suite result recorded before these changes.
