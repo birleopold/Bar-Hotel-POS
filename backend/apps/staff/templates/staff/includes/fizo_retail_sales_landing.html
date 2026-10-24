@@ -57,7 +57,7 @@
       <label for="fizo-receipt-search">Receipt / register / product</label><div><i class="bi bi-search"></i><input id="fizo-receipt-search" type="search" name="q" value="{{ q_filter }}" placeholder="Search receipts and orders"><button type="submit">Search</button></div>
     </form>
     <div class="fizo-sales__tablewrap">
-      <table class="fizo-sales__table"><thead><tr><th>Receipt</th><th>Register</th><th>Status</th><th>Total</th><th>Payment</th><th></th></tr></thead><tbody>
+      <table class="fizo-sales__table"><thead><tr><th>Receipt</th><th>Outlet</th><th>Status</th><th>Total</th><th>Payment</th><th></th></tr></thead><tbody>
         {% for o in orders %}
         <tr>
           <td><a href="{% url 'staff-order-detail' order_id=o.id %}">{{ o.bill_reference }}</a></td>
