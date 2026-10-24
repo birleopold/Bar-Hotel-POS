@@ -5,7 +5,7 @@
 <section class="fizo-entity" aria-labelledby="fizo-entity-title">
   <header class="fizo-entity__header">
     <div>
-      <p class="grocery-form-kicker">FIZO / CATALOGUE / PRICING</p>
+      <p class="grocery-form-kicker">{{ request.tenant.name|default:"Business" }} / Catalogue / Pricing</p>
       <h1 id="fizo-entity-title">{% if grocery_console_shell %}Sales area pricing{% else %}{{ form_title|default:'Outlet pricing' }}{% endif %}</h1>
       <p class="staff-muted">Review the fields, then save. You can change these details later.</p>
       <span class="staff-muted">{{ menu_item.name }}</span>
