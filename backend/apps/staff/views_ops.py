@@ -2165,6 +2165,9 @@ class StaffMenuListView(StaffTenantRequiredMixin, ListView):
             item_qs = item_qs.filter(
                 Q(name__icontains=query) | Q(sku__icontains=query)
                 | Q(barcode__icontains=query)
+                | Q(supermarket_profile__plu_code__icontains=query,
+                    supermarket_profile__tenant_id=tenant_id,
+                    supermarket_profile__is_active=True)
             )
         return (
             MenuCategory.objects.filter(tenant=self.request.tenant, is_active=True)
