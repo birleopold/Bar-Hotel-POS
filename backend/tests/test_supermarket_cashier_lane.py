@@ -511,7 +511,15 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertTrue(sale.table_label)
         self.assertFalse(sale.is_paid)
 
-        # Retrieve the original basket, never a new basket or a fresh invoice.
+        # A GET may inspect the parked basket, but must not resume it.
+        parked = self.client.get(url)
+        self.assertEqual(parked.status_code, 200)
+        self.assertTrue(Order.objects.get(pk=sale.pk).table_label)
+        # Explicitly resume the original basket, not a new sale.
+        activation = self.client.post(url, {"action": "resume_order"})
+        self.assertEqual(activation.status_code, 302)
+        sale.refresh_from_db()
+        self.assertEqual(sale.table_label, "")
         resumed = self.client.get(url)
         self.assertEqual(resumed.status_code, 200)
         self.assertEqual(resumed.context["balance_due"], Decimal("20000.00"))
