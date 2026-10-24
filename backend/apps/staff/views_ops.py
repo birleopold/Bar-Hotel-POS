@@ -824,8 +824,13 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         can_refund = (
             can_approve_refunds
             and staff_outlet_allowed_for_membership(m, order.outlet_id)
-            and order.status == OrderStatus.CLOSED
-            and order.is_paid
+            and (
+                (order.status == OrderStatus.CLOSED and order.is_paid)
+                or (
+                    order.status == OrderStatus.OPEN and not order.is_paid
+                    and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+                )
+            )
             and refundable > Decimal("0")
         )
         ctx["can_record_refund"] = can_refund
@@ -1762,8 +1767,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if not membership_can_approve_refunds(request.tenant_membership):
             messages.error(request, "Refunds require approval by a supervisor or manager.")
             return redirect("staff-order-detail", order_id=order.id)
-        if order.status != OrderStatus.CLOSED or not order.is_paid:
-            messages.error(request, "Refunds apply only to closed, paid orders.")
+        partial_retail = (
+            order.status == OrderStatus.OPEN and not order.is_paid
+            and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        )
+        if not ((order.status == OrderStatus.CLOSED and order.is_paid) or partial_retail):
+            messages.error(request, "Refunds require a paid sale or a partially paid retail basket.")
             return redirect("staff-order-detail", order_id=order.id)
         pays = list(order.payments.order_by("created_at"))
         refundable = order_refundable_remaining(order)
@@ -1791,7 +1800,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 reason=form.cleaned_data.get("reason") or "",
                 idempotency_key=str(uuid.uuid4()),
                 workstation_id=settlement_workstation_id(request, outlet=order.outlet),
-                restock=bool(form.cleaned_data.get("restock")),
+                restock=bool(form.cleaned_data.get("restock")) and not partial_retail,
                 payment_id=payment_id,
             )
         except DRFValidationError as exc:
