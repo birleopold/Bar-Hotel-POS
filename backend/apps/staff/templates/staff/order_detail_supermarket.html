@@ -360,10 +360,10 @@
       form.dataset.submitting = "1";
       var buttons = form.querySelectorAll("button");
       buttons.forEach(function (button) { button.disabled = true; });
-      var errorBox = document.getElementById("fizo-inline-qty-status");
+      var errorBox = form.parentNode.querySelector("[data-inline-qty-status]");
       if (!errorBox) {
         errorBox = document.createElement("p");
-        errorBox.id = "fizo-inline-qty-status";
+        errorBox.setAttribute("data-inline-qty-status", "");
         errorBox.setAttribute("role", "status");
         errorBox.setAttribute("aria-live", "polite");
         form.parentNode.appendChild(errorBox);
