@@ -48,10 +48,10 @@
   <p class="tot">Total {{ order.currency }} {{ order.total }}</p>
   <p>Paid {{ amount_paid }} · Balance {{ balance_due }}</p>
   {% if show_payment_history %}
-    <div class="a4only">
+    <div aria-label="Recorded payments">
       <h2 class="muted">Payments</h2>
       {% for p in payment_entries %}
-        <p>{{ p.get_method_display }} {{ p.amount }} · {{ p.created_at }}</p>
+        <p>{{ p.get_method_display }} · {{ order.currency }} {{ p.amount }}<span class="a4only"> · {{ p.created_at }}</span></p>
       {% endfor %}
     </div>
   {% endif %}
