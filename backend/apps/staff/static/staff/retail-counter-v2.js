@@ -19,8 +19,16 @@
   if(basket&&idlePayment&&!basket.contains(idlePayment))basket.appendChild(idlePayment);
   // Keep Hold/Clear actions accessible without showing their bulky staff card
   // in the cashier workspace. Reuse the existing, authenticated forms.
-  var holdForm=document.querySelector('input[name="action"][value="hold_order"]');
+  var holdAction=document.querySelector('input[name="action"][value="hold_order"]');
+  var holdForm=holdAction&&holdAction.form;
   var holdCard=holdForm&&holdForm.closest(".staff-card");
+  if(holdForm&&basket&&basket.dataset.orderId){
+    holdForm.addEventListener("submit",function(){
+      // Tender preview is not a payment and must not be revived when a
+      // customer returns to a held, partially paid basket.
+      try{localStorage.removeItem("pos:tender:"+basket.dataset.orderId);}catch(error){}
+    });
+  }
   var tools=basket&&basket.querySelector(".fizo-retail-basket-tools");
   if(basket&&tools&&holdCard&&!basket.contains(holdCard)){
     var details=document.createElement("details");
