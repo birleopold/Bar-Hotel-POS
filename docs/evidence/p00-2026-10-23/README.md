@@ -170,3 +170,9 @@ Found a second rendering of `staff_dashboard_operations_snapshot` in the lower d
 The redesigned dashboard had a restricted `show_workspace_admin_tools` section but removed the direct authorized owner pathways to **Open admin console**, **Team & onboarding**, and **Add staff member**. Updated only the existing `staff/dashboard.html` management section, preserving the permission guard and existing named routes; no duplicate page, CSS override, or bypass of tenant authorization. Added source-level regression checks of route resolution, permission guard, and template parsing in the existing retail template test module.
 
 Source commits `03c3a381b0c599325d7de400449a3b089c21e0b7`, `1c2669779de84dae82f44cdea3c8d5a57a7ac643`. CI and authenticated browser acceptance for this revision are not yet verified. P00 stays open.
+
+## Hospitality administration accessibility — 24 October 2026
+
+Corrected the canonical Fizo console sidebar's accessible navigation name: store-only management uses `aria-label="Store management"`, while hospitality and other non-store businesses use `aria-label="Administration navigation"`. Preserved the existing sidebar, visibility checks, and links without adding CSS or an alternate layout. Strengthened the existing business-line isolation regression to require the appropriate hospitality label and explicitly reject supermarket navigation language. Source commits `a5ba5a37605323dadb66ec745385235247cc3829` and `f76f6a5c306f8deb2ff1af2b7b733a7caf9134d5`.
+
+Current CI and live browser verification are not yet complete for these commits. P00 stays open; P01 does not start on an unverified baseline.
