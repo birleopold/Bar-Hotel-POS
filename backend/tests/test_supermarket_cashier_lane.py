@@ -34,6 +34,27 @@ class SupermarketCashierLaneTests(TestCase):
         session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
         session.save()
 
+    def test_empty_legacy_usd_basket_opens_in_tenant_ugx(self):
+        order = Order.objects.create(tenant=self.tenant, outlet=self.outlet, created_by=self.user)
+        Order.objects.filter(pk=order.pk).update(currency="USD")
+        response = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.currency, "UGX")
+        response = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "UGX")
+        self.assertNotContains(response, "This sale uses USD")
+
+    def test_completed_legacy_usd_sale_is_never_relabelled(self):
+        order = Order.objects.create(tenant=self.tenant, outlet=self.outlet, created_by=self.user)
+        Order.objects.filter(pk=order.pk).update(currency="USD", status="closed", is_paid=True)
+        response = self.client.get(reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.currency, "USD")
+        self.assertContains(response, "This sale uses USD")
+
     def test_cashier_manager_does_not_get_owner_administration_dashboard(self):
         page = self.client.get(reverse("staff-dashboard"))
         self.assertEqual(page.status_code, 200)
