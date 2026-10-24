@@ -24,4 +24,6 @@ class FizoStockPageTests(SimpleTestCase):
                 self.assertIn(marker, page)
         self.assertNotIn("staff-page-hero", page)
         self.assertEqual(page.count("{% block "), page.count("{% endblock %}"))
-        self.assertTrue((root / "static/staff/fizo-stock.css").exists())
+        self.assertIn("staff/fizo-inventory-workflows.css", page)
+        self.assertTrue((root / "static/staff/fizo-inventory-workflows.css").is_file())
+        self.assertFalse((root / "static/staff/fizo-stock.css").exists())
