@@ -10,6 +10,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         page = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
         self.assertIn("{% elif not current_outlet %}", page)
         self.assertIn("Select register", page)
+        self.assertIn("{% if not current_outlet %}Select register{% elif supermarket_shift_open %}Manage open shift{% else %}Open register{% endif %}", page)
         self.assertIn("{% elif not supermarket_shift_open %}", page)
         self.assertIn("Open shift first", page)
 
