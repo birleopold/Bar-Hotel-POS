@@ -405,6 +405,51 @@ class SupermarketCashierLaneTests(TestCase):
         active_again = self.client.get(monitor)
         self.assertContains(active_again, 'data-active-order="' + str(sale.pk) + '"')
 
+    def test_held_sale_denies_payment_and_quantity_edit_until_resumed(self):
+        """A parked basket is inactive even when an old checkout tab remains open."""
+        from apps.pos.models import OrderLine, Payment
+        import uuid
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("6000"), total=Decimal("6000"),
+            table_label="Customer fetching an item",
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Laundry service", quantity=Decimal("2"),
+            unit_price=Decimal("3000"), line_total=Decimal("6000"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        before_payments = Payment.objects.filter(order=order).count()
+        blocked_payment = self.client.post(url, {
+            "action": "record_payment", "amount": "3000", "method": "cash",
+            "payment_request_key": str(uuid.uuid4()),
+        })
+        self.assertEqual(blocked_payment.status_code, 302)
+        self.assertEqual(blocked_payment["Location"], reverse("staff-orders"))
+        self.assertEqual(Payment.objects.filter(order=order).count(), before_payments)
+        blocked_qty = self.client.post(
+            url, {"action": "adjust_line_qty", "line_id": str(line.pk),
+                  "quantity": "3"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(blocked_qty.status_code, 409)
+        self.assertFalse(blocked_qty.json()["ok"])
+        self.assertIn("Resume", blocked_qty.json()["message"])
+        line.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal("2"))
+
+        resumed = self.client.post(url, {"action": "resume_order"})
+        self.assertEqual(resumed.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.table_label, "")
+        updated = self.client.post(
+            url, {"action": "adjust_line_qty", "line_id": str(line.pk),
+                  "quantity": "3"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(updated.status_code, 200)
+        self.assertTrue(updated.json()["ok"])
+        self.assertEqual(Decimal(updated.json()["total"]), Decimal("9000"))
+
     def test_held_partial_basket_resume_reuses_original_order_and_tenders(self):
         """Parking must free the register; resuming cannot create another sale."""
         from apps.pos.models import Payment
