@@ -42,6 +42,12 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_hotel_launch_uses_guest_language(self):
+        dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn('staff_product.business_key == "lodging" %}Ready for the next guest?', dashboard)
+        self.assertIn('staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Ready to serve the next tab?', dashboard)
+        get_template("staff/dashboard.html")
+
     def test_dashboard_missing_membership_has_helpful_empty_state(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertIn("{% if memberships %}No workspace selected{% else %}No workspace available{% endif %}", dashboard)
