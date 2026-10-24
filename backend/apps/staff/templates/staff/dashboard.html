@@ -52,10 +52,6 @@
           <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_sales_snapshot.detail_url }}"><small>Gross sales</small><strong>{{ staff_dashboard_sales_snapshot.gross_sales }}</strong><i class="bi bi-cash-stack"></i></a>
           <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_sales_snapshot.detail_url }}"><small>Refunds</small><strong>{{ staff_dashboard_sales_snapshot.refunds_total }}</strong><i class="bi bi-arrow-counterclockwise"></i></a>
         </div>
-      {% elif staff_dashboard_operations_snapshot %}
-        <div class="fizo-dash__kpis">{% for metric in staff_dashboard_operations_snapshot %}
-          <a class="fizo-dash__kpi fz-kpi" href="{{ metric.url }}"><small>{{ metric.label }}</small><strong>{{ metric.value }}</strong><span class="fizo-dash__muted">{{ metric.detail }}</span></a>
-        {% endfor %}</div>
       {% else %}
         <div class="fizo-dash__panel fizo-dash__empty">No reporting data is available for your current role or selected section. Use the relevant actions below to begin.</div>
       {% endif %}
@@ -64,7 +60,7 @@
     {% if staff_dashboard_sales_snapshot %}
     <div class="fizo-dash__links"><a href="{{ staff_dashboard_sales_snapshot.detail_url }}">Full report</a></div>
     {% endif %}
-    {% if staff_dashboard_operations_snapshot and staff_dashboard_sales_snapshot %}
+    {% if staff_dashboard_operations_snapshot %}
     <section class="fizo-dash__section" aria-labelledby="fizo-operations-pulse">
       <div class="fizo-dash__sectionhead"><h2 id="fizo-operations-pulse">Operations pulse</h2><p>Current workload for your selected workspace</p></div>
       <div class="fizo-dash__kpis">{% for metric in staff_dashboard_operations_snapshot %}
