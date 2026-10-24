@@ -78,6 +78,15 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("cache.get(", source)
         self.assertNotIn("cache.set(", source)
 
+    def test_holding_sale_discards_only_transient_customer_cash_preview(self):
+        root = Path(__file__).resolve().parent
+        js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        template = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        self.assertIn('data-order-id="{{ order.id }}"', template)
+        self.assertIn('var holdForm=holdAction&&holdAction.form;', js)
+        self.assertIn('localStorage.removeItem("pos:tender:"+basket.dataset.orderId)', js)
+        self.assertIn('holdForm.addEventListener("submit"', js)
+
     def test_customer_display_hides_stale_tender_and_blank_on_repeated_session_loss(self):
         root = Path(__file__).resolve().parent
         script = (root / "static/staff/customer-display-live.js").read_text(encoding="utf-8")
