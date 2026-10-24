@@ -566,6 +566,22 @@ class SupermarketCashierLaneTests(TestCase):
             Payment.objects.filter(order=order).count(), 1,
         )
 
+    def test_successful_retail_void_redirects_to_fresh_pos_entry(self):
+        from apps.pos.models import OrderStatus
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("2500"), total=Decimal("2500"), currency="UGX",
+        )
+        response = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": order.pk}),
+            {"action": "void_order", "reason": "Customer changed their mind"},
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.CANCELLED)
+        self.assertRedirects(
+            response, reverse("staff-retail-pos-entry"), fetch_redirect_response=False,
+        )
+
     def test_next_sale_is_post_only(self):
         url = reverse("staff-order-quick-create")
         before = Order.objects.filter(tenant=self.tenant).count()
