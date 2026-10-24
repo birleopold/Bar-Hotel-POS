@@ -1,13 +1,13 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}{{ lane_title }} · Fizo Hotel{% endblock %}
+{% block title %}{{ lane_title }} · {{ request.tenant.name|default:"Business" }}{% endblock %}
 {% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
 <div class="fizo-hotel">
   <header class="fizo-hotel__head">
     <div>
-      <p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p>
+      <p class="fizo-hotel__eyebrow">{{ request.tenant.name|default:"Business" }} / Hotel / Front desk</p>
       <h1>{{ lane_title }}</h1>
       <p>Guest stays{% if current_site %} · {{ current_site.name }}{% endif %}</p>
     </div>
