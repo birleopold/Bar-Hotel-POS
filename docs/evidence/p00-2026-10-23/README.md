@@ -200,3 +200,7 @@ The canonical dashboard labeled its work panel **Popular items** whenever a sale
 ## Missing workspace versus unselected workspace — 24 October 2026
 
 Adjusted the existing staff dashboard so an account with available memberships but no selected workspace receives the selection prompt, while an account with **no memberships at all** receives **No workspace available** and an administrator-assignment explanation. No permissions, tenant data, or authorization path changed. Added a template regression protecting the distinction and retained the existing required tenant selection form. Commits `5c20cb78c344c402f838da1f0c614d746e028083` and `1765f1e2500dca2f5fa33907cb8dc8240cc01df7`. CI and authenticated browser acceptance for these commits remain unverified. P00 remains open.
+
+## Sales ranking accuracy — 24 October 2026
+
+The dashboard previously claimed **no sales were recorded** whenever the sales snapshot existed but its `top_items` list was empty. An empty ranking does not prove zero sales, payments, or revenue. Corrected the canonical empty-state language to **No ranked products to show for this period**, with a link to the existing sales report, and strengthened its template regression. This avoids a misleading financial claim while retaining all live data and authorization constraints. Commits `6f2376cf5eac01641f2de8f5f08192b781e0b2b8`, `855ba64c114e29cb72b8292d8c3efe936398a3c0`. CI and browser acceptance for this SHA are pending. P00 remains open.
