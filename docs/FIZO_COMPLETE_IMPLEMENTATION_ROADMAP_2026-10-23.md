@@ -118,6 +118,15 @@ Follow-on to the explicit retail resume workflow: `StaffOrdersListView` previous
 
 The original sale, received partial tenders and outstanding balance continue to be preserved on POST resume. **Execution of new tests, browser acceptance, visual parity and deployment remains pending**; do not mark P05/P06/P07/P15 signed off.
 
+### P05/P06/P07/P15 second-screen privacy and state coherence — 24 October
+
+- **Held basket safety:** `mark_customer_display_active` now refuses an order with a hold label; the customer-display GET query also requires `table_label=""` even when an obsolete register session pointer survives. This prevents a held sale from being redisplayed by a stale customer-monitor URL. Commit `8e57d191`.
+- **Cash tender safety:** customer display now carries an authoritative current balance; `customer-display-live.js` hides a local transient cash tender whose due amount no longer matches the server balance and refreshes its due marker on poll. Commits `1caaed2b`, `3c4fc064`.
+- **Auth/privacy safety:** after three failed or redirected polling requests, the customer monitor clears the previous shopper's items and displays a neutral paused message instead of retaining a potentially private basket indefinitely or navigating to a staff login. Commit `00b3ad68`.
+- **Held-basket cleanup:** retail basket template exposes only its current order UUID to the existing `retail-counter-v2.js`, which clears the *uncommitted* cash-tender localStorage preview on hold submit. Recorded payments remain server-side. Commits `e138cfa4`, `67482e72`.
+- **Regression gates:** database integration test uses a deliberately stale pointer, holds the order, checks customer monitor idle, and resumes by POST; existing staff contract tests cover expired-session blanking, stale balance and transient tender clearing. Commits `3678674e`, `e246609c`, `5b86ff3d`; PostgreSQL CI includes the stale pointer integration test (`801a6204`).
+- **Evidence still missing:** CI results, actual browser monitoring on separate display through hold/resume/payment, multi-tab auth changes, five approved viewport screenshots, and deployment. These commits do not establish P05/P06/P07/P15 completion.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
