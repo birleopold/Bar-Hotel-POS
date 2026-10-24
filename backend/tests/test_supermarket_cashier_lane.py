@@ -218,6 +218,29 @@ class SupermarketCashierLaneTests(TestCase):
         assert b"Tab:" not in page.content
         assert b"Charge to folio" not in page.content
 
+    def test_quick_create_idempotency_returns_same_basket_on_retry(self):
+        import uuid
+
+        url = reverse("staff-order-quick-create")
+        token = str(uuid.uuid4())
+        first = self.client.post(url, {"quick_create_key": token})
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 1)
+        second = self.client.post(url, {"quick_create_key": token})
+        self.assertEqual(second.status_code, 302)
+        self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 1)
+        self.assertEqual(first["Location"], second["Location"])
+        held = self.client.post(url, {"quick_create_key": str(uuid.uuid4()), "mode": "hold"})
+        self.assertEqual(held.status_code, 302)
+        self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 2)
+
+    def test_quick_create_rejects_malformed_request_key(self):
+        response = self.client.post(reverse("staff-order-quick-create"), {
+            "quick_create_key": "not-a-uuid"
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 0)
+
     def test_supermarket_order_list_uses_basket_labels(self):
         page = self.client.get(reverse("staff-orders"))
         assert page.status_code == 200
