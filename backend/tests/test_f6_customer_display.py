@@ -87,8 +87,7 @@ def test_customer_screen_never_resurrects_paid_or_held_basket():
     session = client.session
     session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
     session.save()
-    from apps.staff.views_customer_display import mark_customer_display_active
-    mark_customer_display_active(sale, env["user"])
+    assert client.get(reverse("staff-order-detail", kwargs={"order_id": sale.pk})).status_code == 200
     url = reverse("staff-retail-customer-display", kwargs={"order_id": sale.pk})
     assert sale.bill_reference.encode() in client.get(url).content
     Order.objects.filter(pk=sale.pk).update(is_paid=True, status="closed")
