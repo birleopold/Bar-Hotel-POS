@@ -695,6 +695,13 @@ def cancel_open_unpaid_order(*, order: Order, user, reason: str = "") -> Order:
         raise ValidationError("Only open orders can be cancelled.")
     if locked.is_paid:
         raise ValidationError("Paid orders cannot be cancelled.")
+    # A part-paid basket is still OPEN/is_paid=False. Never abandon money
+    # already taken without a separately audited refund/reconciliation.
+    if Payment.objects.filter(order_id=locked.id).exists():
+        raise ValidationError(
+            "This sale has a recorded payment. Hold it and collect the remaining "
+            "balance, or use the authorized refund/reconciliation workflow."
+        )
     locked.status = OrderStatus.CANCELLED
     locked.save(update_fields=["status", "updated_at"])
     log_audit(
