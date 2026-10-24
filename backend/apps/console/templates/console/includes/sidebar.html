@@ -1,7 +1,7 @@
 {% with u=request.resolver_match.url_name %}
 <aside class="staff-sidebar console-sidebar" aria-label="Administration navigation">
 {% if grocery_console_shell %}
-  <a class="grocery-console-brand" href="{% url 'staff-dashboard' %}"><span class="fizo-brand-mark" aria-hidden="true"><i class="bi bi-layers-fill"></i></span><span><strong>Fizo</strong><small>{{ console_active_tenant.name }} · Store management</small></span></a>
+  <a class="grocery-console-brand" href="{% url 'staff-dashboard' %}"><span class="fizo-brand-mark" aria-hidden="true"><i class="bi bi-layers-fill"></i></span><span><strong>{{ console_active_tenant.name|default:'Business' }}</strong><small>Store management</small></span></a>
   <nav class="grocery-console-links" aria-label="Store management">
     <a href="{% url 'staff-dashboard' %}"><i class="bi bi-columns-gap"></i> Overview</a>
     <a{% if u == 'console-org-setup' %} class="is-active" aria-current="page"{% endif %} href="{% url 'console-org-setup' %}"><i class="bi bi-list-check"></i> Guided setup</a>
