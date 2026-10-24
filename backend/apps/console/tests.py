@@ -413,13 +413,14 @@ class ConsoleAccessTests(TestCase):
         response = self.client.get(reverse("console-org-setup"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "fizo-setup-page")
-        self.assertContains(response, "fizo-setup-wizard.css")
+        self.assertContains(response, "fizo-setup-area.css")
+        self.assertNotContains(response, "fizo-setup-wizard.css")
         self.assertNotContains(response, "grocery-owner-console.css")
         self.assertContains(response, "grocery-setup__step-visual")
         self.assertContains(response, "Set up your store")
         self.assertContains(response, "Required setup progress")
-        self.assertContains(response, "grocery-console-links")
-        self.assertContains(response, "Fizo")
+        self.assertContains(response, "fizo-shell-nav")
+        self.assertContains(response, self.tenant.name)
 
     def test_hospitality_setup_uses_unified_shell(self) -> None:
         user = User.objects.create_user(email="hospitality-shell@test.local", password="TestPass9!")
