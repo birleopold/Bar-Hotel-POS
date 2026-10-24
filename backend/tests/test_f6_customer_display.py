@@ -106,3 +106,36 @@ def test_customer_screen_never_resurrects_paid_or_held_basket():
     idle = client.get(url)
     assert b"Welcome!" in idle.content
     assert next_sale.bill_reference.encode() not in idle.content
+
+
+@pytest.mark.django_db
+def test_same_cashier_separate_browser_sessions_cannot_hijack_display():
+    env = _seed_tenant_bundle(name="Independent Registers", slug="f6-two-registers",
+                              user_email="f6-two-registers@test.local")
+    env["outlet"].outlet_type = OutletType.SUPERMARKET
+    env["outlet"].save(update_fields=["outlet_type"])
+    first = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=env["user"])
+    second = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=env["user"])
+
+    def browser():
+        client = Client()
+        assert client.login(username=env["user"].email, password="TestPass9!")
+        session = client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
+        session.save()
+        return client
+
+    till_a, till_b = browser(), browser()
+    assert till_a.session.session_key != till_b.session.session_key
+    first_detail = reverse("staff-order-detail", kwargs={"order_id": first.pk})
+    second_detail = reverse("staff-order-detail", kwargs={"order_id": second.pk})
+    assert till_a.get(first_detail).status_code == 200
+    assert till_b.get(second_detail).status_code == 200
+    customer_url = reverse("staff-retail-customer-display", kwargs={"order_id": first.pk})
+    a = till_a.get(customer_url)
+    b = till_b.get(customer_url)
+    assert a.status_code == 200 and b.status_code == 200
+    assert first.bill_reference.encode() in a.content
+    assert second.bill_reference.encode() not in a.content
+    assert second.bill_reference.encode() in b.content
+    assert first.bill_reference.encode() not in b.content
