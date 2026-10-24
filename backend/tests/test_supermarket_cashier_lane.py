@@ -265,6 +265,14 @@ class SupermarketCashierLaneTests(TestCase):
         assert b"Tab:" not in page.content
         assert b"Charge to folio" not in page.content
 
+    def test_retail_hold_without_label_uses_basket_reference(self):
+        order = Order.objects.create(tenant=self.tenant, outlet=self.outlet, created_by=self.user)
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        response = self.client.post(url, {"action": "hold_order", "hold_label": "   "})
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.table_label, "Held " + order.bill_reference)
+
     def test_quick_create_idempotency_returns_same_basket_on_retry(self):
         import uuid
 
