@@ -233,22 +233,22 @@
   var paymentForm = document.querySelector("[data-pos-payment-form]");
   if (paymentForm) {
     var paymentPending = false;
+    var paymentSubmitButton = paymentForm.querySelector('button[type="submit"]');
+    var paymentSubmitLabel = paymentSubmitButton ? paymentSubmitButton.textContent : "";
     paymentForm.addEventListener("submit", function (event) {
       if (paymentPending) { event.preventDefault(); return; }
       if (!paymentForm.checkValidity()) return;
       paymentPending = true;
-      var submitButton = paymentForm.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.textContent = "Recording payment…";
+      if (paymentSubmitButton) {
+        paymentSubmitButton.disabled = true;
+        paymentSubmitButton.textContent = "Recording payment…";
       }
     });
     window.addEventListener("pageshow", function () {
       paymentPending = false;
-      var submitButton = paymentForm.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.disabled = false;
-        submitButton.textContent = "Record payment";
+      if (paymentSubmitButton) {
+        paymentSubmitButton.disabled = false;
+        paymentSubmitButton.textContent = paymentSubmitLabel;
       }
     });
   }
