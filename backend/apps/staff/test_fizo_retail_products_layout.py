@@ -14,6 +14,12 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("{% elif not supermarket_shift_open %}", page)
         self.assertIn("Open shift first", page)
 
+    def test_cashier_new_and_held_basket_forms_block_double_submit(self):
+        page = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
+        self.assertEqual(page.count("this.dataset.submitting = '1'"), 2)
+        self.assertEqual(page.count("this.querySelector('button[type=submit]').disabled = true"), 2)
+        self.assertIn('name="mode" value="hold"', page)
+
     def test_cashier_sales_landing_has_real_hold_basket_action(self):
         page = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
         self.assertIn("Hold basket</button>", page)
