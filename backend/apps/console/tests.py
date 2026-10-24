@@ -145,7 +145,7 @@ class ConsoleRoutingTests(TestCase):
     def test_password_reset_confirm_without_token_shows_request_form(self) -> None:
         r = self.client.get(reverse("staff-password-reset-confirm"))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "Request a new reset from your administrator")
+        self.assertContains(r, "This recovery link is incomplete or invalid.")
 
     def test_password_reset_confirm_with_uid_token_shows_new_password_form(self) -> None:
         user = User.objects.create_user(email="pw-link@test.local", password="TestPass9!")
@@ -153,7 +153,7 @@ class ConsoleRoutingTests(TestCase):
         token = default_token_generator.make_token(user)
         r = self.client.get(f"{reverse('staff-password-reset-confirm')}?uid={uid}&token={token}")
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "Update password")
+        self.assertContains(r, "Update my password")
         self.assertContains(r, "New password")
 
 
