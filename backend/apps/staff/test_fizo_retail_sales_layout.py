@@ -162,6 +162,8 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('name="quick_create_key" value="{{ quick_create_key }}"', page)
         self.assertIn("this.dataset.submitting = '1'", page)
         self.assertIn("Start checkout</button>", page)
+        self.assertIn('name="quick_create_key" value="{{ quick_hold_key }}"', page)
+        self.assertGreaterEqual(page.count("this.dataset.submitting = '1'"), 3)
 
     def test_retail_active_baskets_are_resume_cards(self):
         root = Path(__file__).resolve().parent
