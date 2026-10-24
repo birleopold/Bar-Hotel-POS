@@ -58,8 +58,8 @@ class SharedTenantBrandingTests(TestCase):
                 self.assertNotContains(balances, foreign[2].name)
                 movements = self.client.get(reverse("staff-inventory-movements"))
                 self.assertEqual(movements.status_code, 200)
-                self.assertContains(movements, f"Private movement {active[0].slug}")
-                self.assertNotContains(movements, f"Private movement {foreign[0].slug}")
+                self.assertContains(movements, active[2].name)
+                self.assertNotContains(movements, foreign[2].name)
 
     def test_sales_history_is_scoped_to_selected_tenant(self):
         first, second = self.tenants
