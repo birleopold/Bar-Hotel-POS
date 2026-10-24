@@ -242,3 +242,18 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - [ ] Confirm live tenant's deployment pulled current `origin/main`, then collect final screenshots against the approved store owner reference.
 
 **Scope:** These are navigation/presentation changes and regression tests. They do not certify F6 operational acceptance or claim all remaining business-specific modules are complete.
+
+
+## 2026-10-24 — Cashier queue: held and part-paid baskets (owner acceptance contract)
+
+**Current-code inspection:** `backend/apps/staff/views_ops.py::_post_hold_order` already clears the retail customer-display active association and redirects a successfully held supermarket/retail order to `staff-retail-pos-entry`, so it should no longer occupy the active cashier screen. It currently **rejects `order.is_paid`**, and the underlying service/financial state transitions must be reviewed before expanding this to partially paid orders. This is a requirements/verification checkpoint **not** a claim that partially paid holding is delivered.
+
+- [ ] For an unpaid active basket, **Hold** saves its exact lines, quantities, discounts, prices, operator/outlet, and optional short retrieval label; immediately removes it from the active workstation display and opens an empty new-sale screen. The customer display must stop showing the departed customer's sensitive/active basket.
+- [ ] **Held sales** is a separate searchable queue (reference, cashier, creation time, amount, and payment state), not an overlay permanently consuming the current checkout canvas. A cashier can retrieve a held basket only within authorized tenant/outlet/workstation rules; record retrieval and subsequent modifications in audit history.
+- [ ] A **partially paid** basket can be held *only after* verifying the existing `Order.is_paid`, tender, closing, remaining-due, refund and shift-ledger semantics. Already captured tenders remain immutable and allocated to the original basket; the basket displays paid and due separately. Do not recognize the same cash twice, silently refund, or allow a completed fully paid sale to be reopened.
+- [ ] On retrieval, **Pay remaining / Complete sale** supports additional valid tenders, posts each payment once (idempotent retry identity), and closes/releases only after a verified full settlement. A cashier may switch to the next customer while the part-paid basket is held.
+- [ ] Lock per-order changes and concurrent retrieval/settlement; use a verified transaction with re-read of order/tenders. Reject double payment, overpayment, cross-tenant/cross-outlet retrieval and attempts to use another worker's basket without permission.
+- [ ] Check anonymous supermarket customers by default; guest/table/room identification is never mandatory for this flow. Honor selected tenant currency (e.g., UGX), without fallback to USD if a tenant explicitly chose UGX.
+- [ ] Regression test hold → new basket → retrieve → amend → settle, part-pay → hold → another sale → retrieve → final tender, browser back/refresh, simultaneous tills, failed provider callbacks, shift closure, and receipt/return/audit snapshots; perform PostgreSQL and real browser/device acceptance separately.
+
+**Release status:** Unpaid hold redirect is present in source. The partially paid lifecycle, ledger invariants, cross-till behavior and end-to-end UI are **open**, and neither F5/F6 nor release certification can be closed from this document alone.
