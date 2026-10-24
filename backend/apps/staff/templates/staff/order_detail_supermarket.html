@@ -278,7 +278,12 @@
         return;
       }
       if (cents < dueCents) {
-        tenderStatus.textContent = "Cash is less than the amount due. Use the payment form for a partial payment.";
+        // Partial cash tender is a partial payment, never the full amount due.
+        // Keep the actual payment field consistent with the cashier's tender.
+        if (paymentAmount && paymentMethod && paymentMethod.value === "cash") {
+          paymentAmount.value = (cents / 100).toFixed(2);
+        }
+        tenderStatus.textContent = "Partial cash payment. Review the cash amount in Pay before recording it.";
         return;
       }
       change.textContent = ((cents - dueCents) / 100).toFixed(2);
