@@ -231,6 +231,68 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Grocery milk")
         self.assertContains(page, "milk.png")
 
+    def test_barcode_and_plu_scans_merge_without_overwriting_original_source(self):
+        from apps.pos.services import add_supermarket_line_by_code
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Scan provenance")
+        item = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Milk carton",
+            sku="MILK-CARTON", barcode="7776665554443",
+            unit_price=Decimal("2800"), track_inventory=False,
+        )
+        SupermarketSkuProfile.objects.create(
+            tenant=self.tenant, menu_item=item, plu_code="4091",
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX",
+        )
+        first = add_supermarket_line_by_code(
+            order=order, code="7776665554443", quantity=Decimal("1"), user=self.user,
+        )
+        self.assertEqual(first.pricing_source, "barcode")
+        second = add_supermarket_line_by_code(
+            order=order, code="4091", quantity=Decimal("2"), user=self.user,
+        )
+        self.assertEqual(first.pk, second.pk)
+        second.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(second.quantity, Decimal("3"))
+        self.assertEqual(second.pricing_source, "barcode")
+        self.assertEqual(order.total, Decimal("8400.00"))
+        self.assertEqual(order.lines.filter(is_voided=False).count(), 1)
+
+    def test_retail_weighted_scan_keeps_separate_lines_and_source(self):
+        from apps.pos.services import add_supermarket_line_by_code
+        from apps.catalog.models import WeightedPricingMode
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Measured")
+        item = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Loose rice",
+            sku="RICE-LOOSE", barcode="7654321012345",
+            unit_price=Decimal("5200"), track_inventory=False,
+        )
+        SupermarketSkuProfile.objects.create(
+            tenant=self.tenant, menu_item=item, plu_code="5082",
+            weighted_pricing_mode=WeightedPricingMode.WEIGHTED,
+            allow_fractional_quantity=True,
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX",
+        )
+        first = add_supermarket_line_by_code(
+            order=order, code="7654321012345", quantity=Decimal("1.125"), user=self.user,
+        )
+        second = add_supermarket_line_by_code(
+            order=order, code="5082", quantity=Decimal("0.500"), user=self.user,
+        )
+        self.assertNotEqual(first.pk, second.pk)
+        self.assertEqual(
+            list(order.lines.order_by("created_at").values_list("pricing_source", flat=True)),
+            ["weighted", "weighted"],
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.total, Decimal("8450.00"))
+
     def test_scan_first_form_reaches_existing_server_side_checkout(self):
         cat = MenuCategory.objects.create(tenant=self.tenant, name="Grocery")
         MenuItem.objects.create(
