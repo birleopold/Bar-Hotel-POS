@@ -519,8 +519,10 @@ def apply_supermarket_line_discount(
     if locked_o.status != OrderStatus.OPEN or locked_o.is_paid:
         raise ValidationError("Discounts can only be changed on open, unpaid orders.")
     locked_ln = (
-        OrderLine.objects.select_for_update()
-        .select_related("menu_item")
+        # Lock only the order line. menu_item is nullable (e.g. service
+        # lines), and PostgreSQL rejects FOR UPDATE on the nullable side
+        # of the LEFT OUTER JOIN created by select_related("menu_item").
+        OrderLine.objects.select_for_update(of=("self",))
         .get(pk=line.pk, order_id=locked_o.id)
     )
     if locked_ln.is_voided:
