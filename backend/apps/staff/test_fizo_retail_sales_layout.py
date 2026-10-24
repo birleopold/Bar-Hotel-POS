@@ -165,6 +165,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('name="quick_create_key" value="{{ quick_hold_key }}"', page)
         self.assertGreaterEqual(page.count("this.dataset.submitting = '1'"), 3)
 
+    def test_sales_history_labels_actual_outlet_and_supported_search(self):
+        landing = (Path(__file__).resolve().parent /
+                   "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
+        self.assertIn("<th>Outlet</th>", landing)
+        self.assertIn("{{ o.outlet.name }}", landing)
+        self.assertIn("Receipt / outlet / held-basket note", landing)
+        self.assertNotIn("<th>Register</th>", landing)
+
     def test_retail_sales_history_labels_paid_and_due_with_order_currency(self):
         landing = (Path(__file__).resolve().parent /
                    "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
