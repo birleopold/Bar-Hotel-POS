@@ -261,11 +261,15 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         attach_order_payment_display(orders)
         # Service lanes stay live while the history below is filtered or searched.
         quick_qs = self._orders_in_scope()
-        held_tabs = list(
-            quick_qs.filter(status=OrderStatus.OPEN, is_paid=False)
-            .exclude(table_label="")
-            .order_by("-updated_at")[:12]
-        )
+        held_qs = quick_qs.filter(status=OrderStatus.OPEN, is_paid=False).exclude(table_label="")
+        # A cashier can retrieve older parked baskets by receipt or hold note,
+        # not only the twelve most recently touched sales.
+        if ctx["q_filter"] and ctx["current_outlet"] is not None and ctx["current_outlet"].outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            held_qs = held_qs.filter(
+                Q(bill_reference__icontains=ctx["q_filter"])
+                | Q(table_label__icontains=ctx["q_filter"])
+            )
+        held_tabs = list(held_qs.order_by("-updated_at")[:50])
         open_tabs = list(
             quick_qs.filter(status=OrderStatus.OPEN, is_paid=False, table_label="")
             .order_by("-updated_at")[:12]
