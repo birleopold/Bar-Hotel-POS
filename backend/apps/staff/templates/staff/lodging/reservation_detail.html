@@ -6,7 +6,7 @@
 {% block content %}
 <div class="fizo-hotel fizo-reservation-detail">
   <header class="fizo-hotel__head">
-    <div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Guest stay</p><h1>{{ reservation.guest_name }}</h1>
+    <div><p class="fizo-hotel__eyebrow">{{ request.tenant.name|default:"Business" }} / Hotel / Guest stay</p><h1>{{ reservation.guest_name }}</h1>
     <p>{{ reservation.check_in }} → {{ reservation.check_out }} · {{ reservation.get_status_display }}</p></div>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}"><i class="bi bi-arrow-left"></i> All reservations</a>
   </header>
