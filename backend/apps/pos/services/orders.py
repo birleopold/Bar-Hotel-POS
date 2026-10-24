@@ -40,6 +40,18 @@ from .menu import menu_item_available_at_outlet
 from .pricing import line_tax, line_total, recalculate_order_totals
 
 
+def require_active_retail_basket(order: Order) -> None:
+    """Parked retail sales must be resumed before further POS writes.
+
+    Hospitality table labels are real operational identifiers, not hold flags.
+    """
+    if (order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and order.status == OrderStatus.OPEN and order.table_label):
+        raise ValidationError(
+            "This basket is on hold. Resume it before changing items or collecting payment."
+        )
+
+
 def resolve_table(tenant_id, outlet_id, table_id) -> Table | None:
     if table_id is None:
         return None
@@ -332,6 +344,7 @@ def add_line_to_open_order(
         raise ValidationError("Lines can only be added to open orders.")
     if locked.is_paid:
         raise ValidationError("Cannot add lines to a paid order.")
+    require_active_retail_basket(locked)
     per_unit_mod, mod_snapshot = resolve_modifier_selection_drfsafe(
         menu_item=menu_item,
         option_ids=modifier_option_ids,
@@ -420,6 +433,7 @@ def add_service_to_open_order(
         raise ValidationError("Services can only be added to open orders.")
     if locked.is_paid:
         raise ValidationError("Cannot add services to a paid order.")
+    require_active_retail_basket(locked)
     if service_offering.tenant_id != locked.tenant_id or not service_offering.is_active:
         raise ValidationError({"service_offering": "Unknown or inactive service for this workspace."})
     if not service_offering.available_at_outlet(locked.outlet_id):
@@ -516,6 +530,7 @@ def apply_supermarket_line_discount(
     discount_percent: Decimal | None = None,
 ) -> OrderLine:
     locked_o = Order.objects.select_for_update().get(pk=order.pk)
+    require_active_retail_basket(locked_o)
     if locked_o.status != OrderStatus.OPEN or locked_o.is_paid:
         raise ValidationError("Discounts can only be changed on open, unpaid orders.")
     locked_ln = (
@@ -584,6 +599,7 @@ def void_open_order_line(
     user,
 ) -> None:
     locked_o = Order.objects.select_for_update().get(pk=order.pk)
+    require_active_retail_basket(locked_o)
     if locked_o.status != OrderStatus.OPEN:
         raise ValidationError("Lines can only be voided on open orders.")
     if locked_o.is_paid:
@@ -628,6 +644,7 @@ def adjust_open_order_line_quantity(
         raise ValidationError("Line quantities can only be edited on open orders.")
     if locked_o.is_paid:
         raise ValidationError("Cannot edit lines on a paid order.")
+    require_active_retail_basket(locked_o)
     if quantity <= Decimal("0"):
         raise ValidationError({"quantity": "Quantity must be greater than zero."})
     locked_ln = (
