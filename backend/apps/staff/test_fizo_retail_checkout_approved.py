@@ -19,7 +19,8 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('value="record_payment"',parent)
         self.assertIn('value="scan_add_line"',retail)
         self.assertIn("retail-fast-checkout",retail)
-        self.assertIn("F3",retail)
+        self.assertIn("data-retail-scan-form",retail)
+        self.assertIn("scanInput.focus()",retail)
         self.assertIn("staff-orders",retail)
         self.assertIn("data-pos-menu-tile",cards)
         self.assertIn('value="add_line"',cards)
@@ -59,7 +60,8 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         for value in ("cash", "card", "mobile_money"):
             self.assertIn('data-fizo-payment-method="' + value + '"', detail)
         retail = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
-        self.assertIn("data-fizo-payment-method", retail)
+        self.assertIn('select[name="method"]', retail)
+        self.assertIn("calculateChange()", retail)
         self.assertIn("data-fizo-payment-method", retail)
 
 
