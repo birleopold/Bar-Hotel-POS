@@ -62,6 +62,12 @@ The existing customer display previously trusted the active session pointer with
 
 Holding the basket discards only its browser-local cash tender preview (`e138cfa4`, `67482e72`) while keeping all recorded tenders in PostgreSQL. Added a database-backed test for stale-pointer held → idle → explicit resume (`3678674e`), existing staff contract tests for customer-screen privacy (`e246609c`) and hold tender cleanup (`5b86ff3d`); PostgreSQL CI includes the database integration test (`801a6204`). **These tests have not been observed passing in this session**; deployed multiple-tab/monitor and five-viewport acceptance remain pending. No new CSS, controllers, routes or migrations.
 
+## 24 October receipt/printing correction (P04/P07/P15)
+
+`staff/order_print.html` had bypassed the shared staff terminal policy with `setTimeout(lock, 115000)` and the obsolete global `staff-terminal-lock` signal. It now uses the same server-derived `staff_pin_idle_ms` and tenant/user scoped lock key as the shared staff shell (`9c4d1f54`). The receipt labels tax, refunds, net paid and balance in the original order currency and distinguishes completed paid sales from still-outstanding partial ones (`cd2d1135`). Original payment amounts and ledgers are untouched.
+
+Updated source checks in `test_fizo_retail_sales_layout.py` (`83a05e11`); fixed obsolete "Resume & collect balance" assertion in the existing cashier integration test and added completed/part-paid rendered receipt assertions (`09c9a963`, `c53b2eae`); both receipt paths are targeted in existing PostgreSQL CI (`9f56dc0e`). These changes need focused CI and physical thermal/A4 browser verification; commit status had no reported statuses when checked. No accepted roadmap phase.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
