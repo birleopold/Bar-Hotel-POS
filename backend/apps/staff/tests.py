@@ -572,7 +572,8 @@ class StaffUiTests(TestCase):
         self.assertContains(r, "Team &amp; onboarding")
         self.assertContains(r, reverse("staff-workspace-member-create"))
         self.assertContains(r, reverse("staff-workspace-members"))
-        self.assertLess(r.content.index(b"Start here"), r.content.index(b'<h2 class="staff-card__title mb-1">Administration</h2>'))
+        self.assertContains(r, 'class="fizo-dash__management"')
+        self.assertContains(r, "Guided setup")
 
     def test_dashboard_owner_sees_setup_progress_message(self) -> None:
         tenant = Tenant.objects.create(name="Prog Org", slug="prog-org-dash-cta")
