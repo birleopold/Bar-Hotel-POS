@@ -6,6 +6,15 @@ from django.urls import reverse
 
 
 class FizoRetailProductsLayoutTests(SimpleTestCase):
+    def test_checkout_never_resumes_a_basket_in_obsolete_currency(self):
+        root = Path(__file__).resolve().parent
+        source = (root / "views_ops.py").read_text(encoding="utf-8")
+        start = source.split("class StaffRetailPosEntryView", 1)[1].split("class StaffOrderQuickCreateView", 1)[0]
+        self.assertIn("currency=default_currency_for_tenant(request.tenant)", start)
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        self.assertIn("Open a new {{ configured_currency }} checkout", detail)
+        self.assertIn("staff-retail-pos-entry", detail)
+
     def test_checkout_start_distinguishes_missing_register_from_closed_shift(self):
         page = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
         self.assertIn("{% elif not current_outlet %}", page)
