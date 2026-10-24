@@ -4,7 +4,7 @@
 {% block content %}
 <section class="fizo-entity fizo-entity--list" aria-labelledby="products-heading">
   <header class="grocery-setup__hero">
-    <div><p class="grocery-setup__eyebrow">Fizo / Catalogue</p><h1 id="products-heading">{% if grocery_console_shell %}Your products{% else %}Menu items{% endif %}</h1>
+    <div><p class="grocery-setup__eyebrow">{{ request.tenant.name|default:"Business" }} / Catalogue</p><h1 id="products-heading">{% if grocery_console_shell %}Your products{% else %}Menu items{% endif %}</h1>
       <p>Manage retail products, food and drinks with prices, categories and stock settings.</p>
     </div>
     <div class="grocery-setup__hero-actions">
