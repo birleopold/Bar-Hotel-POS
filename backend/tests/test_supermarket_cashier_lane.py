@@ -327,6 +327,16 @@ class SupermarketCashierLaneTests(TestCase):
         receipt = self.client.get(reverse("staff-order-print", kwargs={"order_id": sale.pk}))
         self.assertEqual(receipt.status_code, 200)
         self.assertContains(receipt, "35000.00")
+        # Small thermal receipts must identify each part of the mixed tender,
+        # not hide the ledger behind the A4-only print class.
+        self.assertContains(receipt, "Cash")
+        self.assertContains(receipt, "Mobile money")
+        from pathlib import Path
+        print_template = (Path(__file__).resolve().parents[1] /
+                          "apps/staff/templates/staff/order_print.html").read_text(encoding="utf-8")
+        self.assertIn('aria-label="Recorded payments"', print_template)
+        self.assertNotIn('<div class="a4only">\\n      <h2 class="muted">Payments', print_template)
+
 
     def test_repeated_partial_payment_key_never_double_charges(self):
         import uuid
