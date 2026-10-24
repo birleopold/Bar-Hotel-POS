@@ -42,6 +42,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_dashboard_intro_is_business_and_workspace_specific(self):
+        dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn("Here's your store at a glance".replace("'", "&#39;"), dashboard)
+        self.assertIn("Guest accounts, reservations and room readiness", dashboard)
+        self.assertIn("No workspace selected", dashboard)
+        self.assertIn("{% if not active_membership %}", dashboard)
+        get_template("staff/dashboard.html")
+
     def test_dashboard_owner_navigation_remains_accessible(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertIn("{% if show_workspace_admin_tools %}", dashboard)
