@@ -15,7 +15,7 @@
 
   {% if not active_membership %}
     <section class="fizo-dash__panel staff-panel">
-      <h2>No workspace selected</h2><p>Choose the business where you are working.</p>
+      <h2>{% if memberships %}No workspace selected{% else %}No workspace available{% endif %}</h2><p>{% if memberships %}Choose the business where you are working.{% else %}Your account has no assigned business workspace. Ask your administrator to add you to the correct business.{% endif %}</p>
       {% if memberships %}<form method="post" action="{% url 'staff-select-tenant' %}">{% csrf_token %}
         <label for="fizo-workspace">Workspace</label>
         <select class="staff-input" id="fizo-workspace" name="tenant_id" required>{% for m in memberships %}<option value="{{ m.tenant_id }}">{{ m.tenant.name }}</option>{% endfor %}</select>
