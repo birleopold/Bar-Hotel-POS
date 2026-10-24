@@ -28,7 +28,8 @@ def customer_display_active_key(order):
 def mark_customer_display_active(order, actor):
     # A manager inspecting another cashier's sale must never redirect that
     # cashier's customer-facing screen.
-    if order.created_by_id and order.created_by_id == actor.pk:
+    if (order.created_by_id == actor.pk and order.status == "open"
+            and not order.is_paid and not order.table_label):
         cache.set(customer_display_active_key(order), str(order.pk), timeout=60 * 60 * 12)
 
 
@@ -45,17 +46,25 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
         ).select_related("outlet").first()
         if order is None:
             raise Http404
+        # Only an explicitly active, open cashier basket is displayable.
+        # A stale receipt URL cannot resurrect paid/held orders.
+        active = None
         if order.created_by_id:
             active_id = cache.get(customer_display_active_key(order))
-            if active_id and str(active_id) != str(order.pk):
+            if active_id:
                 active = Order.objects.filter(
                     pk=active_id, tenant=request.tenant, outlet_id=order.outlet_id,
-                    created_by_id=order.created_by_id,
-                ).first()
-                if active is not None:
-                    # Stable URL: render the latest active sale directly.
-                    # Redirecting between order URLs could make displays bounce.
-                    order = active
+                    created_by_id=order.created_by_id, status="open", is_paid=False,
+                    table_label="",
+                ).select_related("outlet").first()
+        if active is None:
+            # Empty/idle customer monitor: do not expose an old order.
+            response = render(request, "staff/pos/customer_display_idle.html", {
+                "outlet": order.outlet,
+            })
+            response["Cache-Control"] = "no-store, private"
+            return response
+        order = active
         settled = order.payments.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
         remaining = max(Decimal("0.00"), order.total - settled)
         response = render(request, "staff/pos/customer_display.html", {
