@@ -4,6 +4,28 @@
   var root = document.querySelector("[data-customer-display-root]");
   if (!root || !window.fetch || !window.DOMParser) return;
   var busy = false;
+  function renderTender() {
+    var order = root.getAttribute("data-active-order");
+    var panel = root.querySelector("[data-display-tender]");
+    if (!panel || !order) return;
+    var record = null;
+    try { record = JSON.parse(localStorage.getItem("pos:tender:" + order) || "null"); }
+    catch (err) { record = null; }
+    // Never show a previous customer's cash when a sale is switched.
+    if (!record || Date.now() - record.updated > 10 * 60 * 1000 ||
+        !Number.isFinite(record.received) || !Number.isFinite(record.due)) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    panel.querySelector("[data-display-received]").textContent = record.received.toFixed(2);
+    panel.querySelector("[data-display-change]").textContent =
+      record.received >= record.due ? (record.received - record.due).toFixed(2) : "—";
+  }
+  window.addEventListener("storage", function (event) {
+    if (event.key === "pos:tender:" + root.getAttribute("data-active-order")) renderTender();
+  });
+
   function refresh() {
     if (busy || document.hidden) return;
     busy = true;
@@ -27,11 +49,14 @@
       if (!nextRoot) return;
       if (root.innerHTML !== nextRoot.innerHTML) {
         root.innerHTML = nextRoot.innerHTML;
+        root.setAttribute("data-active-order", nextRoot.getAttribute("data-active-order"));
+        renderTender();
       }
     }).catch(function () {
       // Keep last known basket visible; next poll retries automatically.
     }).then(function () { busy = false; });
   }
+  renderTender();
   window.setInterval(refresh, 1500);
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden) refresh();
