@@ -17,7 +17,7 @@
 </aside>
 <section class="fizo-auth__panel" aria-labelledby="terminal-title">
 <div class="fizo-auth__card">
-<div class="fizo-auth__mobile-brand">{% if login_brand.logo_url %}<img width="38" height="38" src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %} {% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</div>
+<div class="fizo-auth__mobile-brand">{% if login_brand.logo_url %}<img width="38" height="38" src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">POS</span>{% endif %} {% if login_brand %}{{ login_brand.name }}{% else %}Staff terminal{% endif %}</div>
 <header class="fizo-auth__header"><h1 id="terminal-title">Unlock terminal</h1><p>{% if login_brand.welcome_message %}{{ login_brand.welcome_message }} {% endif %}Choose your name and enter your private 6–8 digit PIN.</p></header>
 <nav class="fizo-auth__tabs" aria-label="Sign-in method"><a href="{% url 'staff-login' %}">Email &amp; password</a><a href="{% url 'staff-terminal' %}" aria-current="page">Staff PIN</a></nav>
 {% if workers %}
