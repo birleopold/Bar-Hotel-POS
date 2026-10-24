@@ -562,6 +562,29 @@ class SupermarketCashierLaneTests(TestCase):
         line.refresh_from_db()
         self.assertEqual(line.quantity, Decimal("1"))
 
+    def test_quantity_service_locks_nullable_product_line_without_outer_join(self):
+        """PostgreSQL must not FOR UPDATE a nullable menu_item LEFT JOIN."""
+        from apps.pos.models import OrderLine
+        from apps.pos.services import adjust_open_order_line_quantity
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("12000"), total=Decimal("12000"),
+        )
+        line = OrderLine.objects.create(
+            order=order, menu_item=None, label="Laundry Service",
+            quantity=Decimal("1"), unit_price=Decimal("12000"),
+            line_total=Decimal("12000"),
+        )
+        changed = adjust_open_order_line_quantity(
+            order=order, line=line, quantity=Decimal("2"), user=self.user,
+        )
+        changed.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(changed.quantity, Decimal("2"))
+        self.assertEqual(changed.line_total, Decimal("24000"))
+        self.assertEqual(order.total, Decimal("24000"))
+
     def test_quantity_ajax_response_updates_without_redirect(self):
         from apps.pos.models import OrderLine
         order = Order.objects.create(
