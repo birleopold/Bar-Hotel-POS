@@ -330,7 +330,13 @@
       : Math.round(current + delta);
     if (next < Number(input.min || step)) return;
     input.value = String(next);
-    if (form.requestSubmit) form.requestSubmit(); else form.submit();
+    if (form.requestSubmit) {
+      form.requestSubmit();
+    } else {
+      // Calling form.submit() skips validation and the single-flight handler.
+      var save = form.querySelector('button[type="submit"]');
+      if (save) save.click();
+    }
   });
 }());
 </script>
