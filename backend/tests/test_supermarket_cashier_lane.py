@@ -540,6 +540,32 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"paymentPending" in page.content
             assert b"Recording payment" in page.content
 
+    def test_quantity_increase_and_decrease_render_checkout_after_redirect(self):
+        from apps.pos.models import OrderLine
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("3000"), total=Decimal("3000"), currency="UGX",
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Bottled Water", quantity=Decimal("2"),
+            unit_price=Decimal("1500"), line_total=Decimal("3000"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        for quantity, expected_total in (("3", Decimal("4500")), ("1", Decimal("1500"))):
+            with self.subTest(quantity=quantity):
+                response = self.client.post(
+                    url,
+                    {"action": "adjust_line_qty", "line_id": str(line.pk),
+                     "quantity": quantity},
+                    follow=True,
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "Bottled Water")
+                line.refresh_from_db()
+                order.refresh_from_db()
+                self.assertEqual(line.quantity, Decimal(quantity))
+                self.assertEqual(order.total, expected_total)
+
     def test_part_paid_quantity_reduction_surfaces_error_not_http_500(self):
         from apps.pos.models import OrderLine, Payment
         order = Order.objects.create(
@@ -557,8 +583,10 @@ class SupermarketCashierLaneTests(TestCase):
         response = self.client.post(
             reverse("staff-order-detail", kwargs={"order_id": order.pk}),
             {"action": "adjust_line_qty", "line_id": str(line.pk), "quantity": "1"},
+            follow=True,
         )
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cannot reduce this basket")
         line.refresh_from_db()
         order.refresh_from_db()
         self.assertEqual(line.quantity, Decimal("2"))
