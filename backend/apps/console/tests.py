@@ -240,7 +240,7 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(r, "Branches &amp; sections")
         self.assertContains(r, "Business setup")
         self.assertContains(r, "Guided setup")
-        self.assertContains(r, "Finish business setup")
+        self.assertContains(r, "Setup progress")
         self.assertNotContains(r, "<strong>Fizo</strong>", html=False)
 
     def test_hospitality_directories_use_shared_design(self) -> None:
