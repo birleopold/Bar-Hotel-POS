@@ -241,6 +241,7 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(r, "Business setup")
         self.assertContains(r, "Guided setup")
         self.assertContains(r, "Finish business setup")
+        self.assertNotContains(r, "<strong>Fizo</strong>", html=False)
 
     def test_hospitality_directories_use_shared_design(self) -> None:
         user = User.objects.create_user(email="hospitality-directory@test.local", password="TestPass9!")
