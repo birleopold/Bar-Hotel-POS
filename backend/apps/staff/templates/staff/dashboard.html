@@ -23,7 +23,12 @@
       </form>{% endif %}
     </section>
   {% else %}
-    {% if staff_nav.orders %}
+    {% if staff_product.business_key == "lodging" and staff_show_lodging_nav and staff_nav.lodging %}
+      <section class="fizo-dash__launch">
+        <div><h2>Front desk</h2><p>Review arrivals, departures and room availability.</p></div>
+        <a class="fizo-dash__action" href="{% url 'staff-lodging-reservations' %}">Open reservations <i class="bi bi-arrow-right"></i></a>
+      </section>
+    {% elif staff_nav.orders %}
       <section class="fizo-dash__launch" aria-label="Start serving">
         <div><h2>{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Ready for the next checkout?{% elif staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Ready to serve the next tab?{% elif staff_product.business_key == "lodging" %}Ready for the next guest?{% else %}Ready for the next order?{% endif %}</h2>
           <p>Use your existing authorized ordering and payment workflow.</p></div>
