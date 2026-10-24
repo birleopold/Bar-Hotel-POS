@@ -20,7 +20,7 @@
     <div class="grocery-setup__progress-heading"><strong>Required setup progress</strong><span>{{ setup_completion_percent }}% complete</span></div>
     <progress value="{{ setup_completion_percent }}" max="100" aria-label="Required setup progress">{{ setup_completion_percent }}%</progress>
     {% if setup_complete %}
-      <p class="grocery-setup__next"><i class="bi bi-check-circle-fill text-success"></i> Your required setup steps are complete. Review the go-live checks before accepting real sales.</p>
+      <p class="grocery-setup__next"><i class="bi bi-check-circle-fill text-success"></i> <strong>Setup complete</strong> — your required setup steps are complete. Review the go-live checks before accepting real sales.</p>
     {% elif next_step %}
       <p class="grocery-setup__next">Up next: <a href="{{ next_step.cta_url }}">{{ next_step.name }} <i class="bi bi-arrow-right"></i></a></p>
     {% endif %}
@@ -39,7 +39,7 @@
           <div class="grocery-setup__step-actions">
               <a class="staff-btn staff-btn--sm {% if step.done %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}" href="{{ step.cta_url }}">{{ step.cta_label }} <i class="bi bi-arrow-right"></i></a>
               {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--sm staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
-              <span class="grocery-setup__status{% if step.done %} grocery-setup__status--done{% elif step.status == 'blocked' %} grocery-setup__status--blocked{% endif %}">{% if step.done %}<i class="bi bi-check-circle-fill"></i> Done{% elif step.status == 'blocked' %}<i class="bi bi-exclamation-circle"></i> Needs attention{% else %}Not started{% endif %}</span>
+              <span class="grocery-setup__status{% if step.done %} grocery-setup__status--done{% elif step.status == 'blocked' %} grocery-setup__status--blocked{% endif %}">{% if step.done %}<i class="bi bi-check-circle-fill"></i> Done{% elif step.status == 'blocked' %}<i class="bi bi-exclamation-circle"></i> Needs attention{% else %}Pending{% endif %}</span>
             </div>
             {% if step.required %}
             <details class="grocery-setup__more">
