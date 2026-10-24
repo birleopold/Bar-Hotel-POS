@@ -77,6 +77,13 @@ A shared-shell source review identified and corrected real navigation and staff-
 - **P15 checks:** `ad4915c` adds source-level regression checks for tenant-scoped lock events, retail register routing, visible operator identity and foundation CSS. `scripts/audit_css_dependencies.py` now records exact duplicate stylesheet references within one tracked template/source (`7e842a4`), as **warnings**, not grounds for deletion without dependency and browser review.
 - **Evidence status:** these commits are source changes only, not five-viewport screenshot acceptance, execution of the full suite, fresh CSS audit output, live same-user/multi-tenant terminal behavior or hardware/provider certification. P00 and P01–P15 acceptance remain open. No migrations or financial writes introduced.
 
+### P00/P01/P02 foundation ownership — additional source cleanup (24 October)
+
+- Refined the **existing** `scripts/audit_css_dependencies.py` so duplicate stylesheet warnings are tied to actual HTML template references, not arbitrary JavaScript/CSS text. The report still lists missing references, import edges and unreferenced *candidates*, without deleting any assets (`2017ceeb`).
+- Added a focused temporary-file fixture in the **existing** staff regression test module to assert missing CSS and repeated template links are correctly detected while a referenced stylesheet is not called unreferenced (`6a020c0`). This test has not yet run in CI.
+- Removed a mathematically redundant mobile `.fizo-dash__roomgrid` breakpoint rule from the **existing** `fizo-fresh.css` (`f4d1e402`), keeping the 550px two-column breakpoint and the independent 480px card sizing. No stylesheet was created; no deletion of unverified business-line CSS.
+- **Acceptance:** P00 still open. Current runtime stylesheet dependency counts, five-size screenshot parity, accessibility audit, CSS cascade measurements and focused/full CI remain unverified. This is limited P00/P01/P02 source progress, not completion or production certification.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
