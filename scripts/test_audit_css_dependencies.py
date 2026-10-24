@@ -49,10 +49,10 @@ class CssDependencyAuditTests(unittest.TestCase):
             existing = base / "existing.css"
             existing.write_text("body { display: block; }", encoding="utf-8")
             primary.write_text(
-                '@import "existing.css";\\n'
-                '@import url(missing-unquoted.css);\\n'
-                '@import url("missing-quoted.css?v=1");\\n'
-                '@import url(https://example.com/external.css);\\n',
+                '@import "existing.css";\n'
+                '@import url(missing-unquoted.css);\n'
+                '@import url("missing-quoted.css?v=1");\n'
+                '@import url(https://example.com/external.css);\n',
                 encoding="utf-8",
             )
             stream = io.StringIO()
