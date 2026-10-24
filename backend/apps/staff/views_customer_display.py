@@ -7,7 +7,6 @@ from decimal import Decimal
 
 from django.db.models import Sum
 from django.core.cache import cache
-from django.shortcuts import redirect
 from django.http import Http404
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
@@ -54,7 +53,9 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
                     created_by_id=order.created_by_id,
                 ).first()
                 if active is not None:
-                    return redirect("staff-retail-customer-display", order_id=active.pk)
+                    # Stable URL: render the latest active sale directly.
+                    # Redirecting between order URLs could make displays bounce.
+                    order = active
         settled = order.payments.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
         remaining = max(Decimal("0.00"), order.total - settled)
         response = render(request, "staff/pos/customer_display.html", {
