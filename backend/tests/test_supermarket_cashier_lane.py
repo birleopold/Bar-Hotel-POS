@@ -253,6 +253,9 @@ class SupermarketCashierLaneTests(TestCase):
             for item in group["menu_items"]
         ]
         self.assertIn(product.pk, ids)
+        catalogue = self.client.get(reverse("staff-menu"), {"q": "3137"})
+        self.assertEqual(catalogue.status_code, 200)
+        self.assertContains(catalogue, "Fresh tomato")
 
         # Inactive PLU profiles must not appear in manual product search.
         profile.is_active = False
@@ -260,6 +263,8 @@ class SupermarketCashierLaneTests(TestCase):
         missing = self.client.get(url, {"catalogue_q": "3137"})
         self.assertEqual(missing.status_code, 200)
         self.assertFalse(missing.context["pos_menu_categories"])
+        inactive_catalogue = self.client.get(reverse("staff-menu"), {"q": "3137"})
+        self.assertNotContains(inactive_catalogue, "Fresh tomato")
 
         # A different tenant may use the same PLU without leaking its product.
         other = Tenant.objects.create(name="Neighbour store", slug="plu-neighbour-store")
