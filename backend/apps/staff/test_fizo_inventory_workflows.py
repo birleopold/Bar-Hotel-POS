@@ -13,6 +13,15 @@ class FizoInventoryWorkflowTests(SimpleTestCase):
                       "staff-inventory-movement-create", "staff-inventory-movement-upload"):
             self.assertTrue(reverse(route).startswith("/staff/"))
 
+    def test_shared_inventory_pages_follow_active_business(self):
+        root = Path(__file__).resolve().parent / "templates/staff/inventory"
+        for name in ("movements.html", "movement_upload.html"):
+            with self.subTest(name=name):
+                source = (root / name).read_text(encoding="utf-8")
+                self.assertIn('staff_product.workspace_label|default:"Business"', source)
+                self.assertNotIn("Fizo / Supermarket / Inventory", source)
+                get_template("staff/inventory/" + name)
+
     def test_real_transaction_controls_preserved(self):
         root = Path(__file__).resolve().parent
         directory = root / "templates/staff/inventory"
