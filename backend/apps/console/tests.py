@@ -1080,6 +1080,40 @@ class ConsoleAccessTests(TestCase):
             self.assertEqual(self.client.post(reverse("console-org-menu-item-photo", kwargs={"item_id": other_item.id}),
                                               {"photo": SimpleUploadedFile("other.png", output.getvalue(), content_type="image/png")}).status_code, 404)
 
+    def test_desktop_edit_keeps_photo_uploaded_after_form_was_opened(self) -> None:
+        import io
+        import tempfile
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+
+        owner = User.objects.create_user(email="co-photo-race@test.local", password="TestPass9!")
+        Membership.objects.create(user=owner, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(owner)
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Photo sync")
+        item = MenuItem.objects.create(tenant=self.tenant, category=category, name="Original",
+                                       unit_price="3000.00")
+        edit_url = reverse("console-org-menu-item-edit", kwargs={"item_id": item.id})
+        self.assertEqual(self.client.get(edit_url).status_code, 200)
+        image_data = io.BytesIO()
+        Image.new("RGB", (2, 2), "white").save(image_data, format="PNG")
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            photo_url = reverse("console-org-menu-item-photo", kwargs={"item_id": item.id})
+            photo = SimpleUploadedFile("photo.png", image_data.getvalue(), content_type="image/png")
+            self.assertEqual(self.client.post(photo_url, {"photo": photo}).status_code, 302)
+            item.refresh_from_db()
+            filename = item.product_image.name
+            changed = self.client.post(edit_url, {
+                "category": str(category.id), "name": "Updated on desktop",
+                "unit_of_measure": "each", "unit_price": "3500.00",
+                "is_active": "on",
+            })
+            self.assertEqual(changed.status_code, 302)
+            item.refresh_from_db()
+            self.assertEqual(item.name, "Updated on desktop")
+            self.assertEqual(item.product_image.name, filename)
+            self.assertTrue(item.product_image.storage.exists(filename))
+
     def test_owner_can_create_service_offering(self) -> None:
         TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["bar", "services"])
         user = User.objects.create_user(email="co-services@test.local", password="TestPass9!")
