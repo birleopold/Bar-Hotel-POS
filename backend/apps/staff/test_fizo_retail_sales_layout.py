@@ -155,6 +155,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("all(item.outlet_type in retail_types for item in outlets)", source)
 
 
+    def test_primary_retail_start_sale_uses_idempotent_post(self):
+        """The visible Start checkout button carries its own safe retry token."""
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/orders_list.html").read_text(encoding="utf-8")
+        self.assertIn('name="quick_create_key" value="{{ quick_create_key }}"', page)
+        self.assertIn("this.dataset.submitting = '1'", page)
+        self.assertIn("Start checkout</button>", page)
+
     def test_retail_active_baskets_are_resume_cards(self):
         root = Path(__file__).resolve().parent
         lanes = (root / "templates/staff/includes/orders_lanes.html").read_text(encoding="utf-8")
