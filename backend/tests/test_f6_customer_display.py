@@ -16,7 +16,7 @@ def test_customer_display_shows_basket_no_customer_contact_or_session_controls()
     env["outlet"].outlet_type = OutletType.SUPERMARKET
     env["outlet"].save(update_fields=["outlet_type"])
     sale = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"],
-                                currency="USD", total=Decimal("30"), subtotal=Decimal("30"))
+                                created_by=env["user"], total=Decimal("30"), subtotal=Decimal("30"))
     OrderLine.objects.create(order=sale, menu_item=env["item"], label="Coffee",
                              quantity=Decimal("2"), unit_price=Decimal("15"), line_total=Decimal("30"))
     url = reverse("staff-retail-customer-display", kwargs={"order_id": sale.pk})
@@ -27,6 +27,8 @@ def test_customer_display_shows_basket_no_customer_contact_or_session_controls()
     session = client.session
     session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
     session.save()
+    from apps.staff.views_customer_display import mark_customer_display_active
+    mark_customer_display_active(sale, env["user"])
     page = client.get(url)
     assert page.status_code == 200, page.content
     assert b"Coffee" in page.content
@@ -74,3 +76,34 @@ def test_customer_screen_follows_cashiers_new_basket_without_send_action():
     assert b"customer-display-live.js" in current.content
     assert b"data-customer-display-root" in current.content
     assert b'<meta http-equiv="refresh" content="4">' in current.content
+
+
+@pytest.mark.django_db
+def test_customer_screen_never_resurrects_paid_or_held_basket():
+    env = _seed_tenant_bundle(name="No Old Receipts", slug="f6-no-old", user_email="f6-no-old@test.local")
+    env["outlet"].outlet_type = OutletType.SUPERMARKET
+    env["outlet"].save(update_fields=["outlet_type"])
+    sale = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=env["user"])
+    client = Client()
+    assert client.login(username=env["user"].email, password="TestPass9!")
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
+    session.save()
+    from apps.staff.views_customer_display import mark_customer_display_active
+    mark_customer_display_active(sale, env["user"])
+    url = reverse("staff-retail-customer-display", kwargs={"order_id": sale.pk})
+    assert sale.bill_reference.encode() in client.get(url).content
+    Order.objects.filter(pk=sale.pk).update(is_paid=True, status="closed")
+    idle = client.get(url)
+    assert idle.status_code == 200
+    assert b"Welcome!" in idle.content
+    assert sale.bill_reference.encode() not in idle.content
+    next_sale = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=env["user"])
+    mark_customer_display_active(next_sale, env["user"])
+    active = client.get(url)
+    assert next_sale.bill_reference.encode() in active.content
+    assert sale.bill_reference.encode() not in active.content
+    Order.objects.filter(pk=next_sale.pk).update(table_label="Held " + next_sale.bill_reference)
+    idle = client.get(url)
+    assert b"Welcome!" in idle.content
+    assert next_sale.bill_reference.encode() not in idle.content
