@@ -57,7 +57,8 @@ class RetailSalesLandingTests(SimpleTestCase):
 
     def test_dashboard_empty_panels_have_actionable_context(self):
         template = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
-        self.assertIn("No sales have been recorded in this reporting period yet.", template)
+        self.assertIn("No ranked products to show for this period.", template)
+        self.assertNotIn("No sales have been recorded in this reporting period yet.", template)
         self.assertIn("Use the quick actions to get started with your workspace.", template)
         self.assertNotIn("Nothing requiring attention is available yet.", template)
         get_template("staff/dashboard.html")
