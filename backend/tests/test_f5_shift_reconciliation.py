@@ -47,10 +47,11 @@ def test_shift_reconciliation_groups_actual_links_and_excludes_other_tills():
     assert report["payments_count"] == 2
     assert report["refunds_count"] == 1
     by_method = {(v["currency"], v["method"]): v for v in report["methods"]}
-    assert by_method[("UGX", PaymentMethod.CASH)]["gross"] == Decimal("4000")
-    assert by_method[("UGX", PaymentMethod.CASH)]["refunded"] == Decimal("500")
-    assert by_method[("UGX", PaymentMethod.CASH)]["net"] == Decimal("3500")
-    assert by_method[("UGX", PaymentMethod.CARD)]["net"] == Decimal("3000")
+    currency = order.currency  # New orders inherit this tenant\'s configured currency.
+    assert by_method[(currency, PaymentMethod.CASH)]["gross"] == Decimal("4000")
+    assert by_method[(currency, PaymentMethod.CASH)]["refunded"] == Decimal("500")
+    assert by_method[(currency, PaymentMethod.CASH)]["net"] == Decimal("3500")
+    assert by_method[(currency, PaymentMethod.CARD)]["net"] == Decimal("3000")
     assert build_shift_reconciliation(another)["is_exact_attribution"] is False
 
 
