@@ -102,6 +102,8 @@ class GroceryOwnerConsolePagesTests(TestCase):
         self.assertNotContains(index, "Manage service sections at")
         self.assertContains(index, "Add sales area")
         self.assertContains(create, "Save sales area")
+        self.assertContains(create, "Create the checkout or sales area staff will use")
+        self.assertNotContains(create, "Configure the service section your team will use.")
 
     def test_product_editor_keeps_advanced_inputs_available(self):
         response = self.client.get(
