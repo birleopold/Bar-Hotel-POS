@@ -30,6 +30,7 @@ def audit(root=ROOT, files=None):
     tracked = set(files)
     css = [p for p in files if p.suffix.lower() == ".css"]
     consumers = {}
+    repeated_in_source = []
     missing = []
     dynamic = []
     hardcoded = []
@@ -43,6 +44,16 @@ def audit(root=ROOT, files=None):
             continue
         if DYNAMIC.search(text) and src.suffix == ".html":
             dynamic.append(str(src.relative_to(root)))
+        seen_in_source = set()
+        # A stylesheet repeated by the same template is a CSS owner conflict.
+        # Record exact duplicates only; inheritance and dynamic includes need
+        # separate browser tracing before any stylesheet is removed.
+        literal_refs = [value for value in CSS_URL.findall(text)]
+        literal_refs += [raw.removeprefix("/static/") for raw in RAW_CSS_URL.findall(text)]
+        for ref in literal_refs:
+            if ref in seen_in_source:
+                repeated_in_source.append({"source": str(src.relative_to(root)), "asset": ref})
+            seen_in_source.add(ref)
         for raw in RAW_CSS_URL.findall(text):
             hardcoded.append({"source": str(src.relative_to(root)), "asset": raw})
             rel = raw.removeprefix("/static/")
@@ -69,6 +80,7 @@ def audit(root=ROOT, files=None):
                     missing.append({"source": str(src.relative_to(root)), "asset": uri})
     consumers = {key: sorted(set(value)) for key, value in sorted(consumers.items())}
     missing.sort(key=lambda item: (item["source"], item["asset"]))
+    repeated_in_source.sort(key=lambda item: (item["source"], item["asset"]))
     hardcoded.sort(key=lambda item: (item["source"], item["asset"]))
     referenced = set(consumers)
     unreferenced = [str(p.relative_to(root)) for p in css if str(p.relative_to(root)) not in referenced]
@@ -78,6 +90,7 @@ def audit(root=ROOT, files=None):
         "literal_staff_css_consumers": consumers,
         "dynamic_template_static_tags": sorted(set(dynamic)),
         "missing_references": missing,
+        "duplicate_stylesheets_in_same_source": repeated_in_source,
         "hardcoded_static_css_references": hardcoded,
         "unreferenced_css_candidates": sorted(unreferenced),
         "unreferenced_css_warning": "Candidate only: JS, CSS imports, computed asset names and runtime loads require tracing before deletion.",
