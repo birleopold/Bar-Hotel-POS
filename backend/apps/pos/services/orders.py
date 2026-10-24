@@ -519,10 +519,8 @@ def apply_supermarket_line_discount(
     if locked_o.status != OrderStatus.OPEN or locked_o.is_paid:
         raise ValidationError("Discounts can only be changed on open, unpaid orders.")
     locked_ln = (
-        # Lock only the order line. menu_item is nullable (e.g. service
-        # lines), and PostgreSQL rejects FOR UPDATE on the nullable side
-        # of the LEFT OUTER JOIN created by select_related("menu_item").
-        OrderLine.objects.select_for_update(of=("self",))
+        OrderLine.objects.select_for_update()
+        .select_related("menu_item")
         .get(pk=line.pk, order_id=locked_o.id)
     )
     if locked_ln.is_voided:
@@ -633,8 +631,9 @@ def adjust_open_order_line_quantity(
     if quantity <= Decimal("0"):
         raise ValidationError({"quantity": "Quantity must be greater than zero."})
     locked_ln = (
-        OrderLine.objects.select_for_update()
-        .select_related("menu_item")
+        # PostgreSQL cannot FOR UPDATE the nullable menu_item outer join.
+        # Lock the line only; access its optional product details separately.
+        OrderLine.objects.select_for_update(of=("self",))
         .get(pk=line.pk, order_id=locked_o.id)
     )
     if locked_ln.is_voided:
