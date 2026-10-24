@@ -201,16 +201,20 @@ class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, View):
                 return photo
 
         if request.POST.get("action") == "remove_photo":
-            if item.product_image:
-                item.product_image = ""
-                item.save(update_fields=["product_image", "updated_at"])
-                messages.success(request, "Uploaded photo removed. The product can remain without a photo.")
+            with transaction.atomic():
+                item = MenuItem.objects.select_for_update().get(pk=item.pk, tenant=request.tenant)
+                if item.product_image:
+                    item.product_image = ""
+                    item.save(update_fields=["product_image", "updated_at"])
+                    messages.success(request, "Uploaded photo removed. The product can remain without a photo.")
             return redirect("console-org-menu-item-photo", item_id=item.pk)
 
         form = ProductPhotoForm(request.POST, request.FILES)
         if form.is_valid():
-            item.product_image = form.cleaned_data["photo"]
-            item.save(update_fields=["product_image", "updated_at"])
+            with transaction.atomic():
+                item = MenuItem.objects.select_for_update().get(pk=item.pk, tenant=request.tenant)
+                item.product_image = form.cleaned_data["photo"]
+                item.save(update_fields=["product_image", "updated_at"])
             messages.success(request, "Photo saved. The desktop editor will show it shortly.")
             return redirect("console-org-menu-item-photo", item_id=item.pk)
         return render(request, self.template_name, {"item": item, "photo_form": form}, status=400)
