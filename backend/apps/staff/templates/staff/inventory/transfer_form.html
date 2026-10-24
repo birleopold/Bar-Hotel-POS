@@ -6,7 +6,7 @@
 <div class="fizo-inventory fizo-inventory--transfer-form">
 
   {% include "staff/inventory/includes/subnav.html" %}
-  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Inventory / Transfers</p><h1>Dispatch stock transfer</h1><p>Only the sender's stock decreases now. The recipient confirms quantities before stock is added at the receiving outlet.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
+  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory / Transfers</p><h1>Dispatch stock transfer</h1><p>Only the sender's stock decreases now. The recipient confirms quantities before stock is added at the receiving outlet.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
   <h2 class="fizo-inventory__heading">Transfer</h2>
   <form method="post" class="fizo-inventory__panel{% if grocery_owner_shell %} grocery-admin-form{% endif %}" data-transfer-form>
     {% csrf_token %}
