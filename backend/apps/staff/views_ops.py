@@ -434,6 +434,9 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
 
     def post(self, request: HttpRequest) -> HttpResponse:
         mode = (request.POST.get("mode") or "").strip()
+        if mode not in {"", "hold"}:
+            messages.error(request, "Invalid sale action. Start a new sale or hold a basket.")
+            return redirect("staff-orders")
         hold_label = (request.POST.get("hold_label") or "").strip()
         return self._quick_create(request, mode=mode, hold_label=hold_label)
 
