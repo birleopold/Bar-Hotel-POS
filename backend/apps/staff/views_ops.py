@@ -1054,6 +1054,18 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if not staff_outlet_allowed_for_membership(m, order.outlet_id):
             messages.error(request, "You cannot modify this order for its outlet.")
             return redirect("staff-order-detail", order_id=order.id)
+        # A held retail basket is parked, not an active checkout. Reopen it
+        # explicitly before scanning, editing or collecting further tenders.
+        # Supervisor refunds remain available for payment reconciliation.
+        if (order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+                and order.status == OrderStatus.OPEN and order.table_label
+                and action not in {"resume_order", "record_refund", "retail_line_refund"}):
+            message = "This basket is on hold. Resume it before editing or taking another payment."
+            if (action == "adjust_line_qty"
+                    and request.headers.get("X-Requested-With") == "XMLHttpRequest"):
+                return JsonResponse({"ok": False, "message": message}, status=409)
+            messages.error(request, message)
+            return redirect("staff-orders")
         if action == "ack_ready_line":
             # A server assigned to this order may acknowledge its ready handoff;
             # this is intentionally narrower than general order/payment edits.
