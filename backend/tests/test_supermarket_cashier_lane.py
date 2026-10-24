@@ -305,6 +305,77 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(response["Location"], reverse("staff-retail-pos-entry"))
         self.assertNotIn(str(order.pk), response["Location"])
 
+    def test_held_partial_basket_resume_reuses_original_order_and_tenders(self):
+        """Parking must free the register; resuming cannot create another sale."""
+        from apps.pos.models import Payment
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("35000"), total=Decimal("35000"),
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=sale, amount=Decimal("15000"),
+            method="cash", idempotency_key="hold-resume-preserve-deposit",
+            recorded_by=self.user,
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+        held = self.client.post(url, {"action": "hold_order", "hold_label": "Returned shopper"})
+        self.assertEqual(held.status_code, 302)
+        sale.refresh_from_db()
+        self.assertEqual(sale.table_label, "Returned shopper")
+        # The cashier can serve another shopper without changing this basket.
+        other = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX",
+        )
+        list_page = self.client.get(reverse("staff-orders"))
+        self.assertEqual(list_page.status_code, 200)
+        self.assertContains(list_page, "Returned shopper")
+        self.assertContains(list_page, 'name="action" value="resume_order"')
+        count_before = Order.objects.filter(tenant=self.tenant).count()
+        resumed = self.client.post(url, {"action": "resume_order"})
+        self.assertEqual(resumed.status_code, 302)
+        self.assertEqual(resumed["Location"], url)
+        sale.refresh_from_db()
+        self.assertEqual(sale.table_label, "")
+        self.assertEqual(sale.status, "open")
+        self.assertFalse(sale.is_paid)
+        self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), count_before)
+        self.assertTrue(Order.objects.filter(pk=other.pk).exists())
+        self.assertEqual(Payment.objects.get(order=sale).amount, Decimal("15000"))
+        checkout = self.client.get(url)
+        self.assertEqual(checkout.status_code, 200)
+        self.assertEqual(checkout.context["balance_due"], Decimal("20000"))
+        # Replaying resume is harmless; it cannot erase or duplicate a tender.
+        self.client.post(url, {"action": "resume_order"})
+        self.assertEqual(Payment.objects.filter(order=sale).count(), 1)
+
+    def test_resume_rejected_for_completed_or_other_tenant_basket(self):
+        another = Tenant.objects.create(name="Another Seller", slug="other-resume-tenant")
+        other_site = Site.objects.create(tenant=another, name="Second shop")
+        other_outlet = Outlet.objects.create(
+            site=other_site, name="Other till", outlet_type=OutletType.SUPERMARKET,
+        )
+        foreign = Order.objects.create(
+            tenant=another, outlet=other_outlet, table_label="Other shopper",
+            currency="UGX",
+        )
+        foreign_url = reverse("staff-order-detail", kwargs={"order_id": foreign.pk})
+        denied = self.client.post(foreign_url, {"action": "resume_order"})
+        self.assertEqual(denied.status_code, 404)
+        foreign.refresh_from_db()
+        self.assertEqual(foreign.table_label, "Other shopper")
+
+        settled = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            table_label="No longer held", status="closed", is_paid=True,
+            currency="UGX",
+        )
+        settled_url = reverse("staff-order-detail", kwargs={"order_id": settled.pk})
+        denied = self.client.post(settled_url, {"action": "resume_order"})
+        self.assertEqual(denied.status_code, 302)
+        settled.refresh_from_db()
+        self.assertEqual(settled.table_label, "No longer held")
+
     def test_partial_cash_hold_resume_and_mixed_payment_closes_one_sale(self):
         """One basket retains its deposit and closes only when all tenders settle."""
         import uuid
