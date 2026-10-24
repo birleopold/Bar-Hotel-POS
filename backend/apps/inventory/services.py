@@ -109,132 +109,88 @@ def apply_manual_stock_change(
 
 @transaction.atomic
 def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
-    """
-    For lines whose menu item has ``track_inventory``, ensure sufficient quantity
-    at the order outlet, then decrement and record SALE movements.
-    When ``consume_recipe_on_sale`` is set, also consumes recipe ingredients (RECIPE movements).
+    """Consume tracked sales and recipe ingredients only after full settlement.
+
+    Aggregate the *combined* requirement before posting any movement. A
+    tracked product may also be a recipe ingredient elsewhere in this order:
+    checking sale and recipe requirements independently would overdraw it.
+    Caller runs inside the payment settlement transaction.
     """
     from apps.catalog.models import MenuItem
+    from .services_batches import consume_for_outflow_if_batched, record_batch_allocations
 
     tenant_id = order.tenant_id
     outlet_id = order.outlet_id
-    lines = list(
-        order.lines.select_related("menu_item").filter(
-            is_voided=False,
-            menu_item__isnull=False,
-            menu_item__track_inventory=True,
-        )
-    )
-    item_need: dict = {}
+    sale_need: dict = {}
+    recipe_need: dict = {}
     item_names: dict = {}
-    for line in lines:
-        item_need[line.menu_item_id] = item_need.get(line.menu_item_id, Decimal("0")) + line.quantity
-        item_names[line.menu_item_id] = line.menu_item.name
 
-    for item_id, need in sorted(item_need.items(), key=lambda row: str(row[0])):
-        bal, _ = StockBalance.objects.select_for_update().get_or_create(
-            outlet_id=outlet_id,
-            menu_item_id=item_id,
-            defaults={"tenant_id": tenant_id, "quantity": Decimal("0")},
-        )
-        if bal.quantity < need:
-            raise ValidationError(
-                {
-                    "stock": (
-                        f'Insufficient stock for "{item_names[item_id]}" '
-                        f"(need {need}, have {bal.quantity})."
-                    )
-                }
-            )
-
-    for item_id, need in sorted(item_need.items(), key=lambda row: str(row[0])):
-        bal = StockBalance.objects.select_for_update().get(
-            outlet_id=outlet_id,
-            menu_item_id=item_id,
-        )
-        from .services_batches import consume_for_outflow_if_batched, record_batch_allocations
-        batch_allocations = consume_for_outflow_if_batched(
-            tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=item_id,
-            quantity=need,
-        )
-        bal.quantity -= need
-        bal.save(update_fields=["quantity", "updated_at"])
-        movement = StockMovement.objects.create(
-            tenant_id=tenant_id,
-            outlet_id=outlet_id,
-            menu_item_id=item_id,
-            quantity_change=-need,
-            reason=StockReason.SALE,
-            order=order,
-            created_by=user,
-        )
-        if batch_allocations:
-            record_batch_allocations(
-                tenant_id=tenant_id, movement=movement, allocations=batch_allocations,
-            )
-
-    ingredient_need: dict = {}
     for line in (
         order.lines.filter(is_voided=False, menu_item__isnull=False)
         .select_related("menu_item")
         .prefetch_related("menu_item__recipe_lines__ingredient_item")
     ):
-        mi = line.menu_item
-        if not mi.consume_recipe_on_sale:
+        item = line.menu_item
+        if item.track_inventory:
+            sale_need[item.pk] = sale_need.get(item.pk, Decimal("0")) + line.quantity
+            item_names[item.pk] = item.name
+        if not item.consume_recipe_on_sale:
             continue
-        for rl in mi.recipe_lines.all():
-            ing = rl.ingredient_item
-            if not ing.track_inventory:
+        for recipe_line in item.recipe_lines.all():
+            ingredient = recipe_line.ingredient_item
+            if not ingredient.track_inventory:
                 continue
-            need = (line.quantity * rl.quantity_per_unit).quantize(Decimal("0.001"))
-            ingredient_need[ing.id] = ingredient_need.get(ing.id, Decimal("0")) + need
+            need = (line.quantity * recipe_line.quantity_per_unit).quantize(Decimal("0.001"))
+            recipe_need[ingredient.pk] = recipe_need.get(ingredient.pk, Decimal("0")) + need
+            item_names[ingredient.pk] = ingredient.name
 
-    for ing_id, need in sorted(ingredient_need.items(), key=lambda x: str(x[0])):
-        if need <= 0:
-            continue
+    all_ids = sorted(set(sale_need) | set(recipe_need), key=str)
+    # Lock all affected stock rows deterministically. This also prevents two
+    # simultaneous checkouts from approving the same last units.
+    balances = {}
+    for item_id in all_ids:
         bal, _ = StockBalance.objects.select_for_update().get_or_create(
-            outlet_id=outlet_id,
-            menu_item_id=ing_id,
+            outlet_id=outlet_id, menu_item_id=item_id,
             defaults={"tenant_id": tenant_id, "quantity": Decimal("0")},
         )
-        if bal.quantity < need:
-            ing = MenuItem.objects.get(pk=ing_id)
-            raise ValidationError(
-                {
-                    "stock": (
-                        f'Insufficient stock for recipe ingredient "{ing.name}" '
-                        f"(need {need}, have {bal.quantity})."
-                    )
-                }
-            )
-
-    for ing_id, need in sorted(ingredient_need.items(), key=lambda pair: str(pair[0])):
+        need = sale_need.get(item_id, Decimal("0")) + recipe_need.get(item_id, Decimal("0"))
         if need <= 0:
             continue
-        bal = StockBalance.objects.select_for_update().get(
-            outlet_id=outlet_id,
-            menu_item_id=ing_id,
-        )
-        from .services_batches import consume_for_outflow_if_batched, record_batch_allocations
-        batch_allocations = consume_for_outflow_if_batched(
-            tenant_id=tenant_id, outlet_id=outlet_id, menu_item_id=ing_id,
-            quantity=need,
-        )
-        bal.quantity -= need
-        bal.save(update_fields=["quantity", "updated_at"])
-        movement = StockMovement.objects.create(
-            tenant_id=tenant_id,
-            outlet_id=outlet_id,
-            menu_item_id=ing_id,
-            quantity_change=-need,
-            reason=StockReason.RECIPE,
-            order=order,
-            created_by=user,
-        )
-        if batch_allocations:
-            record_batch_allocations(
-                tenant_id=tenant_id, movement=movement, allocations=batch_allocations,
+        if bal.quantity < need:
+            raise ValidationError({
+                "stock": (
+                    f'Insufficient stock for "{item_names[item_id]}" '
+                    f"(need {need}, have {bal.quantity})."
+                )
+            })
+        balances[item_id] = bal
+
+    # Keep movement reasons separate for reliable sales and recipe reporting,
+    # but validate their *combined* requirement first. All writes are part of
+    # the caller's atomic payment transaction.
+    for requirements, reason in (
+        (sale_need, StockReason.SALE),
+        (recipe_need, StockReason.RECIPE),
+    ):
+        for item_id, need in sorted(requirements.items(), key=lambda row: str(row[0])):
+            if need <= 0:
+                continue
+            bal = balances[item_id]
+            allocations = consume_for_outflow_if_batched(
+                tenant_id=tenant_id, outlet_id=outlet_id,
+                menu_item_id=item_id, quantity=need,
             )
+            bal.quantity -= need
+            bal.save(update_fields=["quantity", "updated_at"])
+            movement = StockMovement.objects.create(
+                tenant_id=tenant_id, outlet_id=outlet_id,
+                menu_item_id=item_id, quantity_change=-need,
+                reason=reason, order=order, created_by=user,
+            )
+            if allocations:
+                record_batch_allocations(
+                    tenant_id=tenant_id, movement=movement, allocations=allocations,
+                )
 
 
 @transaction.atomic
