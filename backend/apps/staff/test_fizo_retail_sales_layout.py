@@ -173,6 +173,15 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("Receipt / outlet / held-basket note", landing)
         self.assertNotIn("<th>Register</th>", landing)
 
+    def test_owner_store_shortcuts_remain_outside_dismissible_setup(self):
+        dashboard = (Path(__file__).resolve().parent /
+                     "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        management = dashboard.split("{% if show_workspace_admin_tools %}", 1)[1].split(
+            "{% if show_workspace_setup_cta %}", 1)[0]
+        self.assertIn("Configure payments and tills", management)
+        self.assertIn("Register cash", management)
+        self.assertIn("console-org-menu-item-create", management)
+
     def test_retail_landing_exposes_live_shift_state(self):
         landing = (Path(__file__).resolve().parent /
                    "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
