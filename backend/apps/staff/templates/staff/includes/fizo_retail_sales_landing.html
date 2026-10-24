@@ -54,7 +54,7 @@
       {% if returns_task %}<input type="hidden" name="task" value="returns">{% endif %}
       {% if mine_filter %}<input type="hidden" name="mine" value="1">{% endif %}
       {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-      <label for="fizo-receipt-search">Receipt / register / product</label><div><i class="bi bi-search"></i><input id="fizo-receipt-search" type="search" name="q" value="{{ q_filter }}" placeholder="Search receipts and orders"><button type="submit">Search</button></div>
+      <label for="fizo-receipt-search">Receipt / outlet / product</label><div><i class="bi bi-search"></i><input id="fizo-receipt-search" type="search" name="q" value="{{ q_filter }}" placeholder="Search receipts and orders"><button type="submit">Search</button></div>
     </form>
     <div class="fizo-sales__tablewrap">
       <table class="fizo-sales__table"><thead><tr><th>Receipt</th><th>Outlet</th><th>Status</th><th>Total</th><th>Payment</th><th></th></tr></thead><tbody>
