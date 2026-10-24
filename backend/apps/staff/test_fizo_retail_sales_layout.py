@@ -42,6 +42,16 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_lodging_pulse_uses_scoped_real_property_data_and_drilldowns(self):
+        page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        for expected in ("Property pulse", "staff_dashboard_lodging_snapshot.site_name",
+                         "staff_dashboard_lodging_snapshot.arrival_rows",
+                         "staff_dashboard_lodging_snapshot.housekeeping_url",
+                         "staff_dashboard_lodging_snapshot.maintenance_url",
+                         "staff_dashboard_lodging_snapshot.open_maintenance"):
+            self.assertIn(expected, page)
+        get_template("staff/dashboard.html")
+
     def test_lodging_fallback_uses_effective_navigation_permission(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertIn('{% elif staff_nav.lodging %}', dashboard)
