@@ -6,7 +6,7 @@ from django.db.models import Q
 from apps.tenants.models import Tenant
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
-from django.views.generic import CreateView, DeleteView, ListView, UpdateView
+from django.views.generic import CreateView, DeleteView, ListView, UpdateView, View
 
 from apps.catalog.models import (
     MenuCategory,
@@ -161,7 +161,7 @@ class OrgMenuItemUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
         return _save_catalog_item_safely(self, form, creating=False)
 
 
-class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, __import__("django.views.generic", fromlist=["View"]).View):
+class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, View):
     """Phone-friendly photo-only editor; does not overwrite desktop form fields."""
 
     template_name = "console/org/menu_item_photo.html"
@@ -172,7 +172,6 @@ class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, __import__("django.view
     def get(self, request, item_id):
         from django.http import JsonResponse
         from django.shortcuts import render
-        from django.views.decorators.cache import never_cache
 
         item = self.get_product(request, item_id)
         if request.GET.get("status") == "1":
