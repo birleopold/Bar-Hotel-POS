@@ -1514,10 +1514,10 @@ class StaffOrderPaymentTests(TestCase):
             reverse("staff-order-detail", kwargs={"order_id": self.order.id})
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            'class="staff-pos-order-main staff-pos-panel-scroll"',
-        )
+        # Hospitality uses its own menu workspace; the action panel still
+        # retains independent scrolling in the shared order layout.
+        self.assertContains(response, 'class="staff-pos-order-layout"')
+        self.assertContains(response, 'class="fizo-hospitality-catalogue"')
         self.assertContains(
             response,
             'class="staff-pos-order-side staff-pos-panel-scroll"',
