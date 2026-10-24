@@ -599,6 +599,12 @@ def void_open_order_line(
         update_fields=["is_voided", "void_reason", "voided_at", "voided_by", "updated_at"]
     )
     recalculate_order_totals(locked_o)
+    net_paid = (
+        (Payment.objects.filter(order_id=locked_o.id).aggregate(s=Sum("amount"))["s"] or Decimal("0"))
+        - (Refund.objects.filter(order_id=locked_o.id).aggregate(s=Sum("amount"))["s"] or Decimal("0"))
+    )
+    if locked_o.total < net_paid:
+        raise ValidationError({"line": "Refund the excess payment before removing this item."})
     log_audit(
         tenant_id=locked_o.tenant_id,
         user_id=user.id if user else None,
@@ -657,9 +663,10 @@ def adjust_open_order_line_quantity(
     # Open orders may already have partial tenders. A quantity reduction
     # cannot reduce the sale below money already received. The atomic
     # transaction rolls back both the edited line and recalculated total.
-    paid_so_far = Payment.objects.filter(order_id=locked_o.id).aggregate(
-        amount=Sum("amount")
-    )["amount"] or Decimal("0.00")
+    paid_so_far = (
+        (Payment.objects.filter(order_id=locked_o.id).aggregate(amount=Sum("amount"))["amount"] or Decimal("0.00"))
+        - (Refund.objects.filter(order_id=locked_o.id).aggregate(amount=Sum("amount"))["amount"] or Decimal("0.00"))
+    )
     if locked_o.total < paid_so_far:
         raise ValidationError({
             "quantity": (
@@ -711,10 +718,11 @@ def cancel_open_unpaid_order(*, order: Order, user, reason: str = "") -> Order:
         raise ValidationError("Paid orders cannot be cancelled.")
     # A part-paid basket is still OPEN/is_paid=False. Never abandon money
     # already taken without a separately audited refund/reconciliation.
-    if Payment.objects.filter(order_id=locked.id).exists():
+    recorded = Payment.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    refunded = Refund.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    if recorded > refunded:
         raise ValidationError(
-            "This sale has a recorded payment. Hold it and collect the remaining "
-            "balance, or use the authorized refund/reconciliation workflow."
+            "Refund all recorded payments with supervisor approval before cancelling this basket."
         )
     locked.status = OrderStatus.CANCELLED
     locked.save(update_fields=["status", "updated_at"])
