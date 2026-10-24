@@ -216,3 +216,7 @@ Corrected a real navigation priority problem: when a lodging tenant had both POS
 ## Hotel dual-role front desk plus POS — 24 October 2026
 
 Followed through on the primary hotel navigation correction: previously a hotel worker with both lodging and POS access could open reservations from the dashboard, but the primary launch replaced their visible POS shortcut. The existing lodging launch now presents **Open reservations** as the main action and **Open POS** as a secondary action **only when `staff_nav.orders` is true**. Reuses the existing authorized `staff-orders` route and canonical template without adding CSS or a competing screen. Added a regression verifying the conditional link. Source commits `f2fb62be78e4dfc3e38546ee20f0b3969f17a350`, `0d306df6a141220b7c3267495212a8de24734526`. CI/browser acceptance remains pending; P00 remains open.
+
+## Hotel front desk entitlement precedence — 24 October 2026
+
+Removed an unnecessary additional `staff_show_lodging_nav` gate from the hotel dashboard's primary Front desk launch. The canonical launch now checks the lodging business line plus the effective `staff_nav.lodging` permission directly; previously a false display flag could divert a lodging-authorized hotel worker to POS. Optional POS remains conditional on `staff_nav.orders`. Updated the source regression accordingly. Commits `dda3f68958bcbfa6588136626b65d0c590accd0e`, `e23b0f04531bb08f8dd5d44499a5b3b8c518c140`. CI and authenticated browser verification pending; P00 remains open.
