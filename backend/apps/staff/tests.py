@@ -3247,6 +3247,8 @@ class StaffTableStaffTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Patio 1")
         self.assertContains(response, "Go to orders")
+        self.assertContains(response, self.tenant.name)
+        self.assertNotContains(response, "Fizo / Restaurant / Floor")
         self.assertNotContains(response, reverse("staff-table-edit", kwargs={"table_id": table.id}))
 
 
