@@ -17,6 +17,14 @@ Read **this file** and `docs/CODEX_HANDOFF_2026-10-16.md` before making changes.
 11. Preserve the independent standalone retail/supermarket experience and hotel/bar/restaurant deployments. Never reveal unrelated business modes in a customer's UI.
 12. For historical financial data, provide read-only reconciliation and explicit correction policies; do not silently change money, vouchers, stock or audit entries.
 
+## Failed-fix replacement rule (owner direction, 24 October 2026)
+
+- **No patch-on-patch development.** Before attempting another fix for the same incident, review the commits and code added for that incident. Record what each attempted fix actually solved, what remained broken, and which fallback/tests/handlers are now redundant.
+- If a prior fix did not solve its target problem, **remove or replace its obsolete implementation in the same corrective change**, instead of preserving layers of defensive code, duplicate logic, extra stylesheets, or alternative request handlers.
+- Preserve independently useful behavior and security/accounting controls; do not blindly revert working code or erase audit/history merely to reduce lines. Consolidate into the existing canonical service/view/template/JS and test files.
+- Use the actual production traceback or reproducible failing test to identify a backend HTTP 500. Do not label a diagnostic commit a fix, and do not conceal failures behind a generic success response. Keep the incident *open* until a regression test and the real browser workflow succeed.
+- Update the handoff and feature checklist with *failed attempt removed/replaced*, exact regression evidence and remaining work. Commit directly to `origin/main` only after reviewing the resulting diff; no extra branches.
+
 ## Working order
 
 - Start by examining `git status`, `git log -5 --oneline`, the current tests, recent GitHub Actions failures and the phase checklist.
