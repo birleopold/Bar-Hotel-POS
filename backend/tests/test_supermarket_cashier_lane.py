@@ -366,6 +366,23 @@ class SupermarketCashierLaneTests(TestCase):
         # Completed sale must never become an active checkout again on GET.
         self.client.get(cashier)
         self.assertContains(self.client.get(screen), 'data-active-order=""')
+        from apps.staff.views_customer_display import customer_display_completed_key
+        session = self.client.session
+        key = customer_display_completed_key(
+            type("RequestContext", (), {
+                "tenant": self.tenant,
+                "tenant_membership": Membership.objects.get(
+                    tenant=self.tenant, user=self.user,
+                ),
+                "session": session,
+            })(),
+            self.outlet.pk,
+        )
+        session[key] = {"order": str(sale.pk), "until": 1}
+        session.save()
+        expired = self.client.get(screen)
+        self.assertNotContains(expired, "Payment complete. Thank you")
+        self.assertContains(expired, "Welcome! Your basket will appear here")
 
     def test_customer_monitor_refuses_stale_held_basket_pointer(self):
         """A held basket stays hidden even if its old session pointer survives."""
