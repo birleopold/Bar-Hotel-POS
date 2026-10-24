@@ -165,6 +165,12 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('name="quick_create_key" value="{{ quick_hold_key }}"', page)
         self.assertGreaterEqual(page.count("this.dataset.submitting = '1'"), 3)
 
+    def test_retail_sales_history_labels_paid_and_due_with_order_currency(self):
+        landing = (Path(__file__).resolve().parent /
+                   "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
+        self.assertIn("Paid {{ o.currency }} {{ o.display_paid }}", landing)
+        self.assertIn("Due {{ o.currency }} {{ o.display_balance }}", landing)
+
     def test_retail_active_baskets_are_resume_cards(self):
         root = Path(__file__).resolve().parent
         lanes = (root / "templates/staff/includes/orders_lanes.html").read_text(encoding="utf-8")
