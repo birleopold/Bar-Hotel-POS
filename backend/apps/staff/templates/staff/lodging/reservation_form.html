@@ -1,12 +1,12 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}New reservation · Fizo Hotel{% endblock %}
+{% block title %}New reservation · {{ request.tenant.name|default:"Business" }}{% endblock %}
 {% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.3">{% endblock %}
 {% block content %}
 <div class="fizo-hotel fizo-reservation-create">
   <header class="fizo-hotel__head">
-    <div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Reservations</p><h1>New reservation</h1><p>{{ current_site.name }} · Create a confirmed guest stay</p></div>
+    <div><p class="fizo-hotel__eyebrow">{{ request.tenant.name|default:"Business" }} / Hotel / Reservations</p><h1>New reservation</h1><p>{{ current_site.name }} · Create a confirmed guest stay</p></div>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-reservations' %}"><i class="bi bi-arrow-left"></i> Back to reservations</a>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
