@@ -98,6 +98,8 @@ class GroceryOwnerConsolePagesTests(TestCase):
             self.assertNotContains(response, "FIZO /")
             self.assertNotContains(response, "Hotel dashboard")
         self.assertContains(index, "Sales areas")
+        self.assertContains(index, "Manage checkout and sales areas at")
+        self.assertNotContains(index, "Manage service sections at")
         self.assertContains(index, "Add sales area")
         self.assertContains(create, "Save sales area")
 
