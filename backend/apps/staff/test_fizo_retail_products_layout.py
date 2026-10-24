@@ -25,7 +25,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn('var focusKey = "retail-scan-focus:" + window.location.pathname;', source)
         self.assertIn('window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1")', source)
         self.assertIn('window.sessionStorage.removeItem(focusKey)', source)
-        self.assertIn('window.matchMedia("(pointer: fine)").matches', source)
+        self.assertIn('!window.matchMedia || window.matchMedia("(pointer: fine)").matches', source)
         self.assertIn("scanInput.focus()", source)
         get_template("staff/order_detail_supermarket.html")
 
