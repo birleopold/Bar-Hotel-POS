@@ -6,7 +6,11 @@
       <h3>{{ o.table_label|default:o.bill_reference }}</h3>
       <p>Receipt {{ o.bill_reference }} · {{ o.outlet.name }}</p>
       <p aria-label="Held basket payment summary"><strong>{{ o.currency }} {{ o.display_balance }}</strong> remaining · {{ o.currency }} {{ o.display_paid }} already paid</p>
-      <a class="fizo-active-sale__resume" href="{% url 'staff-order-detail' order_id=o.id %}">Resume &amp; collect balance <i class="bi bi-arrow-right"></i></a>
+      <form method="post" action="{% url 'staff-order-detail' order_id=o.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="resume_order">
+        <button class="fizo-active-sale__resume" type="submit">Resume basket <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+      </form>
     </article>
   {% endfor %}
   {% for o in open_tabs %}
