@@ -52,7 +52,7 @@ class SharedTenantBrandingTests(TestCase):
                 foreign_detail = self.client.get(reverse(
                     "staff-order-detail", kwargs={"order_id": other_order.id}
                 ))
-                self.assertIn(foreign_detail.status_code, (403, 404))
+                self.assertEqual(foreign_detail.status_code, 404)
 
     def test_org_console_brand_uses_active_tenant_after_switch(self):
         for tenant, outlet in reversed(self.tenants):
