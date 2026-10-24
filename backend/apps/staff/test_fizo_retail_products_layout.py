@@ -14,6 +14,14 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("{% elif not supermarket_shift_open %}", page)
         self.assertIn("Open shift first", page)
 
+    def test_paid_sale_next_customer_uses_server_idempotency(self):
+        root = Path(__file__).resolve().parent
+        template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        views = (root / "views_ops.py").read_text(encoding="utf-8")
+        self.assertIn('name="quick_create_key" value="{{ next_sale_request_key }}"', template)
+        self.assertIn("this.dataset.submitting = '1'", template)
+        self.assertIn('ctx["next_sale_request_key"] = uuid.uuid4()', views)
+
     def test_cashier_new_and_held_basket_forms_block_double_submit(self):
         page = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
         self.assertEqual(page.count("this.dataset.submitting = '1'"), 2)
