@@ -196,7 +196,7 @@
         </div>
       {% endif %}
       {% if is_supermarket_outlet %}
-      <div class="fizo-checkout-basket" id="fizo-current-basket" aria-label="Current basket">
+      <div class="fizo-checkout-basket" id="fizo-current-basket" data-order-id="{{ order.id }}" aria-label="Current basket">
         <div class="fizo-cashier-payment-summary" aria-label="Sale total and payment">
           <span>Payable now</span><strong>{{ order.currency }} {{ balance_due }}</strong>
           {% if can_record_payment %}
