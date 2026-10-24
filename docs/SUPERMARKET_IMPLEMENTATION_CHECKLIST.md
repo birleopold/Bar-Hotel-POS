@@ -257,3 +257,14 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - [ ] Regression test hold → new basket → retrieve → amend → settle, part-pay → hold → another sale → retrieve → final tender, browser back/refresh, simultaneous tills, failed provider callbacks, shift closure, and receipt/return/audit snapshots; perform PostgreSQL and real browser/device acceptance separately.
 
 **Release status:** Unpaid hold redirect is present in source. The partially paid lifecycle, ledger invariants, cross-till behavior and end-to-end UI are **open**, and neither F5/F6 nor release certification can be closed from this document alone.
+
+
+### 2026-10-24 closeout implementation checkpoint
+
+- [x] **Source-level safeguard committed:** `cancel_open_unpaid_order` now refuses to cancel a basket with any recorded `Payment`; partial tenders cannot be discarded by changing only the order status. Commit `14816d806f9dcba9a4905238e08bfca6b1217658`.
+- [x] **Regression test added:** `test_part_paid_basket_can_be_held_but_not_voided` checks the existing hold service accepts a partially paid open order, cancellation raises validation error, and the payment remains. Commit `f8a61c8298e524f5a61a091dbcc43c3408bb7a18`.
+- [ ] **Focused automated test passing at exact head:** not executed in this connector session.
+- [ ] **Remaining-due and retrieval in an actual cashier browser:** still requires verified end-to-end interaction and screenshots against the approved UI.
+- [ ] **Full suite, PostgreSQL concurrent checkout, provider callbacks, real Uganda till hardware, production rollout:** no certification evidence collected in this session.
+
+Do not conflate a committed regression test with a passing test or a completed roadmap phase.
