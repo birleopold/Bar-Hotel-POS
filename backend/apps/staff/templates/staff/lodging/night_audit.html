@@ -6,7 +6,7 @@
 {% block content %}
 <div class="fizo-hotel fizo-hotel-workspace fizo-hotel-workspace--night-audit">
 {% include "staff/lodging/includes/subnav.html" %}
-<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p><h1>Night audit</h1><p>Business-day close and exceptions review · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div><a class="staff-btn staff-btn--ghost" href="?business_date={{ business_date|date:'Y-m-d' }}&amp;format=csv"><i class="bi bi-file-earmark-arrow-down"></i> Download CSV</a></header>
+<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">{{ request.tenant.name|default:"Business" }} / Hotel / Front desk</p><h1>Night audit</h1><p>Business-day close and exceptions review · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div><a class="staff-btn staff-btn--ghost" href="?business_date={{ business_date|date:'Y-m-d' }}&amp;format=csv"><i class="bi bi-file-earmark-arrow-down"></i> Download CSV</a></header>
 <section class="fizo-hotel__panel fizo-hotel__workflow-card mb-3">
 <h2 class="fizo-hotel__section-title">{{ current_site.name }} · {{ business_date|date:"D, j M Y" }}</h2>
 <form method="get" class="row g-2 align-items-end">
