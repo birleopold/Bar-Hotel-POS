@@ -168,6 +168,11 @@ urlpatterns = [
         name="console-org-menu-item-create",
     ),
     path(
+        "org/menu/items/<uuid:item_id>/photo/",
+        views_catalog.OrgMenuItemPhotoView.as_view(),
+        name="console-org-menu-item-photo",
+    ),
+    path(
         "org/menu/items/<uuid:item_id>/edit/",
         views_catalog.OrgMenuItemUpdateView.as_view(),
         name="console-org-menu-item-edit",
