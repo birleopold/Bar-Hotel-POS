@@ -386,7 +386,7 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
             return redirect("staff-orders")
         label = ""
         if mode == "hold":
-            label = (hold_label or "").strip()
+            label = " ".join((hold_label or "").split())
             if len(label) > Order._meta.get_field("table_label").max_length:
                 messages.error(request, "Hold note is too long. Use a shorter basket reference.")
                 return redirect("staff-orders")
