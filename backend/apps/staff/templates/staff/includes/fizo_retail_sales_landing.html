@@ -19,6 +19,8 @@
     <div><h2>Ready for the next customer?</h2><p>Open a basket, scan or search for products, and accept payment. Walk-in sales do not require a customer account.</p></div>
     {% if current_outlet and supermarket_shift_open %}
       <form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}<button class="fizo-sales__primary" type="submit">Open cashier POS <i class="bi bi-arrow-right"></i></button></form>
+    {% elif not current_outlet %}
+      <a class="fizo-sales__primary" href="{% url 'staff-pos-shifts' %}">Select register <i class="bi bi-arrow-right"></i></a>
     {% elif not supermarket_shift_open %}
       <a class="fizo-sales__primary" href="{% url 'staff-pos-shifts' %}">Open shift first <i class="bi bi-arrow-right"></i></a>
     {% else %}
