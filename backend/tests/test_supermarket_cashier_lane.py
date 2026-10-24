@@ -490,6 +490,9 @@ class SupermarketCashierLaneTests(TestCase):
         # not hide the ledger behind the A4-only print class.
         self.assertContains(receipt, "Cash")
         self.assertContains(receipt, "Mobile money")
+        self.assertContains(receipt, "Net paid UGX 35000.00")
+        self.assertContains(receipt, "Balance UGX 0.00")
+        self.assertContains(receipt, "Tax UGX")
         from pathlib import Path
         print_template = (Path(__file__).resolve().parents[1] /
                           "apps/staff/templates/staff/order_print.html").read_text(encoding="utf-8")
@@ -580,7 +583,8 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(response, "Customer collecting balance")
         self.assertContains(response, "20000.00")
         self.assertContains(response, "15000.00")
-        self.assertContains(response, "Resume &amp; collect balance", html=False)
+        self.assertContains(response, 'name="action" value="resume_order"')
+        self.assertContains(response, "Resume basket")
 
     def test_quick_create_idempotency_returns_same_basket_on_retry(self):
         import uuid
