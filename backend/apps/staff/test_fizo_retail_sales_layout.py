@@ -5,6 +5,25 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class RetailSalesLandingTests(SimpleTestCase):
+    def test_staff_terminal_lock_is_scoped_by_tenant_and_account(self):
+        root = Path(__file__).resolve().parent
+        base = (root / "templates/staff/base.html").read_text(encoding="utf-8")
+        self.assertIn("staff-terminal-lock:{{ request.tenant.pk", base)
+        self.assertIn("{{ request.user.pk|escapejs }}", base)
+        self.assertIn("event.key === lockKey", base)
+        self.assertNotIn("event.key === 'staff-terminal-lock'", base)
+
+    def test_retail_header_goes_to_register_and_shows_signed_in_operator(self):
+        root = Path(__file__).resolve().parent
+        header = (root / "templates/staff/includes/nav.html").read_text(encoding="utf-8")
+        sidebar = (root / "templates/staff/includes/sidebar.html").read_text(encoding="utf-8")
+        foundation = (root / "static/staff/fizo-fresh.css").read_text(encoding="utf-8")
+        self.assertIn("{% url 'staff-retail-pos-entry' %}", header)
+        self.assertIn("staff_product.business_key == 'supermarket'", header)
+        self.assertIn("request.user.get_full_name|default:request.user.email", header)
+        self.assertIn("fz-top-operator", foundation)
+        self.assertIn("{% url 'staff-retail-pos-entry' %}", sidebar)
+
     def test_retail_quantity_confirmation_has_no_false_success_fallback(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
