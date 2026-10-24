@@ -5,7 +5,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.8">{% endblock %}
 {% block content %}
 <div class="fizo-hotel fizo-hotel-workspace fizo-hotel-workspace--tape-chart">
-  <header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Front desk</p><h1>Occupancy planner</h1><p>Fourteen-night room occupancy overview · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div><div class="fizo-hotel__head-actions"><a class="staff-btn staff-btn--ghost" href="?start={{ tape_prev_start|date:'Y-m-d' }}">← Earlier</a><a class="staff-btn staff-btn--ghost" href="?start={{ tape_next_start|date:'Y-m-d' }}">Later →</a><a class="staff-btn staff-btn--primary" href="{% url 'staff-lodging-availability' %}">Check availability</a></div></header>
+  <header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">{{ request.tenant.name|default:"Business" }} / Hotel / Front desk</p><h1>Occupancy planner</h1><p>Fourteen-night room occupancy overview · {% if current_site %}{{ current_site.name }}{% else %}Hotel{% endif %}</p></div><div class="fizo-hotel__head-actions"><a class="staff-btn staff-btn--ghost" href="?start={{ tape_prev_start|date:'Y-m-d' }}">← Earlier</a><a class="staff-btn staff-btn--ghost" href="?start={{ tape_next_start|date:'Y-m-d' }}">Later →</a><a class="staff-btn staff-btn--primary" href="{% url 'staff-lodging-availability' %}">Check availability</a></div></header>
   {% include "staff/lodging/includes/subnav.html" %}
 
   <h2 class="staff-section-head visually-hidden">Grid</h2>
