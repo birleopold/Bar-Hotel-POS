@@ -1309,6 +1309,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         else:
             order.refresh_from_db(fields=["is_paid", "status"])
             if order.is_paid and order.status == OrderStatus.CLOSED:
+                if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+                    from .views_customer_display import mark_customer_display_completed
+                    mark_customer_display_completed(order, request)
                 messages.success(request, "Sale fully paid and completed. The final receipt is ready.")
             else:
                 _, remaining = order_payment_totals(order)
