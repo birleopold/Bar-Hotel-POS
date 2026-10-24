@@ -139,12 +139,6 @@
     <section class="fizo-dash__panel fizo-dash__section fizo-dash__management">
       <div class="fizo-dash__sectionhead"><h2>Administration</h2><p>Manage your business, team and onboarding.</p></div>
       <div class="fizo-dash__links"><a href="{% url 'console-org' %}">Open admin console</a><a href="{% url 'console-org-setup' %}">Guided setup</a><a href="{% url 'staff-workspace-members' %}">Team &amp; onboarding</a><a href="{% url 'staff-workspace-member-create' %}">Add staff member</a></div>
-    </section>{% endif %}
-    {% if show_workspace_setup_cta %}
-    <section class="fizo-dash__panel fizo-dash__section fizo-dash__setup" aria-labelledby="setup-heading">
-      <h2 id="setup-heading">{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Set up your store{% else %}Finish business setup{% endif %}</h2>
-      <p>Core setup is {{ tenant_setup_state.required_completion_percent }}% complete.</p>
-      <progress value="{{ tenant_setup_state.required_completion_percent }}" max="100" aria-label="Business setup progress">{{ tenant_setup_state.required_completion_percent }}%</progress>
       {% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}
       <nav class="fizo-dash__links" aria-label="Store setup shortcuts">
         <a href="{% url 'console-org-sites' %}">Branches</a>
@@ -155,6 +149,13 @@
         <a href="{% url 'staff-pos-shifts' %}">Register cash</a>
       </nav>
       {% endif %}
+    </section>{% endif %}
+    {% if show_workspace_setup_cta %}
+    <section class="fizo-dash__panel fizo-dash__section fizo-dash__setup" aria-labelledby="setup-heading">
+      <h2 id="setup-heading">{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Set up your store{% else %}Finish business setup{% endif %}</h2>
+      <p>Core setup is {{ tenant_setup_state.required_completion_percent }}% complete.</p>
+      <progress value="{{ tenant_setup_state.required_completion_percent }}" max="100" aria-label="Business setup progress">{{ tenant_setup_state.required_completion_percent }}%</progress>
+
       <div class="fizo-dash__links">
         <a href="{{ tenant_setup_url }}" class="fizo-dash__action">Continue setup</a>
         <form method="post" action="{{ tenant_setup_dismiss_url }}">{% csrf_token %}<button class="staff-btn staff-btn--ghost" type="submit">Hide setup checklist</button></form>
