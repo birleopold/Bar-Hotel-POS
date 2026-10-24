@@ -93,7 +93,7 @@
           <ul class="fizo-dash__list">{% for row in staff_dashboard_sales_snapshot.top_items %}
             <li><a href="{{ staff_dashboard_sales_snapshot.detail_url }}"><span><strong>{{ row.name }}</strong><small class="d-block">{{ row.quantity_sold }} sold</small></span><span>{{ row.revenue }}</span></a></li>
           {% endfor %}</ul>
-        {% else %}<p class="fizo-dash__empty">Nothing requiring attention is available yet.</p>{% endif %}
+        {% else %}<p class="fizo-dash__empty">{% if staff_dashboard_sales_snapshot %}No sales have been recorded in this reporting period yet.{% else %}Use the quick actions to get started with your workspace.{% endif %}</p>{% endif %}
       </section>
       <section class="fizo-dash__panel staff-panel" aria-labelledby="fizo-activity-title">
         <div class="fizo-dash__sectionhead"><h2 id="fizo-activity-title">{% if staff_dashboard_lodging_snapshot %}Today's arrivals{% else %}Quick access{% endif %}</h2></div>
