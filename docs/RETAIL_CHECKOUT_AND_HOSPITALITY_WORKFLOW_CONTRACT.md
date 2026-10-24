@@ -75,3 +75,7 @@ The checked GitHub Actions run `40091430066` reported **PostgreSQL integration c
 ## 24 October 2026 — P01/P02/P06/P15 stylesheet and UI-contract test maintenance
 
 CI at `37efc4c` retained a successful PostgreSQL integration job but a failing SQLite job. Source-contract tests were still asserting the retired `fizo-checkout-v1.css` path, a removed hard-coded JavaScript payment event, and an exact dashboard class which was expanded by the shared industry shell. The current source of checkout styling is `staff/retail-cashier.css`, and its JavaScript uses real authenticated payment/scan forms. Tests were updated at `bca077a`, `ff98baf`, `6f37cf9` to follow those canonical owners while retaining meaningful scanner and payment assertions. Other failures in role workspaces/console/UI remain; do not mark P01, P02, P06 or P15 accepted until CI and browser/screenshot gates pass.
+
+## 24 October 2026 — rendered retail dashboard wording (P02/P05/P15)
+
+The retail dashboard used an HTML numeric entity `Here&#39;s` directly in template source, making the response-level copy differ from the expected natural phrase. Updated the canonical shared `staff/dashboard.html` greeting to literal `Here's your store at a glance.` without a new CSS layer. The existing rendered dashboard test asserts this wording; live TinyFish and multi-viewport acceptance remain open. Commit `3f332e1`.
