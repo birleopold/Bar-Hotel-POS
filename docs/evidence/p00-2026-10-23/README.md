@@ -196,3 +196,7 @@ Source commits: `f18cbe4d2813d4881c45f12a1bf4fd0a87afe7d4`, `6021c4eb66797cdcf95
 ## Populated-items dashboard heading — 24 October 2026
 
 The canonical dashboard labeled its work panel **Popular items** whenever a sales snapshot object existed, even if it had no ranked item rows. Corrected the heading to require real `top_items`; otherwise the sales panel is **Sales activity**, matching its no-sales empty state. Added a focused existing-suite template regression. Commits `3553006570cc66e7e54c9c314b4b8a9abc6a044f` and `0202fb1630c2a4deb529eba7521f55d70d491d98`. No new CSS or template; new CI and browser acceptance are pending. P00 stays open.
+
+## Missing workspace versus unselected workspace — 24 October 2026
+
+Adjusted the existing staff dashboard so an account with available memberships but no selected workspace receives the selection prompt, while an account with **no memberships at all** receives **No workspace available** and an administrator-assignment explanation. No permissions, tenant data, or authorization path changed. Added a template regression protecting the distinction and retained the existing required tenant selection form. Commits `5c20cb78c344c402f838da1f0c614d746e028083` and `1765f1e2500dca2f5fa33907cb8dc8240cc01df7`. CI and authenticated browser acceptance for these commits remain unverified. P00 remains open.
