@@ -540,6 +540,32 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"paymentPending" in page.content
             assert b"Recording payment" in page.content
 
+    def test_part_paid_basket_can_be_held_but_not_voided(self):
+        from rest_framework.exceptions import ValidationError
+        from apps.pos.models import Payment, OrderStatus
+        from apps.pos.services import hold_open_order, cancel_open_unpaid_order
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("10000"), total=Decimal("10000"), currency="UGX",
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=order, amount=Decimal("4000"),
+            idempotency_key="partial-payment-cannot-cancel",
+            recorded_by=self.user,
+        )
+        held = hold_open_order(order=order, hold_label="Customer returning", user=self.user)
+        self.assertEqual(held.table_label, "Customer returning")
+        self.assertEqual(held.status, OrderStatus.OPEN)
+        self.assertFalse(held.is_paid)
+        with self.assertRaises(ValidationError):
+            cancel_open_unpaid_order(order=order, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.OPEN)
+        self.assertEqual(
+            Payment.objects.filter(order=order).count(), 1,
+        )
+
     def test_next_sale_is_post_only(self):
         url = reverse("staff-order-quick-create")
         before = Order.objects.filter(tenant=self.tenant).count()
