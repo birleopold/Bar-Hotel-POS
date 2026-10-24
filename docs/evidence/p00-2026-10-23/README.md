@@ -208,3 +208,7 @@ The dashboard previously claimed **no sales were recorded** whenever the sales s
 ## Hotel launch terminology — 24 October 2026
 
 Fixed the shared dashboard quick-start heading for the lodging business line. It previously invited a hotel worker to start the next **order** whenever an ordering entitlement was present, conflating guest operations with restaurant sales. Hotel staff now see **Ready for the next guest?**, while bar/lounges retain tab language and supermarket/retail remain checkout-specific. This modifies existing conditional copy only, preserving permissions and links. Added a template regression test. Commits `d4c734ccf1f0b3b6d2dd4201e06341cd35ba3463`, `9ffa19b3d7e2d9891dba6e99d19450c0d21e12ad`. CI and browser acceptance pending; P00 remains open.
+
+## Hotel dashboard primary workflow — 24 October 2026
+
+Corrected a real navigation priority problem: when a lodging tenant had both POS/orders permission and lodging permission, the shared dashboard's first-match branch opened POS and hid **Front desk**. The canonical dashboard now prioritizes **Open reservations** for the lodging business line whenever the role has lodging access; hotel workers can still access POS through existing authorized navigation. No new route, CSS or template. Added source-level regression checking hotel branch precedence and template compilation. Commits `d74b90343b081bddd18d4c69640d6fe8a4fb1666`, `c7b2921f60d22ae7ebe645b6f39a2230547fe9fc`. New CI and authenticated browser acceptance pending. P00 is open.
