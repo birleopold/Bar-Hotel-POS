@@ -1643,6 +1643,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
                 from .views_customer_display import clear_customer_display_active
                 clear_customer_display_active(order)
+            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+                messages.success(request, "Basket held. Start serving the next customer; retrieve it from Held sales when they return.")
+                return redirect("staff-retail-pos-entry")
             messages.success(request, "Order put on hold.")
         return redirect("staff-order-detail", order_id=order.id)
 
