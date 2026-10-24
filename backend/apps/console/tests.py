@@ -1006,6 +1006,39 @@ class ConsoleAccessTests(TestCase):
         self.assertEqual(r2.status_code, 302)
         self.assertTrue(MenuItem.objects.filter(tenant=self.tenant, name="Coffee").exists())
 
+    def test_owner_can_upload_product_photo(self) -> None:
+        import base64
+        import tempfile
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+
+        user = User.objects.create_user(email="co-photo@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(user)
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Photo products")
+        # Valid 1×1 PNG. Storage is isolated to this test, not production MEDIA_ROOT.
+        png = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=="
+        )
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("console-org-menu-item-create"),
+                {
+                    "category": str(category.pk),
+                    "name": "Photo coffee",
+                    "unit_of_measure": "each",
+                    "unit_price": "4500.00",
+                    "is_active": "on",
+                    "product_image": SimpleUploadedFile("coffee.png", png, content_type="image/png"),
+                },
+            )
+            self.assertEqual(response.status_code, 302)
+            product = MenuItem.objects.get(tenant=self.tenant, name="Photo coffee")
+            self.assertTrue(product.product_image.name.startswith("products/"))
+            self.assertTrue(product.product_image.storage.exists(product.product_image.name))
+            self.assertEqual(product.product_image_src, product.product_image.url)
+
     def test_owner_can_create_service_offering(self) -> None:
         TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["bar", "services"])
         user = User.objects.create_user(email="co-services@test.local", password="TestPass9!")
