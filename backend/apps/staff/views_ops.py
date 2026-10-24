@@ -1270,7 +1270,16 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
         else:
-            messages.success(request, "Payment recorded.")
+            order.refresh_from_db(fields=["is_paid", "status"])
+            if order.is_paid and order.status == OrderStatus.CLOSED:
+                messages.success(request, "Sale fully paid and completed. The final receipt is ready.")
+            else:
+                _, remaining = order_payment_totals(order)
+                messages.success(
+                    request,
+                    f"Partial payment recorded. Balance remaining: {order.currency} {remaining:.2f}. "
+                    "You may hold this basket and resume payment later.",
+                )
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_quick_create_product(self, request: HttpRequest, order: Order) -> HttpResponse:
