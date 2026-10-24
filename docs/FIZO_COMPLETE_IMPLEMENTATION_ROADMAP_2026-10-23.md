@@ -127,6 +127,14 @@ The original sale, received partial tenders and outstanding balance continue to 
 - **Regression gates:** database integration test uses a deliberately stale pointer, holds the order, checks customer monitor idle, and resumes by POST; existing staff contract tests cover expired-session blanking, stale balance and transient tender clearing. Commits `3678674e`, `e246609c`, `5b86ff3d`; PostgreSQL CI includes the stale pointer integration test (`801a6204`).
 - **Evidence still missing:** CI results, actual browser monitoring on separate display through hold/resume/payment, multi-tab auth changes, five approved viewport screenshots, and deployment. These commits do not establish P05/P06/P07/P15 completion.
 
+### P04/P07/P15 receipt/terminal consistency — 24 October late continuation
+
+- Inspected `StaffOrderPrintView` and `staff/order_print.html`. The print page still used a global `staff-terminal-lock` localStorage broadcast and a hardcoded 115,000 ms timeout, contradicting the shared register policy (15 minutes on an authorized retail till, 2 minutes on shared hospitality terminals). Replaced **the existing print-page handler** to use the same `staff_pin_idle_ms` context and tenant/user-scoped lock key as `staff/base.html`. No new JS/CSS, route or middleware module (`9c4d1f54`).
+- Thermal/A4 print payment summary now clearly labels sale currency for tax, refunds, net paid and remaining balance. Added a paid-in-full state for closed/settled orders and a distinct outstanding-balance state for partially paid orders. These states are derived from existing `order_payment_totals` and stored status; no ledger changes (`9c4d1f54`, `cd2d1135`).
+- Fixed an existing stale integration assertion that expected the deleted passive "Resume & collect balance" link; it now asserts the canonical CSRF POST form and "Resume basket". Added rendered receipt assertions for completed mixed-payment and partially paid sales, and source-level checks for print terminal lock/currency (`09c9a963`, `c53b2eae`, `83a05e11`).
+- Included the two receipt integration cases in the existing PostgreSQL CI job (`9f56dc0e`).
+- **Verification:** changes were committed directly on `main`; combined commit status reported no statuses at inspection. New tests and production printing **not observed passing**. P04/P07/P15 remain unaccepted; printer formats, tenant roles, mobile and all approved viewport comparisons still need end-to-end acceptance.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
