@@ -16,6 +16,8 @@ class FizoPurchasingLayoutTests(SimpleTestCase):
                 s=(base/name).read_text(encoding="utf-8")
                 self.assertIn("management-workflows.css",s)
                 self.assertIn("fizo-purchasing__header",s)
+                self.assertIn('request.tenant.name|default:"Business"',s)
+                self.assertNotIn("Fizo / Supermarket / Purchasing",s)
                 self.assertEqual(s.count("{% block "),s.count("{% endblock %}"))
     def test_payment_and_supplier_forms_remain(self):
         base=Path(__file__).resolve().parent/"templates/staff/purchasing"
