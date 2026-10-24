@@ -669,6 +669,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["hardware"] = hardware
         ctx["payment_request_key"] = uuid.uuid4()
         ctx["quick_product_request_key"] = uuid.uuid4()
+        ctx["next_sale_request_key"] = uuid.uuid4()
         from apps.customers.models import LoyaltyLedgerEntry
         from apps.customers.loyalty import eligible_spend_for_order
         from apps.tenants.models import TenantSettings
