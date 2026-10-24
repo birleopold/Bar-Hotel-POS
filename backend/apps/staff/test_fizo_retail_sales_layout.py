@@ -50,7 +50,7 @@ class RetailSalesLandingTests(SimpleTestCase):
 
     def test_hotel_front_desk_precedes_optional_pos_launch(self):
         page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
-        front_desk = '{% if staff_product.business_key == "lodging" and staff_show_lodging_nav and staff_nav.lodging %}'
+        front_desk = '{% if staff_product.business_key == "lodging" and staff_nav.lodging %}'
         pos_branch = '{% elif staff_nav.orders %}'
         self.assertIn(front_desk, page)
         self.assertIn(pos_branch, page)
