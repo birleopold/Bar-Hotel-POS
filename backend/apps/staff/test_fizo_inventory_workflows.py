@@ -5,6 +5,15 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class FizoInventoryWorkflowTests(SimpleTestCase):
+    def test_stock_balances_uses_canonical_inventory_css(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/inventory/balances.html").read_text(encoding="utf-8")
+        styles = (root / "static/staff/fizo-inventory-workflows.css").read_text(encoding="utf-8")
+        self.assertIn("fizo-inventory-workflows.css", page)
+        self.assertNotIn("fizo-stock.css", page)
+        self.assertIn(".fizo-stock", styles)
+        get_template("staff/inventory/balances.html")
+
     def test_three_individual_pages_compile(self):
         for name in ("movements.html", "batches.html", "movement_form.html"):
             with self.subTest(name=name):
