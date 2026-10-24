@@ -7,7 +7,7 @@
 <div class="fizo-inventory fizo-inventory--scale-labels">
 
 {% include "staff/inventory/includes/subnav.html" %}
-<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Scale-label barcodes</h1><p>Manage supported variable-weight product barcode mappings.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Scale-label barcodes</h1><p>Manage supported variable-weight product barcode mappings.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
 <section class="fizo-inventory__panel mb-3">
 <h2 class="staff-card__title">Before enabling a scale</h2>
 <p class="staff-muted">Verify an actual label from your weighing scale against this exact format. The label encodes net grams; checkout calculates weight in kilograms and uses the configured price per kilogram, plus the existing tax rules. No automatic tare, calibration, hardware control or price-encoded label format is claimed.</p>
