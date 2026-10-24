@@ -10,6 +10,12 @@ The diagnostic command `.venv/bin/python backend/manage.py shell` **ran developm
 
 Owner's correction policy: failed fixes are replaced/removed, not stacked. Track eliminated code, test execution and browser evidence before closing this incident. **Quantity correction requires focused tests and live acceptance: +/−, line amount, total due and persistence after refresh. No certification yet.**
 
+## Roadmap continuation — 24 October, P00 plus coupled P07
+
+Roadmap signoff remains at P00, with P07 only partially implemented. The shared `process_supermarket_line_return` service contained the same PostgreSQL-invalid nullable `menu_item` join as the quantity-edit service. Commit `fed8494b` replaces its row lock within that exact return function; `e3cd7c65` adds a nullable service return regression to the existing cashier test file. No new CSS, service files, migrations or alternative handlers were added. Existing return/restock/payment validation remains in place. PostgreSQL execution, browser returns, and all-tenant authorization verification are not yet evidenced; do not mark complete.
+
+Next execution: on disposable test database run `backend/tests/test_supermarket_cashier_lane.py` against PostgreSQL under CI settings, verify the original quantity operation and returned non-product line with correct tenant scope, then capture P00 route/CSS/visual evidence. Do not mutate production baskets to pass tests.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
