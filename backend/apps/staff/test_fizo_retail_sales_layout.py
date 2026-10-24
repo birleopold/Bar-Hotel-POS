@@ -42,6 +42,13 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_lodging_empty_arrivals_explains_selected_property(self):
+        page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn("No arrivals scheduled for today at {{ staff_dashboard_lodging_snapshot.site_name }}.", page)
+        self.assertIn("{% if staff_dashboard_lodging_snapshot and staff_dashboard_lodging_snapshot.arrival_rows %}", page)
+        self.assertIn("{% url 'staff-lodging-reservations' %}", page)
+        get_template("staff/dashboard.html")
+
     def test_lodging_pulse_uses_scoped_real_property_data_and_drilldowns(self):
         page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         for expected in ("Property pulse", "staff_dashboard_lodging_snapshot.site_name",
