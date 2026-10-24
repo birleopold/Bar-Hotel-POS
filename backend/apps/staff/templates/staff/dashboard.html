@@ -122,7 +122,7 @@
 
     {% if staff_dashboard_primary_actions or staff_dashboard_secondary_actions %}
     <section class="fizo-dash__section fizo-dash__quick-actions" aria-labelledby="fizo-shortcuts-title">
-      <div class="fizo-dash__sectionhead"><h2 id="fizo-shortcuts-title">Quick actions</h2></div>
+      <div class="fizo-dash__sectionhead"><h2 id="fizo-shortcuts-title">{% if staff_dashboard_primary_actions.0.label == "Checkout" %}Checkout workspace{% else %}Quick actions{% endif %}</h2></div>
       <div class="fizo-dash__shortcuts">
         {% for action in staff_dashboard_primary_actions %}
           {% if action.method == "post" %}<form method="post" action="{{ action.url }}">{% csrf_token %}<button type="submit"><i class="bi bi-{{ action.icon }}" aria-hidden="true"></i>{{ action.label }}</button></form>
