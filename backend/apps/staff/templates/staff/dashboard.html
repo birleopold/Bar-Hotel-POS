@@ -145,6 +145,14 @@
       <h2 id="setup-heading">Finish business setup</h2>
       <p>Core setup is {{ tenant_setup_state.required_completion_percent }}% complete.</p>
       <progress value="{{ tenant_setup_state.required_completion_percent }}" max="100" aria-label="Business setup progress">{{ tenant_setup_state.required_completion_percent }}%</progress>
+      {% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}
+      <nav class="fizo-dash__links" aria-label="Store setup shortcuts">
+        <a href="{% url 'console-org-sites' %}">Branches</a>
+        <a href="{% url 'console-org-menu-item-create' %}">Add products</a>
+        <a href="{% url 'staff-inventory-balances' %}">Check stock</a>
+        <a href="{% url 'staff-workspace-members' %}">Staff</a>
+      </nav>
+      {% endif %}
       <div class="fizo-dash__links">
         <a href="{{ tenant_setup_url }}" class="fizo-dash__action">Continue setup</a>
         <form method="post" action="{{ tenant_setup_dismiss_url }}">{% csrf_token %}<button class="staff-btn staff-btn--ghost" type="submit">Hide setup checklist</button></form>
