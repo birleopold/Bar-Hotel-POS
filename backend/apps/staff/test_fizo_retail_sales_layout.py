@@ -5,6 +5,14 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class RetailSalesLandingTests(SimpleTestCase):
+    def test_customer_display_ignores_single_idle_poll_and_pin_redirect(self):
+        script = (Path(__file__).resolve().parent /
+                  "static/staff/customer-display-live.js").read_text(encoding="utf-8")
+        self.assertIn("pendingIdle < 3", script)
+        self.assertIn("lastOrderId = nextOrderId", script)
+        self.assertIn("if (response.redirected) throw", script)
+        self.assertNotIn("window.location.replace(next.href)", script)
+
     def test_templates_parse_and_routes_resolve(self):
         get_template("staff/orders_list.html")
         get_template("staff/includes/fizo_retail_sales_landing.html")
