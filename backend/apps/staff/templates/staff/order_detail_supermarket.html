@@ -217,6 +217,8 @@
         if (scanStatus) scanStatus.textContent = "Enter a positive quantity with at most three decimal places.";
         return;
       }
+      // Do not lock the scanner when native form constraints prevent submission.
+      if (!scanForm.checkValidity()) return;
       scanPending = true;
       try {
         if (scanInput) window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1");
