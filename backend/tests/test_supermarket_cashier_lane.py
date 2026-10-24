@@ -38,7 +38,11 @@ class SupermarketCashierLaneTests(TestCase):
         page = self.client.get(reverse("staff-dashboard"))
         self.assertEqual(page.status_code, 200)
         self.assertNotContains(page, 'class="owner-home"')
-        self.assertContains(page, "staff-dash-hero--modern")
+        # The current tenant-aware dashboard uses the unified shell, not the
+        # retired staff-dash-hero markup. Preserve the actual role boundary.
+        self.assertContains(page, 'class="fizo-dash fz-industry-dashboard"')
+        self.assertContains(page, "Supermarket dashboard")
+        self.assertNotContains(page, "Hotel dashboard")
 
     def test_grocery_product_editor_and_stock_form_have_simple_labels(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
