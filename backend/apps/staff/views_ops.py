@@ -1319,7 +1319,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 # Quick-added stock is only available at the originating store.
                 MenuItemOutlet.objects.create(menu_item=item, outlet=order.outlet)
                 add_line_to_open_order(
-                    order=order, menu_item=item, quantity=data["quantity"],
+                    order=order, menu_item=item, quantity=Decimal(data["quantity"]),
                     user=request.user,
                 )
                 log_audit(
