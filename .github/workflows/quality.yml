@@ -118,3 +118,10 @@ jobs:
       - name: Run PostgreSQL integration and policy-presence checks
         working-directory: backend
         run: python -m pytest -q -p no:cacheprovider --basetemp=.pytest-pg-tmp tests/test_postgres_rls_policy_presence.py tests/test_postgres_settlement_concurrency.py
+      - name: Verify retail quantity and return locks against real PostgreSQL
+        working-directory: backend
+        run: |
+          python -m pytest -q -p no:cacheprovider --basetemp=.pytest-pg-retail-tmp \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_quantity_service_locks_nullable_product_line_without_outer_join \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_closed_service_line_return_does_not_lock_nullable_product_join \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_retail_return_rejects_a_line_from_another_tenant
