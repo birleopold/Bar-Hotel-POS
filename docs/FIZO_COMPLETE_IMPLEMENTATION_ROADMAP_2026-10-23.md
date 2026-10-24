@@ -16,6 +16,12 @@
 10. Run browser acceptance at desktop 1536×1024, laptop 1366×768, tablet 1024×768, mobile 390×844 and wide 1920×1080; both mouse/keyboard and touch; inspect reference pixel differences, text overflow, controls, focus, empty/loading/error states.
 11. Every phase completion needs source-level tests, rendered checks, full navigation, permission/currency test and owner signoff against screenshot before marking complete.
 
+## Cross-phase feature completion rule (24 October 2026)
+
+When a problem in the current P00 verification phase concerns a feature also scheduled in another phase, **complete its directly related work in the same implementation package** instead of revisiting the same component later. Example: a hotel dashboard change includes its relevant P02 accessible shared components, P03 site/tenant authorization, P12 front-desk and housekeeping operations, P13 multi-module navigation, and P15 regression/viewport checks. For cashier changes, bundle relevant P01/P02/P03/P04/P05/P06/P07/P08/P09 checks. Unrelated workstreams remain independent.
+
+This **does not bypass any acceptance gate or mark later phases complete**: record a cross-phase partial implementation with changed sources, permission/tenant/data checks, tests, viewport evidence, and unresolved requirements. Keep the phase order for unrelated work and overall signoff. Avoid duplicate template/controller/style ownership by completing all directly affected existing owners in the same change.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
