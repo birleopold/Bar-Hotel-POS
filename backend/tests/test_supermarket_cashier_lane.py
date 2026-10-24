@@ -372,6 +372,27 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertTrue(sale.is_paid)
         self.assertEqual(Payment.objects.get(order=sale).amount, Decimal("35000.00"))
 
+    def test_held_partial_payment_visible_in_lanes_and_searchable(self):
+        """Cashier sees outstanding balance and can locate an older parked sale."""
+        from apps.pos.models import Payment
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("35000"), total=Decimal("35000"),
+            table_label="Customer collecting balance",
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=sale, amount=Decimal("15000"),
+            method="cash", idempotency_key="held-deposit-test",
+            recorded_by=self.user,
+        )
+        url = reverse("staff-orders") + "?q=Customer%20collecting%20balance"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Customer collecting balance")
+        self.assertContains(response, "20000.00")
+        self.assertContains(response, "15000.00")
+        self.assertContains(response, "Resume &amp; collect balance", html=False)
+
     def test_quick_create_idempotency_returns_same_basket_on_retry(self):
         import uuid
 
