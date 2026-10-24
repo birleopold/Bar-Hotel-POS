@@ -12,8 +12,9 @@ from apps.pos.models import Order
 
 
 def order_payment_totals(order: Order) -> tuple[Decimal, Decimal]:
-    paid = order.payments.aggregate(x=Sum("amount"))["x"] or Decimal("0")
-    paid = paid.quantize(Decimal("0.01"))
+    gross_paid = order.payments.aggregate(x=Sum("amount"))["x"] or Decimal("0")
+    refunded = order.refunds.aggregate(x=Sum("amount"))["x"] or Decimal("0")
+    paid = (gross_paid - refunded).quantize(Decimal("0.01"))
     bal = max(Decimal("0"), (order.total - paid).quantize(Decimal("0.01")))
     return paid, bal
 
