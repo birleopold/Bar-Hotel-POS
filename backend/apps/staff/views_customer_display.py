@@ -4,6 +4,7 @@ Requires the same authenticated staff session as the source register; public
 browser access and direct cash-drawer/terminal control are NOT provided.
 """
 from decimal import Decimal
+import time
 
 from django.db.models import Sum
 from django.http import Http404
@@ -32,10 +33,28 @@ def customer_display_active_key(request, outlet_id):
     return "customer_screen_active:%s:%s:%s" % (request.tenant.pk, outlet_id, register)
 
 
+def customer_display_completed_key(request, outlet_id):
+    return customer_display_active_key(request, outlet_id) + ":completed"
+
+
+def mark_customer_display_completed(order, request):
+    """Show only a brief, non-sensitive completion acknowledgment."""
+    if (order.created_by_id != request.user.pk or order.status != "closed"
+            or not order.is_paid):
+        return
+    key = customer_display_active_key(request, order.outlet_id)
+    if request.session.get(key) == str(order.pk):
+        request.session.pop(key, None)
+    request.session[customer_display_completed_key(request, order.outlet_id)] = {
+        "order": str(order.pk), "until": int(time.time()) + 12,
+    }
+
+
 def mark_customer_display_active(order, request):
     if (order.created_by_id == request.user.pk and order.status == "open"
             and not order.is_paid and not order.table_label):
         request.session[customer_display_active_key(request, order.outlet_id)] = str(order.pk)
+        request.session.pop(customer_display_completed_key(request, order.outlet_id), None)
 
 
 def clear_customer_display_active(order, request):
@@ -69,9 +88,17 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
                     table_label="",
                 ).select_related("outlet").first()
         if active is None:
-            # Empty/idle customer monitor: do not expose an old order.
+            # This screen is shared with shoppers. A completed sale may show a
+            # brief generic thank-you, never a receipt, previous items or tender.
+            completed = request.session.get(customer_display_completed_key(request, order.outlet_id))
+            show_thanks = bool(
+                completed and completed.get("order") == str(order.pk)
+                and completed.get("until", 0) > int(time.time())
+                and order.created_by_id == request.user.pk
+                and order.status == "closed" and order.is_paid
+            )
             response = render(request, "staff/pos/customer_display_idle.html", {
-                "outlet": order.outlet,
+                "outlet": order.outlet, "show_checkout_thanks": show_thanks,
             })
             response["Cache-Control"] = "no-store, private"
             return response
