@@ -325,3 +325,9 @@ Removed the hard-coded visible `Fizo / Supermarket / Purchasing` eyebrow from al
 ## Tenant-specific dashboard and stock operations headings — 24 October 2026
 
 Removed the Fizo test-tenant label from the shared staff dashboard (browser title, accessible landmark label, and page heading), three stock-count screens and two transfer screens. These now display `request.tenant.name` with neutral fallback, retaining existing internal CSS classes. Added source/template regression coverage in `apps/staff/test_fizo_inventory_workflows.py`. Latest test commit `d000a829dfdb29eb82644d25bb5b1638976aed12`; authenticated multi-tenant browser and CI acceptance remain open.
+
+## CSS import dependency-audit coverage — 24 October 2026
+
+The tracked-file P00 CSS auditor now recognizes quoted imports, unquoted `@import url(file.css)`, and imports with query suffixes. Added isolated fixture coverage including an external URL (which must not be reported as a missing local file) and a valid imported file (which must appear in its consumer graph). Source commit `868b4373`; fixture commit `b4a7d64d`.
+
+An isolated regex smoke check recognized all four fixture import styles. The full audit and exact-commit CI are **not yet recorded as passing**. This is a dependency-discovery improvement only; it does not authorize deletion of candidate stylesheets or advance P00/P01 acceptance. Keep browser, source-level consumer tracing, tenant scoping and the approved viewport checks open.
