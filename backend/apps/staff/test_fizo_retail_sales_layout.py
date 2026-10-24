@@ -5,6 +5,15 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class RetailSalesLandingTests(SimpleTestCase):
+    def test_customer_screen_uses_persistent_session_not_worker_local_cache(self):
+        source = (Path(__file__).resolve().parent /
+                  "views_customer_display.py").read_text(encoding="utf-8")
+        self.assertIn("request.session[customer_display_active_key(", source)
+        self.assertIn("request.session.get(customer_display_active_key(", source)
+        self.assertIn("request.session.pop(key, None)", source)
+        self.assertNotIn("cache.get(", source)
+        self.assertNotIn("cache.set(", source)
+
     def test_customer_display_ignores_single_idle_poll_and_pin_redirect(self):
         script = (Path(__file__).resolve().parent /
                   "static/staff/customer-display-live.js").read_text(encoding="utf-8")
