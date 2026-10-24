@@ -43,6 +43,7 @@ from apps.pos.services import (
     create_order_with_lines,
     default_currency_for_tenant,
     hold_open_order,
+    resume_held_retail_order,
     menu_items_for_outlet_queryset,
     open_pos_shift,
     process_supermarket_line_return,
@@ -1051,7 +1052,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             # The refund handler supplies its own manager check and actionable
             # feedback, including for workers who cannot edit settled orders.
             return self._post_record_refund(request, order)
-        cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order"}
+        cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order", "resume_order"}
         if not (membership_can_modify_lodging(m) or (
             action in cashier_actions and _can_operate_retail_checkout(m, order)
         )):
@@ -1163,6 +1164,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_retail_line_refund(request, order)
         if action == "hold_order":
             return self._post_hold_order(request, order)
+        if action == "resume_order":
+            return self._post_resume_order(request, order)
         if action == "void_order":
             return self._post_void_order(request, order)
         if action == "apply_promotion":
@@ -1681,6 +1684,20 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             _flash_drf_validation(request, exc)
         else:
             messages.success(request, "Item return and customer refund recorded together.")
+        return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_resume_order(self, request: HttpRequest, order: Order) -> HttpResponse:
+        # get_object() has already enforced tenant and outlet scope, and the
+        # POST permission gate covers the selected register's cashier role.
+        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            messages.error(request, "This resume action is only for retail baskets.")
+            return redirect("staff-order-detail", order_id=order.id)
+        try:
+            resume_held_retail_order(order=order, user=request.user)
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+            return redirect("staff-orders")
+        messages.success(request, "Original basket resumed. Payments and balance were preserved.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_hold_order(self, request: HttpRequest, order: Order) -> HttpResponse:
