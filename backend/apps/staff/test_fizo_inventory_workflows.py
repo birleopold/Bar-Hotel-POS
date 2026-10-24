@@ -5,6 +5,19 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class FizoInventoryWorkflowTests(SimpleTestCase):
+    def test_setup_wizard_uses_canonical_setup_stylesheet(self):
+        root = Path(__file__).resolve().parents[1]
+        page = (root / "console/templates/console/org/setup_wizard.html").read_text(encoding="utf-8")
+        shell = (root / "console/templates/console/base.html").read_text(encoding="utf-8")
+        ctx = (root / "console/context_processors.py").read_text(encoding="utf-8")
+        setup_css = (root / "staff/static/staff/fizo-setup-area.css").read_text(encoding="utf-8")
+        self.assertNotIn("fizo-setup-wizard.css", page)
+        self.assertIn("fizo-setup-area.css", shell)
+        self.assertIn('path.startswith("/console/org/")', ctx)
+        self.assertIn(".fizo-setup-page", setup_css)
+        self.assertFalse((root / "staff/static/staff/fizo-setup-wizard.css").exists())
+        get_template("console/org/setup_wizard.html")
+
     def test_stock_balances_uses_canonical_inventory_css(self):
         root = Path(__file__).resolve().parent
         page = (root / "templates/staff/inventory/balances.html").read_text(encoding="utf-8")
