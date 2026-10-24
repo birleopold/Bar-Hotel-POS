@@ -42,9 +42,11 @@ class FizoCashierSupportTests(SimpleTestCase):
                        "data-fizo-focus-search", "data-fizo-focus-scan",
                        "fizo-checkout-catalogue", "fizo-checkout-basket"):
             self.assertIn(marker, main)
-        for marker in ("fizo-pos-menu-search", "data-pos-menu-search",
-                       "data-retail-scan-form", "fizo-current-basket"):
-            self.assertIn(marker, retail)
+        # Shared checkout grid/search/basket live in the parent template;
+        # only the scanner-specific extension belongs to the retail block.
+        for marker in ("fizo-pos-menu-search", "data-pos-menu-search", "fizo-current-basket"):
+            self.assertIn(marker, main)
+        self.assertIn("data-retail-scan-form", retail)
         get_template("staff/order_detail.html")
         get_template("staff/order_detail_supermarket.html")
 
