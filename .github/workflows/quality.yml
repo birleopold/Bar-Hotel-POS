@@ -125,4 +125,6 @@ jobs:
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_quantity_service_locks_nullable_product_line_without_outer_join \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_ajax_quantity_update_recalculates_due_after_partial_payment \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_closed_service_line_return_does_not_lock_nullable_product_join \
-            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_retail_return_rejects_a_line_from_another_tenant
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_retail_return_rejects_a_line_from_another_tenant \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_partial_basket_resume_reuses_original_order_and_tenders \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_resume_rejected_for_completed_or_other_tenant_basket
