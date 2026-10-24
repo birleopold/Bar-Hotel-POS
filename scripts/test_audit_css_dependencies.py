@@ -40,6 +40,58 @@ class CssDependencyAuditTests(unittest.TestCase):
             self.assertEqual(report["unreferenced_css_candidates"], [])
             self.assertEqual(len(report["hardcoded_static_css_references"]), 1)
 
+    def test_duplicate_and_inherited_template_css_graph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            style = root / "backend/apps/staff/static/staff/shared.css"
+            style.parent.mkdir(parents=True)
+            style.write_text("body { color: black; }", encoding="utf-8")
+            directory = root / "backend/apps/staff/templates/staff"
+            directory.mkdir(parents=True)
+            parent = directory / "base.html"
+            parent.write_text(
+                """{% load static %}
+<link rel="stylesheet" href="{% static 'staff/shared.css' %}">
+""", encoding="utf-8",
+            )
+            child = directory / "checkout.html"
+            child.write_text(
+                """{% extends "staff/base.html" %}
+{% include "staff/absent.html" %}
+{% include dynamic_partial %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'staff/shared.css' %}">
+<link rel="stylesheet" href="{% static 'staff/shared.css' %}">
+<link rel="stylesheet" href="{% static 'staff/missing.css' %}">
+""", encoding="utf-8",
+            )
+            stream = io.StringIO()
+            with contextlib.redirect_stdout(stream), contextlib.redirect_stderr(io.StringIO()):
+                failed = audit_module.audit(root=root, files=[style, parent, child])
+            report = json.loads(stream.getvalue())
+            self.assertTrue(failed)
+            self.assertEqual(
+                [item["asset"] for item in report["missing_references"]],
+                ["staff/missing.css"],
+            )
+            self.assertEqual(
+                [item["asset"] for item in report["duplicate_stylesheets_in_same_source"]],
+                ["staff/shared.css"],
+            )
+            checkout = "backend/apps/staff/templates/staff/checkout.html"
+            self.assertIn("staff/shared.css", report["template_css_candidates"][checkout])
+            self.assertIn(checkout, report["dynamic_template_edges"])
+            self.assertTrue(any(
+                edge["target"] == "staff/base.html"
+                and edge["resolved_path"] == "backend/apps/staff/templates/staff/base.html"
+                for edge in report["literal_template_edges"]
+            ))
+            self.assertTrue(any(
+                edge["target"] == "staff/absent.html"
+                for edge in report["unresolved_template_edges"]
+            ))
+            self.assertEqual(report["unreferenced_css_candidates"], [])
+
     def test_imports_detect_quoted_unquoted_and_query_variants(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
