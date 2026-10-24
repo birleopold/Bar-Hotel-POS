@@ -14,6 +14,9 @@
     {% endwith %}
   </div>
   {% endif %}
+  <div class="orders-supermarket-lane-card fizo-sales__lane-status" data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}" role="status">
+    {% if staff_product.business_key == "retail" %}Retail lane{% else %}Supermarket lane{% endif %} · Register shift {% if supermarket_shift_open %}open{% else %}closed{% endif %}
+  </div>
   <section class="fizo-sales__start" aria-label="Start checkout">
     <div class="fizo-sales__start-icon"><i class="bi bi-cart3"></i></div>
     <div><h2>Ready for the next customer?</h2><p>Open a basket, scan or search for products, and accept payment. Walk-in sales do not require a customer account.</p></div>
