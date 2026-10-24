@@ -176,3 +176,9 @@ Source commits `03c3a381b0c599325d7de400449a3b089c21e0b7`, `1c2669779de84dae82f4
 Corrected the canonical Fizo console sidebar's accessible navigation name: store-only management uses `aria-label="Store management"`, while hospitality and other non-store businesses use `aria-label="Administration navigation"`. Preserved the existing sidebar, visibility checks, and links without adding CSS or an alternate layout. Strengthened the existing business-line isolation regression to require the appropriate hospitality label and explicitly reject supermarket navigation language. Source commits `a5ba5a37605323dadb66ec745385235247cc3829` and `f76f6a5c306f8deb2ff1af2b7b733a7caf9134d5`.
 
 Current CI and live browser verification are not yet complete for these commits. P00 stays open; P01 does not start on an unverified baseline.
+
+## Hotel reservations filtered empty-state correction — 24 October 2026
+
+Fixed the canonical `staff/lodging/reservations_list.html` front-desk empty state. Previously a filtered reception queue with no matching stays displayed the generic "No reservations in this view", which did not explain that a filter was hiding records. It now displays **No stays match this task** when a lane or status filter is selected and **No reservations yet** on a genuinely empty unfiltered register, with context-appropriate guidance. Existing permission-protected create action and branch scoping are unchanged. Added a template regression and compile check in `test_fizo_hotel_reservations_layout.py`.
+
+Commits `e9ad889d0c08e47fbacad858690b85037dd71728` and `6f5a6a8709240502896917b125ee55ccffd35333`. No CSS or additional templates; CI and real browser validation are pending. P00 remains open.
