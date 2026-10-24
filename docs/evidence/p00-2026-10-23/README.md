@@ -164,3 +164,9 @@ Commits: `2d24962eaf9829838cfab6d3976ba2dd67c2923d` and `3f8faa1daecdf9731399a50
 ## Dashboard duplication regression — 24 October 2026
 
 Found a second rendering of `staff_dashboard_operations_snapshot` in the lower dashboard work panel after the source-of-truth **Operations pulse** panel was established. Removed that duplicate loop and renamed the empty work panel to **Getting started**, matching its actual behavior instead of implying unresolved attention items. Added a focused template regression assertion verifying exactly one metric loop, the distinct pulse/low-stock sections, the sales-report link, and Django template parsing. Source commits `022900bbf2c6553c81d68b312256f4dc65b283c9` and `d785a43f3541bc685eacc1595f2c3f9b6ca24c9b`. Latest CI status and full browser review are pending for these changes; P00 remains open.
+
+## Owner management action restoration — 24 October 2026
+
+The redesigned dashboard had a restricted `show_workspace_admin_tools` section but removed the direct authorized owner pathways to **Open admin console**, **Team & onboarding**, and **Add staff member**. Updated only the existing `staff/dashboard.html` management section, preserving the permission guard and existing named routes; no duplicate page, CSS override, or bypass of tenant authorization. Added source-level regression checks of route resolution, permission guard, and template parsing in the existing retail template test module.
+
+Source commits `03c3a381b0c599325d7de400449a3b089c21e0b7`, `1c2669779de84dae82f44cdea3c8d5a57a7ac643`. CI and authenticated browser acceptance for this revision are not yet verified. P00 stays open.
