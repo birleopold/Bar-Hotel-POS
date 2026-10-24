@@ -255,6 +255,7 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["quick_create_key"] = uuid.uuid4()
+        ctx["quick_hold_key"] = uuid.uuid4()
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         orders = list(ctx.get("object_list", []))
         attach_order_payment_display(orders)
