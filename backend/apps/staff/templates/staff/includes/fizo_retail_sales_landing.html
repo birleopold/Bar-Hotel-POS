@@ -36,7 +36,7 @@
   {% if ready_handoff_count %}<p class="staff-alert" role="status">{{ ready_handoff_count }} orders ready for handoff.</p>{% endif %}
   <section class="fizo-sales__panel" aria-labelledby="fizo-checkout-active">
     <div class="fizo-sales__sectionhead"><div><h2 id="fizo-checkout-active">Active checkouts</h2><p>Resume an open checkout or held basket.</p></div>
-      {% if current_outlet and supermarket_shift_open %}<form method="post" action="{% url 'staff-order-quick-create' %}" onsubmit="if (this.dataset.submitting === '1') { return false; } this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">{% csrf_token %}<input type="hidden" name="quick_create_key" value="{{ quick_create_key }}"><input type="hidden" name="mode" value="hold"><button type="submit" class="staff-btn staff-btn--ghost">Hold basket</button></form>{% endif %}
+      {% if current_outlet and supermarket_shift_open %}<form method="post" action="{% url 'staff-order-quick-create' %}" onsubmit="if (this.dataset.submitting === '1') { return false; } this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">{% csrf_token %}<input type="hidden" name="quick_create_key" value="{{ quick_hold_key }}"><input type="hidden" name="mode" value="hold"><button type="submit" class="staff-btn staff-btn--ghost">Hold basket</button></form>{% endif %}
     </div>
     <div class="fizo-sales__lanes">{% include "staff/includes/orders_lanes.html" %}</div>
   </section>
