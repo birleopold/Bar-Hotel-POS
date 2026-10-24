@@ -74,6 +74,14 @@ The completed-sale branch in the prior customer display HTML was unreachable bec
 
 An earlier mixed-payment receipt test expected UGX while it instantiated a sale without currency; `e279f2b8` fixes the fixture. Added a database test that verifies customer-display thank-you, no old items/amounts, no reopening paid checkout, and marker expiration (`8345bc15`, `6dddb1e8`); PostgreSQL CI explicitly includes it (`c1e3a7c4`). **None of these CI or live browser results is verified in this session**. Next: inspect CI failures before deployment, run cashier + monitor and receipt browser acceptance, then approved UI 5-width parity.
 
+## 25 October: parked retail sale cannot be edited or paid until resume (P05–P07)
+
+The newly added hold/resume workflow was bypassable by existing checkout tabs and direct POS service callers. Under `StaffOrderDetailView.post`, a held retail basket now rejects ordinary sale mutations and fresh payment with a clear message (AJAX quantity returns HTTP 409, no HTTP 500); supervisor refunds remain separate. `get_context_data` hides quantity/payment forms for held retail baskets, and the existing order-detail template shows the original hold reference, payment already received, remaining balance and a CSRF POST “Resume this basket.” Commits `17c0f11a`, `41be46d0`, `4b233a23`.
+
+Enforced below the UI in the existing `apps.pos.services.orders.require_active_retail_basket`: item/service additions, line void, quantity/discount/promotion updates, and new payment tenders are blocked on held supermarket/retail orders; hospitality table labels are not interpreted as held. Matching payment-idempotency retries are preserved before the guard. Commit `d80ca098`, `d9563ccc`, `e30f280e`. Also repaired PostgreSQL-invalid nullable `menu_item` join locking *in the actual line-discount service* (`a4e18bd2`). Test changes include direct service denial, nullable-line discount SQL lock, stale checkout tab, partial payment and explicit resumed checkout (`d75f0472`, `d69249c9`, `961e94ab`, `73a8aca5`, `b3011e92`, `fe8a2cf2`); the PostgreSQL CI job lists them (`39e56bf9`).
+
+**Status:** changes committed directly on `main`, not executed on a disposable PostgreSQL DB or live browser in this session. Run focused suite and CI, inspect failed cases, and test hold/active/payment across multiple registers. Do not mark these phases accepted or claim deployed fixes.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
