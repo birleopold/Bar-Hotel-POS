@@ -282,6 +282,13 @@
             <button type="button" data-fizo-payment-method="mobile_money"><i class="bi bi-phone"></i> Mobile Money</button>
           </div>
           {% endif %}
+          {% if is_supermarket_outlet and amount_paid > 0 %}
+          <section class="staff-alert staff-alert--pos" aria-label="Resume partial payment">
+            <strong>Continue this basket's payment</strong>
+            <p class="mb-1">Already received: {{ order.currency }} {{ amount_paid }}. Outstanding: <strong>{{ order.currency }} {{ balance_due }}</strong>.</p>
+            <p class="mb-0">Enter only the next amount collected. Choose Cash, Mobile Money or Card; the earlier payments remain recorded against this same sale. Fully settling the balance completes the sale.</p>
+          </section>
+          {% endif %}
           {% if is_supermarket_outlet %}<div id="fizo-cashier-payment" class="fizo-cashier-pay-intro"><strong>Collect payment</strong><span>Choose a method, confirm the amount, then record the payment.</span></div>{% endif %}
           <form method="post" class="row g-2 align-items-end" data-pos-payment-form>
             {% csrf_token %}
