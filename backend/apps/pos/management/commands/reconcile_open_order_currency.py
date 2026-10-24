@@ -4,9 +4,8 @@ Never converts amounts or touches payments, completed sales, or financial histor
 Run without --apply to preview. --include-lines assumes existing line prices were
 already entered in the intended currency (no exchange rate is applied).
 """
-from django.core.management.base import BaseCommand
-from django.db import transaction
-from django.db.models import Exists, OuterRef
+from django.core.management.base import BaseCommand, CommandError
+from django.db import connection, transaction
 
 from apps.pos.models import Order, OrderLine, Payment, Refund
 from apps.tenants.models import TenantSettings
@@ -17,11 +16,19 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--apply", action="store_true", help="Apply changes (default: preview)")
+        parser.add_argument("--allow-sqlite-for-tests", action="store_true", help="Only for disposable test databases; never production")
         parser.add_argument("--include-lines", action="store_true", help="Also relabel baskets containing items; amounts will not be converted")
         parser.add_argument("--tenant", help="Optional tenant slug; omitted means all tenants")
         parser.add_argument("--limit", type=int, default=0, help="Max number of orders to inspect (0 = all)")
 
     def handle(self, *args, **options):
+        if connection.vendor != "postgresql" and not options["allow_sqlite_for_tests"]:
+            raise CommandError(
+                "Currency reconciliation requires the production PostgreSQL connection. "
+                "This command is using %s. Load /etc/leosoft-pos/pos.env and "
+                "DJANGO_SETTINGS_MODULE=config.settings.production first; no orders were changed."
+                % connection.vendor
+            )
         qs = Order.objects.select_related("tenant").order_by("created_at", "pk")
         if options["tenant"]:
             qs = qs.filter(tenant__slug=options["tenant"])
