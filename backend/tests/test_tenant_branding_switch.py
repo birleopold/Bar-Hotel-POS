@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+from apps.pos.models import Order
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
 
@@ -27,6 +28,31 @@ class SharedTenantBrandingTests(TestCase):
         session[STAFF_SESSION_TENANT_KEY] = str(tenant.pk)
         session[STAFF_SESSION_OUTLET_KEY] = str(outlet.pk)
         session.save()
+
+    def test_sales_history_is_scoped_to_selected_tenant(self):
+        first, second = self.tenants
+        first_order = Order.objects.create(
+            tenant=first[0], outlet=first[1], created_by=self.user, currency="UGX",
+            bill_reference="TEST-FIRST-ONLY",
+        )
+        second_order = Order.objects.create(
+            tenant=second[0], outlet=second[1], created_by=self.user, currency="UGX",
+            bill_reference="TEST-SECOND-ONLY",
+        )
+        for active, other_order, own_reference, foreign_reference in (
+            (first, second_order, first_order.bill_reference, second_order.bill_reference),
+            (second, first_order, second_order.bill_reference, first_order.bill_reference),
+        ):
+            with self.subTest(active_tenant=active[0].name):
+                self._choose(*active)
+                history = self.client.get(reverse("staff-orders"))
+                self.assertEqual(history.status_code, 200)
+                self.assertContains(history, own_reference)
+                self.assertNotContains(history, foreign_reference)
+                foreign_detail = self.client.get(reverse(
+                    "staff-order-detail", kwargs={"order_id": other_order.id}
+                ))
+                self.assertIn(foreign_detail.status_code, (403, 404))
 
     def test_org_console_brand_uses_active_tenant_after_switch(self):
         for tenant, outlet in reversed(self.tenants):
