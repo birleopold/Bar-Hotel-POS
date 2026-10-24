@@ -5,6 +5,17 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class RetailSalesLandingTests(SimpleTestCase):
+    def test_retail_stepper_uses_real_form_action_not_shadowed_input(self):
+        source = (Path(__file__).resolve().parent /
+                  "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        # The checkout form includes <input name="action">, which makes
+        # form.action resolve to an HTMLInputElement rather than a URL.
+        self.assertIn('name="action" value="adjust_line_qty"', (
+            Path(__file__).resolve().parent /
+            "templates/staff/order_detail.html").read_text(encoding="utf-8"))
+        self.assertIn('form.getAttribute("action") || window.location.pathname', source)
+        self.assertNotIn("fetch(form.action ||", source)
+
     def test_customer_screen_uses_persistent_session_not_worker_local_cache(self):
         source = (Path(__file__).resolve().parent /
                   "views_customer_display.py").read_text(encoding="utf-8")
