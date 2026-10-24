@@ -344,15 +344,71 @@
   /* Each basket quantity update is single-flight, whether submitted using
      +/- buttons, the keyboard, or the Save button. */
   document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
+    var input = form.querySelector('input[name="quantity"]');
+    if (input) input.dataset.confirmedQuantity = input.value;
     form.addEventListener("submit", function (event) {
       if (form.dataset.submitting === "1") {
         event.preventDefault();
         return;
       }
       if (!form.checkValidity()) return;
+      if (!window.fetch || !window.FormData) {
+        form.dataset.submitting = "1";
+        return;
+      }
+      event.preventDefault();
       form.dataset.submitting = "1";
-      form.querySelectorAll("button").forEach(function (button) {
-        button.disabled = true;
+      var buttons = form.querySelectorAll("button");
+      buttons.forEach(function (button) { button.disabled = true; });
+      var errorBox = document.getElementById("fizo-inline-qty-status");
+      if (!errorBox) {
+        errorBox = document.createElement("p");
+        errorBox.id = "fizo-inline-qty-status";
+        errorBox.setAttribute("role", "status");
+        errorBox.setAttribute("aria-live", "polite");
+        form.parentNode.appendChild(errorBox);
+      }
+      errorBox.textContent = "Updating basket…";
+      var csrf = form.querySelector('input[name="csrfmiddlewaretoken"]');
+      fetch(form.action || window.location.href, {
+        method: "POST", body: new FormData(form),
+        credentials: "same-origin", redirect: "manual",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": csrf ? csrf.value : ""
+        }
+      }).then(function (response) {
+        if (!response.ok && response.status !== 422) throw new Error("Unable to confirm basket update.");
+        return response.json();
+      }).then(function (data) {
+        if (!data.ok) {
+          if (input) input.value = input.dataset.confirmedQuantity || input.defaultValue;
+          errorBox.textContent = data.message || "The quantity was not changed.";
+          return;
+        }
+        if (input) {
+          input.value = data.quantity;
+          input.dataset.confirmedQuantity = data.quantity;
+        }
+        var row = form.closest(".fizo-retail-basket-row");
+        var amount = row && row.querySelector(".fizo-retail-basket-row__amount");
+        if (amount) amount.textContent = data.currency + " " + data.line_total;
+        var totals = document.querySelector(".staff-pos-totals-row__total strong");
+        if (totals) totals.textContent = data.total;
+        var due = document.querySelector(".fizo-cashier-payment-summary strong");
+        if (due) due.textContent = data.currency + " " + data.due;
+        var meta = document.querySelector(".staff-pos-totals-row__meta");
+        if (meta) meta.textContent = "Sub " + data.subtotal + " · Tax " + data.tax;
+        var cash = document.querySelector("[data-retail-cash-panel]");
+        if (cash) cash.setAttribute("data-balance-due", data.due);
+        errorBox.textContent = "Basket updated.";
+      }).catch(function () {
+        // The server might have committed before losing its response.
+        // Avoid an unsafe automatic replay of the cashier's command.
+        errorBox.textContent = "Unable to confirm the update. Check the basket before trying again.";
+      }).then(function () {
+        delete form.dataset.submitting;
+        buttons.forEach(function (button) { button.disabled = false; });
       });
     });
   });
