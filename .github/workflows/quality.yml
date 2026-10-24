@@ -68,7 +68,16 @@ jobs:
 
       - name: Run automated test suite
         working-directory: backend
-        run: python -m pytest -q -p no:cacheprovider --basetemp=.pytest-tmp
+        run: python -m pytest -q -p no:cacheprovider --basetemp=.pytest-tmp --junitxml=pytest-results.xml
+
+      - name: Preserve Django test results for cross-phase triage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: django-sqlite-tests-${{ github.sha }}
+          path: backend/pytest-results.xml
+          if-no-files-found: ignore
+          retention-days: 14
 
   postgres:
     name: PostgreSQL integration checks (not RLS role certification)
