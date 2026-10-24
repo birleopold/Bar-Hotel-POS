@@ -50,3 +50,28 @@ def test_customer_display_cannot_open_nonretail_outlet_or_other_business():
     session[STAFF_SESSION_TENANT_KEY] = str(a["tenant"].pk)
     session.save()
     assert client.get(reverse("staff-retail-customer-display", kwargs={"order_id": sale.pk})).status_code == 404
+
+
+@pytest.mark.django_db
+def test_customer_screen_follows_cashiers_new_basket_without_send_action():
+    env = _seed_tenant_bundle(name="Queue Store", slug="f6-queue", user_email="f6-queue@test.local")
+    env["outlet"].outlet_type = OutletType.SUPERMARKET
+    env["outlet"].save(update_fields=["outlet_type"])
+    first = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=env["user"])
+    second = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=env["user"])
+    client = Client()
+    assert client.login(username=env["user"].email, password="TestPass9!")
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
+    session.save()
+    from apps.staff.views_customer_display import mark_customer_display_active
+    mark_customer_display_active(second, env["user"])
+    first_url = reverse("staff-retail-customer-display", kwargs={"order_id": first.pk})
+    page = client.get(first_url)
+    assert page.status_code == 302
+    assert str(second.pk) in page["Location"]
+    current = client.get(page["Location"])
+    assert current.status_code == 200
+    assert b"customer-display-live.js" in current.content
+    assert b"data-customer-display-root" in current.content
+    assert b'<meta http-equiv="refresh" content="4">' in current.content
