@@ -17,7 +17,7 @@ td:last-child,th:last-child{text-align:right}th{background:#f0f8f3;color:#587468
 .summary strong{display:block;font-size:clamp(1.5rem,3.5vw,3rem)}.status{color:#007b43}
 @media(max-width:520px){table{font-size:.9rem}td,th{padding:10px 4px}}
 </style></head>
-<body><main data-customer-display-root data-active-order="{{ order.id }}">
+<body><main data-customer-display-root data-active-order="{{ order.id }}" data-current-due="{{ display_remaining }}">
 <header><div><div class="muted">Your checkout at</div><h1>{{ order.outlet.name }}</h1></div>
 <div><div>Receipt / basket</div><strong>{{ order.bill_reference }}</strong></div></header>
 <article aria-label="Basket items"><h2>Today's basket</h2>
