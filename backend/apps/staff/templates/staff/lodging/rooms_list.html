@@ -1,12 +1,12 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}Rooms · Fizo Hotel{% endblock %}
+{% block title %}Rooms · {{ request.tenant.name|default:"Business" }}{% endblock %}
 {% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.4">{% endblock %}
 {% block content %}
 <div class="fizo-hotel fizo-room-directory">
   <header class="fizo-hotel__head">
-    <div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Room management</p><h1>Rooms</h1><p>{{ current_site.name }} · Room directory and housekeeping status</p></div>
+    <div><p class="fizo-hotel__eyebrow">{{ request.tenant.name|default:"Business" }} / Hotel / Room management</p><h1>Rooms</h1><p>{{ current_site.name }} · Room directory and housekeeping status</p></div>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-availability' %}"><i class="bi bi-calendar2-check"></i> Check availability</a>
   </header>
   {% include "staff/lodging/includes/subnav.html" %}
