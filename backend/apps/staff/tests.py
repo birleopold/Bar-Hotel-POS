@@ -569,7 +569,7 @@ class StaffUiTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Administration")
         self.assertContains(r, "Open admin console")
-        self.assertContains(r, "Team & onboarding")
+        self.assertContains(r, "Team &amp; onboarding")
         self.assertContains(r, reverse("staff-workspace-member-create"))
         self.assertContains(r, reverse("staff-workspace-members"))
         self.assertLess(r.content.index(b"Start here"), r.content.index(b'<h2 class="staff-card__title mb-1">Administration</h2>'))
