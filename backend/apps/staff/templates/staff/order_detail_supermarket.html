@@ -192,6 +192,15 @@
     if (scanInput) {
       scanInput.setAttribute("aria-label", "Barcode or product lookup code");
       scanInput.setAttribute("enterkeyhint", "done");
+      // Resume scanner focus after the existing server POST redirects to this basket.
+      // Use only session-scoped state for this exact sale, never a shared register flag.
+      var focusKey = "retail-scan-focus:" + window.location.pathname;
+      try {
+        if (window.sessionStorage.getItem(focusKey) === "1") {
+          window.sessionStorage.removeItem(focusKey);
+          if (window.matchMedia("(pointer: fine)").matches) scanInput.focus();
+        }
+      } catch (ignored) { /* Private browsing may disable storage. */ }
     }
     scanForm.addEventListener("submit", function (event) {
       if (scanPending) { event.preventDefault(); return; }
@@ -209,6 +218,9 @@
         return;
       }
       scanPending = true;
+      try {
+        if (scanInput) window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1");
+      } catch (ignored) { /* Scanning still works without storage. */ }
       if (scanButton) scanButton.disabled = true;
       if (scanStatus) scanStatus.textContent = "Adding item to basket…";
     });
