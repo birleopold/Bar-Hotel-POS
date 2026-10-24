@@ -657,6 +657,38 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             )
         )
 
+    def get(self, request, *args, **kwargs):
+        # Legacy empty USD baskets should not trap cashiers on a USD checkout
+        # after their tenant changes its configured currency. This is strictly
+        # a currency label correction: no monetary figures are converted.
+        order = self.get_object()  # enforce tenant and outlet access first
+        configured = default_currency_for_tenant(order.tenant)
+        if (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and order.currency != configured
+            and order.status == OrderStatus.OPEN
+            and not order.is_paid
+        ):
+            with transaction.atomic():
+                locked = Order.objects.select_for_update().get(pk=order.pk)
+                if (
+                    locked.status == OrderStatus.OPEN
+                    and not locked.is_paid
+                    and locked.currency != configured
+                    and locked.subtotal == Decimal("0")
+                    and locked.tax_total == Decimal("0")
+                    and locked.total == Decimal("0")
+                    and locked.discount_amount == Decimal("0")
+                    and not locked.lines.exists()
+                    and not locked.payments.exists()
+                    and not locked.refunds.exists()
+                ):
+                    Order.objects.filter(pk=locked.pk).update(currency=configured)
+                    return redirect("staff-order-detail", order_id=locked.pk)
+        self.object = order
+        context = self.get_context_data(object=self.object)
+        return self.render_to_response(context)
+
     def get_template_names(self):
         order = self.object if getattr(self, "object", None) is not None else self.get_object()
         if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
