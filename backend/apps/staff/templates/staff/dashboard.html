@@ -142,7 +142,7 @@
     </section>{% endif %}
     {% if show_workspace_setup_cta %}
     <section class="fizo-dash__panel fizo-dash__section fizo-dash__setup" aria-labelledby="setup-heading">
-      <h2 id="setup-heading">Finish business setup</h2>
+      <h2 id="setup-heading">{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Set up your store{% else %}Finish business setup{% endif %}</h2>
       <p>Core setup is {{ tenant_setup_state.required_completion_percent }}% complete.</p>
       <progress value="{{ tenant_setup_state.required_completion_percent }}" max="100" aria-label="Business setup progress">{{ tenant_setup_state.required_completion_percent }}%</progress>
       {% if show_workspace_admin_tools and staff_product.business_key == "supermarket" or show_workspace_admin_tools and staff_product.business_key == "retail" %}
