@@ -23,8 +23,13 @@ class RetailSalesLandingTests(SimpleTestCase):
             asset.write_text("body { color: black; }", encoding="utf-8")
             page = root / "backend/apps/staff/templates/staff/sample.html"
             page.parent.mkdir(parents=True)
+            parent = page.parent / "base.html"
+            parent.write_text("{% load static %}\n", encoding="utf-8")
             page.write_text(
-                """{% load static %}
+                """{% extends "staff/base.html" %}
+{% include "staff/unknown.html" %}
+{% include active_partial %}
+{% load static %}
 <link rel="stylesheet" href="{% static 'staff/shared.css' %}">
 <link rel="stylesheet" href="{% static 'staff/shared.css' %}">
 <link rel="stylesheet" href="{% static 'staff/missing.css' %}">
@@ -32,11 +37,19 @@ class RetailSalesLandingTests(SimpleTestCase):
             )
             output = io.StringIO()
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
-                failed = module.audit(root=root, files=[asset, page])
+                failed = module.audit(root=root, files=[asset, page, parent])
             report = json.loads(output.getvalue())
             self.assertTrue(failed)
             self.assertEqual(len(report["missing_references"]), 1)
             self.assertEqual(report["missing_references"][0]["asset"], "staff/missing.css")
+            edges = report["literal_template_edges"]
+            self.assertTrue(any(e["relation"] == "extends" and e["target"] == "staff/base.html"
+                                and e["resolved_path"] == "backend/apps/staff/templates/staff/base.html"
+                                for e in edges))
+            self.assertTrue(any(e["relation"] == "include" and e["target"] == "staff/unknown.html"
+                                and e["resolved_path"] is None for e in edges))
+            self.assertIn("backend/apps/staff/templates/staff/sample.html",
+                          report["dynamic_template_edges"])
             self.assertEqual(len(report["duplicate_stylesheets_in_same_source"]), 1)
             self.assertEqual(report["duplicate_stylesheets_in_same_source"][0]["asset"], "staff/shared.css")
             self.assertNotIn(
