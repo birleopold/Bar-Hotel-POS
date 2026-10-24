@@ -236,7 +236,8 @@ class SupermarketCashierLaneTests(TestCase):
         from apps.catalog.models import MenuItemRecipeLine
         from apps.inventory.models import StockBalance, StockMovement
         from apps.inventory.services import validate_and_consume_stock_for_paid_order
-        from apps.pos.models import OrderLine
+        from apps.pos.models import OrderLine, Payment
+        from apps.pos.services import record_order_payment
 
         category = MenuCategory.objects.create(tenant=self.tenant, name="Assembly")
         ingredient = MenuItem.objects.create(
@@ -259,7 +260,7 @@ class SupermarketCashierLaneTests(TestCase):
         )
         sale = Order.objects.create(
             tenant=self.tenant, outlet=self.outlet, created_by=self.user,
-            currency="UGX",
+            currency="UGX", subtotal=Decimal("10000"), total=Decimal("10000"),
         )
         for item, qty in ((ingredient, "3"), (assembled, "1")):
             OrderLine.objects.create(
@@ -273,12 +274,32 @@ class SupermarketCashierLaneTests(TestCase):
         balance.refresh_from_db()
         self.assertEqual(balance.quantity, Decimal("4"))
         self.assertFalse(StockMovement.objects.filter(order=sale).exists())
+        with self.assertRaises(ValidationError):
+            record_order_payment(
+                order=sale, user=self.user, amount=Decimal("10000"),
+                method="cash", idempotency_key="combined-stock-rejected",
+            )
+        sale.refresh_from_db()
+        balance.refresh_from_db()
+        self.assertFalse(sale.is_paid)
+        self.assertEqual(sale.status, "open")
+        self.assertFalse(Payment.objects.filter(order=sale).exists())
+        self.assertEqual(balance.quantity, Decimal("4"))
+        self.assertFalse(StockMovement.objects.filter(order=sale).exists())
 
         # Once purchasing/receiving adds the missing unit, retain separate
         # SALE/RECIPE movements while deducting the combined five units.
         balance.quantity = Decimal("5")
         balance.save(update_fields=["quantity"])
-        validate_and_consume_stock_for_paid_order(sale, self.user)
+        payment, replayed = record_order_payment(
+            order=sale, user=self.user, amount=Decimal("10000"),
+            method="cash", idempotency_key="combined-stock-now-available",
+        )
+        self.assertFalse(replayed)
+        self.assertEqual(payment.amount, Decimal("10000"))
+        sale.refresh_from_db()
+        self.assertTrue(sale.is_paid)
+        self.assertEqual(sale.status, "closed")
         balance.refresh_from_db()
         self.assertEqual(balance.quantity, Decimal("0"))
         self.assertEqual(
