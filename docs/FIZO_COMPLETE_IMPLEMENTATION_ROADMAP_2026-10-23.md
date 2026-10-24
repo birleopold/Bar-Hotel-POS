@@ -101,6 +101,17 @@ A shared-shell source review identified and corrected real navigation and staff-
 - **P15 coverage:** existing staff layout contract now checks checkout total and tender synchronization (`e8345b49`); existing cashier integration test checks that a quantity increase on a UGX partially paid basket returns the correct line amount, gross total, paid and due, and persists in the database (`c77185db`). PostgreSQL CI explicitly includes the new case (`766e1906`).
 - **No phase accepted:** tests are committed but their actual results, cross-tenant/role browser verification and viewport screenshot parity remain pending. No migrations or extra CSS/service/controller files. Hold/resume and partial-payment operational acceptance remains required; preserve accounting and idempotency safeguards.
 
+### P05/P06/P07/P03/P15 integrated held-basket workflow — 24 October continuation
+
+**Functional implementation (not just planning):** Previously, the retail held-lane "Resume" anchor performed a GET to an order, leaving `Order.table_label` set. The same basket therefore remained classified as **held**, instead of becoming the cashier's active sale. A proper resume must be a state-changing POST.
+
+- Added `resume_held_retail_order` to the existing transactional POS order commands (`orders.py`, re-exported via existing `commands.py`/`__init__.py`). It locks and tenant/outlet-scopes the original order, permits only open/not fully paid supermarket/retail orders, clears the held label, and audits `order.resumed`. It never creates another order, refunds, new payment or settlement. Repeating the action on an already active order is safe.
+- Extended existing `StaffOrderDetailView` with permission-checked `resume_order` POST and redirect to the original basket. This leaves the standard get_queryset tenant/outlet protections in place and does not affect restaurant/bar/hotel tabs.
+- Replaced the retail held-lane passive anchor with an authenticated CSRF-protected **Resume basket** form. The existing retail POS entry selects active unlabeled baskets, so after resume it can find the returned original basket instead of leaving it parked. Held-basket listing and payment summaries remain visible before resume. No page-specific CSS or new routes.
+- Added tests in the existing supermarket cashier test file for partially paid hold → serve a different customer → POST resume → preserve original balance/receipt/order/payment, duplicate resume, cross-tenant denial, and closed-sale rejection. Explicit PostgreSQL CI targets include both tests.
+- **Commits:** `5ed603cf`, `8113ba10`, `f1a9a434`, `fea32b5c`, `3b04b39f`, `2c87cd63`, `4de90917`.
+- **Open acceptance:** Run focused and full CI at latest SHA, real tenant browser test for two baskets and partially paid resume, customer display/receipt and 5 approved UI viewport comparisons. All phase gates remain unaccepted. No migration, new CSS, alternate controller, or prod-data writes from this commit workflow.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
