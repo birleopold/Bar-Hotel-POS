@@ -34,7 +34,7 @@ def customer_display_active_key(request, outlet_id):
 
 def mark_customer_display_active(order, request):
     if (order.created_by_id == request.user.pk and order.status == "open"
-            and not order.is_paid):
+            and not order.is_paid and not order.table_label):
         request.session[customer_display_active_key(request, order.outlet_id)] = str(order.pk)
 
 
@@ -66,6 +66,7 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
                 active = Order.objects.filter(
                     pk=active_id, tenant=request.tenant, outlet_id=order.outlet_id,
                     created_by_id=request.user.pk, status="open", is_paid=False,
+                    table_label="",
                 ).select_related("outlet").first()
         if active is None:
             # Empty/idle customer monitor: do not expose an old order.
