@@ -1,14 +1,14 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}Tables · Fizo{% endblock %}
+{% block title %}Tables · {{ request.tenant.name|default:"Business" }}{% endblock %}
 {% block main_class %}staff-main--wide fizo-floor-page{% endblock %}
 {% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'staff/fizo-hospitality-floor.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
 <div class="fizo-floor">
   <header class="fizo-floor__header">
-    <div><p class="fizo-floor__eyebrow">Fizo / Restaurant / Floor</p><h1>Tables &amp; seating</h1><p>See your section's tables, seating capacity and configuration.</p></div>
+    <div><p class="fizo-floor__eyebrow">{{ request.tenant.name|default:"Business" }} / Restaurant / Floor</p><h1>Tables &amp; seating</h1><p>See your section's tables, seating capacity and configuration.</p></div>
     <div class="fizo-floor__actions">
-      {% if staff_nav.orders %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}"><i class="bi bi-receipt"></i> Orders &amp; checks</a>{% endif %}
+      {% if staff_nav.orders %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}"><i class="bi bi-receipt"></i> Go to orders</a>{% endif %}
       {% if current_outlet and can_modify_tables %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-table-create' %}"><i class="bi bi-plus-lg"></i> Add table</a>{% endif %}
     </div>
   </header>
