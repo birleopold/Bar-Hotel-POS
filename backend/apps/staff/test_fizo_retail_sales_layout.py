@@ -42,6 +42,15 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_dashboard_operational_metrics_render_in_one_section(self):
+        dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertEqual(dashboard.count("{% for metric in staff_dashboard_operations_snapshot %}"), 1)
+        self.assertIn('id="fizo-operations-pulse"', dashboard)
+        self.assertIn("staff_dashboard_operations_snapshot", dashboard)
+        self.assertIn("staff_dashboard_low_stock_rows", dashboard)
+        self.assertIn("Full report", dashboard)
+        get_template("staff/dashboard.html")
+
     def test_register_shift_heading_is_business_specific(self):
         root = Path(__file__).resolve().parent
         shifts = (root / "templates/staff/pos_shifts.html").read_text(encoding="utf-8")
