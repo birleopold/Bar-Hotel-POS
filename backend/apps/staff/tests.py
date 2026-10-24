@@ -443,7 +443,10 @@ class StaffUiTests(TestCase):
         self.assertContains(response, ">Stock</a>")
         self.assertContains(response, "Workspace")
         mobile_header = response.content.split(b'<header class="staff-nav', 1)[1].split(b'</header>', 1)[0]
-        self.assertLess(mobile_header.index(b'staff-nav__lock'), mobile_header.index(b'<nav aria-label="Primary">'))
+        self.assertIn(b'fz-top-links', mobile_header)
+        self.assertIn(b'Lock</button>', mobile_header)
+        self.assertIn(b'POS</a>', mobile_header)
+
 
     def test_workspace_named_urls_reverse(self) -> None:
         self.assertEqual(reverse("staff-workspace-branding"), "/staff/settings/branding/")
