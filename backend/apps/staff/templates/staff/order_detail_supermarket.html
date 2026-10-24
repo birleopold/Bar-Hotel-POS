@@ -439,13 +439,6 @@
         }
         return response.json();
       }).then(function (data) {
-        if (data.refresh_required) {
-          return reconcileFromServer().then(function () {
-            var confirmed = input && Number(input.value) === Number(requestedQuantity);
-            errorBox.textContent = confirmed ? "Basket updated." :
-              "The requested quantity was not saved. Please review the basket.";
-          });
-        }
         if (!data.ok) {
           if (input) input.value = input.dataset.confirmedQuantity || input.defaultValue;
           errorBox.textContent = data.message || "The quantity was not changed.";
