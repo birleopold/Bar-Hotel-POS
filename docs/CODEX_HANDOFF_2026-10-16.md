@@ -52,6 +52,10 @@ Previous "Resume" on the supermarket held-sales lane was a normal GET, so it *di
 
 The existing cashier regression module includes partial payment + hold + second basket + explicit resume, replay, cross-tenant rejection and closed-sale refusal (`2c87cd63`). Existing PostgreSQL CI targets include the two new tests (`4de90917`). **Do not claim tests or live checkout passed until CI execution and deployed browser verification are seen**. Continue the coupled customer display and receipt acceptance across active, held, resumed and paid baskets.
 
+## 24 October continuation — all-outlets held basket retrieval
+
+`StaffOrdersListView` filtered held-basket receipt/note searches only with a single selected retail outlet. With authorized all-retail outlets selected, the 50-card cap meant older held baskets could not be found through the lane. Source change `d6e9d3f7` extends the search over the existing tenant/membership-scoped queryset only when the outlet selection is a retail register or every accessible outlet is retail. Regression `d1ab7992` includes two authorized outlets and 51 newer held baskets; PostgreSQL CI includes it in `4129fde3`. Do not use this as evidence that all tenant permissions or browser workflows were accepted; focused and full tests, real-browser acceptance and screenshot matches remain pending.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
