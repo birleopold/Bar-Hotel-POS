@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import logging
 from datetime import date, timedelta
 from decimal import Decimal
 from django import forms
@@ -1531,17 +1532,27 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             _flash_drf_validation(request, exc)
         else:
             if async_qty:
-                from .services import order_payment_totals
-                order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
-                paid, due = order_payment_totals(order)
-                return JsonResponse({
-                    "ok": True, "line_id": str(adjusted.pk),
-                    "quantity": str(adjusted.quantity),
-                    "line_total": str(adjusted.line_total),
-                    "subtotal": str(order.subtotal), "tax": str(order.tax_total),
-                    "total": str(order.total), "paid": str(paid),
-                    "due": str(due), "currency": order.currency,
-                })
+                # The mutation has already committed. A display/read-model
+                # failure must never turn a successful edit into HTTP 500,
+                # which makes cashiers repeat an action that already happened.
+                try:
+                    from .services import order_payment_totals
+                    order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
+                    paid, due = order_payment_totals(order)
+                    return JsonResponse({
+                        "ok": True, "line_id": str(adjusted.pk),
+                        "quantity": str(adjusted.quantity),
+                        "line_total": str(adjusted.line_total),
+                        "subtotal": str(order.subtotal), "tax": str(order.tax_total),
+                        "total": str(order.total), "paid": str(paid),
+                        "due": str(due), "currency": order.currency,
+                    })
+                except Exception:
+                    logging.getLogger(__name__).exception(
+                        "Quantity saved but retail checkout confirmation failed: order=%s line=%s",
+                        order.pk, adjusted.pk,
+                    )
+                    return JsonResponse({"ok": True, "refresh_required": True})
             messages.success(request, "Line updated.")
         return redirect("staff-order-detail", order_id=order.id)
 
