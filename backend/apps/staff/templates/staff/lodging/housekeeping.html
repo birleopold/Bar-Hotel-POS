@@ -5,7 +5,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.6">{% endblock %}
 {% block content %}
 <div class="fizo-hotel fizo-housekeeping">
-<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Operations</p><h1>Housekeeping</h1><p>{{ current_site.name }} · Manage cleaning assignments, room readiness and inspections.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-rooms' %}">View room directory</a></header>
+<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">{{ request.tenant.name|default:"Business" }} / Hotel / Operations</p><h1>Housekeeping</h1><p>{{ current_site.name }} · Manage cleaning assignments, room readiness and inspections.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-rooms' %}">View room directory</a></header>
 {% include "staff/lodging/includes/subnav.html" %}
 <nav class="staff-chip-row mb-3" aria-label="Housekeeping queues">
   <a class="staff-btn {% if lane == 'mine' %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?lane=mine">My rooms ({{ counts.mine }})</a>
