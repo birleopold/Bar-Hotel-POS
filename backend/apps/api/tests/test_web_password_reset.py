@@ -27,6 +27,19 @@ class StaffPasswordResetPageTests(TestCase):
                 self.assertNotIn('href="/static/staff/fizo-auth-2026.css', source)
                 get_template("password_reset/" + page)
 
+    def test_shared_recovery_has_no_testing_tenant_brand(self) -> None:
+        from pathlib import Path
+        base = Path(__file__).resolve().parents[3]
+        for page in ("request.html", "confirm.html"):
+            with self.subTest(page=page):
+                source = (base / "templates/password_reset" / page).read_text(encoding="utf-8")
+                self.assertNotIn("· Fizo", source)
+                self.assertNotIn('> Fizo</div>', source)
+                self.assertIn("POS", source)
+        notices = (base / "apps/api/password_reset_core.py").read_text(encoding="utf-8")
+        self.assertNotIn("Your Fizo", notices)
+        self.assertIn("Your POS account password was changed", notices)
+
     def test_get_without_query_shows_invalid(self) -> None:
         r = self.client.get("/password-reset/confirm/")
         self.assertEqual(r.status_code, 200)
