@@ -3013,6 +3013,8 @@ class StaffInventoryCsvUploadTests(TestCase):
         ledger = self.client.get(reverse("staff-inventory-movements"))
         self.assertEqual(ledger.status_code, 200)
         self.assertContains(ledger, "Download last error report")
+        self.assertContains(ledger, reverse("staff-inventory-movement-upload-errors"))
+        self.assertTrue(ledger.context["has_upload_error_report"])
 
 
 class StaffWorkspaceMembersTests(TestCase):
