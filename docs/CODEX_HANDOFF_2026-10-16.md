@@ -29,6 +29,10 @@ Directly on `origin/main` (no branches): `staff/base.html` now scopes cross-tab 
 
 Acceptance still pending: actual browser tests with two accounts/tenants and terminal lock, approved screenshot comparisons at five widths, CSS audit fresh output, and SQL/CI tests. Avoid declaring P00/P02/P03/P04/P06 complete, even if code is merged. Next review the audit findings, resolve verified missing/doubled CSS at their canonical owner, and complete deployed user journeys.
 
+## P00/P01/P02 CSS review continuation — 24 October
+
+Worked only in existing files. `scripts/audit_css_dependencies.py` duplicate-literal reporting now only flags repeated HTML template stylesheet references (`2017ceeb`); the existing staff regression module has a disposable temporary-file test verifying duplicates, missing assets and referenced CSS (`6a020c0`). `fizo-fresh.css` has a redundant mobile room-grid breakpoint declaration removed while preserving existing 550px layout and 480px card geometry (`f4d1e402`). No new stylesheet or controller; no speculative deletion of supposedly unused assets. Roadmap acceptance remains P00 open. **No execution evidence of the new tests or fresh whole-repository audit**; do not call CSS merge or UI pixel parity complete.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
