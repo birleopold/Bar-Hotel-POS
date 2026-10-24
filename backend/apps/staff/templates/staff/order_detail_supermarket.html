@@ -418,7 +418,9 @@
       errorBox.textContent = "Updating basket…";
       var requestedQuantity = input ? input.value : "";
       var csrf = form.querySelector('input[name="csrfmiddlewaretoken"]');
-      fetch(form.action || window.location.href, {
+      // A hidden input named "action" shadows HTMLFormElement.action.
+      // Read the actual action attribute, never the shadowed property.
+      fetch(form.getAttribute("action") || window.location.pathname + window.location.search, {
         method: "POST", body: new FormData(form),
         credentials: "same-origin", redirect: "manual",
         headers: {
