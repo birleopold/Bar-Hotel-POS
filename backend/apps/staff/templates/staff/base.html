@@ -47,12 +47,15 @@
   {% if request.user.is_authenticated %}
     <script>
       (function () {
-        function broadcast() { try { localStorage.setItem('staff-terminal-lock', String(Date.now())); } catch (e) {} }
+        // A lock in another tenant or another staff account must not lock this register.
+        // localStorage is shared between tabs on the same browser origin.
+        var lockKey = 'staff-terminal-lock:{{ request.tenant.pk|default:"central"|escapejs }}:{{ request.user.pk|escapejs }}';
+        function broadcast() { try { localStorage.setItem(lockKey, String(Date.now())); } catch (e) {} }
         document.querySelectorAll('form[action="{% url 'staff-terminal-lock' %}"]').forEach(function (form) {
           form.addEventListener('submit', broadcast);
         });
         window.addEventListener('storage', function (event) {
-          if (event.key === 'staff-terminal-lock') window.location.replace('{% url 'staff-terminal' %}');
+          if (event.key === lockKey) window.location.replace('{% url 'staff-terminal' %}');
         });
         window.staffBroadcastTerminalLock = broadcast;
       }());
