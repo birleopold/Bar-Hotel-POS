@@ -170,6 +170,9 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('console-org-menu-item-edit', catalogue)
         self.assertIn('quickForm', checkout)
         self.assertIn('data-fizo-quick-product-form', checkout)
+        self.assertIn('if (quickForm.dataset.submitting === "1")', checkout)
+        self.assertIn('quickForm.checkValidity()', checkout)
+        self.assertIn('delete quickForm.dataset.submitting', checkout)
 
 
     def test_quick_product_retry_key_and_audit_deduplication(self):
