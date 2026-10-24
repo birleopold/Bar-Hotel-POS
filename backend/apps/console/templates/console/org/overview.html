@@ -6,7 +6,8 @@
   <header class="fizo-overview__hero">
     <div>
       <p class="grocery-setup__eyebrow">{{ request.tenant.name|default:"Business" }} / Business management</p>
-      <h1 id="fizo-overview-title">{{ request.tenant.name }} overview</h1>
+      <h1 id="fizo-overview-title">{% if grocery_console_shell %}Your store settings{% else %}Organization overview{% endif %}</h1>
+      <p class="staff-muted">{{ request.tenant.name }}</p>
       <p>Manage your locations, team and the services enabled for this business.</p>
     </div>
     <a href="{% url 'console-org-setup' %}" class="staff-btn staff-btn--primary"><i class="bi bi-list-check" aria-hidden="true"></i> Guided setup</a>
