@@ -15,7 +15,7 @@ class FizoInventoryWorkflowTests(SimpleTestCase):
 
     def test_shared_inventory_pages_follow_active_business(self):
         root = Path(__file__).resolve().parent / "templates/staff/inventory"
-        for name in ("movements.html", "movement_upload.html"):
+        for name in ("balances.html", "batches.html", "intelligence.html", "movement_form.html", "movements.html", "movement_upload.html", "scale_labels.html", "shelves.html"):
             with self.subTest(name=name):
                 source = (root / name).read_text(encoding="utf-8")
                 self.assertIn('staff_product.workspace_label|default:"Business"', source)
