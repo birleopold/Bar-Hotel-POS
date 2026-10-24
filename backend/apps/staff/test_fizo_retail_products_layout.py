@@ -14,6 +14,12 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("{% elif not supermarket_shift_open %}", page)
         self.assertIn("Open shift first", page)
 
+    def test_scan_validation_handles_fractional_quantity_precision(self):
+        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn("Math.abs(Math.round(qty * 1000) - qty * 1000) > 0.000001", source)
+        self.assertNotIn("Math.round(qty * 1000) !== qty * 1000", source)
+        get_template("staff/order_detail_supermarket.html")
+
     def test_paid_sale_next_customer_uses_server_idempotency(self):
         root = Path(__file__).resolve().parent
         template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
