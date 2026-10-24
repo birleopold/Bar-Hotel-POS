@@ -6,7 +6,7 @@ from decimal import Decimal
 from django import forms
 from django.db import transaction
 from django.contrib import messages
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
@@ -1506,16 +1506,42 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if line is None:
             messages.error(request, "That line is not on this order.")
             return redirect("staff-order-detail", order_id=order.id)
+        async_qty = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        )
         try:
-            adjust_open_order_line_quantity(
+            adjusted = adjust_open_order_line_quantity(
                 order=order,
                 line=line,
                 quantity=form.cleaned_data["quantity"],
                 user=request.user,
             )
         except DRFValidationError as exc:
+            if async_qty:
+                detail = exc.detail
+                if isinstance(detail, dict):
+                    message = "; ".join(
+                        str(item) for value in detail.values()
+                        for item in (value if isinstance(value, (list, tuple)) else [value])
+                    )
+                else:
+                    message = "; ".join(str(v) for v in detail) if isinstance(detail, (list, tuple)) else str(detail)
+                return JsonResponse({"ok": False, "message": message}, status=422)
             _flash_drf_validation(request, exc)
         else:
+            if async_qty:
+                from .services import order_payment_totals
+                order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
+                paid, due = order_payment_totals(order)
+                return JsonResponse({
+                    "ok": True, "line_id": str(adjusted.pk),
+                    "quantity": str(adjusted.quantity),
+                    "line_total": str(adjusted.line_total),
+                    "subtotal": str(order.subtotal), "tax": str(order.tax_total),
+                    "total": str(order.total), "paid": str(paid),
+                    "due": str(due), "currency": order.currency,
+                })
             messages.success(request, "Line updated.")
         return redirect("staff-order-detail", order_id=order.id)
 
