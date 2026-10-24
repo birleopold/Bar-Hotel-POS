@@ -20,6 +20,11 @@ DYNAMIC = re.compile(r"""{%\s*static\s+(?!['"])""")
 # Also cover hardcoded CSS assets; these bypass Django's configured static URL.
 RAW_CSS_URL = re.compile(r"""(?:href\s*=\s*['"])(/static/staff/[^'"?#]+\.css)(?:\?[^'"]*)?['"]""")
 
+# Explicit Django inheritance/include edges only; conditional includes are
+# candidates, not proof the files render together at runtime.
+TEMPLATE_EDGE = re.compile(r"""{%\s*(extends|include)\s+['"]([^'"]+)['"]""")
+TEMPLATE_DYNAMIC_EDGE = re.compile(r"""{%\s*(?:extends|include)\s+(?!['"])""")
+
 def tracked_files():
     result = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True)
     return [ROOT / item.decode("utf-8") for item in result.stdout.split(b"\0") if item]
@@ -30,6 +35,13 @@ def audit(root=ROOT, files=None):
     tracked = set(files)
     css = [p for p in files if p.suffix.lower() == ".css"]
     consumers = {}
+    template_edges = []
+    dynamic_template_edges = []
+    template_names = {}
+    for src in files:
+        if src.suffix == ".html" and "templates" in src.parts:
+            marker = src.parts.index("templates")
+            template_names["/".join(src.parts[marker + 1:])] = src
     repeated_in_source = []
     missing = []
     dynamic = []
@@ -42,6 +54,17 @@ def audit(root=ROOT, files=None):
             text = src.read_text(encoding="utf-8")
         except (UnicodeError, OSError):
             continue
+        if src.suffix == ".html":
+            source_name = str(src.relative_to(root))
+            for relation, target in TEMPLATE_EDGE.findall(text):
+                destination = template_names.get(target)
+                template_edges.append({
+                    "source": source_name, "relation": relation,
+                    "target": target,
+                    "resolved_path": str(destination.relative_to(root)) if destination else None,
+                })
+            if TEMPLATE_DYNAMIC_EDGE.search(text):
+                dynamic_template_edges.append(source_name)
         if DYNAMIC.search(text) and src.suffix == ".html":
             dynamic.append(str(src.relative_to(root)))
         seen_in_source = set()
@@ -93,6 +116,9 @@ def audit(root=ROOT, files=None):
         "literal_staff_css_consumers": consumers,
         "dynamic_template_static_tags": sorted(set(dynamic)),
         "missing_references": missing,
+        "literal_template_edges": sorted(template_edges, key=lambda edge: (edge["source"], edge["relation"], edge["target"])),
+        "dynamic_template_edges": sorted(set(dynamic_template_edges)),
+        "template_relationship_warning": "Explicit edges are candidates only; conditional includes, blocks and runtime template selection need browser tracing.",
         "duplicate_stylesheets_in_same_source": repeated_in_source,
         "hardcoded_static_css_references": hardcoded,
         "unreferenced_css_candidates": sorted(unreferenced),
