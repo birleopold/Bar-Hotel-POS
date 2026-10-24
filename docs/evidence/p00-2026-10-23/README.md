@@ -321,3 +321,7 @@ Confirmed **Fizo is a testing tenant, not the software/product brand**. Removed 
 ## Shared purchasing and organization tenant name — 24 October 2026
 
 Removed the hard-coded visible `Fizo / Supermarket / Purchasing` eyebrow from all six shared purchasing/supplier templates, replacing it with the actual `request.tenant.name` plus neutral fallback and generic Purchasing context. Removed `Fizo / Business management` from the organization overview. Added source regressions for all seven pages. No data access isolation is claimed from label changes alone; authenticated two-tenant runtime verification and unrelated existing CI failures remain open. Source `e651ea66d20075d13c28fa04bad521a4b0932a61` through `1862d6d2855cbc86aa80effa2d12c17e21ef59dd`; tests `78e2af3f80c4f9655b9c66a6d6adc4e41d6dceaf`, `35fd6cd0fb7f430d9a8fbd068a05659230b690df`.
+
+## Tenant-specific dashboard and stock operations headings — 24 October 2026
+
+Removed the Fizo test-tenant label from the shared staff dashboard (browser title, accessible landmark label, and page heading), three stock-count screens and two transfer screens. These now display `request.tenant.name` with neutral fallback, retaining existing internal CSS classes. Added source/template regression coverage in `apps/staff/test_fizo_inventory_workflows.py`. Latest test commit `d000a829dfdb29eb82644d25bb5b1638976aed12`; authenticated multi-tenant browser and CI acceptance remain open.
