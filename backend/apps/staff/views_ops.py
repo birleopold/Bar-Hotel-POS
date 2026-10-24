@@ -356,6 +356,7 @@ class StaffRetailPosEntryView(StaffTenantRequiredMixin, View):
             Order.objects.filter(
                 tenant=request.tenant, outlet=outlet, status=OrderStatus.OPEN,
                 is_paid=False, created_by=request.user, table_label="",
+                currency=default_currency_for_tenant(request.tenant),
             ).order_by("-updated_at").first()
         )
         if current_sale:
