@@ -7,6 +7,7 @@ from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT
 from apps.pos.models import Order
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.models import StockBalance, StockMovement, StockReason
+from apps.purchasing.models import Supplier, PurchaseOrder
 from decimal import Decimal
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
@@ -60,6 +61,33 @@ class SharedTenantBrandingTests(TestCase):
                 self.assertEqual(movements.status_code, 200)
                 self.assertContains(movements, active[2].name)
                 self.assertNotContains(movements, foreign[2].name)
+
+    def test_purchasing_lists_and_details_never_expose_other_tenants(self):
+        purchases = []
+        for tenant, outlet in self.tenants:
+            supplier = Supplier.objects.create(
+                tenant=tenant, name=f"Supplier for {tenant.slug}",
+            )
+            purchase = PurchaseOrder.objects.create(
+                tenant=tenant, outlet=outlet, supplier=supplier,
+                reference=f"PO-{tenant.slug}", created_by=self.user,
+            )
+            purchases.append((tenant, outlet, supplier, purchase))
+        for active, foreign in ((purchases[0], purchases[1]), (purchases[1], purchases[0])):
+            with self.subTest(active_tenant=active[0].name):
+                self._choose(active[0], active[1])
+                supplier_page = self.client.get(reverse("staff-purchasing-suppliers"))
+                self.assertEqual(supplier_page.status_code, 200)
+                self.assertContains(supplier_page, active[2].name)
+                self.assertNotContains(supplier_page, foreign[2].name)
+                order_page = self.client.get(reverse("staff-purchasing-orders"))
+                self.assertEqual(order_page.status_code, 200)
+                self.assertContains(order_page, active[3].reference)
+                self.assertNotContains(order_page, foreign[3].reference)
+                detail = self.client.get(reverse(
+                    "staff-purchasing-order-detail", kwargs={"po_id": foreign[3].pk}
+                ))
+                self.assertEqual(detail.status_code, 404)
 
     def test_sales_history_is_scoped_to_selected_tenant(self):
         first, second = self.tenants
