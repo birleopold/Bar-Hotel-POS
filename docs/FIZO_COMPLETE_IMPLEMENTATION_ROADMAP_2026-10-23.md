@@ -37,6 +37,23 @@ The sequential gate controls **signoff**, not development order. Every source co
 
 **Batch completion protocol:** (a) locate existing route → view/service → template → CSS → tests; (b) inspect the relevant later phase and linked 34-item/retail checklist; (c) implement all directly coupled code and regression tests in one coherent batch; (d) record verified vs unverified capabilities in both checklists; (e) use exact-SHA CI, cross-tenant browser acceptance and source/reference screenshots as signoff, leaving gaps open. Fix shared foundations once; use specific business-line overrides only for distinct behavior. Avoid artificial commits merely to tick a phase.
 
+## Cross-phase implementation pulse — 24 October 2026
+
+**Acceptance and coding are separate.** The original sequential phase gate remains P00 in progress, and **no P01–P15 phase has passed its full owner/UI/CI/production exit criteria**. The checkboxes below therefore represent actual cross-phase code progress, not completed phases. The long-running 34-item suite board separately records 4 historically locally verified foundations and 30 incomplete workstreams. They are not the same denominator.
+
+| Integrated P work | Evidence already committed | Still blocking phase completion |
+|---|---|---|
+| P01/P02 | Shared surface CSS and component work exists | CSS reference inventory, approved viewport screenshots, a clean whole-project test run |
+| P03/P04 | Tenant currency guards and session/register-scoped client-screen pointer | Cross-tenant/live register scenarios, PIN and idle behavior across line types |
+| P05/P06 | Retail cashier, customer screen, basket hold and resume tools | Pixel-parity on all approved screens; live two-screen automated acceptance |
+| P07 | Partial/mixed payment, hold, duplicate-submit, change and receipt test coverage | Correct full checkout end-to-end, provider confirmation and complete green CI |
+| P08/P09 | Stock catalogue, buying, and reconciliation foundations predate this pulse; currency-linked shift test improvements | Supplier workflow, FEFO, stock movement and till count audits |
+| P10/P11 | Existing kitchen/bar KDS status and station routing; retail prep exclusion committed | Hospitality role/route, ready-to-served sequence and real station screens |
+| P12/P13/P14 | Existing hotel, entitlement and platform foundations in 34-item tracker | All hospitality/entitlement/subscription operational acceptance |
+| P15 | Checkout/receipt/display/CI regression tests and deployment checks | CI failures, device scenarios, browser viewport and production release evidence |
+
+CI example at `896f27e`: PostgreSQL integration job passed, SQLite checks failed with 28 failures out of the suite; newer runs need exact-SHA verification. **Do not report a phase percentage by dividing cross-phase commits by requirements**; that would misrepresent progress.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
@@ -50,15 +67,15 @@ The sequential gate controls **signoff**, not development order. Every source co
 | Phase | Workstream | State | Exit gate |
 |---|---|---|---|
 | P00 | Discover and freeze baseline | In progress — [source inventory and CI baseline](evidence/p00-2026-10-23/README.md); browser baseline pending | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P01 | Architecture and CSS clean replacement | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P02 | Shared components and mobile responsiveness | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P03 | Tenant setup and true isolation | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P04 | Authentication and register identity | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P05 | Supermarket dashboard and management | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P06 | Supermarket cashier pixel-parity | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P07 | Retail transaction correctness | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P08 | Retail catalogue and stock | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
-| P09 | Retail buying, employees, reports | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P01 | Architecture and CSS clean replacement | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P02 | Shared components and mobile responsiveness | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P03 | Tenant setup and true isolation | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P04 | Authentication and register identity | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P05 | Supermarket dashboard and management | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P06 | Supermarket cashier pixel-parity | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P07 | Retail transaction correctness | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P08 | Retail catalogue and stock | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
+| P09 | Retail buying, employees, reports | ◐ Cross-phase work committed; not accepted | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
 | P10 | Restaurant front of house | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
 | P11 | Bar operations | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
 | P12 | Hotel and lodging | ☐ Not started / unverified | Changes reviewed, all relevant screens and workflows tested, visual and tenant acceptance |
