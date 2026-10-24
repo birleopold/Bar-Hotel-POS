@@ -241,6 +241,23 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 0)
 
+    def test_stock_quantity_service_never_silently_rounds_excess_precision(self):
+        from rest_framework.exceptions import ValidationError
+        from apps.pos.services.orders import normalize_supermarket_quantity
+
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Precision test")
+        item = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Whole unit item",
+            unit_price=Decimal("1500"),
+        )
+        self.assertEqual(
+            normalize_supermarket_quantity(menu_item=item, quantity=Decimal("2")),
+            Decimal("2.000"),
+        )
+        for quantity in (Decimal("1.5"), Decimal("1.0004")):
+            with self.subTest(quantity=quantity), self.assertRaises(ValidationError):
+                normalize_supermarket_quantity(menu_item=item, quantity=quantity)
+
     def test_supermarket_order_list_uses_basket_labels(self):
         page = self.client.get(reverse("staff-orders"))
         assert page.status_code == 200
