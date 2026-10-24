@@ -6,7 +6,7 @@
 {% block content %}
 <div class="fizo-purchasing fizo-purchasing--purchase-order-create">
 
-  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">Fizo / Supermarket / Purchasing</p><h1>New purchase order</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"></div></header>
+  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>New purchase order</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   {% if prefill_menu_item %}
   <p class="staff-alert staff-alert--info">Item and quantity were suggested from stock planning. Check the supplier, actual need, current stock and price before saving this draft.</p>
