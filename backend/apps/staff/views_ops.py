@@ -1640,6 +1640,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
         else:
+            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+                from .views_customer_display import clear_customer_display_active
+                clear_customer_display_active(order)
             messages.success(request, "Order put on hold.")
         return redirect("staff-order-detail", order_id=order.id)
 
