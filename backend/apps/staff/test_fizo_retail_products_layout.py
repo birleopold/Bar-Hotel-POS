@@ -39,6 +39,16 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
+    def test_imported_products_can_receive_optional_photos_later(self):
+        root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
+        imported = (root / "catalog_import.html").read_text(encoding="utf-8")
+        listing = (root / "menu_item_list.html").read_text(encoding="utf-8")
+        self.assertIn("Photos are optional.", imported)
+        self.assertIn("Copy phone link", imported)
+        self.assertIn("Add photo", listing)
+        self.assertIn("console-org-menu-item-photo", listing)
+        get_template("console/org/catalog_import.html")
+
     def test_independent_stylesheet_exists(self):
         root = Path(__file__).resolve().parent
         self.assertTrue((root / "static/staff/fizo-retail-products.css").is_file())
