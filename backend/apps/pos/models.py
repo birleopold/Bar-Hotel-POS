@@ -59,6 +59,7 @@ class Order(TimeStampedModel):
         default=OrderStatus.OPEN,
     )
     bill_reference = models.CharField(max_length=32, blank=True, default="", db_index=True)
+    quick_create_key = models.UUIDField(null=True, blank=True, help_text="Idempotency key for staff quick basket creation.")
     table_label = models.CharField(max_length=64, blank=True)
     created_by = models.ForeignKey(
         "accounts.User",
@@ -112,6 +113,7 @@ class Order(TimeStampedModel):
     class Meta:
         ordering = ["-created_at"]
         constraints = [
+            models.UniqueConstraint(fields=["tenant", "quick_create_key"], name="uniq_quick_basket_key_per_tenant"),
             models.UniqueConstraint(
                 fields=["tenant", "bill_reference"],
                 name="uniq_order_bill_per_tenant",
