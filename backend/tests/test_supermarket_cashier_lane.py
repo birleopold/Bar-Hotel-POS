@@ -540,6 +540,29 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"paymentPending" in page.content
             assert b"Recording payment" in page.content
 
+    def test_quantity_ajax_response_updates_without_redirect(self):
+        from apps.pos.models import OrderLine
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("3000"), total=Decimal("3000"), currency="UGX",
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Bottled Water", quantity=Decimal("2"),
+            unit_price=Decimal("1500"), line_total=Decimal("3000"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        for quantity, total in (("3", "4500.00"), ("1", "1500.00")):
+            response = self.client.post(
+                url, {"action": "adjust_line_qty", "line_id": str(line.pk),
+                      "quantity": quantity},
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["Content-Type"], "application/json")
+            self.assertTrue(response.json()["ok"])
+            self.assertEqual(Decimal(response.json()["total"]), Decimal(total))
+            self.assertEqual(Decimal(response.json()["quantity"]), Decimal(quantity))
+
     def test_quantity_increase_and_decrease_render_checkout_after_redirect(self):
         from apps.pos.models import OrderLine
         order = Order.objects.create(
