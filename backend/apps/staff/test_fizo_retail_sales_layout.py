@@ -161,6 +161,6 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("{% if show_supermarket_lane %}", lanes)
         self.assertIn("fizo-active-sales", lanes)
         self.assertIn("Resume sale", lanes)
-        self.assertIn("Resume basket", lanes)
+        self.assertIn("Resume &amp; collect balance", lanes)
         self.assertIn("staff-order-detail", lanes)
         self.assertIn("{% else %}", lanes)
