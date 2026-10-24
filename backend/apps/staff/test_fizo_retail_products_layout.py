@@ -39,6 +39,11 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
+    def test_phone_photo_writes_are_atomic(self):
+        source = (Path(__file__).resolve().parents[1] / "console/views_catalog.py").read_text(encoding="utf-8")
+        self.assertIn("select_for_update()", source)
+        self.assertIn("with transaction.atomic():", source)
+
     def test_phone_photo_can_be_removed_without_deleting_product(self):
         root = Path(__file__).resolve().parents[1] / "console"
         page = (root / "templates/console/org/menu_item_photo.html").read_text(encoding="utf-8")
