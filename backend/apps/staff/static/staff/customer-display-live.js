@@ -5,6 +5,7 @@
   if (!root || !window.fetch || !window.DOMParser) return;
   var busy = false;
   var pendingIdle = 0;
+  var authorizationFailures = 0;
   var lastOrderId = root.getAttribute("data-active-order") || "";
   function renderTender() {
     var order = root.getAttribute("data-active-order");
@@ -46,7 +47,8 @@
       if (html === null) return;
       var doc = new DOMParser().parseFromString(html, "text/html");
       var nextRoot = doc.querySelector("[data-customer-display-root]");
-      if (!nextRoot) return;
+      if (!nextRoot) throw new Error("Customer display state unavailable");
+      authorizationFailures = 0;
       var nextOrderId = nextRoot.getAttribute("data-active-order") || "";
       if (!nextOrderId && lastOrderId) {
         // A single missing cache pointer during concurrent cashier requests
@@ -64,7 +66,22 @@
         renderTender();
       }
     }).catch(function () {
-      // Keep last known basket visible; next poll retries automatically.
+      // A register must never leave another customer's items on an abandoned
+      // second screen indefinitely after logout, PIN expiry or a backend error.
+      // Brief connection glitches tolerate two missed polls before blanking.
+      authorizationFailures += 1;
+      if (authorizationFailures >= 3 && lastOrderId) {
+        root.replaceChildren();
+        var heading = document.createElement("h1");
+        heading.textContent = "Checkout paused";
+        var detail = document.createElement("p");
+        detail.textContent = "Waiting for the cashier to reconnect.";
+        root.appendChild(heading);
+        root.appendChild(detail);
+        root.removeAttribute("data-current-due");
+        root.setAttribute("data-active-order", "");
+        lastOrderId = "";
+      }
     }).then(function () { busy = false; });
   }
   renderTender();
