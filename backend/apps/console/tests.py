@@ -260,7 +260,10 @@ class ConsoleAccessTests(TestCase):
             with self.subTest(route=route):
                 response = self.client.get(reverse(route))
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, 'class="grocery-setup hospitality-directory"')
+                if route == "console-org-menu-items":
+                    self.assertContains(response, 'class="fizo-entity fizo-entity--list"')
+                else:
+                    self.assertContains(response, 'class="grocery-setup hospitality-directory"')
                 self.assertContains(response, heading)
                 self.assertContains(response, "hospitality-console-body")
 
