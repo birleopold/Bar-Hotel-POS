@@ -45,38 +45,47 @@ fi
 sudo install -d -o admin -g www-data -m 0755 /var/www/leosoft-pos/static
 sudo rsync -a --delete "$APP/backend/staticfiles/" /var/www/leosoft-pos/static/
 sudo chmod -R a+rX /var/www/leosoft-pos/static
-# Critical Fizo CSS must exist in BOTH Django's output and nginx/Caddy's
-# publicly served tree. A successful git pull alone cannot validate styling.
-for asset in staff/fizo-auth-2026.css staff/fizo-fresh.css staff/fizo-console-shell.css staff/fizo-setup-area.css staff/fizo-setup-wizard.css staff/fizo-dashboard-v2.css staff/fizo-checkout-v1.css staff/fizo-hospitality-floor.css staff/fizo-hospitality-pos.css staff/fizo-hotel-frontdesk.css staff/fizo-retail-products.css staff/fizo-stock.css staff/fizo-retail-sales.css staff/fizo-inventory-workflows.css staff/fizo-purchasing.css staff/fizo-register.css; do
+# Verify the actual tracked CSS assets; never require retired stylesheets.
+# Files are resolved from Git rather than a manually maintained legacy Fizo list.
+mapfile -d '' -t css_paths < <(git -C "$APP" ls-files -z 'backend/apps/staff/static/staff/*.css')
+if (( ${#css_paths[@]} == 0 )); then
+  echo 'ERROR: no tracked POS staff stylesheets found' >&2
+  exit 1
+fi
+for tracked_path in "${css_paths[@]}"; do
+  asset="${tracked_path#backend/apps/staff/static/}"
   source_asset="$APP/backend/staticfiles/$asset"
   published_asset="/var/www/leosoft-pos/static/$asset"
   test -s "$source_asset" || { echo "ERROR: collectstatic missing $source_asset" >&2; exit 1; }
-  test -s "$published_asset" || { echo "ERROR: public static file missing $published_asset" >&2; exit 1; }
+  test -s "$published_asset" || { echo "ERROR: published stylesheet missing $published_asset" >&2; exit 1; }
   cmp -s "$source_asset" "$published_asset" || { echo "ERROR: published CSS differs: $asset" >&2; exit 1; }
-  echo "Fizo CSS verified on disk: $asset"
+  echo "POS stylesheet verified on disk: $asset"
 done
 sudo systemctl restart "$SERVICE"
 sudo systemctl is-active --quiet "$SERVICE"
-# Verify the public virtual host too. A different nginx alias or a proxy
-# can serve old/404 CSS despite collectstatic being correct.
-PUBLIC_ORIGIN="${POS_PUBLIC_ORIGIN:-https://fizo.pos.leosoftug.com}"
+# Check actual deployed CSS URLs, not deleted pre-consolidation assets.
+PUBLIC_ORIGIN="${POS_PUBLIC_ORIGIN:-https://pos.leosoftug.com}"
 PUBLIC_ORIGIN="${PUBLIC_ORIGIN%/}"
-for asset in staff/fizo-auth-2026.css staff/fizo-fresh.css staff/fizo-console-shell.css staff/fizo-setup-area.css staff/fizo-setup-wizard.css staff/fizo-dashboard-v2.css staff/fizo-checkout-v1.css staff/fizo-hospitality-floor.css staff/fizo-hospitality-pos.css staff/fizo-hotel-frontdesk.css staff/fizo-retail-products.css staff/fizo-stock.css staff/fizo-retail-sales.css staff/fizo-inventory-workflows.css; do
+for tracked_path in "${css_paths[@]}"; do
+  asset="${tracked_path#backend/apps/staff/static/}"
   public_url="$PUBLIC_ORIGIN/static/$asset"
   checked_css="$(mktemp)"
-  status="$(curl -L -sS -o "$checked_css" -w '%{http_code}' --max-time 15 "$public_url")"
+  status="$(curl -L -sS -o "$checked_css" -w '%{http_code}' --max-time 15 "$public_url")" || {
+    rm -f "$checked_css"
+    echo "ERROR: could not fetch live POS stylesheet: $public_url" >&2
+    exit 1
+  }
   if [[ "$status" != "200" ]]; then
-    echo "ERROR: Fizo CSS returned HTTP $status: $public_url" >&2
-    echo "Inspect the nginx/Caddy static alias for $PUBLIC_ORIGIN" >&2
+    echo "ERROR: POS stylesheet returned HTTP $status: $public_url" >&2
     rm -f "$checked_css"
     exit 1
   fi
   if ! cmp -s "$checked_css" "/var/www/leosoft-pos/static/$asset"; then
-    echo "ERROR: live CSS is stale, rewritten, or not the deployed asset: $public_url" >&2
+    echo "ERROR: live POS stylesheet differs from deployed file: $public_url" >&2
     rm -f "$checked_css"
     exit 1
   fi
   rm -f "$checked_css"
-  echo "Fizo CSS served successfully and matches deployed file: $public_url"
+  echo "POS stylesheet served and matches: $public_url"
 done
 echo "POS deploy completed at $(git -C "$APP" rev-parse --short HEAD); check HTTPS and other applications before calling it certified."
