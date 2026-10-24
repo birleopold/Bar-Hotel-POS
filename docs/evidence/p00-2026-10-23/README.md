@@ -244,3 +244,16 @@ Resolved a real failed-import recovery defect spanning P02 (visible action), P03
 ## Cross-phase stock-transfer posting disclosure — 24 October 2026
 
 The stock-transfer form's description was vague about when inventory is deducted. Updated the canonical dispatch form to state explicitly that **only the sender's stock decreases now** and **the receiving outlet's stock is added after recipient quantity confirmation**; the existing two-stage transfer implementation, anti-double-submit guard and accessible live status are unchanged. Strengthened the existing guard regression so both dispatch and receipt expectations remain visible. Related P02 form clarity, P03 outlet-scoped operation, P08 transfers, P09 staff handling and P15 tests. Commits `804f5999f5e5594a7aeea5dc3bdead10ff97c7c2` and `de4bb32b330e26a4f1d2076894ce75f0208c82b2`. CI/browser acceptance pending; no phase marked complete.
+
+## Cross-phase product photo upload — 24 October 2026
+
+**Customer-discovered production gap:** POS product cards and staff catalogue showed image tiles, but the product create/edit form had no image upload and did not even expose the existing `display_image_url`. Addressed this as one P00/P02/P03/P05/P06/P08/P13/P15 package rather than postponing a second image system.
+
+- Added nullable/optional `MenuItem.product_image` with database migration `catalog/0012_menuitem_product_image.py`, a reusable `product_image_src` selector favoring uploaded images and falling back to the existing URL, and Pillow image decoding dependency.
+- The existing tenant-admin `ConsoleMenuItemForm` now accepts and validates JPEG/PNG/WebP images up to **5 MB**; it also exposes the optional external URL as a fallback. The existing editor has `enctype="multipart/form-data"`, current photo and the standard clear-file widget. Existing create/update permissions, tenant category querysets, and save synchronization are retained; no new endpoint.
+- Cashier product tiles (`staff/includes/fizo_pos_catalogue.html`) and staff catalogue rows (`staff/menu_list.html`) use the same `product_image_src` source. Existing URL-only products are preserved.
+- Configured Django `MEDIA_URL=/media/` and configurable `MEDIA_ROOT`; deployment Nginx example serves a **public product-image directory** independently of static files. Production must provision `/var/www/leosoft-pos/media/`, write access for the application, and set `MEDIA_ROOT=/var/www/leosoft-pos/media` before uploads are usable; do **not** deploy without persistent media storage and web-server review. Nginx example was updated, not applied automatically.
+- Extended source contract checks and added an authenticated owner POST test generating a valid PNG, storing it in an isolated temporary media directory and verifying its persisted path and display URL.
+- No existing CSS duplication or new visual page; no other product data migrations beyond the optional image field.
+
+**Verification:** CI/migration check and real desktop/tablet/mobile browser acceptance of upload/display are pending. End-to-end media serving and permissions must be verified on VPS. The affected workstreams are partially implemented and remain open until those gates pass.
