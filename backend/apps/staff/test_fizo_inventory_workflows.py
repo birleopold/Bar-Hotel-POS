@@ -63,6 +63,13 @@ class FizoInventoryWorkflowTests(SimpleTestCase):
         self.assertNotIn("Fizo / Catalogue", source)
         get_template("console/org/menu_item_list.html")
 
+    def test_org_overview_has_business_specific_heading(self):
+        root = Path(__file__).resolve().parents[1]
+        source = (root / "console/templates/console/org/overview.html").read_text(encoding="utf-8")
+        self.assertIn("{% if grocery_console_shell %}Your store settings{% else %}Organization overview{% endif %}", source)
+        self.assertIn("{{ request.tenant.name }}", source)
+        get_template("console/org/overview.html")
+
     def test_org_overview_does_not_display_test_tenant_brand(self):
         root = Path(__file__).resolve().parents[1]
         source = (root / "console/templates/console/org/overview.html").read_text(encoding="utf-8")
