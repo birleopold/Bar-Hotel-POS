@@ -102,7 +102,9 @@ class SupermarketCashierLaneTests(TestCase):
         membership.save(update_fields=["role"])
         page = self.client.get(reverse("staff-menu"))
         self.assertEqual(page.status_code, 200)
-        self.assertContains(page, "Product catalogue")
+        self.assertContains(page, "Products")
+        self.assertContains(page, "Search your sellable products by name, SKU or barcode.")
+        self.assertNotContains(page, "Hotel dashboard")
         self.assertContains(page, "owner-topbar__brand")
 
     def test_owner_dashboard_has_guided_setup_and_actual_sections(self):
