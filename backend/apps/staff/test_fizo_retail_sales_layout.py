@@ -24,7 +24,11 @@ class RetailSalesLandingTests(SimpleTestCase):
             page = root / "backend/apps/staff/templates/staff/sample.html"
             page.parent.mkdir(parents=True)
             parent = page.parent / "base.html"
-            parent.write_text("{% load static %}\n", encoding="utf-8")
+            parent.write_text(
+                """{% load static %}
+<link rel="stylesheet" href="{% static 'staff/shared.css' %}">
+""", encoding="utf-8",
+            )
             page.write_text(
                 """{% extends "staff/base.html" %}
 {% include "staff/unknown.html" %}
@@ -42,6 +46,10 @@ class RetailSalesLandingTests(SimpleTestCase):
             self.assertTrue(failed)
             self.assertEqual(len(report["missing_references"]), 1)
             self.assertEqual(report["missing_references"][0]["asset"], "staff/missing.css")
+            self.assertIn("staff/shared.css",
+                report["template_css_candidates"]["backend/apps/staff/templates/staff/sample.html"])
+            self.assertTrue(any(e["target"] == "staff/unknown.html"
+                                for e in report["unresolved_template_edges"]))
             edges = report["literal_template_edges"]
             self.assertTrue(any(e["relation"] == "extends" and e["target"] == "staff/base.html"
                                 and e["resolved_path"] == "backend/apps/staff/templates/staff/base.html"
