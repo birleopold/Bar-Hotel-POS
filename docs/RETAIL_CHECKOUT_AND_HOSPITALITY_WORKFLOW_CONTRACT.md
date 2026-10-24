@@ -58,7 +58,7 @@ Existing code paths at time of writing:
 - Cross-register/customer-monitor isolation, avoiding old receipt oscillation; added same-cashier/different-session regression coverage, but live two-monitor hold/resume/pay/next-customer tests remain outstanding.
 - Actual production full-flow tests of over-tender, under-tender, mixed card/mobile money/cash, hold/resume, final receipt, and rollback/retry.
 - Guarantee the on-screen cash tender and change remain accurate across browser profiles/devices and after sale switching; consider server-backed per-register ephemeral tender state.
-- Verify server-authoritative current basket, including explicit resume of a held basket and no old basket resurrection.
+- Verify server-authoritative current basket, including explicit resume of a held basket and no old basket resurrection. Held-sales cards now show deposit and outstanding balance, and allow searching older parked sales by hold note/reference (commit 3648e999); live tests remain outstanding.
 - Tenant-specific currency throughout catalogue, basket, receipt, reports; no implicit foreign-exchange conversion.
 - End-to-end hospitality state transitions and separation across kitchen/bar/hotel stations.
 - Pixel-close visual acceptance against approved screenshots on desktops, tablets and mobiles.
