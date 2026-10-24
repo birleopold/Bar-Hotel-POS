@@ -46,6 +46,12 @@ The retail quantity AJAX success handler previously changed a header and one pay
 
 Regression source contract was added to the existing `test_fizo_retail_sales_layout.py` (`e8345b49`), and a database-backed test asserts UGX total/paid/due after editing a part-paid basket (`c77185db`); PostgreSQL CI now includes it (`766e1906`). These are **committed, not executed here**. Do not call quantity UI production verified until post-deployment +/−, gross/due, cash/change, customer display and refresh are inspected. Continued checklist stays incomplete. Prevent new JS shadow scripts from duplicating these totals.
 
+## P05/P06/P07 held-basket completion batch — 24 October
+
+Previous "Resume" on the supermarket held-sales lane was a normal GET, so it *displayed* a parked sale but did not unhold it. The POS-entry lookup filters for `table_label=""`, so that same basket remained excluded from active registers. The canonical service `resume_held_retail_order` now clears `table_label` under an order row lock, checks tenant/outlet, open status and retail type, records an audit event, and preserves the order ID, payment ledger, receipt number and amounts (`5ed603cf`). It is re-exported through the existing POS commands and package API; staff order-detail POST `resume_order` honors tenant/outlet and staff permission guards (`fea32b5c`); the existing held lane now has a CSRF POST form (`3b04b39f`). No new routes, CSS or services.
+
+The existing cashier regression module includes partial payment + hold + second basket + explicit resume, replay, cross-tenant rejection and closed-sale refusal (`2c87cd63`). Existing PostgreSQL CI targets include the two new tests (`4de90917`). **Do not claim tests or live checkout passed until CI execution and deployed browser verification are seen**. Continue the coupled customer display and receipt acceptance across active, held, resumed and paid baskets.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
