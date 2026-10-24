@@ -22,6 +22,21 @@ When a problem in the current P00 verification phase concerns a feature also sch
 
 This **does not bypass any acceptance gate or mark later phases complete**: record a cross-phase partial implementation with changed sources, permission/tenant/data checks, tests, viewport evidence, and unresolved requirements. Keep the phase order for unrelated work and overall signoff. Avoid duplicate template/controller/style ownership by completing all directly affected existing owners in the same change.
 
+## Parallel implementation bundles (required for every P00 discovery)
+
+The sequential gate controls **signoff**, not development order. Every source component discovered in P00 must be implemented with its directly related later-phase work before it is treated as a finished change. Do not reopen the same CSS owner, form, service or menu in a later phase merely because a related concern was deferred without an explicit dependency.
+
+| Integrated package | Implement together, whenever touching the same feature | Coverage to record before claiming that package ready |
+|---|---|---|
+| Shared visual shell and auth | P00 inventory + P01 canonical CSS owner + P02 responsive/accessibility + P03 tenant theme/terminology + P04 login/idle-lock + P13 optional modules + P15 viewport regression | Desktop, laptop, tablet, mobile, wide; keyboard/touch; signed-in roles; single-line and multi-line tenant |
+| Retail sales/cashier | P00 route evidence + P01/P02 styles and shared controls + P03 outlet scope/currency + P04 till identity + P06 approved register + P07 stock/payment/returns/idempotency + P08 product/UOM/image + P09 cash reports + P15 receipt/viewport verification | Real barcode/product search, single-submit, whole vs measured quantity, UGX, cash/mobile-money flows, receipt, shift and denied-role paths |
+| Retail catalog and receiving | P00 dependency map + P01/P02 forms/layout + P03 tenant/outlet permissions + P08 image-from-phone/import/stock + P09 purchasing/suppliers/reports + P15 mobile/desktop continuation | Image attachment from a separate phone or desktop, import missing-image follow-up, supplier ledger, opening inventory, two tenants, errors/duplicates |
+| Restaurant and bar | P00 inventory + P01/P02 shared tokens/navigation + P03/P04 access + P10 restaurant service + P11 bar tabs/rounds + P13 mixed modules + P15 end-to-end acceptance | Each standalone line's own terminology, routing, receipts, tables/tabs, role controls; enabled combinations never contaminate a standalone screen |
+| Hotel and front desk | P00 inventory + P01/P02 shared screen ownership + P03/P04 staff access + P12 reservations/rooms/folio/housekeeping + P13 optional services + P15 acceptance | Reservation conflicts, room status, checkout, folio and night audit, mobile housekeeping and isolated tenant permissions |
+| Platform/security/commercial | P00 architecture/CI + P03 isolation + P04 recovery + P09 finance/owner reports + P13 entitlements + P14 tenant subscription/admin + P15 deployment/safety | Two-tenant negative tests, UGX and selected business settings, authorization at template AND service, migrations, recovery and audit trails |
+
+**Batch completion protocol:** (a) locate existing route → view/service → template → CSS → tests; (b) inspect the relevant later phase and linked 34-item/retail checklist; (c) implement all directly coupled code and regression tests in one coherent batch; (d) record verified vs unverified capabilities in both checklists; (e) use exact-SHA CI, cross-tenant browser acceptance and source/reference screenshots as signoff, leaving gaps open. Fix shared foundations once; use specific business-line overrides only for distinct behavior. Avoid artificial commits merely to tick a phase.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
