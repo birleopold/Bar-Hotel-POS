@@ -752,8 +752,9 @@ def process_supermarket_line_return(
     if locked_o.status != OrderStatus.CLOSED or not locked_o.is_paid:
         raise ValidationError("Returns can only be recorded against closed, paid orders.")
     locked_ln = (
-        OrderLine.objects.select_for_update()
-        .select_related("menu_item")
+        # The optional product is nullable; locking its outer join raises
+        # NotSupportedError on PostgreSQL. Lock only this returnable line.
+        OrderLine.objects.select_for_update(of=("self",))
         .get(pk=line.pk, order_id=locked_o.id)
     )
     if locked_ln.is_voided:
