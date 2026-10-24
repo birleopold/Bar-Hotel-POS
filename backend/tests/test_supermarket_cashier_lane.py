@@ -270,9 +270,11 @@ class SupermarketCashierLaneTests(TestCase):
 
     def test_supermarket_order_list_uses_basket_labels(self):
         page = self.client.get(reverse("staff-orders"))
-        assert page.status_code == 200
-        assert b"Hold basket" in page.content
-        assert b"Held baskets" in page.content
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Held baskets")
+        # A cashier cannot create a held basket until the register shift is open.
+        self.assertContains(page, "Open shift first")
+        self.assertNotContains(page, ">Hold basket</button>")
 
     def test_retail_tender_guard_is_independent_of_scan_input(self):
         order = Order.objects.create(
