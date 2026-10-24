@@ -67,3 +67,7 @@ Existing code paths at time of writing:
 ## Development discipline
 
 Implement complete functional slices across model/service/API/views/template/navigation/permissions/tests. Keep multiple tenants isolated, preserve payment/audit history, avoid repeating fixes or merely changing tests to hide regressions. Commit directly to `origin/main` as directed. Record verified evidence before marking an item complete.
+
+## CI audit — 24 October 2026
+
+The checked GitHub Actions run `40091430066` reported **PostgreSQL integration checks passed** and **SQLite suite failed (28 tests failed, 918 passed, 7 skipped)**. Some failures reflect stale assertions about renamed CSS/layout text; others, including offline cash currency behavior and shift reconciliation, require actual behavior review rather than blind assertion changes. A customer display regression test still passed a bare User where an authenticated request is now required; corrected in commit `ccc43a2`. The held basket UI assertion still expected an older button label; updated in `40b3388`. **Do not label the suite green or the checkout production-verified until a subsequent complete successful run.**
