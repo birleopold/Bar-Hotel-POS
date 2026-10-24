@@ -448,6 +448,16 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 0)
 
+    def test_legacy_walkin_action_starts_unlabeled_sale(self):
+        response = self.client.post(reverse("staff-order-quick-create"), {
+            "mode": "walkin",
+            "quick_create_key": str(__import__("uuid").uuid4()),
+        })
+        self.assertEqual(response.status_code, 302)
+        sale = Order.objects.get(tenant=self.tenant)
+        self.assertEqual(sale.table_label, "")
+        self.assertIn(str(sale.pk), response["Location"])
+
     def test_quick_create_rejects_unsupported_action_without_opening_sale(self):
         url = reverse("staff-order-quick-create")
         response = self.client.post(url, {"mode": "settle", "quick_create_key": str(__import__("uuid").uuid4())})
