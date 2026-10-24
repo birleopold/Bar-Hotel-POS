@@ -1,11 +1,11 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}Room types & rates · Fizo Hotel{% endblock %}
+{% block title %}Room types & rates · {{ request.tenant.name|default:"Business" }}{% endblock %}
 {% block main_class %}staff-main--wide fizo-hotel-page{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-hotel-frontdesk.css' %}?v=20261022.4">{% endblock %}
 {% block content %}
 <div class="fizo-hotel fizo-room-types">
-<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">Fizo / Hotel / Room management</p><h1>Room types &amp; rates</h1><p>{{ current_site.name }} · Capacity, rate periods and nightly prices</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-rooms' %}"><i class="bi bi-door-open"></i> Rooms</a></header>
+<header class="fizo-hotel__head"><div><p class="fizo-hotel__eyebrow">{{ request.tenant.name|default:"Business" }} / Hotel / Room management</p><h1>Room types &amp; rates</h1><p>{{ current_site.name }} · Capacity, rate periods and nightly prices</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-lodging-rooms' %}"><i class="bi bi-door-open"></i> Rooms</a></header>
 {% include "staff/lodging/includes/subnav.html" %}
 <section class="fizo-hotel__panel" aria-labelledby="room-types-heading">
 <div class="fizo-hotel__section-head"><div><h2 id="room-types-heading">Accommodation types</h2><p>Rate periods are taken from the configured room-type records.</p></div></div>
