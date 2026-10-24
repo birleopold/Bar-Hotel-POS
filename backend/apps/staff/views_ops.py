@@ -689,7 +689,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if (order.status == OrderStatus.OPEN
                 and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}):
             from .views_customer_display import mark_customer_display_active
-            mark_customer_display_active(order, request.user)
+            mark_customer_display_active(order, request)
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)
 
@@ -1651,7 +1651,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         else:
             if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
                 from .views_customer_display import clear_customer_display_active
-                clear_customer_display_active(order)
+                clear_customer_display_active(order, request)
             if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
                 messages.success(request, "Basket held. Start serving the next customer; retrieve it from Held sales when they return.")
                 return redirect("staff-retail-pos-entry")
