@@ -67,6 +67,16 @@ CI example at `896f27e`: PostgreSQL integration job passed, SQLite checks failed
 - **Evidence status:** code committed and fetched back from main. The focused tests have **not yet been executed**, and no PostgreSQL test-environment, current GitHub CI outcome, five-viewport screenshots or deployed browser acceptance evidence has been collected for these commits. P00 is still in progress; no phase completion marker changed.
 - Before deploying, run focused tests against a disposable test database and check the complete action log. Do **not** run the test suite against production PostgreSQL or create cross-tenant test data in real tenant accounts.
 
+### P00/P02/P03/P04/P06 implementation bundle — 24 October, late session
+
+A shared-shell source review identified and corrected real navigation and staff-context defects without new CSS/controller files:
+
+- **P03/P04 isolation:** the existing `staff/base.html` used a global `localStorage` lock event key for all tabs on one browser origin. `c97a3d2` scopes lock signals to the active tenant and authenticated user, retaining cross-tab lock synchronization for the same operator. Separate tenant and account workspaces no longer consume each other's broadcast in this handler; device/session browser acceptance pending.
+- **P06 cashier:** `staff/includes/nav.html` pointed the universal “POS” shortcut to the order history screen. `328a51a` sends supermarket/retail cashiers to `staff-retail-pos-entry` and labels the hospitality shortcut “Orders”. The existing sidebar POS route was already correct.
+- **P02 staff identity:** `795aa7f` adds the authenticated operator's actual display name/email to the existing shared header, neutral wording refined in `8eaffc7`. The existing `fizo-fresh.css` now handles narrow and mobile screens (`c119a1d`); no line-specific stylesheet added.
+- **P15 checks:** `ad4915c` adds source-level regression checks for tenant-scoped lock events, retail register routing, visible operator identity and foundation CSS. `scripts/audit_css_dependencies.py` now records exact duplicate stylesheet references within one tracked template/source (`7e842a4`), as **warnings**, not grounds for deletion without dependency and browser review.
+- **Evidence status:** these commits are source changes only, not five-viewport screenshot acceptance, execution of the full suite, fresh CSS audit output, live same-user/multi-tenant terminal behavior or hardware/provider certification. P00 and P01–P15 acceptance remain open. No migrations or financial writes introduced.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
