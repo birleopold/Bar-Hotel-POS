@@ -351,6 +351,17 @@
   // response. This is one renderer for POST success and GET reconciliation.
   function updateBasketAmounts(values) {
     var currency = values.currency;
+    // Follow the changed balance only if the form still contains the old
+    // automatic due amount. Never overwrite a manually entered partial tender.
+    var cashPanel = document.querySelector("[data-retail-cash-panel]");
+    var oldDue = cashPanel && cashPanel.getAttribute("data-balance-due");
+    var payment = document.querySelector('[data-pos-payment-form] input[name="amount"]');
+    var enteredCash = cashPanel && cashPanel.querySelector("[data-retail-cash-received]");
+    if (payment && oldDue != null && values.due != null &&
+        Number.isFinite(Number(oldDue)) && Number(payment.value) === Number(oldDue) &&
+        (!enteredCash || !enteredCash.value.trim())) {
+      payment.value = values.due;
+    }
     var show = function (selector, amount) {
       var node = document.querySelector(selector);
       if (node && amount != null) node.textContent = currency + " " + amount;
