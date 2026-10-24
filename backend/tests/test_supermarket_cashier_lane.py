@@ -564,6 +564,39 @@ class SupermarketCashierLaneTests(TestCase):
         line.refresh_from_db()
         self.assertEqual(line.quantity, Decimal("1"))
 
+    def test_retail_return_rejects_a_line_from_another_tenant(self):
+        """Never apply a different tenant's line to the current tenant's order."""
+        from apps.pos.models import OrderLine, SupermarketLineReturn
+        from apps.pos.services import process_supermarket_line_return
+
+        other = Tenant.objects.create(name="Other Shop", slug="other-shop-return")
+        other_site = Site.objects.create(tenant=other, name="Other Site")
+        other_outlet = Outlet.objects.create(
+            site=other_site, name="Other Till", outlet_type=OutletType.SUPERMARKET,
+        )
+        our_order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", total=Decimal("12000"),
+            subtotal=Decimal("12000"), status="closed", is_paid=True,
+        )
+        other_order = Order.objects.create(
+            tenant=other, outlet=other_outlet, currency="UGX",
+            total=Decimal("12000"), subtotal=Decimal("12000"),
+            status="closed", is_paid=True,
+        )
+        foreign_line = OrderLine.objects.create(
+            order=other_order, label="Foreign service", quantity=Decimal("1"),
+            unit_price=Decimal("12000"), line_total=Decimal("12000"),
+        )
+        with self.assertRaises(OrderLine.DoesNotExist):
+            process_supermarket_line_return(
+                order=our_order, line=foreign_line, quantity=Decimal("1"),
+                reason="Cross-tenant probe", restock=False, user=self.user,
+            )
+        self.assertFalse(
+            SupermarketLineReturn.objects.filter(order=our_order).exists()
+        )
+
     def test_closed_service_line_return_does_not_lock_nullable_product_join(self):
         """A non-stock service return must work on PostgreSQL without LEFT JOIN locks."""
         from apps.pos.models import OrderLine, SupermarketLineReturn
