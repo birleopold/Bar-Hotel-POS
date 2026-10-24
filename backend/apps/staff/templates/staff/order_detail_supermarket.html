@@ -437,6 +437,16 @@
       var cash = document.querySelector("[data-retail-cash-panel]");
       var remoteCash = page.querySelector("[data-retail-cash-panel]");
       if (cash && remoteCash) {
+        var localPayment = document.querySelector('[data-pos-payment-form] input[name="amount"]');
+        var remotePayment = page.querySelector('[data-pos-payment-form] input[name="amount"]');
+        var cashTender = cash.querySelector("[data-retail-cash-received]");
+        var previousDue = cash.getAttribute("data-balance-due");
+        if (localPayment && remotePayment && previousDue != null &&
+            Number.isFinite(Number(previousDue)) &&
+            Number(localPayment.value) === Number(previousDue) &&
+            (!cashTender || !cashTender.value.trim())) {
+          localPayment.value = remotePayment.value;
+        }
         cash.setAttribute("data-balance-due", remoteCash.getAttribute("data-balance-due"));
         cash.dispatchEvent(new Event("retail:balance-updated"));
       }
