@@ -18,6 +18,19 @@ class FizoInventoryWorkflowTests(SimpleTestCase):
         self.assertFalse((root / "staff/static/staff/fizo-setup-wizard.css").exists())
         get_template("console/org/setup_wizard.html")
 
+    def test_stock_count_transfer_and_dashboard_use_active_tenant(self):
+        root = Path(__file__).resolve().parent / "templates/staff"
+        for name in ("count_create", "count_detail", "counts_list", "transfer_form", "transfer_receipts"):
+            with self.subTest(name=name):
+                source = (root / "inventory" / (name + ".html")).read_text(encoding="utf-8")
+                self.assertIn('request.tenant.name|default:"Business"', source)
+                self.assertNotIn("Fizo / Inventory /", source)
+                get_template("staff/inventory/" + name + ".html")
+        dashboard = (root / "dashboard.html").read_text(encoding="utf-8")
+        self.assertIn('Dashboard · {{ request.tenant.name|default:"Business" }}', dashboard)
+        self.assertNotIn("Fizo business dashboard", dashboard)
+        get_template("staff/dashboard.html")
+
     def test_inventory_headings_use_active_tenant_not_test_tenant_brand(self):
         root = Path(__file__).resolve().parent
         for filename in ("balances", "movements", "movement_upload", "batches",
