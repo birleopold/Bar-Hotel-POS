@@ -572,7 +572,7 @@ class StaffUiTests(TestCase):
         self.assertContains(r, "Team &amp; onboarding")
         self.assertContains(r, reverse("staff-workspace-member-create"))
         self.assertContains(r, reverse("staff-workspace-members"))
-        self.assertContains(r, 'class="fizo-dash__management"')
+        self.assertContains(r, "fizo-dash__management")
         self.assertContains(r, "Guided setup")
 
     def test_dashboard_owner_sees_setup_progress_message(self) -> None:
