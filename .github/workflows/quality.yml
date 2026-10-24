@@ -128,6 +128,7 @@ jobs:
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_retail_return_rejects_a_line_from_another_tenant \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_partial_basket_resume_reuses_original_order_and_tenders \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_customer_monitor_refuses_stale_held_basket_pointer \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_customer_monitor_shows_brief_thanks_after_full_payment_without_items \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_resume_rejected_for_completed_or_other_tenant_basket \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_sale_search_all_retail_outlets_recovers_older_basket \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_part_paid_receipt_identifies_balance_without_marking_sale_paid \
