@@ -133,6 +133,7 @@ jobs:
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_sale_is_protected_at_shared_service_boundary \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_discount_nullable_service_line_avoids_postgresql_outer_join_lock \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_sale_denies_payment_and_quantity_edit_until_resumed \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_cashier_catalogue_search_finds_active_plu_in_current_tenant \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_barcode_and_plu_scans_merge_without_overwriting_original_source \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_retail_weighted_scan_keeps_separate_lines_and_source \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_sale_search_all_retail_outlets_recovers_older_basket \
