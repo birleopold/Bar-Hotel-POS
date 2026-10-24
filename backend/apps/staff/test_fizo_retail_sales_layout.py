@@ -5,6 +5,13 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class RetailSalesLandingTests(SimpleTestCase):
+    def test_retail_quantity_confirmation_has_no_false_success_fallback(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertNotIn('"refresh_required": True', view)
+        self.assertNotIn("data.refresh_required", template)
+
     def test_retail_stepper_reports_redirects_and_http_failures(self):
         source = (Path(__file__).resolve().parent /
                   "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
