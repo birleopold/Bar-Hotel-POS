@@ -1757,12 +1757,38 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
 
+def _repair_empty_retail_currency(order: Order) -> bool:
+    """Correct a legacy *empty* retail basket, never monetary history."""
+    configured = default_currency_for_tenant(order.tenant)
+    if (order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            or order.currency == configured or order.status != OrderStatus.OPEN
+            or order.is_paid):
+        return False
+    with transaction.atomic():
+        locked = Order.objects.select_for_update().get(pk=order.pk)
+        if (locked.status != OrderStatus.OPEN or locked.is_paid
+                or locked.currency == configured or locked.subtotal != Decimal("0")
+                or locked.tax_total != Decimal("0") or locked.total != Decimal("0")
+                or locked.discount_amount != Decimal("0")
+                or locked.lines.exists() or locked.payments.exists()
+                or locked.refunds.exists()):
+            return False
+        Order.objects.filter(pk=locked.pk).update(currency=configured)
+        return True
+
+
 class StaffOrderPrintView(StaffTenantRequiredMixin, DetailView):
     staff_nav_capability = "orders"
     template_name = "staff/order_print.html"
     context_object_name = "order"
     pk_url_kwarg = "order_id"
     http_method_names = ["get", "head", "options"]
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if _repair_empty_retail_currency(self.object):
+            self.object.refresh_from_db(fields=["currency"])
+        return self.render_to_response(self.get_context_data(object=self.object))
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated or not getattr(request, "tenant", None):
