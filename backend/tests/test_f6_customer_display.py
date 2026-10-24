@@ -155,16 +155,7 @@ def test_display_link_from_different_cashier_cannot_follow_current_sale():
     session = client.session
     session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
     session.save()
-    from django.test import RequestFactory
-    from apps.staff.views_customer_display import customer_display_active_key
-    # Set only this cashier's current basket in their own session.
-    request = RequestFactory().get("/")
-    request.user = env["user"]
-    request.tenant = env["tenant"]
-    request.tenant_membership = env["membership"]
-    request.session = client.session
-    from django.core.cache import cache
-    cache.set(customer_display_active_key(request, env["outlet"].pk), str(own_sale.pk), 120)
+    assert client.get(reverse("staff-order-detail", kwargs={"order_id": own_sale.pk})).status_code == 200
     stale = client.get(reverse("staff-retail-customer-display", kwargs={"order_id": old_sale.pk}))
     assert stale.status_code == 200
     assert b"Welcome!" in stale.content
