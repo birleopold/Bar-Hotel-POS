@@ -8,6 +8,8 @@ from apps.pos.models import Order, Payment, PaymentMethod
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.models import StockBalance, StockMovement, StockReason
 from apps.purchasing.models import Supplier, PurchaseOrder
+from apps.finance.models import FinanceCategory, FinanceCategoryKind, CashbookEntry
+from django.utils import timezone
 from decimal import Decimal
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
@@ -61,6 +63,28 @@ class SharedTenantBrandingTests(TestCase):
                 self.assertEqual(movements.status_code, 200)
                 self.assertContains(movements, active[2].name)
                 self.assertNotContains(movements, foreign[2].name)
+
+    def test_finance_cashbook_html_and_csv_exclude_foreign_tenant(self):
+        for tenant, outlet in self.tenants:
+            category = FinanceCategory.objects.create(
+                tenant=tenant, name=f"Cashbook {tenant.slug}",
+                kind=FinanceCategoryKind.INCOME,
+            )
+            CashbookEntry.objects.create(
+                tenant=tenant, category=category,
+                site=outlet.site, amount=Decimal("1200"),
+                transaction_date=timezone.localdate(),
+                reference=f"REF-{tenant.slug}", created_by=self.user,
+            )
+        for tenant, outlet in self.tenants:
+            with self.subTest(tenant=tenant.name):
+                self._choose(tenant, outlet)
+                foreign = next(t for t, _ in self.tenants if t.pk != tenant.pk)
+                for query in ({}, {"format": "csv"}):
+                    response = self.client.get(reverse("staff-finance-entries"), query)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertContains(response, f"REF-{tenant.slug}")
+                    self.assertNotContains(response, f"REF-{foreign.slug}")
 
     def test_foreign_tenant_payment_cannot_be_viewed_or_refunded_through_order(self):
         first, second = self.tenants
