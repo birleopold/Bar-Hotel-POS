@@ -204,3 +204,7 @@ Adjusted the existing staff dashboard so an account with available memberships b
 ## Sales ranking accuracy — 24 October 2026
 
 The dashboard previously claimed **no sales were recorded** whenever the sales snapshot existed but its `top_items` list was empty. An empty ranking does not prove zero sales, payments, or revenue. Corrected the canonical empty-state language to **No ranked products to show for this period**, with a link to the existing sales report, and strengthened its template regression. This avoids a misleading financial claim while retaining all live data and authorization constraints. Commits `6f2376cf5eac01641f2de8f5f08192b781e0b2b8`, `855ba64c114e29cb72b8292d8c3efe936398a3c0`. CI and browser acceptance for this SHA are pending. P00 remains open.
+
+## Hotel launch terminology — 24 October 2026
+
+Fixed the shared dashboard quick-start heading for the lodging business line. It previously invited a hotel worker to start the next **order** whenever an ordering entitlement was present, conflating guest operations with restaurant sales. Hotel staff now see **Ready for the next guest?**, while bar/lounges retain tab language and supermarket/retail remain checkout-specific. This modifies existing conditional copy only, preserving permissions and links. Added a template regression test. Commits `d4c734ccf1f0b3b6d2dd4201e06341cd35ba3463`, `9ffa19b3d7e2d9891dba6e99d19450c0d21e12ad`. CI and browser acceptance pending; P00 remains open.
