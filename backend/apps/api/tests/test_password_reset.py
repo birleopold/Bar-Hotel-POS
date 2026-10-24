@@ -1,5 +1,6 @@
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -14,6 +15,9 @@ from datetime import timedelta
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 class PasswordResetApiTests(TestCase):
     def setUp(self) -> None:
+        # DRF anonymous throttles use a shared cache; isolate each recovery test
+        # so unrelated password-reset requests cannot consume its rate budget.
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(email="reset-user@example.com", password="InitialPass9!")
         self.user.is_platform_staff = True  # Eligible operator without tenant membership.
