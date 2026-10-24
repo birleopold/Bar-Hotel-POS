@@ -2,10 +2,6 @@
 {% load static %}
 {% block title %}Setup wizard{% endblock %}
 {% block main_class %}staff-main--wide fizo-setup-page{% endblock %}
-{% block extra_css %}
-{{ block.super }}
-<link rel="stylesheet" href="{% static 'staff/fizo-setup-wizard.css' %}?v=20261022.6">
-{% endblock %}
 {% block content %}
 {% if grocery_console_shell or hospitality_console_shell %}
 <section class="grocery-setup" aria-labelledby="store-setup-heading">
