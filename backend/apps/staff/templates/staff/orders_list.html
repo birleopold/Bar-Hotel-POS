@@ -188,3 +188,17 @@
   </div>
 {% endif %}
 {% endblock %}
+{% block extra_js %}
+<script>
+  // Browsers may restore a submitted checkout page from their back-forward cache.
+  // Restore only guarded creation forms; do not unlock an unrelated payment flow.
+  window.addEventListener('pageshow', function () {
+    document.querySelectorAll('form[action="{% url 'staff-order-quick-create' %}"]').forEach(function (form) {
+      if (form.dataset.submitting !== '1') return;
+      delete form.dataset.submitting;
+      var button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = false;
+    });
+  });
+</script>
+{% endblock %}
