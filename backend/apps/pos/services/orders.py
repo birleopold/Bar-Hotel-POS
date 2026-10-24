@@ -337,8 +337,12 @@ def add_line_to_open_order(
     quantity: Decimal,
     user,
     modifier_option_ids: list | None = None,
+    pricing_source: str = "menu",
 ) -> OrderLine:
     from apps.catalog.modifiers_service import resolve_modifier_selection_drfsafe
+
+    if pricing_source not in {"menu", "barcode", "plu", "weighted"}:
+        raise ValidationError({"pricing_source": "Invalid retail scan source."})
 
     locked = Order.objects.select_for_update().get(pk=order.pk)
     if locked.status != OrderStatus.OPEN:
@@ -403,7 +407,7 @@ def add_line_to_open_order(
         unit_price=unit_price,
         line_total=sub,
         tax_amount=tax,
-        pricing_source="menu",
+        pricing_source=pricing_source,
         sort_order=next_sort,
         kds_station=(menu_item.kds_station or "")[:32],
         modifiers_snapshot=mod_snapshot,
@@ -511,14 +515,18 @@ def add_supermarket_line_by_code(
             raise ValidationError({"code": "No active SKU found for this barcode/PLU at this outlet."})
         qty = quantity
     qty = normalize_supermarket_quantity(menu_item=item, quantity=qty)
-    line = add_line_to_open_order(order=order, menu_item=item, quantity=qty, user=user)
-    pricing_source = source
     profile = getattr(item, "supermarket_profile", None)
-    if profile is not None and profile.weighted_pricing_mode == WeightedPricingMode.WEIGHTED:
-        pricing_source = "weighted"
-    line.pricing_source = pricing_source or "menu"
-    line.save(update_fields=["pricing_source", "updated_at"])
-    return line
+    pricing_source = (
+        "weighted"
+        if profile is not None and profile.weighted_pricing_mode == WeightedPricingMode.WEIGHTED
+        else source or "menu"
+    )
+    # Source assignment and line creation/merge share the same order lock and
+    # transaction. A grouped line retains its original scan provenance.
+    return add_line_to_open_order(
+        order=order, menu_item=item, quantity=qty, user=user,
+        pricing_source=pricing_source,
+    )
 
 
 @transaction.atomic
