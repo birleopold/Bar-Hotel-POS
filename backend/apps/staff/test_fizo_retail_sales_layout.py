@@ -24,6 +24,26 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("fz-top-operator", foundation)
         self.assertIn("{% url 'staff-retail-pos-entry' %}", sidebar)
 
+    def test_receipt_uses_shared_pin_idle_policy_and_scoped_lock_broadcast(self):
+        root = Path(__file__).resolve().parent
+        receipt = (root / "templates/staff/order_print.html").read_text(encoding="utf-8")
+        shell = (root / "templates/staff/base.html").read_text(encoding="utf-8")
+        self.assertIn("{{ staff_pin_idle_ms|default:120000 }}", receipt)
+        self.assertIn("{{ staff_pin_idle_ms|default:120000 }}", shell)
+        self.assertIn('staff-terminal-lock:{{ request.tenant.pk', receipt)
+        self.assertIn("{{ request.user.pk|escapejs }}", receipt)
+        self.assertIn("event.key === lockKey", receipt)
+        self.assertNotIn("setTimeout(lock, 115000)", receipt)
+        self.assertNotIn("event.key === 'staff-terminal-lock'", receipt)
+
+    def test_receipt_labels_currency_and_net_paid_unambiguously(self):
+        template = (Path(__file__).resolve().parent /
+                    "templates/staff/order_print.html").read_text(encoding="utf-8")
+        self.assertIn("Tax {{ order.currency }} {{ order.tax_total }}", template)
+        self.assertIn("Net paid {{ order.currency }} {{ amount_paid }}", template)
+        self.assertIn("Balance {{ order.currency }} {{ balance_due }}", template)
+        self.assertIn("{{ order.currency }} {{ r.amount }}", template)
+
     def test_retail_quantity_updates_every_visible_total_and_change_calculator(self):
         source = (Path(__file__).resolve().parent /
                   "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
