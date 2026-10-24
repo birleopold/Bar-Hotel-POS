@@ -442,6 +442,7 @@ class SupermarketCashierLaneTests(TestCase):
         sale = Order.objects.create(
             tenant=self.tenant, outlet=self.outlet, created_by=self.user,
             subtotal=Decimal("35000.00"), total=Decimal("35000.00"),
+            currency="UGX",
         )
         url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
 
