@@ -5,7 +5,7 @@
 {% block content %}
 <div class="fizo-purchasing fizo-purchasing--supplier-form">
 
-  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">Fizo / Supermarket / Purchasing</p><h1>Supplier details</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"></div></header>
+  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Supplier details</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   <h2 class="fizo-purchasing__section-heading">Supplier</h2>
   <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-admin-form{% endif %}">
