@@ -65,12 +65,12 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
         # Only an explicitly active, open cashier basket is displayable.
         # A stale receipt URL cannot resurrect paid/held orders.
         active = None
-        if order.created_by_id:
+        if order.created_by_id == request.user.pk:
             active_id = cache.get(customer_display_active_key(request, order.outlet_id))
             if active_id:
                 active = Order.objects.filter(
                     pk=active_id, tenant=request.tenant, outlet_id=order.outlet_id,
-                    created_by_id=order.created_by_id, status="open", is_paid=False,
+                    created_by_id=request.user.pk, status="open", is_paid=False,
                 ).select_related("outlet").first()
         if active is None:
             # Empty/idle customer monitor: do not expose an old order.
