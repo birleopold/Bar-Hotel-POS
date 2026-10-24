@@ -42,7 +42,7 @@
   </section>
   <section id="staff-orders-history" class="fizo-sales__panel" aria-labelledby="fizo-history-title">
     <div class="fizo-sales__sectionhead"><div><h2 id="fizo-history-title">Sales history</h2><p>Find receipts, review completed sales and open authorized returns.</p></div><a href="{% url 'staff-orders' %}" class="staff-btn staff-btn--ghost">Reset filters</a></div>
-    {% if returns_task %}<p class="staff-alert">Refunds must be authorized and processed against the original sale. Open a receipt to review its eligible lines.</p>{% endif %}
+    {% if returns_task %}<p class="staff-alert">Refunds require an authorized manager and must be processed against the original sale. Open a receipt to review its eligible lines.</p>{% endif %}
     <nav class="fizo-sales__filters" aria-label="Sale status">
       <a href="{% url 'staff-orders' %}?{% if mine_filter %}mine=1&amp;{% endif %}{% if q_filter %}q={{ q_filter|urlencode }}{% endif %}"{% if not status_filter %} aria-current="page"{% endif %}>All sales</a>
       <a href="?status=open{% if mine_filter %}&amp;mine=1{% endif %}{% if q_filter %}&amp;q={{ q_filter|urlencode }}{% endif %}"{% if status_filter == 'open' %} aria-current="page"{% endif %}>Open</a>
