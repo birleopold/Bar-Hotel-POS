@@ -49,7 +49,7 @@ class StaffPasswordResetPageTests(TestCase):
         uid = urlsafe_base64_encode(force_bytes(str(self.user.pk)))
         r = self.client.post(
             "/password-reset/confirm/",
-            {"uid": uid, "token": "nope", "new_password": "NewStrongPass9!"},
+            {"uid": uid, "token": "nope", "new_password": "NewStrongPass9!", "confirm_password": "NewStrongPass9!"},
         )
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Invalid or expired", status_code=200)
@@ -69,6 +69,7 @@ class StaffPasswordResetPageTests(TestCase):
         token = default_token_generator.make_token(self.user)
         response = self.client.post("/password-reset/confirm/", {
             "uid": uid, "token": token, "new_password": "NewStrongPass9!",
+            "confirm_password": "NewStrongPass9!",
         })
         self.assertContains(response, "Invalid or expired")
         self.user.refresh_from_db()
