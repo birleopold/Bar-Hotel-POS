@@ -112,6 +112,12 @@ A shared-shell source review identified and corrected real navigation and staff-
 - **Commits:** `5ed603cf`, `8113ba10`, `f1a9a434`, `fea32b5c`, `3b04b39f`, `2c87cd63`, `4de90917`.
 - **Open acceptance:** Run focused and full CI at latest SHA, real tenant browser test for two baskets and partially paid resume, customer display/receipt and 5 approved UI viewport comparisons. All phase gates remain unaccepted. No migration, new CSS, alternate controller, or prod-data writes from this commit workflow.
 
+### Held-basket retrieval multi-outlet completion — 24 October
+
+Follow-on to the explicit retail resume workflow: `StaffOrdersListView` previously restricted held-basket note/receipt searches to the **single selected retail outlet**. In an authorized all-outlets retail-only view the held cards were capped at 50, but a search could not narrow that list to older held sales. `d6e9d3f7` now applies search across the existing membership-scoped outlet queryset when all accessible outlets are retail/supermarket; mixed hospitality scopes remain neutral and restricted. `d1ab7992` adds a regression with two authorized retail outlets plus 51 newer parked baskets, and `4129fde3` includes it in PostgreSQL CI. This does not relax tenant or outlet access.
+
+The original sale, received partial tenders and outstanding balance continue to be preserved on POST resume. **Execution of new tests, browser acceptance, visual parity and deployment remains pending**; do not mark P05/P06/P07/P15 signed off.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
