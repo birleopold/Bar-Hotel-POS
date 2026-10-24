@@ -5,7 +5,7 @@
 <section class="fizo-overview" aria-labelledby="fizo-overview-title">
   <header class="fizo-overview__hero">
     <div>
-      <p class="grocery-setup__eyebrow">Fizo / Business management</p>
+      <p class="grocery-setup__eyebrow">{{ request.tenant.name|default:"Business" }} / Business management</p>
       <h1 id="fizo-overview-title">{{ request.tenant.name }} overview</h1>
       <p>Manage your locations, team and the services enabled for this business.</p>
     </div>
