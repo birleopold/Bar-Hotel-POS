@@ -36,6 +36,38 @@ class SupermarketCashierLaneTests(TestCase):
         session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
         session.save()
 
+    def test_pin_idle_policy_matches_selected_business_and_rejects_foreign_outlet(self):
+        """Assigned retail cashiers must not inherit the two-minute hotel timer."""
+        from types import SimpleNamespace
+        from apps.staff.middleware import staff_pin_idle_seconds
+
+        retail = SimpleNamespace(
+            tenant_membership=Membership.objects.get(tenant=self.tenant, user=self.user),
+            session={STAFF_SESSION_OUTLET_KEY: str(self.outlet.pk)},
+        )
+        self.assertEqual(staff_pin_idle_seconds(retail), 15 * 60)
+
+        hospitality_outlet = Outlet.objects.create(
+            site=self.outlet.site, name="Shared Bar", outlet_type=OutletType.BAR,
+        )
+        retail.tenant_membership.outlets.add(hospitality_outlet)
+        shared = SimpleNamespace(
+            tenant_membership=retail.tenant_membership,
+            session={STAFF_SESSION_OUTLET_KEY: str(hospitality_outlet.pk)},
+        )
+        self.assertEqual(staff_pin_idle_seconds(shared), 2 * 60)
+
+        another = Tenant.objects.create(name="Other Register", slug="other-register-idle")
+        foreign_site = Site.objects.create(tenant=another, name="Different Site")
+        foreign_outlet = Outlet.objects.create(
+            site=foreign_site, name="Foreign Retail", outlet_type=OutletType.RETAIL,
+        )
+        untrusted = SimpleNamespace(
+            tenant_membership=retail.tenant_membership,
+            session={STAFF_SESSION_OUTLET_KEY: str(foreign_outlet.pk)},
+        )
+        self.assertEqual(staff_pin_idle_seconds(untrusted), 2 * 60)
+
     def test_empty_legacy_usd_basket_opens_in_tenant_ugx(self):
         order = Order.objects.create(tenant=self.tenant, outlet=self.outlet, created_by=self.user)
         Order.objects.filter(pk=order.pk).update(currency="USD")
