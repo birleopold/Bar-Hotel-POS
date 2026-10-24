@@ -111,7 +111,7 @@ class RetailSalesLandingTests(SimpleTestCase):
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
-        self.assertIn("Here's your store at a glance".replace("'", "&#39;"), dashboard)
+        self.assertIn("Here's your store at a glance", dashboard)
         self.assertIn("Guest accounts, reservations and room readiness", dashboard)
         self.assertIn("No workspace selected", dashboard)
         self.assertIn("{% if not active_membership %}", dashboard)
