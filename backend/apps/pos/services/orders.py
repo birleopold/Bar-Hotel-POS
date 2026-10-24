@@ -195,6 +195,8 @@ def normalize_supermarket_quantity(*, menu_item: MenuItem, quantity: Decimal) ->
     if quantity <= Decimal("0"):
         raise ValidationError({"quantity": "Quantity must be greater than zero."})
     qty = quantity.quantize(Decimal("0.001"))
+    if qty != quantity:
+        raise ValidationError({"quantity": "Quantity must have at most three decimal places."})
     profile = getattr(menu_item, "supermarket_profile", None)
     if profile is None:
         if qty != qty.quantize(Decimal("1")):
