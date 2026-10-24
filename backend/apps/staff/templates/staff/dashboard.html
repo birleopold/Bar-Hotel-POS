@@ -52,7 +52,7 @@
           <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_sales_snapshot.detail_url }}"><small>Gross sales</small><strong>{{ staff_dashboard_sales_snapshot.gross_sales }}</strong><i class="bi bi-cash-stack"></i></a>
           <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_sales_snapshot.detail_url }}"><small>Refunds</small><strong>{{ staff_dashboard_sales_snapshot.refunds_total }}</strong><i class="bi bi-arrow-counterclockwise"></i></a>
         </div>
-      {% else %}
+      {% elif not staff_dashboard_operations_snapshot %}
         <div class="fizo-dash__panel fizo-dash__empty">No reporting data is available for your current role or selected section. Use the relevant actions below to begin.</div>
       {% endif %}
     </section>
