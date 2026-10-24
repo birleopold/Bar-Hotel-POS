@@ -173,6 +173,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("Receipt / outlet / held-basket note", landing)
         self.assertNotIn("<th>Register</th>", landing)
 
+    def test_retail_landing_exposes_live_shift_state(self):
+        landing = (Path(__file__).resolve().parent /
+                   "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
+        self.assertIn("orders-supermarket-lane-card", landing)
+        self.assertIn('data-shift-status="{% if supermarket_shift_open %}open{% else %}closed{% endif %}"', landing)
+        self.assertIn("Supermarket lane", landing)
+        self.assertIn("Retail lane", landing)
+
     def test_retail_sales_history_labels_paid_and_due_with_order_currency(self):
         landing = (Path(__file__).resolve().parent /
                    "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
