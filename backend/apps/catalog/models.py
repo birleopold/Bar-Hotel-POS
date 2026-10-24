@@ -51,6 +51,17 @@ class MenuItem(TimeStampedModel):
         default=False,
         help_text="Include this item in rotating Service TV menu highlights.",
     )
+    product_image = models.ImageField(
+        upload_to="products/%Y/%m/",
+        blank=True,
+        help_text="Upload a JPEG, PNG, or WebP product photo (maximum 5 MB).",
+    )
+    @property
+    def product_image_src(self):
+        if self.product_image:
+            return self.product_image.url
+        return self.display_image_url
+
     display_image_url = models.URLField(
         blank=True,
         help_text="Optional public image URL used on guest-facing and Service TV displays.",
