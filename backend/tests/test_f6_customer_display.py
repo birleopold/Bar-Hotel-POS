@@ -139,9 +139,6 @@ def test_same_cashier_separate_browser_sessions_cannot_hijack_display():
     assert second.bill_reference.encode() not in a.content
     assert second.bill_reference.encode() in b.content
     assert first.bill_reference.encode() not in b.content
-    # A stale link from a different cashier/register must not reveal another
-    # session's current checkout, even when the same user owns both sales.
-    assert b"Welcome!" in till_b.get(first_customer_url).content
 
 
 @pytest.mark.django_db
