@@ -5,6 +5,45 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class RetailSalesLandingTests(SimpleTestCase):
+    def test_css_audit_finds_missing_and_duplicate_real_template_links(self):
+        import contextlib
+        import importlib.util
+        import io
+        import json
+        from tempfile import TemporaryDirectory
+
+        script = Path(__file__).resolve().parents[3] / "scripts/audit_css_dependencies.py"
+        spec = importlib.util.spec_from_file_location("pos_css_dependency_audit", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with TemporaryDirectory() as folder:
+            root = Path(folder)
+            asset = root / "backend/apps/staff/static/staff/shared.css"
+            asset.parent.mkdir(parents=True)
+            asset.write_text("body { color: black; }", encoding="utf-8")
+            page = root / "backend/apps/staff/templates/staff/sample.html"
+            page.parent.mkdir(parents=True)
+            page.write_text(
+                """{% load static %}
+<link rel="stylesheet" href="{% static 'staff/shared.css' %}">
+<link rel="stylesheet" href="{% static 'staff/shared.css' %}">
+<link rel="stylesheet" href="{% static 'staff/missing.css' %}">
+""", encoding="utf-8",
+            )
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
+                failed = module.audit(root=root, files=[asset, page])
+            report = json.loads(output.getvalue())
+            self.assertTrue(failed)
+            self.assertEqual(len(report["missing_references"]), 1)
+            self.assertEqual(report["missing_references"][0]["asset"], "staff/missing.css")
+            self.assertEqual(len(report["duplicate_stylesheets_in_same_source"]), 1)
+            self.assertEqual(report["duplicate_stylesheets_in_same_source"][0]["asset"], "staff/shared.css")
+            self.assertNotIn(
+                "backend/apps/staff/static/staff/shared.css",
+                report["unreferenced_css_candidates"],
+            )
+
     def test_staff_terminal_lock_is_scoped_by_tenant_and_account(self):
         root = Path(__file__).resolve().parent
         base = (root / "templates/staff/base.html").read_text(encoding="utf-8")
