@@ -46,6 +46,25 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(response, "UGX")
         self.assertNotContains(response, "This sale uses USD")
 
+    def test_print_empty_legacy_usd_basket_in_ugx(self):
+        order = Order.objects.create(tenant=self.tenant, outlet=self.outlet, created_by=self.user)
+        Order.objects.filter(pk=order.pk).update(currency="USD")
+        response = self.client.get(reverse("staff-order-print", kwargs={"order_id": order.pk}))
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.currency, "UGX")
+        self.assertContains(response, "UGX")
+        self.assertNotContains(response, "Total USD")
+
+    def test_print_completed_legacy_usd_sale_preserves_history(self):
+        order = Order.objects.create(tenant=self.tenant, outlet=self.outlet, created_by=self.user)
+        Order.objects.filter(pk=order.pk).update(currency="USD", status="closed", is_paid=True)
+        response = self.client.get(reverse("staff-order-print", kwargs={"order_id": order.pk}))
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.currency, "USD")
+        self.assertContains(response, "Total USD")
+
     def test_completed_legacy_usd_sale_is_never_relabelled(self):
         order = Order.objects.create(tenant=self.tenant, outlet=self.outlet, created_by=self.user)
         Order.objects.filter(pk=order.pk).update(currency="USD", status="closed", is_paid=True)
