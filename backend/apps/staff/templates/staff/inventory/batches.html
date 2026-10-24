@@ -5,7 +5,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
 <div class="fizo-inventory fizo-inventory--batches">
-<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Batches & expiry</h1><p>Monitor expiry, manage tracked lots and prevent invalid stock consumption.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Batches & expiry</h1><p>Monitor expiry, manage tracked lots and prevent invalid stock consumption.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
 {% include "staff/inventory/includes/subnav.html" %}
 
 <section class="fizo-inventory__panel mb-3">
