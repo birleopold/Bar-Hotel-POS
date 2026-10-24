@@ -22,6 +22,7 @@ def staff_nav(request):
     """Outlet list, site list, role + tenant-module nav flags for staff chrome."""
     out = {
         "staff_nav": None,
+        "staff_pin_idle_ms": 120000,
         "grocery_owner_shell": False,
         "staff_nav_outlets": [],
         "staff_nav_outlet": None,
@@ -56,6 +57,9 @@ def staff_nav(request):
     )
     from .services.management import MANAGER_ROLES
     out["staff_show_management"] = bool(m and m.role in MANAGER_ROLES)
+    if m and request.session.get("staff_pin_session"):
+        from .middleware import staff_pin_idle_seconds
+        out["staff_pin_idle_ms"] = staff_pin_idle_seconds(request) * 1000
     if not m or not t:
         return out
     from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
