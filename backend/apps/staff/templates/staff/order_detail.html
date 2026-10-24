@@ -41,6 +41,9 @@
     <strong>This sale uses {{ order.currency }}, while the business is configured for {{ configured_currency }}.</strong>
     The original sale currency is retained to protect its payment and accounting history.
     Start a new sale to use the current business currency; do not treat the amounts as automatically converted.
+    {% if is_supermarket_outlet and order.status == 'open' and not order.is_paid %}
+      <a class="staff-btn staff-btn--primary" href="{% url 'staff-retail-pos-entry' %}">Open a new {{ configured_currency }} checkout</a>
+    {% endif %}
   </div>
   {% endif %}
   {% if is_supermarket_outlet %}
