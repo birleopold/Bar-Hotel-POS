@@ -186,3 +186,9 @@ Commits `e9ad889d0c08e47fbacad858690b85037dd71728` and `6f5a6a8709240502896917b1
 ## Dashboard business-line introduction — 24 October 2026
 
 Corrected a shared generic dashboard introduction in the existing `staff/dashboard.html`: retail/supermarket now says **Here's your store at a glance**, hotel shows **Guest accounts, reservations and room readiness at a glance**, and a user without a selected membership sees **No workspace selected** with the existing selection form. This is conditional presentation, not a new dashboard or CSS override. Added template assertions for the three cases. Source commits `2d3631c8fa8a86a75fb579f3d75a3b7db5d1d414` and `49000b7514e4f448165f4bfbf861e67da79cc33e`. CI and authenticated browser verification remain pending. P00 remains in progress.
+
+## Dashboard empty-state accuracy — 24 October 2026
+
+Corrected the existing staff dashboard's lower panel: it previously showed "Nothing requiring attention is available yet" regardless of whether the panel was meant for **Popular items** or **Getting started**. It now distinguishes a reporting period with no sales from a user who can begin via their existing quick actions. Added a template-parsing regression test guarding both states. Only the canonical dashboard template and existing test owner changed; no CSS or duplicate views were introduced.
+
+Source commits: `f18cbe4d2813d4881c45f12a1bf4fd0a87afe7d4`, `6021c4eb66797cdcf95d8be8e4d6f6b3c7e9c8b2`. CI and authenticated viewport validation for these changes remain pending. P00 remains open.
