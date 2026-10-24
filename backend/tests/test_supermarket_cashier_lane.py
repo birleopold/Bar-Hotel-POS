@@ -540,6 +540,49 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"paymentPending" in page.content
             assert b"Recording payment" in page.content
 
+    def test_refunded_partial_tender_allows_quantity_reduction_and_full_cancel(self):
+        from apps.pos.models import OrderLine, Payment, Refund, OrderStatus
+        from apps.pos.services import (
+            adjust_open_order_line_quantity, cancel_open_unpaid_order,
+        )
+        from apps.staff.services.orders_display import order_payment_totals
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("3000"), total=Decimal("3000"), currency="UGX",
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Bottled Water", quantity=Decimal("2"),
+            unit_price=Decimal("1500"), line_total=Decimal("3000"),
+        )
+        payment = Payment.objects.create(
+            tenant=self.tenant, order=order, amount=Decimal("2500"),
+            recorded_by=self.user, idempotency_key="cancel-partpay-p",
+        )
+        Refund.objects.create(
+            tenant=self.tenant, order=order, payment=payment,
+            amount=Decimal("1500"), recorded_by=self.user,
+            idempotency_key="cancel-partpay-r1",
+        )
+        adjust_open_order_line_quantity(
+            order=order, line=line, quantity=Decimal("1"), user=self.user,
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.total, Decimal("1500"))
+        self.assertEqual(order_payment_totals(order), (Decimal("1000"), Decimal("500")))
+        with self.assertRaises(Exception):
+            cancel_open_unpaid_order(order=order, user=self.user)
+        Refund.objects.create(
+            tenant=self.tenant, order=order, payment=payment,
+            amount=Decimal("1000"), recorded_by=self.user,
+            idempotency_key="cancel-partpay-r2",
+        )
+        cancel_open_unpaid_order(order=order, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.CANCELLED)
+        self.assertEqual(order.payments.count(), 1)
+        self.assertEqual(order.refunds.count(), 2)
+
     def test_quantity_reduction_cannot_drop_below_money_already_taken(self):
         from rest_framework.exceptions import ValidationError
         from apps.pos.models import OrderLine, Payment
