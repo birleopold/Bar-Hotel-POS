@@ -17,6 +17,7 @@ from apps.tenants.models import OutletType
 
 
 from .registers import resolve_settlement_shift, check_replay_register
+from .orders import require_active_retail_basket
 
 
 def _is_kitchen_section_station(station: str | None) -> bool:
@@ -77,6 +78,9 @@ def record_order_payment(
         raise ValidationError("Payments are only accepted for open orders.")
     if locked.is_paid:
         raise ValidationError("This order is already paid.")
+    # Preserve valid idempotent replays above, but never accept a new tender
+    # for a parked retail basket until it is explicitly resumed.
+    require_active_retail_basket(locked)
 
     gross_paid = (
         Payment.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
