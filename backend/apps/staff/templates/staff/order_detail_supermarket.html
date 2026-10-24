@@ -183,6 +183,31 @@
 
   /* The visible header owns search/scan focus and payment-method selection.
      This wrapper only protects the real authenticated POST forms. */
+  var quickForm = document.querySelector("[data-fizo-quick-product-form]");
+  if (quickForm) {
+    quickForm.addEventListener("submit", function (event) {
+      if (quickForm.dataset.submitting === "1") {
+        event.preventDefault();
+        return;
+      }
+      if (!quickForm.checkValidity()) return;
+      quickForm.dataset.submitting = "1";
+      var saveButton = quickForm.querySelector('button[type="submit"]');
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = "Saving product…";
+      }
+    });
+    window.addEventListener("pageshow", function () {
+      delete quickForm.dataset.submitting;
+      var saveButton = quickForm.querySelector('button[type="submit"]');
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = "Save product & add to basket";
+      }
+    });
+  }
+
   var scanForm = document.querySelector("[data-retail-scan-form]");
   if (scanForm) {
     var scanInput = scanForm.querySelector('input[name="code"]');
