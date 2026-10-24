@@ -20,6 +20,15 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertNotIn("Math.round(qty * 1000) !== qty * 1000", source)
         get_template("staff/order_detail_supermarket.html")
 
+    def test_scanner_restores_focus_only_for_the_same_sale_after_redirect(self):
+        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn('var focusKey = "retail-scan-focus:" + window.location.pathname;', source)
+        self.assertIn('window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1")', source)
+        self.assertIn('window.sessionStorage.removeItem(focusKey)', source)
+        self.assertIn('window.matchMedia("(pointer: fine)").matches', source)
+        self.assertIn("scanInput.focus()", source)
+        get_template("staff/order_detail_supermarket.html")
+
     def test_quick_product_whole_unit_quantity_contract(self):
         root = Path(__file__).resolve().parent
         template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
