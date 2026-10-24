@@ -263,6 +263,12 @@ def test_dashboard_property_pulse_uses_scoped_live_lodging_counts():
     assert "Property pulse" in response.content.decode()
     assert "Today at Entebbe Property" in response.content.decode()
     assert "Today Guest" in response.content.decode()
+    from django.urls import reverse
+    html = response.content.decode()
+    assert reverse("staff-lodging-housekeeping") in html
+    assert reverse("staff-lodging-maintenance") in html
+    assert "Maintenance (0)" in html
+    assert response.context["staff_dashboard_lodging_snapshot"].site_name == site.name
     assert response.context["staff_dashboard_lodging_snapshot"].dirty_rooms == 1
 
 
