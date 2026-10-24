@@ -1056,6 +1056,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if not (membership_can_modify_lodging(m) or (
             action in cashier_actions and _can_operate_retail_checkout(m, order)
         )):
+            if action == "adjust_line_qty" and request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"ok": False, "message": "Your role is not allowed to change quantities on this basket."}, status=403)
             messages.error(request, "Your role cannot modify orders or payments.")
             return redirect("staff-order-detail", order_id=order.id)
 
