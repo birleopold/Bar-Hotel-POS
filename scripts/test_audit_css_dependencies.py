@@ -40,6 +40,20 @@ class CssDependencyAuditTests(unittest.TestCase):
             self.assertEqual(report["unreferenced_css_candidates"], [])
             self.assertEqual(len(report["hardcoded_static_css_references"]), 1)
 
+    def test_python_fixture_tags_are_not_live_web_assets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = root / "scripts/test_dummy.py"
+            fixture.parent.mkdir(parents=True)
+            fixture.write_text(
+                """SAMPLE = \"{% static 'staff/deliberately-absent.css' %}\"""",
+                encoding="utf-8")
+            stream = io.StringIO()
+            with contextlib.redirect_stdout(stream):
+                failed = audit_module.audit(root=root, files=[fixture])
+            self.assertFalse(failed)
+            self.assertEqual(json.loads(stream.getvalue())["missing_references"], [])
+
     def test_local_untracked_css_does_not_mask_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
