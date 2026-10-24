@@ -562,6 +562,33 @@ class SupermarketCashierLaneTests(TestCase):
         line.refresh_from_db()
         self.assertEqual(line.quantity, Decimal("1"))
 
+    def test_closed_service_line_return_does_not_lock_nullable_product_join(self):
+        """A non-stock service return must work on PostgreSQL without LEFT JOIN locks."""
+        from apps.pos.models import OrderLine, SupermarketLineReturn
+        from apps.pos.services import process_supermarket_line_return
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("24000"), total=Decimal("24000"),
+            status="closed", is_paid=True,
+        )
+        line = OrderLine.objects.create(
+            order=order, menu_item=None, label="Laundry Service",
+            quantity=Decimal("2"), unit_price=Decimal("12000"),
+            line_total=Decimal("24000"),
+        )
+        returned = process_supermarket_line_return(
+            order=order, line=line, quantity=Decimal("1"),
+            reason="Customer service adjustment", restock=False, user=self.user,
+        )
+        self.assertEqual(returned.tenant_id, self.tenant.pk)
+        self.assertEqual(returned.order_line_id, line.pk)
+        self.assertEqual(returned.quantity, Decimal("1"))
+        self.assertFalse(returned.restocked)
+        self.assertEqual(
+            SupermarketLineReturn.objects.filter(order=order, order_line=line).count(), 1
+        )
+
     def test_quantity_service_locks_nullable_product_line_without_outer_join(self):
         """PostgreSQL must not FOR UPDATE a nullable menu_item LEFT JOIN."""
         from apps.pos.models import OrderLine
