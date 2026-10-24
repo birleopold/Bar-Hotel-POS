@@ -155,6 +155,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("all(item.outlet_type in retail_types for item in outlets)", source)
 
 
+    def test_sale_buttons_recover_when_browser_restores_orders_page(self):
+        page = (Path(__file__).resolve().parent /
+                "templates/staff/orders_list.html").read_text(encoding="utf-8")
+        self.assertIn("window.addEventListener('pageshow'", page)
+        self.assertIn("delete form.dataset.submitting", page)
+        self.assertIn('button.disabled = false', page)
+        self.assertIn("staff-order-quick-create", page)
+
     def test_primary_retail_start_sale_uses_idempotent_post(self):
         """The visible Start checkout button carries its own safe retry token."""
         root = Path(__file__).resolve().parent
