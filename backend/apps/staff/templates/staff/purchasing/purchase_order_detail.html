@@ -6,7 +6,7 @@
 {% block content %}
 <div class="fizo-purchasing fizo-purchasing--purchase-order-detail">
 
-  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">Fizo / Supermarket / Purchasing</p><h1>Purchase order details</h1><p>Review ordered and received quantities, invoices and authorized actions.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All orders</a></div></header>
+  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Purchase order details</h1><p>Review ordered and received quantities, invoices and authorized actions.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All orders</a></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   <h2 class="fizo-purchasing__section-heading">{% if grocery_owner_shell %}Products ordered{% else %}Line items{% endif %}</h2>
   <div class="fizo-purchasing__panel mb-3">
