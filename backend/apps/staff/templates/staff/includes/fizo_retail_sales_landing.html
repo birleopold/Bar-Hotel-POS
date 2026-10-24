@@ -64,7 +64,7 @@
           <td>{{ o.outlet.name }}</td>
           <td><span class="fizo-sales__state fizo-sales__state--{{ o.status }}">{{ o.get_status_display }}</span></td>
           <td class="fizo-sales__money">{{ o.currency }} {{ o.total }}</td>
-          <td>Paid {{ o.display_paid }}<small>Due {{ o.display_balance }}</small></td>
+          <td>Paid {{ o.currency }} {{ o.display_paid }}<small>Due {{ o.currency }} {{ o.display_balance }}</small></td>
           <td><a href="{% url 'staff-order-detail' order_id=o.id %}" aria-label="Open receipt {{ o.bill_reference }}"><i class="bi bi-arrow-up-right"></i></a></td>
         </tr>
         {% empty %}
