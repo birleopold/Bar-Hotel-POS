@@ -21,7 +21,7 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn("retail-fast-checkout",retail)
         self.assertIn("data-retail-scan-form",retail)
         self.assertIn("scanInput.focus()",retail)
-        self.assertIn("staff-orders",retail)
+        self.assertIn("staff-order-quick-create",retail)
         self.assertIn("data-pos-menu-tile",cards)
         self.assertIn('value="add_line"',cards)
         self.assertIn("data-fizo-add-line-form",cards)
@@ -62,7 +62,7 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         retail = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
         self.assertIn('select[name="method"]', retail)
         self.assertIn("calculateChange()", retail)
-        self.assertIn("data-fizo-payment-method", retail)
+        self.assertIn("paymentMethod.addEventListener", retail)
 
 
     def test_basket_totals_are_server_rendered_and_only_retail_style_applies(self):
