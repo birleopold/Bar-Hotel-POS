@@ -56,6 +56,12 @@ The existing cashier regression module includes partial payment + hold + second 
 
 `StaffOrdersListView` filtered held-basket receipt/note searches only with a single selected retail outlet. With authorized all-retail outlets selected, the 50-card cap meant older held baskets could not be found through the lane. Source change `d6e9d3f7` extends the search over the existing tenant/membership-scoped queryset only when the outlet selection is a retail register or every accessible outlet is retail. Regression `d1ab7992` includes two authorized outlets and 51 newer held baskets; PostgreSQL CI includes it in `4129fde3`. Do not use this as evidence that all tenant permissions or browser workflows were accepted; focused and full tests, real-browser acceptance and screenshot matches remain pending.
 
+## 24 October — P05/P06/P07 customer-screen state and privacy
+
+The existing customer display previously trusted the active session pointer without excluding held orders. Commit `8e57d191` makes activation and active selection explicitly reject nonempty `table_label`, even if session state is stale. Customer display markup now carries actual server due (`1caaed2b`), and the existing polling JS refuses outdated local cash tenders and updates the due marker (`3c4fc064`). After three consecutive refresh failures (including expired PIN/session redirect) polling clears prior customer items to a neutral paused state rather than leaving them exposed forever (`00b3ad68`).
+
+Holding the basket discards only its browser-local cash tender preview (`e138cfa4`, `67482e72`) while keeping all recorded tenders in PostgreSQL. Added a database-backed test for stale-pointer held → idle → explicit resume (`3678674e`), existing staff contract tests for customer-screen privacy (`e246609c`) and hold tender cleanup (`5b86ff3d`); PostgreSQL CI includes the database integration test (`801a6204`). **These tests have not been observed passing in this session**; deployed multiple-tab/monitor and five-viewport acceptance remain pending. No new CSS, controllers, routes or migrations.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
