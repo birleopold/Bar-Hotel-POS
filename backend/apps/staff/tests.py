@@ -102,6 +102,7 @@ class SharedTerminalTests(TestCase):
         self.assertNotIn(STAFF_SESSION_OUTLET_KEY, self.client.session)
         page = self.client.get(reverse("staff-terminal"))
         self.assertContains(page, "Your turn to serve")
+        self.assertNotContains(page, "<span>Fizo</span>", html=False)
         self.assertContains(page, "worker-terminal@test.local")
         unlock = self.client.post(reverse("staff-terminal"), {"worker": str(self.worker_member.id), "pin": "681347"})
         self.assertRedirects(unlock, reverse("staff-dashboard"))
