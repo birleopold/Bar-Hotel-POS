@@ -21,7 +21,7 @@ Source: owner feedback and reported production symptoms during October 2026 impl
 5. **Hold Sale** parks an unpaid or partially paid basket, preserving products, quantities, payment history and balance. Label is optional at a retail till: derive a reference if blank. Holding must **leave** the active checkout and blank its paired client screen; cashier proceeds to the next shopper immediately. It must not cancel, settle or delete the old sale.
 6. Retrieve a held basket via Held sales; continue adding products/recording remaining payments. Explicitly resumed basket becomes active. Upon reaching full payment, mark sale paid/closed, retain original payment method records and issue accurate final receipt; no further collection.
 7. When no basket is being served, the client monitor displays a **neutral welcome/idle screen**. Paid, cancelled and held orders must never resurface spontaneously. **No alternating between receipt references.**
-8. Client display is scoped to the actual register/session; same cashier at another register or old browser windows must not hijack it. Current in-repo active key is tenant/outlet/cashier; **workstation-level isolation and end-to-end double-monitor validation remain open**.
+8. Client display is scoped to the actual register/session; same cashier at another register or old browser windows must not hijack it. Current in-repo active key is tenant/outlet/selected-workstation/browser-session (updated 24 October 2026); **real workstation and dual-monitor acceptance tests remain open**. The display must share the cashier browser session; a wholly separate browser profile is not automatically paired.
 9. Client-side tender preview uses same-origin browser storage; **it is not yet cross-device synchronization or a recorded financial transaction**. On refresh, basket/payment data must be server-authoritative. Do not claim a verified remote customer terminal.
 10. Currency: new orders use each tenant's configured currency. For an existing sale, do not convert amounts by changing a label. Only empty unpaid unaccounted legacy baskets may be safely relabelled. Completed/payment-bearing history remains immutable. Products and receipts must match the active sale currency; future UI should clarify any mismatch rather than pretend conversion.
 
@@ -55,7 +55,7 @@ Existing code paths at time of writing:
 - Deployment uses `deployment/contabo/deploy-app.sh`, `origin/main`, no feature branches.
 
 **Outstanding / cannot mark complete merely from commits:**
-- Cross-register/customer-monitor isolation, avoiding old receipt oscillation; explicitly exercise hold, resume, pay, next customer under concurrent cashiers.
+- Cross-register/customer-monitor isolation, avoiding old receipt oscillation; added same-cashier/different-session regression coverage, but live two-monitor hold/resume/pay/next-customer tests remain outstanding.
 - Actual production full-flow tests of over-tender, under-tender, mixed card/mobile money/cash, hold/resume, final receipt, and rollback/retry.
 - Guarantee the on-screen cash tender and change remain accurate across browser profiles/devices and after sale switching; consider server-backed per-register ephemeral tender state.
 - Verify server-authoritative current basket, including explicit resume of a held basket and no old basket resurrection.
