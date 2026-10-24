@@ -1528,7 +1528,18 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 quantity=form.cleaned_data["quantity"],
                 user=request.user,
             )
-        except DRFValidationError as exc:
+        except Exception as exc:
+            if not isinstance(exc, DRFValidationError):
+                logging.getLogger(__name__).exception(
+                    "Retail quantity update failed before confirmation: order=%s line=%s quantity=%s",
+                    order.pk, line.pk, form.cleaned_data["quantity"],
+                )
+                if async_qty:
+                    return JsonResponse(
+                        {"ok": False, "message": "The basket could not be updated. Please contact a manager with the server log timestamp."},
+                        status=500,
+                    )
+                raise
             if async_qty:
                 detail = exc.detail
                 if isinstance(detail, dict):
