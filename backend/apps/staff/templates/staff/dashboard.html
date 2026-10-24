@@ -64,7 +64,7 @@
     {% if staff_dashboard_sales_snapshot %}
     <div class="fizo-dash__links"><a href="{{ staff_dashboard_sales_snapshot.detail_url }}">Full report</a></div>
     {% endif %}
-    {% if staff_dashboard_operations_snapshot %}
+    {% if staff_dashboard_operations_snapshot and staff_dashboard_sales_snapshot %}
     <section class="fizo-dash__section" aria-labelledby="fizo-operations-pulse">
       <div class="fizo-dash__sectionhead"><h2 id="fizo-operations-pulse">Operations pulse</h2><p>Current workload for your selected workspace</p></div>
       <div class="fizo-dash__kpis">{% for metric in staff_dashboard_operations_snapshot %}
@@ -104,12 +104,9 @@
         {% else %}<p class="fizo-dash__empty">Nothing requiring attention is available yet.</p>{% endif %}
       </section>
       <section class="fizo-dash__panel staff-panel" aria-labelledby="fizo-activity-title">
-        <div class="fizo-dash__sectionhead"><h2 id="fizo-activity-title">{% if staff_dashboard_lodging_snapshot %}Today's arrivals{% elif staff_dashboard_low_stock_rows %}Stock alerts{% else %}Quick access{% endif %}</h2></div>
+        <div class="fizo-dash__sectionhead"><h2 id="fizo-activity-title">{% if staff_dashboard_lodging_snapshot %}Today's arrivals{% else %}Quick access{% endif %}</h2></div>
         {% if staff_dashboard_lodging_snapshot and staff_dashboard_lodging_snapshot.arrival_rows %}
           <ul class="fizo-dash__list">{% for row in staff_dashboard_lodging_snapshot.arrival_rows %}<li><a href="{{ row.detail_url }}"><span><strong>{{ row.guest_name }}</strong><small class="d-block">{{ row.status_label }}</small></span><span class="fizo-dash__pill">{{ row.room_label }}</span></a></li>{% endfor %}</ul>
-        {% elif staff_dashboard_low_stock_rows %}
-          <ul class="fizo-dash__list">{% for row in staff_dashboard_low_stock_rows %}<li><span><strong>{{ row.menu_item_name }}</strong><small class="d-block">{{ row.outlet_name }}</small></span><strong>{{ row.quantity }}</strong></li>{% endfor %}</ul>
-          {% if staff_dashboard_low_stock_url %}<a class="fizo-dash__action fizo-dash__action--secondary mt-3" href="{{ staff_dashboard_low_stock_url }}">Review stock</a>{% endif %}
         {% else %}
           <div class="fizo-dash__links">
             {% if staff_nav.orders %}<a href="{% url 'staff-orders' %}">Orders</a>{% endif %}
