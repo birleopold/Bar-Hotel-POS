@@ -5,6 +5,9 @@ from django.urls import reverse
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.pos.models import Order
+from apps.catalog.models import MenuCategory, MenuItem
+from apps.inventory.models import StockBalance, StockMovement, StockReason
+from decimal import Decimal
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
 
@@ -28,6 +31,35 @@ class SharedTenantBrandingTests(TestCase):
         session[STAFF_SESSION_TENANT_KEY] = str(tenant.pk)
         session[STAFF_SESSION_OUTLET_KEY] = str(outlet.pk)
         session.save()
+
+    def test_inventory_balances_and_movements_hide_foreign_tenant_stock(self):
+        rows = []
+        for tenant, outlet in self.tenants:
+            category = MenuCategory.objects.create(tenant=tenant, name="Stock")
+            item = MenuItem.objects.create(
+                tenant=tenant, category=category, name=f"Private stock {tenant.slug}",
+                unit_price=Decimal("1000"),
+            )
+            StockBalance.objects.create(
+                tenant=tenant, outlet=outlet, menu_item=item, quantity=Decimal("12"),
+            )
+            StockMovement.objects.create(
+                tenant=tenant, outlet=outlet, menu_item=item,
+                quantity_change=Decimal("12"), reason=StockReason.RECEIVE,
+                created_by=self.user, note=f"Private movement {tenant.slug}",
+            )
+            rows.append((tenant, outlet, item))
+        for active, foreign in ((rows[0], rows[1]), (rows[1], rows[0])):
+            with self.subTest(tenant=active[0].name):
+                self._choose(active[0], active[1])
+                balances = self.client.get(reverse("staff-inventory-balances"))
+                self.assertEqual(balances.status_code, 200)
+                self.assertContains(balances, active[2].name)
+                self.assertNotContains(balances, foreign[2].name)
+                movements = self.client.get(reverse("staff-inventory-movements"))
+                self.assertEqual(movements.status_code, 200)
+                self.assertContains(movements, f"Private movement {active[0].slug}")
+                self.assertNotContains(movements, f"Private movement {foreign[0].slug}")
 
     def test_sales_history_is_scoped_to_selected_tenant(self):
         first, second = self.tenants
