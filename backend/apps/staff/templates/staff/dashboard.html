@@ -42,7 +42,7 @@
     {% endif %}
 
     <section class="fizo-dash__section" aria-labelledby="fizo-kpi-title">
-      <div class="fizo-dash__sectionhead"><h2 id="fizo-kpi-title">{% if staff_dashboard_sales_snapshot and not staff_dashboard_lodging_snapshot %}Sales snapshot{% else %}Today at a glance{% endif %}</h2><p>{% if staff_dashboard_sales_snapshot and not staff_dashboard_lodging_snapshot %}{{ staff_dashboard_sales_snapshot.range_caption }}{% else %}Figures for your selected location{% endif %}</p></div>
+      <div class="fizo-dash__sectionhead"><h2 id="fizo-kpi-title">{% if staff_dashboard_lodging_snapshot %}Property pulse{% elif staff_dashboard_sales_snapshot %}Sales snapshot{% else %}Today at a glance{% endif %}</h2><p>{% if staff_dashboard_lodging_snapshot %}Today at {{ staff_dashboard_lodging_snapshot.site_name }}{% elif staff_dashboard_sales_snapshot %}{{ staff_dashboard_sales_snapshot.range_caption }}{% else %}Figures for your selected location{% endif %}</p></div>
       {% if staff_dashboard_lodging_snapshot %}
         <div class="fizo-dash__kpis fz-kpi-grid">
           <a class="fizo-dash__kpi fz-kpi" href="{{ staff_dashboard_lodging_snapshot.tape_url }}"><small>Occupancy</small><strong>{{ staff_dashboard_lodging_snapshot.occupancy_percent }}%</strong><i class="bi bi-building"></i></a>
@@ -94,6 +94,10 @@
             <div><strong>{{ staff_dashboard_lodging_snapshot.out_of_order_rooms }}</strong><small>Out of order</small></div>
           </div>
           <p class="fizo-dash__muted mt-3">Room availability is based on the selected property.</p>
+          <div class="fizo-dash__links">
+            <a href="{{ staff_dashboard_lodging_snapshot.housekeeping_url }}">Housekeeping</a>
+            <a href="{{ staff_dashboard_lodging_snapshot.maintenance_url }}">Maintenance ({{ staff_dashboard_lodging_snapshot.open_maintenance }})</a>
+          </div>
         {% elif staff_dashboard_sales_snapshot and staff_dashboard_sales_snapshot.top_items %}
           <ul class="fizo-dash__list">{% for row in staff_dashboard_sales_snapshot.top_items %}
             <li><a href="{{ staff_dashboard_sales_snapshot.detail_url }}"><span><strong>{{ row.name }}</strong><small class="d-block">{{ row.quantity_sold }} sold</small></span><span>{{ row.revenue }}</span></a></li>
