@@ -42,6 +42,12 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_hotel_dual_role_keeps_secondary_pos_link(self):
+        page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn('{% if staff_nav.orders %}<a href="{% url \'staff-orders\' %}">Open POS</a>{% endif %}', page)
+        self.assertIn('href="{% url \'staff-lodging-reservations\' %}">Open reservations', page)
+        get_template("staff/dashboard.html")
+
     def test_hotel_front_desk_precedes_optional_pos_launch(self):
         page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         front_desk = '{% if staff_product.business_key == "lodging" and staff_show_lodging_nav and staff_nav.lodging %}'
