@@ -6,7 +6,7 @@
 <div class="fizo-inventory fizo-inventory--transfer-receipts">
 
 {% include "staff/inventory/includes/subnav.html" %}
-<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / Inventory / Transfers</p><h1>Transfer deliveries</h1><p>Verify deliveries, investigate discrepancies and resolve transfer records.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory / Transfers</p><h1>Transfer deliveries</h1><p>Verify deliveries, investigate discrepancies and resolve transfer records.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
 <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Filter transfer deliveries">
 <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer-receipts' %}">All</a>
 <a class="staff-btn staff-btn--ghost" href="?status=in_transit">In transit</a>
