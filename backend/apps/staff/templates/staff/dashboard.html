@@ -61,6 +61,28 @@
       {% endif %}
     </section>
 
+    {% if staff_dashboard_sales_snapshot %}
+    <div class="fizo-dash__links"><a href="{{ staff_dashboard_sales_snapshot.detail_url }}">Full report</a></div>
+    {% endif %}
+    {% if staff_dashboard_operations_snapshot %}
+    <section class="fizo-dash__section" aria-labelledby="fizo-operations-pulse">
+      <div class="fizo-dash__sectionhead"><h2 id="fizo-operations-pulse">Operations pulse</h2><p>Current workload for your selected workspace</p></div>
+      <div class="fizo-dash__kpis">{% for metric in staff_dashboard_operations_snapshot %}
+        <a class="fizo-dash__kpi fz-kpi" href="{{ metric.url }}"><small>{{ metric.label }}</small><strong>{{ metric.value }}</strong><span class="fizo-dash__muted">{{ metric.detail }}</span></a>
+      {% endfor %}</div>
+    </section>
+    {% endif %}
+    {% if staff_dashboard_low_stock_rows %}
+    <section class="fizo-dash__section" aria-labelledby="fizo-low-stock-heading">
+      <div class="fizo-dash__sectionhead"><h2 id="fizo-low-stock-heading">Low stock</h2></div>
+      <div class="fizo-dash__panel"><ul class="fizo-dash__list">{% for row in staff_dashboard_low_stock_rows %}
+        <li><span><strong>{{ row.menu_item_name }}</strong><small class="d-block">{{ row.outlet_name }}</small></span><strong>{{ row.quantity }}</strong></li>
+      {% endfor %}</ul>
+      {% if staff_dashboard_low_stock_url %}<div class="fizo-dash__links"><a href="{{ staff_dashboard_low_stock_url }}">Review low stock</a></div>{% endif %}
+      </div>
+    </section>
+    {% endif %}
+
     <div class="fizo-dash__layout fizo-dash__section fz-dashboard-panels">
       <section class="fizo-dash__panel staff-panel" aria-labelledby="fizo-work-title">
         <div class="fizo-dash__sectionhead"><h2 id="fizo-work-title">{% if staff_dashboard_lodging_snapshot %}Room status{% elif staff_dashboard_sales_snapshot %}Popular items{% else %}Work needing attention{% endif %}</h2></div>
