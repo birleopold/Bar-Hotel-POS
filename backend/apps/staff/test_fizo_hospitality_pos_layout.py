@@ -7,7 +7,7 @@ class FizoHospitalityPOSLayoutTests(SimpleTestCase):
         root = Path(__file__).resolve().parent
         page = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
         catalogue = (root / "templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
-        self.assertIn("fizo-hospitality-pos.css", page)
+        self.assertIn("hospitality-workflows.css", page)
         self.assertNotIn("hospitality-workflow.css", page)
         self.assertIn('class="fizo-hospitality-catalogue"', page)
         self.assertIn('class="fizo-hospitality-bill"', page)
@@ -18,4 +18,4 @@ class FizoHospitalityPOSLayoutTests(SimpleTestCase):
         self.assertEqual(page.count("{% if "), page.count("{% endif %}"))
     def test_stylesheet_exists(self):
         root = Path(__file__).resolve().parent
-        self.assertTrue((root / "static/staff/fizo-hospitality-pos.css").is_file())
+        self.assertTrue((root / "static/staff/hospitality-workflows.css").is_file())
