@@ -6,6 +6,15 @@ from django.template.loader import get_template
 
 
 class FizoHotelReservationsLayoutTests(SimpleTestCase):
+    def test_hotel_pages_never_show_test_tenant_brand(self):
+        root = Path(__file__).resolve().parent / "templates/staff/lodging"
+        for page in root.glob("*.html"):
+            with self.subTest(page=page.name):
+                source = page.read_text(encoding="utf-8")
+                self.assertNotIn("Fizo Hotel", source)
+                self.assertNotIn("Fizo / Hotel /", source)
+                get_template("staff/lodging/" + page.name)
+
     def test_reservation_page_uses_new_shell_and_keeps_operations(self):
         root = Path(__file__).resolve().parent
         page = (root / "templates/staff/lodging/reservations_list.html").read_text(encoding="utf-8")
