@@ -154,3 +154,9 @@ Source commit `2dd6192ae8a13dac02b30f0043902b6c3e5dc690`. Await current CI and a
 Root cause: the simplified canonical staff dashboard retained tenant/outlet-scoped `staff_dashboard_operations_snapshot`, `staff_dashboard_low_stock_rows`, and `staff_dashboard_sales_snapshot` in view context but omitted the named operational pulse/low-stock sections and direct report link. Fixed `staff/dashboard.html` in place to display these only when scoped data exists; no demo values, new endpoint, or CSS layer. Consolidated conditional render branches to avoid duplicating stock lists and workload panels. Commits: `b132ef04f0033046957f1fd5748bbd7712056afe`, `45c6872927a5167bf9ac062ef8f04c3b1babadf4`.
 
 This correction addresses real user-facing visibility alongside existing dashboard regression assertions. Browser screenshots and post-commit CI are **not yet verified**. P00 remains open until all gates are independently evidenced.
+
+## Dashboard operations single-owner follow-up — 24 October 2026
+
+While reviewing the prior dashboard change, found that the **Operations pulse** heading was accidentally conditional on a simultaneous sales snapshot. The same metrics could render in another unnamed branch, causing inconsistent visibility and duplicate ownership. Removed that alternate metric branch, made **Operations pulse** the single canonical render path whenever a scoped operations snapshot exists, and suppressed the no-data placeholder when operational data is present. This is a correction in `staff/dashboard.html`, not an overlay or second implementation.
+
+Commits: `2d24962eaf9829838cfab6d3976ba2dd67c2923d` and `3f8faa1daecdf9731399a506aac5ba62d14d35ee`. CI and authenticated browser results for these commits remain pending; P00 is not marked completed.
