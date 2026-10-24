@@ -27,6 +27,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertTrue(RetailQuickProductForm({"name": "Soap", "unit_price": "2500", "quantity": "2"}).is_valid())
         self.assertFalse(RetailQuickProductForm({"name": "Soap", "unit_price": "2500", "quantity": "1.5"}).is_valid())
         self.assertIn('name="quantity" type="number" inputmode="numeric" min="1" step="1"', template)
+        self.assertIn('quantity=Decimal(data["quantity"])', (root / "views_ops.py").read_text(encoding="utf-8"))
 
     def test_paid_sale_next_customer_uses_server_idempotency(self):
         root = Path(__file__).resolve().parent
