@@ -12,6 +12,7 @@ class FizoInventoryWorkflowTests(SimpleTestCase):
         self.assertIn("fizo-inventory-workflows.css", page)
         self.assertNotIn("fizo-stock.css", page)
         self.assertIn(".fizo-stock", styles)
+        self.assertFalse((root / "static/staff/fizo-stock.css").exists())
         get_template("staff/inventory/balances.html")
 
     def test_three_individual_pages_compile(self):
