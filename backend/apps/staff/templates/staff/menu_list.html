@@ -35,10 +35,10 @@
           {% for cat in categories %}
             {% for item in cat.items.all %}
               <tr>
-                <td><div class="fizo-products__item">{% if item.display_image_url %}<img src="{{ item.display_image_url }}" alt="" loading="lazy">{% else %}<span class="fizo-products__placeholder"><i class="bi bi-box-seam"></i></span>{% endif %}<strong>{{ item.name }}</strong></div></td>
+                <td><div class="fizo-products__item">{% if item.product_image_src %}<img src="{{ item.product_image_src }}" alt="" loading="lazy">{% else %}<span class="fizo-products__placeholder"><i class="bi bi-box-seam"></i></span>{% endif %}<strong>{{ item.name }}</strong></div></td>
                 <td>{{ cat.name }}{% if cat.name == 'Needs catalogue review' and item.sku|slice:":6" == 'QUICK-' %}<span class="fizo-products__pending">Review required</span>{% endif %}</td><td class="fizo-products__price">{{ item.unit_price }}</td>
                 <td>{{ item.sku|default:"—" }}</td>
-                <td>{% if cat.name == 'Needs catalogue review' and item.sku|slice:":6" == 'QUICK-' and staff_nav.workspace %}<a class="staff-btn staff-btn--sm staff-btn--primary" href="{% url 'console-org-menu-item-edit' item_id=item.id %}">Complete product</a>{% elif can_manage_tv_details and menu_scope_outlet and not menu_all_outlets_mode %}<details class="fizo-products__details"><summary>Edit display</summary><form method="post">{% csrf_token %}<input type="hidden" name="action" value="display_details"><input type="hidden" name="item_id" value="{{ item.id }}"><label><input type="checkbox" name="is_featured" {% if item.is_featured %}checked{% endif %}> Featured</label><label>Image URL<input class="staff-input" type="url" name="display_image_url" maxlength="200" value="{{ item.display_image_url }}"></label><label>Availability note<input class="staff-input" type="text" name="availability_note" maxlength="160" value="{{ item.availability_note }}"></label><button class="staff-btn staff-btn--primary" type="submit">Save</button></form></details>{% else %}<span class="fizo-products__muted">View only</span>{% endif %}</td>
+                <td>{% if cat.name == 'Needs catalogue review' and item.sku|slice:":6" == 'QUICK-' and staff_nav.workspace %}<a class="staff-btn staff-btn--sm staff-btn--primary" href="{% url 'console-org-menu-item-edit' item_id=item.id %}">Complete product</a>{% elif can_manage_tv_details and menu_scope_outlet and not menu_all_outlets_mode %}<details class="fizo-products__details"><summary>Edit display</summary><form method="post">{% csrf_token %}<input type="hidden" name="action" value="display_details"><input type="hidden" name="item_id" value="{{ item.id }}"><label><input type="checkbox" name="is_featured" {% if item.is_featured %}checked{% endif %}> Featured</label><label>Image URL<input class="staff-input" type="url" name="display_image_url" maxlength="200" value="{{ item.product_image_src }}"></label><label>Availability note<input class="staff-input" type="text" name="availability_note" maxlength="160" value="{{ item.availability_note }}"></label><button class="staff-btn staff-btn--primary" type="submit">Save</button></form></details>{% else %}<span class="fizo-products__muted">View only</span>{% endif %}</td>
               </tr>
             {% empty %}
               <tr><td colspan="5" class="fizo-products__empty">No active products in {{ cat.name }}.</td></tr>
@@ -103,8 +103,8 @@
           {% for item in cat.items.all %}
             <article class="staff-menu-item-card">
               <div class="staff-menu-item-card__identity">
-                {% if item.display_image_url %}
-                  <img class="staff-menu-item-card__image" src="{{ item.display_image_url }}" alt="" loading="lazy">
+                {% if item.product_image_src %}
+                  <img class="staff-menu-item-card__image" src="{{ item.product_image_src }}" alt="" loading="lazy">
                 {% else %}
                   <span class="staff-menu-item-card__image staff-menu-item-card__image--placeholder" aria-hidden="true"><i class="bi bi-cup-hot"></i></span>
                 {% endif %}
@@ -126,7 +126,7 @@
                     <input type="hidden" name="action" value="display_details">
                     <input type="hidden" name="item_id" value="{{ item.id }}">
                     <label class="staff-menu-featured-toggle"><input type="checkbox" name="is_featured" {% if item.is_featured %}checked{% endif %}><span>Include in featured rotation</span></label>
-                    <label>Public image URL<input class="staff-input" type="url" name="display_image_url" maxlength="200" value="{{ item.display_image_url }}" placeholder="https://…"></label>
+                    <label>Public image URL<input class="staff-input" type="url" name="display_image_url" maxlength="200" value="{{ item.product_image_src }}" placeholder="https://…"></label>
                     <label>Availability note<input class="staff-input" type="text" name="availability_note" maxlength="160" value="{{ item.availability_note }}" placeholder="e.g. Available until 8 pm"></label>
                     <button class="staff-btn staff-btn--sm staff-btn--primary" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save display details</button>
                   </form>
