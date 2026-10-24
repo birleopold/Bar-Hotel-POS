@@ -18,6 +18,24 @@ class FizoInventoryWorkflowTests(SimpleTestCase):
         self.assertFalse((root / "staff/static/staff/fizo-setup-wizard.css").exists())
         get_template("console/org/setup_wizard.html")
 
+    def test_inventory_headings_use_active_tenant_not_test_tenant_brand(self):
+        root = Path(__file__).resolve().parent
+        for filename in ("balances", "movements", "movement_upload", "batches",
+                         "intelligence", "movement_form", "scale_labels", "shelves"):
+            with self.subTest(filename=filename):
+                source = (root / "templates/staff/inventory" / (filename + ".html")).read_text(encoding="utf-8")
+                self.assertIn('request.tenant.name|default:"Business"', source)
+                self.assertNotIn('Fizo / {{ staff_product.workspace_label', source)
+
+    def test_console_navigation_uses_actual_tenant_brand(self):
+        root = Path(__file__).resolve().parents[1] / "console/templates/console/includes"
+        nav = (root / "fizo_nav.html").read_text(encoding="utf-8")
+        sidebar = (root / "fizo_sidebar.html").read_text(encoding="utf-8")
+        self.assertIn('console_active_tenant.name|default:"Business workspace"', nav)
+        self.assertIn('console_active_tenant.name|default:"Business workspace"', sidebar)
+        self.assertNotIn('default:"Fizo business"', nav)
+        self.assertNotIn('</span>Fizo</a>', sidebar)
+
     def test_stock_balances_uses_canonical_inventory_css(self):
         root = Path(__file__).resolve().parent
         page = (root / "templates/staff/inventory/balances.html").read_text(encoding="utf-8")
