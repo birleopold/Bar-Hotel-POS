@@ -1488,7 +1488,13 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_adjust_line_quantity(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_qty = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        )
         if order.status != OrderStatus.OPEN or order.is_paid:
+            if async_qty:
+                return JsonResponse({"ok": False, "message": "This basket is no longer open for quantity changes."}, status=409)
             messages.error(
                 request,
                 "Line quantities can only be edited on open orders that are not yet paid.",
@@ -1496,6 +1502,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-order-detail", order_id=order.id)
         form = StaffOrderAdjustLineQuantityForm(request.POST)
         if not form.is_valid():
+            if async_qty:
+                return JsonResponse({"ok": False, "message": "; ".join(
+                    str(error) for errors in form.errors.values() for error in errors
+                )}, status=422)
             for fld, err_list in form.errors.items():
                 for err in err_list:
                     messages.error(request, f"{fld}: {err}")
@@ -1505,12 +1515,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             order_id=order.id,
         ).first()
         if line is None:
+            if async_qty:
+                return JsonResponse({"ok": False, "message": "This item is no longer on the basket."}, status=404)
             messages.error(request, "That line is not on this order.")
             return redirect("staff-order-detail", order_id=order.id)
-        async_qty = (
-            request.headers.get("X-Requested-With") == "XMLHttpRequest"
-            and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
-        )
         try:
             adjusted = adjust_open_order_line_quantity(
                 order=order,
