@@ -275,6 +275,77 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(response["Location"], reverse("staff-retail-pos-entry"))
         self.assertNotIn(str(order.pk), response["Location"])
 
+    def test_partial_cash_hold_resume_and_mixed_payment_closes_one_sale(self):
+        """One basket retains its deposit and closes only when all tenders settle."""
+        import uuid
+        from apps.pos.models import Payment
+
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("35000.00"), total=Decimal("35000.00"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+
+        def pay(amount, method):
+            return self.client.post(url, {
+                "action": "record_payment", "amount": str(amount),
+                "method": method, "payment_request_key": str(uuid.uuid4()),
+            })
+
+        first = pay("15000.00", "cash")
+        self.assertEqual(first.status_code, 302)
+        sale.refresh_from_db()
+        self.assertFalse(sale.is_paid)
+        self.assertEqual(sale.status, "open")
+        self.assertEqual(
+            sum(Payment.objects.filter(order=sale).values_list("amount", flat=True), Decimal("0")),
+            Decimal("15000.00"),
+        )
+
+        held = self.client.post(url, {"action": "hold_order"})
+        self.assertEqual(held.status_code, 302)
+        self.assertEqual(held["Location"], reverse("staff-retail-pos-entry"))
+        sale.refresh_from_db()
+        self.assertTrue(sale.table_label)
+        self.assertFalse(sale.is_paid)
+
+        # Retrieve the original basket, never a new basket or a fresh invoice.
+        resumed = self.client.get(url)
+        self.assertEqual(resumed.status_code, 200)
+        self.assertEqual(resumed.context["balance_due"], Decimal("20000.00"))
+
+        last = pay("20000.00", "mobile_money")
+        self.assertEqual(last.status_code, 302)
+        sale.refresh_from_db()
+        self.assertTrue(sale.is_paid)
+        self.assertEqual(sale.status, "closed")
+        self.assertEqual(Payment.objects.filter(order=sale).count(), 2)
+        self.assertEqual(
+            set(Payment.objects.filter(order=sale).values_list("method", flat=True)),
+            {"cash", "mobile_money"},
+        )
+        receipt = self.client.get(reverse("staff-order-print", kwargs={"order_id": sale.pk}))
+        self.assertEqual(receipt.status_code, 200)
+        self.assertContains(receipt, "35000.00")
+
+    def test_repeated_partial_payment_key_never_double_charges(self):
+        import uuid
+        from apps.pos.models import Payment
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("35000"), total=Decimal("35000"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+        payload = {
+            "action": "record_payment", "amount": "15000", "method": "cash",
+            "payment_request_key": str(uuid.uuid4()),
+        }
+        self.assertEqual(self.client.post(url, payload).status_code, 302)
+        self.assertEqual(self.client.post(url, payload).status_code, 302)
+        self.assertEqual(Payment.objects.filter(order=sale).count(), 1)
+        sale.refresh_from_db()
+        self.assertFalse(sale.is_paid)
+
     def test_quick_create_idempotency_returns_same_basket_on_retry(self):
         import uuid
 
