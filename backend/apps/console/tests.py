@@ -586,6 +586,7 @@ class ConsoleAccessTests(TestCase):
         r = self.client.get(reverse("console-org-setup"))
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Setup complete")
+        self.assertContains(r, "Required setup progress")
 
     def test_org_forbidden_for_server_role(self) -> None:
         user = User.objects.create_user(email="co-server@test.local", password="TestPass9!")
