@@ -6,6 +6,14 @@ from django.urls import reverse
 
 
 class FizoRetailProductsLayoutTests(SimpleTestCase):
+    def test_cashier_sales_landing_has_real_hold_basket_action(self):
+        page = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_retail_sales_landing.html").read_text(encoding="utf-8")
+        self.assertIn("Hold basket</button>", page)
+        self.assertIn('name="mode" value="hold"', page)
+        self.assertIn("staff-order-quick-create", page)
+        self.assertIn("{% csrf_token %}", page)
+        get_template("staff/includes/fizo_retail_sales_landing.html")
+
     def test_catalogue_route_and_template_compile(self):
         self.assertTrue(reverse("staff-menu").startswith("/staff/"))
         self.assertTrue(reverse("console-org-menu-item-create").startswith("/console/"))
