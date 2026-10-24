@@ -40,6 +40,12 @@ Worked only in existing files. `scripts/audit_css_dependencies.py` duplicate-lit
 - **Important P04 defect fixed in source:** `staff/base.html` had a 15-minute retail JS idle timer, but `StaffTerminalIdleMiddleware` enforced `PIN_IDLE_SECONDS=120` for every business line. Shared `staff_pin_idle_seconds(request)` in existing middleware now gives 900 seconds only for an authorized retail/supermarket outlet or a retail-only workspace; otherwise 120 seconds. The existing staff context processor passes the exact same value to browser JS (`c8fb80e8`, `23e4e1a6`, `18b6438a`). Test `60db2133` checks dedicated retail, shared bar and untrusted other-tenant outlet selections. **Tests and live two-terminal/browser flow remain unverified**. This is a general business-line policy, not hardcoded to Fizo.
 - Do not call P00/P01/P03/P04/P15 complete. Next verification: CI at committed SHA and browser terminal unlock/lock behavior across tenant/outlet roles, then check approved UI and CSS dependency report.
 
+## Checkout roadmap implementation — 24 October 2026, P06/P07/P15
+
+The retail quantity AJAX success handler previously changed a header and one payable value but **left the approved right-hand basket subtotal/tax/due, Pay CTA and cash-change calculator stale**. Replaced that incomplete handler in the existing `order_detail_supermarket.html` with `updateBasketAmounts`; the fallback GET reconciler now also refreshes the same totals and calculator. The payment form's original due is updated only when it was not deliberately edited and no cash tender was entered. Commits `e6918714`, `48095cf9`, `9129aa3c`. No new JavaScript or CSS files.
+
+Regression source contract was added to the existing `test_fizo_retail_sales_layout.py` (`e8345b49`), and a database-backed test asserts UGX total/paid/due after editing a part-paid basket (`c77185db`); PostgreSQL CI now includes it (`766e1906`). These are **committed, not executed here**. Do not call quantity UI production verified until post-deployment +/−, gross/due, cash/change, customer display and refresh are inspected. Continued checklist stays incomplete. Prevent new JS shadow scripts from duplicating these totals.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
