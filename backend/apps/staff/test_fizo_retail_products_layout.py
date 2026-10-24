@@ -70,7 +70,10 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         root = Path(__file__).resolve().parent
         s = (root / "templates/staff/menu_list.html").read_text(encoding="utf-8")
         self.assertIn("{% if show_retail_catalogue %}", s)
-        self.assertIn("fizo-retail-products.css", s)
+        self.assertIn("management-workflows.css", s)
+        self.assertNotIn("staff/fizo-retail-products.css", s)
+        self.assertNotIn("Fizo / Supermarket / Catalogue", s)
+        self.assertIn("staff_product.business_key", s)
         self.assertIn("fizo-products__table", s)
         self.assertIn("cat.items.all", s)
         self.assertIn("item.product_image_src", s)
@@ -141,6 +144,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("console-org-menu-item-photo", listing)
         get_template("console/org/catalog_import.html")
 
-    def test_independent_stylesheet_exists(self):
+    def test_products_use_canonical_management_stylesheet(self):
         root = Path(__file__).resolve().parent
-        self.assertTrue((root / "static/staff/fizo-retail-products.css").is_file())
+        self.assertTrue((root / "static/staff/management-workflows.css").is_file())
+        self.assertFalse((root / "static/staff/fizo-retail-products.css").exists())
