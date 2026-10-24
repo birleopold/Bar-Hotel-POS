@@ -331,3 +331,7 @@ Removed the Fizo test-tenant label from the shared staff dashboard (browser titl
 The tracked-file P00 CSS auditor now recognizes quoted imports, unquoted `@import url(file.css)`, and imports with query suffixes. Added isolated fixture coverage including an external URL (which must not be reported as a missing local file) and a valid imported file (which must appear in its consumer graph). Source commit `868b4373`; fixture commit `b4a7d64d`.
 
 An isolated regex smoke check recognized all four fixture import styles. The full audit and exact-commit CI are **not yet recorded as passing**. This is a dependency-discovery improvement only; it does not authorize deletion of candidate stylesheets or advance P00/P01 acceptance. Keep browser, source-level consumer tracing, tenant scoping and the approved viewport checks open.
+
+## CI stylesheet-parser failure and direct correction — 24 October 2026
+
+Exact run [40081880863](https://github.com/birleopold/Bar-Hotel-POS/actions/runs/40081880863) at `f1e9c6e8` failed in **Verify tracked CSS dependencies and audit regressions** before Django checks: Python `re.error: missing ), unterminated subpattern at position 11` importing `scripts/audit_css_dependencies.py`. The import-pattern escaping was corrected on `main` at `78524f1e`, preserving coverage for quoted and unquoted `@import` forms. A separate Python expression compilation and sample-match check passed. Full fixture execution, stylesheet dependency inventory and Django suite for the correction are pending exact-head CI; do not describe P00 or P01 as complete.
