@@ -254,6 +254,7 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         ctx["q_filter"] = (self.request.GET.get("q") or "").strip()
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
+        ctx["quick_create_key"] = uuid.uuid4()
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         orders = list(ctx.get("object_list", []))
         attach_order_payment_display(orders)
@@ -382,14 +383,42 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
             label = (hold_label or "").strip()
             if not label:
                 label = f"HOLD {timezone.localtime().strftime('%H:%M')}"
-        order = create_order_with_lines(
-            tenant_id=request.tenant.id,
-            outlet=outlet,
-            created_by=request.user,
-            currency=default_currency_for_tenant(request.tenant),
-            table_label=label,
-            lines=[],
-        )
+        raw_key = (request.POST.get("quick_create_key") or "").strip()
+        if raw_key:
+            try:
+                request_key = uuid.UUID(raw_key)
+            except (ValueError, AttributeError):
+                messages.error(request, "Invalid basket request. Refresh the sales page and try again.")
+                return redirect("staff-orders")
+        else:
+            # Existing integrations without a token retain the legacy behavior.
+            request_key = None
+
+        with transaction.atomic():
+            if request_key:
+                # Serializing per tenant prevents two workers from creating
+                # duplicate baskets with the same request key.
+                from apps.tenants.models import Tenant
+                Tenant.objects.select_for_update().get(pk=request.tenant.pk)
+                existing = Order.objects.filter(
+                    tenant=request.tenant, quick_create_key=request_key
+                ).first()
+                if existing:
+                    if existing.created_by_id != request.user.pk or existing.outlet_id != outlet.pk:
+                        messages.error(request, "This basket request belongs to a different register or worker.")
+                        return redirect("staff-orders")
+                    return redirect("staff-order-detail", order_id=existing.id)
+            order = create_order_with_lines(
+                tenant_id=request.tenant.id,
+                outlet=outlet,
+                created_by=request.user,
+                currency=default_currency_for_tenant(request.tenant),
+                table_label=label,
+                lines=[],
+            )
+            if request_key:
+                order.quick_create_key = request_key
+                order.save(update_fields=["quick_create_key", "updated_at"])
         messages.success(request, "New order started.")
         return redirect("staff-order-detail", order_id=order.id)
 
