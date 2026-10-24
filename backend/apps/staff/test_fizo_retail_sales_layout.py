@@ -42,6 +42,16 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_dashboard_owner_navigation_remains_accessible(self):
+        dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn("{% if show_workspace_admin_tools %}", dashboard)
+        for link in ("console-org", "console-org-setup", "staff-workspace-members", "staff-workspace-member-create"):
+            self.assertIn("{% url '" + link + "' %}", dashboard)
+            self.assertTrue(reverse(link).startswith("/"))
+        self.assertIn("Team &amp; onboarding", dashboard)
+        self.assertIn("Open admin console", dashboard)
+        get_template("staff/dashboard.html")
+
     def test_dashboard_operational_metrics_render_in_one_section(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertEqual(dashboard.count("{% for metric in staff_dashboard_operations_snapshot %}"), 1)
