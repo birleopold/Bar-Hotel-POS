@@ -17,17 +17,17 @@ td:last-child,th:last-child{text-align:right}th{background:#f0f8f3;color:#587468
 .summary strong{display:block;font-size:clamp(1.5rem,3.5vw,3rem)}.status{color:#007b43}
 @media(max-width:520px){table{font-size:.9rem}td,th{padding:10px 4px}}
 </style></head>
-<body><main data-customer-display-root>
+<body><main data-customer-display-root data-active-order="{{ order.id }}">
 <header><div><div class="muted">Your checkout at</div><h1>{{ order.outlet.name }}</h1></div>
 <div><div>Receipt / basket</div><strong>{{ order.bill_reference }}</strong></div></header>
 <article aria-label="Basket items"><h2>Today's basket</h2>
 <div style="overflow-x:auto"><table><thead><tr><th scope="col">Item</th><th scope="col">Qty</th><th scope="col">Amount ({{ order.currency }})</th></tr></thead>
 <tbody>{% for line in display_lines %}
-<tr><td>{{ line.label }}</td><td>{{ line.quantity }}</td><td>{{ line.line_total|floatformat:2 }}</td></tr>
+<tr><td>{{ line.label }}</td><td>{{ line.quantity }}</td><td>{{ order.currency }} {{ line.unit_price|floatformat:2 }} × {{ line.quantity }} = {{ line.line_total|floatformat:2 }}</td></tr>
 {% empty %}<tr><td colspan="3">Your items will appear as they are scanned.</td></tr>{% endfor %}</tbody></table></div></article>
 <article class="summary" aria-label="Checkout totals">
 <div><span>Basket total · {{ order.currency }}</span><strong>{{ order.total|floatformat:2 }}</strong></div>
 <div><span>Recorded payments · {{ order.currency }}</span><strong>{{ display_paid|floatformat:2 }}</strong></div>
 <div><span>Amount remaining · {{ order.currency }}</span><strong>{{ display_remaining|floatformat:2 }}</strong></div>
-</article><p role="status" class="muted">{% if order.is_paid %}<strong class="status">Payment recorded · Thank you!</strong>{% else %}Your cashier is preparing your sale.{% endif %} Display refreshes automatically. Payment methods and customer details are never shown.</p>
+</article><article aria-label="Cash tender" data-display-tender hidden><div class="summary"><div><span>Cash received · {{ order.currency }}</span><strong data-display-received>—</strong></div><div><span>Change to return · {{ order.currency }}</span><strong data-display-change>—</strong></div></div></article><p role="status" class="muted">{% if order.is_paid %}<strong class="status">Payment recorded · Thank you!</strong>{% else %}Your cashier is preparing your sale.{% endif %} Display refreshes automatically. Payment methods and customer details are never shown.</p>
 </main><script defer src="{% static 'staff/customer-display-live.js' %}"></script></body></html>
