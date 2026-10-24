@@ -34,8 +34,8 @@
           <p>Use your existing authorized ordering and payment workflow.</p></div>
         <a class="fizo-dash__action" href="{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}{% url 'staff-retail-pos-entry' %}{% else %}{% url 'staff-orders' %}{% endif %}"><i class="bi bi-cart3" aria-hidden="true"></i> {% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Open cashier POS{% else %}Open POS{% endif %} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       </section>
-    {% elif staff_show_lodging_nav and staff_nav.lodging %}
-      <section class="fizo-dash__launch">
+    {% elif staff_nav.lodging %}
+      <section class="fizo-dash__launch" aria-label="Front desk">
         <div><h2>Front desk</h2><p>Review arrivals, departures and room availability.</p></div>
         <a class="fizo-dash__action" href="{% url 'staff-lodging-reservations' %}">Open reservations <i class="bi bi-arrow-right"></i></a>
       </section>
