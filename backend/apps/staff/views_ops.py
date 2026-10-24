@@ -773,6 +773,13 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             and not order.is_paid
             and b > Decimal("0")
         )
+        retail_held = (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and order.status == OrderStatus.OPEN and bool(order.table_label)
+        )
+        ctx["retail_held"] = retail_held
+        if retail_held:
+            can_pay = False
         ctx["can_record_payment"] = can_pay
         ctx["payment_form"] = StaffOrderPaymentForm(initial={"amount": b}) if can_pay else None
         ctx["settlement_station"] = selected_workstation(self.request, outlets=staff_accessible_outlets(self.request.tenant_membership))
@@ -783,6 +790,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             and order.status == OrderStatus.OPEN
             and not order.is_paid
         )
+        if retail_held:
+            can_modify_open = False
         ctx["can_modify_open_order"] = can_modify_open
 
         # Folio attach/clear (only for open, unpaid orders).
