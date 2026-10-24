@@ -19,7 +19,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("fizo-retail-products.css", s)
         self.assertIn("fizo-products__table", s)
         self.assertIn("cat.items.all", s)
-        self.assertIn("item.display_image_url", s)
+        self.assertIn("item.product_image_src", s)
         self.assertIn("item.unit_price", s)
         self.assertIn('name="q"', s)
         self.assertIn('value="display_details"', s)
@@ -27,6 +27,17 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("can_manage_tv_details", s)
         self.assertIn("staff_nav.workspace", s)
         self.assertEqual(s.count("{% block "), s.count("{% endblock %}"))
+
+    def test_product_photo_upload_contract_spans_form_and_both_displays(self):
+        root = Path(__file__).resolve().parents[1]
+        editor = (root / "console/templates/console/org/menu_item_form.html").read_text(encoding="utf-8")
+        checkout = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
+        self.assertIn('enctype="multipart/form-data"', editor)
+        self.assertIn("object.product_image_src", editor)
+        self.assertIn("item.product_image_src", checkout)
+        self.assertIn("item.product_image_src", (Path(__file__).resolve().parent / "templates/staff/menu_list.html").read_text(encoding="utf-8"))
+        get_template("console/org/menu_item_form.html")
+        get_template("staff/includes/fizo_pos_catalogue.html")
 
     def test_independent_stylesheet_exists(self):
         root = Path(__file__).resolve().parent
