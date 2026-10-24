@@ -711,6 +711,36 @@ def hold_open_order(*, order: Order, hold_label: str, user) -> Order:
 
 
 @transaction.atomic
+def resume_held_retail_order(*, order: Order, user) -> Order:
+    """Return a parked retail basket to the active register without settling it.
+
+    The original order, tenders, pricing and audit history remain unchanged.
+    Hospitality table labels are deliberately not managed by this workflow.
+    """
+    locked = Order.objects.select_for_update().select_related("outlet").get(
+        pk=order.pk, tenant_id=order.tenant_id, outlet_id=order.outlet_id,
+    )
+    if locked.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+        raise ValidationError("Only supermarket or retail baskets can be resumed here.")
+    if locked.status != OrderStatus.OPEN or locked.is_paid:
+        raise ValidationError("Only open, not fully paid baskets can be resumed.")
+    if not locked.table_label:
+        return locked
+    previous_label = locked.table_label
+    locked.table_label = ""
+    locked.save(update_fields=["table_label", "updated_at"])
+    log_audit(
+        tenant_id=locked.tenant_id,
+        user_id=user.id if user else None,
+        action="order.resumed",
+        entity_type="order",
+        entity_id=str(locked.pk),
+        payload={"previous_hold_label": previous_label},
+    )
+    return locked
+
+
+@transaction.atomic
 def cancel_open_unpaid_order(*, order: Order, user, reason: str = "") -> Order:
     locked = Order.objects.select_for_update().get(pk=order.pk)
     if locked.status != OrderStatus.OPEN:
