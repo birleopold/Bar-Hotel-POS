@@ -1007,8 +1007,9 @@ class ConsoleAccessTests(TestCase):
         self.assertTrue(MenuItem.objects.filter(tenant=self.tenant, name="Coffee").exists())
 
     def test_owner_can_upload_product_photo(self) -> None:
-        import base64
+        import io
         import tempfile
+        from PIL import Image
 
         from django.core.files.uploadedfile import SimpleUploadedFile
         from django.test import override_settings
@@ -1017,10 +1018,10 @@ class ConsoleAccessTests(TestCase):
         Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
         self._login_with_tenant(user)
         category = MenuCategory.objects.create(tenant=self.tenant, name="Photo products")
-        # Valid 1×1 PNG. Storage is isolated to this test, not production MEDIA_ROOT.
-        png = base64.b64decode(
-            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=="
-        )
+        # Generate a valid small PNG in memory; no dependency on external files.
+        output = io.BytesIO()
+        Image.new("RGB", (2, 2), "white").save(output, format="PNG")
+        png = output.getvalue()
         with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
             response = self.client.post(
                 reverse("console-org-menu-item-create"),
