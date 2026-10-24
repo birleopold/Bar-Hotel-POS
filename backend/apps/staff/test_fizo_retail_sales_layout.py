@@ -24,6 +24,25 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("fz-top-operator", foundation)
         self.assertIn("{% url 'staff-retail-pos-entry' %}", sidebar)
 
+    def test_retail_quantity_updates_every_visible_total_and_change_calculator(self):
+        source = (Path(__file__).resolve().parent /
+                  "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        # Regression: only updating the old page header left the approved
+        # right-side basket, Pay CTA, tender and change calculator stale.
+        self.assertIn('function updateBasketAmounts(values)', source)
+        self.assertIn('updateBasketAmounts(data);', source)
+        self.assertIn('.fizo-retail-basket-summary__total strong', source)
+        self.assertIn('.fizo-retail-basket-summary > div:nth-child(1) strong', source)
+        self.assertIn('.fizo-retail-basket-summary > div:nth-child(2) strong', source)
+        self.assertIn('.fizo-cashier-pay-cta span', source)
+        self.assertIn('new Event("retail:balance-updated")', source)
+        self.assertIn('cashPanel.addEventListener("retail:balance-updated"', source)
+        self.assertIn('Number(payment.value) === Number(oldDue)', source)
+        self.assertIn('(!enteredCash || !enteredCash.value.trim())', source)
+        self.assertIn('Number(localPayment.value) === Number(previousDue)', source)
+        self.assertIn('remotePayment.value', source)
+        self.assertIn('reconcileFromServer()', source)
+
     def test_retail_quantity_confirmation_has_no_false_success_fallback(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
