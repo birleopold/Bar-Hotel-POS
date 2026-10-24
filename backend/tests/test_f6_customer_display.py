@@ -68,10 +68,9 @@ def test_customer_screen_follows_cashiers_new_basket_without_send_action():
     mark_customer_display_active(second, env["user"])
     first_url = reverse("staff-retail-customer-display", kwargs={"order_id": first.pk})
     page = client.get(first_url)
-    assert page.status_code == 302
-    assert str(second.pk) in page["Location"]
-    current = client.get(page["Location"])
-    assert current.status_code == 200
+    assert page.status_code == 200
+    assert str(second.pk).encode() in page.content
+    current = page
     assert b"customer-display-live.js" in current.content
     assert b"data-customer-display-root" in current.content
     assert b'<meta http-equiv="refresh" content="4">' in current.content
