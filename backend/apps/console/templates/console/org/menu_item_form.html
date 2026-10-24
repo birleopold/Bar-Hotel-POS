@@ -76,7 +76,7 @@
   var url = "{% url 'console-org-menu-item-photo' item_id=object.pk %}";
   var button = document.querySelector("[data-copy-photo-link]");
   var status = document.querySelector("[data-phone-photo-status]");
-  var known = "{{ object.product_image.name|escapejs }}";
+  var known = "{{ object.product_image_src|escapejs }}";
   if (button) button.addEventListener("click", function () {
     var full = new URL(url, window.location.href).href;
     if (navigator.clipboard && window.isSecureContext) {
@@ -89,8 +89,8 @@
       if (!r.ok) throw new Error("status");
       return r.json();
     }).then(function (data) {
-      if (data.image_key === known) return;
-      known = data.image_key;
+      if (data.image_url === known) return;
+      known = data.image_url;
       var img = document.querySelector(".fizo-entity__product-preview");
       if (data.image_url) {
         if (!img) {
