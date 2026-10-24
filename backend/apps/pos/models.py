@@ -124,8 +124,17 @@ class Order(TimeStampedModel):
         return f"{self.bill_reference} ({self.status})"
 
     def save(self, *args, **kwargs) -> None:
-        if self._state.adding and not self.bill_reference:
-            self.bill_reference = f"B-{uuid.uuid4().hex[:10].upper()}"
+        if self._state.adding:
+            # New orders must use their own tenant's configured currency.
+            # Historical orders are never silently converted when settings change.
+            from apps.tenants.models import TenantSettings
+            configured = TenantSettings.objects.filter(tenant_id=self.tenant_id).values_list(
+                "default_currency", flat=True
+            ).first()
+            if configured:
+                self.currency = configured.strip().upper()
+            if not self.bill_reference:
+                self.bill_reference = f"B-{uuid.uuid4().hex[:10].upper()}"
         super().save(*args, **kwargs)
 
 
