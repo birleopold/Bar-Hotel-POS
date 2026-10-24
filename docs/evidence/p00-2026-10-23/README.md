@@ -134,3 +134,11 @@ This is a correction to the **auditor's source classification**, not suppression
 - **PostgreSQL integration job: passed**, but this is not production RLS or concurrency certification.
 
 P00 asset-integrity subgate is verified **passed for this SHA only**. P00 overall remains **in progress**, and P01 may not be marked started/completed simply from the CSS check. Follow-on work must trace and fix the 69 remaining failures by genuine implementation/behavior contracts, then re-run CI and compare authenticated browser screenshots. No production deployment is implied.
+
+## Tenant-authentication implementation correction — 24 October 2026
+
+Inspected the failing `tests/test_branded_staff_login.py` cases and traced the actual source: `login_brand_for_request` already returns verified tenant identity, accent, configured `background_url`, and `welcome_message`, but the rebuilt staff login/PIN templates ignored the background and the PIN page ignored the welcome copy. Updated the **canonical existing** `login.html`, `terminal.html`, and `fizo-auth-2026.css` to render those existing fields with a readable image overlay. Kept tenant-verified branding lookup, form actions, worker selection and security behavior unchanged. Login title uses `Staff sign in`; terminal title uses `STAFF TERMINAL`; the branded login's eyebrow now identifies its private workspace.
+
+Commits: `23565942de048023c5eb9888d671bc013c36d371`, `5e917e6b9b31aa2f6f78bdadf64559041ce7582c`, `dd4608149f49329f61a6803e0f6a512ad874fefc`. These are direct replacements in existing owners, not duplicate CSS or templates.
+
+Verification boundary: new CI and browser confirmation pending. Historical 69 failing SQLite tests belong to the earlier `b23bd823` CI run, **not** to these commits. P00 still open.
