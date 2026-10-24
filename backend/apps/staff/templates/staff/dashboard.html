@@ -127,8 +127,8 @@
 
     {% if show_workspace_admin_tools %}
     <section class="fizo-dash__panel fizo-dash__section fizo-dash__management">
-      <div class="fizo-dash__sectionhead"><h2>Business management</h2></div>
-      <div class="fizo-dash__links"><a href="{% url 'console-org' %}">Business overview</a><a href="{% url 'console-org-setup' %}">Guided setup</a><a href="{% url 'staff-workspace-members' %}">Staff</a></div>
+      <div class="fizo-dash__sectionhead"><h2>Administration</h2><p>Manage your business, team and onboarding.</p></div>
+      <div class="fizo-dash__links"><a href="{% url 'console-org' %}">Open admin console</a><a href="{% url 'console-org-setup' %}">Guided setup</a><a href="{% url 'staff-workspace-members' %}">Team &amp; onboarding</a><a href="{% url 'staff-workspace-member-create' %}">Add staff member</a></div>
     </section>{% endif %}
     {% if show_workspace_setup_cta %}
     <section class="fizo-dash__panel fizo-dash__section fizo-dash__setup" aria-labelledby="setup-heading">
