@@ -46,6 +46,20 @@
     {% endif %}
   </div>
   {% endif %}
+  {% if retail_held %}
+  <section class="staff-alert staff-alert--warning" role="status" aria-label="Held basket">
+    <strong>This basket is on hold.</strong>
+    {{ order.table_label }} · Already paid {{ order.currency }} {{ amount_paid }} ·
+    Remaining {{ order.currency }} {{ balance_due }}.
+    Resume the same sale before scanning, changing quantities or collecting further payment.
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="resume_order">
+      <button class="staff-btn staff-btn--primary" type="submit">Resume this basket</button>
+    </form>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Find another basket</a>
+  </section>
+  {% endif %}
   {% if is_supermarket_outlet %}
   <section class="fizo-cashier-identity" aria-label="Current cashier and register"><div class="reference-pos-brand"><i class="bi bi-cart3" aria-hidden="true"></i><span><strong>{{ request.tenant.name }}</strong><small>{{ order.outlet.get_outlet_type_display }}</small></span></div>
   {% if can_modify_open_order %}
