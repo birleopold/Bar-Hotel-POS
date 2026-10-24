@@ -372,6 +372,26 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertTrue(sale.is_paid)
         self.assertEqual(Payment.objects.get(order=sale).amount, Decimal("35000.00"))
 
+    def test_resumed_partial_sale_shows_balance_and_next_payment_guidance(self):
+        from apps.pos.models import Payment
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("35000.00"), total=Decimal("35000.00"),
+            table_label="Held " + "returning shopper",
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=sale, amount=Decimal("15000.00"),
+            method="cash", idempotency_key="resumed-payment-guidance",
+            recorded_by=self.user,
+        )
+        response = self.client.get(reverse("staff-order-detail", kwargs={"order_id": sale.pk}))
+        self.assertEqual(response.status_code, 200)
+        if response.context["can_record_payment"]:
+            self.assertContains(response, "Continue this basket")
+            self.assertContains(response, "20000.00")
+            self.assertContains(response, "15000.00")
+            self.assertEqual(response.context["payment_form"].initial["amount"], Decimal("20000.00"))
+
     def test_held_partial_payment_visible_in_lanes_and_searchable(self):
         """Cashier sees outstanding balance and can locate an older parked sale."""
         from apps.pos.models import Payment
