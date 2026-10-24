@@ -23,7 +23,7 @@
       </form>{% endif %}
     </section>
   {% else %}
-    {% if staff_product.business_key == "lodging" and staff_show_lodging_nav and staff_nav.lodging %}
+    {% if staff_product.business_key == "lodging" and staff_nav.lodging %}
       <section class="fizo-dash__launch">
         <div><h2>Front desk</h2><p>Review arrivals, departures and room availability.</p></div>
         <div class="fizo-dash__links"><a class="fizo-dash__action" href="{% url 'staff-lodging-reservations' %}">Open reservations <i class="bi bi-arrow-right"></i></a>{% if staff_nav.orders %}<a href="{% url 'staff-orders' %}">Open POS</a>{% endif %}</div>
