@@ -131,10 +131,10 @@ class SupermarketCashierLaneTests(TestCase):
             with self.subTest(page=name):
                 response = self.client.get(reverse(name))
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, "owner-topbar__brand")
-                self.assertContains(response, "owner-side-nav")
+                self.assertContains(response, 'class="staff-sidebar"')
+                self.assertContains(response, 'class="staff-nav"')
                 self.assertContains(response, "grocery-owner-body")
-                self.assertContains(response, "owner-side-nav")
+                self.assertContains(response, 'id="staff-main-content"')
 
     def test_grocery_owner_products_page_uses_retail_language(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)
