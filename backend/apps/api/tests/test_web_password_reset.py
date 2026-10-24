@@ -16,6 +16,17 @@ class StaffPasswordResetPageTests(TestCase):
         self.user.is_platform_staff = True  # Eligible operator without tenant membership.
         self.user.save(update_fields=["is_platform_staff"])
 
+    def test_recovery_templates_use_configured_static_asset(self) -> None:
+        from pathlib import Path
+        from django.template.loader import get_template
+        base = Path(__file__).resolve().parents[3] / "templates/password_reset"
+        for page in ("request.html", "confirm.html"):
+            with self.subTest(page=page):
+                source = (base / page).read_text(encoding="utf-8")
+                self.assertIn("{% static 'staff/fizo-auth-2026.css' %}", source)
+                self.assertNotIn('href="/static/staff/fizo-auth-2026.css', source)
+                get_template("password_reset/" + page)
+
     def test_get_without_query_shows_invalid(self) -> None:
         r = self.client.get("/password-reset/confirm/")
         self.assertEqual(r.status_code, 200)
