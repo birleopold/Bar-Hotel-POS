@@ -198,7 +198,7 @@
       try {
         if (window.sessionStorage.getItem(focusKey) === "1") {
           window.sessionStorage.removeItem(focusKey);
-          if (window.matchMedia("(pointer: fine)").matches) scanInput.focus();
+          if (!window.matchMedia || window.matchMedia("(pointer: fine)").matches) scanInput.focus();
         }
       } catch (ignored) { /* Private browsing may disable storage. */ }
     }
