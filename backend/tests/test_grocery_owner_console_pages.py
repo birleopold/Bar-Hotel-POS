@@ -133,5 +133,6 @@ class GroceryOwnerConsolePagesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["grocery_console_shell"])
         self.assertContains(response, "Organization overview")
-        self.assertContains(response, "Administration navigation")
+        self.assertContains(response, 'aria-label="Administration navigation"')
+        self.assertNotContains(response, 'aria-label="Store management"')
         self.assertNotContains(response, 'class="grocery-setup"')
