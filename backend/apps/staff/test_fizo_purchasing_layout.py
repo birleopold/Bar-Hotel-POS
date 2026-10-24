@@ -14,7 +14,7 @@ class FizoPurchasingLayoutTests(SimpleTestCase):
         for name in self.pages:
             with self.subTest(name=name):
                 s=(base/name).read_text(encoding="utf-8")
-                self.assertIn("fizo-purchasing.css",s)
+                self.assertIn("management-workflows.css",s)
                 self.assertIn("fizo-purchasing__header",s)
                 self.assertEqual(s.count("{% block "),s.count("{% endblock %}"))
     def test_payment_and_supplier_forms_remain(self):
@@ -27,4 +27,5 @@ class FizoPurchasingLayoutTests(SimpleTestCase):
         supplier=(base/"supplier_form.html").read_text(encoding="utf-8")
         self.assertIn("{% for field in form %}",supplier)
         self.assertIn("{% csrf_token %}",supplier)
-        self.assertTrue((Path(__file__).resolve().parent/"static/staff/fizo-purchasing.css").is_file())
+        self.assertFalse((Path(__file__).resolve().parent/"static/staff/fizo-purchasing.css").exists())
+        self.assertIn(".fizo-purchasing", (Path(__file__).resolve().parent/"static/staff/management-workflows.css").read_text(encoding="utf-8"))
