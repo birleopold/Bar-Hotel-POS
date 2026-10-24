@@ -437,6 +437,10 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
 
     def post(self, request: HttpRequest) -> HttpResponse:
         mode = (request.POST.get("mode") or "").strip()
+        # Older staff clients submit "walkin" for the same unlabeled sale.
+        # Preserve that supported alias while rejecting unknown operations.
+        if mode == "walkin":
+            mode = ""
         if mode not in {"", "hold"}:
             messages.error(request, "Invalid sale action. Start a new sale or hold a basket.")
             return redirect("staff-orders")
