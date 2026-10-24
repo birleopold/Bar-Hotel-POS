@@ -18,7 +18,7 @@
     <div class="fizo-sales__start-icon"><i class="bi bi-cart3"></i></div>
     <div><h2>Ready for the next customer?</h2><p>Open a basket, scan or search for products, and accept payment. Walk-in sales do not require a customer account.</p></div>
     {% if current_outlet and supermarket_shift_open %}
-      <form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}<button class="fizo-sales__primary" type="submit">Open cashier POS <i class="bi bi-arrow-right"></i></button></form>
+      <form method="post" action="{% url 'staff-order-quick-create' %}" onsubmit="if (this.dataset.submitting === '1') { return false; } this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">{% csrf_token %}<button class="fizo-sales__primary" type="submit">Open cashier POS <i class="bi bi-arrow-right"></i></button></form>
     {% elif not current_outlet %}
       <a class="fizo-sales__primary" href="{% url 'staff-pos-shifts' %}">Select register <i class="bi bi-arrow-right"></i></a>
     {% elif not supermarket_shift_open %}
@@ -36,7 +36,7 @@
   {% if ready_handoff_count %}<p class="staff-alert" role="status">{{ ready_handoff_count }} orders ready for handoff.</p>{% endif %}
   <section class="fizo-sales__panel" aria-labelledby="fizo-checkout-active">
     <div class="fizo-sales__sectionhead"><div><h2 id="fizo-checkout-active">Active checkouts</h2><p>Resume an open checkout or held basket.</p></div>
-      {% if current_outlet and supermarket_shift_open %}<form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}<input type="hidden" name="mode" value="hold"><button type="submit" class="staff-btn staff-btn--ghost">Hold basket</button></form>{% endif %}
+      {% if current_outlet and supermarket_shift_open %}<form method="post" action="{% url 'staff-order-quick-create' %}" onsubmit="if (this.dataset.submitting === '1') { return false; } this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">{% csrf_token %}<input type="hidden" name="mode" value="hold"><button type="submit" class="staff-btn staff-btn--ghost">Hold basket</button></form>{% endif %}
     </div>
     <div class="fizo-sales__lanes">{% include "staff/includes/orders_lanes.html" %}</div>
   </section>
