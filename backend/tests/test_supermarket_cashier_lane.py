@@ -654,8 +654,17 @@ class SupermarketCashierLaneTests(TestCase):
             method="cash", idempotency_key="resumed-payment-guidance",
             recorded_by=self.user,
         )
-        response = self.client.get(reverse("staff-order-detail", kwargs={"order_id": sale.pk}))
+        url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+        parked = self.client.get(url)
+        self.assertEqual(parked.status_code, 200)
+        self.assertTrue(parked.context["retail_held"])
+        self.assertFalse(parked.context["can_record_payment"])
+        self.assertFalse(parked.context["can_modify_open_order"])
+        self.assertEqual(parked.context["balance_due"], Decimal("20000.00"))
+        self.assertEqual(self.client.post(url, {"action": "resume_order"}).status_code, 302)
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["retail_held"])
         if response.context["can_record_payment"]:
             self.assertContains(response, "Continue this basket")
             self.assertContains(response, "20000.00")
