@@ -289,8 +289,17 @@ class SupermarketCashierLaneTests(TestCase):
 
         # Once purchasing/receiving adds the missing unit, retain separate
         # SALE/RECIPE movements while deducting the combined five units.
-        balance.quantity = Decimal("5")
-        balance.save(update_fields=["quantity"])
+        from apps.inventory.models import StockReason
+        from apps.inventory.services import apply_manual_stock_change
+        received = apply_manual_stock_change(
+            tenant_id=self.tenant.pk, outlet=self.outlet,
+            menu_item=ingredient, quantity_change=Decimal("1"),
+            reason=StockReason.RECEIVE, user=self.user,
+            note="Supplier delivery brings item to available quantity",
+        )
+        self.assertEqual(received.quantity_change, Decimal("1"))
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("5"))
         payment, replayed = record_order_payment(
             order=sale, user=self.user, amount=Decimal("10000"),
             method="cash", idempotency_key="combined-stock-now-available",
