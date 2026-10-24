@@ -438,8 +438,8 @@ class StaffUiTests(TestCase):
         self.assertContains(response, 'class="staff-sidebar"')
         self.assertContains(response, "All sections")
         self.assertContains(response, "Terrace bar")
-        self.assertContains(response, "Sales &amp; floor")
-        self.assertContains(response, "Stock &amp; buying")
+        self.assertContains(response, ">Sales</a>")
+        self.assertContains(response, ">Stock</a>")
         self.assertContains(response, "Workspace")
         mobile_header = response.content.split(b'<header class="staff-nav', 1)[1].split(b'</header>', 1)[0]
         self.assertLess(mobile_header.index(b'staff-nav__lock'), mobile_header.index(b'<nav aria-label="Primary">'))
