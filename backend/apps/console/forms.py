@@ -321,6 +321,8 @@ class ConsoleRoomTypeForm(forms.ModelForm):
             "site": forms.Select(attrs={"class": "staff-input"}),
             "name": forms.TextInput(attrs={"class": "staff-input"}),
             "description": forms.Textarea(attrs={"class": "staff-input", "rows": 3}),
+            "product_image": forms.ClearableFileInput(attrs={"class": "staff-input", "accept": "image/jpeg,image/png,image/webp"}),
+            "display_image_url": forms.URLInput(attrs={"class": "staff-input", "placeholder": "https://... (optional alternative)"}),
             "max_occupancy": forms.NumberInput(attrs={"class": "staff-input"}),
             "is_active": forms.CheckboxInput(),
         }
@@ -397,6 +399,8 @@ class ConsoleMenuItemForm(forms.ModelForm):
             "category",
             "name",
             "description",
+            "product_image",
+            "display_image_url",
             "sku",
             "barcode",
             "unit_of_measure",
@@ -448,6 +452,14 @@ class ConsoleMenuItemForm(forms.ModelForm):
         self.fields["reorder_level"].required = False
         # Existing owners/API clients can omit this newly optional setting.
         self.fields["units_per_carton"].required = False
+
+    def clean_product_image(self):
+        image = self.cleaned_data.get("product_image")
+        if image and hasattr(image, "size") and image.size > 5 * 1024 * 1024:
+            raise forms.ValidationError("Product image must be 5 MB or smaller.")
+        if image and hasattr(image, "content_type") and image.content_type not in ("image/jpeg", "image/png", "image/webp"):
+            raise forms.ValidationError("Upload a JPEG, PNG or WebP image.")
+        return image
 
     def clean_units_per_carton(self):
         return self.cleaned_data.get("units_per_carton") or 1
