@@ -78,9 +78,13 @@ def record_order_payment(
     if locked.is_paid:
         raise ValidationError("This order is already paid.")
 
-    paid_so_far = (
+    gross_paid = (
         Payment.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
     )
+    refunded = (
+        Refund.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    )
+    paid_so_far = gross_paid - refunded
     remaining = (locked.total - paid_so_far).quantize(Decimal("0.01"))
     if amount <= 0 or amount > remaining:
         raise ValidationError(
