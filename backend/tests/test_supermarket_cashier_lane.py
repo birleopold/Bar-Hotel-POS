@@ -540,6 +540,28 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"paymentPending" in page.content
             assert b"Recording payment" in page.content
 
+    def test_invalid_async_quantity_returns_explanation_not_redirect(self):
+        from apps.pos.models import OrderLine
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            total=Decimal("1500"), subtotal=Decimal("1500"), currency="UGX",
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Bottled Water", quantity=Decimal("1"),
+            unit_price=Decimal("1500"), line_total=Decimal("1500"),
+        )
+        response = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": order.pk}),
+            {"action": "adjust_line_qty", "line_id": str(line.pk), "quantity": "invalid"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response["Content-Type"], "application/json")
+        self.assertFalse(response.json()["ok"])
+        self.assertTrue(response.json()["message"])
+        line.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal("1"))
+
     def test_quantity_ajax_response_updates_without_redirect(self):
         from apps.pos.models import OrderLine
         order = Order.objects.create(
