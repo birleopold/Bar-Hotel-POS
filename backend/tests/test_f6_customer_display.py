@@ -138,3 +138,35 @@ def test_same_cashier_separate_browser_sessions_cannot_hijack_display():
     assert second.bill_reference.encode() not in a.content
     assert second.bill_reference.encode() in b.content
     assert first.bill_reference.encode() not in b.content
+
+
+@pytest.mark.django_db
+def test_display_link_from_different_cashier_cannot_follow_current_sale():
+    env = _seed_tenant_bundle(name="Private Till Display", slug="f6-private-till",
+                              user_email="f6-private-till@test.local")
+    env["outlet"].outlet_type = OutletType.RETAIL
+    env["outlet"].save(update_fields=["outlet_type"])
+    from apps.accounts.models import User
+    other = User.objects.create_user(email="f6-other-till@test.local", password="TestPass9!")
+    old_sale = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=other)
+    own_sale = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=env["user"])
+    client = Client()
+    assert client.login(username=env["user"].email, password="TestPass9!")
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
+    session.save()
+    from django.test import RequestFactory
+    from apps.staff.views_customer_display import customer_display_active_key
+    # Set only this cashier's current basket in their own session.
+    request = RequestFactory().get("/")
+    request.user = env["user"]
+    request.tenant = env["tenant"]
+    request.tenant_membership = env["membership"]
+    request.session = client.session
+    from django.core.cache import cache
+    cache.set(customer_display_active_key(request, env["outlet"].pk), str(own_sale.pk), 120)
+    stale = client.get(reverse("staff-retail-customer-display", kwargs={"order_id": old_sale.pk}))
+    assert stale.status_code == 200
+    assert b"Welcome!" in stale.content
+    assert own_sale.bill_reference.encode() not in stale.content
+    assert old_sale.bill_reference.encode() not in stale.content
