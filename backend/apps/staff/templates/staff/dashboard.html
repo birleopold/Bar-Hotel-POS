@@ -109,6 +109,7 @@
         {% if staff_dashboard_lodging_snapshot and staff_dashboard_lodging_snapshot.arrival_rows %}
           <ul class="fizo-dash__list">{% for row in staff_dashboard_lodging_snapshot.arrival_rows %}<li><a href="{{ row.detail_url }}"><span><strong>{{ row.guest_name }}</strong><small class="d-block">{{ row.status_label }}</small></span><span class="fizo-dash__pill">{{ row.room_label }}</span></a></li>{% endfor %}</ul>
         {% else %}
+          {% if staff_dashboard_lodging_snapshot %}<p class="fizo-dash__muted">No arrivals scheduled for today at {{ staff_dashboard_lodging_snapshot.site_name }}.</p>{% endif %}
           <div class="fizo-dash__links">
             {% if staff_nav.orders %}<a href="{% url 'staff-orders' %}">Orders</a>{% endif %}
             {% if staff_nav.menu %}<a href="{% url 'staff-menu' %}">Items</a>{% endif %}
