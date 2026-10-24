@@ -654,6 +654,20 @@ def adjust_open_order_line_quantity(
     locked_ln.tax_amount = line_tax(locked_ln.line_total, tax_rate)
     locked_ln.save(update_fields=["quantity", "unit_price", "pricing_source", "line_discount_amount", "line_discount_percent", "line_total", "tax_amount", "updated_at"])
     recalculate_order_totals(locked_o)
+    # Open orders may already have partial tenders. A quantity reduction
+    # cannot reduce the sale below money already received. The atomic
+    # transaction rolls back both the edited line and recalculated total.
+    paid_so_far = Payment.objects.filter(order_id=locked_o.id).aggregate(
+        amount=Sum("amount")
+    )["amount"] or Decimal("0.00")
+    if locked_o.total < paid_so_far:
+        raise ValidationError({
+            "quantity": (
+                f"Cannot reduce this basket below its recorded payments "
+                f"({locked_o.currency} {paid_so_far:.2f}). "
+                "Use the authorized refund or adjustment workflow first."
+            )
+        })
     log_audit(
         tenant_id=locked_o.tenant_id,
         user_id=user.id if user else None,
