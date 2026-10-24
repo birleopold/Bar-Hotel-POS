@@ -2,6 +2,8 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
+from django.db import connection
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
@@ -577,10 +579,18 @@ class SupermarketCashierLaneTests(TestCase):
             quantity=Decimal("2"), unit_price=Decimal("12000"),
             line_total=Decimal("24000"),
         )
-        returned = process_supermarket_line_return(
-            order=order, line=line, quantity=Decimal("1"),
-            reason="Customer service adjustment", restock=False, user=self.user,
-        )
+        with CaptureQueriesContext(connection) as queries:
+            returned = process_supermarket_line_return(
+                order=order, line=line, quantity=Decimal("1"),
+                reason="Customer service adjustment", restock=False, user=self.user,
+            )
+        if connection.vendor == "postgresql":
+            line_locks = [
+                q["sql"].upper() for q in queries
+                if "FOR UPDATE" in q["sql"].upper() and "POS_ORDERLINE" in q["sql"].upper()
+            ]
+            self.assertTrue(line_locks, "Expected PostgreSQL return-line row lock")
+            self.assertTrue(all("LEFT OUTER JOIN" not in sql for sql in line_locks))
         self.assertEqual(returned.tenant_id, self.tenant.pk)
         self.assertEqual(returned.order_line_id, line.pk)
         self.assertEqual(returned.quantity, Decimal("1"))
@@ -603,9 +613,17 @@ class SupermarketCashierLaneTests(TestCase):
             quantity=Decimal("1"), unit_price=Decimal("12000"),
             line_total=Decimal("12000"),
         )
-        changed = adjust_open_order_line_quantity(
-            order=order, line=line, quantity=Decimal("2"), user=self.user,
-        )
+        with CaptureQueriesContext(connection) as queries:
+            changed = adjust_open_order_line_quantity(
+                order=order, line=line, quantity=Decimal("2"), user=self.user,
+            )
+        if connection.vendor == "postgresql":
+            line_locks = [
+                q["sql"].upper() for q in queries
+                if "FOR UPDATE" in q["sql"].upper() and "POS_ORDERLINE" in q["sql"].upper()
+            ]
+            self.assertTrue(line_locks, "Expected PostgreSQL order-line row lock")
+            self.assertTrue(all("LEFT OUTER JOIN" not in sql for sql in line_locks))
         changed.refresh_from_db()
         order.refresh_from_db()
         self.assertEqual(changed.quantity, Decimal("2"))
