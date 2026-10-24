@@ -78,6 +78,20 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("cache.get(", source)
         self.assertNotIn("cache.set(", source)
 
+    def test_customer_display_hides_stale_tender_and_blank_on_repeated_session_loss(self):
+        root = Path(__file__).resolve().parent
+        script = (root / "static/staff/customer-display-live.js").read_text(encoding="utf-8")
+        template = (root / "templates/staff/pos/customer_display.html").read_text(encoding="utf-8")
+        view = (root / "views_customer_display.py").read_text(encoding="utf-8")
+        self.assertIn('data-current-due="{{ display_remaining }}"', template)
+        self.assertIn('Math.abs(record.due - liveDue) > 0.005', script)
+        self.assertIn('root.setAttribute("data-current-due"', script)
+        self.assertIn('authorizationFailures >= 3', script)
+        self.assertIn('root.replaceChildren()', script)
+        self.assertIn('root.setAttribute("data-active-order", "")', script)
+        self.assertIn('table_label=""', view)
+        self.assertIn('not order.table_label', view)
+
     def test_customer_display_ignores_single_idle_poll_and_pin_redirect(self):
         script = (Path(__file__).resolve().parent /
                   "static/staff/customer-display-live.js").read_text(encoding="utf-8")
