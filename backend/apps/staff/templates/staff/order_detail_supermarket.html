@@ -343,6 +343,53 @@
 
   /* Each basket quantity update is single-flight, whether submitted using
      +/- buttons, the keyboard, or the Save button. */
+  function reconcileFromServer() {
+    return fetch(window.location.href, {
+      credentials: "same-origin", cache: "no-store",
+      headers: {"Accept": "text/html"}
+    }).then(function (response) {
+      if (!response.ok || response.redirected) throw new Error("Checkout cannot be read.");
+      return response.text();
+    }).then(function (html) {
+      var page = new DOMParser().parseFromString(html, "text/html");
+      var remoteBasket = page.querySelector("#fizo-current-basket");
+      if (!remoteBasket) throw new Error("Basket missing in checkout response.");
+      document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
+        var id = form.querySelector('input[name="line_id"]');
+        if (!id) return;
+        var remoteForm = Array.prototype.find.call(
+          remoteBasket.querySelectorAll("[data-fizo-qty-form]"),
+          function (candidate) {
+            var candidateId = candidate.querySelector('input[name="line_id"]');
+            return candidateId && candidateId.value === id.value;
+          }
+        );
+        if (!remoteForm) return;
+        var input = form.querySelector('input[name="quantity"]');
+        var remoteInput = remoteForm.querySelector('input[name="quantity"]');
+        if (input && remoteInput) {
+          input.value = remoteInput.value;
+          input.dataset.confirmedQuantity = remoteInput.value;
+        }
+        var row = form.closest(".fizo-retail-basket-row");
+        var remoteRow = remoteForm.closest(".fizo-retail-basket-row");
+        var amount = row && row.querySelector(".fizo-retail-basket-row__amount");
+        var remoteAmount = remoteRow && remoteRow.querySelector(".fizo-retail-basket-row__amount");
+        if (amount && remoteAmount) amount.textContent = remoteAmount.textContent;
+      });
+      [".staff-pos-totals-row__total strong", ".staff-pos-totals-row__meta",
+       ".fizo-cashier-payment-summary strong"].forEach(function (selector) {
+        var local = document.querySelector(selector);
+        var remote = page.querySelector(selector);
+        if (local && remote) local.textContent = remote.textContent;
+      });
+      var cash = document.querySelector("[data-retail-cash-panel]");
+      var remoteCash = page.querySelector("[data-retail-cash-panel]");
+      if (cash && remoteCash) {
+        cash.setAttribute("data-balance-due", remoteCash.getAttribute("data-balance-due"));
+      }
+    });
+  }
   document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
     var input = form.querySelector('input[name="quantity"]');
     if (input) input.dataset.confirmedQuantity = input.value;
@@ -381,6 +428,11 @@
         if (!response.ok && response.status !== 422) throw new Error("Unable to confirm basket update.");
         return response.json();
       }).then(function (data) {
+        if (data.refresh_required) {
+          return reconcileFromServer().then(function () {
+            errorBox.textContent = "Basket updated.";
+          });
+        }
         if (!data.ok) {
           if (input) input.value = input.dataset.confirmedQuantity || input.defaultValue;
           errorBox.textContent = data.message || "The quantity was not changed.";
@@ -403,9 +455,13 @@
         if (cash) cash.setAttribute("data-balance-due", data.due);
         errorBox.textContent = "Basket updated.";
       }).catch(function () {
-        // The server might have committed before losing its response.
-        // Avoid an unsafe automatic replay of the cashier's command.
-        errorBox.textContent = "Unable to confirm the update. Check the basket before trying again.";
+        // A response can fail AFTER the transaction commits. Never retry
+        // automatically: read the authoritative basket with a safe GET.
+        return reconcileFromServer().then(function () {
+          errorBox.textContent = "Basket synchronized.";
+        }).catch(function () {
+          errorBox.textContent = "Could not verify the update. Check the basket before trying again.";
+        });
       }).then(function () {
         delete form.dataset.submitting;
         buttons.forEach(function (button) { button.disabled = false; });
