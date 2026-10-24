@@ -305,6 +305,34 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(response["Location"], reverse("staff-retail-pos-entry"))
         self.assertNotIn(str(order.pk), response["Location"])
 
+    def test_held_sale_search_all_retail_outlets_recovers_older_basket(self):
+        """All-retail register view must search held receipt/notes, not only 50 newest."""
+        second = Outlet.objects.create(
+            site=self.outlet.site, name="Second Retail Till",
+            outlet_type=OutletType.RETAIL,
+        )
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        membership.outlets.add(second)
+        held = Order.objects.create(
+            tenant=self.tenant, outlet=second, created_by=self.user,
+            table_label="Return with blue bag", currency="UGX",
+        )
+        # Newer unrelated baskets occupy the default first page of held cards.
+        for idx in range(51):
+            Order.objects.create(
+                tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+                table_label=f"Queued shopper {idx:02}", currency="UGX",
+            )
+        session = self.client.session
+        from apps.staff.middleware import STAFF_SESSION_OUTLET_ALL
+        session[STAFF_SESSION_OUTLET_KEY] = STAFF_SESSION_OUTLET_ALL
+        session.save()
+        response = self.client.get(reverse("staff-orders"), {"q": "Return with blue bag"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, held.table_label)
+        self.assertContains(response, str(held.pk))
+        self.assertEqual(len(response.context["held_tabs"]), 1)
+
     def test_held_partial_basket_resume_reuses_original_order_and_tenders(self):
         """Parking must free the register; resuming cannot create another sale."""
         from apps.pos.models import Payment
