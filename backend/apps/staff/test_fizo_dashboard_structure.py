@@ -9,7 +9,7 @@ class FizoDashboardStructureTests(SimpleTestCase):
         root = Path(__file__).resolve().parent
         markup = (root / "templates" / "staff" / "dashboard.html").read_text(encoding="utf-8")
         self.assertIn('retail-workflows.css', markup)
-        self.assertIn('class="fizo-dash"', markup)
+        self.assertIn('class="fizo-dash fz-industry-dashboard"', markup)
         self.assertIn("staff_dashboard_sales_snapshot", markup)
         self.assertIn("staff_dashboard_lodging_snapshot", markup)
         self.assertIn("staff_dashboard_primary_actions", markup)
