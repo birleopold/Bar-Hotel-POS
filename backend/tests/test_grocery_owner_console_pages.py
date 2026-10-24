@@ -89,6 +89,18 @@ class GroceryOwnerConsolePagesTests(TestCase):
         )
         self.assertContains(response, "Save sales area")
 
+    def test_sales_area_pages_keep_tenant_brand_and_do_not_expose_hotel_labels(self):
+        index = self.client.get(reverse("console-org-outlets", kwargs={"site_id": self.site.pk}))
+        create = self.client.get(reverse("console-org-outlet-create", kwargs={"site_id": self.site.pk}))
+        for response in (index, create):
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, self.tenant.name)
+            self.assertNotContains(response, "FIZO /")
+            self.assertNotContains(response, "Hotel dashboard")
+        self.assertContains(index, "Sales areas")
+        self.assertContains(index, "Add sales area")
+        self.assertContains(create, "Save sales area")
+
     def test_product_editor_keeps_advanced_inputs_available(self):
         response = self.client.get(
             reverse("console-org-menu-item-edit", kwargs={"item_id": self.product.pk})
