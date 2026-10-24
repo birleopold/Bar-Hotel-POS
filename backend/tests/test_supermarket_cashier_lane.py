@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.catalog.models import MenuCategory, MenuItem
+from apps.catalog.models import MenuCategory, MenuItem, SupermarketSkuProfile
 from apps.pos.models import Order
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
@@ -257,6 +257,16 @@ class SupermarketCashierLaneTests(TestCase):
         for quantity in (Decimal("1.5"), Decimal("1.0004")):
             with self.subTest(quantity=quantity), self.assertRaises(ValidationError):
                 normalize_supermarket_quantity(menu_item=item, quantity=quantity)
+        SupermarketSkuProfile.objects.create(
+            tenant=self.tenant, menu_item=item, allow_fractional_quantity=True,
+        )
+        self.assertEqual(
+            normalize_supermarket_quantity(menu_item=item, quantity=Decimal("1.125")),
+            Decimal("1.125"),
+        )
+        with self.assertRaises(ValidationError):
+            normalize_supermarket_quantity(menu_item=item, quantity=Decimal("1.1255"))
+
 
     def test_supermarket_order_list_uses_basket_labels(self):
         page = self.client.get(reverse("staff-orders"))
