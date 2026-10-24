@@ -268,7 +268,17 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         held_qs = quick_qs.filter(status=OrderStatus.OPEN, is_paid=False).exclude(table_label="")
         # A cashier can retrieve older parked baskets by receipt or hold note,
         # not only the twelve most recently touched sales.
-        if ctx["q_filter"] and ctx["current_outlet"] is not None and ctx["current_outlet"].outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+        retail_types = {OutletType.SUPERMARKET, OutletType.RETAIL}
+        allowed_retail_outlets = [
+            outlet for outlet in ctx["outlets"] if outlet.outlet_type in retail_types
+        ]
+        retail_scope = (
+            ctx["current_outlet"].outlet_type in retail_types
+            if ctx["current_outlet"] is not None
+            else bool(allowed_retail_outlets)
+            and len(allowed_retail_outlets) == len(ctx["outlets"])
+        )
+        if ctx["q_filter"] and retail_scope:
             held_qs = held_qs.filter(
                 Q(bill_reference__icontains=ctx["q_filter"])
                 | Q(table_label__icontains=ctx["q_filter"])
