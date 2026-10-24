@@ -439,6 +439,12 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(held.status_code, 302)
         self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 2)
 
+    def test_quick_create_rejects_unsupported_action_without_opening_sale(self):
+        url = reverse("staff-order-quick-create")
+        response = self.client.post(url, {"mode": "settle", "quick_create_key": str(__import__("uuid").uuid4())})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 0)
+
     def test_quick_create_rejects_malformed_request_key(self):
         response = self.client.post(reverse("staff-order-quick-create"), {
             "quick_create_key": "not-a-uuid"
