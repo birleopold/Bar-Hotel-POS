@@ -24,12 +24,12 @@
         </div>
         <div class="staff-pos-orders-hero__actions">
           {% if current_outlet %}
-            <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline"><input type="hidden" name="quick_create_key" value="{{ quick_create_key }}">
+            <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline" onsubmit="if (this.dataset.submitting === '1') return false; this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;"><input type="hidden" name="quick_create_key" value="{{ quick_create_key }}">
               {% csrf_token %}
               <input type="hidden" name="mode" value="">
               <button type="submit" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>{% if show_supermarket_lane %}New sale{% else %}New order{% endif %}</button>
             </form>
-            <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline"><input type="hidden" name="quick_create_key" value="{{ quick_hold_key }}">
+            <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline" onsubmit="if (this.dataset.submitting === '1') return false; this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;"><input type="hidden" name="quick_create_key" value="{{ quick_hold_key }}">
               {% csrf_token %}
               <input type="hidden" name="mode" value="hold">
               <button type="submit" class="staff-btn staff-btn--ghost"><i class="bi bi-pause-circle me-2" aria-hidden="true"></i>{% if show_supermarket_lane %}Hold basket{% else %}Held tab{% endif %}</button>
