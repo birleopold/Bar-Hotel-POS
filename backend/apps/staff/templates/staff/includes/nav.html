@@ -1,7 +1,7 @@
 <header class="staff-nav" role="banner">
   <div><div class="fz-top-title">{{ request.tenant.name|default:"Business workspace" }}</div><small class="staff-muted">{{ staff_product.workspace_label|default:"Business operations" }}</small></div>
   <div class="fz-top-links">
-    {% if staff_nav.orders %}<a href="{% url 'staff-orders' %}"><i class="bi bi-cart3"></i> POS</a>{% endif %}
+    {% if staff_nav.orders %}{% if staff_product.business_key == 'supermarket' or staff_product.business_key == 'retail' %}<a href="{% url 'staff-retail-pos-entry' %}"><i class="bi bi-cart3" aria-hidden="true"></i> POS</a>{% else %}<a href="{% url 'staff-orders' %}"><i class="bi bi-cart3" aria-hidden="true"></i> Orders</a>{% endif %}{% endif %}
     {% if staff_nav.workspace %}<a href="{% url 'console-org-setup' %}">Setup</a>{% endif %}
     <form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button class="staff-btn staff-btn--primary" type="submit"><i class="bi bi-lock"></i> Lock</button></form>
   </div>
