@@ -68,6 +68,12 @@ Holding the basket discards only its browser-local cash tender preview (`e138cfa
 
 Updated source checks in `test_fizo_retail_sales_layout.py` (`83a05e11`); fixed obsolete "Resume & collect balance" assertion in the existing cashier integration test and added completed/part-paid rendered receipt assertions (`09c9a963`, `c53b2eae`); both receipt paths are targeted in existing PostgreSQL CI (`9f56dc0e`). These changes need focused CI and physical thermal/A4 browser verification; commit status had no reported statuses when checked. No accepted roadmap phase.
 
+## 24 October P06/P07 final customer-screen settlement acknowledgment
+
+The completed-sale branch in the prior customer display HTML was unreachable because the monitor deliberately selects open/unpaid baskets only. Added a time-bounded (12 seconds) completion marker in the existing Django session for the active retailer's outlet/register, triggered only after `record_order_payment` returns an order that has actually closed/settled. The existing customer monitor idle template now shows a generic “Payment complete. Thank you” for this short interval, with **no previous product lines, bill reference, amounts or tender metadata**; subsequent sales clear it. Changed existing files only: `views_customer_display.py` (`6cd4a76b`), `views_ops.py` (`fb1be10d`) and `pos/customer_display_idle.html` (`0223e9af`). The implementation preserves the prior rule that closed orders never reactivate.
+
+An earlier mixed-payment receipt test expected UGX while it instantiated a sale without currency; `e279f2b8` fixes the fixture. Added a database test that verifies customer-display thank-you, no old items/amounts, no reopening paid checkout, and marker expiration (`8345bc15`, `6dddb1e8`); PostgreSQL CI explicitly includes it (`c1e3a7c4`). **None of these CI or live browser results is verified in this session**. Next: inspect CI failures before deployment, run cashier + monitor and receipt browser acceptance, then approved UI 5-width parity.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
