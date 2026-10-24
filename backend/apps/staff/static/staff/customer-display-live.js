@@ -14,8 +14,10 @@
     try { record = JSON.parse(localStorage.getItem("pos:tender:" + order) || "null"); }
     catch (err) { record = null; }
     // Never show a previous customer's cash when a sale is switched.
+    var liveDue = Number(root.getAttribute("data-current-due"));
     if (!record || Date.now() - record.updated > 10 * 60 * 1000 ||
-        !Number.isFinite(record.received) || !Number.isFinite(record.due)) {
+        !Number.isFinite(record.received) || !Number.isFinite(record.due) ||
+        !Number.isFinite(liveDue) || Math.abs(record.due - liveDue) > 0.005) {
       panel.hidden = true;
       return;
     }
@@ -57,7 +59,8 @@
       lastOrderId = nextOrderId;
       if (root.innerHTML !== nextRoot.innerHTML) {
         root.innerHTML = nextRoot.innerHTML;
-        root.setAttribute("data-active-order", nextRoot.getAttribute("data-active-order"));
+        root.setAttribute("data-active-order", nextOrderId);
+        root.setAttribute("data-current-due", nextRoot.getAttribute("data-current-due") || "");
         renderTender();
       }
     }).catch(function () {
