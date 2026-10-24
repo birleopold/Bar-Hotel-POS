@@ -435,6 +435,15 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(held.status_code, 302)
         self.assertEqual(Order.objects.filter(tenant=self.tenant).count(), 2)
 
+    def test_held_basket_note_is_single_line_and_whitespace_normalized(self):
+        response = self.client.post(reverse("staff-order-quick-create"), {
+            "mode": "hold",
+            "hold_label": "  Sarah  \n  counter   2  ",
+            "quick_create_key": str(__import__("uuid").uuid4()),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Order.objects.get(tenant=self.tenant).table_label, "Sarah counter 2")
+
     def test_held_basket_rejects_oversize_reference_without_creating_order(self):
         response = self.client.post(reverse("staff-order-quick-create"), {
             "mode": "hold",
