@@ -42,6 +42,12 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_dashboard_popular_items_heading_requires_real_items(self):
+        page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn("staff_dashboard_sales_snapshot and staff_dashboard_sales_snapshot.top_items %}Popular items", page)
+        self.assertIn("staff_dashboard_sales_snapshot %}Sales activity", page)
+        get_template("staff/dashboard.html")
+
     def test_dashboard_empty_panels_have_actionable_context(self):
         template = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertIn("No sales have been recorded in this reporting period yet.", template)
