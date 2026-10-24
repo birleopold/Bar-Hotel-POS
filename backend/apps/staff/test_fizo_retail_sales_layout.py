@@ -42,6 +42,17 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_hotel_front_desk_precedes_optional_pos_launch(self):
+        page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        front_desk = '{% if staff_product.business_key == "lodging" and staff_show_lodging_nav and staff_nav.lodging %}'
+        pos_branch = '{% elif staff_nav.orders %}'
+        self.assertIn(front_desk, page)
+        self.assertIn(pos_branch, page)
+        self.assertLess(page.index(front_desk), page.index(pos_branch))
+        self.assertIn("{% url 'staff-lodging-reservations' %}", page)
+        self.assertIn("{% url 'staff-orders' %}", page)
+        get_template("staff/dashboard.html")
+
     def test_hotel_launch_uses_guest_language(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertIn('staff_product.business_key == "lodging" %}Ready for the next guest?', dashboard)
