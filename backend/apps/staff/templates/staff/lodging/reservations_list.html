@@ -58,8 +58,8 @@
     {% else %}
     <div class="fizo-hotel__empty">
       <i class="bi bi-calendar2-check" aria-hidden="true"></i>
-      <h3>No reservations in this view</h3>
-      <p>Try another queue or status{% if current_site %} for {{ current_site.name }}{% endif %}.</p>
+      <h3>{% if lane_filter or status_filter %}No stays match this task{% else %}No reservations yet{% endif %}</h3>
+      <p>{% if lane_filter or status_filter %}Try another queue or status{% else %}Create your first reservation to start managing arrivals and departures{% endif %}{% if current_site %} for {{ current_site.name }}{% endif %}.</p>
       {% if can_modify_lodging and not lane_filter and not status_filter %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-lodging-reservation-create' %}">Create reservation</a>{% endif %}
     </div>
     {% endif %}
