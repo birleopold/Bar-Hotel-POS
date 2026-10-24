@@ -29,6 +29,16 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("scanInput.focus()", source)
         get_template("staff/order_detail_supermarket.html")
 
+    def test_basket_quantity_forms_block_duplicate_submits_and_recover_on_back_navigation(self):
+        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn('form.addEventListener("submit", function (event)', source)
+        self.assertIn('if (form.dataset.submitting === "1")', source)
+        self.assertIn('event.preventDefault()', source)
+        self.assertIn('form.querySelectorAll("button")', source)
+        self.assertIn('delete form.dataset.submitting', source)
+        self.assertIn('if (form.requestSubmit) form.requestSubmit(); else form.submit();', source)
+        self.assertNotIn('form.dataset.submitting = "1";\\n    if (form.requestSubmit)', source)
+
     def test_quick_product_whole_unit_quantity_contract(self):
         root = Path(__file__).resolve().parent
         template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
