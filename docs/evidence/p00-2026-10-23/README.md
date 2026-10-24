@@ -113,3 +113,13 @@ CI run for the preceding `a8d8268` checkpoint was in progress when checked; no p
 Source change `9924b6d85eea7f1a39fd9a44af4965266ea2624b` places the tracked-CSS audit and its isolated regression tests in the **SQLite CI job before Django checks**. On new `main` pushes, CI executes `python -m unittest discover -s scripts -p 'test_audit_css_dependencies.py' -v` and `python scripts/audit_css_dependencies.py > css-dependencies-current.json`. This is a true gate: missing CSS assets produce a nonzero exit code and fail CI, rather than merely recording a document.
 
 The previous workflow did not invoke either audit command, so earlier passing Django checks would not have established CSS integrity. The new workflow is committed; its resulting CI run has not yet completed and **must not be described as passing**. Browser parity, the broad Django regression suite, and P00 closure remain outstanding.
+
+## CSS gate failure diagnosis — 24 October 2026
+
+[Workflow run 40026732037](https://github.com/birleopold/Bar-Hotel-POS/actions/runs/40026732037) **failed** in "Verify tracked CSS dependencies and audit regressions"; the **two isolated auditor tests passed**. The audit's missing-reference exit code stopped the job before Django tests. The PostgreSQL integration job **passed**.
+
+The auditor was scanning `.py` files, including its own fixture test module, where deliberate examples contain nonexistent CSS paths. Those strings are not template or browser assets and should never count as live CSS dependencies. Corrected the auditor's input scope to Git-tracked `.html`, `.css`, and `.js` files; added a regression covering the Python fixture exclusion. Also made the audit print exact missing references to stderr so redirecting JSON to a report does not suppress CI diagnostics.
+
+Commits: `6fd300aa999a74d57bd004fc4e600d9bb59238a2`, `0a699aabf1b7e92d597291f74f2c5763260e881e`, `d6c900ddb73ab74cb5c5b1c82f2dd4712cd5f00a`, `3a464043f528006d6f896ef909ee2c235a63bd7c`.
+
+This is a correction to the **auditor's source classification**, not suppression of true missing browser assets. The revised CI run and full Django suite require fresh confirmation. P00 remains **in progress**; P01 remains unopened.
