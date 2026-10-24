@@ -46,7 +46,7 @@ class CssDependencyAuditTests(unittest.TestCase):
             fixture = root / "scripts/test_dummy.py"
             fixture.parent.mkdir(parents=True)
             fixture.write_text(
-                """SAMPLE = \"{% static 'staff/deliberately-absent.css' %}\"""",
+                'SAMPLE = "{% static \'staff/deliberately-absent.css\' %}"',
                 encoding="utf-8")
             stream = io.StringIO()
             with contextlib.redirect_stdout(stream):
