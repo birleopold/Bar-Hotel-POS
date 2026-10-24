@@ -36,6 +36,7 @@ def audit(root=ROOT, files=None):
     css = [p for p in files if p.suffix.lower() == ".css"]
     consumers = {}
     template_edges = []
+    literal_css_by_source = {}
     dynamic_template_edges = []
     template_names = {}
     for src in files:
@@ -73,6 +74,8 @@ def audit(root=ROOT, files=None):
         # separate browser tracing before any stylesheet is removed.
         literal_refs = [value for value in CSS_URL.findall(text)]
         literal_refs += [raw.removeprefix("/static/") for raw in RAW_CSS_URL.findall(text)]
+        if src.suffix == ".html":
+            literal_css_by_source[str(src.relative_to(root))] = sorted(set(literal_refs))
         for ref in literal_refs:
             if ref in seen_in_source and src.suffix == ".html":
                 repeated_in_source.append({"source": str(src.relative_to(root)), "asset": ref})
@@ -110,6 +113,29 @@ def audit(root=ROOT, files=None):
     # A literal reference audit cannot prove an asset is unused: Django
     # template inheritance, generated paths and browser-loaded styles remain.
     # Keep candidates informational; never auto-delete or auto-merge them.
+    # Enumerate potential CSS ownership through literal extends/includes.
+    # This is a source dependency graph, NOT evidence that conditional
+    # branches actually render together.
+    resolved_edges = {}
+    for edge in template_edges:
+        if edge["resolved_path"]:
+            resolved_edges.setdefault(edge["source"], set()).add(edge["resolved_path"])
+
+    def stylesheet_candidates(template, visiting):
+        if template in visiting:
+            return set()
+        refs = set(literal_css_by_source.get(template, ()))
+        for dependency in resolved_edges.get(template, ()):
+            refs.update(stylesheet_candidates(dependency, visiting | {template}))
+        return refs
+
+    template_css_candidates = {
+        template: sorted(stylesheet_candidates(template, set()))
+        for template in sorted(literal_css_by_source)
+    }
+    unresolved_template_edges = [
+        edge for edge in template_edges if edge["resolved_path"] is None
+    ]
     report = {
         "tracked_css_count": len(css),
         "tracked_css_files": sorted(str(p.relative_to(root)) for p in css),
@@ -117,6 +143,8 @@ def audit(root=ROOT, files=None):
         "dynamic_template_static_tags": sorted(set(dynamic)),
         "missing_references": missing,
         "literal_template_edges": sorted(template_edges, key=lambda edge: (edge["source"], edge["relation"], edge["target"])),
+        "template_css_candidates": template_css_candidates,
+        "unresolved_template_edges": sorted(unresolved_template_edges, key=lambda edge: (edge["source"], edge["relation"], edge["target"])),
         "dynamic_template_edges": sorted(set(dynamic_template_edges)),
         "template_relationship_warning": "Explicit edges are candidates only; conditional includes, blocks and runtime template selection need browser tracing.",
         "duplicate_stylesheets_in_same_source": repeated_in_source,
