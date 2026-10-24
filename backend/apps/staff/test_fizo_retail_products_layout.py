@@ -54,6 +54,13 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertLess(validation, pending)
         self.assertIn('if (scanPending) { event.preventDefault(); return; }', source)
 
+    def test_short_cash_tender_prefills_only_partial_payment(self):
+        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        short_tender = source.split("if (cents < dueCents) {", 1)[1].split("return;", 1)[0]
+        self.assertIn('paymentMethod.value === "cash"', short_tender)
+        self.assertIn('paymentAmount.value = (cents / 100).toFixed(2);', short_tender)
+        self.assertNotIn('paymentAmount.value = (dueCents / 100)', short_tender)
+
     def test_quick_product_whole_unit_quantity_contract(self):
         root = Path(__file__).resolve().parent
         template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
