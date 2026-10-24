@@ -161,6 +161,55 @@ class OrgMenuItemUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
         return _save_catalog_item_safely(self, form, creating=False)
 
 
+class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, __import__("django.views.generic", fromlist=["View"]).View):
+    """Phone-friendly photo-only editor; does not overwrite desktop form fields."""
+
+    template_name = "console/org/menu_item_photo.html"
+
+    def get_product(self, request, item_id):
+        return get_object_or_404(MenuItem, pk=item_id, tenant=request.tenant)
+
+    def get(self, request, item_id):
+        from django.http import JsonResponse
+        from django.shortcuts import render
+        from django.views.decorators.cache import never_cache
+
+        item = self.get_product(request, item_id)
+        if request.GET.get("status") == "1":
+            response = JsonResponse({
+                "image_url": item.product_image_src or "",
+                "image_key": item.product_image.name if item.product_image else "",
+            })
+            response["Cache-Control"] = "private, no-store"
+            return response
+        return render(request, self.template_name, {"item": item})
+
+    def post(self, request, item_id):
+        from django import forms
+        from django.shortcuts import render
+
+        item = self.get_product(request, item_id)
+        class ProductPhotoForm(forms.Form):
+            photo = forms.ImageField(
+                widget=forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp"})
+            )
+            def clean_photo(self):
+                photo = self.cleaned_data["photo"]
+                if photo.size > 5 * 1024 * 1024:
+                    raise forms.ValidationError("Use an image smaller than 5 MB.")
+                if getattr(photo, "content_type", "") not in ("image/jpeg", "image/png", "image/webp"):
+                    raise forms.ValidationError("Use JPEG, PNG or WebP.")
+                return photo
+
+        form = ProductPhotoForm(request.POST, request.FILES)
+        if form.is_valid():
+            item.product_image = form.cleaned_data["photo"]
+            item.save(update_fields=["product_image", "updated_at"])
+            messages.success(request, "Photo saved. The desktop editor will show it shortly.")
+            return redirect("console-org-menu-item-photo", item_id=item.pk)
+        return render(request, self.template_name, {"item": item, "photo_form": form}, status=400)
+
+
 class OrgMenuItemOutletListView(MenuItemScopedMixin, ListView):
     template_name = "console/org/menu_item_outlet_list.html"
     context_object_name = "links"
