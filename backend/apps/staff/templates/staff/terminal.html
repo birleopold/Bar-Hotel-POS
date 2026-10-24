@@ -1,7 +1,7 @@
 {% load static %}
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %} · STAFF TERMINAL</title>
+<title>{% if login_brand %}{{ login_brand.name }}{% else %}Staff terminal{% endif %} · STAFF TERMINAL</title>
 {% if login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
 <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#00884b{% endif %}">
 <link rel="stylesheet" href="{% static 'staff/fizo-fresh.css' %}?v=20261006.3">
@@ -11,8 +11,8 @@
 <main class="fizo-auth" id="staff-main-content">
 <aside class="fizo-auth__aside">
 {% if login_brand.background_url %}<img class="fizo-auth__background" src="{{ login_brand.background_url }}" alt="" aria-hidden="true">{% endif %}
-<div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</span></div>
-<div><div class="fizo-auth__eyebrow">STAFF TERMINAL · Shared staff terminal</div><h2 class="fizo-auth__statement">Ready for the next person.</h2><p>Choose your account, enter your own PIN and get back to serving. Each sale stays linked to the worker who served.</p></div>
+<div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">POS</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Staff terminal{% endif %}</span></div>
+<div><div class="fizo-auth__eyebrow">STAFF TERMINAL · Shared staff terminal</div><h2 class="fizo-auth__statement">Your turn to serve</h2><p>Choose your account, enter your own PIN and get back to serving. Each sale stays linked to the worker who served.</p></div>
 <div class="fizo-auth__aside-foot">Lock after serving · Protect your staff PIN</div>
 </aside>
 <section class="fizo-auth__panel" aria-labelledby="terminal-title">
