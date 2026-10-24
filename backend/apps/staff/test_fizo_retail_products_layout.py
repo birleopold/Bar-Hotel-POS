@@ -39,6 +39,14 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
+    def test_desktop_photo_sync_tracks_effective_image_url(self):
+        root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
+        source = (root / "menu_item_form.html").read_text(encoding="utf-8")
+        self.assertIn('var known = "{{ object.product_image_src|escapejs }}";', source)
+        self.assertIn("if (data.image_url === known) return;", source)
+        self.assertIn("known = data.image_url;", source)
+        self.assertIn('credentials: "same-origin"', source)
+
     def test_imported_products_can_receive_optional_photos_later(self):
         root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
         imported = (root / "catalog_import.html").read_text(encoding="utf-8")
