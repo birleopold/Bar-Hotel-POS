@@ -422,13 +422,21 @@
       // Read the actual action attribute, never the shadowed property.
       fetch(form.getAttribute("action") || window.location.pathname + window.location.search, {
         method: "POST", body: new FormData(form),
-        credentials: "same-origin", redirect: "manual",
+        credentials: "same-origin", redirect: "follow",
         headers: {
           "X-Requested-With": "XMLHttpRequest",
           "X-CSRFToken": csrf ? csrf.value : ""
         }
       }).then(function (response) {
-        if (!response.ok && response.status !== 422) throw new Error("Unable to confirm basket update.");
+        var type = response.headers.get("Content-Type") || "";
+        if (response.redirected || !type.toLowerCase().includes("application/json")) {
+          throw new Error("Checkout rejected the update (HTTP " + response.status +
+            "). The session may have expired or the action was redirected.");
+        }
+        if (!response.ok && response.status !== 422 && response.status !== 403 &&
+            response.status !== 404 && response.status !== 409) {
+          throw new Error("Checkout returned HTTP " + response.status + ".");
+        }
         return response.json();
       }).then(function (data) {
         if (data.refresh_required) {
@@ -459,15 +467,15 @@
         var cash = document.querySelector("[data-retail-cash-panel]");
         if (cash) cash.setAttribute("data-balance-due", data.due);
         errorBox.textContent = "Basket updated.";
-      }).catch(function () {
-        // A response can fail AFTER the transaction commits. Never retry
-        // automatically: read the authoritative basket with a safe GET.
+      }).catch(function (error) {
+        // Never repeat the POST: a failed response may follow a committed edit.
+        var why = error && error.message ? error.message : "Unknown network error";
         return reconcileFromServer().then(function () {
           var confirmed = input && Number(input.value) === Number(requestedQuantity);
           errorBox.textContent = confirmed ? "Basket updated and verified." :
-            "Quantity unchanged on the server. The update was not accepted.";
+            "Quantity unchanged. " + why;
         }).catch(function () {
-          errorBox.textContent = "Could not verify the update. Check the basket before trying again.";
+          errorBox.textContent = "Could not verify quantity. " + why;
         });
       }).then(function () {
         delete form.dataset.submitting;
