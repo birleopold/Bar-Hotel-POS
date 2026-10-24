@@ -130,6 +130,9 @@ jobs:
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_customer_monitor_refuses_stale_held_basket_pointer \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_customer_monitor_shows_brief_thanks_after_full_payment_without_items \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_resume_rejected_for_completed_or_other_tenant_basket \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_sale_is_protected_at_shared_service_boundary \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_discount_nullable_service_line_avoids_postgresql_outer_join_lock \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_sale_denies_payment_and_quantity_edit_until_resumed \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_held_sale_search_all_retail_outlets_recovers_older_basket \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_part_paid_receipt_identifies_balance_without_marking_sale_paid \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_partial_cash_hold_resume_and_mixed_payment_closes_one_sale
