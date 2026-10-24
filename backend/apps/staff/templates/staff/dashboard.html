@@ -25,7 +25,7 @@
   {% else %}
     {% if staff_nav.orders %}
       <section class="fizo-dash__launch" aria-label="Start serving">
-        <div><h2>{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Ready for the next checkout?{% elif staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Ready to serve the next tab?{% else %}Ready for the next order?{% endif %}</h2>
+        <div><h2>{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Ready for the next checkout?{% elif staff_product.business_key == "bar" or staff_product.business_key == "lounge" %}Ready to serve the next tab?{% elif staff_product.business_key == "lodging" %}Ready for the next guest?{% else %}Ready for the next order?{% endif %}</h2>
           <p>Use your existing authorized ordering and payment workflow.</p></div>
         <a class="fizo-dash__action" href="{% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}{% url 'staff-retail-pos-entry' %}{% else %}{% url 'staff-orders' %}{% endif %}"><i class="bi bi-cart3" aria-hidden="true"></i> {% if staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Open cashier POS{% else %}Open POS{% endif %} <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       </section>
