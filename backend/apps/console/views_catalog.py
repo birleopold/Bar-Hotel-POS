@@ -200,6 +200,13 @@ class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, View):
                     raise forms.ValidationError("Use JPEG, PNG or WebP.")
                 return photo
 
+        if request.POST.get("action") == "remove_photo":
+            if item.product_image:
+                item.product_image = ""
+                item.save(update_fields=["product_image", "updated_at"])
+                messages.success(request, "Uploaded photo removed. The product can remain without a photo.")
+            return redirect("console-org-menu-item-photo", item_id=item.pk)
+
         form = ProductPhotoForm(request.POST, request.FILES)
         if form.is_valid():
             item.product_image = form.cleaned_data["photo"]
