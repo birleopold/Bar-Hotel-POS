@@ -7,7 +7,7 @@
 <div class="fizo-inventory fizo-inventory--shelves">
 
 {% include "staff/inventory/includes/subnav.html" %}
-<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Aisles & shelves</h1><p>Find products and update their physical picking locations.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Aisles & shelves</h1><p>Find products and update their physical picking locations.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
 <form method="get" class="fizo-inventory__panel mb-3" role="search">
 <label class="staff-label" for="shelf-search">Product, barcode or location</label>
 <div class="d-flex flex-wrap gap-2"><input class="staff-input flex-grow-1" id="shelf-search" name="q" value="{{ locator_q }}" maxlength="80" placeholder="e.g. rice, 890112, A3" style="min-width:12rem">
