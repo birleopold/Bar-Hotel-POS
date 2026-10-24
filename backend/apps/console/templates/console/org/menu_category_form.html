@@ -5,7 +5,7 @@
 <section class="fizo-entity" aria-labelledby="fizo-entity-title">
   <header class="fizo-entity__header">
     <div>
-      <p class="grocery-form-kicker">FIZO / BUSINESS SETUP / CATEGORY</p>
+      <p class="grocery-form-kicker">{{ request.tenant.name|default:"Business" }} / Business setup / Category</p>
       <h1 id="fizo-entity-title">{% if object %}Edit category{% else %}Add category{% endif %}</h1>
       <p class="staff-muted">Organize products and menu items with a clear category name.</p>
     </div>
