@@ -82,6 +82,14 @@ Enforced below the UI in the existing `apps.pos.services.orders.require_active_r
 
 **Status:** changes committed directly on `main`, not executed on a disposable PostgreSQL DB or live browser in this session. Run focused suite and CI, inspect failed cases, and test hold/active/payment across multiple registers. Do not mark these phases accepted or claim deployed fixes.
 
+## 25 October — P06/P08/P15 checkout barcode, PLU and weighted-source integrity
+
+Root fix in **existing** `backend/apps/pos/services/orders.py`: previously scanner added/merged a line under an order lock, then overwrote `line.pricing_source` with a second write outside that transaction, corrupting provenance after barcode/PLU merges. `add_line_to_open_order(..., pricing_source="menu")` now validates and sets source at creation; merging keeps prior source, while `add_supermarket_line_by_code` chooses barcode, PLU or weighted source before invoking that same canonical transaction (`49f1b381`). Existing measured items remain separate. No extra scan handler or migration.
+
+The cashier's `catalogue_q` and staff product `q` now search active tenant-scoped supermarket PLU codes in the same outlet-authorized product query, in addition to name, SKU and barcode (`bcd9b025`, `ca91360f`). Tests in the **existing** `backend/tests/test_supermarket_cashier_lane.py` cover barcode→PLU merged line source and total, weighted quantity/source isolation, both catalogue search screens, inactive PLU and foreign-tenant data (`d59c56c4`, `400b5c21`, `f5f4f661`), targeted by PostgreSQL CI (`b7f7f993`, `cc180b54`).
+
+**Not yet executed in this session:** Django integration tests against a disposable PostgreSQL DB, live browser/barcode scanner and tenant-specific physical device acceptance. Do not mark P06/P08/P15 finished. Next inspect test run outcomes, then test real scanning (including weighted scale labels), inventory consumed on final settlement, held/recalled baskets, and 5-width approved UI screenshots.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
