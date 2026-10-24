@@ -42,6 +42,13 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_dashboard_missing_membership_has_helpful_empty_state(self):
+        dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn("{% if memberships %}No workspace selected{% else %}No workspace available{% endif %}", dashboard)
+        self.assertIn("Ask your administrator to add you to the correct business.", dashboard)
+        self.assertIn('name="tenant_id" required', dashboard)
+        get_template("staff/dashboard.html")
+
     def test_dashboard_popular_items_heading_requires_real_items(self):
         page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertIn("staff_dashboard_sales_snapshot and staff_dashboard_sales_snapshot.top_items %}Popular items", page)
