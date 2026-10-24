@@ -83,6 +83,10 @@ def audit(root=ROOT, files=None):
         "note": "CSS classes used in JS and template inheritance need browser and manual verification before deleting files.",
     }
     print(json.dumps(report, indent=2))
+    if missing:
+        print(f"CSS dependency audit: {len(missing)} missing tracked stylesheet reference(s)", file=sys.stderr)
+        for item in missing:
+            print(f"  {item['source']}: {item['asset']}", file=sys.stderr)
     return bool(missing)
 
 if __name__ == "__main__":
