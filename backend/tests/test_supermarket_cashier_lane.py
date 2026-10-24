@@ -157,7 +157,7 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Set up your store")
         # Assert the live shared owner workspace, not the retired owner-home shell.
         self.assertContains(page, "fizo-dash__head")
-        self.assertContains(page, "Sales snapshot")
+        self.assertContains(page, "Today at a glance")
         self.assertContains(page, "Operations pulse")
         self.assertContains(page, "Administration")
         self.assertContains(page, "Guided setup")
