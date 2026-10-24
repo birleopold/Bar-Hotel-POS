@@ -416,6 +416,7 @@
         form.parentNode.appendChild(errorBox);
       }
       errorBox.textContent = "Updating basket…";
+      var requestedQuantity = input ? input.value : "";
       var csrf = form.querySelector('input[name="csrfmiddlewaretoken"]');
       fetch(form.action || window.location.href, {
         method: "POST", body: new FormData(form),
@@ -430,7 +431,9 @@
       }).then(function (data) {
         if (data.refresh_required) {
           return reconcileFromServer().then(function () {
-            errorBox.textContent = "Basket updated.";
+            var confirmed = input && Number(input.value) === Number(requestedQuantity);
+            errorBox.textContent = confirmed ? "Basket updated." :
+              "The requested quantity was not saved. Please review the basket.";
           });
         }
         if (!data.ok) {
@@ -458,7 +461,9 @@
         // A response can fail AFTER the transaction commits. Never retry
         // automatically: read the authoritative basket with a safe GET.
         return reconcileFromServer().then(function () {
-          errorBox.textContent = "Basket synchronized.";
+          var confirmed = input && Number(input.value) === Number(requestedQuantity);
+          errorBox.textContent = confirmed ? "Basket updated and verified." :
+            "Quantity unchanged on the server. The update was not accepted.";
         }).catch(function () {
           errorBox.textContent = "Could not verify the update. Check the basket before trying again.";
         });
