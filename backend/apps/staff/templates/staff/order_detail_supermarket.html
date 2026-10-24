@@ -289,9 +289,30 @@
     if (paymentMethod) paymentMethod.addEventListener("change", calculateChange);
   }
 
-  /* Quantity buttons submit the existing authenticated quantity form.
-     Ordinary products move in whole units; fractional products retain their
-     server-rendered 0.001 step for weighed/measured goods. */
+  /* Each basket quantity update is single-flight, whether submitted using
+     +/- buttons, the keyboard, or the Save button. */
+  document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
+    form.addEventListener("submit", function (event) {
+      if (form.dataset.submitting === "1") {
+        event.preventDefault();
+        return;
+      }
+      if (!form.checkValidity()) return;
+      form.dataset.submitting = "1";
+      form.querySelectorAll("button").forEach(function (button) {
+        button.disabled = true;
+      });
+    });
+  });
+  window.addEventListener("pageshow", function () {
+    document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
+      delete form.dataset.submitting;
+      form.querySelectorAll("button").forEach(function (button) {
+        button.disabled = false;
+      });
+    });
+  });
+  /* Ordinary products move in whole units; measured goods retain 0.001 steps. */
   document.addEventListener("click", function (event) {
     var button = event.target.closest("[data-fizo-step]");
     if (!button) return;
@@ -309,7 +330,6 @@
       : Math.round(current + delta);
     if (next < Number(input.min || step)) return;
     input.value = String(next);
-    form.dataset.submitting = "1";
     if (form.requestSubmit) form.requestSubmit(); else form.submit();
   });
 }());
