@@ -27,6 +27,13 @@ class FizoInventoryWorkflowTests(SimpleTestCase):
                 self.assertIn('request.tenant.name|default:"Business"', source)
                 self.assertNotIn('Fizo / {{ staff_product.workspace_label', source)
 
+    def test_org_overview_does_not_display_test_tenant_brand(self):
+        root = Path(__file__).resolve().parents[1]
+        source = (root / "console/templates/console/org/overview.html").read_text(encoding="utf-8")
+        self.assertIn('request.tenant.name|default:"Business"', source)
+        self.assertNotIn("Fizo / Business management", source)
+        get_template("console/org/overview.html")
+
     def test_console_navigation_uses_actual_tenant_brand(self):
         root = Path(__file__).resolve().parents[1] / "console/templates/console/includes"
         nav = (root / "fizo_nav.html").read_text(encoding="utf-8")
