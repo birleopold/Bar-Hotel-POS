@@ -15,6 +15,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.accounts.models import MembershipRole
 from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus
+from apps.tenants.models import OutletType
 from apps.pos.services import update_order_line_kds_status
 from apps.pos.services.kds import manage_kds_item
 
@@ -108,10 +109,10 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
         outlet, outlets = self._resolve_outlet(request)
         station = (request.GET.get("station") or "").strip()[:32]
 
-        if outlet is None:
+        if outlet is None or outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
             messages.info(
                 request,
-                "Kitchen display uses one outlet at a time — pick an outlet above (not “All outlets”).",
+                "Select a hospitality preparation outlet. Retail checkout uses the separate customer-facing basket display.",
             )
             return render(
                 request,
@@ -225,8 +226,8 @@ class StaffKdsQueueView(StaffTenantRequiredMixin, View):
     def post(self, request: HttpRequest) -> HttpResponse:
         station = (request.GET.get("station") or request.POST.get("station", "")).strip()[:32]
         outlet, _ = self._resolve_outlet(request)
-        if outlet is None:
-            messages.error(request, "Select a single outlet first.")
+        if outlet is None or outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            messages.error(request, "Select a hospitality preparation outlet.")
             return redirect(self._queue_url(station))
 
         if not membership_can_manage_kitchen(request.tenant_membership):
