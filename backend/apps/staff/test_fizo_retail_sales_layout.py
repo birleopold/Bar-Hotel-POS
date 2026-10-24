@@ -5,6 +5,14 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class RetailSalesLandingTests(SimpleTestCase):
+    def test_retail_stepper_reports_redirects_and_http_failures(self):
+        source = (Path(__file__).resolve().parent /
+                  "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn('redirect: "follow"', source)
+        self.assertIn("response.redirected", source)
+        self.assertIn('response.headers.get("Content-Type")', source)
+        self.assertIn("Quantity unchanged.", source)
+
     def test_retail_stepper_uses_real_form_action_not_shadowed_input(self):
         source = (Path(__file__).resolve().parent /
                   "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
