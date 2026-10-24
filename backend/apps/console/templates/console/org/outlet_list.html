@@ -4,7 +4,7 @@
 {% block content %}
 <section class="fizo-entity fizo-entity--list" aria-labelledby="fizo-list-title">
   <header class="fizo-entity__header">
-    <div><p class="grocery-form-kicker">{{ request.tenant.name|default:'Business' }} / {% if grocery_console_shell %}SALES AREAS{% else %}SECTIONS{% endif %}</p><h1 id="fizo-list-title">{% if grocery_console_shell %}Sales areas{% else %}Sections{% endif %}</h1><p class="staff-muted">Manage the sales or service areas at {{ site.name }}.</p></div>
+    <div><p class="grocery-form-kicker">{{ request.tenant.name|default:'Business' }} / {% if grocery_console_shell %}SALES AREAS{% else %}SECTIONS{% endif %}</p><h1 id="fizo-list-title">{% if grocery_console_shell %}Sales areas{% else %}Sections{% endif %}</h1><p class="staff-muted">{% if grocery_console_shell %}Manage checkout and sales areas at {{ site.name }}.{% else %}Manage service sections at {{ site.name }}.{% endif %}</p></div>
     <a href="{% url 'console-org-outlet-create' site_id=site.id %}" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> {% if grocery_console_shell %}Add sales area{% else %}Add section{% endif %}</a>
   </header>
   <section class="staff-card fizo-entity__card">
