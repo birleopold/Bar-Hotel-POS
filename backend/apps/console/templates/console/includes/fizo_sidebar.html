@@ -1,6 +1,6 @@
 {% with u=request.resolver_match.url_name %}
 <aside class="console-sidebar" aria-label="Business management navigation">
-  <a class="fizo-shell-brand" href="{% url 'console-org' %}"><span class="fizo-shell-brand__mark" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></span>Fizo</a>
+  <a class="fizo-shell-brand" href="{% url 'console-org' %}"><span class="fizo-shell-brand__mark" aria-hidden="true"><i class="bi bi-lightning-charge-fill"></i></span>{{ console_active_tenant.name|default:"Business workspace" }}</a>
   <span class="fizo-shell-context">{% if grocery_console_shell %}Store management{% elif console_has_lodging %}Hotel management{% elif console_has_fnb %}Hospitality management{% else %}Business management{% endif %}</span>
   <nav class="fizo-shell-nav" aria-label="{% if grocery_console_shell %}Store management{% else %}Administration navigation{% endif %}">
     <a href="{% url 'console-org' %}"{% if u == 'console-org' %} aria-current="page"{% endif %}><i class="bi bi-grid-1x2" aria-hidden="true"></i>Overview</a>
