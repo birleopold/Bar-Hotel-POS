@@ -54,6 +54,13 @@ The sequential gate controls **signoff**, not development order. Every source co
 
 CI example at `896f27e`: PostgreSQL integration job passed, SQLite checks failed with 28 failures out of the suite; newer runs need exact-SHA verification. **Do not report a phase percentage by dividing cross-phase commits by requirements**; that would misrepresent progress.
 
+## 24 October implementation checkpoint — P00/P07 coupled PostgreSQL row locks
+
+- P00 discovery traced an actual production quantity-edit HTTP 500 to PostgreSQL rejecting `SELECT FOR UPDATE` of a nullable `menu_item` outer join. The precise quantity service (not the superficially similar discount code) was corrected in `0bea9ce6`, with the prior mistaken discount edit reverted. Production/browser verification of +/−, totals and persistence remains **open**.
+- P07 shared financial transaction work: inspected `process_supermarket_line_return` in the existing `backend/apps/pos/services/orders.py`. It had the same nullable-join locking defect for service/non-product lines. Replaced **only that query** with a row-only lock in `fed8494b`; existing restock, paid-order and return-quantity checks remain unchanged. Added a real-service-line return regression in `e3cd7c65` to the existing supermarket cashier test module. No new CSS, services, templates, routes or migrations were introduced.
+- Documentation basis: Django QuerySet `select_for_update()` explicitly documents PostgreSQL's nullable-relation outer-join restriction and `of=("self",)` row-only locking. Evidence **not yet collected**: passing PostgreSQL test run at these commits, full CI, device/browser baseline, denied tenant/role paths, live return workflow and owner visual approval.
+- **Phases remain P00 in progress and P07 partially implemented/unaccepted.** Do not change the historical 4/34 suite count or declare a phase finished.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
