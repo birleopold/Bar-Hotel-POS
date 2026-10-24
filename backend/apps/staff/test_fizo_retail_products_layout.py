@@ -39,6 +39,16 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
+    def test_phone_photo_can_be_removed_without_deleting_product(self):
+        root = Path(__file__).resolve().parents[1] / "console"
+        page = (root / "templates/console/org/menu_item_photo.html").read_text(encoding="utf-8")
+        handler = (root / "views_catalog.py").read_text(encoding="utf-8")
+        self.assertIn('name="action" value="remove_photo"', page)
+        self.assertIn("{% if item.product_image %}", page)
+        self.assertIn('request.POST.get("action") == "remove_photo"', handler)
+        self.assertIn('item.save(update_fields=["product_image", "updated_at"])', handler)
+        get_template("console/org/menu_item_photo.html")
+
     def test_phone_photo_sync_has_manual_recovery_and_login_feedback(self):
         root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
         page = (root / "menu_item_form.html").read_text(encoding="utf-8")
