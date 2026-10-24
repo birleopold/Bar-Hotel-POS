@@ -231,6 +231,51 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Grocery milk")
         self.assertContains(page, "milk.png")
 
+    def test_cashier_catalogue_search_finds_active_plu_in_current_tenant(self):
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Checkout products")
+        product = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Fresh tomato",
+            sku="TOM-LOCAL", barcode="1002003004005", unit_price=Decimal("1500"),
+            track_inventory=False,
+        )
+        profile = SupermarketSkuProfile.objects.create(
+            tenant=self.tenant, menu_item=product, plu_code="3137",
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX",
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        found = self.client.get(url, {"catalogue_q": "3137"})
+        self.assertEqual(found.status_code, 200)
+        ids = [
+            item.pk for group in found.context["pos_menu_categories"]
+            for item in group["menu_items"]
+        ]
+        self.assertIn(product.pk, ids)
+
+        # Inactive PLU profiles must not appear in manual product search.
+        profile.is_active = False
+        profile.save(update_fields=["is_active"])
+        missing = self.client.get(url, {"catalogue_q": "3137"})
+        self.assertEqual(missing.status_code, 200)
+        self.assertFalse(missing.context["pos_menu_categories"])
+
+        # A different tenant may use the same PLU without leaking its product.
+        other = Tenant.objects.create(name="Neighbour store", slug="plu-neighbour-store")
+        other_cat = MenuCategory.objects.create(tenant=other, name="Neighbour products")
+        foreign_product = MenuItem.objects.create(
+            tenant=other, category=other_cat, name="Neighbour apples",
+            sku="OTHER-PLU", unit_price=Decimal("700"), track_inventory=False,
+        )
+        SupermarketSkuProfile.objects.create(
+            tenant=other, menu_item=foreign_product, plu_code="3137",
+        )
+        scoped = self.client.get(url, {"catalogue_q": "3137"})
+        self.assertEqual(scoped.status_code, 200)
+        self.assertNotContains(scoped, "Neighbour apples")
+        self.assertFalse(scoped.context["pos_menu_categories"])
+
     def test_barcode_and_plu_scans_merge_without_overwriting_original_source(self):
         from apps.pos.services import add_supermarket_line_by_code
         category = MenuCategory.objects.create(tenant=self.tenant, name="Scan provenance")
