@@ -381,7 +381,13 @@
           <h2 class="staff-card__title staff-card__title--pos">{% if is_supermarket_outlet %}Other refund{% else %}Refund{% endif %}</h2>
           <p class="staff-muted staff-pos-side-hint">Max {{ refundable_remaining }}</p>
           <p class="staff-muted small">Refunds are paid out from {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}the only open register{% endif %}. <a href="{% url 'staff-workstations' %}">Choose refund till</a></p>
-          {% if is_supermarket_outlet %}<p class="staff-muted">For returned items, use “Return and refund” below to link the item, payment, and stock movement. Use this form for a price adjustment or other refund without a returned item.</p>{% endif %}
+          {% if is_supermarket_outlet %}
+            {% if order.status == 'open' %}
+              <p class="staff-muted">Part-paid basket: first refund the excess amount with supervisor approval, then reduce or remove the items. For a full cancellation, refund all recorded payments and then void the basket. No stock is restocked before checkout completes.</p>
+            {% else %}
+              <p class="staff-muted">For returned items, use “Return and refund” below to link the item, payment, and stock movement. Use this form for a price adjustment or other refund without a returned item.</p>
+            {% endif %}
+          {% endif %}
           {% include "staff/includes/form_errors_block.html" with form=refund_form title="Fix refund details" %}
           <form method="post" class="row g-2 align-items-end">
             {% csrf_token %}
