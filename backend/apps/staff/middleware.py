@@ -23,6 +23,48 @@ STAFF_SESSION_OUTLET_ALL = "__all__"
 STAFF_SESSION_SITE_KEY = "staff_site_id"
 
 
+def staff_pin_idle_seconds(request):
+    """Effective PIN inactivity limit for the selected, authorized business line.
+
+    Retail tills are assigned to cashiers; hospitality uses short-lived shared
+    sessions. Never accept an unverified outlet from the browser to extend an
+    idle limit. The same result is reused by middleware and rendered UI.
+    """
+    cached = getattr(request, "_staff_pin_idle_seconds", None)
+    if cached is not None:
+        return cached
+
+    from .terminal import PIN_IDLE_SECONDS
+    from apps.tenants.models import Outlet, OutletType, TenantSettings
+    from .services.membership import staff_outlet_allowed_for_membership
+
+    seconds = PIN_IDLE_SECONDS
+    membership = getattr(request, "tenant_membership", None)
+    if membership is not None:
+        selected = request.session.get(STAFF_SESSION_OUTLET_KEY)
+        if selected and selected != STAFF_SESSION_OUTLET_ALL:
+            try:
+                outlet_id = uuid.UUID(str(selected))
+            except (TypeError, ValueError, AttributeError):
+                outlet_id = None
+            if outlet_id and staff_outlet_allowed_for_membership(membership, outlet_id):
+                kind = Outlet.objects.filter(
+                    pk=outlet_id, site__tenant_id=membership.tenant_id
+                ).values_list("outlet_type", flat=True).first()
+                if kind in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+                    seconds = 15 * 60
+        else:
+            # Only a retail-only workspace can use the long limit without
+            # an explicitly selected outlet. Mixed hospitality stays short.
+            lines = TenantSettings.objects.filter(
+                tenant_id=membership.tenant_id
+            ).values_list("business_lines", flat=True).first() or []
+            if lines and set(lines).issubset({"supermarket", "retail", "grocery"}):
+                seconds = 15 * 60
+    request._staff_pin_idle_seconds = seconds
+    return seconds
+
+
 class StaffTerminalIdleMiddleware:
     """Enforce a server-side idle limit on PIN-enabled shared staff sessions."""
 
@@ -38,7 +80,7 @@ class StaffTerminalIdleMiddleware:
         if not request.path.startswith("/staff/"):
             return self.get_response(request)
         if request.user.is_authenticated and request.session.get("staff_pin_session"):
-            from .terminal import PIN_IDLE_SECONDS, mark_terminal
+            from .terminal import mark_terminal
 
             now = int(time.time())
             last = request.session.get("staff_pin_last_activity", 0)
@@ -54,7 +96,7 @@ class StaffTerminalIdleMiddleware:
                 and bool(membership.staff_pin_hash)
                 and request.session.get("staff_pin_credential") == membership.staff_pin_hash
             )
-            if not credential_valid or not isinstance(last, int) or now - last >= PIN_IDLE_SECONDS:
+            if not credential_valid or not isinstance(last, int) or now - last >= staff_pin_idle_seconds(request):
                 tenant_id = request.session.get(STAFF_SESSION_TENANT_KEY)
                 outlet_id = request.session.get(STAFF_SESSION_OUTLET_KEY, "")
                 logout(request)
