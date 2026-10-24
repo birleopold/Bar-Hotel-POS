@@ -75,7 +75,9 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
             response["Cache-Control"] = "no-store, private"
             return response
         order = active
-        settled = order.payments.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+        received = order.payments.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+        refunded = order.refunds.aggregate(s=Sum("amount"))["s"] or Decimal("0.00")
+        settled = received - refunded
         remaining = max(Decimal("0.00"), order.total - settled)
         response = render(request, "staff/pos/customer_display.html", {
             "order": order,
