@@ -140,6 +140,9 @@ def _flash_drf_validation(request: HttpRequest, exc: DRFValidationError) -> None
             parts = val if isinstance(val, list) else [val]
             for p in parts:
                 messages.error(request, f"{key}: {str(p)}")
+    elif isinstance(d, (list, tuple)):
+        for item in d:
+            messages.error(request, str(item))
     else:
         messages.error(request, str(d))
 
