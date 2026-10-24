@@ -41,6 +41,12 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertNotIn("else form.submit();", source)
         self.assertNotIn('form.dataset.submitting = "1";\\n    if (form.requestSubmit)', source)
 
+    def test_payment_button_restores_original_label_on_browser_navigation(self):
+        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn("var paymentSubmitLabel = paymentSubmitButton ? paymentSubmitButton.textContent", source)
+        self.assertIn("paymentSubmitButton.textContent = paymentSubmitLabel;", source)
+        self.assertIn('paymentSubmitButton.textContent = "Recording payment…";', source)
+
     def test_quick_product_whole_unit_quantity_contract(self):
         root = Path(__file__).resolve().parent
         template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
