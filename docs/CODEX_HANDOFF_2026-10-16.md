@@ -1,5 +1,13 @@
 # Codex handoff — 16 October 2026 (Africa/Kampala)
 
+## Active incident: retail basket quantity +/− (24 October 2026)
+
+**OPEN — not production-certified.** Catalogue product selection increments quantity; basket +/− attempts returned 500. One confirmed defect (form.action shadowed by hidden input named action) was corrected in commit `f38aec41`, but the live checkout still returned 500. Subsequent frontend error-reporting and read-back fallbacks did **not** solve the backend failure; do not layer more on them. Review and remove superseded handling when the actual root cause is fixed. UI work must not compromise payment constraints or stock/audit correctness.
+
+The diagnostic command `.venv/bin/python backend/manage.py shell` **ran development settings backed by SQLite**, not the production PostgreSQL configured by `deployment/contabo/deploy-app.sh`. Its `sqlite3.OperationalError: no such column: pos_order.quick_create_key` came from the local SQLite schema and occurred before the target order was loaded. **Do not migrate SQLite or interpret this as the production 500**. For the real diagnosis, first select the same environment and `DJANGO_SETTINGS_MODULE=config.settings.production` as the service using the existing `/etc/leosoft-pos/pos.env` (do not print database credentials), then verify the active database engine; obtain the production traceback for the failing POST or reproduce in a rollback-only transaction on that database. Never make a permanent change to a live basket merely to diagnose.
+
+Owner's correction policy: failed fixes are replaced/removed, not stacked. Track eliminated code, test execution and browser evidence before closing this incident. **No quantity-change patch is certified yet.**
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
