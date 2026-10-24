@@ -346,6 +346,32 @@ class SupermarketCashierLaneTests(TestCase):
         sale.refresh_from_db()
         self.assertFalse(sale.is_paid)
 
+    def test_overpayment_cannot_be_booked_as_extra_revenue(self):
+        """50,000 tender for a 35,000 basket must record at most 35,000."""
+        import uuid
+        from apps.pos.models import Payment
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("35000.00"), total=Decimal("35000.00"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+        response = self.client.post(url, {
+            "action": "record_payment", "amount": "50000.00",
+            "method": "cash", "payment_request_key": str(uuid.uuid4()),
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Payment.objects.filter(order=sale).exists())
+        sale.refresh_from_db()
+        self.assertFalse(sale.is_paid)
+        accepted = self.client.post(url, {
+            "action": "record_payment", "amount": "35000.00",
+            "method": "cash", "payment_request_key": str(uuid.uuid4()),
+        })
+        self.assertEqual(accepted.status_code, 302)
+        sale.refresh_from_db()
+        self.assertTrue(sale.is_paid)
+        self.assertEqual(Payment.objects.get(order=sale).amount, Decimal("35000.00"))
+
     def test_quick_create_idempotency_returns_same_basket_on_retry(self):
         import uuid
 
