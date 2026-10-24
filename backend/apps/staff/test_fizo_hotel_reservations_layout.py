@@ -20,6 +20,15 @@ class FizoHotelReservationsLayoutTests(SimpleTestCase):
         self.assertIn("page_obj.has_next", page)
         self.assertEqual(page.count("{% if "), page.count("{% endif %}"))
 
+    def test_filtered_empty_state_is_distinct_from_no_reservations(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/lodging/reservations_list.html").read_text(encoding="utf-8")
+        self.assertIn("No stays match this task", page)
+        self.assertIn("No reservations yet", page)
+        self.assertIn("{% if lane_filter or status_filter %}", page)
+        self.assertIn("Try another queue or status", page)
+        get_template("staff/lodging/reservations_list.html")
+
     def test_stylesheet_present(self):
         root = Path(__file__).resolve().parent
         self.assertTrue((root / "static/staff/fizo-hotel-frontdesk.css").is_file())
