@@ -123,3 +123,14 @@ The auditor was scanning `.py` files, including its own fixture test module, whe
 Commits: `6fd300aa999a74d57bd004fc4e600d9bb59238a2`, `0a699aabf1b7e92d597291f74f2c5763260e881e`, `d6c900ddb73ab74cb5c5b1c82f2dd4712cd5f00a`, `3a464043f528006d6f896ef909ee2c235a63bd7c`.
 
 This is a correction to the **auditor's source classification**, not suppression of true missing browser assets. The revised CI run and full Django suite require fresh confirmation. P00 remains **in progress**; P01 remains unopened.
+
+## Current verified CI checkpoint — 24 October 2026
+
+**Commit:** `b23bd823011f6dd4026668a285ee84704a3db0d9`. [GitHub Actions run 40060576860](https://github.com/birleopold/Bar-Hotel-POS/actions/runs/40060576860) completed with overall **failure**.
+
+- **CSS dependency check: passed**, including all **three** isolated scanner regression tests. The previous false-positive/hidden-error blocker is resolved for this commit's asset graph.
+- **Django system/migration checks:** completed before the automated suite. The CI job ultimately failed in **Run automated test suite**.
+- **SQLite test suite:** **69 failed, 805 passed, 7 skipped; 1,141 subtests passed**. Failing areas include tenant-branded staff login, dashboard/console text and structure, supermarket management navigation, and other UI contracts. These are not certified away as merely stale: investigate each against actual required functionality and approved visuals.
+- **PostgreSQL integration job: passed**, but this is not production RLS or concurrency certification.
+
+P00 asset-integrity subgate is verified **passed for this SHA only**. P00 overall remains **in progress**, and P01 may not be marked started/completed simply from the CSS check. Follow-on work must trace and fix the 69 remaining failures by genuine implementation/behavior contracts, then re-run CI and compare authenticated browser screenshots. No production deployment is implied.
