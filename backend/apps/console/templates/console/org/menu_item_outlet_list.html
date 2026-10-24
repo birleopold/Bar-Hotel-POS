@@ -4,8 +4,9 @@
 {% block content %}
 <section class="fizo-entity fizo-entity--list" aria-labelledby="area-price-heading">
   <header class="fizo-entity__header">
-    <div><p class="grocery-form-kicker">FIZO / CATALOGUE / SALES AREA PRICING</p>
+    <div><p class="grocery-form-kicker">{{ request.tenant.name|default:"Business" }} / Catalogue / Sales area pricing</p>
       <h1 id="area-price-heading">Prices by sales area</h1>
+      <p class="staff-muted">One price for all sales areas is the default. Add an override only when a branch needs a different selling price.</p>
       <p class="staff-muted">{{ menu_item.name }} · Use the standard price unless a particular sales area needs a different price.</p>
     </div>
     <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-outlet-create' item_id=menu_item.id %}"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add sales area price</a>
