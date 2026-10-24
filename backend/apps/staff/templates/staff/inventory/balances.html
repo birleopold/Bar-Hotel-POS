@@ -6,7 +6,7 @@
 {% block content %}
 <div class="fizo-stock">
   <header class="fizo-stock__head">
-    <div><p class="fizo-stock__eyebrow">Fizo / Supermarket / Inventory</p><h1>Stock balances</h1><p>Track quantities in each section, identify low stock, and manage replenishment.</p></div>
+    <div><p class="fizo-stock__eyebrow">Fizo / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Stock balances</h1><p>Track quantities in each section, identify low stock, and manage replenishment.</p></div>
     <div class="fizo-stock__actions">
       {% if can_modify_inventory %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}"><i class="bi bi-plus-lg"></i> Record stock</a><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer' %}">Transfer</a>{% endif %}
       <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
