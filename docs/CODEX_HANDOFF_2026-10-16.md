@@ -90,6 +90,12 @@ The cashier's `catalogue_q` and staff product `q` now search active tenant-scope
 
 **Not yet executed in this session:** Django integration tests against a disposable PostgreSQL DB, live browser/barcode scanner and tenant-specific physical device acceptance. Do not mark P06/P08/P15 finished. Next inspect test run outcomes, then test real scanning (including weighted scale labels), inventory consumed on final settlement, held/recalled baskets, and 5-width approved UI screenshots.
 
+## 25 October: stock checkout cannot overdraw item also consumed in recipe (P07–P09)
+
+Existing `backend/apps/inventory/services.py::validate_and_consume_stock_for_paid_order` independently checked direct POS sale stock and recipe ingredient stock. If the same tracked SKU was both a sold line and a BOM ingredient in the order, each pass could approve demand independently, leaving a **negative balance after two valid-looking deductions**. Commit `48e3fa7b` aggregates both requirements, locks every affected StockBalance deterministically and rejects combined shortage **before any write**; then it still posts individual SALE and RECIPE movement reasons and existing FEFO batch allocations inside the payment transaction.
+
+The existing supermarket integration test now covers actual financial rollback on shortage and successful later settlement after the same inventory receiving service posts the missing unit. For example, quantity 4 versus sale 3 + recipe 2 rejects payment and leaves sale open/stock unchanged, receiving +1 permits payment, and creates separate SALE -3 and RECIPE -2 movements (commits `1bb943f6`, `8780e70c`, `dfd16845`). Existing PostgreSQL CI includes the case (`574a9cff`). **CI and live PostgreSQL/browser execution not verified.** Further P09 PO goods receiving, multi-outlet transfers, expiry batches and 5-width UI acceptance remain pending. No new files, schemas or alternative stock service.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
