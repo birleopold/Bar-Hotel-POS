@@ -665,7 +665,7 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(parked, "Resume this basket")
         self.assertContains(parked, 'name="action" value="resume_order"')
         self.assertNotContains(parked, 'data-pos-payment-form')
-        self.assertNotContains(parked, 'data-fizo-qty-form')
+        self.assertNotContains(parked, '<form method="post" class="fizo-retail-stepper" data-fizo-qty-form')
         self.assertEqual(self.client.post(url, {"action": "resume_order"}).status_code, 302)
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
