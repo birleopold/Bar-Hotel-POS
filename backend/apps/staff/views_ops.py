@@ -686,6 +686,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     Order.objects.filter(pk=locked.pk).update(currency=configured)
                     return redirect("staff-order-detail", order_id=locked.pk)
         self.object = order
+        if (order.status == OrderStatus.OPEN
+                and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}):
+            from .views_customer_display import mark_customer_display_active
+            mark_customer_display_active(order, request.user)
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)
 
