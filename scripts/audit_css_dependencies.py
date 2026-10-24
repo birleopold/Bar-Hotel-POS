@@ -51,7 +51,7 @@ def audit(root=ROOT, files=None):
         literal_refs = [value for value in CSS_URL.findall(text)]
         literal_refs += [raw.removeprefix("/static/") for raw in RAW_CSS_URL.findall(text)]
         for ref in literal_refs:
-            if ref in seen_in_source:
+            if ref in seen_in_source and src.suffix == ".html":
                 repeated_in_source.append({"source": str(src.relative_to(root)), "asset": ref})
             seen_in_source.add(ref)
         for raw in RAW_CSS_URL.findall(text):
@@ -84,6 +84,9 @@ def audit(root=ROOT, files=None):
     hardcoded.sort(key=lambda item: (item["source"], item["asset"]))
     referenced = set(consumers)
     unreferenced = [str(p.relative_to(root)) for p in css if str(p.relative_to(root)) not in referenced]
+    # A literal reference audit cannot prove an asset is unused: Django
+    # template inheritance, generated paths and browser-loaded styles remain.
+    # Keep candidates informational; never auto-delete or auto-merge them.
     report = {
         "tracked_css_count": len(css),
         "tracked_css_files": sorted(str(p.relative_to(root)) for p in css),
