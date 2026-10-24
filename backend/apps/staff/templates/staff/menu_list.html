@@ -1,13 +1,13 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}{% if show_retail_catalogue %}Products · Fizo{% else %}Menu items{% endif %}{% endblock %}
+{% block title %}{% if show_retail_catalogue %}Products{% else %}Menu items{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide{% if show_retail_catalogue %} fizo-retail-products{% else %} staff-main--menu-catalog hospitality-workflow{% endif %}{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261023.1">{% endblock %}
 {% block content %}
 {% if show_retail_catalogue %}
 <div class="fizo-products fz-management-page" data-business="retail">
   <header class="fizo-products__head fz-page-heading">
-    <div><p class="fizo-products__eyebrow">Fizo / Supermarket / Catalogue</p><h1>Products</h1><p>Search your sellable products by name, SKU or barcode. Manage product records in the catalogue console.</p></div>
+    <div><p class="fizo-products__eyebrow">{% if staff_product.business_key == "retail" %}Retail{% else %}Supermarket{% endif %} / Catalogue</p><h1>Products</h1><p>Search your sellable products by name, SKU or barcode. Manage product records in the catalogue console.</p></div>
     <div class="fizo-products__actions">{% if staff_nav.workspace %}<a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-create' %}"><i class="bi bi-plus-lg"></i> Add product</a><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-catalog-import' %}">Import products</a>{% endif %}</div>
   </header>
   {% if quick_review_count %}
