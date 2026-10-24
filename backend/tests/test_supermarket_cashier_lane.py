@@ -333,6 +333,36 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(response, str(held.pk))
         self.assertEqual(len(response.context["held_tabs"]), 1)
 
+    def test_customer_monitor_refuses_stale_held_basket_pointer(self):
+        """A held basket stays hidden even if its old session pointer survives."""
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("5000"), total=Decimal("5000"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+        monitor = reverse("staff-retail-customer-display", kwargs={"order_id": sale.pk})
+        # Loading the cashier activates this basket in its register session.
+        self.assertEqual(self.client.get(url).status_code, 200)
+        live = self.client.get(monitor)
+        self.assertEqual(live.status_code, 200)
+        self.assertContains(live, 'data-active-order="' + str(sale.pk) + '"')
+        # Simulate a stale pointer after the basket is parked in the database.
+        Order.objects.filter(pk=sale.pk).update(table_label="Returning shopper")
+        parked = self.client.get(monitor)
+        self.assertEqual(parked.status_code, 200)
+        self.assertContains(parked, 'data-active-order=""')
+        self.assertNotContains(parked, 'data-active-order="' + str(sale.pk) + '"')
+        # Ordinary GET on a parked basket must not reactivate it.
+        self.client.get(url)
+        still_parked = self.client.get(monitor)
+        self.assertContains(still_parked, 'data-active-order=""')
+        # Explicit cashier POST resumes the original basket and its display.
+        resumed = self.client.post(url, {"action": "resume_order"})
+        self.assertEqual(resumed.status_code, 302)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        active_again = self.client.get(monitor)
+        self.assertContains(active_again, 'data-active-order="' + str(sale.pk) + '"')
+
     def test_held_partial_basket_resume_reuses_original_order_and_tenders(self):
         """Parking must free the register; resuming cannot create another sale."""
         from apps.pos.models import Payment
