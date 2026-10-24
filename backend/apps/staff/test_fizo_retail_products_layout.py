@@ -47,6 +47,13 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("paymentSubmitButton.textContent = paymentSubmitLabel;", source)
         self.assertIn('paymentSubmitButton.textContent = "Recording payment…";', source)
 
+    def test_scanner_stays_available_when_browser_form_validation_fails(self):
+        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        validation = source.index("if (!scanForm.checkValidity()) return;")
+        pending = source.index("scanPending = true;", validation)
+        self.assertLess(validation, pending)
+        self.assertIn('if (scanPending) { event.preventDefault(); return; }', source)
+
     def test_quick_product_whole_unit_quantity_contract(self):
         root = Path(__file__).resolve().parent
         template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
