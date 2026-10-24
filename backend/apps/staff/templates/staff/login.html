@@ -2,7 +2,7 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %} · Sign in</title>
+<title>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %} · Staff sign in</title>
 {% if login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
 <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#00884b{% endif %}">
 <link rel="stylesheet" href="{% static 'staff/fizo-fresh.css' %}?v=20261006.3">
@@ -11,8 +11,9 @@
 <body class="fizo-auth-body"{% if login_brand %} style="--fz-auth-green:{{ login_brand.primary }};--staff-primary:{{ login_brand.primary }}"{% endif %}>
 <main class="fizo-auth" id="staff-main-content">
   <aside class="fizo-auth__aside">
+{% if login_brand.background_url %}<img class="fizo-auth__background" src="{{ login_brand.background_url }}" alt="" aria-hidden="true">{% endif %}
     <div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</span></div>
-    <div><div class="fizo-auth__eyebrow">Your business. One workspace.</div><h2 class="fizo-auth__statement">One secure place to run your day.</h2><p>Sales, customers, inventory and operations — all in one connected workspace.</p></div>
+    <div><div class="fizo-auth__eyebrow">PRIVATE STAFF WORKSPACE · Your business. One workspace.</div><h2 class="fizo-auth__statement">One secure place to run your day.</h2><p>Sales, customers, inventory and operations — all in one connected workspace.</p></div>
     <div class="fizo-auth__aside-foot">Fizo · Secure staff access</div>
   </aside>
   <section class="fizo-auth__panel" aria-labelledby="staff-login-title">
