@@ -42,6 +42,12 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn('staff_product.business_key == "supermarket" or staff_product.business_key == "retail" %}Supermarket dashboard', dashboard)
         get_template("staff/dashboard.html")
 
+    def test_lodging_fallback_uses_effective_navigation_permission(self):
+        dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
+        self.assertIn('{% elif staff_nav.lodging %}', dashboard)
+        self.assertNotIn('{% elif staff_show_lodging_nav and staff_nav.lodging %}', dashboard)
+        get_template("staff/dashboard.html")
+
     def test_hotel_dual_role_keeps_secondary_pos_link(self):
         page = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertIn('{% if staff_nav.orders %}<a href="{% url \'staff-orders\' %}">Open POS</a>{% endif %}', page)
