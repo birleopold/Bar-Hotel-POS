@@ -333,6 +333,40 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(response, str(held.pk))
         self.assertEqual(len(response.context["held_tabs"]), 1)
 
+    def test_customer_monitor_shows_brief_thanks_after_full_payment_without_items(self):
+        """Full settlement acknowledges purchase without leaving customer data visible."""
+        import uuid
+        from apps.pos.models import OrderLine
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("5000"), total=Decimal("5000"),
+        )
+        OrderLine.objects.create(
+            order=sale, label="Private basket item",
+            quantity=Decimal("1"), unit_price=Decimal("5000"),
+            line_total=Decimal("5000"),
+        )
+        cashier = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+        screen = reverse("staff-retail-customer-display", kwargs={"order_id": sale.pk})
+        self.assertEqual(self.client.get(cashier).status_code, 200)
+        self.assertContains(self.client.get(screen), "Private basket item")
+        paid = self.client.post(cashier, {
+            "action": "record_payment", "amount": "5000", "method": "cash",
+            "payment_request_key": str(uuid.uuid4()),
+        })
+        self.assertEqual(paid.status_code, 302)
+        sale.refresh_from_db()
+        self.assertTrue(sale.is_paid)
+        self.assertEqual(sale.status, "closed")
+        screen_after = self.client.get(screen)
+        self.assertEqual(screen_after.status_code, 200)
+        self.assertContains(screen_after, "Payment complete. Thank you")
+        self.assertNotContains(screen_after, "Private basket item")
+        self.assertNotContains(screen_after, "5000")
+        # Completed sale must never become an active checkout again on GET.
+        self.client.get(cashier)
+        self.assertContains(self.client.get(screen), 'data-active-order=""')
+
     def test_customer_monitor_refuses_stale_held_basket_pointer(self):
         """A held basket stays hidden even if its old session pointer survives."""
         sale = Order.objects.create(
