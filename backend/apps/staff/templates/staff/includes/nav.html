@@ -3,7 +3,7 @@
   <div class="fz-top-links">
     {% if staff_nav.orders %}{% if staff_product.business_key == 'supermarket' or staff_product.business_key == 'retail' %}<a href="{% url 'staff-retail-pos-entry' %}"><i class="bi bi-cart3" aria-hidden="true"></i> POS</a>{% else %}<a href="{% url 'staff-orders' %}"><i class="bi bi-cart3" aria-hidden="true"></i> Orders</a>{% endif %}{% endif %}
     {% if staff_nav.workspace %}<a href="{% url 'console-org-setup' %}">Setup</a>{% endif %}
-    {% if request.user.is_authenticated %}<span class="fz-top-operator" aria-label="Signed-in operator"><i class="bi bi-person-circle" aria-hidden="true"></i><span class="fz-top-operator__label">Cashier / staff</span><strong title="{{ request.user.email }}">{{ request.user.get_full_name|default:request.user.email }}</strong></span>{% endif %}
+    {% if request.user.is_authenticated %}<span class="fz-top-operator" aria-label="Signed-in operator"><i class="bi bi-person-circle" aria-hidden="true"></i><span class="fz-top-operator__label">Signed in:</span><strong title="{{ request.user.email }}">{{ request.user.get_full_name|default:request.user.email }}</strong></span>{% endif %}
     <form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button class="staff-btn staff-btn--primary" type="submit"><i class="bi bi-lock"></i> Lock</button></form>
   </div>
 </header>
