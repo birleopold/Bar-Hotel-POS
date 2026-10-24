@@ -1040,6 +1040,46 @@ class ConsoleAccessTests(TestCase):
             self.assertTrue(product.product_image.storage.exists(product.product_image.name))
             self.assertEqual(product.product_image_src, product.product_image.url)
 
+    def test_phone_photo_upload_keeps_product_details_and_tenant_scope(self) -> None:
+        import io
+        import tempfile
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+
+        user = User.objects.create_user(email="mobile-image@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(user)
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Imported stock")
+        item = MenuItem.objects.create(tenant=self.tenant, category=category, name="Imported cup",
+                                       unit_price="2500.00", sku="CUP-1")
+        url = reverse("console-org-menu-item-photo", kwargs={"item_id": item.id})
+        self.assertContains(self.client.get(url), "Imported cup")
+        self.assertContains(self.client.get(reverse("console-org-menu-item-edit", kwargs={"item_id": item.id})),
+                            "Copy phone link")
+        self.assertContains(self.client.get(reverse("console-org-menu-items")), "Add photo")
+        output = io.BytesIO()
+        Image.new("RGB", (2, 2), "white").save(output, format="PNG")
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            uploaded = SimpleUploadedFile("cup.png", output.getvalue(), content_type="image/png")
+            response = self.client.post(url, {"photo": uploaded})
+            self.assertEqual(response.status_code, 302)
+            item.refresh_from_db()
+            self.assertTrue(item.product_image.name.startswith("products/"))
+            self.assertEqual(item.sku, "CUP-1")
+            self.assertEqual(item.unit_price, Decimal("2500.00"))
+            status = self.client.get(url + "?status=1")
+            self.assertEqual(status.status_code, 200)
+            self.assertEqual(status["Cache-Control"], "private, no-store")
+            self.assertEqual(status.json()["image_key"], item.product_image.name)
+            other = Tenant.objects.create(name="Other image tenant", slug="other-image-tenant")
+            other_cat = MenuCategory.objects.create(tenant=other, name="Other")
+            other_item = MenuItem.objects.create(tenant=other, category=other_cat, name="Private product",
+                                                 unit_price="1.00")
+            self.assertEqual(self.client.get(reverse("console-org-menu-item-photo", kwargs={"item_id": other_item.id})).status_code, 404)
+            self.assertEqual(self.client.post(reverse("console-org-menu-item-photo", kwargs={"item_id": other_item.id}),
+                                              {"photo": SimpleUploadedFile("other.png", output.getvalue(), content_type="image/png")}).status_code, 404)
+
     def test_owner_can_create_service_offering(self) -> None:
         TenantSettings.objects.filter(tenant=self.tenant).update(business_lines=["bar", "services"])
         user = User.objects.create_user(email="co-services@test.local", password="TestPass9!")
