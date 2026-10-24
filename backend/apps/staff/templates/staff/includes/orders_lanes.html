@@ -4,8 +4,9 @@
     <article class="fizo-active-sale">
       <div class="fizo-active-sale__top"><span class="fizo-active-sale__status fizo-active-sale__status--held">Held basket</span><span>{{ o.outlet.name }}</span></div>
       <h3>{{ o.table_label|default:o.bill_reference }}</h3>
-      <p>Receipt {{ o.bill_reference }}</p>
-      <a class="fizo-active-sale__resume" href="{% url 'staff-order-detail' order_id=o.id %}">Resume basket <i class="bi bi-arrow-right"></i></a>
+      <p>Receipt {{ o.bill_reference }} · {{ o.outlet.name }}</p>
+      <p aria-label="Held basket payment summary"><strong>{{ o.currency }} {{ o.display_balance }}</strong> remaining · {{ o.currency }} {{ o.display_paid }} already paid</p>
+      <a class="fizo-active-sale__resume" href="{% url 'staff-order-detail' order_id=o.id %}">Resume &amp; collect balance <i class="bi bi-arrow-right"></i></a>
     </article>
   {% endfor %}
   {% for o in open_tabs %}
