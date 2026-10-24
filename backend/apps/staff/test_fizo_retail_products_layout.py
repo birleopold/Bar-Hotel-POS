@@ -39,6 +39,12 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
+    def test_desktop_product_save_preserves_parallel_phone_photo(self):
+        source = (Path(__file__).resolve().parents[1] / "console/views_catalog.py").read_text(encoding="utf-8")
+        self.assertIn('elif "product_image" not in form.changed_data:', source)
+        self.assertIn("instance.product_image = current.product_image", source)
+        self.assertIn("pk=view.object.pk, tenant=view.request.tenant", source)
+
     def test_phone_photo_writes_are_atomic(self):
         source = (Path(__file__).resolve().parents[1] / "console/views_catalog.py").read_text(encoding="utf-8")
         self.assertIn("select_for_update()", source)
