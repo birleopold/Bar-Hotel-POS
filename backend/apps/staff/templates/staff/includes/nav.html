@@ -1,5 +1,5 @@
 <header class="staff-nav" role="banner">
-  <div><div class="fz-top-title">{{ request.tenant.name|default:"Fizo workspace" }}</div><small class="staff-muted">{{ staff_product.workspace_label|default:"Business operations" }}</small></div>
+  <div><div class="fz-top-title">{{ request.tenant.name|default:"Business workspace" }}</div><small class="staff-muted">{{ staff_product.workspace_label|default:"Business operations" }}</small></div>
   <div class="fz-top-links">
     {% if staff_nav.orders %}<a href="{% url 'staff-orders' %}"><i class="bi bi-cart3"></i> POS</a>{% endif %}
     {% if staff_nav.workspace %}<a href="{% url 'console-org-setup' %}">Setup</a>{% endif %}
