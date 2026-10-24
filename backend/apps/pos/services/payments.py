@@ -300,8 +300,15 @@ def record_order_refund(
         check_replay_register(existing, workstation_id=workstation_id, shift_id=shift_id)
         return existing, True
 
-    if locked.status != OrderStatus.CLOSED or not locked.is_paid:
-        raise ValidationError("Refunds are only for closed, paid orders.")
+    part_paid_retail = (
+        locked.status == OrderStatus.OPEN
+        and not locked.is_paid
+        and locked.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+    )
+    if not ((locked.status == OrderStatus.CLOSED and locked.is_paid) or part_paid_retail):
+        raise ValidationError("Refunds require a paid sale or a partially paid retail basket.")
+    if part_paid_retail and restock:
+        raise ValidationError({"restock": "Open baskets have not consumed sale stock; do not restock a partial payment refund."})
 
     payments = list(
         Payment.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id).order_by("created_at")
@@ -351,7 +358,8 @@ def record_order_refund(
     if restock:
         _restock_paid_order_tracked_lines(order=locked, user=user)
 
-    reverse_refunded_order_points(order=locked, refund=refund, user=user)
+    if locked.is_paid:
+        reverse_refunded_order_points(order=locked, refund=refund, user=user)
 
     log_audit(
         tenant_id=locked.tenant_id,
