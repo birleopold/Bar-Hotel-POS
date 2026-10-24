@@ -27,8 +27,7 @@ def test_customer_display_shows_basket_no_customer_contact_or_session_controls()
     session = client.session
     session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
     session.save()
-    from apps.staff.views_customer_display import mark_customer_display_active
-    mark_customer_display_active(sale, env["user"])
+    assert client.get(reverse("staff-order-detail", kwargs={"order_id": sale.pk})).status_code == 200
     page = client.get(url)
     assert page.status_code == 200, page.content
     assert b"Coffee" in page.content
@@ -66,8 +65,7 @@ def test_customer_screen_follows_cashiers_new_basket_without_send_action():
     session = client.session
     session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
     session.save()
-    from apps.staff.views_customer_display import mark_customer_display_active
-    mark_customer_display_active(second, env["user"])
+    assert client.get(reverse("staff-order-detail", kwargs={"order_id": second.pk})).status_code == 200
     first_url = reverse("staff-retail-customer-display", kwargs={"order_id": first.pk})
     page = client.get(first_url)
     assert page.status_code == 200
@@ -99,11 +97,12 @@ def test_customer_screen_never_resurrects_paid_or_held_basket():
     assert b"Welcome!" in idle.content
     assert sale.bill_reference.encode() not in idle.content
     next_sale = Order.objects.create(tenant=env["tenant"], outlet=env["outlet"], created_by=env["user"])
-    mark_customer_display_active(next_sale, env["user"])
+    assert client.get(reverse("staff-order-detail", kwargs={"order_id": next_sale.pk})).status_code == 200
     active = client.get(url)
     assert next_sale.bill_reference.encode() in active.content
     assert sale.bill_reference.encode() not in active.content
-    Order.objects.filter(pk=next_sale.pk).update(table_label="Held " + next_sale.bill_reference)
+    hold = client.post(reverse("staff-order-detail", kwargs={"order_id": next_sale.pk}), {"action": "hold_order"})
+    assert hold.status_code == 302
     idle = client.get(url)
     assert b"Welcome!" in idle.content
     assert next_sale.bill_reference.encode() not in idle.content
