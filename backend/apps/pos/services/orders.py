@@ -291,6 +291,7 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
     from django.utils import timezone as dj_tz
 
     locked = Order.objects.select_for_update().get(pk=order.pk)
+    require_active_retail_basket(locked)
     if locked.status != OrderStatus.OPEN or locked.is_paid:
         raise ValidationError("Promotion can only be applied to open, unpaid orders.")
     if locked.lines.filter(pricing_source="wholesale", is_voided=False).exists():
