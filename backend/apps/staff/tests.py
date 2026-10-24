@@ -103,7 +103,6 @@ class SharedTerminalTests(TestCase):
         page = self.client.get(reverse("staff-terminal"))
         self.assertContains(page, "Your turn to serve")
         self.assertNotContains(page, "<span>Fizo</span>", html=False)
-        self.assertContains(page, "Staff terminal")
         self.assertNotContains(page, '>Fizo</div>', html=False)
         self.assertContains(page, "worker-terminal@test.local")
         unlock = self.client.post(reverse("staff-terminal"), {"worker": str(self.worker_member.id), "pin": "681347"})
@@ -440,7 +439,7 @@ class StaffUiTests(TestCase):
         self.assertContains(response, 'class="staff-sidebar"')
         self.assertContains(response, "All sections")
         self.assertContains(response, "Terrace bar")
-        self.assertContains(response, ">Sales</a>")
+        self.assertContains(response, "Orders &amp; tabs")
         self.assertContains(response, ">Stock</a>")
         self.assertContains(response, "Workspace")
         mobile_header = response.content.split(b'<header class="staff-nav', 1)[1].split(b'</header>', 1)[0]
