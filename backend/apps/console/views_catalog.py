@@ -114,6 +114,14 @@ def _save_catalog_item_safely(view, form, *, creating):
         instance = form.save(commit=False)
         if creating:
             instance.tenant = view.request.tenant
+        elif "product_image" not in form.changed_data:
+            # A phone may have uploaded a newer photo while this desktop form
+            # was being filled. Keep the latest committed photo unless the
+            # desktop user explicitly replaced or cleared it.
+            current = MenuItem.objects.select_for_update().get(
+                pk=view.object.pk, tenant=view.request.tenant
+            )
+            instance.product_image = current.product_image
         instance.save()
         sync_menu_item_outlet_links(instance, form.cleaned_data.get("outlets"))
         sync_menu_item_modifier_groups(instance, form.cleaned_data.get("modifier_groups"))
