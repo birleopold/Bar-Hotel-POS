@@ -29,8 +29,17 @@ def mark_customer_display_active(order, actor):
     # A manager inspecting another cashier's sale must never redirect that
     # cashier's customer-facing screen.
     if (order.created_by_id == actor.pk and order.status == "open"
-            and not order.is_paid and not order.table_label):
+            and not order.is_paid):
         cache.set(customer_display_active_key(order), str(order.pk), timeout=60 * 60 * 12)
+
+
+def clear_customer_display_active(order):
+    """Blank this cashier's paired display when their active basket is held."""
+    if not order.created_by_id:
+        return
+    key = customer_display_active_key(order)
+    if cache.get(key) == str(order.pk):
+        cache.delete(key)
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -55,7 +64,6 @@ class StaffCustomerDisplayView(StaffTenantRequiredMixin, View):
                 active = Order.objects.filter(
                     pk=active_id, tenant=request.tenant, outlet_id=order.outlet_id,
                     created_by_id=order.created_by_id, status="open", is_paid=False,
-                    table_label="",
                 ).select_related("outlet").first()
         if active is None:
             # Empty/idle customer monitor: do not expose an old order.
