@@ -5,7 +5,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
 <div class="fizo-inventory fizo-inventory--movement-form">
-<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">Fizo / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Receive or adjust stock</h1><p>Record a receiving, adjustment or waste transaction with your authorized section.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
+<header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Receive or adjust stock</h1><p>Record a receiving, adjustment or waste transaction with your authorized section.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
   {% include "staff/inventory/includes/subnav.html" %}
   
   <h2 class="fizo-inventory__heading">{% if grocery_owner_shell %}Stock details{% else %}Line{% endif %}</h2>
