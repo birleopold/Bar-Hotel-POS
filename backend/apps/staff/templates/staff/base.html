@@ -65,7 +65,8 @@
     <form id="staff-idle-lock" method="post" action="{% url 'staff-terminal-lock' %}" hidden>{% csrf_token %}</form>
     <script>
       (function () {
-        var idleMs = {% if staff_product.business_key == 'supermarket' or staff_product.business_key == 'retail' %}900000{% else %}115000{% endif %}; // Dedicated retail terminals: 15 minutes; shared hospitality: 115 seconds.
+        // This is supplied by the same authorized server policy used by middleware.
+        var idleMs = {{ staff_pin_idle_ms|default:120000 }};
         var timer;
         function lock() { window.staffBroadcastTerminalLock(); document.getElementById('staff-idle-lock').submit(); }
         function activity() { clearTimeout(timer); timer = setTimeout(lock, idleMs); }
