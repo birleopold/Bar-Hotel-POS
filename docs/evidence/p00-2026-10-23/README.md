@@ -192,3 +192,7 @@ Corrected a shared generic dashboard introduction in the existing `staff/dashboa
 Corrected the existing staff dashboard's lower panel: it previously showed "Nothing requiring attention is available yet" regardless of whether the panel was meant for **Popular items** or **Getting started**. It now distinguishes a reporting period with no sales from a user who can begin via their existing quick actions. Added a template-parsing regression test guarding both states. Only the canonical dashboard template and existing test owner changed; no CSS or duplicate views were introduced.
 
 Source commits: `f18cbe4d2813d4881c45f12a1bf4fd0a87afe7d4`, `6021c4eb66797cdcf95d8be8e4d6f6b3c7e9c8b2`. CI and authenticated viewport validation for these changes remain pending. P00 remains open.
+
+## Populated-items dashboard heading — 24 October 2026
+
+The canonical dashboard labeled its work panel **Popular items** whenever a sales snapshot object existed, even if it had no ranked item rows. Corrected the heading to require real `top_items`; otherwise the sales panel is **Sales activity**, matching its no-sales empty state. Added a focused existing-suite template regression. Commits `3553006570cc66e7e54c9c314b4b8a9abc6a044f` and `0202fb1630c2a4deb529eba7521f55d70d491d98`. No new CSS or template; new CI and browser acceptance are pending. P00 stays open.
