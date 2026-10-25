@@ -231,6 +231,46 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Grocery milk")
         self.assertContains(page, "milk.png")
 
+    def test_cashier_tiles_show_only_selected_outlet_stock_and_reorder_warning(self):
+        from apps.inventory.models import StockBalance
+
+        category = MenuCategory.objects.create(
+            tenant=self.tenant, name="Retail stock visibility",
+        )
+        item = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Packing tape",
+            sku="TAPE-LOW", unit_price=Decimal("4000"),
+            track_inventory=True, reorder_level=Decimal("3"),
+        )
+        elsewhere = Outlet.objects.create(
+            site=self.outlet.site, name="Warehouse", outlet_type=OutletType.RETAIL,
+        )
+        StockBalance.objects.create(
+            tenant=self.tenant, outlet=elsewhere, menu_item=item,
+            quantity=Decimal("90"),
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX",
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        empty = self.client.get(url, {"catalogue_q": "TAPE-LOW"})
+        self.assertEqual(empty.status_code, 200)
+        self.assertContains(empty, "Out of stock")
+        self.assertNotContains(empty, "On hand · 90")
+        StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.outlet, menu_item=item,
+            quantity=Decimal("2"),
+        )
+        low = self.client.get(url, {"catalogue_q": "TAPE-LOW"})
+        self.assertContains(low, "Low stock · 2")
+        StockBalance.objects.filter(
+            outlet=self.outlet, menu_item=item,
+        ).update(quantity=Decimal("12"))
+        stocked = self.client.get(url, {"catalogue_q": "TAPE-LOW"})
+        self.assertContains(stocked, "On hand · 12")
+        self.assertNotContains(stocked, "Low stock · 2")
+
     def test_settlement_rejects_combined_direct_and_recipe_stock_overdraw(self):
         from rest_framework.exceptions import ValidationError
         from apps.catalog.models import MenuItemRecipeLine
