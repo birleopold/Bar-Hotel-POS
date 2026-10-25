@@ -312,6 +312,42 @@ class ManagementWorkspaceTests(TestCase):
         TenantSettings.objects.create(tenant=self.tenant,enabled_staff_modules=["pos"])
         self.assertFalse({"stock_adjustment","delivery_discrepancy","efris_failure"} & {r.kind for r in self.rows()})
 
+    def test_void_exceptions_show_cashier_attribution_across_sales(self):
+        from apps.pos.models import OrderLine
+        self.login()
+        first_order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, total=20, status="open", currency="UGX",
+        )
+        second_order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, total=30, status="open", currency="UGX",
+        )
+        now = timezone.now()
+        first = OrderLine.objects.create(
+            order=first_order,
+            label="First void",
+            quantity=1,
+            unit_price=20,
+            line_total=20,
+            is_voided=True,
+            void_reason="Wrong scan",
+            voided_at=now,
+            voided_by=self.worker,
+        )
+        OrderLine.objects.create(
+            order=second_order,
+            label="Second void",
+            quantity=1,
+            unit_price=30,
+            line_total=30,
+            is_voided=True,
+            void_reason="Customer changed item",
+            voided_at=now,
+            voided_by=self.worker,
+        )
+        row = next(r for r in self.rows() if r.kind == "void" and r.entity_id == str(first.pk))
+        self.assertIn(self.worker.email, row.detail)
+        self.assertIn("2 voided lines by this worker in the review window", row.detail)
+
     def test_follow_up_ownership_history_and_resolved_case_after_source_clears(self):
         self.login()
         row = next(r for r in self.rows() if r.kind == "low_stock")
