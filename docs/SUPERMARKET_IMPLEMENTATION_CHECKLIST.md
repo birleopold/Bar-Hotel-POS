@@ -30,7 +30,7 @@
 | SM-12 | [-] | Weighted barcode labels and electronic scale integration | UoM fields exist; no verified certified scale/label adapter | EAN-13 embedded-price/weight parsing with checksums; scale tare/price-per-kg and supported hardware | 15 |
 | SM-13 | [-] | Retail tax and fiscal receipt accuracy | line tax fields, receipts, optional EFRIS outbox | VAT inclusive/exclusive policy, rounding, discounts, split tender and URA-certified fiscal output | 17, 32 |
 | SM-14 | [-] | Import and maintain a large product catalog | staff item forms/import groundwork | CSV template, preview, row diagnostics, safe upsert, SKU/barcode duplicate enforcement, bulk pricing | 27 |
-| SM-15 | [ ] | Shelf-label printing and barcode label design | printable receipts exist, not shelf label workflow | Price-label templates, product/barcode/weight printing, change queue, supported printers | 15 |
+| SM-15 | [-] | Shelf-label printing and barcode label design | outlet-scoped Shelf labels screen generates bounded A4 PDF price tags from the existing catalog, current outlet price overrides and stored Code 128 barcodes | Physical printer/media alignment, label-change queue, weighed-label printer integration and supported-hardware acceptance | 15 |
 | SM-16 | [-] | Full supplier replenishment journey | PO, partial receiving, supplier balances and invoices | Purchase requests, quotation comparison, discrepancies, allocations, credit notes, due dates and supplier lead-time analytics | 09 |
 | SM-17 | [-] | Stocktaking and blind/cycle counts | stock-count sessions, movements and staff screens | Offline handheld count, zones/aisles, blind double count, variance approval, import scans, count lock | 07, 16, 21 |
 | SM-18 | [-] | FEFO, expiry, recall and shrink management | batches/expiry, stock write-off, ledger | Automatic FEFO reservation/consumption under concurrency, recall trace, sale block, damaged/expired disposal approvals | 08 |
@@ -268,3 +268,11 @@ When implementing, update the affected SM-ID row, the P0/P1/P2 acceptance item, 
 - [ ] **Full suite, PostgreSQL concurrent checkout, provider callbacks, real Uganda till hardware, production rollout:** no certification evidence collected in this session.
 
 Do not conflate a committed regression test with a passing test or a completed roadmap phase.
+
+
+### 2026-10-26 — SM-15 shelf labels + cashier no-refresh discount checkpoint
+
+- Added **Inventory → Shelf labels** for retail/supermarket workspaces. It reuses the tenant/outlet-scoped product catalog and outlet price overrides; selected products generate a bounded A4 PDF. Stored product barcodes are rendered as Code 128, while products without a barcode remain clearly non-scannable rather than receiving an invented identifier. Requests are limited to 20 copies per product and 120 labels per PDF.
+- Shelf-label output is software-only acceptance. Physical printer model/media alignment, thermal/shelf-tag dimensions, barcode scanner read-back and change-queue workflow remain open, so **SM-15 moves from [ ] to [-]**, not complete.
+- Manager-approved retail line discounts now support the existing asynchronous checkout pattern: the server still requires the exact scoped manager PIN approval and idempotent request identity, returns JSON to supported browsers, rotates the one-time request key after success and refreshes basket/totals without a whole-page reload. Native form POST remains the fallback.
+- These commits require exact-head CI and deployed browser acceptance. They do not certify physical label printers, barcode scanners, supervisor-PIN usability on real tills or every remaining cashier mutation.
