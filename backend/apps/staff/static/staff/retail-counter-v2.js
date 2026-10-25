@@ -225,6 +225,9 @@
       if(button)button.setAttribute("aria-disabled","true");
     });
   }
+  // Only enhance an already payable basket. The initial item keeps native
+  // submission so Django can create its payment form with the correct
+  // cashier permissions and server-issued payment identity.
   if(addForm){
     addForm.addEventListener("submit",function(e){
       if(addForm.dataset.submitting==="1"){e.preventDefault();return;}
@@ -234,14 +237,66 @@
         if(product)product.focus();
         return;
       }
-      addForm.dataset.submitting="1";
+      if(!addForm.checkValidity())return;
       var submit=addForm.querySelector('button[type="submit"]');
-      if(submit){submit.dataset.originalLabel=submit.textContent;submit.setAttribute("aria-disabled","true");submit.textContent="Adding…";}
-      window.addEventListener("pageshow",function(){
-        addForm.dataset.submitting="";
-        if(submit){submit.removeAttribute("aria-disabled");submit.textContent=submit.dataset.originalLabel||"Add to basket";}
-      },{once:true});
+      var previous=submit&&submit.textContent;
+      var asyncReady=!!(window.fetch&&window.FormData&&paymentForm&&
+        document.querySelector("#fizo-current-basket .fizo-retail-basket-items"));
+      addForm.dataset.submitting="1";
+      if(submit){submit.disabled=true;submit.textContent="Adding…";}
+      function unlock(){
+        delete addForm.dataset.submitting;
+        if(submit){submit.disabled=false;submit.textContent=previous||"Add to basket";}
+      }
+      if(!asyncReady){
+        window.addEventListener("pageshow",unlock,{once:true});
+        return;
+      }
+      e.preventDefault();
+      if(live)live.textContent="Adding item…";
+      var csrf=addForm.querySelector('input[name="csrfmiddlewaretoken"]');
+      var url=addForm.getAttribute("action")||window.location.pathname+window.location.search;
+      fetch(url,{method:"POST",body:new FormData(addForm),credentials:"same-origin",
+        redirect:"follow",headers:{"X-Requested-With":"XMLHttpRequest",
+          "X-CSRFToken":csrf?csrf.value:""}})
+      .then(function(response){
+        // Native POST redirects after committing the item. A redirected
+        // authenticated GET must contain the same checkout basket.
+        if(!response.ok)throw new Error("Item was not confirmed (HTTP "+response.status+").");
+        return response.text();
+      }).then(function(html){
+        var remote=new DOMParser().parseFromString(html,"text/html");
+        var fresh=remote.querySelector("#fizo-current-basket .fizo-retail-basket-items");
+        var current=document.querySelector("#fizo-current-basket .fizo-retail-basket-items");
+        if(!fresh||!current)throw new Error("Checkout confirmation is unavailable.");
+        current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
+        [".fizo-retail-basket-summary",".fizo-cashier-payment-summary strong",
+         ".staff-pos-totals-row__total strong",".staff-pos-totals-row__meta",
+         ".fizo-cashier-pay-cta span"].forEach(function(selector){
+          var a=document.querySelector(selector),b=remote.querySelector(selector);
+          if(a&&b)a.textContent=b.textContent;
+        });
+        var cash=document.querySelector("[data-retail-cash-panel]");
+        var nextCash=remote.querySelector("[data-retail-cash-panel]");
+        if(cash&&nextCash){
+          var oldDue=cash.getAttribute("data-balance-due");
+          var amount=paymentForm.querySelector('input[name="amount"]');
+          if(amount&&Number(amount.value)===Number(oldDue)){
+            var remoteAmount=remote.querySelector('[data-pos-payment-form] input[name="amount"]');
+            if(remoteAmount)amount.value=remoteAmount.value;
+          }
+          cash.setAttribute("data-balance-due",nextCash.getAttribute("data-balance-due"));
+          cash.dispatchEvent(new Event("retail:balance-updated"));
+        }
+        // The existing delegated +/- handler will manage new basket rows.
+        if(live)live.textContent="Item added to basket.";
+      }).catch(function(error){
+        // Never replay a POST whose response was lost: it may have committed.
+        if(live)live.textContent=(error.message||"Could not verify item.")+
+          " Check the basket before trying again.";
+      }).then(unlock);
     });
+    window.addEventListener("pageshow",function(){delete addForm.dataset.submitting;});
   }
   function adjustUnitStep(tile){
     if(!qty||!tile)return;
