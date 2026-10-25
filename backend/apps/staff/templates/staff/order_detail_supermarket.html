@@ -551,6 +551,22 @@
         if (!data.ok) {
           if (input) input.value = input.dataset.confirmedQuantity || input.defaultValue;
           errorBox.textContent = data.message || "The quantity was not changed.";
+          if (data.refund_required) {
+            var refundForm = document.querySelector("[data-retail-refund-form]");
+            if (refundForm) {
+              var openRefund = document.createElement("button");
+              openRefund.type = "button";
+              openRefund.className = "staff-btn staff-btn--secondary ms-2";
+              openRefund.textContent = "Open refund controls";
+              openRefund.addEventListener("click", function () {
+                refundForm.scrollIntoView({behavior: "smooth", block: "center"});
+                var refundAmount = refundForm.querySelector('input[name="amount"]');
+                if (refundAmount) refundAmount.focus({preventScroll: true});
+              });
+              errorBox.appendChild(document.createTextNode(" "));
+              errorBox.appendChild(openRefund);
+            }
+          }
           return;
         }
         if (input) {
