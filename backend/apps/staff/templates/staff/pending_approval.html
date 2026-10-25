@@ -1,13 +1,13 @@
 {% extends "staff/base.html" %}
-{% block title %}Pending approval{% endblock %}
+{% block title %}Workspace unavailable{% endblock %}
 {% block content %}
   <header class="staff-page-hero">
     <div class="staff-dash-hero__panel">
       <p class="staff-dash-hero__eyebrow">Workspace</p>
       <div class="staff-page-hero__head">
         <div class="staff-page-hero__copy">
-          <h1 class="staff-page-title mb-0">Pending approval<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-          <p class="staff-dash-hero__tagline mb-0">This workspace isn’t active yet.</p>
+          <h1 class="staff-page-title mb-0">Workspace unavailable<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+          <p class="staff-dash-hero__tagline mb-0">Access is temporarily unavailable for this workspace.</p>
         </div>
       </div>
     </div>
@@ -16,7 +16,7 @@
   <div class="staff-card staff-card--soft">
     {% if active_membership %}
       <p class="mb-2"><strong>{{ active_membership.tenant.name }}</strong></p>
-      <p class="staff-muted mb-0">Switch workspace or sign out from the header.</p>
+      {% if workspace_access_message %}<p class="staff-muted mb-2">{{ workspace_access_message }}</p>{% endif %}<p class="staff-muted mb-0">Switch workspace or sign out from the header.</p>
     {% else %}
       <p class="staff-muted mb-0">No active workspace.</p>
     {% endif %}
