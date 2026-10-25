@@ -104,6 +104,7 @@
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <input type="hidden" name="action" value="line_discount">
+        <input type="hidden" name="discount_request_key" value="{{ discount_request_key }}">
         <div class="col-md-3">
           <label class="staff-label" for="disc_line">Order item</label>
           <select class="staff-input" id="disc_line" name="line_id" required>
@@ -111,9 +112,11 @@
             {% for line in order.lines.all %}{% if not line.is_voided %}<option value="{{ line.id }}">{{ line.label }} · {{ line.quantity }}</option>{% endif %}{% endfor %}
           </select>
         </div>
-        <div class="col-md-3">{{ line_discount_form.discount_amount.label_tag }}{{ line_discount_form.discount_amount }}</div>
-        <div class="col-md-3">{{ line_discount_form.discount_percent.label_tag }}{{ line_discount_form.discount_percent }}</div>
-        <div class="col-md-3"><button type="submit" class="staff-btn staff-btn--ghost">Apply</button></div>
+        <div class="col-md-2">{{ line_discount_form.discount_amount.label_tag }}{{ line_discount_form.discount_amount }}</div>
+        <div class="col-md-2">{{ line_discount_form.discount_percent.label_tag }}{{ line_discount_form.discount_percent }}</div>
+        <div class="col-md-2">{{ line_discount_form.approver_id.label_tag }}{{ line_discount_form.approver_id }}</div>
+        <div class="col-md-2">{{ line_discount_form.approver_pin.label_tag }}{{ line_discount_form.approver_pin }}</div>
+        <div class="col-md-1"><button type="submit" class="staff-btn staff-btn--ghost">Apply</button></div>
       </form>
     </div>
   {% endif %}
