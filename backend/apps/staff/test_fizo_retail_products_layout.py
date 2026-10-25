@@ -158,6 +158,36 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn('item.save(update_fields=["product_image", "updated_at"])', handler)
         get_template("console/org/menu_item_photo.html")
 
+    def test_phone_photo_handoff_supports_qr_camera_and_same_account_alert(self):
+        root = Path(__file__).resolve().parents[1]
+        editor = (root / "console/templates/console/org/menu_item_form.html").read_text(encoding="utf-8")
+        phone = (root / "console/templates/console/org/menu_item_photo.html").read_text(encoding="utf-8")
+        handler = (root / "console/views_catalog.py").read_text(encoding="utf-8")
+        requirements = (root / "requirements.txt").read_text(encoding="utf-8")
+
+        self.assertIn("phone_photo_qr_data_uri", editor)
+        self.assertIn("Scan with phone", editor)
+        self.assertIn('name="action" value="notify_phone"', editor)
+        self.assertIn("Send to my account", editor)
+        self.assertIn('capture="environment"', phone)
+        self.assertIn("def _phone_photo_handoff_context", handler)
+        self.assertIn('source_type="product_photo"', handler)
+        self.assertIn('recipient=membership', handler)
+        self.assertIn('"url": photo_path', handler)
+        self.assertIn("StaffNotification.objects.update_or_create", handler)
+        self.assertIn("qrcode[pil]", requirements)
+        get_template("console/org/menu_item_form.html")
+        get_template("console/org/menu_item_photo.html")
+
+    def test_product_photo_notification_is_archived_after_phone_upload(self):
+        source = (Path(__file__).resolve().parents[1] / "console/views_catalog.py").read_text(encoding="utf-8")
+        upload = source.split('if form.is_valid():', 1)[1].split(
+            'messages.success(request, "Photo saved.', 1
+        )[0]
+        self.assertIn('source_type="product_photo"', upload)
+        self.assertIn('source_id=str(item.pk)', upload)
+        self.assertIn(".update(active=False)", upload)
+
     def test_phone_photo_sync_has_manual_recovery_and_login_feedback(self):
         root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
         page = (root / "menu_item_form.html").read_text(encoding="utf-8")
