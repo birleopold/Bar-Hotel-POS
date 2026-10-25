@@ -12,6 +12,9 @@
   <nav class="fz-nav" aria-label="Operations">
     <a href="{% url 'staff-dashboard' %}"{% if u == 'staff-dashboard' %} aria-current="page"{% endif %}><i class="bi bi-grid"></i>Dashboard</a>
     {% if staff_nav.orders %}{% if staff_product.business_key == 'supermarket' or staff_product.business_key == 'retail' %}<a href="{% url 'staff-retail-pos-entry' %}"{% if u == 'staff-retail-pos-entry' or u == 'staff-order-detail' %} aria-current="page"{% endif %}><i class="bi bi-cart3"></i>POS</a><a href="{% url 'staff-orders' %}"{% if u == 'staff-orders' %} aria-current="page"{% endif %}><i class="bi bi-receipt"></i>Sales</a>{% else %}<a href="{% url 'staff-orders' %}"{% if u == 'staff-orders' or u == 'staff-order-detail' %} aria-current="page"{% endif %}><i class="bi bi-cart3"></i>Orders &amp; tabs</a>{% endif %}{% endif %}
+    {% if staff_nav.orders %}{% if request.tenant_membership.role == 'owner' or request.tenant_membership.role == 'tenant_admin' or request.tenant_membership.role == 'site_manager' or request.tenant_membership.role == 'outlet_manager' %}
+    <a href="{% url 'staff-deliveries' %}"{% if u == 'staff-deliveries' %} aria-current="page"{% endif %}><i class="bi bi-truck" aria-hidden="true"></i>Deliveries</a>
+    {% endif %}{% endif %}
     {% if staff_nav.tables %}<a href="{% url 'staff-tables' %}"{% if u == 'staff-tables' %} aria-current="page"{% endif %}><i class="bi bi-grid-3x3-gap"></i>Tables</a>{% endif %}
     {% if staff_nav.menu %}<a href="{% url 'staff-menu' %}"{% if u == 'staff-menu' %} aria-current="page"{% endif %}><i class="bi bi-box-seam"></i>{% if staff_product.business_key == 'supermarket' or staff_product.business_key == 'retail' %}Products{% else %}Menu{% endif %}</a>{% endif %}
     {% if staff_nav.kitchen %}<a href="{% url 'staff-kds' %}"{% if u == 'staff-kds' %} aria-current="page"{% endif %}><i class="bi bi-fire"></i>Kitchen</a>{% endif %}
