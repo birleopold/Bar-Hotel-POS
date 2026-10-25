@@ -1,0 +1,150 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Register shift review{% endblock %}
+{% block main_class %}staff-main--wide fizo-register-page{% if not grocery_owner_shell %} hospitality-workflow{% endif %}{% endblock %}
+{% block extra_css %}{% if not grocery_owner_shell %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261022.4">{% endif %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261022.3">{% endblock %}
+{% block content %}
+<div class="fizo-register fizo-register--pos_shifts">
+  <header class="fizo-register__header">
+    <div>
+      <p class="fizo-register__eyebrow">Manager review / Register evidence</p>
+      <h1>{{ shift.workstation.name|default:"Section register" }}</h1>
+      <p>{{ shift.outlet.name }} · opened {{ shift.opened_at }}{% if shift.opened_by %} by {{ shift.opened_by.get_full_name|default:shift.opened_by.email }}{% endif %}</p>
+    </div>
+    <div class="fizo-register__header-actions">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-pos-shifts' %}">Back to register shifts</a>
+    </div>
+  </header>
+
+  <section class="fizo-register__workspace" aria-labelledby="shift-review-title">
+    <div class="fizo-register__workspace-head">
+      <h2 class="fizo-register__section-heading" id="shift-review-title">Shift reconciliation</h2>
+      <span class="fizo-register__workflow-label">{{ shift.get_status_display }}</span>
+    </div>
+
+    {% if not reconciliation.is_exact_attribution %}
+      <div class="staff-alert staff-alert--warning">
+        This is a legacy shift. Payment links may be incomplete, so use the figures below as investigation evidence rather than a complete till settlement.
+      </div>
+    {% endif %}
+
+    <div class="fizo-register__panel">
+      <h3 class="staff-card__title">Drawer summary</h3>
+      <div class="staff-register-summary" aria-label="Drawer reconciliation summary">
+        <div><span>Opening float</span><strong>{{ shift_currency }} {{ shift.opening_cash }}</strong></div>
+        <div><span>Cash sales</span><strong>{{ shift_currency }} {{ cash_snapshot.cash_payments }}</strong></div>
+        <div><span>Cash refunds</span><strong>{{ shift_currency }} {{ cash_snapshot.cash_refunds }}</strong></div>
+        <div><span>Float added</span><strong>{{ shift_currency }} {{ cash_snapshot.float_added }}</strong></div>
+        <div><span>Cash drops</span><strong>{{ shift_currency }} {{ cash_snapshot.drops }}</strong></div>
+        <div><span>Cash payouts</span><strong>{{ shift_currency }} {{ cash_snapshot.payouts }}</strong></div>
+        <div class="staff-register-summary__total"><span>Expected cash</span><strong>{{ shift_currency }} {{ cash_snapshot.expected }}</strong></div>
+        <div><span>Counted cash</span><strong>{% if shift.counted_cash != None %}{{ shift_currency }} {{ shift.counted_cash }}{% else %}Not counted{% endif %}</strong></div>
+        <div><span>Difference</span><strong>{% if cash_variance != None %}{{ shift_currency }} {{ cash_variance }}{% else %}—{% endif %}</strong></div>
+      </div>
+      <p class="staff-muted mb-0">
+        Closed {% if shift.closed_at %}{{ shift.closed_at }}{% else %}—{% endif %}
+        {% if shift.closed_by %} by {{ shift.closed_by.get_full_name|default:shift.closed_by.email }}{% endif %}.
+      </p>
+    </div>
+
+    <div class="fizo-register__panel">
+      <h3 class="staff-card__title">Tender reconciliation</h3>
+      <div class="fizo-register__tablewrap">
+        <table class="fizo-register__table">
+          <thead><tr><th>Currency</th><th>Method</th><th class="staff-money">Received</th><th class="staff-money">Refunded</th><th class="staff-money">Net</th></tr></thead>
+          <tbody>
+            {% for row in reconciliation.methods %}
+              <tr>
+                <td>{{ row.currency }}</td>
+                <td>{{ row.method|title }}</td>
+                <td class="staff-money">{{ row.currency }} {{ row.gross }}</td>
+                <td class="staff-money">{{ row.currency }} {{ row.refunded }}</td>
+                <td class="staff-money"><strong>{{ row.currency }} {{ row.net }}</strong></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="staff-muted">No shift-linked payments or refunds were recorded.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="fizo-register__panel">
+      <h3 class="staff-card__title">Drawer movements</h3>
+      <div class="fizo-register__tablewrap">
+        <table class="fizo-register__table">
+          <thead><tr><th>When</th><th>Movement</th><th class="staff-money">Amount</th><th>Reason</th><th>Recorded by</th></tr></thead>
+          <tbody>
+            {% for movement in cash_movements %}
+              <tr>
+                <td>{{ movement.created_at }}</td>
+                <td>{{ movement.get_direction_display }}</td>
+                <td class="staff-money">{{ shift_currency }} {{ movement.amount }}</td>
+                <td>{{ movement.reason }}</td>
+                <td>{{ movement.recorded_by.email|default:"Former worker" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="staff-muted">No paid-in, drop or payout events were recorded for this shift.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="fizo-register__panel">
+      <h3 class="staff-card__title">Recent payments</h3>
+      <div class="fizo-register__tablewrap">
+        <table class="fizo-register__table">
+          <thead><tr><th>When</th><th>Sale</th><th>Method</th><th class="staff-money">Amount</th><th>Recorded by</th></tr></thead>
+          <tbody>
+            {% for payment in reconciliation.recent_payments %}
+              <tr>
+                <td>{{ payment.created_at }}</td>
+                <td><a href="{% url 'staff-order-detail' payment.order_id %}">{{ payment.order.bill_reference }}</a></td>
+                <td>{{ payment.get_method_display }}</td>
+                <td class="staff-money">{{ payment.order.currency }} {{ payment.amount }}</td>
+                <td>{{ payment.recorded_by.email|default:"Former worker" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="staff-muted">No shift-linked payments.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="fizo-register__panel">
+      <h3 class="staff-card__title">Recent refunds</h3>
+      <div class="fizo-register__tablewrap">
+        <table class="fizo-register__table">
+          <thead><tr><th>When</th><th>Sale</th><th>Original tender</th><th class="staff-money">Amount</th><th>Reason</th><th>Recorded by</th></tr></thead>
+          <tbody>
+            {% for refund in reconciliation.recent_refunds %}
+              <tr>
+                <td>{{ refund.created_at }}</td>
+                <td><a href="{% url 'staff-order-detail' refund.order_id %}">{{ refund.order.bill_reference }}</a></td>
+                <td>{{ refund.payment.get_method_display }}</td>
+                <td class="staff-money">{{ refund.order.currency }} {{ refund.amount }}</td>
+                <td>{{ refund.reason|default:"—" }}</td>
+                <td>{{ refund.recorded_by.email|default:"Former worker" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="staff-muted">No shift-linked refunds.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if reconciliation.handover %}
+      <div class="fizo-register__panel">
+        <h3 class="staff-card__title">Handover evidence</h3>
+        <p class="mb-1"><strong>{{ reconciliation.handover.get_status_display }}</strong></p>
+        {% if reconciliation.handover.variance_explanation %}<p class="staff-muted">Cashier explanation: {{ reconciliation.handover.variance_explanation }}</p>{% endif %}
+        {% if reconciliation.handover.verified_cash != None %}<p class="staff-muted">Independent count: {{ shift_currency }} {{ reconciliation.handover.verified_cash }}{% if reconciliation.handover.verified_by %} · {{ reconciliation.handover.verified_by.email }}{% endif %}</p>{% endif %}
+        {% if reconciliation.handover.approval_note %}<p class="staff-muted">Manager note: {{ reconciliation.handover.approval_note }}</p>{% endif %}
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
