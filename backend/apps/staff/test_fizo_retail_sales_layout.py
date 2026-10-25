@@ -157,15 +157,18 @@ class RetailSalesLandingTests(SimpleTestCase):
         js = (Path(__file__).resolve().parent /
               "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         # Empty baskets can acquire payment controls on the first item.
-        # Losing existing payment controls, or changing an existing cash
-        # calculator unexpectedly, must instead prevent DOM replacement.
+        # Existing payment controls may disappear only after the authoritative
+        # page confirms the sale is complete. Any other disappearance, or an
+        # unexpected cash-calculator transition, must block DOM replacement.
         self.assertIn("var activatingPayment=!activePayment&&!!remotePayment", js)
-        self.assertIn("if(activePayment&&!remotePayment)", js)
-        self.assertIn("if(!!cash!==!!nextCash && !activatingPayment)", js)
+        self.assertIn("var completingPayment=!!activePayment&&!remotePayment&&", js)
+        self.assertIn('remoteBasket.classList.contains("is-complete")', js)
+        self.assertIn("if(activePayment&&!remotePayment&&!completingPayment)", js)
+        self.assertIn("if(!!cash!==!!nextCash && !activatingPayment && !completingPayment)", js)
         self.assertIn('var serverDue=nextCash.getAttribute("data-balance-due")', js)
-        self.assertLess(js.index("if(activePayment&&!remotePayment)"),
+        self.assertLess(js.index("if(activePayment&&!remotePayment&&!completingPayment)"),
                         js.index("current.replaceChildren.apply(current"))
-        self.assertLess(js.index("if(!!cash!==!!nextCash && !activatingPayment)"),
+        self.assertLess(js.index("if(!!cash!==!!nextCash && !activatingPayment && !completingPayment)"),
                         js.index("current.replaceChildren.apply(current"))
 
     def test_inline_refresh_preserves_manual_partial_tender(self):
@@ -174,7 +177,8 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('var tender=cash.querySelector("[data-retail-cash-received]")', js)
         self.assertIn('(!tender||!tender.value.trim())', js)
         self.assertIn('Number(amount.value)===Number(oldDue)', js)
-        self.assertIn("if(activePayment&&!remotePayment)", js)
+        self.assertIn("if(activePayment&&remotePayment&&!completingPayment)", js)
+        self.assertIn("if(activePayment&&!remotePayment&&!completingPayment)", js)
 
     def test_held_basket_lock_is_inside_database_transaction(self):
         services = (Path(__file__).resolve().parent.parent /
