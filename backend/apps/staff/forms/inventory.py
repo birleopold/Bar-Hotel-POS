@@ -41,6 +41,10 @@ class StaffStockMovementForm(forms.Form):
         max_length=512,
         widget=forms.TextInput(attrs={"class": "staff-input"}),
     )
+    approval_request_key = forms.UUIDField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
 
     def __init__(
         self,
@@ -48,9 +52,15 @@ class StaffStockMovementForm(forms.Form):
         menu_items_qs: QuerySet | None = None,
         outlets: list | None = None,
         default_outlet=None,
+        approvers=None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        from .pos_orders import _add_sensitive_approval_fields
+        _add_sensitive_approval_fields(self, approvers, required=False)
+        if "approver_id" in self.fields:
+            self.fields["approver_id"].help_text = "Required only for adjustment decrease or waste."
+            self.fields["approver_pin"].help_text = "Required only for adjustment decrease or waste."
         if outlets is not None:
             self.fields["outlet"].queryset = Outlet.objects.filter(
                 pk__in=[o.id for o in outlets],
@@ -71,6 +81,24 @@ class StaffStockMovementForm(forms.Form):
         if default_outlet is not None and "outlet" not in self.initial:
             self.initial["outlet"] = default_outlet.pk
         self.fields["outlet"].label = "Section"
+
+    def clean(self):
+        cleaned = super().clean()
+        reason = cleaned.get("reason")
+        if reason in {StockReason.ADJUST_OUT.value, StockReason.WASTE.value}:
+            note = (cleaned.get("note") or "").strip()
+            if not note:
+                self.add_error("note", "Explain the stock decrease or waste.")
+            if not cleaned.get("approval_request_key"):
+                self.add_error(None, "Approval request identity is missing. Reload the form and try again.")
+            if "approver_id" not in self.fields:
+                self.add_error(None, "A different PIN-enabled manager is required for this stock write-off.")
+            else:
+                if not cleaned.get("approver_id"):
+                    self.add_error("approver_id", "Select a different manager to approve this stock write-off.")
+                if not cleaned.get("approver_pin"):
+                    self.add_error("approver_pin", "Enter the approving manager's PIN.")
+        return cleaned
 
 
 class StaffStockTransferForm(forms.Form):
