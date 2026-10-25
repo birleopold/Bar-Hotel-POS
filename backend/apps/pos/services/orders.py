@@ -630,7 +630,13 @@ def void_open_order_line(
         - (Refund.objects.filter(order_id=locked_o.id).aggregate(s=Sum("amount"))["s"] or Decimal("0"))
     )
     if locked_o.total < net_paid:
-        raise ValidationError({"line": "Refund the excess payment before removing this item."})
+        excess = (net_paid - locked_o.total).quantize(Decimal("0.01"))
+        raise ValidationError({
+            "line": (
+                f"Refund {locked_o.currency} {excess:.2f} before removing this item. "
+                "The basket cannot fall below the net amount already received."
+            )
+        }, code="refund_required")
     log_audit(
         tenant_id=locked_o.tenant_id,
         user_id=user.id if user else None,
