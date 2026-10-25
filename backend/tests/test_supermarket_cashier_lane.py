@@ -688,6 +688,56 @@ class SupermarketCashierLaneTests(TestCase):
             assert StaffOrderDetailView._payment_request_key(request) == key
             assert StaffOrderDetailView._payment_request_key(request) == key
 
+    def test_retail_payment_ajax_updates_balance_and_completes_without_redirect(self):
+        import uuid
+        from apps.pos.models import Payment
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("5000"), total=Decimal("5000"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+
+        partial = self.client.post(
+            url,
+            {
+                "action": "record_payment",
+                "amount": "2000",
+                "method": "cash",
+                "payment_request_key": str(uuid.uuid4()),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(partial.status_code, 200)
+        self.assertEqual(partial["Content-Type"], "application/json")
+        partial_data = partial.json()
+        self.assertTrue(partial_data["ok"])
+        self.assertFalse(partial_data["completed"])
+        self.assertEqual(Decimal(partial_data["paid"]), Decimal("2000"))
+        self.assertEqual(Decimal(partial_data["due"]), Decimal("3000"))
+        self.assertEqual(Payment.objects.filter(order=order).count(), 1)
+
+        final = self.client.post(
+            url,
+            {
+                "action": "record_payment",
+                "amount": "3000",
+                "method": "cash",
+                "payment_request_key": str(uuid.uuid4()),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(final.status_code, 200)
+        final_data = final.json()
+        self.assertTrue(final_data["ok"])
+        self.assertTrue(final_data["completed"])
+        self.assertEqual(Decimal(final_data["paid"]), Decimal("5000"))
+        self.assertEqual(Decimal(final_data["due"]), Decimal("0"))
+        order.refresh_from_db()
+        self.assertTrue(order.is_paid)
+        self.assertEqual(order.status, "closed")
+        self.assertEqual(Payment.objects.filter(order=order).count(), 2)
+
     def test_supermarket_walk_in_needs_no_table_or_customer(self):
         order = Order.objects.create(
             tenant=self.tenant, outlet=self.outlet, created_by=self.user,
