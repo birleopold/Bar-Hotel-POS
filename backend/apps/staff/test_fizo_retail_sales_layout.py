@@ -161,6 +161,10 @@ class RetailSalesLandingTests(SimpleTestCase):
             "@transaction.atomic\ndef hold_open_order(*, order: Order, hold_label: str, user)",
             services,
         )
+        self.assertNotIn(
+            "@transaction.atomic\n@transaction.atomic\ndef hold_open_order",
+            services,
+        )
         self.assertIn("Order.objects.select_for_update().get(pk=order.pk)", services)
 
     def test_barcode_and_product_errors_share_read_only_recovery(self):
