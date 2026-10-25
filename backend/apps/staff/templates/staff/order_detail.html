@@ -234,7 +234,7 @@
         {% for line in order.lines.all %}
           {% if not line.is_voided %}
             <article class="fizo-retail-basket-row">
-              <div class="reference-basket-thumb">{% if line.menu_item and line.menu_item.display_image_url %}<img src="{{ line.menu_item.display_image_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-bag" aria-hidden="true"></i>{% endif %}</div>
+              <div class="reference-basket-thumb">{% if line.menu_item and line.menu_item.product_image_src %}<img src="{{ line.menu_item.product_image_src }}" alt="" loading="lazy" decoding="async">{% else %}<i class="bi bi-bag" aria-hidden="true"></i>{% endif %}</div>
               <div class="fizo-retail-basket-row__info">
                 <strong>{{ line.label }}</strong>
                 {% if line.line_discount_amount %}<span class="staff-muted small">Discount applied</span>{% endif %}
