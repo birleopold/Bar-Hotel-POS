@@ -278,8 +278,12 @@
         if (scanInput) { scanInput.value = ""; scanInput.focus(); }
       }).catch(function(error) {
         // A committed scan must not be posted twice after a response failure.
-        if (scanStatus) scanStatus.textContent = (error.message || "Scan unconfirmed.") +
-          " Check the basket before scanning this item again.";
+        if (window.retailShowCheckoutRecovery) {
+          window.retailShowCheckoutRecovery(scanStatus, error);
+        } else if (scanStatus) {
+          scanStatus.textContent = (error.message || "Scan unconfirmed.") +
+            " Reload this sale to verify before scanning again.";
+        }
       }).then(function() {
         scanPending = false;
         if (scanButton) scanButton.disabled = false;
