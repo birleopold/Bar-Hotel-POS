@@ -6,7 +6,7 @@ from io import BytesIO
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.db.models import Q
-from apps.tenants.models import Tenant
+from apps.tenants.models import Outlet, Tenant
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView, View
@@ -133,25 +133,36 @@ def _save_catalog_item_safely(view, form, *, creating):
         sync_menu_item_outlet_links(instance, form.cleaned_data.get("outlets"))
         sync_menu_item_modifier_groups(instance, form.cleaned_data.get("modifier_groups"))
         if not creating and before_price != instance.unit_price:
-            explicit_outlet_ids = [
-                str(value)
-                for value in MenuItemOutlet.objects.filter(menu_item=instance)
+            explicit_outlet_ids = list(
+                MenuItemOutlet.objects.filter(menu_item=instance)
                 .values_list("outlet_id", flat=True)
-            ]
-            log_audit(
-                tenant_id=view.request.tenant.pk,
-                user_id=view.request.user.pk,
-                action="catalog.unit_price_changed",
-                entity_type="menu_item",
-                entity_id=str(instance.pk),
-                payload={
-                    "item_name": instance.name,
-                    "before": str(before_price),
-                    "after": str(instance.unit_price),
-                    "outlet_ids": explicit_outlet_ids,
-                    "applies_to_all_outlets": not bool(explicit_outlet_ids),
-                },
             )
+            affected_outlets = list(
+                Outlet.objects.filter(
+                    site__tenant=view.request.tenant,
+                    pk__in=explicit_outlet_ids,
+                ).only("id", "name")
+                if explicit_outlet_ids
+                else Outlet.objects.filter(
+                    site__tenant=view.request.tenant,
+                ).only("id", "name")
+            )
+            for outlet in affected_outlets:
+                log_audit(
+                    tenant_id=view.request.tenant.pk,
+                    user_id=view.request.user.pk,
+                    action="catalog.unit_price_changed",
+                    entity_type="menu_item",
+                    entity_id=str(instance.pk),
+                    payload={
+                        "item_name": instance.name,
+                        "outlet_id": str(outlet.pk),
+                        "outlet_name": outlet.name,
+                        "before": str(before_price),
+                        "after": str(instance.unit_price),
+                        "applies_to_all_outlets": not bool(explicit_outlet_ids),
+                    },
+                )
         view.object = instance
     messages.success(view.request, f"Item “{view.object.name}” {'created' if creating else 'saved'}.")
     return redirect(view.get_success_url())
