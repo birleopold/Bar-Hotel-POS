@@ -57,6 +57,9 @@ def validate_delivery_destination(
     """
     if outlet_type not in DELIVERY_OUTLET_TYPES:
         raise DeliveryPolicyError("Deliveries are not supported by this section.")
+    fields = (recipient_name, contact_phone, address, room_reference)
+    if any(not isinstance(value, str) for value in fields):
+        raise DeliveryPolicyError("Delivery recipient and destination fields must be text.")
     if destination_type == "room":
         if outlet_type != OutletType.LODGING_FRONT_DESK:
             raise DeliveryPolicyError("Room deliveries require a lodging outlet.")
