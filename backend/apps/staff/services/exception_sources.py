@@ -89,7 +89,9 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
         # A manual price marker is a review signal, not proof that a shelf
         # price was overridden. Historical menu prices are not reconstructed.
         manual_lines = lines.filter(
-            pricing_source="manual", is_voided=False,
+            pricing_source="manual",
+            is_voided=False,
+            line_discount_amount=0,
             created_at__gte=cutoff,
         ).order_by("-created_at")
         for obj in limited(manual_lines, "manual_price"):
