@@ -274,7 +274,9 @@
         }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
         document.dispatchEvent(new Event("retail:basket-lines-replaced"));
-        [".fizo-retail-basket-summary",".fizo-cashier-payment-summary strong",
+        [".fizo-retail-basket-summary > div:nth-child(1) strong",
+         ".fizo-retail-basket-summary > div:nth-child(2) strong",
+         ".fizo-retail-basket-summary__total strong",".fizo-cashier-payment-summary strong",
          ".staff-pos-totals-row__total strong",".staff-pos-totals-row__meta",
          ".fizo-cashier-pay-cta span"].forEach(function(selector){
           var a=document.querySelector(selector),b=remote.querySelector(selector);
