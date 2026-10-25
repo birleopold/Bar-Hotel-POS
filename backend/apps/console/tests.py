@@ -869,33 +869,35 @@ class ConsoleAccessTests(TestCase):
             password="TestPass9!",
             is_platform_staff=True,
         )
+        store = Tenant.objects.create(name="New Grocery", slug="new-grocery-provision")
+        TenantSettings.objects.create(tenant=store, business_lines=["supermarket"])
         self.client.force_login(user)
         r = self.client.post(
-            reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": self.tenant.id}),
+            reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": store.id}),
             {"provision_supermarket": "1"},
         )
         self.assertEqual(r.status_code, 302)
-        sub = TenantSubscription.objects.get(tenant=self.tenant)
+        sub = TenantSubscription.objects.get(tenant=store)
         self.assertEqual(sub.status, SubscriptionStatus.ACTIVE)
         self.assertEqual(sub.plan.code, "supermarket-core")
-        settings_obj = TenantSettings.objects.get(tenant=self.tenant)
+        settings_obj = TenantSettings.objects.get(tenant=store)
         self.assertEqual(
             settings_obj.enabled_staff_modules,
             ["pos", "inventory", "purchasing", "promotions", "workspace"],
         )
         self.assertTrue(
-            Site.objects.filter(tenant=self.tenant, is_active=True).exists(),
+            Site.objects.filter(tenant=store, is_active=True).exists(),
         )
         self.assertTrue(
             Outlet.objects.filter(
-                site__tenant=self.tenant,
+                site__tenant=store,
                 is_active=True,
                 outlet_type=OutletType.SUPERMARKET,
             ).exists(),
         )
         overrides = {
             row.module_key: row.is_enabled
-            for row in TenantFeatureEntitlement.objects.filter(tenant=self.tenant)
+            for row in TenantFeatureEntitlement.objects.filter(tenant=store)
         }
         self.assertEqual(overrides.get("pos"), True)
         self.assertEqual(overrides.get("inventory"), True)
@@ -905,20 +907,20 @@ class ConsoleAccessTests(TestCase):
         self.assertEqual(overrides.get("lodging"), False)
         self.assertEqual(overrides.get("events"), False)
         self.assertEqual(overrides.get("kitchen"), False)
-        progress = TenantSetupProgress.objects.get(tenant=self.tenant)
+        progress = TenantSetupProgress.objects.get(tenant=store)
         self.assertEqual(progress.step_state_overrides.get("lodging_basics"), "skipped")
         self.assertFalse(progress.suppress_dashboard_prompt)
         self.assertEqual(progress.last_next_step_key, "first_menu_category")
         self.assertTrue(
             BillingEvent.objects.filter(
-                tenant=self.tenant,
+                tenant=store,
                 event_type=BillingEventType.NOTE,
                 metadata__provisioning_profile="supermarket-core",
             ).exists(),
         )
         self.assertTrue(
             TenantOutletModulePolicy.objects.filter(
-                tenant=self.tenant,
+                tenant=store,
                 outlet_type=OutletType.SUPERMARKET,
                 is_active=True,
             ).exists(),
