@@ -86,7 +86,8 @@
         <td>{% if delivery.destination_type == 'room' %}Guest room {{ delivery.room_reference }}
             {% else %}{{ delivery.recipient_name }} · {{ delivery.address }}{% endif %}
             <div class="staff-muted">{{ delivery.contact_phone }}</div></td>
-        <td><strong>{{ delivery.get_status_display }}</strong>
+        <td><a class="staff-btn staff-btn--ghost" href="{% url 'staff-delivery-packing-slip' delivery_id=delivery.pk %}">Packing slip</a>
+          <div><strong>{{ delivery.get_status_display }}</strong></div>
           {% if delivery.delivery_note %}<div class="staff-muted">{{ delivery.delivery_note }}</div>{% endif %}</td>
         <td>
           {% if delivery.assigned_driver_id %}{{ delivery.assigned_driver.email }}{% else %}Not assigned{% endif %}
