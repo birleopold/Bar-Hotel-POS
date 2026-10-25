@@ -345,9 +345,9 @@
 
   window.retailShowCheckoutRecovery=showCheckoutRecovery;
 
-  // Only enhance an already payable basket. The initial item keeps native
-  // submission so Django can create its payment form with the correct
-  // cashier permissions and server-issued payment identity.
+  // Django confirms each add and supplies payment controls when an empty
+  // basket first becomes payable. Native submission remains a fallback only
+  // for browsers without the supported asynchronous checkout APIs.
   if(addForm){
     addForm.addEventListener("submit",function(e){
       if(addForm.dataset.submitting==="1"){e.preventDefault();return;}
