@@ -1,0 +1,127 @@
+{% extends "staff/base.html" %}
+{% block title %}Delivery management{% endblock %}
+{% block content %}
+<header class="staff-page-hero"><div class="staff-dash-hero__panel">
+  <p class="staff-dash-hero__eyebrow">Fulfillment · Delivery queue</p>
+  <h1 class="staff-page-title">Deliveries</h1>
+  <p>Manage first-party deliveries for authorized outlets. Delivery status is separate from payment.
+     This first release requires a fully paid sale before dispatch, and never deducts stock again.</p>
+</div></header>
+<nav class="staff-toolbar mb-3" aria-label="Fulfillment navigation">
+  <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Sales</a>
+  <a class="staff-btn staff-btn--ghost" href="{% url 'staff-retail-pickups' %}">Customer pickups</a>
+</nav>
+
+<section class="staff-card mb-3" aria-labelledby="delivery-enable-heading">
+  <h2 id="delivery-enable-heading" class="staff-card__title">Enable delivery by outlet</h2>
+  <p class="staff-muted">Off by default. Enabling one outlet does not enable any other outlet or make deliveries public.</p>
+  <div class="staff-table-wrap"><table class="staff-table">
+    <thead><tr><th>Outlet</th><th>Setting</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for row in delivery_outlets %}
+      <tr><td>{{ row.outlet.name }}</td><td>{% if row.enabled %}Enabled{% else %}Disabled{% endif %}</td>
+        <td><form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="configure">
+          <input type="hidden" name="outlet_id" value="{{ row.outlet.pk }}">
+          <input type="hidden" name="enabled" value="{% if row.enabled %}false{% else %}true{% endif %}">
+          <button class="staff-btn staff-btn--ghost" type="submit">{% if row.enabled %}Disable{% else %}Enable{% endif %} delivery</button>
+        </form></td></tr>
+    {% empty %}<tr><td colspan="3">No accessible outlets support delivery.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<section class="staff-card mb-3" aria-labelledby="register-delivery-heading">
+  <h2 id="register-delivery-heading" class="staff-card__title">Register a fully paid order</h2>
+  <p class="staff-muted">Choose a paid, unfulfilled sale. The delivery fee must already be included in the sale total; this action does not charge again. Hotel room deliveries require an actual checked-in guest folio.</p>
+  <form method="post" class="row g-3 align-items-end">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="register">
+    <div class="col-md-6"><label for="delivery-order" class="staff-label">Paid sale</label>
+      <select class="staff-input" id="delivery-order" name="order_id" required>
+        <option value="">Select paid sale</option>
+        {% for order in delivery_ready_orders %}
+          <option value="{{ order.pk }}">{{ order.bill_reference }} · {{ order.outlet.name }} · {{ order.currency }} {{ order.total }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3"><label for="delivery-destination" class="staff-label">Destination</label>
+      <select class="staff-input" id="delivery-destination" name="destination_type" required>
+        <option value="address">Customer address</option>
+        <option value="room">Hotel guest room (folio)</option>
+      </select>
+    </div>
+    <div class="col-md-3"><label class="staff-label" for="delivery-recipient">Recipient</label>
+      <input class="staff-input" id="delivery-recipient" name="recipient_name" maxlength="120" autocomplete="name" placeholder="For external delivery">
+    </div>
+    <div class="col-md-3"><label class="staff-label" for="delivery-phone">Contact</label>
+      <input class="staff-input" id="delivery-phone" name="contact_phone" maxlength="40" autocomplete="tel" placeholder="For external delivery">
+    </div>
+    <div class="col-md-6"><label class="staff-label" for="delivery-address">Street address and directions</label>
+      <input class="staff-input" id="delivery-address" name="address" maxlength="500" autocomplete="street-address" placeholder="For external delivery">
+    </div>
+    <div class="col-md-3"><label class="staff-label" for="delivery-room">Guest room</label>
+      <input class="staff-input" id="delivery-room" name="room_reference" maxlength="64" placeholder="Checked-in folio room only">
+    </div>
+    <div class="col-md-9"><label class="staff-label" for="delivery-instructions">Instructions</label>
+      <input class="staff-input" id="delivery-instructions" name="instructions" maxlength="500" placeholder="Packaging and handover instructions">
+    </div>
+    <div class="col-md-3"><button class="staff-btn staff-btn--primary" type="submit">Register delivery</button></div>
+  </form>
+  {% if not delivery_ready_orders %}<p class="staff-muted mt-2">No paid, unfulfilled orders in enabled outlets. Complete a sale first, or enable delivery for its outlet.</p>{% endif %}
+</section>
+
+<section class="staff-card" aria-labelledby="delivery-queue-heading">
+  <h2 id="delivery-queue-heading" class="staff-card__title">Delivery queue</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Receipt / outlet</th><th>Destination</th><th>Status</th><th>Worker</th><th>Next action</th></tr></thead>
+      <tbody>
+      {% for delivery in delivery_records %}
+      <tr>
+        <td><a href="{% url 'staff-order-detail' order_id=delivery.order_id %}">{{ delivery.order.bill_reference }}</a>
+          <div class="staff-muted">{{ delivery.outlet.name }}</div></td>
+        <td>{% if delivery.destination_type == 'room' %}Guest room {{ delivery.room_reference }}
+            {% else %}{{ delivery.recipient_name }} · {{ delivery.address }}{% endif %}
+            <div class="staff-muted">{{ delivery.contact_phone }}</div></td>
+        <td><strong>{{ delivery.get_status_display }}</strong>
+          {% if delivery.delivery_note %}<div class="staff-muted">{{ delivery.delivery_note }}</div>{% endif %}</td>
+        <td>
+          {% if delivery.assigned_driver_id %}{{ delivery.assigned_driver.email }}{% else %}Not assigned{% endif %}
+          {% if delivery.status != 'dispatched' and delivery.status != 'delivered' and delivery.status != 'returned' and delivery.status != 'cancelled' %}
+          <form method="post" class="mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="assign">
+            <input type="hidden" name="delivery_id" value="{{ delivery.pk }}">
+            <select name="driver_id" class="staff-input" aria-label="Assign delivery worker" required>
+              <option value="">Choose worker</option>
+              {% for worker in delivery_workers %}<option value="{{ worker.user_id }}">{{ worker.user.email }}</option>{% endfor %}
+            </select>
+            <button class="staff-btn staff-btn--ghost mt-1" type="submit">Assign</button>
+          </form>{% endif %}
+        </td>
+        <td>
+          {% if delivery.allowed_next_stages %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="transition">
+            <input type="hidden" name="delivery_id" value="{{ delivery.pk }}">
+            <select class="staff-input" name="status" aria-label="Next delivery status" required>
+              <option value="">Choose next status</option>
+              {% for stage in delivery.allowed_next_stages %}<option value="{{ stage }}">{{ stage|title }}</option>{% endfor %}
+            </select>
+            <label class="staff-label mt-1">Reason (required for failed / returned / cancelled)
+              <input class="staff-input" name="note" maxlength="500">
+            </label>
+            <button class="staff-btn staff-btn--primary mt-1" type="submit">Update</button>
+          </form>
+          {% else %}<span class="staff-muted">Complete</span>{% endif %}
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="5">No deliveries yet in your accessible outlets.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
