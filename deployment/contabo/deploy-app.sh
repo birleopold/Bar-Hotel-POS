@@ -22,15 +22,50 @@ export DJANGO_SETTINGS_MODULE=config.settings.production
 
 cd "$APP/backend"
 
-DB_NAME="$(psql "$DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_database()')"
-APP_ROLE="$(psql "$DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
-DB_OWNER="$(sudo -u postgres psql -d "$DB_NAME" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=current_database()')"
+mapfile -t DB_PARTS < <("$VENV/bin/python" - <<'PY'
+import django
+django.setup()
+from django.conf import settings
 
-if [[ -z "$DB_NAME" || -z "$APP_ROLE" || -z "$DB_OWNER" ||
+db = settings.DATABASES["default"]
+for key, default in (
+    ("NAME", ""),
+    ("USER", ""),
+    ("PASSWORD", ""),
+    ("HOST", "127.0.0.1"),
+    ("PORT", "5432"),
+):
+    value = db.get(key) or default
+    print(str(value))
+PY
+)
+
+DB_NAME="${DB_PARTS[0]:-}"
+APP_ROLE="${DB_PARTS[1]:-}"
+DB_PASSWORD="${DB_PARTS[2]:-}"
+DB_HOST="${DB_PARTS[3]:-127.0.0.1}"
+DB_PORT="${DB_PARTS[4]:-5432}"
+
+if [[ -z "$DB_NAME" || -z "$APP_ROLE" ||
       ! "$DB_NAME" =~ ^[A-Za-z0-9_]+$ ||
       ! "$APP_ROLE" =~ ^[A-Za-z0-9_]+$ ||
-      ! "$DB_OWNER" =~ ^[A-Za-z0-9_]+$ ]]; then
-  echo "Unable to resolve safe PostgreSQL names for automatic migration." >&2
+      ! "$DB_PORT" =~ ^[0-9]+$ ]]; then
+  echo "Unable to resolve safe PostgreSQL connection settings from Django." >&2
+  exit 1
+fi
+
+APP_ROLE_CONFIRMED="$(PGPASSWORD="$DB_PASSWORD" psql \
+  -h "$DB_HOST" -p "$DB_PORT" -U "$APP_ROLE" -d "$DB_NAME" \
+  -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
+if [[ "$APP_ROLE_CONFIRMED" != "$APP_ROLE" ]]; then
+  echo "Django database role could not be confirmed." >&2
+  exit 1
+fi
+
+DB_OWNER="$(sudo -u postgres psql -d "$DB_NAME" -X -A -t -v ON_ERROR_STOP=1 \
+  -c 'SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=current_database()')"
+if [[ -z "$DB_OWNER" || ! "$DB_OWNER" =~ ^[A-Za-z0-9_]+$ ]]; then
+  echo "Unable to resolve a safe PostgreSQL database owner." >&2
   exit 1
 fi
 
