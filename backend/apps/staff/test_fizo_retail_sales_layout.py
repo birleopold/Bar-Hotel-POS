@@ -83,6 +83,15 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertLess(js.index('basket.dataset.orderId!==remoteBasket.dataset.orderId'),
                         js.index('current.replaceChildren.apply(current'))
 
+    def test_first_item_adds_authorized_pay_shortcut_before_binding(self):
+        js = (Path(__file__).resolve().parent /
+              "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn('remoteBasket.querySelector(".fizo-cashier-pay-cta")', js)
+        self.assertIn('liveSummary.appendChild(document.importNode(remoteCta,true))', js)
+        self.assertLess(js.index('liveSummary.appendChild(document.importNode(remoteCta,true))'),
+                        js.index('document.dispatchEvent(new Event("retail:payment-controls-added"))'))
+        self.assertIn("function bindRetailPayShortcuts()", js)
+
     def test_first_item_checks_real_balance_before_binding_payment(self):
         js = (Path(__file__).resolve().parent /
               "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
