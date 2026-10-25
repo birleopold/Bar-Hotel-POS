@@ -40,10 +40,17 @@ class FizoRegisterLayoutTests(SimpleTestCase):
         self.assertNotIn('name="staff-pos-shift-detail"', urls)
         self.assertNotIn("class StaffPosShiftDetailView", views_ops)
         self.assertIn("class StaffManagementShiftView", views_management)
+        self.assertIn("shift_cash_snapshot(shift=shift)", views_management)
+        self.assertIn('shift.cash_movements.select_related("recorded_by")', views_management)
         self.assertIn('ctx["can_review_shift_history"] = manager', views_ops)
         self.assertIn("{% if can_review_shift_history %}", shifts)
         self.assertIn("{% url 'staff-management-shift' s.pk %}", shifts)
         self.assertIn("Register reconciliation", detail)
+        self.assertIn("Drawer calculation", detail)
+        self.assertIn("Drawer movement history", detail)
+        self.assertIn("Recent payment drill-down", detail)
+        self.assertIn("Recent refund drill-down", detail)
+        self.assertIn("Handover evidence", detail)
 
     def test_workstation_actions_and_permissions_retained(self):
         root = Path(__file__).resolve().parent
