@@ -80,6 +80,7 @@ from .forms import (
     StaffOrderVoidLineForm,
     StaffOrderVoidOrderForm,
     StaffCashDrawerMovementForm,
+    StaffNoSaleDrawerForm,
     StaffPosShiftCloseForm,
     StaffHandoverCountForm,
     StaffPosShiftOpenForm,
@@ -761,6 +762,9 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
             initial={"idempotency_key": uuid.uuid4()},
             approvers=payout_approvers,
         )
+        ctx["no_sale_form"] = StaffNoSaleDrawerForm(
+            initial={"request_key": uuid.uuid4()},
+        )
         ctx["handover_form"] = StaffHandoverCountForm()
         if outlet is None:
             ctx["open_shift"] = None
@@ -831,6 +835,48 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
                 _flash_drf_validation(request, exc)
             else:
                 messages.success(request, "Shift opened.")
+            return redirect("staff-pos-shifts")
+        if action == "no_sale_drawer":
+            form = StaffNoSaleDrawerForm(request.POST)
+            if not form.is_valid():
+                context = self.get_context_data()
+                context["no_sale_form"] = form
+                return self.render_to_response(context, status=400)
+            shift = PosShift.objects.filter(
+                tenant=request.tenant,
+                outlet=outlet,
+                workstation=selected_station,
+                status=PosShiftStatus.OPEN,
+            ).first()
+            if shift is None:
+                messages.error(request, "Open a shift on this register before recording a no-sale drawer opening.")
+                return redirect("staff-pos-shifts")
+            request_key = str(form.cleaned_data["request_key"])
+            existing = AuditEvent.objects.filter(
+                tenant=request.tenant,
+                action="pos.drawer_no_sale_opened",
+                entity_type="no_sale_drawer",
+                entity_id=request_key,
+            ).exists()
+            if not existing:
+                log_audit(
+                    tenant_id=request.tenant.pk,
+                    user_id=request.user.pk,
+                    action="pos.drawer_no_sale_opened",
+                    entity_type="no_sale_drawer",
+                    entity_id=request_key,
+                    payload={
+                        "shift_id": str(shift.pk),
+                        "outlet_id": str(outlet.pk),
+                        "workstation_id": str(selected_station.pk),
+                        "reason": form.cleaned_data["reason"],
+                    },
+                )
+            messages.success(
+                request,
+                "No-sale drawer opening already recorded." if existing
+                else "No-sale drawer opening recorded for manager review.",
+            )
             return redirect("staff-pos-shifts")
         if action == "cash_movement":
             payout_approvers = (
