@@ -370,6 +370,74 @@ class ManagementWorkspaceTests(TestCase):
         self.assertTrue(all("2 no-sale openings by this worker" in r.detail for r in rows))
         self.assertEqual(self.client.get(rows[0].url).status_code, 200)
 
+    def test_loss_prevention_exceptions_show_truthful_operator_evidence(self):
+        from apps.pos.models import OrderLine
+
+        self.login()
+        self.refund.recorded_by = self.worker
+        self.refund.save(update_fields=["recorded_by", "updated_at"])
+        self.shift.closed_by = self.manager
+        self.shift.save(update_fields=["closed_by", "updated_at"])
+
+        self.order.discount_amount = Decimal("8")
+        self.order.save(update_fields=["discount_amount", "updated_at"])
+        AuditEvent.objects.create(
+            tenant=self.tenant,
+            user=self.worker,
+            action="order.promotion_applied",
+            entity_type="order",
+            entity_id=str(self.order.pk),
+            payload={"discount_amount": "8.00"},
+        )
+
+        discounted = OrderLine.objects.create(
+            order=self.order,
+            label="Manager discount",
+            quantity=1,
+            unit_price=10,
+            line_total=8,
+            line_discount_amount=2,
+            pricing_source="manual",
+        )
+        AuditEvent.objects.create(
+            tenant=self.tenant,
+            user=self.manager,
+            action="order.line_discount_applied",
+            entity_type="order_line",
+            entity_id=str(discounted.pk),
+            payload={"order_id": str(self.order.pk), "line_discount_amount": "2.00"},
+        )
+
+        historical_order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            total=7,
+            currency="UGX",
+            created_by=self.worker,
+        )
+        manual = OrderLine.objects.create(
+            order=historical_order,
+            label="Historical manual price",
+            quantity=1,
+            unit_price=7,
+            line_total=7,
+            pricing_source="manual",
+        )
+
+        rows = self.rows()
+        refund = next(r for r in rows if r.kind == "refund" and r.entity_id == str(self.refund.pk))
+        variance = next(r for r in rows if r.kind == "cash_variance" and r.entity_id == str(self.shift.pk))
+        order_discount = next(r for r in rows if r.kind == "discount" and r.entity_id == str(self.order.pk))
+        line_discount = next(r for r in rows if r.kind == "line_discount" and r.entity_id == str(discounted.pk))
+        manual_price = next(r for r in rows if r.kind == "manual_price" and r.entity_id == str(manual.pk))
+
+        self.assertIn(self.worker.email, refund.detail)
+        self.assertIn(self.manager.email, variance.detail)
+        self.assertIn(self.worker.email, order_discount.detail)
+        self.assertIn(self.manager.email, line_discount.detail)
+        self.assertIn(self.worker.email, manual_price.detail)
+        self.assertIn("exact price-entry operator was not historically recorded", manual_price.detail)
+
     def test_approved_discount_is_not_duplicated_as_manual_price_exception(self):
         from apps.pos.models import OrderLine
         self.login()
