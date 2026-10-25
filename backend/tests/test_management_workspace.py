@@ -397,6 +397,30 @@ class ManagementWorkspaceTests(TestCase):
         self.assertIn(str(manual.pk), manual_ids)
         self.assertIn(str(discounted.pk), {r.entity_id for r in rows if r.kind == "line_discount"})
 
+    def test_exception_view_summarizes_existing_scoped_rows_without_second_ledger(self):
+        self.login()
+        AuditEvent.objects.create(
+            tenant=self.tenant,
+            user=self.worker,
+            action="pos.drawer_no_sale_opened",
+            entity_type="no_sale_drawer",
+            entity_id="summary-no-sale",
+            payload={
+                "shift_id": str(self.shift.pk),
+                "outlet_id": str(self.outlet.pk),
+                "workstation_id": "",
+                "reason": "Change request",
+            },
+        )
+        response = self.client.get(reverse("staff-management"), {"view": "exceptions"})
+        self.assertEqual(response.status_code, 200)
+        summary = {row["label"]: row for row in response.context["exception_summary"]}
+        self.assertGreaterEqual(summary["Money"]["count"], 1)
+        self.assertGreaterEqual(summary["Cashier actions"]["count"], 1)
+        self.assertGreaterEqual(summary["Stock"]["count"], 1)
+        self.assertContains(response, "Loss-prevention snapshot")
+        self.assertContains(response, "They are not a second reporting ledger.")
+
     def test_follow_up_ownership_history_and_resolved_case_after_source_clears(self):
         self.login()
         row = next(r for r in self.rows() if r.kind == "low_stock")
