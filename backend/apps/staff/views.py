@@ -144,6 +144,29 @@ class StaffLoginView(LoginView):
         else:
             first = memberships.filter(tenant_id=scope[0]).first() if scope else None
         response = super().form_valid(form)
+        # A platform operator signing in at the central host enters the
+        # platform control plane, not whichever tenant happens to be first.
+        # Deliberate, safe "next" links still retain Django's normal behavior.
+        central_hosts = {
+            str(host).strip().lower().rstrip(".")
+            for host in getattr(settings, "TENANT_CENTRAL_HOSTS", ())
+        }
+        if (
+            domain_tenant is None
+            and self.request.get_host().split(":")[0].lower().rstrip(".") in central_hosts
+            and user_is_platform_operator(user)
+        ):
+            for key in (
+                STAFF_SESSION_TENANT_KEY, STAFF_SESSION_OUTLET_KEY,
+                STAFF_SESSION_SITE_KEY, "staff_pin_session",
+                "staff_pin_authenticated", "staff_pin_last_activity",
+                "staff_pin_credential", "staff_pin_pairing",
+            ):
+                self.request.session.pop(key, None)
+            response = clear_terminal(response)
+            if not self.get_redirect_url():
+                response["Location"] = reverse("console-platform-tenants")
+            return response
         if first is None and domain_tenant is None:
             first = memberships.first()
             if scope:
