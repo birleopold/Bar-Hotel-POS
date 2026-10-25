@@ -15,7 +15,8 @@ from apps.pos.services.deliveries import (
     MANAGER_ROLES, assign_delivery_driver, register_paid_order_delivery,
     set_outlet_delivery_enabled, transition_order_delivery,
 )
-from apps.pos.services.delivery_policy import ALLOWED_NEXT, DELIVERY_OUTLET_TYPES
+from apps.pos.services.delivery_policy import ALLOWED_NEXT
+from apps.tenants.models import OutletType
 from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets
 
@@ -38,7 +39,8 @@ class StaffDeliveriesView(StaffTenantRequiredMixin, View):
     def _outlets(self):
         return [
             outlet for outlet in staff_accessible_outlets(self.request.tenant_membership)
-            if outlet.outlet_type in DELIVERY_OUTLET_TYPES and outlet.is_active
+            if outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and outlet.is_active
         ]
 
     def get(self, request):
