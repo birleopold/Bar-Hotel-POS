@@ -109,7 +109,7 @@ class SharedTerminalTests(TestCase):
         self.assertNotContains(page, '>Fizo</div>', html=False)
         self.assertContains(page, "worker-terminal@test.local")
         unlock = self.client.post(reverse("staff-terminal"), {"worker": str(self.worker_member.id), "pin": "681347"})
-        self.assertRedirects(unlock, reverse("staff-dashboard"))
+        self.assertRedirects(unlock, reverse("staff-retail-pos-entry"))
         self.assertEqual(self.client.session["_auth_user_id"], str(self.worker.id))
         self.assertEqual(self.client.session[STAFF_SESSION_OUTLET_KEY], str(self.outlet.id))
         self.assertEqual(self.client.get(reverse("staff-dashboard")).status_code, 200)
@@ -223,6 +223,64 @@ class SharedTerminalTests(TestCase):
         request.session = {}
 
         self.assertEqual(staff_pin_idle_seconds(request), RETAIL_PIN_IDLE_SECONDS)
+
+    def test_retail_cashier_password_login_lands_at_checkout(self):
+        client = Client()
+        response = client.post(
+            reverse("staff-login"),
+            {"username": self.worker.email, "password": "WorkerPass9!"},
+        )
+        self.assertRedirects(
+            response,
+            reverse("staff-retail-pos-entry"),
+            fetch_redirect_response=False,
+        )
+
+    def test_retail_owner_password_login_keeps_management_dashboard(self):
+        client = Client()
+        response = client.post(
+            reverse("staff-login"),
+            {"username": self.owner.email, "password": "OwnerPass9!"},
+        )
+        self.assertRedirects(
+            response,
+            reverse("staff-dashboard"),
+            fetch_redirect_response=False,
+        )
+
+    def test_retail_checkout_starts_shift_and_first_basket_in_one_action(self):
+        self._owner_at_counter()
+        start = self.client.get(reverse("staff-retail-pos-entry"))
+        self.assertEqual(start.status_code, 200)
+        self.assertContains(start, "Start your till")
+        self.assertContains(start, "Cash in drawer now")
+        self.assertContains(start, "Start selling")
+        self.assertNotContains(start, "Shift and drawer")
+        self.assertNotContains(start, "Register devices")
+
+        response = self.client.post(
+            reverse("staff-retail-pos-entry"),
+            {"action": "start_selling", "opening_cash": "5000.00"},
+        )
+        shift = PosShift.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            status=PosShiftStatus.OPEN,
+            workstation__isnull=True,
+        )
+        self.assertEqual(shift.opening_cash, Decimal("5000.00"))
+        order = Order.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.owner,
+            status=OrderStatus.OPEN,
+            table_label="",
+        )
+        self.assertRedirects(
+            response,
+            reverse("staff-order-detail", kwargs={"order_id": order.pk}),
+            fetch_redirect_response=False,
+        )
 
     def test_server_idle_timeout_ends_pin_session(self):
         self._owner_at_counter()
