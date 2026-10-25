@@ -75,6 +75,20 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('request.headers.get("X-Requested-With") == "XMLHttpRequest"', gate)
         self.assertIn('return JsonResponse({"ok": False, "message": message}, status=403)', gate)
 
+    def test_first_item_activates_server_rendered_payment_controls_inline(self):
+        root = Path(__file__).resolve().parent
+        js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn("var activatingPayment=!activePayment&&!!remotePayment", js)
+        self.assertIn('var freshCard=remotePayment.closest(".staff-card--pos")', js)
+        self.assertIn("document.importNode(freshCard,true)", js)
+        self.assertIn('new Event("retail:payment-controls-added")', js)
+        self.assertIn('function bindRetailPayShortcuts()', js)
+        self.assertIn('function bindRetailPaymentControls()', template)
+        self.assertIn('document.addEventListener("retail:payment-controls-added", bindRetailPaymentControls)', template)
+        self.assertNotIn('var asyncReady=!!(window.fetch&&window.FormData&&paymentForm&&', js)
+        self.assertIn('document.querySelector("#fizo-current-basket .fizo-retail-basket-items") &&', template)
+
     def test_inline_refresh_rejects_incomplete_totals_before_mutating_basket(self):
         js = (Path(__file__).resolve().parent /
               "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
