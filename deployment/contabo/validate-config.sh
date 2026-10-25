@@ -14,6 +14,8 @@ grep -q 'manage.py migrate --noinput' deployment/contabo/deploy-app.sh
 grep -q 'settings.DATABASES\["default"\]' deployment/contabo/deploy-app.sh
 grep -q 'GRANT .*DB_OWNER.*APP_ROLE' deployment/contabo/deploy-app.sh
 grep -q 'REVOKE .*DB_OWNER.*APP_ROLE' deployment/contabo/deploy-app.sh
+grep -q 'deploy_cleanup()' deployment/contabo/deploy-app.sh
+grep -q 'systemctl start "$SERVICE"' deployment/contabo/deploy-app.sh
 grep -q '^pos.leosoftug.com {' deployment/contabo/pos.Caddyfile.example
 grep -q 'reverse_proxy 127.0.0.1:18083' deployment/contabo/pos.Caddyfile.example
 grep -q '\-\-bind 127.0.0.1:18083' deployment/contabo/leosoft-pos-gunicorn.service.example
