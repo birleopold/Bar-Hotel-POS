@@ -180,6 +180,12 @@ The supermarket cashier product tile previously displayed `MenuItem.unit_price` 
 - **P15 cross-phase regression:** Existing supermarket test module now covers PO with two products: over-receive on second line rejects the **entire delivery**, with zero receipt, movements or balances; a valid partial delivery posts both balances and leaves the PO `PARTIALLY_RECEIVED`; a case-insensitive repeat of the supplier delivery reference is denied without posting stock again (`bf6cb496`). This test is named in existing PostgreSQL CI (`fd07baad`).
 - **Acceptance still open:** the test was committed, **not executed** in this session; live supplier-document fields, mixed cartons/batch expiry, permissions and five-width browser acceptance require evidence before declaring P09 complete. No migration, new CSS file, route, alternate controller, or schema.
 
+### P09 carton conversion consistency — 25 October
+
+- The existing `to_stock_units` correctly accepts a numeric whole carton such as `1.0`, but `receive_purchase_order_goods` subsequently applied `int("1.0")`, raising a late validation error despite the input having already passed conversion. `ae591cff` uses `int(Decimal(str(...)))` on the validated carton value in the original receiving service; no extra conversion function.
+- The same PO receiving integration regression now posts a second delivery for the two remaining units using one supplier carton (`"cartons": "1.0"` with carton size two), confirms the PO becomes fully received, stock increases correctly and the receipt stores one carton (`8d1c1982`). Focused CI target unchanged.
+- Test execution, physical receipt verification and production deployment remain **not observed**.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
