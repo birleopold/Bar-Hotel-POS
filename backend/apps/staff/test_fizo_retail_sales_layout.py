@@ -41,7 +41,7 @@ class RetailSalesLandingTests(SimpleTestCase):
                     "templates/staff/order_print.html").read_text(encoding="utf-8")
         self.assertIn("Tax {{ order.currency }} {{ order.tax_total }}", template)
         self.assertIn("Net paid {{ order.currency }} {{ amount_paid }}", template)
-        self.assertIn("Balance {{ order.currency }} {{ balance_due }}", template)
+        self.assertIn("Balance {{ order.currency }} {{ balance_due|floatformat:2 }}", template)
         self.assertIn("{{ order.currency }} {{ r.amount }}", template)
 
     def test_retail_quantity_updates_every_visible_total_and_change_calculator(self):
@@ -334,6 +334,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("{% if show_supermarket_lane %}", lanes)
         self.assertIn("fizo-active-sales", lanes)
         self.assertIn("Resume sale", lanes)
-        self.assertIn("Resume &amp; collect balance", lanes)
+        self.assertIn("Resume basket", lanes)
+        self.assertIn('name="action" value="resume_order"', lanes)
         self.assertIn("staff-order-detail", lanes)
         self.assertIn("{% else %}", lanes)
