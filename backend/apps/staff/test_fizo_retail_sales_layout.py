@@ -477,6 +477,29 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn(".fz-nav__dashboard,", css)
         self.assertIn(".fz-nav__deliveries{display:none}", css)
 
+    def test_dynamic_payment_and_cash_controls_bind_independently(self):
+        checkout = (Path(__file__).resolve().parent /
+                    "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn(
+            'paymentForm && paymentForm.dataset.retailPaymentBound !== "1"',
+            checkout,
+        )
+        self.assertIn('paymentForm.dataset.retailPaymentBound = "1"', checkout)
+        self.assertNotIn(
+            'if(paymentForm && paymentForm.dataset.retailPaymentBound==="1") return;',
+            checkout,
+        )
+        self.assertIn(
+            'cashPanel && cashPanel.dataset.retailCashBound !== "1"',
+            checkout,
+        )
+        self.assertIn('cashPanel.dataset.retailCashBound = "1"', checkout)
+        self.assertIn(
+            'meta.textContent = "Sub " + values.subtotal + " · Disc " + values.discount + " · Tax " + values.tax',
+            checkout,
+        )
+        self.assertNotIn("values.discount);\\n    show(", checkout)
+
     def test_approved_product_card_density_and_named_totals(self):
         root = Path(__file__).resolve().parent
         css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
