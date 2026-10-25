@@ -90,11 +90,16 @@ class DeliveryPersistenceTests(TestCase):
         self.assertFalse(StockMovement.objects.filter(order=self.sale).exists())
         with self.assertRaises(ValidationError):
             self._register(address="Changed destination after submission")
-        with self.assertRaises(ValidationError):
+        from apps.customers.models import Customer
+        buyer = Customer.objects.create(tenant=self.tenant, name="Pickup buyer")
+        self.sale.customer = buyer
+        self.sale.save(update_fields=["customer"])
+        with self.assertRaises(ValidationError) as blocked_pickup:
             register_paid_pickup(
                 order=self.sale, expected_on=__import__("datetime").date.today(),
                 note="Person at shop", user=self.user, membership=self.member,
             )
+        self.assertIn("assigned for delivery", str(blocked_pickup.exception))
 
     def test_cannot_create_delivery_against_pickup_or_underpaid_sale(self):
         set_outlet_delivery_enabled(
