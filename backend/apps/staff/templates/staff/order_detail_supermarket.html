@@ -411,9 +411,9 @@
       var node = document.querySelector(selector);
       if (node && amount != null) node.textContent = currency + " " + amount;
     };
-    show(".fizo-retail-basket-summary > div:nth-child(1) strong", values.subtotal);
-    show(".fizo-retail-basket-summary > div:nth-child(2) strong", values.tax);
-    show(".fizo-retail-basket-summary__total strong", values.due);
+    show('[data-retail-summary="subtotal"] strong', values.subtotal);
+    show('[data-retail-summary="discount"] strong', values.discount);\n    show('[data-retail-summary="tax"] strong', values.tax);
+    show('[data-retail-summary="total"] strong', values.due);
     show(".fizo-cashier-payment-summary strong", values.due);
     var header = document.querySelector(".staff-pos-totals-row__total strong");
     if (header && values.total != null) header.textContent = values.total;
