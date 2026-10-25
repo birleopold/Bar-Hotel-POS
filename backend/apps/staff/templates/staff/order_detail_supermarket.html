@@ -134,6 +134,7 @@
       <form method="post" class="row g-3 align-items-end">
         {% csrf_token %}
         <input type="hidden" name="action" value="retail_line_refund">
+        <input type="hidden" name="retail_refund_request_key" value="{{ retail_refund_request_key }}">
         {% for field in retail_refund_form %}
           <div class="col-6 col-lg-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
         {% endfor %}
