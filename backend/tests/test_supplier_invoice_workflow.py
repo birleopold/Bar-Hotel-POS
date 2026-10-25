@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.purchasing.models import (
-    Supplier, PurchaseOrder, PurchaseOrderLine, SupplierInvoice,
+    Supplier, PurchaseOrder, PurchaseOrderLine, PurchaseReceipt, SupplierInvoice,
     PurchaseOrderStatus, SupplierPayment,
 )
 from apps.purchasing.services import record_supplier_invoice
@@ -110,6 +110,63 @@ class SupplierInvoiceTests(TestCase):
                     amount=Decimal("100"), user=None, membership=object(),
                 )
         self.assertFalse(SupplierInvoice.objects.filter(purchase_order=self.po).exists())
+
+    def test_supplier_payment_waits_for_resolved_delivery_discrepancy(self):
+        from apps.audit.models import ExceptionReview
+        from apps.audit.services import exception_fingerprint
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services import record_supplier_payment
+
+        receipt = PurchaseReceipt.objects.create(
+            tenant=self.tenant,
+            purchase_order=self.po,
+            delivery_reference="GRN-DAMAGED-1",
+            discrepancy_note="Two cartons arrived damaged and require manager review.",
+        )
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense") as posting:
+                with self.assertRaisesRegex(
+                    ValidationError,
+                    "Resolve the recorded delivery discrepancy",
+                ):
+                    record_supplier_payment(
+                        po=self.po,
+                        amount=Decimal("500"),
+                        method=SupplierPaymentMethod.CASH,
+                        reference="blocked-before-review",
+                        idempotency_key="blocked-discrepancy",
+                        user=None,
+                        membership=object(),
+                    )
+                posting.assert_not_called()
+                self.assertFalse(SupplierPayment.objects.filter(
+                    purchase_order=self.po,
+                    idempotency_key="blocked-discrepancy",
+                ).exists())
+
+                ExceptionReview.objects.create(
+                    tenant=self.tenant,
+                    kind="delivery_discrepancy",
+                    entity_id=str(receipt.pk),
+                    fingerprint=exception_fingerprint(
+                        (receipt.discrepancy_note, receipt.updated_at)
+                    ),
+                    status="resolved",
+                    note="Damage confirmed and supplier credit arranged.",
+                    scope_outlet=self.outlet,
+                )
+                payment, replay = record_supplier_payment(
+                    po=self.po,
+                    amount=Decimal("500"),
+                    method=SupplierPaymentMethod.CASH,
+                    reference="approved-after-review",
+                    idempotency_key="resolved-discrepancy",
+                    user=None,
+                    membership=object(),
+                )
+                self.assertFalse(replay)
+                self.assertEqual(payment.amount, Decimal("500"))
+                posting.assert_called_once()
 
     def test_recorded_invoice_caps_payment_but_not_received_balance(self):
         """A partial invoice cannot authorize paying the uninvoiced receipt remainder."""
