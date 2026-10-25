@@ -608,6 +608,62 @@
     });
   });
 
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.matches("[data-retail-line-return-form]"))return;
+    var asyncReady=!!(window.fetch&&window.FormData&&window.retailRefreshCheckout);
+    if(!asyncReady)return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){
+      form.reportValidity();
+      return;
+    }
+    form.dataset.submitting="1";
+    var submit=form.querySelector('button[type="submit"]');
+    var previous=submit&&submit.textContent;
+    var status=form.querySelector("[data-retail-line-return-status]");
+    if(submit){submit.disabled=true;submit.textContent="Recording…";}
+    if(status)status.textContent="Recording physical return…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",body:new FormData(form),credentials:"same-origin",redirect:"follow",
+      headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+    }).then(function(response){
+      if(response.redirected)throw new Error("Checkout session changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected return response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){
+          var rejected=new Error(data.message||"Physical return could not be recorded.");
+          rejected.serverRejected=true;
+          throw rejected;
+        }
+        var key=form.querySelector('input[name="line_return_request_key"]');
+        if(key&&data.next_request_key)key.value=data.next_request_key;
+        return data;
+      });
+    }).then(function(data){
+      return window.retailRefreshCheckout().then(function(){return data;});
+    }).then(function(data){
+      var live=document.querySelector("[data-retail-finance-status]")||
+        document.querySelector("[data-retail-line-return-status]");
+      if(live)live.textContent=data.message||"Physical return recorded.";
+    }).catch(function(error){
+      var live=document.querySelector("[data-retail-finance-status]")||
+        document.querySelector("[data-retail-line-return-status]")||status;
+      if(error&&error.serverRejected){
+        if(live)live.textContent=error.message;
+      }else if(live){
+        showCheckoutRecovery(live,error);
+      }
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(submit){submit.disabled=false;submit.textContent=previous||"Return";}
+    });
+  });
+
   function approvedRefundFormConfig(form){
     if(form.matches("[data-retail-refund-form]")){
       return {
