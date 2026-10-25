@@ -136,6 +136,7 @@ jobs:
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_cashier_catalogue_search_finds_active_plu_in_current_tenant \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_barcode_and_plu_scans_merge_without_overwriting_original_source \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_cashier_tiles_show_only_selected_outlet_stock_and_reorder_warning \
+            tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_cashier_tile_uses_effective_outlet_price_not_global_base \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_cashier_tile_excludes_expired_and_held_batches \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_settlement_rejects_combined_direct_and_recipe_stock_overdraw \
             tests/test_supermarket_cashier_lane.py::SupermarketCashierLaneTests::test_retail_weighted_scan_keeps_separate_lines_and_source \
