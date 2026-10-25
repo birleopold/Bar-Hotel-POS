@@ -134,7 +134,7 @@ class SharedTerminalTests(TestCase):
         first = self.client.post(reverse("staff-terminal"), {
             "worker": str(self.worker_member.id), "pin": "681347",
         })
-        self.assertRedirects(first, reverse("staff-dashboard"))
+        self.assertRedirects(first, reverse("staff-retail-pos-entry"))
         self.assertEqual(self.client.session["_auth_user_id"], str(self.worker.id))
         previous_session_key = self.client.session.session_key
         self.client.post(reverse("staff-terminal-lock"))
@@ -142,7 +142,7 @@ class SharedTerminalTests(TestCase):
         second = self.client.post(reverse("staff-terminal"), {
             "worker": str(second_member.id), "pin": "537194",
         })
-        self.assertRedirects(second, reverse("staff-dashboard"))
+        self.assertRedirects(second, reverse("staff-retail-pos-entry"))
         self.assertEqual(self.client.session["_auth_user_id"], str(second_user.id))
         self.assertEqual(self.client.session[STAFF_SESSION_TENANT_KEY], str(self.tenant.pk))
         self.assertEqual(self.client.session[STAFF_SESSION_OUTLET_KEY], str(self.outlet.pk))
@@ -337,7 +337,7 @@ class SharedTerminalTests(TestCase):
         }).status_code, 200)
         self.assertRedirects(self.client.post(reverse("staff-terminal"), {
             "worker": str(self.worker_member.id), "pin": "458267",
-        }), reverse("staff-dashboard"))
+        }), reverse("staff-retail-pos-entry"))
 
     def test_manager_can_revoke_worker_pin_and_end_open_session(self):
         self._owner_at_counter()
