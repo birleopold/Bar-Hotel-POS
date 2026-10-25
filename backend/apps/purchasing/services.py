@@ -75,9 +75,43 @@ def receive_purchase_order_goods(
         })
     lines_payload = normalized
     positive_ids = [row["line_id"] for row in lines_payload if row["quantity"] > 0]
+    if not positive_ids:
+        raise ValidationError({"lines": "At least one line must have quantity greater than zero."})
     if len(positive_ids) != len(set(positive_ids)):
         raise ValidationError({"lines": "Each purchase order line may be received only once per delivery."})
-    any_positive = False
+    # Preflight the entire physical delivery before any receipt or stock write.
+    # The enclosing transaction remains authoritative for all-or-nothing
+    # posting, even if a later batch or ledger operation fails.
+    for row in lines_payload:
+        qty = row["quantity"]
+        if qty <= 0:
+            continue
+        line = row["_line"]
+        remaining = line.quantity_ordered - line.quantity_received
+        if qty > remaining:
+            raise ValidationError({
+                "lines": (
+                    f"Quantity for line {line.pk} exceeds remaining "
+                    f"({remaining} left to receive)."
+                )
+            })
+        batch_code = str(row.get("batch_code") or "").strip()
+        if row.get("expiry_date") and not batch_code:
+            raise ValidationError({"batch_code": "Enter a batch code when setting an expiry date."})
+        if not batch_code and InventoryBatch.objects.filter(
+            tenant_id=po_locked.tenant_id, outlet=po_locked.outlet,
+            menu_item=line.menu_item,
+        ).exists():
+            raise ValidationError({
+                "batch_code": f"Enter a batch code for {line.menu_item.name}; this product is batch-tracked."
+            })
+        if batch_code and InventoryBatch.objects.filter(
+            tenant_id=po_locked.tenant_id, outlet=po_locked.outlet,
+            menu_item=line.menu_item, batch_code=batch_code,
+        ).exists():
+            raise ValidationError({
+                "batch_code": f"Batch {batch_code} was already received for {line.menu_item.name}."
+            })
     receipt = PurchaseReceipt.objects.create(
         tenant_id=po_locked.tenant_id,
         purchase_order=po_locked,
