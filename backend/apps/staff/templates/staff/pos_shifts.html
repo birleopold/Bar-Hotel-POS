@@ -31,6 +31,14 @@
           <form method="post" class="staff-register-form">{% csrf_token %}<input type="hidden" name="action" value="cash_movement"><input type="hidden" name="shift_id" value="{{ open_shift.pk }}">{{ movement_form.idempotency_key }}
             {% if movement_form.non_field_errors %}<div role="alert">{{ movement_form.non_field_errors }}</div>{% endif %}
             <div>{{ movement_form.direction.label_tag }}{{ movement_form.direction }}{{ movement_form.direction.errors }}</div><div>{{ movement_form.amount.label_tag }}{{ movement_form.amount }}{{ movement_form.amount.errors }}</div><div>{{ movement_form.reason.label_tag }}{{ movement_form.reason }}{{ movement_form.reason.errors }}</div>
+            {% if movement_form.approver_id %}
+              <div class="row g-2 mt-2">
+                <div class="col-12 col-md-6">{{ movement_form.approver_id.label_tag }}{{ movement_form.approver_id }}{{ movement_form.approver_id.errors }}<div class="staff-muted small">Required for cash payout only.</div></div>
+                <div class="col-12 col-md-6">{{ movement_form.approver_pin.label_tag }}{{ movement_form.approver_pin }}{{ movement_form.approver_pin.errors }}</div>
+              </div>
+            {% else %}
+              <p class="staff-muted small mt-2 mb-0">Cash payouts require a manager and a different approving manager. Float additions and safe drops keep the normal cashier workflow.</p>
+            {% endif %}
             <button class="staff-btn staff-btn--primary mt-2" type="submit">Record movement</button>
           </form>
           {% if cash_movements %}<h3 class="staff-card__title mt-3">Recent drawer movements</h3><ul>{% for m in cash_movements %}<li>{{ m.created_at }} · {{ m.get_direction_display }} · {{ shift_currency }} {{ m.amount }} · {{ m.reason }} · {{ m.recorded_by.email|default:"Former worker" }}</li>{% endfor %}</ul>{% endif %}
