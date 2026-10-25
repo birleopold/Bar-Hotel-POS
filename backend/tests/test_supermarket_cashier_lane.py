@@ -231,6 +231,80 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Grocery milk")
         self.assertContains(page, "milk.png")
 
+    def test_purchase_delivery_preflight_and_duplicate_reference_keep_stock_accurate(self):
+        from rest_framework.exceptions import ValidationError
+        from apps.purchasing.models import (
+            Supplier, PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus,
+            PurchaseReceipt,
+        )
+        from apps.purchasing.services import receive_purchase_order_goods
+        from apps.inventory.models import StockBalance, StockMovement, StockReason
+
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        category = MenuCategory.objects.create(
+            tenant=self.tenant, name="Incoming supply",
+        )
+        item_a = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Paper towels",
+            sku="PO-TOWELS", unit_price=Decimal("4000"), track_inventory=True,
+        )
+        item_b = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Dish soap",
+            sku="PO-SOAP", unit_price=Decimal("5500"), track_inventory=True,
+        )
+        supplier = Supplier.objects.create(
+            tenant=self.tenant, name="Incoming supply company",
+        )
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant, supplier=supplier, outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT, created_by=self.user,
+        )
+        a = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=item_a, quantity_ordered=Decimal("5"),
+        )
+        b = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=item_b, quantity_ordered=Decimal("2"),
+        )
+        payload = [
+            {"line_id": str(a.pk), "quantity": "3"},
+            {"line_id": str(b.pk), "quantity": "3"},
+        ]
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po, lines_payload=payload, user=self.user,
+                membership=membership, delivery_reference="DEL-123",
+            )
+        self.assertFalse(PurchaseReceipt.objects.filter(purchase_order=po).exists())
+        self.assertFalse(StockMovement.objects.filter(purchase_order=po).exists())
+        self.assertFalse(StockBalance.objects.filter(outlet=self.outlet,
+                                                       menu_item__in=[item_a, item_b]).exists())
+
+        payload[1]["quantity"] = "2"
+        receive_purchase_order_goods(
+            po=po, lines_payload=payload, user=self.user,
+            membership=membership, delivery_reference="DEL-123",
+            discrepancy_note="Three towels delivered now; two pending",
+        )
+        a.refresh_from_db()
+        b.refresh_from_db()
+        po.refresh_from_db()
+        self.assertEqual(a.quantity_received, Decimal("3"))
+        self.assertEqual(b.quantity_received, Decimal("2"))
+        self.assertEqual(po.status, PurchaseOrderStatus.PARTIALLY_RECEIVED)
+        self.assertEqual(PurchaseReceipt.objects.filter(purchase_order=po).count(), 1)
+        self.assertEqual(StockBalance.objects.get(
+            outlet=self.outlet, menu_item=item_a).quantity, Decimal("3"))
+        self.assertEqual(StockBalance.objects.get(
+            outlet=self.outlet, menu_item=item_b).quantity, Decimal("2"))
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po, lines_payload=payload, user=self.user,
+                membership=membership, delivery_reference="del-123",
+            )
+        self.assertEqual(PurchaseReceipt.objects.filter(purchase_order=po).count(), 1)
+        self.assertEqual(StockMovement.objects.filter(
+            purchase_order=po, reason=StockReason.RECEIVE).count(), 2)
+
     def test_cashier_tile_uses_effective_outlet_price_not_global_base(self):
         from apps.catalog.models import MenuItemOutlet
         from apps.pos.services import add_line_to_open_order
