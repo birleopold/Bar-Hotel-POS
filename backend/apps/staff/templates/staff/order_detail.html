@@ -406,16 +406,34 @@
               <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="void_order">
-                <label class="staff-label" for="void_reason">Void all</label>
-                <input class="staff-input mb-2" id="void_reason" name="reason" maxlength="255" placeholder="Reason" autocomplete="off">
+                {% if is_supermarket_outlet %}
+                  {% if void_order_form %}
+                    <input type="hidden" name="void_request_key" value="{{ void_request_key }}">
+                    <label class="staff-label" for="{{ void_order_form.reason.id_for_label }}">Void all · reason</label>
+                    {{ void_order_form.reason }}
+                    <div class="row g-2 mt-1">
+                      <div class="col-12 col-lg-6">{{ void_order_form.approver_id.label_tag }}{{ void_order_form.approver_id }}</div>
+                      <div class="col-12 col-lg-6">{{ void_order_form.approver_pin.label_tag }}{{ void_order_form.approver_pin }}</div>
+                    </div>
+                  {% else %}
+                    <label class="staff-label" for="void_reason">Void all</label>
+                    <input class="staff-input mb-2" id="void_reason" name="reason" maxlength="255" placeholder="Reason" autocomplete="off" disabled>
+                    <p class="staff-muted small mb-2">A different PIN-enabled manager is required to approve a basket void.</p>
+                  {% endif %}
+                {% else %}
+                  <label class="staff-label" for="void_reason">Void all</label>
+                  <input class="staff-input mb-2" id="void_reason" name="reason" maxlength="255" placeholder="Reason" autocomplete="off">
+                {% endif %}
                 {% if is_supermarket_outlet and refundable_remaining %}
                   {% if can_record_refund %}
                     <a class="staff-btn staff-btn--ghost staff-btn--touch" href="#retail-refund-controls">Refund {{ order.currency }} {{ refundable_remaining }} before void</a>
                   {% else %}
                     <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Supervisor refund {{ order.currency }} {{ refundable_remaining }} required</button>
                   {% endif %}
+                {% elif is_supermarket_outlet and not void_order_form %}
+                  <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Manager approval required</button>
                 {% else %}
-                  <button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch">Void</button>
+                  <button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch">{% if is_supermarket_outlet %}Manager approve &amp; void{% else %}Void{% endif %}</button>
                 {% endif %}
               </form>
             </div>
