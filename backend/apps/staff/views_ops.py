@@ -1082,6 +1082,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["payment_request_key"] = uuid.uuid4()
         ctx["refund_request_key"] = uuid.uuid4()
         ctx["retail_refund_request_key"] = uuid.uuid4()
+        ctx["line_return_request_key"] = uuid.uuid4()
         ctx["quick_product_request_key"] = uuid.uuid4()
         ctx["next_sale_request_key"] = uuid.uuid4()
         from apps.customers.models import LoyaltyLedgerEntry
@@ -2253,35 +2254,64 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_line_return(self, request: HttpRequest, order: Order) -> HttpResponse:
-        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-            messages.error(request, "Line return is only available on supermarket or retail outlets.")
+        async_return = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        def reject(message, status=422):
+            if async_return:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
             return redirect("staff-order-detail", order_id=order.id)
+
+        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            return reject("Line return is only available on supermarket or retail outlets.", 409)
         form = StaffOrderLineReturnForm(request.POST)
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            detail = "; ".join(
+                f"{field}: {error}"
+                for field, errors in form.errors.items()
+                for error in errors
+            ) or "Check the physical return details."
+            return reject(detail)
         line = OrderLine.objects.filter(
             id=form.cleaned_data["line_id"],
             order_id=order.id,
         ).first()
         if line is None:
-            messages.error(request, "That line is not on this order.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("That line is not on this order.", 404)
+        raw_key = (request.POST.get("line_return_request_key") or "").strip()
         try:
-            process_supermarket_line_return(
+            request_key = str(uuid.UUID(raw_key)) if raw_key else str(uuid.uuid4())
+        except (TypeError, ValueError):
+            return reject("Invalid physical return request identity.")
+        try:
+            returned = process_supermarket_line_return(
                 order=order,
                 line=line,
                 quantity=form.cleaned_data["quantity"],
                 reason=form.cleaned_data.get("reason") or "",
                 restock=bool(form.cleaned_data.get("restock")),
                 user=request.user,
+                idempotency_key=request_key,
             )
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
-        else:
-            messages.success(request, "Line return recorded.")
+            return reject(" ".join(_drf_detail_messages(exc.detail)))
+        if async_return:
+            return JsonResponse({
+                "ok": True,
+                "message": (
+                    "Physical return already recorded."
+                    if getattr(returned, "idempotent_replay", False)
+                    else "Physical return recorded."
+                ),
+                "order_id": str(order.pk),
+                "next_request_key": str(uuid.uuid4()),
+            })
+        messages.success(
+            request,
+            "Physical return already recorded."
+            if getattr(returned, "idempotent_replay", False)
+            else "Line return recorded.",
+        )
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_retail_line_refund(self, request: HttpRequest, order: Order) -> HttpResponse:
