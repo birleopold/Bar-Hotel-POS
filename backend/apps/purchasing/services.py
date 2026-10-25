@@ -15,7 +15,7 @@ from apps.inventory.services_batches import receive_tracked_batch
 from apps.inventory.batches import InventoryBatch
 from django.utils import timezone
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, SupplierPayment, SupplierPaymentMethod, SupplierInvoice, SupplierInvoiceLine, SupplierReturn, SupplierCreditNote
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice, SupplierInvoiceLine, SupplierReturn, SupplierCreditNote
 
 
 @transaction.atomic
@@ -373,10 +373,32 @@ def record_supplier_invoice(*, po, reference, invoice_date, due_date, amount,
             or amount > Decimal("999999999999.99")
             or amount != amount.quantize(Decimal("0.01"))):
         raise ValidationError({"amount": "Enter a positive amount with at most two decimal places."})
+    # Serialize supplier invoice numbers across all of this supplier's POs.
+    # Locking only the purchase order would allow two concurrent POs to accept
+    # the same vendor document number.
+    Supplier.objects.select_for_update().get(
+        pk=po.supplier_id,
+        tenant_id=po.tenant_id,
+    )
     # Verify actual PO line/receipt evidence before accepting an itemized invoice.
     # Header-only invoices remain as historical/unmatched documents, never
     # retroactively represented as having passed a three-way match.
-    existing_invoice = SupplierInvoice.objects.filter(tenant_id=po.tenant_id, purchase_order=po, reference=number).first()
+    existing_invoice = (
+        SupplierInvoice.objects.filter(
+            tenant_id=po.tenant_id,
+            purchase_order__supplier_id=po.supplier_id,
+            reference__iexact=number,
+        )
+        .select_related("purchase_order")
+        .first()
+    )
+    if existing_invoice is not None and existing_invoice.purchase_order_id != po.pk:
+        raise ValidationError({
+            "reference": (
+                "This supplier invoice number is already recorded against "
+                "another purchase order."
+            )
+        })
     matched = []
     if lines is not None:
         if not isinstance(lines, (list, tuple)) or not lines:
