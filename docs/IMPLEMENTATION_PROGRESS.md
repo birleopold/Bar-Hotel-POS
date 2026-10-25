@@ -188,3 +188,21 @@ Refresh this ledger from actual GitHub Actions evidence with every delivery chec
 - **Regression coverage:** a retail PIN session several minutes idle remains authenticated, and mixed retail/hospitality workspaces entering the retail checkout receive the retail shift-length policy. Existing stale-session invalidation remains in force.
 - **Cancellation UX:** DRF validation containers are flattened to human-readable messages. Refund-before-cancel now recognizes nested/list `refund_required` codes and never intentionally renders `ErrorDetail(...)` representations to the cashier. The financial safeguard is unchanged: recorded payments must still be refunded/reconciled before a part-paid basket can be cancelled.
 - **Acceptance status:** implemented on `main`, awaiting deployment and a repeat TinyFish checkout test. Do not mark live checkout authentication or pixel parity verified until that deployed retest succeeds.
+
+
+### Retail cashier startup simplification — 25 October 2026
+
+**Implemented in source, awaiting CI/deployed browser acceptance.** The supermarket/retail daily start path is reduced from workspace/outlet/workstation/shift navigation to a cashier-first flow:
+
+1. Account sign-in for a cashier or PIN on an established counter terminal.
+2. Retail cashier/PIN sessions land directly at `staff-retail-pos-entry`; password-authenticated managers keep the management dashboard unless they explicitly entered checkout.
+3. The checkout entry silently reuses the authorized outlet, existing selected till and the cashier's one live till shift where it can do so safely.
+4. If exactly one usable till exists it is remembered automatically. If no physical workstation is configured, small stores use the existing section-wide register model and see no workstation setup.
+5. Only when multiple usable tills are genuinely ambiguous does the same start screen ask “Which till are you using?”
+6. If no shift is open, the same screen asks only for **Cash in drawer now**. Pressing **Start selling** atomically opens the shift and creates/reuses the cashier's first active basket, with tenant serialization preventing a double tap from creating duplicate empty baskets.
+7. If a shift is already open, opening-cash input disappears; **Start selling** enters checkout. The cashier start page no longer exposes daily “Shift and drawer” or “Register devices” navigation. Held sales remains directly reachable.
+8. Retail PIN copy now says **Start selling / Continue to checkout** instead of shared-workspace terminology. Hospitality/shared-terminal wording and short idle policy remain separate.
+
+This keeps opening-float reconciliation because established retail POS products use it to make expected-vs-counted drawer close meaningful, while hiding register administration from routine cashier work. Current reference patterns checked: Lightspeed Retail opening shifts, StoreConnect shift start, and other current retail register guidance all use cashier/PIN + opening float + direct POS entry rather than separate technical setup pages.
+
+Regression coverage added for direct retail PIN landing, cashier password landing, manager password dashboard preservation, one-action shift+first-basket creation, multi-till same-screen choice, shift-length retail PIN idle behavior and simplified template language. **Do not mark browser verified until the new head is deployed and TinyFish reaches the product grid without navigating through shift/workstation administration.**
