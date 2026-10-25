@@ -1127,6 +1127,15 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
             else []
         )
+        retail_discount_approvers = (
+            sensitive_action_approvers(
+                requester=m,
+                action="discount",
+                outlet_id=order.outlet_id,
+            )
+            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            else []
+        )
         order_refundable_state = (
             (order.status == OrderStatus.CLOSED and order.is_paid)
             or (
@@ -1377,10 +1386,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             else None
         )
         ctx["line_discount_form"] = (
-            StaffOrderLineDiscountForm()
-            if can_modify_open and is_supermarket_outlet
+            StaffOrderLineDiscountForm(approvers=retail_discount_approvers)
+            if can_modify_open and is_supermarket_outlet and retail_discount_approvers
             else None
         )
+        ctx["discount_request_key"] = uuid.uuid4() if ctx["line_discount_form"] is not None else None
         ctx["line_return_form"] = (
             StaffOrderLineReturnForm()
             if is_supermarket_outlet and order.status == OrderStatus.CLOSED and order.is_paid
@@ -1439,6 +1449,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_record_refund(request, order)
         if action == "retail_line_refund":
             return self._post_retail_line_refund(request, order)
+        if (
+            action == "line_discount"
+            and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        ):
+            return self._post_line_discount(request, order)
         cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order", "resume_order"}
         if not (membership_can_modify_lodging(m) or (
             action in cashier_actions and _can_operate_retail_checkout(m, order)
@@ -1653,6 +1668,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return str(uuid.UUID(raw)) if raw else str(uuid.uuid4())
         except (TypeError, ValueError):
             raise DRFValidationError("Invalid payment request identity.")
+
+    @staticmethod
+    def _sensitive_request_key(request: HttpRequest, field: str) -> str:
+        raw = (request.POST.get(field) or "").strip()
+        try:
+            return str(uuid.UUID(raw)) if raw else str(uuid.uuid4())
+        except (TypeError, ValueError):
+            raise DRFValidationError("Invalid approval request identity.")
 
     @staticmethod
     def _refund_request_key(request: HttpRequest, field: str = "refund_request_key") -> str:
