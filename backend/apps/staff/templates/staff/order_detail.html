@@ -287,7 +287,7 @@
       {% if can_record_payment and payment_form %}
         <div class="staff-card staff-card--pos{% if is_supermarket_outlet %} reference-payment-card{% endif %}">
           <h2 class="staff-card__title staff-card__title--pos">Pay</h2>
-          <p class="staff-muted small">Register: {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}Automatic when one shift is open{% endif %} · <a href="{% url 'staff-workstations' %}">Choose till</a></p>
+          {% if not is_supermarket_outlet %}<p class="staff-muted small">Register: {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}Automatic when one shift is open{% endif %} · <a href="{% url 'staff-workstations' %}">Choose till</a></p>{% endif %}
           <p class="staff-muted staff-pos-side-hint">Due <strong>{{ order.currency }} {{ balance_due }}</strong> · Paid {{ order.currency }} {{ amount_paid }}</p>
           {% include "staff/includes/form_errors_block.html" with form=payment_form title="Fix payment details" %}
           {% if is_supermarket_outlet %}
@@ -303,14 +303,14 @@
             <strong>Due {{ order.currency }} {{ balance_due }}</strong>
           </section>
           {% endif %}
-          {% if is_supermarket_outlet %}<div id="fizo-cashier-payment" class="fizo-cashier-pay-intro"><strong>Collect payment</strong><span>Choose a method, confirm the amount, then record the payment.</span></div>{% endif %}
+          {% if is_supermarket_outlet %}<div id="fizo-cashier-payment" class="fizo-cashier-pay-intro"><strong>Payment</strong></div>{% endif %}
           <form method="post" class="row g-2 align-items-end" data-pos-payment-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="record_payment">
             <input type="hidden" name="payment_request_key" value="{{ payment_request_key }}">
             <div class="col-12 col-md-4">{{ payment_form.amount.label_tag }}{{ payment_form.amount }}</div>
             <div class="col-12 col-md-4">{{ payment_form.method.label_tag }}{{ payment_form.method }}</div>
-            <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Record payment</button></div>
+            <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">{% if is_supermarket_outlet %}Pay{% else %}Record payment{% endif %}</button></div>
           </form>
         </div>
       {% endif %}
@@ -431,7 +431,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261025.3"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261025.4"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>
