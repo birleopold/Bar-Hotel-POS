@@ -9,7 +9,7 @@ from apps.pos.services import menu_items_for_outlet_queryset
 from apps.tenants.models import Outlet
 
 
-def _add_sensitive_approval_fields(form, approvers) -> None:
+def _add_sensitive_approval_fields(form, approvers, *, required: bool = True) -> None:
     if approvers is None:
         return
     form.fields["approver_id"] = forms.ChoiceField(
@@ -19,10 +19,12 @@ def _add_sensitive_approval_fields(form, approvers) -> None:
             for member in approvers
         ],
         widget=forms.Select(attrs={"class": "staff-input"}),
+        required=required,
     )
     form.fields["approver_pin"] = forms.RegexField(
         regex=r"^[0-9]{6,8}$",
         label="Supervisor PIN",
+        required=required,
         widget=forms.PasswordInput(attrs={
             "class": "staff-input",
             "inputmode": "numeric",
@@ -337,6 +339,22 @@ class StaffCashDrawerMovementForm(forms.Form):
     direction = forms.ChoiceField(choices=[("float_add", "Add float"), ("drop", "Cash drop"), ("payout", "Cash payout")], widget=forms.Select(attrs={"class": "staff-input"}))
     amount = forms.DecimalField(min_value=Decimal("0.01"), max_digits=14, decimal_places=2, widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.01", "min": "0.01"}))
     reason = forms.CharField(max_length=255, widget=forms.TextInput(attrs={"class": "staff-input", "maxlength": 255}))
+
+    def __init__(self, *args, approvers=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        _add_sensitive_approval_fields(self, approvers, required=False)
+        if "approver_id" in self.fields:
+            self.fields["approver_id"].help_text = "Required only for a cash payout."
+            self.fields["approver_pin"].help_text = "Required only for a cash payout."
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("direction") == "payout":
+            if not cleaned.get("approver_id"):
+                self.add_error("approver_id", "Select a different manager to approve this payout.")
+            if not cleaned.get("approver_pin"):
+                self.add_error("approver_pin", "Enter the approving manager's PIN.")
+        return cleaned
 
 
 class StaffPosShiftCloseForm(forms.Form):
