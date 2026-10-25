@@ -18,7 +18,46 @@
     <p class="staff-muted">Removing an uploaded photo keeps the product and its sales details. An existing image URL may still display.</p>
   </form>
   {% endif %}
+  <div class="staff-card mt-3" data-photo-alert-setup>
+    <strong>Use this phone again?</strong>
+    <p class="staff-muted small mb-2">Enable alerts once, then “Send to my account” on the desktop can notify this phone while the site is active.</p>
+    <button type="button" class="staff-btn staff-btn--ghost" data-enable-photo-alerts><i class="bi bi-bell"></i> Enable future photo alerts</button>
+    <span class="staff-muted small ms-2" data-photo-alert-status></span>
+  </div>
   <p class="staff-muted">After uploading, return to your desktop. You can continue editing the other product details there.</p>
   <a href="{% url 'console-org-menu-item-edit' item_id=item.pk %}">Edit product details</a>
 </section>
+{% endblock %}
+
+{% block extra_js %}{{ block.super }}
+<script>
+(function () {
+  var button=document.querySelector("[data-enable-photo-alerts]");
+  var status=document.querySelector("[data-photo-alert-status]");
+  if(!button)return;
+  if(!("Notification" in window)){
+    button.hidden=true;
+    if(status)status.textContent="Device alerts are not supported in this browser.";
+    return;
+  }
+  function render(){
+    if(Notification.permission==="granted"){
+      button.disabled=true;
+      button.textContent="Photo alerts enabled";
+      if(status)status.textContent="This phone is ready for active-session alerts.";
+    }else if(Notification.permission==="denied"){
+      button.disabled=true;
+      button.textContent="Photo alerts blocked";
+      if(status)status.textContent="Use the QR code instead.";
+    }
+  }
+  render();
+  button.addEventListener("click",function(){
+    Notification.requestPermission().then(function(){
+      render();
+      if(window.staffPollNotifications)window.staffPollNotifications();
+    });
+  });
+}());
+</script>
 {% endblock %}
