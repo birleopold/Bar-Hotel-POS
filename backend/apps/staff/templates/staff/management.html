@@ -32,6 +32,22 @@
   </article>{% empty %}<div class="staff-card">No saved cases match this filter and scope.</div>{% endfor %}
 {% elif management_view == 'approvals' %}
   <p class="staff-muted">Open a receipt to review the exact transaction before authorizing a discount, void, return or refund. Actions depend on the receipt's state and your permissions.</p>
+  <section class="staff-card mb-3">
+    <h2 class="staff-card__title">Recent supervisor approvals</h2>
+    <p class="staff-muted small">Consumed approvals are bound to one transaction intent, expire quickly, and never expose the manager PIN.</p>
+    <div class="staff-table-wrap"><table class="staff-table"><caption>Latest 50 consumed approvals in your selected sections</caption><thead><tr><th>When</th><th>Action</th><th>Receipt</th><th>Requested by</th><th>Approved by</th><th>Intent</th></tr></thead><tbody>
+      {% for approval in approval_evidence %}
+        <tr>
+          <td>{{ approval.used_at }}</td>
+          <td>{{ approval.action|title }}</td>
+          <td>{% if approval.source_url %}<a href="{{ approval.source_url }}">{{ approval.receipt_label }}</a>{% else %}{{ approval.receipt_label }}{% endif %}</td>
+          <td>{{ approval.requester.user.get_full_name|default:approval.requester.user.email }}</td>
+          <td>{{ approval.approver.user.get_full_name|default:approval.approver.user.email }}</td>
+          <td>{{ approval.intent_summary }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="6">No consumed supervisor approvals in this scope yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
   <div class="staff-table-wrap"><table class="staff-table"><caption>Latest 50 scoped receipts for manager action</caption><thead><tr><th>Receipt</th><th>Section</th><th>Status</th><th>Action</th></tr></thead><tbody>{% for order in approval_orders %}<tr><td>{{ order.bill_reference|default:order.id }}</td><td>{{ order.outlet.name }}</td><td>{{ order.get_status_display }}</td><td><a href="{% url 'staff-order-detail' order_id=order.id %}">{% if order.status == 'open' %}Review discount or void{% else %}Review refund or return{% endif %}</a></td></tr>{% empty %}<tr><td colspan="4">No scoped receipts are available for review.</td></tr>{% endfor %}</tbody></table></div>
 {% elif management_view == 'team' %}
   {% if team_manage_url %}<a class="staff-btn staff-btn--primary mb-3" href="{{ team_manage_url }}">Manage workers</a>{% endif %}
