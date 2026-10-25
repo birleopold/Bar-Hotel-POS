@@ -29,7 +29,10 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
         orders = Order.objects.filter(tenant=request.tenant, outlet_id__in=ids, updated_at__gte=cutoff, discount_amount__gt=policy.discount_threshold).order_by("-updated_at")
         for obj in limited(orders, "discount"):
             result.append(row("discount", obj, "Order discount", f"{obj.discount_amount} {obj.currency}", reverse("staff-order-detail", kwargs={"order_id":obj.pk}), (obj.discount_amount, obj.updated_at)))
-        lines = OrderLine.objects.filter(order__tenant=request.tenant, order__outlet_id__in=ids).select_related("order")
+        lines = OrderLine.objects.filter(
+            order__tenant=request.tenant,
+            order__outlet_id__in=ids,
+        ).select_related("order", "voided_by")
         for obj in limited(lines.filter(updated_at__gte=cutoff, line_discount_amount__gt=policy.discount_threshold, is_voided=False).order_by("-updated_at"), "line_discount"):
             result.append(row("line_discount", obj, "Line discount", f"{obj.label} · {obj.line_discount_amount} {obj.order.currency}", reverse("staff-order-detail", kwargs={"order_id":obj.order_id}), (obj.line_discount_amount, obj.updated_at)))
         # Investigate repeated voids on the same sale without mistaking the
@@ -40,6 +43,7 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
             "void",
         ))
         repeated_voids = {}
+        cashier_voids = {}
         if visible_voids:
             repeated_voids = dict(
                 lines.filter(
@@ -48,12 +52,40 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
                 ).order_by().values("order_id").annotate(total=Count("pk"))
                 .values_list("order_id", "total")
             )
+            cashier_ids = {item.voided_by_id for item in visible_voids if item.voided_by_id}
+            if cashier_ids:
+                cashier_voids = dict(
+                    lines.filter(
+                        is_voided=True,
+                        voided_at__gte=cutoff,
+                        voided_by_id__in=cashier_ids,
+                    ).order_by().values("voided_by_id").annotate(total=Count("pk"))
+                    .values_list("voided_by_id", "total")
+                )
         for obj in visible_voids:
             count = repeated_voids.get(obj.order_id, 0)
-            detail = f"{obj.label} · {obj.void_reason or 'No reason recorded'}"
+            cashier_count = cashier_voids.get(obj.voided_by_id, 0)
+            cashier = (
+                obj.voided_by.get_full_name() or obj.voided_by.email
+                if obj.voided_by_id and obj.voided_by
+                else "Unknown worker"
+            )
+            detail = (
+                f"{obj.label} · {obj.void_reason or 'No reason recorded'}"
+                f" · voided by {cashier}"
+            )
             if count > 1:
                 detail += f" · {count} voided lines on this sale"
-            result.append(row("void", obj, "Voided line", detail, reverse("staff-order-detail", kwargs={"order_id":obj.order_id}), (obj.voided_at, obj.void_reason, count)))
+            if cashier_count > 1:
+                detail += f" · {cashier_count} voided lines by this worker in the review window"
+            result.append(row(
+                "void",
+                obj,
+                "Voided line",
+                detail,
+                reverse("staff-order-detail", kwargs={"order_id":obj.order_id}),
+                (obj.voided_at, obj.void_reason, count, obj.voided_by_id, cashier_count),
+            ))
         # A manual price marker is a review signal, not proof that a shelf
         # price was overridden. Historical menu prices are not reconstructed.
         manual_lines = lines.filter(
