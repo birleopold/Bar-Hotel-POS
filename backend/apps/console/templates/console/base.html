@@ -35,6 +35,13 @@
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  {% if request.user.is_authenticated and request.tenant and request.tenant_membership %}
+    <span data-staff-notification-client
+          data-status-url="{% url 'staff-notifications-status' %}"
+          data-inbox-url="{% url 'staff-notifications' %}"
+          data-scope-key="{{ request.tenant.pk }}:{{ request.tenant_membership.pk }}" hidden></span>
+    <script defer src="{% static 'staff/notification-client.js' %}?v=20261025.1"></script>
+  {% endif %}
   {% block extra_js %}{% endblock %}
 </body>
 </html>
