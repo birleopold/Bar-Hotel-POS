@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.accounts.models import MembershipRole
@@ -65,7 +67,7 @@ class EventPaymentSerializer(serializers.ModelSerializer):
 
 class CreateEventQuoteSerializer(serializers.Serializer):
     reference = serializers.CharField(max_length=128)
-    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
     valid_until = serializers.DateField()
     description = serializers.CharField(required=False, allow_blank=True, max_length=5000, default="")
 
