@@ -235,6 +235,16 @@ class StaffPinSetupView(View):
         return render(request, "staff/pin_setup.html", {"form": form, "has_pin": bool(request.tenant_membership.staff_pin_hash)})
 
 
+class StaffHelpView(LoginRequiredMixin, TemplateView):
+    template_name = "staff/help.html"
+    login_url = reverse_lazy("staff-login")
+
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        if getattr(request, "tenant_membership", None) is None:
+            return redirect("staff-dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
+
 class StaffDashboardView(LoginRequiredMixin, TemplateView):
     template_name = "staff/dashboard.html"
     login_url = reverse_lazy("staff-login")
