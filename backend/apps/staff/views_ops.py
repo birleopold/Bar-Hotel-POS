@@ -1661,17 +1661,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-order-detail", order_id=order.id)
 
         if action == "apply_wholesale":
-            from apps.pos.services.wholesale import apply_wholesale_tier
-            try:
-                apply_wholesale_tier(
-                    order=order, line_id=request.POST.get("line_id"),
-                    membership=m, user=request.user,
-                )
-            except (DRFValidationError, ValueError, TypeError) as exc:
-                messages.error(request, str(getattr(exc, "detail", exc)))
-            else:
-                messages.success(request, "Wholesale unit price approved and recalculated.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return self._post_apply_wholesale(request, order)
         if action in ("schedule_paid_pickup", "hand_over_paid_pickup"):
             from django.utils.dateparse import parse_date
             from apps.pos.services.pickups import register_paid_pickup, hand_over_paid_pickup
@@ -1734,6 +1724,59 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if action == "void_line":
             return self._post_void_line(request, order)
         messages.error(request, "Unknown action.")
+        return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_apply_wholesale(self, request: HttpRequest, order: Order) -> HttpResponse:
+        from apps.pos.services.wholesale import apply_wholesale_tier
+
+        async_retail = (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+
+        def reject(message: str, *, status: int = 422) -> HttpResponse:
+            if async_retail:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
+        try:
+            line, replay = apply_wholesale_tier(
+                order=order,
+                line_id=request.POST.get("line_id"),
+                membership=request.tenant_membership,
+                user=request.user,
+            )
+        except DRFValidationError as exc:
+            return reject(" ".join(_drf_detail_messages(exc.detail)))
+        except (ValueError, TypeError) as exc:
+            return reject(str(exc))
+
+        message = (
+            "Wholesale price was already applied."
+            if replay
+            else "Wholesale unit price approved and recalculated."
+        )
+        order.refresh_from_db()
+        if async_retail:
+            return JsonResponse({
+                "ok": True,
+                "message": message,
+                "replay": replay,
+                "order_id": str(order.pk),
+                "line_id": str(line.pk),
+                "currency": order.currency,
+                "unit_price": str(line.unit_price),
+                "line_total": str(line.line_total),
+                "subtotal": str(order.subtotal),
+                "discount": str(order.discount_amount),
+                "tax": str(order.tax_total),
+                "total": str(order.total),
+            })
+        if replay:
+            messages.info(request, message)
+        else:
+            messages.success(request, message)
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_set_folio(self, request: HttpRequest, order: Order) -> HttpResponse:

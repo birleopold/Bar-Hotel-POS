@@ -10,7 +10,7 @@ from apps.customers.models import Customer
 from apps.pos.models import Order, OrderLine, WholesalePriceRule
 from apps.pos.services.orders import adjust_open_order_line_quantity
 from apps.pos.services.wholesale import apply_wholesale_tier, save_wholesale_tier
-from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
+from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import OutletType
 from tests.test_phase1_isolation_and_idempotency import _seed_tenant_bundle
 
@@ -50,6 +50,77 @@ def test_manager_wholesale_checkout_needs_customer_qty_and_keeps_shelf_sales_unc
         apply_wholesale_tier(order=anonymous, line_id=usual.pk, membership=member, user=user)
     usual.refresh_from_db()
     assert usual.unit_price == Decimal("5")
+
+
+@pytest.mark.django_db
+def test_manager_applies_wholesale_price_inline_without_reloading_checkout():
+    env = _seed_tenant_bundle(
+        name="Wholesale Inline", slug="f6-wh-inline",
+        user_email="wh-inline@example.test",
+    )
+    outlet, item, user = env["outlet"], env["item"], env["user"]
+    outlet.outlet_type = OutletType.SUPERMARKET
+    outlet.save(update_fields=["outlet_type"])
+    member = Membership.objects.get(user=user, tenant=env["tenant"])
+    save_wholesale_tier(
+        tenant=env["tenant"], outlet=outlet, item_id=item.pk,
+        quantity="6", price="3.50", user=user, membership=member,
+    )
+    customer = Customer.objects.create(
+        tenant=env["tenant"], name="Trade account", created_by=user,
+    )
+    sale = Order.objects.create(
+        tenant=env["tenant"], outlet=outlet, customer=customer,
+        currency="USD", created_by=user,
+    )
+    line = OrderLine.objects.create(
+        order=sale, menu_item=item, label=item.name, quantity=Decimal("8"),
+        unit_price=Decimal("5"), line_total=Decimal("40"),
+    )
+
+    client = Client()
+    assert client.login(username=user.email, password="TestPass9!")
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(env["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(outlet.pk)
+    session.save()
+    url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+
+    page = client.get(url)
+    assert page.status_code == 200
+    assert b"data-retail-wholesale-form" in page.content
+    assert b"data-retail-wholesale-status" in page.content
+
+    first = client.post(
+        url,
+        {"action": "apply_wholesale", "line_id": str(line.pk)},
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+    )
+    assert first.status_code == 200
+    body = first.json()
+    assert body["ok"] is True
+    assert body["replay"] is False
+    assert Decimal(body["unit_price"]) == Decimal("3.50")
+    assert Decimal(body["line_total"]) == Decimal("28.00")
+    assert Decimal(body["total"]) == Decimal("28.00")
+
+    replay = client.post(
+        url,
+        {"action": "apply_wholesale", "line_id": str(line.pk)},
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+    )
+    assert replay.status_code == 200
+    assert replay.json()["ok"] is True
+    assert replay.json()["replay"] is True
+
+    from pathlib import Path
+    staff_root = Path(__file__).resolve().parents[1] / "apps" / "staff"
+    controller = (staff_root / "static/staff/retail-counter-v2.js").read_text(
+        encoding="utf-8"
+    )
+    assert '[data-retail-wholesale-form]' in controller
+    assert "window.retailRefreshCheckout()" in controller
+    assert "Never repeat a price mutation after an ambiguous response." in controller
 
 
 @pytest.mark.django_db

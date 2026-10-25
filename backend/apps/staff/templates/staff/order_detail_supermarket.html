@@ -84,7 +84,7 @@
       <a class="staff-btn staff-btn--ghost" href="{% url 'staff-wholesale-pricing' %}">Manage tiers</a>
     </div>
     {% if can_apply_wholesale %}
-    <form method="post" class="row g-2 align-items-end">{% csrf_token %}
+    <form method="post" class="row g-2 align-items-end" data-retail-wholesale-form>{% csrf_token %}
       <input type="hidden" name="action" value="apply_wholesale">
       <div class="col-12 col-md-8"><label class="staff-label" for="wholesale-line">Eligible order item</label>
       <select name="line_id" id="wholesale-line" class="staff-input" required>
@@ -94,6 +94,7 @@
         {% endif %}{% endfor %}
       </select></div>
       <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Manager: apply wholesale price</button></div>
+      <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-wholesale-status></p></div>
     </form>
     {% else %}<p class="staff-muted">Link the customer's verified profile before recording payment to enable wholesale approval. Manager rights required.</p>{% endif %}
   </section>
