@@ -35,6 +35,7 @@ urlpatterns = [
     path("pos/wholesale-prices/", views_wholesale.StaffWholesalePricingView.as_view(), name="staff-wholesale-pricing"),
     path("pos/pickups/", views_pickups.StaffRetailPickupsView.as_view(), name="staff-retail-pickups"),
     path("pos/deliveries/", views_delivery.StaffDeliveriesView.as_view(), name="staff-deliveries"),
+    path("pos/deliveries/<uuid:delivery_id>/packing-slip/", views_delivery.StaffDeliveryPackingSlipView.as_view(), name="staff-delivery-packing-slip"),
     path("orders/<uuid:order_id>/display/", views_customer_display.StaffCustomerDisplayView.as_view(), name="staff-retail-customer-display"),
     path("lodging/night-audit/", views_lodging.StaffPropertyNightAuditView.as_view(), name="staff-lodging-night-audit"),
     path("management/business-date/", views_business_date.StaffBusinessDateView.as_view(), name="staff-business-date"),
