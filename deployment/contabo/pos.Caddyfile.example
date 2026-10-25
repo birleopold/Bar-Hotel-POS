@@ -6,6 +6,10 @@ pos.leosoftug.com {
         root * /var/www/leosoft-pos/static
         file_server
     }
+    handle_path /media/* {
+        root * /var/www/leosoft-pos/media
+        file_server
+    }
     handle {
         reverse_proxy 127.0.0.1:18083
     }
