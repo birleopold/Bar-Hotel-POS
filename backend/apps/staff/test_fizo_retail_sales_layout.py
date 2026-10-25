@@ -154,6 +154,15 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('Number(amount.value)===Number(oldDue)', js)
         self.assertIn("if(activePayment&&!remotePayment)", js)
 
+    def test_held_basket_lock_is_inside_database_transaction(self):
+        services = (Path(__file__).resolve().parent.parent /
+                    "pos/services/orders.py").read_text(encoding="utf-8")
+        self.assertIn(
+            "@transaction.atomic\ndef hold_open_order(*, order: Order, hold_label: str, user)",
+            services,
+        )
+        self.assertIn("Order.objects.select_for_update().get(pk=order.pk)", services)
+
     def test_barcode_and_product_errors_share_read_only_recovery(self):
         root = Path(__file__).resolve().parent
         js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
