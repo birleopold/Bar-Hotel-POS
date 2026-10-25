@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import F, Q, Count, Sum
+from django.db.models import F, Q, Count, Sum, Max
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
@@ -13,7 +13,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from apps.accounts.models import Membership, MembershipRole
 from apps.audit.models import AuditEvent, ExceptionPolicy, ExceptionReview, SensitiveActionApproval
 from apps.audit.services import log_audit
-from apps.inventory.models import StockBalance
+from apps.inventory.models import StockBalance, StockMovement, StockReason
 from apps.lodging.models import Reservation, ReservationStatus
 from apps.pos.models import Order, PosShift, PosShiftStatus, Refund
 from ..middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
@@ -202,6 +202,48 @@ def update_exception_case(request, *, case_id, status, note, assigned_to=None, d
     if review is None:
         raise ValidationError("This review is not in your scope.")
     return _save_assessment(request, review, status=status, note=note, assigned_to=assigned_to, due_date=due_date)
+
+
+def management_shrink_watch(request, *, policy, limit=10):
+    """Repeated negative inventory adjustments in the manager's current scope.
+
+    Quantities are never added across different products/UoMs. This is an
+    operational review aid over the existing stock ledger, not a valuation.
+    """
+    outlets, modules, vis = management_scope(request)
+    if "inventory" not in modules or not vis.inventory or not outlets:
+        return []
+    cutoff = timezone.now() - timedelta(days=policy.lookback_days)
+    rows = list(
+        StockMovement.objects.filter(
+            tenant=request.tenant,
+            outlet__in=outlets,
+            menu_item__tenant=request.tenant,
+            created_at__gte=cutoff,
+            quantity_change__lt=0,
+            reason__in=[
+                StockReason.WASTE,
+                StockReason.ADJUST_OUT,
+                StockReason.PHYSICAL_COUNT,
+            ],
+        )
+        .values(
+            "outlet_id",
+            "outlet__name",
+            "menu_item_id",
+            "menu_item__name",
+            "menu_item__unit_of_measure",
+        )
+        .annotate(
+            event_count=Count("pk"),
+            total_change=Sum("quantity_change"),
+            last_seen=Max("created_at"),
+        )
+        .order_by("-event_count", "total_change", "-last_seen")[:limit]
+    )
+    for item in rows:
+        item["quantity_removed"] = -item["total_change"]
+    return rows
 
 
 def management_orders(request):
