@@ -61,6 +61,9 @@ class TenantDomainResolutionMiddleware:
         except Exception:
             return HttpResponse("Invalid host", status=400, content_type="text/plain")
 
+        if host in central_hosts:
+            return self.get_response(request)
+
         key = f"tenant-domain:{host}"
         tenant_id = cache.get(key)
         if tenant_id is None:
