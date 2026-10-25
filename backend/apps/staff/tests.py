@@ -445,7 +445,7 @@ class StaffUiTests(TestCase):
         mobile_header = response.content.split(b'<header class="staff-nav', 1)[1].split(b'</header>', 1)[0]
         self.assertIn(b'fz-top-links', mobile_header)
         self.assertIn(b'Lock</button>', mobile_header)
-        self.assertIn(b'POS</a>', mobile_header)
+        self.assertIn(b'Orders</a>', mobile_header)
 
 
     def test_workspace_named_urls_reverse(self) -> None:
