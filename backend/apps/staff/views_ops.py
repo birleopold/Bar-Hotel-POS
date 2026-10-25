@@ -1504,21 +1504,26 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_add_line(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_add = (request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                     and order.outlet.outlet_type in {OutletType.RETAIL, OutletType.SUPERMARKET})
+        def reject(message, status=422):
+            if async_add:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
         if not _tenant_item_catalog_enabled(order.tenant):
-            messages.error(request, "Items and menus are not enabled for this business.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Items and menus are not enabled for this business.", 403)
         if order.status != OrderStatus.OPEN or order.is_paid:
-            messages.error(
-                request,
-                "Lines can only be added to open orders that are not yet paid.",
-            )
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Lines can only be added to open orders that are not yet paid.", 409)
         form = StaffOrderAddLineForm(
             request.POST,
             tenant_id=order.tenant_id,
             outlet_id=order.outlet_id,
         )
         if not form.is_valid():
+            if async_add:
+                return reject("; ".join(str(error) for errors in form.errors.values() for error in errors))
             for fld, err_list in form.errors.items():
                 for err in err_list:
                     messages.error(request, f"{fld}: {err}")
@@ -1531,8 +1536,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             try:
                 modifier_option_ids.append(uuid.UUID(t))
             except ValueError:
-                messages.error(request, "Invalid modifier selection.")
-                return redirect("staff-order-detail", order_id=order.id)
+                return reject("Invalid modifier selection.")
         try:
             add_line_to_open_order(
                 order=order,
@@ -1542,8 +1546,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 modifier_option_ids=modifier_option_ids or None,
             )
         except DRFValidationError as exc:
+            if async_add:
+                return reject(exc.detail)
             _flash_drf_validation(request, exc)
         else:
+            if async_add:
+                order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
+                return JsonResponse({"ok": True, "order_id": str(order.pk),
+                    "total": str(order.total), "currency": order.currency})
             messages.success(request, "Line added.")
         return redirect("staff-order-detail", order_id=order.id)
 
