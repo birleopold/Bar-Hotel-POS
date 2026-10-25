@@ -186,6 +186,15 @@ The supermarket cashier product tile previously displayed `MenuItem.unit_price` 
 - The same PO receiving integration regression now posts a second delivery for the two remaining units using one supplier carton (`"cartons": "1.0"` with carton size two), confirms the PO becomes fully received, stock increases correctly and the receipt stores one carton (`8d1c1982`). Focused CI target unchanged.
 - Test execution, physical receipt verification and production deployment remain **not observed**.
 
+### Shared first-party delivery integration — 25 October 2026 (new D00–D07 workstream)
+
+- **Product decision:** Delivery is an optional **fulfillment capability within this POS**, not a second application or financial ledger. It must serve restaurants/cafés, supermarkets/grocery/retail, bars/lounges where lawful, and hotel guest-room or external delivery using line-specific screens. Existing hospitality tables, KDS, guest folios, retail pickup, order totals, payment/stock postings and role permissions remain authoritative.
+- **External references reviewed:** Shopify POS local-delivery setup and pick/pack/deliver lifecycle (2026-09-28 change; Shopify Help Center) and Toast Orders Hub first-party restaurant dispatch. Full comparison, data model, status diagram, fee/COD policy, safeguards, tenant/outlet permissions and phased acceptance are in `docs/DELIVERY_FULFILLMENT_IMPLEMENTATION_2026-10-25.md`.
+- **D00 source groundwork committed** (`2f2702dc`): new `backend/apps/pos/services/delivery_policy.py` defines supported outlet types, address vs hotel-room destination validation, legal forward-only fulfillment transitions and fee input validation. The explicit first-release dispatch gate requires a settled order, assigned rider and no unresolved refund (`440ef98d`); COD does not silently activate.
+- **Tests and CI:** `backend/tests/test_delivery_policy.py` validates cross-business destinations, room-only rules, stage transitions, fee bounds, and paid-only dispatch (`4f1daa1c`, `97a0381d`); existing PostgreSQL CI now runs this contract (`8ed722b9`).
+- **Critical scope distinction:** D00 is **not a launched delivery feature**. D01 requires a migration-backed separate `OrderDelivery` record, per-outlet enablement and tenant checks; D02 adds paid first-party retail delivery actions; D03 restaurant/KDS, D04 hotel folio/room service, D05 bars with policy, D06 COD and financial reconciliation, D07 optional integrations. No delivery UI, new schema, payment collection or dispatch action was exposed by D00.
+- **Phase coverage:** D workstreams cross-cut P03 authorization/multitenancy, P05 orders, P06 cashier, P07 settlement/refunds, P08 stock, P09 receiving/fulfillment, P10 KDS, P12 hotel, P13 tenant modules and P15 regression/viewport acceptance. D01–D07 remain not implemented and D00 unverified by passing CI.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
