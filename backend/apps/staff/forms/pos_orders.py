@@ -350,6 +350,8 @@ class StaffCashDrawerMovementForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("direction") == "payout":
+            if "approver_id" not in self.fields:
+                raise forms.ValidationError("Cash payouts require a manager and a different approving manager.")
             if not cleaned.get("approver_id"):
                 self.add_error("approver_id", "Select a different manager to approve this payout.")
             if not cleaned.get("approver_pin"):
