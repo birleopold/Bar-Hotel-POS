@@ -1625,23 +1625,35 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             raise DRFValidationError("Invalid refund request identity.")
 
     def _post_record_payment(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_retail = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            and order.outlet.outlet_type in {OutletType.RETAIL, OutletType.SUPERMARKET}
+        )
+
+        def reject(message: str, *, status: int = 422) -> HttpResponse:
+            if async_retail:
+                return JsonResponse({"ok": False, "message": message}, status=status)
+            messages.error(request, message)
+            return redirect("staff-order-detail", order_id=order.id)
+
         _, bal = order_payment_totals(order)
         if (
             order.status != OrderStatus.OPEN
             or order.is_paid
             or bal <= Decimal("0")
         ):
-            messages.error(
-                request,
+            return reject(
                 "Payments can only be recorded on open orders with an outstanding balance.",
+                status=409,
             )
-            return redirect("staff-order-detail", order_id=order.id)
         form = StaffOrderPaymentForm(request.POST)
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            errors = [
+                f"{field}: {error}"
+                for field, error_list in form.errors.items()
+                for error in error_list
+            ]
+            return reject(" ".join(errors) or "Check the payment details.")
         try:
             record_order_payment(
                 order=order,
@@ -1652,21 +1664,38 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 workstation_id=settlement_workstation_id(request, outlet=order.outlet),
             )
         except DRFValidationError as exc:
+            detail = " ".join(_drf_detail_messages(exc.detail)) or "Payment could not be recorded."
+            if async_retail:
+                return JsonResponse({"ok": False, "message": detail}, status=409)
             _flash_drf_validation(request, exc)
+            return redirect("staff-order-detail", order_id=order.id)
+
+        order.refresh_from_db(fields=["is_paid", "status"])
+        paid, remaining = order_payment_totals(order)
+        completed = bool(order.is_paid and order.status == OrderStatus.CLOSED)
+        if completed:
+            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+                from .views_customer_display import mark_customer_display_completed
+                mark_customer_display_completed(order, request)
+            message = "Sale fully paid and completed. The final receipt is ready."
         else:
-            order.refresh_from_db(fields=["is_paid", "status"])
-            if order.is_paid and order.status == OrderStatus.CLOSED:
-                if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-                    from .views_customer_display import mark_customer_display_completed
-                    mark_customer_display_completed(order, request)
-                messages.success(request, "Sale fully paid and completed. The final receipt is ready.")
-            else:
-                _, remaining = order_payment_totals(order)
-                messages.success(
-                    request,
-                    f"Partial payment recorded. Balance remaining: {order.currency} {remaining:.2f}. "
-                    "You may hold this basket and resume payment later.",
-                )
+            message = (
+                f"Partial payment recorded. Balance remaining: {order.currency} {remaining:.2f}. "
+                "You may hold this basket and resume payment later."
+            )
+
+        if async_retail:
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "message": message,
+                    "completed": completed,
+                    "currency": order.currency,
+                    "paid": f"{paid:.2f}",
+                    "due": f"{remaining:.2f}",
+                }
+            )
+        messages.success(request, message)
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_quick_create_product(self, request: HttpRequest, order: Order) -> HttpResponse:
