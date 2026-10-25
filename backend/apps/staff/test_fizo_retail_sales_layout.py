@@ -107,15 +107,20 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertLess(js.index('if(amountSelectors.some(function(selector)'),
                         js.index('current.replaceChildren.apply(current'))
 
-    def test_inline_basket_refresh_checks_remote_payment_before_dom_changes(self):
+    def test_inline_basket_refresh_checks_payment_transition_before_dom_changes(self):
         js = (Path(__file__).resolve().parent /
               "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
-        self.assertIn('if(!!cash!==!!nextCash)', js)
-        self.assertIn('!nextCash.hasAttribute("data-balance-due")', js)
-        self.assertLess(js.index('if(!!cash!==!!nextCash)'),
-                        js.index('current.replaceChildren.apply(current'))
-        self.assertLess(js.index('if(!!activePayment!==!!remotePayment)'),
-                        js.index('current.replaceChildren.apply(current'))
+        # Empty baskets can acquire payment controls on the first item.
+        # Losing existing payment controls, or changing an existing cash
+        # calculator unexpectedly, must instead prevent DOM replacement.
+        self.assertIn("var activatingPayment=!activePayment&&!!remotePayment", js)
+        self.assertIn("if(activePayment&&!remotePayment)", js)
+        self.assertIn("if(!!cash!==!!nextCash && !activatingPayment)", js)
+        self.assertIn('var serverDue=nextCash.getAttribute("data-balance-due")', js)
+        self.assertLess(js.index("if(activePayment&&!remotePayment)"),
+                        js.index("current.replaceChildren.apply(current"))
+        self.assertLess(js.index("if(!!cash!==!!nextCash && !activatingPayment)"),
+                        js.index("current.replaceChildren.apply(current"))
 
     def test_inline_refresh_preserves_manual_partial_tender(self):
         js = (Path(__file__).resolve().parent /
@@ -123,9 +128,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('var tender=cash.querySelector("[data-retail-cash-received]")', js)
         self.assertIn('(!tender||!tender.value.trim())', js)
         self.assertIn('Number(amount.value)===Number(oldDue)', js)
-        self.assertIn('if(!!activePayment!==!!remotePayment)', js)
-        self.assertLess(js.index('if(!!activePayment!==!!remotePayment)'),
-                        js.index('current.replaceChildren.apply(current'))
+        self.assertIn("if(activePayment&&!remotePayment)", js)
 
     def test_barcode_and_product_errors_share_read_only_recovery(self):
         root = Path(__file__).resolve().parent
