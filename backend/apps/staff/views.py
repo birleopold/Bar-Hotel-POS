@@ -16,11 +16,11 @@ from django.views.generic import TemplateView
 from django.views.decorators.cache import never_cache
 from django.utils.decorators import method_decorator
 
-from apps.accounts.models import Membership
+from apps.accounts.models import Membership, MembershipRole
 from apps.audit.services import log_audit
 from apps.console.setup_flow import build_tenant_setup_state, sync_tenant_setup_progress
 from apps.console.mixins import membership_can_manage_org_console, user_is_platform_operator
-from apps.tenants.models import TenantSetupProgress
+from apps.tenants.models import OutletType, TenantSetupProgress
 
 from .forms import StaffLoginForm, StaffPinSetupForm, StaffTerminalUnlockForm
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_SITE_KEY, STAFF_SESSION_TENANT_KEY
@@ -48,6 +48,36 @@ from .services.dashboard_insights import (
     dashboard_sales_snapshot,
 )
 from .services.workbench import build_workbench_playbook, role_at_work_copy
+
+
+def _retail_cashier_landing(member, *, outlet_id="", pin_terminal=False) -> str | None:
+    """Return the simple retail checkout entry when this sign-in is cashier work.
+
+    Password-authenticated managers keep their management dashboard by default.
+    A PIN terminal is explicitly a service terminal, so any authorized worker
+    using it lands in checkout when the terminal/outlet is retail.
+    """
+    if member is None:
+        return None
+    outlets = staff_accessible_outlets(member)
+    retail = [
+        outlet for outlet in outlets
+        if outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+    ]
+    if not retail:
+        return None
+    if outlet_id and outlet_id != STAFF_SESSION_OUTLET_ALL:
+        try:
+            selected = uuid.UUID(str(outlet_id))
+        except (TypeError, ValueError, AttributeError):
+            selected = None
+        if selected and any(outlet.pk == selected for outlet in retail):
+            return reverse("staff-retail-pos-entry")
+    if pin_terminal and len(retail) == len(outlets):
+        return reverse("staff-retail-pos-entry")
+    if member.role == MembershipRole.SERVER and len(retail) == len(outlets):
+        return reverse("staff-retail-pos-entry")
+    return None
 
 
 def login_brand_for_request(request, scope=None):
@@ -129,6 +159,14 @@ class StaffLoginView(LoginView):
                 self.request.session["staff_pin_credential"] = first.staff_pin_hash
             if not getattr(first.tenant, "is_active", True):
                 return redirect("staff-pending-approval")
+            if not self.get_redirect_url():
+                retail_landing = _retail_cashier_landing(
+                    first,
+                    outlet_id=self.request.session.get(STAFF_SESSION_OUTLET_KEY, ""),
+                    pin_terminal=False,
+                )
+                if retail_landing:
+                    response["Location"] = retail_landing
         return response
 
 
@@ -187,7 +225,12 @@ class StaffTerminalView(View):
                 request.session.set_expiry(0)
                 log_audit(tenant_id=member.tenant_id, user_id=member.user_id,
                           action="staff.terminal_unlocked", entity_type="membership", entity_id=str(member.id), payload={})
-                return redirect("staff-dashboard")
+                retail_landing = _retail_cashier_landing(
+                    member,
+                    outlet_id=request.session.get(STAFF_SESSION_OUTLET_KEY, ""),
+                    pin_terminal=True,
+                )
+                return redirect(retail_landing or "staff-dashboard")
         form.add_error(None, "Unable to unlock. Check your name and PIN, or sign in with your password.")
         return render(request, "staff/terminal.html", {"form": form, "workers": workers, "login_brand": login_brand_for_request(request, scope)}, status=200)
 
