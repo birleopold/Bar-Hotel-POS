@@ -80,9 +80,11 @@ sudo cp deployment/contabo/leosoft-pos-gunicorn.service.example /etc/systemd/sys
 sudo systemctl daemon-reload
 ```
 
-During the current development/acceptance stage the deploy uses the existing
-runtime `DATABASE_URL` and applies migrations automatically. No second
-database-owner login is requested:
+During the current development/acceptance stage the deploy applies migrations
+automatically. It uses the existing runtime `DATABASE_URL` plus local
+`sudo -u postgres` access to grant temporary database-owner membership only
+for the migration command, then revokes it immediately. No second database
+login or owner password is requested:
 
 ```bash
 cd /home/admin/Bar-Hotel-POS
