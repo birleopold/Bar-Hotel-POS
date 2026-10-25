@@ -22,6 +22,7 @@ from apps.audit.services import log_audit
 from apps.console.setup_flow import build_tenant_setup_state, sync_tenant_setup_progress
 from apps.console.mixins import membership_can_manage_org_console, user_is_platform_operator
 from apps.tenants.models import OutletType, TenantSetupProgress
+from apps.tenants.subscriptions import tenant_operational_access
 
 from .forms import StaffLoginForm, StaffPinSetupForm, StaffTerminalUnlockForm
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_SITE_KEY, STAFF_SESSION_TENANT_KEY
@@ -173,6 +174,10 @@ class StaffLoginView(LoginView):
                 response = clear_terminal(response)
         if first:
             self.request.session[STAFF_SESSION_TENANT_KEY] = str(first.tenant_id)
+            access = tenant_operational_access(first.tenant)
+            if not access.allowed:
+                messages.info(self.request, access.message)
+                return redirect("staff-pending-approval")
             if scope and first.tenant_id == scope[0]:
                 outlet_id = scope[1]
                 if outlet_id == STAFF_SESSION_OUTLET_ALL:
@@ -241,7 +246,11 @@ class StaffTerminalView(View):
                 member_id=form.cleaned_data["worker"], tenant_id=scope[0],
                 outlet_id=scope[1], pin=form.cleaned_data["pin"],
             )
-            if member is not None and member.tenant.is_active:
+            if member is not None:
+                access = tenant_operational_access(member.tenant)
+                if not access.allowed:
+                    messages.info(request, access.message)
+                    return redirect("staff-login")
                 # login() rotates the session key; no previous worker's tenant, outlet,
                 # site, or privileges survive the switch.
                 logout(request)
@@ -507,6 +516,13 @@ class StaffPendingApprovalView(LoginRequiredMixin, TemplateView):
         if active is None and memberships:
             active = memberships[0]
         ctx["active_membership"] = active
+        if active is not None:
+            access = tenant_operational_access(active.tenant)
+            ctx["workspace_access_reason"] = access.reason
+            ctx["workspace_access_message"] = access.message
+        else:
+            ctx["workspace_access_reason"] = ""
+            ctx["workspace_access_message"] = ""
         return ctx
 
 
@@ -543,9 +559,11 @@ class StaffSelectTenantView(LoginRequiredMixin, View):
             .select_related("tenant")
             .first()
         )
-        if membership is not None and not getattr(membership.tenant, "is_active", True):
-            messages.info(request, "This workspace is pending platform approval.")
-            return redirect("staff-pending-approval")
+        if membership is not None:
+            access = tenant_operational_access(membership.tenant)
+            if not access.allowed:
+                messages.info(request, access.message)
+                return redirect("staff-pending-approval")
 
         if membership is not None and membership.staff_pin_hash:
             request.session["staff_pin_session"] = True
