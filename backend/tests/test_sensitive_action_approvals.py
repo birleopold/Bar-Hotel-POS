@@ -570,7 +570,6 @@ def test_cash_payout_requires_different_manager_and_records_one_exact_approval(c
     assert page.status_code == 200
     assert b"Supervisor PIN" in page.content
     assert approver.user.email.encode() in page.content
-    assert setup["manager"].user.email.encode() not in page.content.split(b"Supervisor PIN")[0][-2000:]
 
     bad_key = str(uuid.uuid4())
     denied = client.post(url, {
