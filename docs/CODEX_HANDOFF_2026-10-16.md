@@ -116,6 +116,16 @@ Existing regression `test_purchase_delivery_preflight_and_duplicate_reference_ke
 
 The central `to_stock_units` accepts `"1.0"` as a whole carton, but purchase receiving later tried `int("1.0")`. `ae591cff` normalizes using Decimal after validation. The existing PO regression `8d1c1982` now covers a second delivery completing the PO via one two-unit carton, including final PO status, stock and carton count. CI target remains in quality.yml; no passing result verified.
 
+## Delivery workstream D00–D07 — 25 October 2026
+
+Decision: keep ordinary first-party restaurant, supermarket, retail, bar and hotel deliveries in the *same* multi-tenant POS as an optional separate fulfillment workflow. Do not build a parallel order, payment or stock ledger and do not repurpose `RetailPickup` to represent courier dispatch. Details: `docs/DELIVERY_FULFILLMENT_IMPLEMENTATION_2026-10-25.md`.
+
+**Implemented D00 only:** Pure policy in `backend/apps/pos/services/delivery_policy.py` validates outlet-type support, external address versus hotel-room delivery, state transitions, currency-aware fees and paid-only assigned-driver dispatch (`2f2702dc`, `440ef98d`). `backend/tests/test_delivery_policy.py` covers these contracts (`4f1daa1c`, `97a0381d`); the existing PostgreSQL quality workflow includes them (`8ed722b9`). None of the policy code writes orders, delivery rows, money or stock.
+
+**Not implemented:** delivery model/migration, enablement per outlet, staff order-entry/dispatch screens, printed slip, rider assignment, courier API, COD, delivery fee posting and public customer tracking. D01 needs one migration-backed `OrderDelivery` model scoped to tenant/outlet with an order one-to-one key and explicit role permissions; verify latest migration dependency and run schema checks before committing it. D02 paid-only retail fulfillment should hook existing `Order`, `Payment` and `StockMovement` once, not re-post on dispatch. Expand D03 restaurant KDS, D04 room/folio, D05 legal bar delivery, D06 COD and D07 third-party integrations progressively.
+
+**Do not claim delivery is working or deployed.** Tests still need actual CI status, and live checkout/KDS/hotel/receipt/mobile viewport acceptance remains unsatisfied.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
