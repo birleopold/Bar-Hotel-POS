@@ -3,13 +3,43 @@ import uuid
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.views import View
 
 from apps.audit.models import StaffNotification
 from .mixins import StaffTenantRequiredMixin
 from .services.alerts import mark_alerts_read, refresh_staff_alerts
+
+
+class StaffNotificationsStatusView(StaffTenantRequiredMixin, View):
+    """Small private feed for badge/browser notification refresh."""
+    http_method_names = ["get", "head", "options"]
+
+    def get(self, request):
+        qs = StaffNotification.objects.filter(
+            tenant=request.tenant,
+            recipient=request.tenant_membership,
+            active=True,
+            read_at__isnull=True,
+        ).order_by("-created_at")
+        latest = qs.first()
+        payload = {
+            "unread_count": qs.count(),
+            "latest": None,
+        }
+        if latest is not None:
+            payload["latest"] = {
+                "id": str(latest.pk),
+                "title": latest.title,
+                "body": latest.body,
+                "url": latest.url,
+                "source_type": latest.source_type,
+                "created_at": latest.created_at.isoformat(),
+            }
+        response = JsonResponse(payload)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class StaffNotificationsView(StaffTenantRequiredMixin, View):
