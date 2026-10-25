@@ -232,3 +232,21 @@ After each coherent batch: commit to origin main (no force push); record exact S
 - The existing direct completion domain service is now manager-only, with a regression test proving an authorized storekeeper cannot bypass approval. No duplicate stock ledger or new sale/customer/table dependency was introduced.
 - Exact prior green source checkpoint: ed449b03359a0a2f2f2a0062c94bad3f46494a46 — https://github.com/birleopold/Bar-Hotel-POS/actions/runs/38956165341 — 592 passed, 5 skipped, 20 subtests; Django checks and migration-drift checks passed. This final permission guard/documentation commit requires its own CI.
 - F3, Phase 07 and Phase 08 stay IN PROGRESS: carton/unit conversions, in-transit transfers, original-lot reconciliation, PostgreSQL two-till races, mobile/browser workflows and physical devices remain unverified.
+
+
+### Retail cashier startup simplification — 25 October 2026
+
+**Implemented in source, awaiting CI/deployed browser acceptance.** The supermarket/retail daily start path is reduced from workspace/outlet/workstation/shift navigation to a cashier-first flow:
+
+1. Account sign-in for a cashier or PIN on an established counter terminal.
+2. Retail cashier/PIN sessions land directly at `staff-retail-pos-entry`; password-authenticated managers keep the management dashboard unless they explicitly entered checkout.
+3. The checkout entry silently reuses the authorized outlet, existing selected till and the cashier's one live till shift where it can do so safely.
+4. If exactly one usable till exists it is remembered automatically. If no physical workstation is configured, small stores use the existing section-wide register model and see no workstation setup.
+5. Only when multiple usable tills are genuinely ambiguous does the same start screen ask “Which till are you using?”
+6. If no shift is open, the same screen asks only for **Cash in drawer now**. Pressing **Start selling** atomically opens the shift and creates/reuses the cashier's first active basket, with tenant serialization preventing a double tap from creating duplicate empty baskets.
+7. If a shift is already open, opening-cash input disappears; **Start selling** enters checkout. The cashier start page no longer exposes daily “Shift and drawer” or “Register devices” navigation. Held sales remains directly reachable.
+8. Retail PIN copy now says **Start selling / Continue to checkout** instead of shared-workspace terminology. Hospitality/shared-terminal wording and short idle policy remain separate.
+
+This keeps opening-float reconciliation because established retail POS products use it to make expected-vs-counted drawer close meaningful, while hiding register administration from routine cashier work. Current reference patterns checked: Lightspeed Retail opening shifts, StoreConnect shift start, and other current retail register guidance all use cashier/PIN + opening float + direct POS entry rather than separate technical setup pages.
+
+Regression coverage added for direct retail PIN landing, cashier password landing, manager password dashboard preservation, one-action shift+first-basket creation, multi-till same-screen choice, shift-length retail PIN idle behavior and simplified template language. **Do not mark browser verified until the new head is deployed and TinyFish reaches the product grid without navigating through shift/workstation administration.**
