@@ -134,18 +134,33 @@ def _tenant_lodging_enabled(tenant) -> bool:
     return "lodging" in lines
 
 
+def _drf_detail_messages(detail, *, prefix: str = "") -> list[str]:
+    """Flatten DRF ErrorDetail containers into human-readable cashier text."""
+    if isinstance(detail, dict):
+        result: list[str] = []
+        for key, value in detail.items():
+            label = f"{prefix}{key}: " if key not in {"non_field_errors", "detail"} else prefix
+            result.extend(_drf_detail_messages(value, prefix=label))
+        return result
+    if isinstance(detail, (list, tuple)):
+        result: list[str] = []
+        for item in detail:
+            result.extend(_drf_detail_messages(item, prefix=prefix))
+        return result
+    return [f"{prefix}{detail}"]
+
+
+def _drf_has_code(value, wanted: str) -> bool:
+    if isinstance(value, dict):
+        return any(_drf_has_code(item, wanted) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_drf_has_code(item, wanted) for item in value)
+    return value == wanted
+
+
 def _flash_drf_validation(request: HttpRequest, exc: DRFValidationError) -> None:
-    d = exc.detail
-    if isinstance(d, dict):
-        for key, val in d.items():
-            parts = val if isinstance(val, list) else [val]
-            for p in parts:
-                messages.error(request, f"{key}: {str(p)}")
-    elif isinstance(d, (list, tuple)):
-        for item in d:
-            messages.error(request, str(item))
-    else:
-        messages.error(request, str(d))
+    for message in _drf_detail_messages(exc.detail):
+        messages.error(request, message)
 
 
 PRINT_DOCUMENT_TYPES = {"bill", "receipt"}
@@ -1884,8 +1899,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 reason=form.cleaned_data.get("reason") or "",
             )
         except DRFValidationError as exc:
-            if getattr(exc, "get_codes", None) and exc.get_codes() == "refund_required":
-                messages.error(request, str(exc.detail))
+            if getattr(exc, "get_codes", None) and _drf_has_code(exc.get_codes(), "refund_required"):
+                for message in _drf_detail_messages(exc.detail):
+                    messages.error(request, message)
                 messages.info(request, "Use the authorized refund controls below, then cancel this basket again.")
             else:
                 _flash_drf_validation(request, exc)
