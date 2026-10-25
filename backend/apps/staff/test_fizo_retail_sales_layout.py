@@ -127,6 +127,16 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertLess(js.index('if(!!activePayment!==!!remotePayment)'),
                         js.index('current.replaceChildren.apply(current'))
 
+    def test_barcode_and_product_errors_share_read_only_recovery(self):
+        root = Path(__file__).resolve().parent
+        js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        scan = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn("window.retailShowCheckoutRecovery=showCheckoutRecovery", js)
+        self.assertIn("showCheckoutRecovery(live,error)", js)
+        self.assertIn("window.retailShowCheckoutRecovery(scanStatus, error)", scan)
+        self.assertIn("retry.type=\"button\"", js)
+        self.assertIn("window.location.reload()", js)
+
     def test_barcode_scan_json_and_shared_inline_basket_refresh(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
