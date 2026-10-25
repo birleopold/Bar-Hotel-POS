@@ -1697,14 +1697,32 @@ class SupermarketCashierLaneTests(TestCase):
         )
 
     def test_successful_retail_void_redirects_to_fresh_pos_entry(self):
+        import uuid
         from apps.pos.models import OrderStatus
+        from apps.staff.terminal import set_member_pin
+
+        manager_user = User.objects.create_user(
+            email="void-approver@test.local", password="TestPass9!",
+        )
+        approver = Membership.objects.create(
+            user=manager_user, tenant=self.tenant, role=MembershipRole.OUTLET_MANAGER,
+        )
+        approver.sites.add(self.outlet.site)
+        approver.outlets.add(self.outlet)
+        set_member_pin(approver, "573951")
         order = Order.objects.create(
             tenant=self.tenant, outlet=self.outlet, created_by=self.user,
             subtotal=Decimal("2500"), total=Decimal("2500"), currency="UGX",
         )
         response = self.client.post(
             reverse("staff-order-detail", kwargs={"order_id": order.pk}),
-            {"action": "void_order", "reason": "Customer changed their mind"},
+            {
+                "action": "void_order",
+                "void_request_key": str(uuid.uuid4()),
+                "reason": "Customer changed their mind",
+                "approver_id": str(approver.pk),
+                "approver_pin": "573951",
+            },
         )
         order.refresh_from_db()
         self.assertEqual(order.status, OrderStatus.CANCELLED)
