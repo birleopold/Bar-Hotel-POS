@@ -333,6 +333,18 @@ class StaffPosShiftOpenForm(forms.Form):
     )
 
 
+class StaffNoSaleDrawerForm(forms.Form):
+    request_key = forms.UUIDField(widget=forms.HiddenInput())
+    reason = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(attrs={
+            "class": "staff-input",
+            "maxlength": 255,
+            "placeholder": "Reason for opening drawer without a sale",
+        }),
+    )
+
+
 class StaffCashDrawerMovementForm(forms.Form):
     shift_id = forms.UUIDField(widget=forms.HiddenInput())
     idempotency_key = forms.UUIDField(widget=forms.HiddenInput())
