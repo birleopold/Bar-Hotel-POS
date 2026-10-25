@@ -189,18 +189,18 @@
               <td>{{ inv.get_status_display }}</td>
               <td>{{ inv.issued_at|default:"—" }}</td>
               <td>
-                <form method="post" class="d-flex flex-wrap gap-2 align-items-end">
-                  {% csrf_token %}
-                  <input type="hidden" name="invoice_id" value="{{ inv.id }}">
-                  <select name="status" class="staff-input" aria-label="New status for {{ inv.invoice_number }}">
-                    <option value="draft" {% if inv.status == 'draft' %}selected{% endif %}>Draft</option>
-                    <option value="issued" {% if inv.status == 'issued' %}selected{% endif %}>Issued</option>
-                    <option value="past_due" {% if inv.status == 'past_due' %}selected{% endif %}>Past due</option>
-                    <option value="paid" {% if inv.status == 'paid' %}selected{% endif %}>Paid</option>
-                    <option value="void" {% if inv.status == 'void' %}selected{% endif %}>Void</option>
-                  </select>
-                  <button type="submit" name="invoice_set_status" value="1" class="staff-btn staff-btn--ghost staff-btn--sm">Update</button>
-                </form>
+                {% if inv.allowed_status_transitions %}
+                  <form method="post" class="d-flex flex-wrap gap-2 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="invoice_id" value="{{ inv.id }}">
+                    <select name="status" class="staff-input" aria-label="New status for {{ inv.invoice_number }}">
+                      {% for value,label in inv.allowed_status_transitions %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                    </select>
+                    <button type="submit" name="invoice_set_status" value="1" class="staff-btn staff-btn--ghost staff-btn--sm">Update</button>
+                  </form>
+                {% else %}
+                  <span class="staff-muted small">Final state</span>
+                {% endif %}
               </td>
             </tr>
           {% empty %}
