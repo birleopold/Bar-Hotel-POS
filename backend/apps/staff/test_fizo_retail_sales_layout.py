@@ -167,6 +167,17 @@ class RetailSalesLandingTests(SimpleTestCase):
         )
         self.assertIn("Order.objects.select_for_update().get(pk=order.pk)", services)
 
+    def test_open_basket_cancellation_does_not_restock_unsold_inventory(self):
+        root = Path(__file__).resolve().parent
+        orders = (root.parent / "pos/services/orders.py").read_text(encoding="utf-8")
+        payments = (root.parent / "pos/services/payments.py").read_text(encoding="utf-8")
+        cancel = orders.split("def cancel_open_unpaid_order", 1)[1].split(
+            "def process_supermarket_line_return", 1
+        )[0]
+        self.assertNotIn("apply_manual_stock_change", cancel)
+        self.assertNotIn("StockReason.ADJUST_IN", cancel)
+        self.assertIn("validate_and_consume_stock_for_paid_order(locked, user)", payments)
+
     def test_part_paid_cancellation_requires_exact_refund_reconciliation(self):
         root = Path(__file__).resolve().parent
         services = (root.parent / "pos/services/orders.py").read_text(encoding="utf-8")
@@ -180,8 +191,8 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('"recorded_refunds": str(refunded)', services)
         self.assertIn('"net_payment": str((recorded - refunded).quantize(Decimal("0.01")))', services)
         self.assertIn('Use the authorized refund controls below, then cancel this basket again.', view)
-        self.assertIn('href="#retail-refund-controls">Refund before void</a>', detail)
-        self.assertIn('Supervisor refund required', detail)
+        self.assertIn('href="#retail-refund-controls">Refund {{ order.currency }} {{ refundable_remaining }} before void</a>', detail)
+        self.assertIn('Supervisor refund {{ order.currency }} {{ refundable_remaining }} required', detail)
 
     def test_refunds_use_rendered_stable_idempotency_keys(self):
         root = Path(__file__).resolve().parent
