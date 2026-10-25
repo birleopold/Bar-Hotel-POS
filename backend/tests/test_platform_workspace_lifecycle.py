@@ -332,8 +332,10 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         filtered = self.client.get(url, {"subscription": "expired_trial"})
         self.assertEqual(filtered.status_code, 200)
         self.assertContains(filtered, "Access Expired")
-        self.assertNotContains(filtered, "Access Active")
-        self.assertNotContains(filtered, "Access Suspended")
+        self.assertEqual(
+            [tenant.name for tenant in filtered.context["tenants"]],
+            ["Access Expired"],
+        )
 
     def test_creating_past_due_invoice_reconciles_subscription_status(self):
         from apps.tenants.models import (
