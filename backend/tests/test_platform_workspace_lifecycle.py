@@ -368,6 +368,51 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         subscription.refresh_from_db()
         self.assertEqual(subscription.status, SubscriptionStatus.PAST_DUE)
 
+    def test_invoice_status_cannot_reverse_from_paid_or_void(self):
+        from apps.tenants.models import (
+            BillingInvoice, BillingInvoiceStatus, Plan,
+            SubscriptionStatus, TenantSubscription,
+        )
+        tenant = Tenant.objects.create(name="Invoice final states", slug="invoice-final-states")
+        TenantSettings.objects.create(tenant=tenant)
+        plan = Plan.objects.create(name="Invoice Final Plan", code="invoice-final-plan")
+        subscription = TenantSubscription.objects.create(
+            tenant=tenant, plan=plan, status=SubscriptionStatus.ACTIVE,
+        )
+        paid = BillingInvoice.objects.create(
+            tenant=tenant,
+            subscription=subscription,
+            invoice_number="INV-FINAL-PAID",
+            amount="100.00",
+            currency="UGX",
+            status=BillingInvoiceStatus.PAID,
+        )
+        void = BillingInvoice.objects.create(
+            tenant=tenant,
+            subscription=subscription,
+            invoice_number="INV-FINAL-VOID",
+            amount="100.00",
+            currency="UGX",
+            status=BillingInvoiceStatus.VOID,
+        )
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        for invoice, target in (
+            (paid, BillingInvoiceStatus.DRAFT),
+            (void, BillingInvoiceStatus.PAST_DUE),
+        ):
+            response = self.client.post(url, {
+                "invoice_set_status": "1",
+                "invoice_id": str(invoice.pk),
+                "status": target,
+            })
+            self.assertRedirects(response, url)
+            invoice.refresh_from_db()
+            self.assertNotEqual(invoice.status, target)
+
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Final state", count=2)
+
     def test_tenant_scope_middleware_precedes_staff_membership_lookup(self):
         from django.conf import settings
         middleware = settings.MIDDLEWARE
