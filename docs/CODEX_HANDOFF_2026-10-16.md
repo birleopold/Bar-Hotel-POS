@@ -126,6 +126,14 @@ Decision: keep ordinary first-party restaurant, supermarket, retail, bar and hot
 
 **Do not claim delivery is working or deployed.** Tests still need actual CI status, and live checkout/KDS/hotel/receipt/mobile viewport acceptance remains unsatisfied.
 
+## Delivery D01/D02 migration and staff queue — 25 October continuation
+
+- `pos/models.py` now has disabled-by-default per-outlet `OutletDeliverySettings` and one-to-one `OrderDelivery` with independent fulfillment state, encrypted-at-rest only if provided by infrastructure (no claim made), PII restricted to manager delivery screen. Migration `0030_delivery_fulfillment` depends on `0029_order_quick_create_key`; `0031_delivery_fulfillment_rls` enables PostgreSQL tenant policy. No historical orders reset and no duplicate sales ledger.
+- `pos/services/deliveries.py` has manager/outlet opt-in, register already-paid sale, replay protection, pickup/delivery exclusivity, manager-assigned same-tenant/outlet worker and row-locked, audited fulfillment transitions, no stock/payment re-posting. Room service registration requires the actual checked-in reservation/folio room. Existing `pos/services/pickups.py` checks for delivery conflict.
+- `staff/views_delivery.py` and `staff/pos/deliveries.html`, staff URL `staff-deliveries`, existing sidebar/pickup navigation: manager-only outlet setting, paid-unfulfilled selection, registration, worker, status and reason forms. Staff filters all delivery records and worker choices by tenant/accessible outlet. Fulfillment actions remain first-party and paid-only; no COD, third-party dispatch, live tracking, fee posting, room folio charge or kitchen integration.
+- `tests/test_delivery_persistence.py` covers manager/non-manager GET/POST, enabled outlet, paid ledger, foreign-tenant/outlet denial, delivery vs pickup conflict, replay, dispatch, assignment, hotel checked-in folio and checkout. `test_postgres_rls_policy_presence.py` includes both delivery tables. Existing GitHub quality job includes these tests on PostgreSQL and the complete suite on SQLite.
+- **CI evidence:** GitHub run 40171883331 reported successful Django system and migration-drift checks; full suite and PostgreSQL outcomes not observed as passed, and subsequent main pushes cancelled/restarted runs. Run migrations on staging, execute current CI + real browser before enabling delivery in production. Never call these features production-certified. See `docs/DELIVERY_FULFILLMENT_IMPLEMENTATION_2026-10-25.md`.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
