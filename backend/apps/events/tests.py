@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import IntegrityError, transaction
 from django.test import TestCase
@@ -9,7 +10,7 @@ from apps.accounts.models import Membership, MembershipRole, User
 from apps.tenants.models import Site, Tenant, TenantSettings
 
 from .models import EventBooking, EventSpace
-from .serializers import EventBookingSerializer, EventSpaceSerializer
+from .serializers import CreateEventPaymentSerializer, CreateEventQuoteSerializer, EventBookingSerializer, EventSpaceSerializer
 
 
 class EventBookingConstraintTests(TestCase):
@@ -104,3 +105,9 @@ class EventSerializerScopeTests(TestCase):
             context={"request": self._request()},
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+class EventMoneySerializerTests(TestCase):
+    def test_event_money_minimums_use_decimal_values(self) -> None:
+        self.assertEqual(CreateEventQuoteSerializer().fields["amount"].min_value, Decimal("0.01"))
+        self.assertEqual(CreateEventPaymentSerializer().fields["amount"].min_value, Decimal("0.01"))
