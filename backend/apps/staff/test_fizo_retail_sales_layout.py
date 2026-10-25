@@ -75,6 +75,19 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('request.headers.get("X-Requested-With") == "XMLHttpRequest"', gate)
         self.assertIn('return JsonResponse({"ok": False, "message": message}, status=403)', gate)
 
+    def test_retail_product_add_requires_explicit_server_confirmation(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        handler = view.split("    def _post_add_line(", 1)[1].split(
+            "    def _post_add_service_line(", 1)[0]
+        self.assertIn('"X-Requested-With") == "XMLHttpRequest"', handler)
+        self.assertIn('"ok": True', handler)
+        self.assertIn('"ok": False', handler)
+        self.assertIn('if(response.redirected)', js)
+        self.assertIn('if(!response.ok||!data.ok)', js)
+        self.assertIn('return fetch(window.location.href', js)
+
     def test_retail_quantity_confirmation_has_no_false_success_fallback(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
