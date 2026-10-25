@@ -269,7 +269,11 @@
         var fresh=remote.querySelector("#fizo-current-basket .fizo-retail-basket-items");
         var current=document.querySelector("#fizo-current-basket .fizo-retail-basket-items");
         if(!fresh||!current)throw new Error("Checkout confirmation is unavailable.");
+        if(fresh.innerHTML===current.innerHTML){
+          throw new Error("Item was not added; check product availability and basket messages.");
+        }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
+        document.dispatchEvent(new Event("retail:basket-lines-replaced"));
         [".fizo-retail-basket-summary",".fizo-cashier-payment-summary strong",
          ".staff-pos-totals-row__total strong",".staff-pos-totals-row__meta",
          ".fizo-cashier-pay-cta span"].forEach(function(selector){
