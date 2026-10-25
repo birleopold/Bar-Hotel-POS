@@ -86,6 +86,11 @@ from .forms import (
     StaffTableForm,
 )
 from .services.customers import can_manage_customers, visible_customers
+from .services.approvals import (
+    SensitiveApprovalError,
+    authorize_sensitive_action,
+    sensitive_action_approvers,
+)
 from .services.permissions import membership_can_approve_sensitive_action
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
@@ -1104,18 +1109,45 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         )
         refundable = order_refundable_remaining(order)
         can_approve_refunds = membership_can_approve_refunds(m)
-        can_refund = (
-            can_approve_refunds
-            and staff_outlet_allowed_for_membership(m, order.outlet_id)
-            and (
-                (order.status == OrderStatus.CLOSED and order.is_paid)
-                or (
-                    order.status == OrderStatus.OPEN and not order.is_paid
-                    and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
-                )
+        retail_refund_approvers = (
+            sensitive_action_approvers(
+                requester=m,
+                action="refund",
+                outlet_id=order.outlet_id,
             )
-            and refundable > Decimal("0")
+            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            else []
         )
+        retail_line_refund_approvers = (
+            sensitive_action_approvers(
+                requester=m,
+                action="retail_line_refund",
+                outlet_id=order.outlet_id,
+            )
+            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            else []
+        )
+        order_refundable_state = (
+            (order.status == OrderStatus.CLOSED and order.is_paid)
+            or (
+                order.status == OrderStatus.OPEN and not order.is_paid
+                and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            )
+        )
+        if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            can_refund = (
+                staff_outlet_allowed_for_membership(m, order.outlet_id)
+                and order_refundable_state
+                and refundable > Decimal("0")
+                and bool(retail_refund_approvers)
+            )
+        else:
+            can_refund = (
+                can_approve_refunds
+                and staff_outlet_allowed_for_membership(m, order.outlet_id)
+                and order_refundable_state
+                and refundable > Decimal("0")
+            )
         ctx["can_record_refund"] = can_refund
         ctx["can_approve_refunds"] = can_approve_refunds
         ctx["refundable_remaining"] = refundable
@@ -1125,6 +1157,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 initial={"amount": refundable},
                 payments=pays,
                 max_refund=refundable,
+                approvers=retail_refund_approvers
+                if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+                else None,
             )
             if can_refund
             else None
@@ -1353,7 +1388,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         )
         ctx["retail_refund_form"] = (
             StaffRetailLineRefundForm(
-                lines=list(order.lines.all()), payments=pays, max_refund=refundable,
+                lines=list(order.lines.all()),
+                payments=pays,
+                max_refund=refundable,
+                approvers=retail_line_refund_approvers,
             ) if is_supermarket_outlet and can_refund else None
         )
         for line in order.lines.all():
@@ -1396,9 +1434,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             # this is intentionally narrower than general order/payment edits.
             return self._post_ack_ready_line(request, order)
         if action == "record_refund":
-            # The refund handler supplies its own manager check and actionable
-            # feedback, including for workers who cannot edit settled orders.
+            # Retail refunds use transaction-bound supervisor approval; other
+            # business lines retain the existing manager-only check.
             return self._post_record_refund(request, order)
+        if action == "retail_line_refund":
+            return self._post_retail_line_refund(request, order)
         cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order", "resume_order"}
         if not (membership_can_modify_lodging(m) or (
             action in cashier_actions and _can_operate_retail_checkout(m, order)
