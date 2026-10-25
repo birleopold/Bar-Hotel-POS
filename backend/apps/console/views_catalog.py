@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView, View
 
+from apps.audit.services import log_audit
 from apps.catalog.models import (
     MenuCategory,
     MenuItem,
@@ -106,7 +107,13 @@ def _save_catalog_item_safely(view, form, *, creating):
         name = form.cleaned_data["name"].strip()
         barcode = (form.cleaned_data.get("barcode") or "").strip()
         candidates = MenuItem.objects.filter(tenant=view.request.tenant)
+        current = None
+        before_price = None
         if not creating:
+            current = MenuItem.objects.select_for_update().get(
+                pk=view.object.pk, tenant=view.request.tenant
+            )
+            before_price = current.unit_price
             candidates = candidates.exclude(pk=view.object.pk)
         if candidates.filter(name__iexact=name).exists():
             form.add_error("name", "A product with this name already exists. Edit the existing product.")
@@ -121,13 +128,30 @@ def _save_catalog_item_safely(view, form, *, creating):
             # A phone may have uploaded a newer photo while this desktop form
             # was being filled. Keep the latest committed photo unless the
             # desktop user explicitly replaced or cleared it.
-            current = MenuItem.objects.select_for_update().get(
-                pk=view.object.pk, tenant=view.request.tenant
-            )
             instance.product_image = current.product_image
         instance.save()
         sync_menu_item_outlet_links(instance, form.cleaned_data.get("outlets"))
         sync_menu_item_modifier_groups(instance, form.cleaned_data.get("modifier_groups"))
+        if not creating and before_price != instance.unit_price:
+            explicit_outlet_ids = [
+                str(value)
+                for value in MenuItemOutlet.objects.filter(menu_item=instance)
+                .values_list("outlet_id", flat=True)
+            ]
+            log_audit(
+                tenant_id=view.request.tenant.pk,
+                user_id=view.request.user.pk,
+                action="catalog.unit_price_changed",
+                entity_type="menu_item",
+                entity_id=str(instance.pk),
+                payload={
+                    "item_name": instance.name,
+                    "before": str(before_price),
+                    "after": str(instance.unit_price),
+                    "outlet_ids": explicit_outlet_ids,
+                    "applies_to_all_outlets": not bool(explicit_outlet_ids),
+                },
+            )
         view.object = instance
     messages.success(view.request, f"Item “{view.object.name}” {'created' if creating else 'saved'}.")
     return redirect(view.get_success_url())
@@ -351,11 +375,30 @@ class OrgMenuItemOutletCreateView(MenuItemScopedMixin, CreateView):
         if MenuItemOutlet.objects.filter(menu_item=self.menu_item, outlet=outlet).exists():
             messages.error(self.request, "That outlet is already linked; edit it instead.")
             return redirect(self.get_success_url())
-        MenuItemOutlet.objects.create(
+        price_override = form.cleaned_data.get("price_override")
+        link = MenuItemOutlet.objects.create(
             menu_item=self.menu_item,
             outlet=outlet,
-            price_override=form.cleaned_data.get("price_override"),
+            price_override=price_override,
         )
+        if price_override is not None:
+            log_audit(
+                tenant_id=self.request.tenant.pk,
+                user_id=self.request.user.pk,
+                action="catalog.outlet_price_override_changed",
+                entity_type="menu_item_outlet",
+                entity_id=str(link.pk),
+                payload={
+                    "menu_item_id": str(self.menu_item.pk),
+                    "item_name": self.menu_item.name,
+                    "outlet_id": str(outlet.pk),
+                    "outlet_name": outlet.name,
+                    "before": str(self.menu_item.unit_price),
+                    "after": str(price_override),
+                    "override_before": None,
+                    "override_after": str(price_override),
+                },
+            )
         messages.success(self.request, f"Outlet “{outlet.name}” linked with pricing.")
         return redirect(self.get_success_url())
 
@@ -379,8 +422,29 @@ class OrgMenuItemOutletUpdateView(MenuItemScopedMixin, UpdateView):
         return reverse("console-org-menu-item-outlets", kwargs={"item_id": self.menu_item.pk})
 
     def form_valid(self, form):
+        previous = MenuItemOutlet.objects.get(pk=self.object.pk).price_override
+        response = super().form_valid(form)
+        current = self.object.price_override
+        if previous != current:
+            log_audit(
+                tenant_id=self.request.tenant.pk,
+                user_id=self.request.user.pk,
+                action="catalog.outlet_price_override_changed",
+                entity_type="menu_item_outlet",
+                entity_id=str(self.object.pk),
+                payload={
+                    "menu_item_id": str(self.menu_item.pk),
+                    "item_name": self.menu_item.name,
+                    "outlet_id": str(self.object.outlet_id),
+                    "outlet_name": self.object.outlet.name,
+                    "before": str(previous if previous is not None else self.menu_item.unit_price),
+                    "after": str(current if current is not None else self.menu_item.unit_price),
+                    "override_before": str(previous) if previous is not None else None,
+                    "override_after": str(current) if current is not None else None,
+                },
+            )
         messages.success(self.request, "Outlet pricing updated.")
-        return super().form_valid(form)
+        return response
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -403,7 +467,29 @@ class OrgMenuItemOutletDeleteView(MenuItemScopedMixin, DeleteView):
     def delete(self, request, *args, **kwargs):
         obj = self.get_object()
         name = obj.outlet.name
+        override = obj.price_override
+        outlet_id = obj.outlet_id
+        link_id = obj.pk
         response = super().delete(request, *args, **kwargs)
+        if override is not None:
+            log_audit(
+                tenant_id=request.tenant.pk,
+                user_id=request.user.pk,
+                action="catalog.outlet_price_override_changed",
+                entity_type="menu_item_outlet",
+                entity_id=str(link_id),
+                payload={
+                    "menu_item_id": str(self.menu_item.pk),
+                    "item_name": self.menu_item.name,
+                    "outlet_id": str(outlet_id),
+                    "outlet_name": name,
+                    "before": str(override),
+                    "after": str(self.menu_item.unit_price),
+                    "override_before": str(override),
+                    "override_after": None,
+                    "link_removed": True,
+                },
+            )
         messages.success(request, f"Removed outlet link for “{name}”.")
         return response
 
