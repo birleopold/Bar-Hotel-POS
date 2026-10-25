@@ -381,11 +381,12 @@
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Offer</h2>
           {% include "staff/includes/form_errors_block.html" with form=apply_promotion_form title="Fix offer details" %}
-          <form method="post" class="row g-2 align-items-end">
+          <form method="post" class="row g-2 align-items-end" data-retail-promotion-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="apply_promotion">
             <div class="col-12 col-md-8">{{ apply_promotion_form.promotion.label_tag }}{{ apply_promotion_form.promotion }}</div>
             <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch w-100">Apply</button></div>
+            {% if is_supermarket_outlet %}<div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-promotion-status></p></div>{% endif %}
           </form>
         </div>
       {% endif %}
