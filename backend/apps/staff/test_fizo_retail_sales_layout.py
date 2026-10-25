@@ -570,22 +570,31 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("Confirm quantity and add to basket.", js)
         self.assertNotIn("Confirm quantity and choose Add to basket.", js)
 
-    def test_completed_retail_sale_offers_new_customer_without_locking_terminal(self):
+    def test_completed_retail_sale_keeps_cashier_in_checkout_for_next_customer(self):
         root = Path(__file__).resolve().parent
         detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
         supermarket = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
         css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
 
-        self.assertIn("staff-order-next-customer", detail)
-        self.assertIn("New customer", detail)
-        closed_block = detail.split("{% if order.status == 'closed' %}", 1)[1].split("{% endif %}", 1)[0]
-        self.assertIn("is_supermarket_outlet and order.is_paid", closed_block)
-        self.assertIn("staff-order-quick-create", closed_block)
+        self.assertIn("fizo-sale-complete-actions", detail)
+        self.assertIn("Sale complete", detail)
+        self.assertIn("Receipt ready", detail)
+        self.assertIn("Print receipt", detail)
+        self.assertIn("Next customer", detail)
+        self.assertIn("fizo-sale-next-customer", detail)
+        self.assertIn('action="{% url \'staff-order-quick-create\' %}"', detail)
+        self.assertIn('name="quick_create_key" value="{{ next_sale_request_key }}"', detail)
+        self.assertIn("is-complete", detail)
+        self.assertIn(".fizo-checkout-basket.is-complete .fizo-cashier-payment-summary{display:none}", css)
+        self.assertIn(".fizo-sale-complete-actions{", css)
+        self.assertIn(".fizo-sale-next-customer .staff-btn{width:100%;font-size:15px}", css)
+
+        # Do not hide the daily next-customer flow in the auxiliary tools card.
+        self.assertNotIn("reference-sale-complete", supermarket)
+        self.assertNotIn(".reference-sale-complete{", css)
+        # Retail completion must not force a lock; hospitality keeps its lock action.
+        self.assertIn("{% if order.status == 'closed' and not is_supermarket_outlet %}", detail)
         self.assertIn("Done · lock terminal", detail)
-        self.assertIn("reference-sale-complete", supermarket)
-        self.assertIn("Receipt ready", supermarket)
-        self.assertIn("> New customer</button>", supermarket)
-        self.assertIn(".reference-sale-complete{", css)
 
     def test_basket_stays_tall_until_cashier_opens_payment(self):
         root = Path(__file__).resolve().parent
