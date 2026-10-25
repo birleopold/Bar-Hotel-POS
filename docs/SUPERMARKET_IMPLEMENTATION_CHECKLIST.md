@@ -284,3 +284,10 @@ Do not conflate a committed regression test with a passing test or a completed r
 - Manual stock decreases cannot bypass approval through CSV; adjust-out/waste rows are rejected from bulk upload and must use the manager-approved movement form.
 - The existing manager workspace exposes scoped approval evidence alongside exception follow-up. SM-35 therefore moves from not evidenced to partial, but remains open for no-sale drawer events, richer shrink/price-override analytics and deployed investigation drills.
 - SM-20 remains partial until every applicable sensitive mutation and API/service route shares the same boundary and real multi-manager register acceptance is recorded.
+
+
+### 2026-10-26 — F5 cashier-attributed void evidence
+
+- The existing manager exception center now attributes voided lines to the staff user who performed the void and shows that worker's void count across the configured review window, alongside repeated voids on the same sale. This preserves fast pre-payment basket correction while making repeated cashier void patterns visible for investigation.
+- No new loss-prevention dashboard or duplicate event store was introduced; the existing `OrderLine.voided_by`, exception review workflow and manager source links are reused.
+- SM-35 advances from not evidenced to partial software implementation. No-sale drawer events, stronger shift/cashier trend aggregation, price-override approval evidence and physical/production acceptance remain open. Exact-head CI is required before treating this checkpoint as verified.
