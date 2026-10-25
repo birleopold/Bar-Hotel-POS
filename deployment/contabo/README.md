@@ -73,23 +73,17 @@ to check template consistency without changing the machine.
 
 ## Production env
 
-Use `pos.env.example` as a checklist. Store the file at
-`/etc/leosoft-pos/pos.env` readable by `admin` only. For schema migrations,
-use a separate database-owner connection supplied as `MIGRATION_DATABASE_URL`
-for the deploy shell; keep that owner password *out of* the long-lived systemd
-environment. When pending migrations are detected and the deploy is attached
-to a terminal, `deploy-app.sh` prompts for that URL with hidden input and uses
-it only for that run. Non-interactive deploys must export
-`MIGRATION_DATABASE_URL` explicitly. The script verifies that the migration
-role differs from the runtime role before applying migrations, then grants the
-actual runtime role the required schema, table and sequence privileges. The
-normal `DATABASE_URL` must use a non-owner PostgreSQL login role because an
-owner bypasses ordinary RLS. Do not expose
-`/home/admin` to nginx: POS static assets are copied to `/var/www/leosoft-pos/static`.
-Provision secrets securely rather than
-committing them. Application settings live in `backend/config/settings/production.py`.
-The file deliberately does not enable HSTS for subdomains until their HTTPS
-coverage is certified.
+Use `pos.env.example` as a checklist and store the runtime environment at
+`/etc/leosoft-pos/pos.env`. During the current development/acceptance stage,
+`deploy-app.sh` uses the existing application `DATABASE_URL` directly for
+Django migrations, matching the simpler deployment style used by the other
+applications on this VPS. No separate `MIGRATION_DATABASE_URL` prompt is
+required.
+
+Before final production hardening, review the PostgreSQL ownership/RLS model
+again and restore a dedicated migration-owner path if required. Do not expose
+`/home/admin` through the web server; POS static assets are published under
+`/var/www/leosoft-pos/static`.
 
 ## W3 acceptance (non-destructive)
 
