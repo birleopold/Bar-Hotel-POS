@@ -297,6 +297,13 @@
           var freshCard=remotePayment.closest(".staff-card--pos");
           if(!freshCard)throw new Error("Payment details missing from checkout.");
           if(idlePayment&&idlePayment.parentNode)idlePayment.remove();
+          // The empty basket did not contain a Pay CTA. Import the
+          // server-authorized shortcut before binding its click handler.
+          var liveSummary=basket.querySelector(".fizo-cashier-payment-summary");
+          var remoteCta=remoteBasket.querySelector(".fizo-cashier-pay-cta");
+          if(liveSummary&&remoteCta&&!liveSummary.querySelector(".fizo-cashier-pay-cta")){
+            liveSummary.appendChild(document.importNode(remoteCta,true));
+          }
           var newCard=document.importNode(freshCard,true);
           newCard.classList.add("reference-payment-card");
           basket.appendChild(newCard);
