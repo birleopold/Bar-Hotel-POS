@@ -12,6 +12,19 @@
 {% if management_error %}<div class="staff-card mb-3" role="alert">{{ management_error }}</div>{% endif %}
 {% if management_view == 'exceptions' %}
   <p class="staff-muted">Up to 50 current exceptions per category. Financial and security events cover the last {{ exception_policy.lookback_days }} days. The latest 200 assessments for displayed sources are shown in their histories. Review records your assessment; it does not correct a balance or authorize a transaction. Follow-up requires an assigned manager and due date; resolved reviews remain in case history.</p>
+  <section class="staff-card mb-3" aria-labelledby="loss-prevention-summary-title">
+    <h2 class="staff-card__title" id="loss-prevention-summary-title">Loss-prevention snapshot</h2>
+    <p class="staff-muted small">Counts use the same selected sections, thresholds and live exception rows shown below. They are not a second reporting ledger.</p>
+    <div class="staff-tile-grid">
+      {% for group in exception_summary %}
+      <article class="staff-tile">
+        <span class="staff-muted small">{{ group.label }}</span>
+        <strong>{{ group.count }}</strong>
+        <small>{{ group.unresolved }} unresolved{% if group.follow_up %} · {{ group.follow_up }} follow-up{% endif %}</small>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
   {% for row in exception_rows %}<article class="staff-card mb-3">
     <h2 class="staff-card__title">{{ row.title }} <span class="staff-tag">{% if row.review %}{{ row.review.get_status_display }}{% else %}Open{% endif %}</span></h2>
     <p>{{ row.detail }}</p><p><a class="staff-btn staff-btn--ghost" href="{{ row.url }}">Open source</a></p>
