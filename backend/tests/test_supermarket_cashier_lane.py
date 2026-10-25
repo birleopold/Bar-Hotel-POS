@@ -231,6 +231,46 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Grocery milk")
         self.assertContains(page, "milk.png")
 
+    def test_cashier_tile_excludes_expired_and_held_batches(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.inventory.batches import InventoryBatch
+        from apps.inventory.models import StockBalance
+        category = MenuCategory.objects.create(
+            tenant=self.tenant, name="Batch-stock shelf",
+        )
+        item = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Yoghurt tub",
+            sku="YOGH-EXP", unit_price=Decimal("3500"),
+            track_inventory=True, reorder_level=Decimal("3"),
+        )
+        StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.outlet,
+            menu_item=item, quantity=Decimal("12"),
+        )
+        today = timezone.localdate()
+        for code, amount, expiry, held in (
+            ("expired", "5", today - timedelta(days=1), False),
+            ("held", "4", today + timedelta(days=8), True),
+            ("ready", "3", today + timedelta(days=8), False),
+        ):
+            InventoryBatch.objects.create(
+                tenant=self.tenant, outlet=self.outlet,
+                menu_item=item, batch_code=code, received_at=today - timedelta(days=3),
+                expiry_date=expiry, received_quantity=Decimal(amount),
+                remaining_quantity=Decimal(amount), quarantined=held,
+            )
+        sale = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX",
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": sale.pk})
+        response = self.client.get(url, {"catalogue_q": "YOGH-EXP"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Low stock · 3 left")
+        self.assertContains(response, "Check held/expired batches")
+        self.assertNotContains(response, "Sellable · 12")
+
     def test_cashier_tiles_show_only_selected_outlet_stock_and_reorder_warning(self):
         from apps.inventory.models import StockBalance
 
@@ -256,8 +296,8 @@ class SupermarketCashierLaneTests(TestCase):
         url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
         empty = self.client.get(url, {"catalogue_q": "TAPE-LOW"})
         self.assertEqual(empty.status_code, 200)
-        self.assertContains(empty, "Out of stock")
-        self.assertNotContains(empty, "On hand · 90")
+        self.assertContains(empty, "No sellable stock")
+        self.assertNotContains(empty, "Sellable · 90")
         StockBalance.objects.create(
             tenant=self.tenant, outlet=self.outlet, menu_item=item,
             quantity=Decimal("2"),
@@ -268,7 +308,7 @@ class SupermarketCashierLaneTests(TestCase):
             outlet=self.outlet, menu_item=item,
         ).update(quantity=Decimal("12"))
         stocked = self.client.get(url, {"catalogue_q": "TAPE-LOW"})
-        self.assertContains(stocked, "On hand · 12")
+        self.assertContains(stocked, "Sellable · 12")
         self.assertNotContains(stocked, "Low stock · 2")
 
     def test_settlement_rejects_combined_direct_and_recipe_stock_overdraw(self):
