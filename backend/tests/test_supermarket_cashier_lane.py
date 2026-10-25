@@ -375,6 +375,58 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Grocery milk")
         self.assertContains(page, "milk.png")
 
+    def test_uploaded_product_photo_renders_and_serves_in_cashier_catalogue(self):
+        import io
+        import tempfile
+
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+
+        category = MenuCategory.objects.create(
+            tenant=self.tenant, name="Uploaded photo items",
+        )
+        image_data = io.BytesIO()
+        Image.new("RGB", (4, 4), "white").save(image_data, format="PNG")
+
+        with tempfile.TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            item = MenuItem.objects.create(
+                tenant=self.tenant,
+                category=category,
+                name="Geisha soap",
+                sku="GEISHA-PHOTO",
+                unit_price=Decimal("4500.00"),
+                product_image=SimpleUploadedFile(
+                    "geisha.png",
+                    image_data.getvalue(),
+                    content_type="image/png",
+                ),
+            )
+            order = Order.objects.create(
+                tenant=self.tenant,
+                outlet=self.outlet,
+                created_by=self.user,
+            )
+
+            page = self.client.get(
+                reverse("staff-order-detail", kwargs={"order_id": order.pk})
+            )
+            self.assertEqual(page.status_code, 200)
+            self.assertContains(page, "Geisha soap")
+            self.assertTrue(item.product_image.name.startswith("products/"))
+            self.assertContains(page, item.product_image.url)
+            self.assertContains(
+                page,
+                f'<img src="{item.product_image.url}"',
+                html=False,
+            )
+
+            media = self.client.get(item.product_image.url)
+            self.assertEqual(media.status_code, 200)
+            self.assertEqual(media["Content-Type"], "image/png")
+            self.assertEqual(media["X-Content-Type-Options"], "nosniff")
+            self.assertIn("public", media["Cache-Control"])
+
     def test_purchase_delivery_preflight_and_duplicate_reference_keep_stock_accurate(self):
         from rest_framework.exceptions import ValidationError
         from apps.purchasing.models import (
