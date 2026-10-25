@@ -253,6 +253,21 @@
         if(cash&&nextCash&&!nextCash.hasAttribute("data-balance-due")){
           throw new Error("Checkout returned an incomplete balance.");
         }
+        // Do not apply a mixture of old and new amounts if a server-side
+        // permission, settlement, or layout change omitted a required field.
+        var amountSelectors=[
+          ".fizo-retail-basket-summary > div:nth-child(1) strong",
+          ".fizo-retail-basket-summary > div:nth-child(2) strong",
+          ".fizo-retail-basket-summary__total strong",
+          ".staff-pos-totals-row__total strong"
+        ];
+        if(amountSelectors.some(function(selector){
+          var before=document.querySelector(selector);
+          var after=remote.querySelector(selector);
+          return !!before!==!!after || (before&&after&&!after.textContent.trim());
+        })){
+          throw new Error("Incomplete checkout totals; reopen this sale to continue.");
+        }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
         document.dispatchEvent(new Event("retail:basket-lines-replaced"));
         [".fizo-retail-basket-summary > div:nth-child(1) strong",
