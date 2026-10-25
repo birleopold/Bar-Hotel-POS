@@ -83,10 +83,10 @@ def record_order_payment(
     require_active_retail_basket(locked)
 
     gross_paid = (
-        Payment.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+        Payment.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
     )
     refunded = (
-        Refund.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+        Refund.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
     )
     paid_so_far = gross_paid - refunded
     remaining = (locked.total - paid_so_far).quantize(Decimal("0.01"))
@@ -241,7 +241,7 @@ def _resolve_refund_payment(
     if len(payments) == 1:
         p = payments[0]
         refunded_on_p = (
-            Refund.objects.filter(payment_id=p.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+            Refund.objects.filter(payment_id=p.id, tenant_id=order.tenant_id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
         )
         cap = (p.amount - refunded_on_p).quantize(Decimal("0.01"))
         if amount > cap:
@@ -326,7 +326,7 @@ def record_order_refund(
 
     paid_total = sum(p.amount for p in payments)
     prior_refunds_order = (
-        Refund.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+        Refund.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
     )
     refundable_order = (paid_total - prior_refunds_order).quantize(Decimal("0.01"))
     if amount <= 0 or amount > refundable_order:
