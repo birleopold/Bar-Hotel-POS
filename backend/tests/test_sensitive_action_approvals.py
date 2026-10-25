@@ -684,3 +684,59 @@ def test_storekeeper_stock_write_off_requires_manager_approval_and_replay_is_saf
     assert StockMovement.objects.filter(
         outlet=setup["outlet"], menu_item=item, reason=StockReason.WASTE,
     ).count() == 1
+
+
+@pytest.mark.django_db
+def test_stock_csv_rejects_negative_adjustments_that_need_manager_approval(client, approval_setup):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from django.urls import reverse
+    from apps.catalog.models import MenuCategory, MenuItem
+    from apps.inventory.models import StockBalance, StockReason
+    from apps.inventory.services import apply_manual_stock_change
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+
+    setup = approval_setup
+    category = MenuCategory.objects.create(tenant=setup["tenant"], name="CSV write-off test")
+    item = MenuItem.objects.create(
+        tenant=setup["tenant"], category=category, name="CSV protected stock",
+        sku="CSV-PROTECTED", unit_price=Decimal("500.00"),
+        track_inventory=True, is_active=True,
+    )
+    apply_manual_stock_change(
+        tenant_id=setup["tenant"].pk, outlet=setup["outlet"], menu_item=item,
+        quantity_change=Decimal("5.000"), reason=StockReason.RECEIVE,
+        user=setup["manager"].user, note="Opening test stock",
+    )
+    worker_user = User.objects.create_user(
+        email="approval-csv-storekeeper@example.test", password="StrongPass!2026",
+    )
+    worker = Membership.objects.create(
+        tenant=setup["tenant"], user=worker_user, role=MembershipRole.STOREKEEPER,
+    )
+    worker.sites.add(setup["site"])
+    worker.outlets.add(setup["outlet"])
+    client.force_login(worker_user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+
+    csv_file = SimpleUploadedFile(
+        "negative-adjustment.csv",
+        (
+            "outlet,sku,reason,quantity,note\n"
+            + setup["outlet"].name
+            + ",CSV-PROTECTED,waste,2,broken in store\n"
+        ).encode(),
+        content_type="text/csv",
+    )
+    response = client.post(
+        reverse("staff-inventory-movement-upload"),
+        {"csv_file": csv_file},
+    )
+    assert response.status_code == 200
+    balance = StockBalance.objects.get(outlet=setup["outlet"], menu_item=item)
+    assert balance.quantity == Decimal("5.000")
+    failed = client.session.get("staff_inventory_upload_error_rows") or []
+    assert failed
+    assert "manager approval required" in failed[0]["error"]
