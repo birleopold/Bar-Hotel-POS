@@ -542,6 +542,72 @@
     });
     window.addEventListener("pageshow",function(){delete addForm.dataset.submitting;});
   }
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.matches("[data-retail-void-line-form]"))return;
+    var asyncReady=!!(window.fetch&&window.FormData&&window.retailRefreshCheckout);
+    if(!asyncReady)return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var status=document.querySelector("[data-retail-basket-mutation-status]");
+    if(button)button.disabled=true;
+    if(status)status.textContent="Removing item…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",body:new FormData(form),credentials:"same-origin",redirect:"follow",
+      headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+    }).then(function(response){
+      if(response.redirected)throw new Error("Checkout session changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected item-removal response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){
+          var rejected=new Error(data.message||"Item could not be removed.");
+          rejected.serverRejected=true;
+          rejected.refundRequired=!!data.refund_required;
+          throw rejected;
+        }
+        return data;
+      });
+    }).then(function(data){
+      return window.retailRefreshCheckout().then(function(){return data;});
+    }).then(function(data){
+      var live=document.querySelector("[data-retail-basket-mutation-status]");
+      if(live)live.textContent=data.message||"Item removed from basket.";
+    }).catch(function(error){
+      var live=document.querySelector("[data-retail-basket-mutation-status]")||status;
+      if(error&&error.serverRejected){
+        if(live){
+          live.textContent=error.message;
+          if(error.refundRequired){
+            var refund=document.querySelector("[data-retail-refund-form]");
+            if(refund){
+              var open=document.createElement("button");
+              open.type="button";
+              open.className="staff-btn staff-btn--secondary ms-2";
+              open.textContent="Open refund controls";
+              open.addEventListener("click",function(){
+                refund.scrollIntoView({behavior:"smooth",block:"center"});
+                var amount=refund.querySelector('input[name="amount"]');
+                if(amount)amount.focus({preventScroll:true});
+              });
+              live.appendChild(document.createTextNode(" "));
+              live.appendChild(open);
+            }
+          }
+        }
+      }else if(live){
+        showCheckoutRecovery(live,error);
+      }
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(button)button.disabled=false;
+    });
+  });
+
   function approvedRefundFormConfig(form){
     if(form.matches("[data-retail-refund-form]")){
       return {
