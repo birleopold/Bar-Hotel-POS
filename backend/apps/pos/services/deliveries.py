@@ -27,7 +27,7 @@ MANAGER_ROLES = frozenset({
 
 def _authorized_delivery_manager(*, membership, user, tenant_id, outlet_id):
     return bool(
-        membership is not None and membership.is_active
+        membership is not None and membership.is_active and user is not None
         and membership.user_id == user.pk
         and membership.tenant_id == tenant_id
         and membership.role in MANAGER_ROLES
@@ -101,7 +101,10 @@ def register_paid_order_delivery(
     if not isinstance(instructions, str) or len(instructions) > 500:
         raise ValidationError({"instructions":"Use at most 500 characters."})
     if promised_at is not None:
+        from datetime import datetime
         from django.utils import timezone
+        if not isinstance(promised_at, datetime):
+            raise ValidationError({"promised_at":"Enter a valid delivery date and time."})
         if timezone.is_naive(promised_at):
             raise ValidationError({"promised_at":"Use a time with timezone information."})
         if promised_at < timezone.now():
