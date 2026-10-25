@@ -90,4 +90,9 @@ urlpatterns = [
         views_workspace.StaffEfrisSettingsView.as_view(),
         name="staff-workspace-efris",
     ),
+    path(
+        "integrations/efris/evidence.csv",
+        views_workspace.StaffEfrisEvidenceExportView.as_view(),
+        name="staff-workspace-efris-evidence",
+    ),
 ]
