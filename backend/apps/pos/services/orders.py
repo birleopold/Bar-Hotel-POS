@@ -780,8 +780,13 @@ def cancel_open_unpaid_order(*, order: Order, user, reason: str = "") -> Order:
     recorded = Payment.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
     refunded = Refund.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
     if recorded > refunded:
+        remaining_refund = (recorded - refunded).quantize(Decimal("0.01"))
         raise ValidationError(
-            "Refund all recorded payments with supervisor approval before cancelling this basket."
+            (
+                f"Refund {locked.currency} {remaining_refund:.2f} with supervisor approval "
+                "before cancelling this basket."
+            ),
+            code="refund_required",
         )
     locked.status = OrderStatus.CANCELLED
     locked.save(update_fields=["status", "updated_at"])
