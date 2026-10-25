@@ -263,8 +263,12 @@
         if(activatingPayment&&!nextCash){
           throw new Error("Checkout cash calculator was not returned.");
         }
-        if(cash&&nextCash&&!nextCash.hasAttribute("data-balance-due")){
-          throw new Error("Checkout returned an incomplete balance.");
+        if(nextCash){
+          var serverDue=nextCash.getAttribute("data-balance-due");
+          if(serverDue===null||serverDue.trim()===""||
+             !Number.isFinite(Number(serverDue))||Number(serverDue)<0){
+            throw new Error("Checkout returned an invalid payment balance.");
+          }
         }
         // Do not apply a mixture of old and new amounts if a server-side
         // permission, settlement, or layout change omitted a required field.
@@ -294,7 +298,6 @@
           paymentCard=newCard;
           activePayment=paymentForm;
           cash=newCash;
-          document.dispatchEvent(new Event("retail:payment-controls-added"));
         }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
         document.dispatchEvent(new Event("retail:basket-lines-replaced"));
@@ -307,7 +310,7 @@
           if(a&&b)a.textContent=b.textContent;
         });
         if(cash&&nextCash){
-          var oldDue=cash.getAttribute("data-balance-due");
+          var oldDue=activatingPayment ? null : cash.getAttribute("data-balance-due");
           var amount=activePayment&&activePayment.querySelector('input[name="amount"]');
           var tender=cash.querySelector("[data-retail-cash-received]");
           if(amount&&remotePayment&&Number.isFinite(Number(oldDue))&&
@@ -318,6 +321,9 @@
           }
           cash.setAttribute("data-balance-due",nextCash.getAttribute("data-balance-due"));
           cash.dispatchEvent(new Event("retail:balance-updated"));
+        }
+        if(activatingPayment){
+          document.dispatchEvent(new Event("retail:payment-controls-added"));
         }
         // The existing delegated +/- handler will manage new basket rows.
       });
