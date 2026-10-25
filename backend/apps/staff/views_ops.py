@@ -919,6 +919,26 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         tenant_id=order.tenant_id,
                         pk__in=[item.pk for item in menu_qs],
                     ).order_by("name")
+            if is_retail_catalogue:
+                from apps.inventory.models import StockBalance
+                # One tenant/outlet-scoped query for the visible page of products;
+                # never load or expose other outlets' stock on the cashier tile.
+                tracked_ids = [item.pk for item in menu_qs if item.track_inventory]
+                stock_by_product = dict(
+                    StockBalance.objects.filter(
+                        tenant_id=order.tenant_id, outlet_id=order.outlet_id,
+                        menu_item_id__in=tracked_ids,
+                    ).values_list("menu_item_id", "quantity")
+                )
+                for item in menu_qs:
+                    if not item.track_inventory:
+                        continue
+                    qty = stock_by_product.get(item.pk, Decimal("0"))
+                    item.cashier_stock_quantity = qty
+                    item.cashier_stock_low = (
+                        qty <= item.reorder_level
+                        if item.reorder_level is not None else qty <= 0
+                    )
             modifiers_by_item: dict[str, list] = {}
             for item in menu_qs:
                 groups_payload: list[dict] = []
