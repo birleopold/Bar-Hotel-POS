@@ -107,6 +107,33 @@ class BrandedStaffLoginTests(TestCase):
             response, "<title>Leosoft POS · Staff sign in</title>", html=False,
         )
 
+    @override_settings(
+        ALLOWED_HOSTS=["pos.leosoftug.com", "sennana.example.test", "kartel.example.test"],
+        TENANT_CENTRAL_HOSTS=["pos.leosoftug.com"],
+    )
+    def test_central_platform_owner_login_enters_tenant_control_plane(self):
+        operator = get_user_model().objects.create_superuser(
+            email="platform-owner@example.test", password="TestPassword!123"
+        )
+        # Even a platform operator with a tenant membership must not land in
+        # that tenant's register or carry the previous terminal scope.
+        Membership.objects.create(
+            tenant=self.sennana, user=operator, role=MembershipRole.OWNER,
+        )
+        self.client.cookies[TERMINAL_COOKIE] = signing.dumps(
+            {"tenant": str(self.sennana.pk), "outlet": ""},
+            salt=TERMINAL_SALT,
+        )
+        response = self.client.post(
+            reverse("staff-login"),
+            {"username": operator.email, "password": "TestPassword!123"},
+            HTTP_HOST="pos.leosoftug.com",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("console-platform-tenants"))
+        self.assertNotIn("staff_tenant_id", self.client.session)
+        self.assertNotIn("staff_outlet_id", self.client.session)
+
     def test_branded_login_shows_only_domain_identity(self):
         response = self.client.get(
             reverse("staff-login"), HTTP_HOST="sennana.example.test"
