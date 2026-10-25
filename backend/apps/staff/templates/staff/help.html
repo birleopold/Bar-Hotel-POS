@@ -1,0 +1,51 @@
+{% extends "staff/base.html" %}
+{% block title %}Help{% endblock %}
+{% block content %}
+<section class="staff-page-head">
+  <div>
+    <p class="staff-eyebrow">WORKSPACE HELP</p>
+    <h1>Help</h1>
+    <p class="staff-muted">Fast guidance for the active register and daily staff workflows.</p>
+  </div>
+</section>
+
+<div class="row g-3">
+  <div class="col-12 col-xl-7">
+    <section class="staff-card">
+      <h2 class="staff-card__title">Cashier quick guide</h2>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <strong>Find or scan a product</strong>
+          <p class="staff-muted mb-0">Use the large product search on the POS. Press F3 to focus barcode scanning. Ordinary whole-unit product tiles add directly to the basket.</p>
+        </div>
+        <div class="col-12 col-md-6">
+          <strong>Hold a customer basket</strong>
+          <p class="staff-muted mb-0">Use Hold Sale to park the current basket and serve the next customer. Resume the same basket later; recorded partial payments remain attached to it.</p>
+        </div>
+        <div class="col-12 col-md-6">
+          <strong>Take payment</strong>
+          <p class="staff-muted mb-0">Choose Cash, Card or Mobile Money and record only the amount actually collected. Split and partial payments remain on the same sale.</p>
+        </div>
+        <div class="col-12 col-md-6">
+          <strong>Returns and cancellation</strong>
+          <p class="staff-muted mb-0">Supervisor approval is required for refunds. A part-paid basket must be fully reconciled before it can be cancelled.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="col-12 col-xl-5">
+    <section class="staff-card">
+      <h2 class="staff-card__title">Keyboard shortcuts</h2>
+      <dl class="row mb-0">
+        <dt class="col-4">F2</dt><dd class="col-8">Focus product search</dd>
+        <dt class="col-4">F3</dt><dd class="col-8">Focus barcode scanning</dd>
+        <dt class="col-4">Esc</dt><dd class="col-8">Clear the active product search</dd>
+      </dl>
+    </section>
+    <section class="staff-card mt-3">
+      <h2 class="staff-card__title">Register safety</h2>
+      <p class="staff-muted mb-0">Use Lock terminal when you leave the register. Do not share a cashier PIN or use another worker's session.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
