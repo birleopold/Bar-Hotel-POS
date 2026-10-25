@@ -5,6 +5,7 @@ from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from apps.accounts.models import User, Membership, MembershipRole
+from apps.audit.models import AuditEvent
 from apps.finance.models import CashbookEntry
 from apps.pos.models import CashDrawerMovement, Order, Payment, PosShift, Workstation
 from apps.pos.services import open_pos_shift, close_pos_shift, record_order_payment, record_order_refund, record_cash_drawer_movement, shift_cash_snapshot
@@ -81,6 +82,36 @@ class RegisterAttributionTests(TestCase):
         a = self.open(self.a)
         self.assertEqual(self.pay().shift_id, a.pk)
         self.assertEqual(shift_cash_snapshot(shift=a)["cash_payments"], Decimal("100"))
+
+    def test_no_sale_drawer_opening_is_shift_scoped_and_idempotent(self):
+        shift = self.open(self.a)
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
+        session.save()
+        self.client.post(reverse("staff-workstations"), {"workstation_id": self.a.pk})
+        request_key = str(uuid.uuid4())
+        payload = {
+            "action": "no_sale_drawer",
+            "request_key": request_key,
+            "reason": "Customer requested change without purchase",
+        }
+        first = self.client.post(reverse("staff-pos-shifts"), payload)
+        replay = self.client.post(reverse("staff-pos-shifts"), payload)
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(replay.status_code, 302)
+        events = AuditEvent.objects.filter(
+            tenant=self.tenant,
+            action="pos.drawer_no_sale_opened",
+            entity_id=request_key,
+        )
+        self.assertEqual(events.count(), 1)
+        event = events.get()
+        self.assertEqual(event.user_id, self.user.pk)
+        self.assertEqual(event.payload["shift_id"], str(shift.pk))
+        self.assertEqual(event.payload["outlet_id"], str(self.outlet.pk))
+        self.assertEqual(event.payload["workstation_id"], str(self.a.pk))
 
     def test_invalid_and_closed_registers(self):
         with self.assertRaises(ValidationError): self.pay(station=self.a)
