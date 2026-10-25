@@ -118,6 +118,10 @@ jobs:
       - name: Run PostgreSQL integration and policy-presence checks
         working-directory: backend
         run: python -m pytest -q -p no:cacheprovider --basetemp=.pytest-pg-tmp tests/test_postgres_rls_policy_presence.py tests/test_postgres_settlement_concurrency.py
+      - name: Validate delivery policy boundaries (no delivery transactions yet)
+        working-directory: backend
+        run: python -m pytest -q -p no:cacheprovider --basetemp=.pytest-pg-delivery-policy-tmp tests/test_delivery_policy.py
+
       - name: Verify retail quantity and return locks against real PostgreSQL
         working-directory: backend
         run: |
