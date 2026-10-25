@@ -2,7 +2,7 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %} · Staff sign in</title>
+<title>{% if login_brand %}{{ login_brand.name }}{% else %}Leosoft POS{% endif %} · Staff sign in</title>
 {% if login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
 <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#00884b{% endif %}">
 <link rel="stylesheet" href="{% static 'staff/fizo-fresh.css' %}?v=20261006.3">
@@ -12,7 +12,7 @@
 <main class="fizo-auth" id="staff-main-content">
   <aside class="fizo-auth__aside">
 {% if login_brand.background_url %}<img class="fizo-auth__background" src="{{ login_brand.background_url }}" alt="" aria-hidden="true">{% endif %}
-    <div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</span></div>
+    <div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">L</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Leosoft POS{% endif %}</span></div>
     <div>
 {% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}
 <div class="fizo-auth__eyebrow">STORE SIGN IN</div><h2 class="fizo-auth__statement">Sign in and start selling.</h2><p>Cashiers go straight to checkout. Managers keep access to the wider store controls.</p>
@@ -20,11 +20,11 @@
 <div class="fizo-auth__eyebrow">PRIVATE STAFF WORKSPACE · Your business. One workspace.</div><h2 class="fizo-auth__statement">One secure place to run your day.</h2><p>Sales, customers, inventory and operations — all in one connected workspace.</p>
 {% endif %}
 </div>
-    <div class="fizo-auth__aside-foot">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Secure store access{% else %}Fizo · Secure staff access{% endif %}</div>
+    <div class="fizo-auth__aside-foot">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Secure store access{% else %}Leosoft POS · Secure platform access{% endif %}</div>
   </aside>
   <section class="fizo-auth__panel" aria-labelledby="staff-login-title">
     <div class="fizo-auth__card">
-      <div class="fizo-auth__mobile-brand">{% if login_brand.logo_url %}<img width="38" height="38" src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %} {% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</div>
+      <div class="fizo-auth__mobile-brand">{% if login_brand.logo_url %}<img width="38" height="38" src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">L</span>{% endif %} {% if login_brand %}{{ login_brand.name }}{% else %}Leosoft POS{% endif %}</div>
       <header class="fizo-auth__header"><h1 id="staff-login-title">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Sign in{% else %}Welcome back{% endif %}</h1><p>{% if login_brand.welcome_message %}{{ login_brand.welcome_message }}{% elif login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Use your account, or choose Staff PIN on a counter terminal.{% else %}Sign in securely to continue your work.{% endif %}</p></header>
       <nav class="fizo-auth__tabs" aria-label="Sign-in method"><a href="{% url 'staff-login' %}" aria-current="page">Account sign-in</a><a href="{% url 'staff-terminal' %}">Staff PIN</a></nav>
       <form method="post" action="{% url 'staff-login' %}" class="fizo-auth__form" novalidate>
