@@ -30,6 +30,7 @@ from apps.pos.models import (
     Refund,
     SupermarketLineReturn,
     Table,
+    Workstation,
 )
 from apps.purchasing.models import (
     PurchaseOrder,
@@ -281,6 +282,49 @@ class SharedTerminalTests(TestCase):
             reverse("staff-order-detail", kwargs={"order_id": order.pk}),
             fetch_redirect_response=False,
         )
+
+    def test_multiple_retail_tills_are_chosen_on_same_start_screen(self):
+        self._owner_at_counter()
+        till_one = Workstation.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            name="Till 1",
+            code="till-1",
+            is_active=True,
+            requires_pairing=False,
+        )
+        Workstation.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            name="Till 2",
+            code="till-2",
+            is_active=True,
+            requires_pairing=False,
+        )
+
+        start = self.client.get(reverse("staff-retail-pos-entry"))
+        self.assertEqual(start.status_code, 200)
+        self.assertContains(start, "Which till are you using?")
+        self.assertContains(start, "Till 1")
+        self.assertContains(start, "Till 2")
+
+        response = self.client.post(
+            reverse("staff-retail-pos-entry"),
+            {
+                "action": "start_selling",
+                "workstation_id": str(till_one.pk),
+                "opening_cash": "2500.00",
+            },
+        )
+        shift = PosShift.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            workstation=till_one,
+            status=PosShiftStatus.OPEN,
+        )
+        self.assertEqual(shift.opening_cash, Decimal("2500.00"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("staff_workstation", response.cookies)
 
     def test_server_idle_timeout_ends_pin_session(self):
         self._owner_at_counter()
