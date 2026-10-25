@@ -1600,7 +1600,19 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
         ):
             return self._post_line_discount(request, order)
-        cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order", "resume_order", "void_order", "void_line"}
+        cashier_actions = {
+            "add_line",
+            "scan_add_line",
+            "adjust_line_qty",
+            "record_payment",
+            "hold_order",
+            "resume_order",
+            "void_order",
+            "void_line",
+            # Eligible promotions are policy-defined offers, not manual price
+            # overrides. Retail cashier UI already exposes them on active sales.
+            "apply_promotion",
+        }
         if not (membership_can_modify_lodging(m) or (
             action in cashier_actions and _can_operate_retail_checkout(m, order)
         )):
@@ -2580,29 +2592,51 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_apply_promotion(self, request: HttpRequest, order: Order) -> HttpResponse:
-        if order.status != OrderStatus.OPEN or order.is_paid:
-            messages.error(
-                request,
-                "Offers can only be applied to open orders that are not yet paid.",
-            )
+        async_retail = (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+
+        def reject(message: str, *, status: int = 422) -> HttpResponse:
+            if async_retail:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
             return redirect("staff-order-detail", order_id=order.id)
+
+        if order.status != OrderStatus.OPEN or order.is_paid:
+            return reject(
+                "Offers can only be applied to open orders that are not yet paid.",
+                status=409,
+            )
         promo_qs = promotions_selectable_for_order(order)
         form = StaffOrderApplyPromotionForm(request.POST, eligible_queryset=promo_qs)
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            detail = "; ".join(
+                f"{field}: {error}"
+                for field, error_list in form.errors.items()
+                for error in error_list
+            ) or "Check the offer details."
+            return reject(detail)
         try:
-            apply_promotion_to_order(
+            changed = apply_promotion_to_order(
                 order=order,
                 promotion=form.cleaned_data["promotion"],
                 user=request.user,
             )
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
-        else:
-            messages.success(request, "Promotion applied.")
+            return reject(" ".join(_drf_detail_messages(exc.detail)))
+        if async_retail:
+            return JsonResponse({
+                "ok": True,
+                "message": "Offer applied.",
+                "order_id": str(changed.pk),
+                "currency": changed.currency,
+                "subtotal": str(changed.subtotal),
+                "discount": str(changed.discount_amount),
+                "tax": str(changed.tax_total),
+                "total": str(changed.total),
+            })
+        messages.success(request, "Promotion applied.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_void_line(self, request: HttpRequest, order: Order) -> HttpResponse:
