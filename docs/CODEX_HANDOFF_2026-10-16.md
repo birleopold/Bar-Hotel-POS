@@ -96,6 +96,12 @@ Existing `backend/apps/inventory/services.py::validate_and_consume_stock_for_pai
 
 The existing supermarket integration test now covers actual financial rollback on shortage and successful later settlement after the same inventory receiving service posts the missing unit. For example, quantity 4 versus sale 3 + recipe 2 rejects payment and leaves sale open/stock unchanged, receiving +1 permits payment, and creates separate SALE -3 and RECIPE -2 movements (commits `1bb943f6`, `8780e70c`, `dfd16845`). Existing PostgreSQL CI includes the case (`574a9cff`). **CI and live PostgreSQL/browser execution not verified.** Further P09 PO goods receiving, multi-outlet transfers, expiry batches and 5-width UI acceptance remain pending. No new files, schemas or alternative stock service.
 
+## 25 October P08/P09: usable cashier stock (not quarantined physical balances)
+
+Existing cashier catalogue product tiles were stock-blind. `views_ops.py` now batch-loads outlet-scoped balances for the visible product page, marks zero and below-reorder statuses (`9fd77efe`), and calculates saleable FEFO quantity from non-quarantined/non-expired InventoryBatch records, capped by StockBalance quantity (`fa47cd1f`). The existing `fizo_pos_catalogue.html` tile displays Sellable, Low stock, No sellable stock and a held/expired batch note (`f54f23d6`, `e5a21b69`); existing `retail-cashier.css` contains compact responsive styling (`733881ca`). Never label this a stock reservation: the actual transaction still validates stock at settlement.
+
+Tests in `backend/tests/test_supermarket_cashier_lane.py` cover zero/low/adequate stock and selected-outlet isolation, plus quarantined/expired FEFO balances (`a32fc39c`, `ce339cdf`). PostgreSQL quality CI explicitly includes both (`8eafd600`), but **there is no observed passing result, screenshot parity or live tenant verification**. Avoid creating a second inventory query service or a new tile CSS. P08–P09 and P15 remain open.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
