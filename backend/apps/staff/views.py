@@ -97,6 +97,7 @@ def login_brand_for_request(request, scope=None):
     return {
         "name": tenant.name,
         "workspace_label": presentation["workspace_label"],
+        "business_key": presentation.get("business_key", ""),
         "logo_url": theme.logo_url if theme else "",
         "favicon_url": (theme.favicon_url or theme.logo_url) if theme else "",
         "background_url": theme.login_background_url if theme else "",
