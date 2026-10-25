@@ -69,7 +69,7 @@
     var payLink=document.querySelector(".fizo-cashier-pay-cta");
     if(!paymentForm)return;
     if(payLink){
-      var dueLabel=document.querySelector(".fizo-retail-basket-summary__total strong");
+      var dueLabel=document.querySelector('[data-retail-summary="total"] strong');
       if(dueLabel){
         var label=payLink.querySelector("span");
         if(!label){
@@ -294,9 +294,10 @@
         // Do not apply a mixture of old and new amounts if a server-side
         // permission, settlement, or layout change omitted a required field.
         var amountSelectors=[
-          ".fizo-retail-basket-summary > div:nth-child(1) strong",
-          ".fizo-retail-basket-summary > div:nth-child(2) strong",
-          ".fizo-retail-basket-summary__total strong",
+          '[data-retail-summary="subtotal"] strong',
+          '[data-retail-summary="discount"] strong',
+          '[data-retail-summary="tax"] strong',
+          '[data-retail-summary="total"] strong',
           ".staff-pos-totals-row__total strong"
         ];
         if(amountSelectors.some(function(selector){
@@ -329,9 +330,10 @@
         }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
         document.dispatchEvent(new Event("retail:basket-lines-replaced"));
-        [".fizo-retail-basket-summary > div:nth-child(1) strong",
-         ".fizo-retail-basket-summary > div:nth-child(2) strong",
-         ".fizo-retail-basket-summary__total strong",".fizo-cashier-payment-summary strong",
+        ['[data-retail-summary="subtotal"] strong',
+         '[data-retail-summary="discount"] strong',
+         '[data-retail-summary="tax"] strong',
+         '[data-retail-summary="total"] strong',".fizo-cashier-payment-summary strong",
          ".staff-pos-totals-row__total strong",".staff-pos-totals-row__meta",
          ".fizo-cashier-pay-cta span"].forEach(function(selector){
           var a=document.querySelector(selector),b=remote.querySelector(selector);
