@@ -279,6 +279,10 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('"[data-retail-refund-zone]"', script)
         self.assertIn('"[data-retail-return-zone]"', script)
         self.assertIn('showCheckoutRecovery(liveStatus,error)', script)
+        self.assertIn('data-retail-line-return-form', supermarket)
+        self.assertIn('line_return_request_key', view)
+        self.assertIn('data-retail-void-line-form', detail)
+        self.assertIn('refund_required', view)
 
     def test_part_paid_quantity_reduction_routes_to_authorized_refund_controls(self):
         root = Path(__file__).resolve().parent
@@ -669,7 +673,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
         self.assertIn("retail-cashier.css' %}?v=20261025.8", supermarket)
-        self.assertIn("retail-counter-v2.js' %}?v=20261026.2", detail)
+        self.assertIn("retail-counter-v2.js' %}?v=20261026.3", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
