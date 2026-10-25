@@ -472,6 +472,49 @@ class ManagementWorkspaceTests(TestCase):
         self.assertContains(response, "Shrink watch")
         self.assertContains(response, "no monetary loss is inferred")
 
+    def test_catalog_price_change_exception_is_outlet_scoped(self):
+        self.login()
+        visible = AuditEvent.objects.create(
+            tenant=self.tenant,
+            user=self.owner,
+            action="catalog.outlet_price_override_changed",
+            entity_type="menu_item_outlet",
+            entity_id=str(self.balance.menu_item_id),
+            payload={
+                "menu_item_id": str(self.balance.menu_item_id),
+                "item_name": self.balance.menu_item.name,
+                "outlet_id": str(self.outlet.pk),
+                "outlet_name": self.outlet.name,
+                "before": "10.00",
+                "after": "12.00",
+            },
+        )
+        AuditEvent.objects.create(
+            tenant=self.tenant,
+            user=self.owner,
+            action="catalog.outlet_price_override_changed",
+            entity_type="menu_item_outlet",
+            entity_id=str(self.balance.menu_item_id),
+            payload={
+                "menu_item_id": str(self.balance.menu_item_id),
+                "item_name": self.balance.menu_item.name,
+                "outlet_id": str(self.other.pk),
+                "outlet_name": self.other.name,
+                "before": "10.00",
+                "after": "99.00",
+            },
+        )
+        rows = [row for row in self.rows() if row.kind == "price_change"]
+        self.assertEqual([row.entity_id for row in rows], [str(visible.pk)])
+        self.assertIn("10.00 → 12.00", rows[0].detail)
+        self.assertIn(self.owner.email, rows[0].detail)
+        response = self.client.get(rows[0].url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Selling price changed")
+        page = self.client.get(reverse("staff-management"), {"view": "exceptions"})
+        summary = {row["label"]: row for row in page.context["exception_summary"]}
+        self.assertGreaterEqual(summary["Pricing"]["count"], 1)
+
     def test_follow_up_ownership_history_and_resolved_case_after_source_clears(self):
         self.login()
         row = next(r for r in self.rows() if r.kind == "low_stock")
