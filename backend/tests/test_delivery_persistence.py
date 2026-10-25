@@ -384,6 +384,32 @@ class DeliveryPersistenceTests(TestCase):
         self.assertEqual(Payment.objects.filter(order=self.sale).count(), 1)
         self.assertFalse(StockMovement.objects.filter(order=self.sale).exists())
 
+    def test_initial_staff_delivery_ui_does_not_enable_unfinished_bar_workflow(self):
+        from django.urls import reverse
+        from apps.staff.middleware import (
+            STAFF_SESSION_TENANT_KEY, STAFF_SESSION_OUTLET_KEY,
+        )
+        bar = Outlet.objects.create(
+            site=self.site, name="Bar awaiting legal controls",
+            outlet_type=OutletType.BAR,
+        )
+        self.member.outlets.add(bar)
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
+        session.save()
+        url = reverse("staff-deliveries")
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertNotContains(page, "Bar awaiting legal controls")
+        denied = self.client.post(url, {
+            "action":"configure", "outlet_id":str(bar.pk),
+            "enabled":"true",
+        })
+        self.assertEqual(denied.status_code, 404)
+        self.assertFalse(OutletDeliverySettings.objects.filter(outlet=bar).exists())
+
     def test_nonmanager_cannot_read_or_change_delivery_queue(self):
         from django.urls import reverse
         from apps.staff.middleware import (
