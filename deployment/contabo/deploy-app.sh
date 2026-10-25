@@ -26,12 +26,13 @@ DB_NAME="$(psql "$DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_d
 APP_ROLE="$(psql "$DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
 DB_OWNER="$(sudo -u postgres psql -d "$DB_NAME" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=current_database()')"
 
-case "$APP_ROLE:$DB_OWNER" in
-  *[!A-Za-z0-9_:]*|'':*)
-    echo "Unable to resolve safe PostgreSQL role names for automatic migration." >&2
-    exit 1
-    ;;
-esac
+if [[ -z "$DB_NAME" || -z "$APP_ROLE" || -z "$DB_OWNER" ||
+      ! "$DB_NAME" =~ ^[A-Za-z0-9_]+$ ||
+      ! "$APP_ROLE" =~ ^[A-Za-z0-9_]+$ ||
+      ! "$DB_OWNER" =~ ^[A-Za-z0-9_]+$ ]]; then
+  echo "Unable to resolve safe PostgreSQL names for automatic migration." >&2
+  exit 1
+fi
 
 ROLE_ELEVATED=0
 restore_db_role() {
