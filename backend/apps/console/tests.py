@@ -1081,6 +1081,11 @@ class ConsoleAccessTests(TestCase):
             self.assertEqual(status.status_code, 200)
             self.assertEqual(status["Cache-Control"], "private, no-store")
             self.assertEqual(status.json()["image_key"], item.product_image.name)
+            image_response = self.client.get(item.product_image.url)
+            self.assertEqual(image_response.status_code, 200)
+            self.assertEqual(image_response["Content-Type"], "image/png")
+            self.assertEqual(image_response["X-Content-Type-Options"], "nosniff")
+            self.assertIn("public", image_response["Cache-Control"])
             other = Tenant.objects.create(name="Other image tenant", slug="other-image-tenant")
             other_cat = MenuCategory.objects.create(tenant=other, name="Other")
             other_item = MenuItem.objects.create(tenant=other, category=other_cat, name="Private product",
