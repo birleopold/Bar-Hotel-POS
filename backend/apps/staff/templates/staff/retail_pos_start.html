@@ -1,27 +1,82 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}Start checkout{% endblock %}
+{% block title %}Start selling{% endblock %}
 {% block main_class %}staff-main--wide fizo-retail-sales-page{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/retail-workflows.css' %}?v=20261023.3">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/retail-workflows.css' %}?v=20261025.4">{% endblock %}
 {% block content %}
 <main class="fizo-sales fizo-sales--start">
-  <header class="fizo-sales__header"><div><p class="fizo-sales__eyebrow">{{ request.tenant.name }} / Checkout</p><h1>Ready for the next sale</h1><p>{{ current_outlet.name }} · Register open{% if current_shift.workstation %} · {{ current_shift.workstation.name }}{% endif %}</p><p class="staff-muted">Signed in: <strong>{{ request.user.get_full_name|default:request.user.email }}</strong>{% if request.tenant_membership %} · {{ request.tenant_membership.get_role_display }}{% endif %} · Currency: <strong>{{ checkout_currency }}</strong></p></div>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Sales history &amp; held baskets</a></header>
-  <section class="fizo-sales__start" aria-labelledby="fizo-start-sale">
-    <div class="fizo-sales__start-icon"><i class="bi bi-cart3"></i></div>
-    <div><h2 id="fizo-start-sale">Start a walk-in checkout</h2><p>Scan products, build the basket, then confirm payment. Customer information is optional.</p></div>
-    <form method="post" action="{% url 'staff-order-quick-create' %}">{% csrf_token %}
-      <button class="fizo-sales__primary" type="submit"><i class="bi bi-plus-lg"></i> New sale</button>
-    </form>
-  </section>
-  <section class="fizo-sales__panel" aria-label="Register shortcuts">
-    <h2>Cashier shortcuts</h2>
-    <p>Open baskets can be resumed from Sales history. Use workstation settings to choose another physical register.</p>
-    <div class="fizo-sales__start-links">
-      <a href="{% url 'staff-orders' %}"><i class="bi bi-pause-circle"></i> Resume or review sales</a>
-      <a href="{% url 'staff-pos-shifts' %}"><i class="bi bi-cash-register"></i> Shift and drawer</a>
-      <a href="{% url 'staff-workstations' %}"><i class="bi bi-display"></i> Register devices</a>
+  <header class="fizo-sales__header">
+    <div>
+      <p class="fizo-sales__eyebrow">{{ request.tenant.name }} / Checkout</p>
+      <h1>{% if current_shift %}Ready to sell{% else %}Start your till{% endif %}</h1>
+      <p>
+        <strong>{{ current_outlet.name }}</strong>
+        {% if selected_station %} · {{ selected_station.name }}{% endif %}
+        · {{ request.user.get_full_name|default:request.user.email }}
+      </p>
     </div>
-  </section>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Held sales</a>
+  </header>
+
+  {% if pairing_blocked %}
+    <section class="fizo-sales__start" aria-labelledby="device-approval-title">
+      <div class="fizo-sales__start-icon"><i class="bi bi-shield-lock"></i></div>
+      <div>
+        <h2 id="device-approval-title">Manager setup needed once</h2>
+        <p>This checkout device has not been approved for the till yet. Ask a manager to approve this device, then return here.</p>
+      </div>
+    </section>
+  {% else %}
+    <section class="fizo-sales__start" aria-labelledby="start-selling-title">
+      <div class="fizo-sales__start-icon"><i class="bi bi-cart3"></i></div>
+      <div>
+        <h2 id="start-selling-title">{% if current_shift %}Start the next sale{% else %}Open and start selling{% endif %}</h2>
+        {% if current_shift %}
+          <p>Your till is already open. Continue straight to checkout.</p>
+        {% else %}
+          <p>Count the cash already in the drawer, enter it below, then start selling.</p>
+        {% endif %}
+      </div>
+
+      <form method="post" action="{% url 'staff-retail-pos-entry' %}" class="fizo-sales__start-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="start_selling">
+
+        {% if register_choices %}
+          <label class="fizo-sales__start-field">
+            <span>Which till are you using?</span>
+            <select class="staff-input" name="workstation_id" required>
+              <option value="">Choose till</option>
+              {% for station in register_choices %}
+                <option value="{{ station.pk }}">{{ station.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        {% elif selected_station %}
+          <input type="hidden" name="workstation_id" value="{{ selected_station.pk }}">
+        {% endif %}
+
+        {% if not current_shift %}
+          <label class="fizo-sales__start-field">
+            <span>Cash in drawer now</span>
+            {{ opening_form.opening_cash }}
+            {% if opening_form.opening_cash.errors %}<small class="text-danger">{{ opening_form.opening_cash.errors|join:", " }}</small>{% endif %}
+          </label>
+        {% endif %}
+
+        <button class="fizo-sales__primary" type="submit">
+          <i class="bi bi-arrow-right-circle"></i> Start selling
+        </button>
+      </form>
+    </section>
+
+    <section class="fizo-sales__panel fizo-sales__panel--quiet" aria-label="Cashier help">
+      <p class="mb-0">
+        Need a customer’s parked basket?
+        <a href="{% url 'staff-orders' %}">Open held sales</a>.
+        {% if current_shift %}Your current till stays open while you serve customers.{% endif %}
+      </p>
+    </section>
+  {% endif %}
 </main>
 {% endblock %}
