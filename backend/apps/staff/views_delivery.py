@@ -139,3 +139,37 @@ class StaffDeliveriesView(StaffTenantRequiredMixin, View):
         except DRFValidationError as exc:
             messages.error(request, str(exc.detail))
         return redirect("staff-deliveries")
+
+
+class StaffDeliveryPackingSlipView(StaffTenantRequiredMixin, View):
+    """Printer-friendly fulfillment checklist, restricted to manager scope.
+
+    This is NOT a fiscal receipt. Viewing/printing does not mutate fulfillment,
+    settlement, customer identity, or stock.
+    """
+    staff_nav_capability = "orders"
+    template_name = "staff/pos/delivery_packing_slip.html"
+
+    def get(self, request, delivery_id):
+        membership = request.tenant_membership
+        if not membership.is_active or membership.role not in MANAGER_ROLES:
+            return HttpResponseForbidden("Delivery packing slips are restricted to managers.")
+        ids = [
+            outlet.pk for outlet in staff_accessible_outlets(membership)
+            if outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        ]
+        delivery = get_object_or_404(
+            OrderDelivery.objects.select_related(
+                "order", "outlet", "assigned_driver",
+            ), pk=delivery_id, tenant=request.tenant, outlet_id__in=ids,
+        )
+        order = delivery.order
+        if order.tenant_id != request.tenant.pk or order.outlet_id != delivery.outlet_id:
+            return HttpResponseForbidden("Delivery sale scope mismatch.")
+        lines = list(order.lines.filter(is_voided=False).order_by("sort_order", "created_at"))
+        response = render(request, self.template_name, {
+            "delivery":delivery, "order":order, "packing_lines":lines,
+        })
+        response["Cache-Control"] = "no-store, private"
+        response["X-Robots-Tag"] = "noindex, nofollow"
+        return response
