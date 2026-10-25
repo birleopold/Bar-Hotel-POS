@@ -1,7 +1,7 @@
 {% load static %}
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>{% if login_brand %}{{ login_brand.name }}{% else %}Staff terminal{% endif %} · STAFF TERMINAL</title>
+<title>{% if login_brand %}{{ login_brand.name }}{% else %}Staff terminal{% endif %} · {% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Checkout{% else %}Staff terminal{% endif %}</title>
 {% if login_brand.favicon_url %}<link rel="icon" href="{{ login_brand.favicon_url }}">{% endif %}
 <meta name="theme-color" content="{% if login_brand %}{{ login_brand.primary }}{% else %}#00884b{% endif %}">
 <link rel="stylesheet" href="{% static 'staff/fizo-fresh.css' %}?v=20261006.3">
@@ -12,14 +12,20 @@
 <aside class="fizo-auth__aside">
 {% if login_brand.background_url %}<img class="fizo-auth__background" src="{{ login_brand.background_url }}" alt="" aria-hidden="true">{% endif %}
 <div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">POS</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Staff terminal{% endif %}</span></div>
-<div><div class="fizo-auth__eyebrow">STAFF TERMINAL · Shared staff terminal</div><h2 class="fizo-auth__statement">Your turn to serve</h2><p>Choose your account, enter your own PIN and get back to serving. Each sale stays linked to the worker who served.</p></div>
-<div class="fizo-auth__aside-foot">Lock after serving · Protect your staff PIN</div>
+<div>
+{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}
+<div class="fizo-auth__eyebrow">CHECKOUT TERMINAL</div><h2 class="fizo-auth__statement">Ready for the next customer.</h2><p>Choose your name and enter your PIN. We’ll take you straight to checkout.</p>
+{% else %}
+<div class="fizo-auth__eyebrow">STAFF TERMINAL · Shared staff terminal</div><h2 class="fizo-auth__statement">Your turn to serve</h2><p>Choose your account, enter your own PIN and get back to serving. Each sale stays linked to the worker who served.</p>
+{% endif %}
+</div>
+<div class="fizo-auth__aside-foot">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Lock only when changing cashier or leaving the till{% else %}Lock after serving · Protect your staff PIN{% endif %}</div>
 </aside>
 <section class="fizo-auth__panel" aria-labelledby="terminal-title">
 <div class="fizo-auth__card">
 <div class="fizo-auth__mobile-brand">{% if login_brand.logo_url %}<img width="38" height="38" src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">POS</span>{% endif %} {% if login_brand %}{{ login_brand.name }}{% else %}Staff terminal{% endif %}</div>
-<header class="fizo-auth__header"><h1 id="terminal-title">Unlock terminal</h1><p>{% if login_brand.welcome_message %}{{ login_brand.welcome_message }} {% endif %}Choose your name and enter your private 6–8 digit PIN.</p></header>
-<nav class="fizo-auth__tabs" aria-label="Sign-in method"><a href="{% url 'staff-login' %}">Email &amp; password</a><a href="{% url 'staff-terminal' %}" aria-current="page">Staff PIN</a></nav>
+<header class="fizo-auth__header"><h1 id="terminal-title">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Start selling{% else %}Unlock terminal{% endif %}</h1><p>{% if login_brand.welcome_message %}{{ login_brand.welcome_message }} {% endif %}Choose your name and enter your private 6–8 digit PIN.</p></header>
+<nav class="fizo-auth__tabs" aria-label="Sign-in method"><a href="{% url 'staff-login' %}">Account sign-in</a><a href="{% url 'staff-terminal' %}" aria-current="page">Staff PIN</a></nav>
 {% if workers %}
 <form method="post" action="{% url 'staff-terminal' %}" class="fizo-auth__form" novalidate>
 {% csrf_token %}
@@ -32,13 +38,13 @@
 <button class="fizo-auth__key" type="button" data-key="0" aria-label="Digit 0">0</button>
 <button class="fizo-auth__key" type="button" data-key="delete">Delete</button>
 </div>
-<button class="fizo-auth__submit" type="submit">Unlock workspace</button>
+<button class="fizo-auth__submit" type="submit">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Continue to checkout{% else %}Unlock workspace{% endif %}</button>
 <p class="fizo-auth__hint">You can also type your PIN using a keyboard.</p>
 </form>
 {% else %}
 <div class="fizo-auth__errors" role="status">No PIN-enabled staff accounts are available on this terminal. Sign in with your work account or ask your manager to check terminal access.</div>
 {% endif %}
-<p class="fizo-auth__footer">Finished serving? Lock your terminal before handing it to another worker.</p>
+<p class="fizo-auth__footer">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Use Lock when another cashier takes over or when you leave the till.{% else %}Finished serving? Lock your terminal before handing it to another worker.{% endif %}</p>
 </div>
 </section>
 </main>
