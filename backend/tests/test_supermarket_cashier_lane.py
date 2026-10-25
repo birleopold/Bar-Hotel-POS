@@ -7,7 +7,7 @@ from django.db import connection
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.catalog.models import MenuCategory, MenuItem, SupermarketSkuProfile
+from apps.catalog.models import MenuCategory, MenuItem, Promotion, SupermarketSkuProfile
 from apps.pos.models import Order
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
@@ -215,6 +215,73 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "staff-pos-order-layout")
         self.assertContains(page, "data-retail-scan-form")
         self.assertContains(page, "staff-pos-order-side")
+
+    def test_server_cashier_can_apply_eligible_offer_inline(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.pos.models import OrderLine
+
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        membership.role = MembershipRole.SERVER
+        membership.save(update_fields=["role"])
+
+        category = MenuCategory.objects.create(
+            tenant=self.tenant, name="Offer products",
+        )
+        item = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=category,
+            name="Offer soap",
+            sku="OFFER-SOAP",
+            unit_price=Decimal("10000.00"),
+            is_active=True,
+        )
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.user,
+            currency="UGX",
+            subtotal=Decimal("20000.00"),
+            total=Decimal("20000.00"),
+        )
+        OrderLine.objects.create(
+            order=order,
+            menu_item=item,
+            label=item.name,
+            quantity=Decimal("2"),
+            unit_price=Decimal("10000.00"),
+            line_total=Decimal("20000.00"),
+        )
+        promotion = Promotion.objects.create(
+            tenant=self.tenant,
+            name="Cashier offer",
+            discount_percent=Decimal("10"),
+            starts_at=timezone.now() - timedelta(hours=1),
+            is_active=True,
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "data-retail-promotion-form")
+        self.assertContains(page, "Cashier offer")
+
+        response = self.client.post(
+            url,
+            {"action": "apply_promotion", "promotion": str(promotion.pk)},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["currency"], "UGX")
+        self.assertEqual(Decimal(body["discount"]), Decimal("2000.00"))
+        self.assertEqual(Decimal(body["total"]), Decimal("18000.00"))
+
+        order.refresh_from_db()
+        self.assertEqual(order.applied_promotion_id, promotion.pk)
+        self.assertEqual(order.discount_amount, Decimal("2000.00"))
+        self.assertEqual(order.total, Decimal("18000.00"))
 
     def test_grocery_tiles_can_display_catalogue_photos(self):
         cat = MenuCategory.objects.create(tenant=self.tenant, name="Fresh items")
