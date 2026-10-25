@@ -12,6 +12,8 @@ class FizoCheckoutLayoutTests(SimpleTestCase):
         catalogue = (base / "templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
         self.assertIn("fizo-checkout-catalogue", main)
         self.assertIn("fizo-checkout-basket", main)
+        self.assertIn("line.menu_item.product_image_src", main)
+        self.assertNotIn("line.menu_item.display_image_url", main)
         self.assertIn("fizo_pos_catalogue.html", main)
         self.assertIn("retail-cashier.css", supermarket)
         self.assertNotIn("fizo-checkout-v1.css", supermarket)
