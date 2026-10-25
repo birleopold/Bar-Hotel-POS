@@ -51,9 +51,10 @@ class RetailSalesLandingTests(SimpleTestCase):
         # right-side basket, Pay CTA, tender and change calculator stale.
         self.assertIn('function updateBasketAmounts(values)', source)
         self.assertIn('updateBasketAmounts(data);', source)
-        self.assertIn('.fizo-retail-basket-summary__total strong', source)
-        self.assertIn('.fizo-retail-basket-summary > div:nth-child(1) strong', source)
-        self.assertIn('.fizo-retail-basket-summary > div:nth-child(2) strong', source)
+        self.assertIn('[data-retail-summary="subtotal"] strong', source)
+        self.assertIn('[data-retail-summary="discount"] strong', source)
+        self.assertIn('[data-retail-summary="tax"] strong', source)
+        self.assertIn('[data-retail-summary="total"] strong', source)
         self.assertIn('.fizo-cashier-pay-cta span', source)
         self.assertIn('new Event("retail:balance-updated")', source)
         self.assertIn('cashPanel.addEventListener("retail:balance-updated"', source)
@@ -450,6 +451,23 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("Nothing requiring attention is available yet.", template)
         get_template("staff/dashboard.html")
 
+    def test_approved_product_card_density_and_named_totals(self):
+        root = Path(__file__).resolve().parent
+        css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        checkout = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        self.assertIn("min-height:184px", css)
+        self.assertIn("height:106px", css)
+        self.assertIn('data-retail-summary="subtotal"', detail)
+        self.assertIn('data-retail-summary="discount"', detail)
+        self.assertIn('data-retail-summary="tax"', detail)
+        self.assertIn('data-retail-summary="total"', detail)
+        self.assertIn('"discount": str(order.discount_amount)', view)
+        self.assertIn("values.discount", checkout)
+        self.assertNotIn(".fizo-retail-basket-summary > div:nth-child(1) strong", checkout)
+        self.assertNotIn(".fizo-retail-basket-summary > div:nth-child(2) strong", checkout)
+
     def test_cashier_payment_stack_matches_compact_target(self):
         root = Path(__file__).resolve().parent
         detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
@@ -487,8 +505,8 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("grid-template-columns:60px minmax(0,1fr) auto", css)
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
-        self.assertIn("retail-cashier.css' %}?v=20261025.3", supermarket)
-        self.assertIn("retail-counter-v2.js' %}?v=20261025.2", detail)
+        self.assertIn("retail-cashier.css' %}?v=20261025.4", supermarket)
+        self.assertIn("retail-counter-v2.js' %}?v=20261025.3", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
