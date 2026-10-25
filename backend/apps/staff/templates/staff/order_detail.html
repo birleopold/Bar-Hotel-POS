@@ -266,9 +266,10 @@
       </div>
     </section>
     <div class="fizo-retail-basket-summary" aria-label="Sale totals">
-      <div><span>Subtotal</span><strong>{{ order.currency }} {{ order.subtotal }}</strong></div>
-      <div><span>Tax</span><strong>{{ order.currency }} {{ order.tax_total }}</strong></div>
-      <div class="fizo-retail-basket-summary__total"><span>Total due</span><strong>{{ order.currency }} {{ balance_due }}</strong></div>
+      <div data-retail-summary="subtotal"><span>Subtotal</span><strong>{{ order.currency }} {{ order.subtotal }}</strong></div>
+      <div data-retail-summary="discount"><span>Discount</span><strong>{{ order.currency }} {{ order.discount_amount }}</strong></div>
+      <div data-retail-summary="tax"><span>Tax</span><strong>{{ order.currency }} {{ order.tax_total }}</strong></div>
+      <div class="fizo-retail-basket-summary__total" data-retail-summary="total"><span>Total due</span><strong>{{ order.currency }} {{ balance_due }}</strong></div>
     </div>
       </div>
       {% endif %}
