@@ -216,6 +216,36 @@ class DeliveryPersistenceTests(TestCase):
         self.assertEqual(Payment.objects.filter(order=self.sale).count(), 1)
         self.assertFalse(StockMovement.objects.filter(order=self.sale).exists())
 
+    def test_disabling_outlet_stops_new_orders_but_not_existing_delivery(self):
+        from apps.pos.services.deliveries import transition_order_delivery
+        set_outlet_delivery_enabled(
+            outlet=self.outlet, enabled=True, user=self.user, membership=self.member,
+        )
+        delivery, _ = self._register()
+        set_outlet_delivery_enabled(
+            outlet=self.outlet, enabled=False, user=self.user, membership=self.member,
+        )
+        self.assertFalse(OutletDeliverySettings.objects.get(
+            outlet=self.outlet).is_enabled)
+        another_order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            status=OrderStatus.CLOSED, is_paid=True,
+            total=Decimal("3000"), subtotal=Decimal("3000"),
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=another_order,
+            amount=Decimal("3000"), method=PaymentMethod.CASH,
+            idempotency_key="outlet-disabled-delivery-test", recorded_by=self.user,
+        )
+        with self.assertRaises(ValidationError):
+            self._register(order=another_order)
+        existing, replay = transition_order_delivery(
+            delivery=delivery, target_status="accepted",
+            user=self.user, membership=self.member,
+        )
+        self.assertFalse(replay)
+        self.assertEqual(existing.status, "accepted")
+
     def test_unassigned_or_other_tenant_worker_cannot_dispatch(self):
         from apps.pos.services.deliveries import (
             assign_delivery_driver, transition_order_delivery,
