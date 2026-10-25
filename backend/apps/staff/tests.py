@@ -1396,7 +1396,7 @@ class StaffControlPlaneEntitlementGatingTests(TestCase):
         sub.save(update_fields=["status", "updated_at"])
         r = self.client.get(reverse("staff-orders"))
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(r.url, reverse("staff-dashboard"))
+        self.assertEqual(r.url, reverse("staff-pending-approval"))
 
 
 class StaffOutletPolicyModuleGatingTests(TestCase):
@@ -2298,11 +2298,14 @@ class StaffOrderRefundTests(TestCase):
         page = self.client.get(url)
         self.assertContains(page, "Return and refund")
         self.assertContains(page, "Physical return only")
+        owner_membership = Membership.objects.get(user=self.user, tenant=self.tenant)
+        set_member_pin(owner_membership, "573951")
         response = self.client.post(url, {
             "action": "retail_line_refund", "line_id": str(line.id),
             "quantity": "1", "amount": "15.00", "reason": "Customer return",
+            "approver_id": str(owner_membership.pk), "approver_pin": "573951",
         }, follow=True)
-        self.assertContains(response, "Item return and customer refund recorded together")
+        self.assertContains(response, "Manager-approved item return and customer refund recorded.")
         ret = SupermarketLineReturn.objects.get(order=self.order)
         self.assertEqual(ret.refund.amount, Decimal("15"))
         self.assertContains(response, "Customer return")
