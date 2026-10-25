@@ -63,6 +63,39 @@ class SupplierInvoiceTests(TestCase):
         with self.assertRaises(ValidationError):
             self.record(amount=Decimal("1750"))
 
+    def test_supplier_invoice_reference_is_unique_across_purchase_orders(self):
+        second_po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.po.supplier,
+            outlet=self.outlet,
+            status=PurchaseOrderStatus.PARTIALLY_RECEIVED,
+        )
+        source_line = PurchaseOrderLine.objects.get(purchase_order=self.po)
+        PurchaseOrderLine.objects.create(
+            purchase_order=second_po,
+            menu_item=source_line.menu_item,
+            quantity_ordered=Decimal("5"),
+            quantity_received=Decimal("2"),
+            unit_cost=Decimal("1000"),
+        )
+        self.record(reference="Vendor-INV-9", amount=Decimal("1500"))
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with self.assertRaisesRegex(
+                ValidationError,
+                "already recorded against another purchase order",
+            ):
+                record_supplier_invoice(
+                    po=second_po,
+                    reference="vendor-inv-9",
+                    invoice_date=date(2026, 10, 1),
+                    due_date=date(2026, 10, 30),
+                    amount=Decimal("1500"),
+                    note="",
+                    user=None,
+                    membership=object(),
+                )
+        self.assertFalse(SupplierInvoice.objects.filter(purchase_order=second_po).exists())
+
     def test_total_invoices_cannot_exceed_received_goods(self):
         self.record()
         with self.assertRaises(ValidationError):
