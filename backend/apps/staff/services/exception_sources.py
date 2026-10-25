@@ -289,7 +289,12 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
             current_fingerprint = exception_fingerprint(
                 (obj.discrepancy_note, obj.updated_at)
             )
-            if current_fingerprint in resolved_versions.get(str(obj.pk), set()):
+            # Resolved current versions leave the live exception queue, but
+            # source-specific reads remain available from saved Case history.
+            if (
+                not source
+                and current_fingerprint in resolved_versions.get(str(obj.pk), set())
+            ):
                 continue
             result.append(row(
                 "delivery_discrepancy",
