@@ -227,8 +227,7 @@
   }
   function refreshCheckout(){
             return fetch(window.location.href,{credentials:"same-origin",cache:"no-store",
-          headers:{"Accept":"text/html"}});
-      }).then(function(response){
+          headers:{"Accept":"text/html"}}).then(function(response){
         if(!response.ok||response.redirected)throw new Error("Cannot refresh basket display.");
         return response.text();
       }).then(function(html){
@@ -258,7 +257,8 @@
           cash.setAttribute("data-balance-due",nextCash.getAttribute("data-balance-due"));
           cash.dispatchEvent(new Event("retail:balance-updated"));
         }
-        // The existing delegated +/- handler will manage new basket rows.;
+        // The existing delegated +/- handler will manage new basket rows.
+      });
   }
   window.retailRefreshCheckout=refreshCheckout;
   // Only enhance an already payable basket. The initial item keeps native
