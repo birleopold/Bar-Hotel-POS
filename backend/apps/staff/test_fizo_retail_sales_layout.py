@@ -451,6 +451,22 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("Nothing requiring attention is available yet.", template)
         get_template("staff/dashboard.html")
 
+    def test_staff_help_is_real_and_cashier_footer_exposes_it(self):
+        root = Path(__file__).resolve().parent
+        urls = (root / "urls.py").read_text(encoding="utf-8")
+        views = (root / "views.py").read_text(encoding="utf-8")
+        sidebar = (root / "templates/staff/includes/sidebar.html").read_text(encoding="utf-8")
+        help_page = (root / "templates/staff/help.html").read_text(encoding="utf-8")
+        css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
+        self.assertIn('path("help/", views.StaffHelpView.as_view(), name="staff-help")', urls)
+        self.assertIn("class StaffHelpView(LoginRequiredMixin, TemplateView):", views)
+        self.assertIn("fz-sidefoot__help", sidebar)
+        self.assertIn("{% url 'staff-help' %}", sidebar)
+        self.assertIn("Cashier quick guide", help_page)
+        self.assertIn("F3", help_page)
+        self.assertIn(".fz-sidefoot__pin{display:none}", css)
+        self.assertIn(".fz-sidefoot__help,", css)
+
     def test_live_cashier_sidebar_matches_approved_operational_rail(self):
         root = Path(__file__).resolve().parent
         sidebar = (root / "templates/staff/includes/sidebar.html").read_text(encoding="utf-8")
@@ -515,7 +531,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("grid-template-columns:60px minmax(0,1fr) auto", css)
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
-        self.assertIn("retail-cashier.css' %}?v=20261025.5", supermarket)
+        self.assertIn("retail-cashier.css' %}?v=20261025.6", supermarket)
         self.assertIn("retail-counter-v2.js' %}?v=20261025.3", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
