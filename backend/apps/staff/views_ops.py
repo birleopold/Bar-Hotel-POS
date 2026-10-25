@@ -2071,30 +2071,37 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_line_discount(self, request: HttpRequest, order: Order) -> HttpResponse:
-        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-            messages.error(request, "Line discount is only available on supermarket or retail outlets.")
+        async_discount = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        def reject(message, status=422):
+            if async_discount:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
             return redirect("staff-order-detail", order_id=order.id)
+
+        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            return reject("Line discount is only available on supermarket or retail outlets.", 409)
         approvers = sensitive_action_approvers(
             requester=request.tenant_membership,
             action="discount",
             outlet_id=order.outlet_id,
         )
         if not approvers:
-            messages.error(request, "No PIN-enabled manager is available to approve this discount.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("No PIN-enabled manager is available to approve this discount.", 409)
         form = StaffOrderLineDiscountForm(request.POST, approvers=approvers)
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            detail = "; ".join(
+                f"{field}: {error}"
+                for field, errors in form.errors.items()
+                for error in errors
+            ) or "Check the discount details."
+            return reject(detail)
         line = OrderLine.objects.filter(
             id=form.cleaned_data["line_id"],
             order_id=order.id,
         ).first()
         if line is None:
-            messages.error(request, "That line is not on this order.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("That line is not on this order.", 404)
         try:
             request_key = self._sensitive_request_key(request, "discount_request_key")
             with transaction.atomic():
@@ -2130,11 +2137,20 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         discount_percent=form.cleaned_data.get("discount_percent"),
                     )
         except SensitiveApprovalError as exc:
-            messages.error(request, str(exc))
+            return reject(exc)
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
-        else:
-            messages.success(request, "Manager-approved line discount saved.")
+            return reject(exc.detail)
+        if async_discount:
+            order.refresh_from_db(fields=["subtotal", "discount_amount", "tax_total", "total", "currency"])
+            return JsonResponse({
+                "ok": True,
+                "message": "Manager-approved line discount saved.",
+                "order_id": str(order.pk),
+                "currency": order.currency,
+                "total": str(order.total),
+                "next_request_key": str(uuid.uuid4()),
+            })
+        messages.success(request, "Manager-approved line discount saved.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_line_return(self, request: HttpRequest, order: Order) -> HttpResponse:
