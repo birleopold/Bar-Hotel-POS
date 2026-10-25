@@ -85,6 +85,16 @@ def login_brand_for_request(request, scope=None):
     from apps.tenants.models import Tenant, TenantSettings
 
     tenant = getattr(request, "domain_tenant", None)
+    # The platform's central hostname is never tenant-branded, even when a
+    # previously paired terminal leaves a signed tenant cookie in this browser.
+    # Signed terminal scope still governs which workers can unlock via PIN.
+    central_hosts = {
+        str(host).strip().lower().rstrip(".")
+        for host in getattr(settings, "TENANT_CENTRAL_HOSTS", ())
+    }
+    host = request.get_host().split(":")[0].strip().lower().rstrip(".")
+    if host in central_hosts:
+        return None
     if tenant is None:
         scope = scope if scope is not None else terminal_scope(request)
         if scope:
