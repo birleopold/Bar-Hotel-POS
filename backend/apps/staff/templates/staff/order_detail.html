@@ -406,6 +406,7 @@
           <form method="post" class="row g-2 align-items-end" data-retail-refund-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="record_refund">
+            <input type="hidden" name="refund_request_key" value="{{ refund_request_key }}">
             {% for field in refund_form %}
               {% if field.is_hidden %}{{ field }}{% else %}
                 <div class="col-6 col-md-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
