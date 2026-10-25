@@ -274,6 +274,30 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         self.assertIn("amount", invoice_form.errors)
         self.assertIn("due_at", invoice_form.errors)
 
+    def test_existing_subscription_status_cannot_bypass_audited_transition_form(self):
+        from apps.tenants.models import Plan, SubscriptionStatus, TenantSubscription
+        tenant = Tenant.objects.create(name="Audited status", slug="audited-status")
+        TenantSettings.objects.create(tenant=tenant)
+        first_plan = Plan.objects.create(name="Audited Plan A", code="audited-plan-a")
+        second_plan = Plan.objects.create(name="Audited Plan B", code="audited-plan-b")
+        subscription = TenantSubscription.objects.create(
+            tenant=tenant, plan=first_plan, status=SubscriptionStatus.ACTIVE,
+        )
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        response = self.client.post(url, {
+            "save_subscription": "1",
+            "sub-plan": str(second_plan.pk),
+            "sub-status": SubscriptionStatus.SUSPENDED,
+            "sub-started_at": "",
+            "sub-trial_ends_at": "",
+            "sub-current_period_ends_at": "",
+            "sub-cancelled_at": "",
+        })
+        self.assertRedirects(response, url)
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.plan_id, second_plan.pk)
+        self.assertEqual(subscription.status, SubscriptionStatus.ACTIVE)
+
     def test_tenant_scope_middleware_precedes_staff_membership_lookup(self):
         from django.conf import settings
         middleware = settings.MIDDLEWARE
