@@ -348,6 +348,28 @@ class ManagementWorkspaceTests(TestCase):
         self.assertIn(self.worker.email, row.detail)
         self.assertIn("2 voided lines by this worker in the review window", row.detail)
 
+    def test_no_sale_drawer_events_show_worker_repeat_count(self):
+        self.login()
+        for index in range(2):
+            AuditEvent.objects.create(
+                tenant=self.tenant,
+                user=self.worker,
+                action="pos.drawer_no_sale_opened",
+                entity_type="no_sale_drawer",
+                entity_id=f"no-sale-{index}",
+                payload={
+                    "shift_id": str(self.shift.pk),
+                    "outlet_id": str(self.outlet.pk),
+                    "workstation_id": "",
+                    "reason": "Customer requested change",
+                },
+            )
+        rows = [r for r in self.rows() if r.kind == "drawer_no_sale"]
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(self.worker.email in r.detail for r in rows))
+        self.assertTrue(all("2 no-sale openings by this worker" in r.detail for r in rows))
+        self.assertEqual(self.client.get(rows[0].url).status_code, 200)
+
     def test_follow_up_ownership_history_and_resolved_case_after_source_clears(self):
         self.login()
         row = next(r for r in self.rows() if r.kind == "low_stock")
