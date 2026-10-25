@@ -76,7 +76,35 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
         ctx = {"management_view": mode, "management_title": {"today": "Today", "exceptions": "Exceptions", "approvals": "Approval actions", "team": "Team", "reports": "Reports", "cases": "Case history and follow-up"}[mode], "management_outlets": outlets, "management_error": error}
         if mode == "exceptions":
             rows, policy = exception_rows(request)
-            ctx.update(exception_rows=rows, exception_policy=policy, exception_assignees=exception_assignees(request))
+            grouped = {
+                "Money": {"refund", "discount", "line_discount", "cash_variance"},
+                "Cashier actions": {"void", "drawer_no_sale", "manual_price"},
+                "Stock": {"stock_adjustment", "low_stock", "delivery_discrepancy"},
+                "Security & sync": {"pin_failure", "offline_conflict", "efris_failure"},
+            }
+            summary = []
+            for label, kinds in grouped.items():
+                matched = [row for row in rows if row.kind in kinds]
+                follow_up = sum(
+                    1 for row in matched
+                    if row.review is not None and row.review.status == "follow_up"
+                )
+                unresolved = sum(
+                    1 for row in matched
+                    if row.review is None or row.review.status != "resolved"
+                )
+                summary.append({
+                    "label": label,
+                    "count": len(matched),
+                    "unresolved": unresolved,
+                    "follow_up": follow_up,
+                })
+            ctx.update(
+                exception_rows=rows,
+                exception_policy=policy,
+                exception_assignees=exception_assignees(request),
+                exception_summary=summary,
+            )
             can_configure = membership_can_manage_workspace_settings(request.tenant_membership) and not request.session.get("staff_pin_authenticated")
             ctx["can_configure_exceptions"] = can_configure
             ctx["policy_form"] = policy_form or ExceptionPolicyForm(instance=policy)
