@@ -402,3 +402,15 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
 @media (prefers-reduced-motion:reduce){
   .fizo-checkout-catalogue .staff-pos-menu-tile{transition:none}
 }
+
+.reference-sale-complete{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 14px;border:1px solid #d9eadf;border-radius:10px;background:#f4fbf6;
+}
+.reference-sale-complete .staff-card__title{margin:0 0 2px;color:#087a43}
+.reference-sale-complete form{margin:0;flex:0 0 auto}
+.reference-sale-complete .staff-btn{min-height:44px;padding-inline:18px}
+@media(max-width:600px){
+  .reference-sale-complete{align-items:stretch;flex-direction:column}
+  .reference-sale-complete .staff-btn{width:100%}
+}
