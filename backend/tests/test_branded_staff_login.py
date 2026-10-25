@@ -85,6 +85,28 @@ class BrandedStaffLoginTests(TestCase):
             outlet_id=str(first_outlet.pk), pin="749182",
         ))
 
+    @override_settings(
+        ALLOWED_HOSTS=["pos.leosoftug.com", "sennana.example.test", "kartel.example.test"],
+        TENANT_CENTRAL_HOSTS=["pos.leosoftug.com"],
+    )
+    def test_platform_login_is_neutral_even_with_old_tenant_terminal_cookie(self):
+        signed = signing.dumps(
+            {"tenant": str(self.sennana.pk), "outlet": ""},
+            salt=TERMINAL_SALT,
+        )
+        self.client.cookies[TERMINAL_COOKIE] = signed
+        response = self.client.get(
+            reverse("staff-login"), HTTP_HOST="pos.leosoftug.com"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Leosoft POS")
+        self.assertNotContains(response, "Fizo")
+        self.assertNotContains(response, "Sennana Supermarket")
+        self.assertNotContains(response, "Kartel Bar")
+        self.assertContains(
+            response, "<title>Leosoft POS · Staff sign in</title>", html=False,
+        )
+
     def test_branded_login_shows_only_domain_identity(self):
         response = self.client.get(
             reverse("staff-login"), HTTP_HOST="sennana.example.test"
