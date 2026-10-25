@@ -1136,6 +1136,15 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
             else []
         )
+        retail_void_approvers = (
+            sensitive_action_approvers(
+                requester=m,
+                action="void",
+                outlet_id=order.outlet_id,
+            )
+            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            else []
+        )
         order_refundable_state = (
             (order.status == OrderStatus.CLOSED and order.is_paid)
             or (
@@ -1391,6 +1400,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             else None
         )
         ctx["discount_request_key"] = uuid.uuid4() if ctx["line_discount_form"] is not None else None
+        ctx["void_order_form"] = (
+            StaffOrderVoidOrderForm(approvers=retail_void_approvers)
+            if can_modify_open and is_supermarket_outlet and retail_void_approvers
+            else None
+        )
+        ctx["void_request_key"] = uuid.uuid4() if ctx["void_order_form"] is not None else None
         ctx["line_return_form"] = (
             StaffOrderLineReturnForm()
             if is_supermarket_outlet and order.status == OrderStatus.CLOSED and order.is_paid
@@ -1454,7 +1469,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
         ):
             return self._post_line_discount(request, order)
-        cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order", "resume_order"}
+        cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order", "resume_order", "void_order"}
         if not (membership_can_modify_lodging(m) or (
             action in cashier_actions and _can_operate_retail_checkout(m, order)
         )):
