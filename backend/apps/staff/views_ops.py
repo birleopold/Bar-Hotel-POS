@@ -744,7 +744,23 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         ctx["selected_station"] = self._selected_for_outlet(self.request, outlet)
         ctx["open_form"] = StaffPosShiftOpenForm()
         ctx["close_form"] = StaffPosShiftCloseForm()
-        ctx["movement_form"] = StaffCashDrawerMovementForm(initial={"idempotency_key": uuid.uuid4()})
+        payout_approvers = None
+        if (
+            outlet is not None
+            and membership_can_approve_sensitive_action(
+                self.request.tenant_membership, "withdrawal"
+            )
+        ):
+            payout_approvers = sensitive_action_approvers(
+                requester=self.request.tenant_membership,
+                action="withdrawal",
+                outlet_id=outlet.pk,
+            )
+        ctx["payout_approvers"] = payout_approvers or []
+        ctx["movement_form"] = StaffCashDrawerMovementForm(
+            initial={"idempotency_key": uuid.uuid4()},
+            approvers=payout_approvers,
+        )
         ctx["handover_form"] = StaffHandoverCountForm()
         if outlet is None:
             ctx["open_shift"] = None
@@ -817,21 +833,89 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
                 messages.success(request, "Shift opened.")
             return redirect("staff-pos-shifts")
         if action == "cash_movement":
-            form = StaffCashDrawerMovementForm(request.POST)
+            payout_approvers = (
+                sensitive_action_approvers(
+                    requester=request.tenant_membership,
+                    action="withdrawal",
+                    outlet_id=outlet.pk,
+                )
+                if membership_can_approve_sensitive_action(
+                    request.tenant_membership, "withdrawal"
+                )
+                else None
+            )
+            form = StaffCashDrawerMovementForm(
+                request.POST,
+                approvers=payout_approvers,
+            )
             if not form.is_valid():
                 context = self.get_context_data()
                 context["movement_form"] = form
                 return self.render_to_response(context, status=400)
-            shift = PosShift.objects.filter(pk=form.cleaned_data["shift_id"], tenant=request.tenant, outlet=outlet, workstation=selected_station).first()
+            shift = PosShift.objects.filter(
+                pk=form.cleaned_data["shift_id"],
+                tenant=request.tenant,
+                outlet=outlet,
+                workstation=selected_station,
+            ).first()
             if shift is None:
                 messages.error(request, "Shift not found for this register.")
                 return redirect("staff-pos-shifts")
             try:
-                _, replay = record_cash_drawer_movement(shift=shift, membership=request.tenant_membership, user=request.user, workstation_id=selected_station.pk if selected_station else None, direction=form.cleaned_data["direction"], amount=form.cleaned_data["amount"], reason=form.cleaned_data["reason"], idempotency_key=str(form.cleaned_data["idempotency_key"]))
+                if form.cleaned_data["direction"] == "payout":
+                    with transaction.atomic():
+                        locked_shift = PosShift.objects.select_for_update().get(
+                            pk=shift.pk,
+                            tenant=request.tenant,
+                            outlet=outlet,
+                            workstation=selected_station,
+                        )
+                        authorize_sensitive_action(
+                            requester=request.tenant_membership,
+                            approver_id=form.cleaned_data["approver_id"],
+                            approver_pin=form.cleaned_data["approver_pin"],
+                            action="withdrawal",
+                            entity_type="pos_shift",
+                            entity_id=str(locked_shift.pk),
+                            request_key=str(form.cleaned_data["idempotency_key"]),
+                            outlet_id=locked_shift.outlet_id,
+                            intent_payload={
+                                "direction": "payout",
+                                "amount": str(form.cleaned_data["amount"]),
+                                "reason": form.cleaned_data["reason"],
+                                "workstation_id": str(selected_station.pk),
+                            },
+                        )
+                        _, replay = record_cash_drawer_movement(
+                            shift=locked_shift,
+                            membership=request.tenant_membership,
+                            user=request.user,
+                            workstation_id=selected_station.pk,
+                            direction=form.cleaned_data["direction"],
+                            amount=form.cleaned_data["amount"],
+                            reason=form.cleaned_data["reason"],
+                            idempotency_key=str(form.cleaned_data["idempotency_key"]),
+                        )
+                else:
+                    _, replay = record_cash_drawer_movement(
+                        shift=shift,
+                        membership=request.tenant_membership,
+                        user=request.user,
+                        workstation_id=selected_station.pk if selected_station else None,
+                        direction=form.cleaned_data["direction"],
+                        amount=form.cleaned_data["amount"],
+                        reason=form.cleaned_data["reason"],
+                        idempotency_key=str(form.cleaned_data["idempotency_key"]),
+                    )
+            except SensitiveApprovalError as exc:
+                messages.error(request, str(exc))
             except DRFValidationError as exc:
                 _flash_drf_validation(request, exc)
             else:
-                messages.success(request, "Movement already recorded." if replay else "Drawer movement recorded.")
+                messages.success(
+                    request,
+                    "Movement already recorded." if replay else "Drawer movement recorded.",
+                )
             return redirect("staff-pos-shifts")
         if action == "close_shift":
             form = StaffPosShiftCloseForm(request.POST)
