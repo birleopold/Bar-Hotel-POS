@@ -225,6 +225,42 @@
       if(button)button.setAttribute("aria-disabled","true");
     });
   }
+  function refreshCheckout(){
+            return fetch(window.location.href,{credentials:"same-origin",cache:"no-store",
+          headers:{"Accept":"text/html"}});
+      }).then(function(response){
+        if(!response.ok||response.redirected)throw new Error("Cannot refresh basket display.");
+        return response.text();
+      }).then(function(html){
+        var remote=new DOMParser().parseFromString(html,"text/html");
+        var fresh=remote.querySelector("#fizo-current-basket .fizo-retail-basket-items");
+        var current=document.querySelector("#fizo-current-basket .fizo-retail-basket-items");
+        if(!fresh||!current)throw new Error("Checkout confirmation is unavailable.");
+        current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
+        document.dispatchEvent(new Event("retail:basket-lines-replaced"));
+        [".fizo-retail-basket-summary > div:nth-child(1) strong",
+         ".fizo-retail-basket-summary > div:nth-child(2) strong",
+         ".fizo-retail-basket-summary__total strong",".fizo-cashier-payment-summary strong",
+         ".staff-pos-totals-row__total strong",".staff-pos-totals-row__meta",
+         ".fizo-cashier-pay-cta span"].forEach(function(selector){
+          var a=document.querySelector(selector),b=remote.querySelector(selector);
+          if(a&&b)a.textContent=b.textContent;
+        });
+        var cash=document.querySelector("[data-retail-cash-panel]");
+        var nextCash=remote.querySelector("[data-retail-cash-panel]");
+        if(cash&&nextCash){
+          var oldDue=cash.getAttribute("data-balance-due");
+          var amount=paymentForm.querySelector('input[name="amount"]');
+          if(amount&&Number(amount.value)===Number(oldDue)){
+            var remoteAmount=remote.querySelector('[data-pos-payment-form] input[name="amount"]');
+            if(remoteAmount)amount.value=remoteAmount.value;
+          }
+          cash.setAttribute("data-balance-due",nextCash.getAttribute("data-balance-due"));
+          cash.dispatchEvent(new Event("retail:balance-updated"));
+        }
+        // The existing delegated +/- handler will manage new basket rows.;
+  }
+  window.retailRefreshCheckout=refreshCheckout;
   // Only enhance an already payable basket. The initial item keeps native
   // submission so Django can create its payment form with the correct
   // cashier permissions and server-issued payment identity.
@@ -268,42 +304,8 @@
           return data;
         });
       }).then(function(){
-        return fetch(window.location.href,{credentials:"same-origin",cache:"no-store",
-          headers:{"Accept":"text/html"}});
-      }).then(function(response){
-        if(!response.ok||response.redirected)throw new Error("Cannot refresh basket display.");
-        return response.text();
-      }).then(function(html){
-        var remote=new DOMParser().parseFromString(html,"text/html");
-        var fresh=remote.querySelector("#fizo-current-basket .fizo-retail-basket-items");
-        var current=document.querySelector("#fizo-current-basket .fizo-retail-basket-items");
-        if(!fresh||!current)throw new Error("Checkout confirmation is unavailable.");
-        if(fresh.innerHTML===current.innerHTML){
-          throw new Error("Item was not added; check product availability and basket messages.");
-        }
-        current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
-        document.dispatchEvent(new Event("retail:basket-lines-replaced"));
-        [".fizo-retail-basket-summary > div:nth-child(1) strong",
-         ".fizo-retail-basket-summary > div:nth-child(2) strong",
-         ".fizo-retail-basket-summary__total strong",".fizo-cashier-payment-summary strong",
-         ".staff-pos-totals-row__total strong",".staff-pos-totals-row__meta",
-         ".fizo-cashier-pay-cta span"].forEach(function(selector){
-          var a=document.querySelector(selector),b=remote.querySelector(selector);
-          if(a&&b)a.textContent=b.textContent;
-        });
-        var cash=document.querySelector("[data-retail-cash-panel]");
-        var nextCash=remote.querySelector("[data-retail-cash-panel]");
-        if(cash&&nextCash){
-          var oldDue=cash.getAttribute("data-balance-due");
-          var amount=paymentForm.querySelector('input[name="amount"]');
-          if(amount&&Number(amount.value)===Number(oldDue)){
-            var remoteAmount=remote.querySelector('[data-pos-payment-form] input[name="amount"]');
-            if(remoteAmount)amount.value=remoteAmount.value;
-          }
-          cash.setAttribute("data-balance-due",nextCash.getAttribute("data-balance-due"));
-          cash.dispatchEvent(new Event("retail:balance-updated"));
-        }
-        // The existing delegated +/- handler will manage new basket rows.
+        return refreshCheckout();
+      }).then(function(){
         if(live)live.textContent="Item added to basket.";
       }).catch(function(error){
         // Never replay a POST whose response was lost: it may have committed.
