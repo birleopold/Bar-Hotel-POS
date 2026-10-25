@@ -53,6 +53,25 @@ from apps.tenants.domains import begin_custom_domain_verification, create_platfo
 from apps.tenants.subscriptions import tenant_operational_access
 
 
+INVOICE_STATUS_TRANSITIONS = {
+    BillingInvoiceStatus.DRAFT: {
+        BillingInvoiceStatus.ISSUED,
+        BillingInvoiceStatus.VOID,
+    },
+    BillingInvoiceStatus.ISSUED: {
+        BillingInvoiceStatus.PAST_DUE,
+        BillingInvoiceStatus.PAID,
+        BillingInvoiceStatus.VOID,
+    },
+    BillingInvoiceStatus.PAST_DUE: {
+        BillingInvoiceStatus.PAID,
+        BillingInvoiceStatus.VOID,
+    },
+    BillingInvoiceStatus.PAID: set(),
+    BillingInvoiceStatus.VOID: set(),
+}
+
+
 class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
     template_name = "console/platform/tenant_list.html"
     context_object_name = "tenants"
@@ -807,12 +826,18 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
             if invoice is None:
                 messages.error(request, "Invoice not found.")
                 return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
-            if new_status not in {c[0] for c in BillingInvoiceStatus.choices}:
+            if new_status not in {choice[0] for choice in BillingInvoiceStatus.choices}:
                 messages.error(request, "Invalid invoice status.")
                 return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
             prev_status = invoice.status
             if new_status == prev_status:
                 messages.info(request, "Invoice already has this status; no change recorded.")
+                return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+            if new_status not in INVOICE_STATUS_TRANSITIONS.get(prev_status, set()):
+                messages.error(
+                    request,
+                    f"Invoice status cannot move from {prev_status} to {new_status}. Create a new adjustment or billing record instead.",
+                )
                 return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
             invoice.status = new_status
             if new_status == BillingInvoiceStatus.PAID:
@@ -915,6 +940,12 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
             .select_related("subscription")
             .order_by("-created_at")[:30]
         )
+        status_labels = dict(BillingInvoiceStatus.choices)
+        for invoice in ctx["invoices"]:
+            invoice.allowed_status_transitions = [
+                (status, status_labels[status])
+                for status in INVOICE_STATUS_TRANSITIONS.get(invoice.status, set())
+            ]
         ctx["billing_events"] = list(
             BillingEvent.objects.filter(tenant=self.tenant_obj)
             .select_related("actor", "subscription", "invoice")
