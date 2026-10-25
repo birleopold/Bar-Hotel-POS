@@ -1660,17 +1660,23 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_scan_add_line(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_scan = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        def reject(message, status=422):
+            if async_scan:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
         if not _tenant_hardware_flags(order.tenant)["barcode_scanner_enabled"]:
-            messages.error(request, "Barcode scanner input is disabled in workspace hardware settings.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Barcode scanner input is disabled in workspace hardware settings.", 403)
         if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-            messages.error(request, "Barcode add is only available on supermarket or retail outlets.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Barcode add is only available on supermarket or retail outlets.", 403)
         if order.status != OrderStatus.OPEN or order.is_paid:
-            messages.error(request, "Barcode add is only available for open, unpaid orders.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Barcode add is only available for open, unpaid orders.", 409)
         form = StaffOrderScanAddForm(request.POST)
         if not form.is_valid():
+            if async_scan:
+                return reject("; ".join(str(error) for errors in form.errors.values() for error in errors))
             for fld, err_list in form.errors.items():
                 for err in err_list:
                     messages.error(request, f"{fld}: {err}")
@@ -1683,8 +1689,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 user=request.user,
             )
         except DRFValidationError as exc:
+            if async_scan:
+                return reject(exc.detail)
             _flash_drf_validation(request, exc)
         else:
+            if async_scan:
+                order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
+                return JsonResponse({"ok": True, "order_id": str(order.pk),
+                    "currency": order.currency, "total": str(order.total)})
             messages.success(request, "SKU added.")
         return redirect("staff-order-detail", order_id=order.id)
 
