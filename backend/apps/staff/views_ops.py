@@ -2327,18 +2327,69 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if order.status != OrderStatus.OPEN or order.is_paid:
             messages.error(request, "Only open, unpaid orders can be voided.")
             return redirect("staff-order-detail", order_id=order.id)
-        form = StaffOrderVoidOrderForm(request.POST)
+
+        is_retail = order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        approvers = (
+            sensitive_action_approvers(
+                requester=request.tenant_membership,
+                action="void",
+                outlet_id=order.outlet_id,
+            )
+            if is_retail else None
+        )
+        if is_retail and not approvers:
+            messages.error(request, "A different PIN-enabled manager is required to approve this basket void.")
+            return redirect("staff-order-detail", order_id=order.id)
+
+        form = StaffOrderVoidOrderForm(request.POST, approvers=approvers)
         if not form.is_valid():
             for fld, err_list in form.errors.items():
                 for err in err_list:
                     messages.error(request, f"{fld}: {err}")
             return redirect("staff-order-detail", order_id=order.id)
+
+        reason = form.cleaned_data.get("reason") or ""
         try:
-            cancel_open_unpaid_order(
-                order=order,
-                user=request.user,
-                reason=form.cleaned_data.get("reason") or "",
-            )
+            if is_retail:
+                request_key = self._sensitive_request_key(request, "void_request_key")
+                with transaction.atomic():
+                    locked_order = Order.objects.select_for_update().get(
+                        pk=order.pk,
+                        tenant_id=order.tenant_id,
+                        outlet_id=order.outlet_id,
+                    )
+                    approval = authorize_sensitive_action(
+                        requester=request.tenant_membership,
+                        approver_id=form.cleaned_data["approver_id"],
+                        approver_pin=form.cleaned_data["approver_pin"],
+                        action="void",
+                        entity_type="order",
+                        entity_id=str(locked_order.pk),
+                        request_key=request_key,
+                        outlet_id=locked_order.outlet_id,
+                        intent_payload={
+                            "reason": reason,
+                            "subtotal": str(locked_order.subtotal),
+                            "discount_amount": str(locked_order.discount_amount),
+                            "tax_total": str(locked_order.tax_total),
+                            "total": str(locked_order.total),
+                            "active_line_count": locked_order.lines.filter(is_voided=False).count(),
+                        },
+                    )
+                    if not getattr(approval, "idempotent_replay", False):
+                        cancel_open_unpaid_order(
+                            order=locked_order,
+                            user=request.user,
+                            reason=reason,
+                        )
+            else:
+                cancel_open_unpaid_order(
+                    order=order,
+                    user=request.user,
+                    reason=reason,
+                )
+        except SensitiveApprovalError as exc:
+            messages.error(request, str(exc))
         except DRFValidationError as exc:
             if getattr(exc, "get_codes", None) and _drf_has_code(exc.get_codes(), "refund_required"):
                 for message in _drf_detail_messages(exc.detail):
@@ -2347,10 +2398,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             else:
                 _flash_drf_validation(request, exc)
         else:
-            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            if is_retail:
                 from .views_customer_display import clear_customer_display_active
                 clear_customer_display_active(order, request)
-                messages.success(request, "Basket voided. Ready for the next sale.")
+                messages.success(request, "Manager-approved basket void recorded. Ready for the next sale.")
                 return redirect("staff-retail-pos-entry")
             messages.success(request, "Order voided.")
         return redirect("staff-order-detail", order_id=order.id)
