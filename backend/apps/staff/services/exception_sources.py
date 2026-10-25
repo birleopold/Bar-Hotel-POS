@@ -12,7 +12,7 @@ from apps.integrations.models import EfrisSubmission
 from apps.pos.models import Order, OrderLine, OfflineQueuedOperation, Payment, Refund
 from apps.purchasing.models import PurchaseReceipt
 
-EXTRA_KINDS = ("discount", "line_discount", "void", "manual_price", "stock_adjustment", "delivery_discrepancy", "efris_failure", "offline_conflict", "pin_failure")
+EXTRA_KINDS = ("discount", "line_discount", "void", "drawer_no_sale", "manual_price", "stock_adjustment", "delivery_discrepancy", "efris_failure", "offline_conflict", "pin_failure")
 
 
 def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
@@ -99,6 +99,48 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
                 " · compare with the authorized selling price",
                 reverse("staff-order-detail", kwargs={"order_id": obj.order_id}),
                 (obj.unit_price, obj.quantity, obj.updated_at, obj.pricing_source),
+            ))
+        drawer_events = list(limited(
+            AuditEvent.objects.filter(
+                tenant=request.tenant,
+                action="pos.drawer_no_sale_opened",
+                created_at__gte=cutoff,
+                payload__outlet_id__in=[str(i) for i in ids],
+            ).select_related("user").order_by("-created_at"),
+            "drawer_no_sale",
+        ))
+        drawer_user_counts = {}
+        if drawer_events:
+            user_ids = {event.user_id for event in drawer_events if event.user_id}
+            if user_ids:
+                drawer_user_counts = dict(
+                    AuditEvent.objects.filter(
+                        tenant=request.tenant,
+                        action="pos.drawer_no_sale_opened",
+                        created_at__gte=cutoff,
+                        payload__outlet_id__in=[str(i) for i in ids],
+                        user_id__in=user_ids,
+                    ).order_by().values("user_id").annotate(total=Count("pk"))
+                    .values_list("user_id", "total")
+                )
+        for obj in drawer_events:
+            worker = (
+                obj.user.get_full_name() or obj.user.email
+                if obj.user_id and obj.user
+                else "Unknown worker"
+            )
+            count = drawer_user_counts.get(obj.user_id, 0)
+            detail = f"{obj.payload.get('reason') or 'No reason recorded'} · recorded by {worker}"
+            if count > 1:
+                detail += f" · {count} no-sale openings by this worker in the review window"
+            result.append(row(
+                "drawer_no_sale",
+                obj,
+                "No-sale drawer opening",
+                detail,
+                source_url("drawer_no_sale", obj),
+                (obj.pk, obj.created_at, obj.user_id, count, obj.payload.get("reason")),
+                outlet_id=obj.payload.get("outlet_id") or None,
             ))
         queue = OfflineQueuedOperation.objects.filter(tenant=request.tenant, outlet_id__in=ids).filter(Q(status="failed") | Q(status="pending", created_at__lt=timezone.now()-timedelta(hours=policy.offline_age_hours))).order_by("created_at")
         for obj in limited(queue, "offline_conflict"):
