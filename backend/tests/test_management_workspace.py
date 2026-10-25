@@ -370,6 +370,33 @@ class ManagementWorkspaceTests(TestCase):
         self.assertTrue(all("2 no-sale openings by this worker" in r.detail for r in rows))
         self.assertEqual(self.client.get(rows[0].url).status_code, 200)
 
+    def test_approved_discount_is_not_duplicated_as_manual_price_exception(self):
+        from apps.pos.models import OrderLine
+        self.login()
+        discounted = OrderLine.objects.create(
+            order=self.order,
+            label="Approved discount",
+            quantity=1,
+            unit_price=20,
+            line_total=15,
+            line_discount_amount=5,
+            pricing_source="manual",
+        )
+        manual = OrderLine.objects.create(
+            order=self.order,
+            label="Historical manual price",
+            quantity=1,
+            unit_price=7,
+            line_total=7,
+            line_discount_amount=0,
+            pricing_source="manual",
+        )
+        rows = self.rows()
+        manual_ids = {r.entity_id for r in rows if r.kind == "manual_price"}
+        self.assertNotIn(str(discounted.pk), manual_ids)
+        self.assertIn(str(manual.pk), manual_ids)
+        self.assertIn(str(discounted.pk), {r.entity_id for r in rows if r.kind == "line_discount"})
+
     def test_follow_up_ownership_history_and_resolved_case_after_source_clears(self):
         self.login()
         row = next(r for r in self.rows() if r.kind == "low_stock")
