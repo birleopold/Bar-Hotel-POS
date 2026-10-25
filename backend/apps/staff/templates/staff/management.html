@@ -25,6 +25,28 @@
       {% endfor %}
     </div>
   </section>
+  {% if shrink_watch %}
+  <section class="staff-card mb-3" aria-labelledby="shrink-watch-title">
+    <h2 class="staff-card__title" id="shrink-watch-title">Shrink watch</h2>
+    <p class="staff-muted small">Repeated negative waste, write-off and physical-count adjustments from the existing stock ledger during this review window. Quantities stay in each product's own unit; no monetary loss is inferred.</p>
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th>Section</th><th>Product</th><th>Events</th><th>Quantity removed</th><th>Last activity</th></tr></thead>
+        <tbody>
+        {% for item in shrink_watch %}
+          <tr>
+            <td>{{ item.outlet__name }}</td>
+            <td>{{ item.menu_item__name }}</td>
+            <td>{{ item.event_count }}</td>
+            <td>{{ item.quantity_removed }} {{ item.menu_item__unit_of_measure }}</td>
+            <td>{{ item.last_seen }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
   {% for row in exception_rows %}<article class="staff-card mb-3">
     <h2 class="staff-card__title">{{ row.title }} <span class="staff-tag">{% if row.review %}{{ row.review.get_status_display }}{% else %}Open{% endif %}</span></h2>
     <p>{{ row.detail }}</p><p><a class="staff-btn staff-btn--ghost" href="{{ row.url }}">Open source</a></p>
