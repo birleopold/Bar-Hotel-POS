@@ -676,4 +676,19 @@ class StaffSupplierBalancesView(StaffTenantRequiredMixin, TemplateView):
             (row["unpaid_invoiced_value"] for row in ctx["exposure_rows"]),
             Decimal("0"),
         )
+        ctx["known_overdue_invoiced"] = sum(
+            (
+                row["overdue_invoiced_value"] or Decimal("0")
+                for row in ctx["exposure_rows"]
+                if row["invoice_aging_exact"]
+            ),
+            Decimal("0"),
+        )
+        ctx["invoice_allocation_required_count"] = sum(
+            int(
+                row["invoiced_value"] > 0
+                and not row["invoice_aging_exact"]
+            )
+            for row in ctx["exposure_rows"]
+        )
         return ctx

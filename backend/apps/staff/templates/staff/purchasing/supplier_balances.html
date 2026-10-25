@@ -12,13 +12,15 @@
     <span><strong>{{ purchase_currency }} {{ known_supplier_due|floatformat:2 }}</strong><small>Unpaid received goods</small></span>
     <span><strong>{{ purchase_currency }} {{ known_unpaid_invoiced|floatformat:2 }}</strong><small>Unpaid recorded invoices</small></span>
     <span><strong>{{ purchase_currency }} {{ known_unbilled_received|floatformat:2 }}</strong><small>Received goods without invoices</small></span>
+    <span><strong>{{ purchase_currency }} {{ known_overdue_invoiced|floatformat:2 }}</strong><small>Verified overdue invoices</small></span>
   </div>
-  <p class="staff-muted small mb-1">Balances are grouped by purchase order. Payments are not assigned to individual invoices, so invoice balances are totals rather than invoice-by-invoice allocations.</p>
+  <p class="staff-muted small mb-1">New supplier payments can be linked to verified invoices. Historical PO-level payments are never guessed into an invoice: match them from the purchase order before relying on invoice due-date aging.</p>
+  {% if invoice_allocation_required_count %}<p class="staff-muted mb-1">{{ invoice_allocation_required_count }} order(s) have recorded invoices plus unallocated historical payments. Their total payable is known, but invoice-by-invoice aging is withheld until allocation is verified.</p>{% endif %}
   {% if missing_cost_count %}<p class="staff-muted">{{ missing_cost_count }} order(s) need cost information before their balance can be calculated.</p>{% endif %}
 </section>
 {% if exposure_rows %}
 <div class="fizo-purchasing__tablewrap"><table class="fizo-purchasing__table">
-  <thead><tr><th>Supplier</th><th>Section</th><th>Order</th><th>Received value</th><th>Invoiced</th><th>Invoice unpaid</th><th>Unbilled received</th><th>Earliest invoice due</th><th>Paid</th><th>Unpaid received</th><th>Cost status</th></tr></thead>
+  <thead><tr><th>Supplier</th><th>Section</th><th>Order</th><th>Received value</th><th>Invoiced</th><th>Invoice unpaid</th><th>Unbilled received</th><th>Next unpaid due</th><th>Overdue</th><th>Payment allocation</th><th>Paid</th><th>Unpaid received</th><th>Cost status</th></tr></thead>
   <tbody>{% for row in exposure_rows %}
   <tr><td>{{ row.supplier }}</td><td>{{ row.outlet }}</td>
     <td><a href="{% url 'staff-purchasing-order-detail' po_id=row.order_id %}">View order</a></td>
@@ -26,7 +28,9 @@
     <td>{{ purchase_currency }} {{ row.invoiced_value|floatformat:2 }}</td>
     <td>{{ purchase_currency }} {{ row.unpaid_invoiced_value|floatformat:2 }}</td>
     <td>{% if row.missing_cost_data %}Needs costs{% else %}{{ purchase_currency }} {{ row.unbilled_received_value|floatformat:2 }}{% endif %}</td>
-    <td>{{ row.earliest_invoice_due_date|default:"—" }}</td>
+    <td>{% if row.invoice_aging_exact %}{{ row.earliest_unpaid_invoice_due_date|default:"—" }}{% else %}Allocation required{% endif %}</td>
+    <td>{% if row.invoice_aging_exact %}{{ purchase_currency }} {{ row.overdue_invoiced_value|floatformat:2 }}{% if row.max_overdue_days %} · {{ row.max_overdue_days }} day{{ row.max_overdue_days|pluralize }}{% endif %}{% else %}Not exact{% endif %}</td>
+    <td>{% if row.invoice_aging_exact %}Verified{% else %}{{ purchase_currency }} {{ row.unallocated_payment_amount|floatformat:2 }} unallocated{% endif %}</td>
     <td>{{ purchase_currency }} {{ row.paid_amount|floatformat:2 }}</td>
     <td>{% if row.missing_cost_data %}—{% else %}{{ purchase_currency }} {{ row.unpaid_received_value|floatformat:2 }}{% endif %}</td>
     <td>{% if row.missing_cost_data %}Incomplete{% else %}Confirmed{% endif %}</td>

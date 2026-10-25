@@ -332,6 +332,59 @@ class SupplierInvoiceTests(TestCase):
                 )
 
 
+    def test_supplier_balance_aging_requires_verified_payment_allocation(self):
+        from apps.purchasing.models import SupplierPaymentMethod
+        from apps.purchasing.services import record_supplier_payment
+
+        invoice, _ = self.record(reference="AGING-01", amount=Decimal("1200"))
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense"):
+                record_supplier_payment(
+                    po=self.po,
+                    amount=Decimal("450"),
+                    method=SupplierPaymentMethod.BANK,
+                    reference="AGING-LINKED",
+                    idempotency_key="aging-linked",
+                    invoice_id=invoice.pk,
+                    user=None,
+                    membership=object(),
+                )
+
+        exact = purchase_order_exposure(
+            tenant=self.tenant,
+            outlet_ids=[self.outlet.pk],
+            today=date(2026, 11, 2),
+        )[0]
+        self.assertTrue(exact["invoice_aging_exact"])
+        self.assertEqual(exact["unallocated_payment_amount"], Decimal("0"))
+        self.assertEqual(exact["earliest_unpaid_invoice_due_date"], date(2026, 10, 30))
+        self.assertEqual(exact["overdue_invoiced_value"], Decimal("750"))
+        self.assertEqual(exact["max_overdue_days"], 3)
+
+        with patch("apps.purchasing.services.outlet_belongs_to_membership", return_value=True):
+            with patch("apps.purchasing.services.post_supplier_payment_expense"):
+                record_supplier_payment(
+                    po=self.po,
+                    amount=Decimal("100"),
+                    method=SupplierPaymentMethod.CASH,
+                    reference="AGING-LEGACY",
+                    idempotency_key="aging-unallocated",
+                    user=None,
+                    membership=object(),
+                )
+        ambiguous = purchase_order_exposure(
+            tenant=self.tenant,
+            outlet_ids=[self.outlet.pk],
+            today=date(2026, 11, 2),
+        )[0]
+        self.assertFalse(ambiguous["invoice_aging_exact"])
+        self.assertEqual(ambiguous["unallocated_payment_amount"], Decimal("100"))
+        self.assertIsNone(ambiguous["earliest_unpaid_invoice_due_date"])
+        self.assertIsNone(ambiguous["overdue_invoiced_value"])
+        self.assertIsNone(ambiguous["max_overdue_days"])
+        # PO-level liability is still exact; only invoice attribution is unknown.
+        self.assertEqual(ambiguous["unpaid_invoiced_value"], Decimal("650"))
+
     def test_invoice_linked_payment_has_exact_balance_and_idempotency(self):
         from apps.purchasing.services import record_supplier_payment
         from apps.purchasing.models import SupplierPaymentMethod
