@@ -789,19 +789,27 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
                 target = trn_form.cleaned_data["target_status"]
                 reason = (trn_form.cleaned_data.get("reason") or "").strip()
                 previous = subscription.status
-                subscription.status = target
-                if target == SubscriptionStatus.CANCELLED and subscription.cancelled_at is None:
-                    subscription.cancelled_at = timezone.now()
-                subscription.save(update_fields=["status", "cancelled_at", "updated_at"])
-                self._event(
-                    event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
-                    message=reason or f"Subscription moved from {previous} to {target}.",
-                    subscription=subscription,
-                    prev_sub_status=previous,
-                    new_sub_status=target,
-                )
-                messages.success(request, "Subscription transition recorded.")
-                return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+                if target == previous:
+                    messages.info(request, "Subscription already has this status; no transition recorded.")
+                    return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
+                if target in {SubscriptionStatus.SUSPENDED, SubscriptionStatus.CANCELLED} and not reason:
+                    trn_form.add_error("reason", "Give a reason for suspension or cancellation.")
+                else:
+                    subscription.status = target
+                    if target == SubscriptionStatus.CANCELLED:
+                        subscription.cancelled_at = timezone.now()
+                    else:
+                        subscription.cancelled_at = None
+                    subscription.save(update_fields=["status", "cancelled_at", "updated_at"])
+                    self._event(
+                        event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
+                        message=reason or f"Subscription moved from {previous} to {target}.",
+                        subscription=subscription,
+                        prev_sub_status=previous,
+                        new_sub_status=target,
+                    )
+                    messages.success(request, "Subscription transition recorded.")
+                    return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
             return self.render_to_response(
                 self.get_context_data(
                     subscription_form=sub_form,
