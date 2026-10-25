@@ -76,6 +76,18 @@ class TenantDualDomainTests(TestCase):
             return HttpResponse(str(getattr(getattr(req, "domain_tenant", None), "pk", "")))
         return TenantDomainResolutionMiddleware(capture)(request)
 
+    def test_central_platform_hostname_overrides_accidental_tenant_alias(self):
+        # A historical or mistaken tenant-domain row must never capture
+        # the platform owner hostname, even when marked active.
+        TenantDomain.objects.create(
+            tenant=self.tenant, hostname="pos.example.test",
+            kind=TenantDomain.Kind.PLATFORM, status=TenantDomain.Status.ACTIVE,
+        )
+        cache.clear()
+        response = self._resolve("pos.example.test")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"")
+
     def test_platform_subdomain_and_full_domain_resolve_same_tenant(self):
         for hostname in ("sennana.pos.example.test", "shop.example.com"):
             with self.subTest(hostname=hostname):
