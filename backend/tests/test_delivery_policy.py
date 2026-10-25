@@ -4,6 +4,7 @@ from django.test import SimpleTestCase
 
 from apps.pos.services.delivery_policy import (
     ALLOWED_NEXT, DeliveryPolicyError, validate_delivery_charge,
+    validate_delivery_dispatch,
     validate_delivery_destination, validate_delivery_transition,
 )
 from apps.tenants.models import OutletType
@@ -70,3 +71,22 @@ class DeliveryPolicyTests(SimpleTestCase):
                 validate_delivery_charge(amount, currency="UGX")
         with self.assertRaises(DeliveryPolicyError):
             validate_delivery_charge("1000", currency="")
+
+    def test_first_release_dispatch_requires_settlement_and_worker(self):
+        validate_delivery_dispatch(
+            order_status="closed", is_paid=True,
+            assigned_driver_id="approved-driver-id",
+        )
+        for state, paid, driver, refunds in (
+            ("open", False, "driver", False),
+            ("closed", False, "driver", False),
+            ("open", True, "driver", False),
+            ("closed", True, None, False),
+            ("closed", True, "driver", True),
+        ):
+            with self.subTest(state=state, paid=paid, driver=driver, refunds=refunds):
+                with self.assertRaises(DeliveryPolicyError):
+                    validate_delivery_dispatch(
+                        order_status=state, is_paid=paid,
+                        assigned_driver_id=driver, has_refunds=refunds,
+                    )
