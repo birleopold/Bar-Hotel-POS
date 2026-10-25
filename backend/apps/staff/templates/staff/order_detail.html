@@ -71,8 +71,8 @@
     <button type="button" data-reference-scan-focus title="Focus barcode scanner">F3</button>
   </form>
   {% endif %}
-  <div class="fizo-cashier-identity__person"><span class="fizo-cashier-identity__avatar" aria-hidden="true">{{ request.user.email|first|upper }}</span><span><strong>{{ request.user.get_full_name|default:request.user.email }}</strong><small>Signed in · {% if request.tenant_membership %}{{ request.tenant_membership.get_role_display }}{% else %}Staff{% endif %}</small></span></div>
   <div class="fizo-cashier-identity__register"><i class="bi bi-shop" aria-hidden="true"></i><span><strong>{{ order.outlet.name }}</strong><small>{% if settlement_station %}{{ settlement_station.name }}{% else %}No workstation selected{% endif %} · Sale {{ order.bill_reference }}</small></span></div>
+  <div class="fizo-cashier-identity__person"><span class="fizo-cashier-identity__avatar" aria-hidden="true">{{ request.user.email|first|upper }}</span><span><strong>{{ request.user.get_full_name|default:request.user.email }}</strong><small>Signed in · {% if request.tenant_membership %}{{ request.tenant_membership.get_role_display }}{% else %}Staff{% endif %}</small></span></div>
   <a class="reference-customer-display-link" href="{% url 'staff-retail-customer-display' order_id=order.id %}" target="_blank" rel="noopener" title="Open read-only customer-facing display on a second monitor"><i class="bi bi-display" aria-hidden="true"></i><span>Customer screen</span></a>
   <a class="staff-btn staff-btn--ghost reference-register-settings" href="{% url 'staff-workstations' %}">Register settings</a>
 </section>
