@@ -465,7 +465,9 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("grid-template-columns:repeat(5,minmax(0,1fr))", css)
         self.assertIn("flex:0 0 96px;min-width:96px;min-height:72px", css)
         self.assertIn("grid-template-columns:60px minmax(0,1fr) auto", css)
-        self.assertIn("retail-cashier.css' %}?v=20261025.1", supermarket)
+        self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
+        self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
+        self.assertIn("retail-cashier.css' %}?v=20261025.2", supermarket)
         self.assertIn("retail-counter-v2.js' %}?v=20261025.1", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
