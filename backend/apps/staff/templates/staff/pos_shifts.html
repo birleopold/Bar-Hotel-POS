@@ -43,6 +43,16 @@
           </form>
           {% if cash_movements %}<h3 class="staff-card__title mt-3">Recent drawer movements</h3><ul>{% for m in cash_movements %}<li>{{ m.created_at }} · {{ m.get_direction_display }} · {{ shift_currency }} {{ m.amount }} · {{ m.reason }} · {{ m.recorded_by.email|default:"Former worker" }}</li>{% endfor %}</ul>{% endif %}
         </details>
+        <details class="staff-card mb-3"><summary>Record no-sale drawer opening</summary>
+          <p class="staff-muted mt-2">Use this when the physical cash drawer is opened without a sale, refund, float movement, drop or payout. This records the event for manager review; it does not claim the browser opened or verified the hardware.</p>
+          <form method="post" class="staff-register-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="no_sale_drawer">
+            {{ no_sale_form.request_key }}
+            <div>{{ no_sale_form.reason.label_tag }}{{ no_sale_form.reason }}{{ no_sale_form.reason.errors }}</div>
+            <button class="staff-btn staff-btn--ghost mt-2" type="submit">Record no-sale open</button>
+          </form>
+        </details>
         <form method="post" class="staff-register-form">
           {% csrf_token %}
           <input type="hidden" name="action" value="close_shift">
