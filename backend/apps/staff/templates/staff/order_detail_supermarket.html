@@ -43,10 +43,16 @@
     </div>
   {% endif %}
   {% if order.status == 'closed' and order.is_paid %}
-    <div class="staff-card">
-      <h2 class="staff-card__title">Sale completed</h2>
-      <p class="staff-muted">Print the receipt using the links above. Start a new basket when the next customer is ready.</p>
-      <form method="post" action="{% url 'staff-order-quick-create' %}" onsubmit="if (this.dataset.submitting === '1') return false; this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">{% csrf_token %}<input type="hidden" name="quick_create_key" value="{{ next_sale_request_key }}"><button class="staff-btn staff-btn--primary staff-btn--touch" type="submit">Next customer · new sale</button></form>
+    <div class="staff-card reference-sale-complete" aria-label="Sale completed">
+      <div>
+        <h2 class="staff-card__title">Receipt ready</h2>
+        <p class="staff-muted mb-0">Sale complete.</p>
+      </div>
+      <form method="post" action="{% url 'staff-order-quick-create' %}" onsubmit="if (this.dataset.submitting === '1') return false; this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">
+        {% csrf_token %}
+        <input type="hidden" name="quick_create_key" value="{{ next_sale_request_key }}">
+        <button class="staff-btn staff-btn--primary staff-btn--touch" type="submit"><i class="bi bi-cart-plus" aria-hidden="true"></i> New customer</button>
+      </form>
     </div>
   {% endif %}
   {% if can_record_payment and payment_form %}
