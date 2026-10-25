@@ -615,6 +615,58 @@ class ManagementWorkspaceTests(TestCase):
         self.assertFalse(ExceptionReview.objects.filter(entity_id=str(self.refund.pk)).exclude(note="").exists())
         self.assertEqual(self.client.post(url,{**base,"assigned_to":str(self.manager.pk),"due_date":str(timezone.localdate())}).status_code,302)
 
+    def test_old_unresolved_delivery_discrepancy_stays_live_until_resolved(self):
+        from apps.audit.services import exception_fingerprint
+        from apps.purchasing.models import Supplier, PurchaseOrder, PurchaseReceipt
+
+        self.login()
+        ExceptionPolicy.objects.create(tenant=self.tenant, lookback_days=7)
+        supplier = Supplier.objects.create(tenant=self.tenant, name="Old discrepancy supplier")
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            supplier=supplier,
+            status="partially_received",
+        )
+        receipt = PurchaseReceipt.objects.create(
+            tenant=self.tenant,
+            purchase_order=po,
+            discrepancy_note="Old shortage still awaiting supplier resolution",
+        )
+        PurchaseReceipt.objects.filter(pk=receipt.pk).update(
+            created_at=timezone.now() - timedelta(days=60)
+        )
+        receipt.refresh_from_db()
+
+        live_ids = {
+            r.entity_id for r in self.rows() if r.kind == "delivery_discrepancy"
+        }
+        self.assertIn(str(receipt.pk), live_ids)
+
+        review = ExceptionReview.objects.create(
+            tenant=self.tenant,
+            kind="delivery_discrepancy",
+            entity_id=str(receipt.pk),
+            fingerprint=exception_fingerprint(
+                (receipt.discrepancy_note, receipt.updated_at)
+            ),
+            status="resolved",
+            note="Supplier credit confirmed and discrepancy closed.",
+            reviewed_by=self.owner,
+            scope_outlet=self.outlet,
+        )
+        live_ids = {
+            r.entity_id for r in self.rows() if r.kind == "delivery_discrepancy"
+        }
+        self.assertNotIn(str(receipt.pk), live_ids)
+
+        response = self.client.get(reverse("staff-management"), {"view": "cases"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            review.pk,
+            {case.pk for case in response.context["exception_cases"]},
+        )
+
     def test_receiving_discrepancy_appears_from_staff_workflow(self):
         from apps.purchasing.models import Supplier,PurchaseOrder,PurchaseOrderLine,PurchaseReceipt
         self.login()
