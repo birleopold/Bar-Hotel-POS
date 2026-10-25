@@ -30,6 +30,11 @@ def register_paid_pickup(*, order, expected_on, note, user, membership):
         raise ValidationError({"order": "Pickup requires a fully paid sale linked to an identified customer."})
     if locked.refunds.exists():
         raise ValidationError({"order": "Refunded sale needs manager review before scheduling pickup."})
+    # A physical order must have only one fulfillment destination. Pickup and
+    # courier delivery cannot both claim the same already-settled goods.
+    from apps.pos.models import OrderDelivery
+    if OrderDelivery.objects.filter(order=locked, tenant_id=locked.tenant_id).exists():
+        raise ValidationError({"order": "This sale is already assigned for delivery."})
     if not isinstance(expected_on, date) or isinstance(expected_on, __import__("datetime").datetime):
         raise ValidationError({"expected_on": "Enter a pickup date."})
     if not timezone.localdate() <= expected_on <= timezone.localdate() + timedelta(days=365):
