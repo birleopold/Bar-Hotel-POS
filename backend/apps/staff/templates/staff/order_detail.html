@@ -27,10 +27,18 @@
         </div>
       {% endif %}
       {% if order.status == 'closed' %}
-        <form method="post" action="{% url 'staff-terminal-lock' %}" class="staff-order-finish">
-          {% csrf_token %}
-          <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Done · lock terminal</button>
-        </form>
+        {% if is_supermarket_outlet and order.is_paid %}
+          <form method="post" action="{% url 'staff-order-quick-create' %}" class="staff-order-next-customer" onsubmit="if (this.dataset.submitting === '1') return false; this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">
+            {% csrf_token %}
+            <input type="hidden" name="quick_create_key" value="{{ next_sale_request_key }}">
+            <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary"><i class="bi bi-cart-plus" aria-hidden="true"></i> New customer</button>
+          </form>
+        {% else %}
+          <form method="post" action="{% url 'staff-terminal-lock' %}" class="staff-order-finish">
+            {% csrf_token %}
+            <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Done · lock terminal</button>
+          </form>
+        {% endif %}
       {% endif %}
       <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'staff-orders' %}">{% if is_supermarket_outlet %}All sales{% else %}All orders{% endif %}</a>
     </div>
