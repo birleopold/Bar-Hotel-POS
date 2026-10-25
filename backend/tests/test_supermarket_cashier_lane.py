@@ -1792,3 +1792,65 @@ class SupermarketCashierLaneTests(TestCase):
         order.refresh_from_db()
         self.assertFalse(remove.is_voided)
         self.assertEqual(order.total, Decimal("10000.00"))
+
+
+    def test_physical_return_ajax_is_idempotent_and_rejects_changed_retry(self):
+        import uuid
+        from apps.pos.models import OrderLine, OrderStatus, SupermarketLineReturn
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", status=OrderStatus.CLOSED, is_paid=True,
+            subtotal=Decimal("10000.00"), total=Decimal("10000.00"),
+        )
+        line = OrderLine.objects.create(
+            order=order, label="Returned pack", quantity=Decimal("2.000"),
+            unit_price=Decimal("5000.00"), line_total=Decimal("10000.00"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        key = str(uuid.uuid4())
+        payload = {
+            "action": "line_return",
+            "line_return_request_key": key,
+            "line_id": str(line.pk),
+            "quantity": "1.000",
+            "reason": "Exchange without cash refund",
+        }
+
+        first = self.client.post(
+            url, payload, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertTrue(first.json()["ok"])
+        self.assertIn("next_request_key", first.json())
+        self.assertEqual(
+            SupermarketLineReturn.objects.filter(
+                tenant=self.tenant, idempotency_key=key,
+            ).count(),
+            1,
+        )
+
+        replay = self.client.post(
+            url, payload, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(replay.status_code, 200)
+        self.assertIn("already recorded", replay.json()["message"].lower())
+        self.assertEqual(
+            SupermarketLineReturn.objects.filter(
+                tenant=self.tenant, idempotency_key=key,
+            ).count(),
+            1,
+        )
+
+        changed = dict(payload)
+        changed["quantity"] = "0.500"
+        rejected = self.client.post(
+            url, changed, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(rejected.status_code, 422)
+        self.assertFalse(rejected.json()["ok"])
+        self.assertIn("different details", rejected.json()["message"].lower())
+        self.assertEqual(
+            SupermarketLineReturn.objects.filter(order=order).count(),
+            1,
+        )
