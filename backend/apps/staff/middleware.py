@@ -21,6 +21,7 @@ STAFF_SESSION_OUTLET_KEY = "staff_outlet_id"
 STAFF_SESSION_OUTLET_ALL = "__all__"
 # Active property (site) for lodging lists and front-desk flows.
 STAFF_SESSION_SITE_KEY = "staff_site_id"
+RETAIL_PIN_IDLE_SECONDS = 8 * 60 * 60
 
 
 def staff_pin_idle_seconds(request):
@@ -36,7 +37,10 @@ def staff_pin_idle_seconds(request):
 
     from .terminal import PIN_IDLE_SECONDS
     from apps.tenants.models import Outlet, OutletType, TenantSettings
-    from .services.membership import staff_outlet_allowed_for_membership
+    from .services.membership import (
+        staff_accessible_outlets,
+        staff_outlet_allowed_for_membership,
+    )
 
     seconds = PIN_IDLE_SECONDS
     membership = getattr(request, "tenant_membership", None)
@@ -52,15 +56,29 @@ def staff_pin_idle_seconds(request):
                     pk=outlet_id, site__tenant_id=membership.tenant_id
                 ).values_list("outlet_type", flat=True).first()
                 if kind in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-                    seconds = 15 * 60
+                    seconds = RETAIL_PIN_IDLE_SECONDS
         else:
-            # Only a retail-only workspace can use the long limit without
-            # an explicitly selected outlet. Mixed hospitality stays short.
-            lines = TenantSettings.objects.filter(
-                tenant_id=membership.tenant_id
-            ).values_list("business_lines", flat=True).first() or []
-            if lines and set(lines).issubset({"supermarket", "retail", "grocery"}):
-                seconds = 15 * 60
+            # Retail checkout is an assigned-register workflow. When a mixed
+            # workspace has not yet persisted its outlet selection, do not
+            # fall back to the two-minute hospitality/shared-terminal timer
+            # while the worker is entering the retail checkout route.
+            retail_checkout = request.path.startswith("/staff/pos/checkout/")
+            if retail_checkout:
+                accessible = staff_accessible_outlets(membership)
+                if any(
+                    outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+                    for outlet in accessible
+                ):
+                    seconds = RETAIL_PIN_IDLE_SECONDS
+            if seconds == PIN_IDLE_SECONDS:
+                # A retail-only workspace can use the assigned-register limit
+                # even before one outlet is selected. Mixed hospitality stays
+                # on the short shared-terminal policy outside retail checkout.
+                lines = TenantSettings.objects.filter(
+                    tenant_id=membership.tenant_id
+                ).values_list("business_lines", flat=True).first() or []
+                if lines and set(lines).issubset({"supermarket", "retail", "grocery"}):
+                    seconds = RETAIL_PIN_IDLE_SECONDS
     request._staff_pin_idle_seconds = seconds
     return seconds
 
