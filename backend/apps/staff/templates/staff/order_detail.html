@@ -385,9 +385,9 @@
                 <input class="staff-input mb-2" id="void_reason" name="reason" maxlength="255" placeholder="Reason" autocomplete="off">
                 {% if is_supermarket_outlet and refundable_remaining %}
                   {% if can_record_refund %}
-                    <a class="staff-btn staff-btn--ghost staff-btn--touch" href="#retail-refund-controls">Refund before void</a>
+                    <a class="staff-btn staff-btn--ghost staff-btn--touch" href="#retail-refund-controls">Refund {{ order.currency }} {{ refundable_remaining }} before void</a>
                   {% else %}
-                    <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Supervisor refund required</button>
+                    <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Supervisor refund {{ order.currency }} {{ refundable_remaining }} required</button>
                   {% endif %}
                 {% else %}
                   <button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch">Void</button>
