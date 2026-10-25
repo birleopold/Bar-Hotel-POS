@@ -25,16 +25,75 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
         return qs[:50]
     def source_url(kind, obj):
         return reverse("staff-management-source", kwargs={"kind": kind, "entity_id": obj.pk})
+
+    def actor_label(user, fallback="Operator not recorded"):
+        if user is None:
+            return fallback
+        return user.get_full_name() or user.email
+
+    def latest_audit_actors(action, objects):
+        """Map visible source IDs to their most recent recorded action actor."""
+        entity_ids = [str(obj.pk) for obj in objects]
+        if not entity_ids:
+            return {}
+        actors = {}
+        events = (
+            AuditEvent.objects.filter(
+                tenant=request.tenant,
+                action=action,
+                entity_id__in=entity_ids,
+            )
+            .select_related("user")
+            .order_by("-created_at")
+        )
+        for event in events:
+            actors.setdefault(event.entity_id, event.user)
+        return actors
     if "pos" in modules and vis.orders:
-        orders = Order.objects.filter(tenant=request.tenant, outlet_id__in=ids, updated_at__gte=cutoff, discount_amount__gt=policy.discount_threshold).order_by("-updated_at")
-        for obj in limited(orders, "discount"):
-            result.append(row("discount", obj, "Order discount", f"{obj.discount_amount} {obj.currency}", reverse("staff-order-detail", kwargs={"order_id":obj.pk}), (obj.discount_amount, obj.updated_at)))
+        orders = Order.objects.filter(
+            tenant=request.tenant,
+            outlet_id__in=ids,
+            updated_at__gte=cutoff,
+            discount_amount__gt=policy.discount_threshold,
+        ).order_by("-updated_at")
+        visible_discounts = list(limited(orders, "discount"))
+        discount_actors = latest_audit_actors("order.promotion_applied", visible_discounts)
+        for obj in visible_discounts:
+            actor = actor_label(discount_actors.get(str(obj.pk)))
+            result.append(row(
+                "discount",
+                obj,
+                "Order discount",
+                f"{obj.discount_amount} {obj.currency} · applied by {actor}",
+                reverse("staff-order-detail", kwargs={"order_id": obj.pk}),
+                (obj.discount_amount, obj.updated_at),
+            ))
         lines = OrderLine.objects.filter(
             order__tenant=request.tenant,
             order__outlet_id__in=ids,
-        ).select_related("order", "voided_by")
-        for obj in limited(lines.filter(updated_at__gte=cutoff, line_discount_amount__gt=policy.discount_threshold, is_voided=False).order_by("-updated_at"), "line_discount"):
-            result.append(row("line_discount", obj, "Line discount", f"{obj.label} · {obj.line_discount_amount} {obj.order.currency}", reverse("staff-order-detail", kwargs={"order_id":obj.order_id}), (obj.line_discount_amount, obj.updated_at)))
+        ).select_related("order", "order__created_by", "voided_by")
+        visible_line_discounts = list(limited(
+            lines.filter(
+                updated_at__gte=cutoff,
+                line_discount_amount__gt=policy.discount_threshold,
+                is_voided=False,
+            ).order_by("-updated_at"),
+            "line_discount",
+        ))
+        line_discount_actors = latest_audit_actors(
+            "order.line_discount_applied",
+            visible_line_discounts,
+        )
+        for obj in visible_line_discounts:
+            actor = actor_label(line_discount_actors.get(str(obj.pk)))
+            result.append(row(
+                "line_discount",
+                obj,
+                "Line discount",
+                f"{obj.label} · {obj.line_discount_amount} {obj.order.currency} · applied by {actor}",
+                reverse("staff-order-detail", kwargs={"order_id": obj.order_id}),
+                (obj.line_discount_amount, obj.updated_at),
+            ))
         # Investigate repeated voids on the same sale without mistaking the
         # most recent 50 displayed records for a complete frequency count.
         # Limit the grouped query to orders actually shown to the manager.
@@ -95,10 +154,15 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
             created_at__gte=cutoff,
         ).order_by("-created_at")
         for obj in limited(manual_lines, "manual_price"):
+            sale_actor = actor_label(
+                obj.order.created_by,
+                fallback="Sale opener not recorded",
+            )
             result.append(row(
                 "manual_price", obj, "Manual price entry",
                 f"{obj.label} · {obj.quantity} × {obj.unit_price} {obj.order.currency}"
-                " · compare with the authorized selling price",
+                f" · sale opened by {sale_actor}"
+                " · exact price-entry operator was not historically recorded",
                 reverse("staff-order-detail", kwargs={"order_id": obj.order_id}),
                 (obj.unit_price, obj.quantity, obj.updated_at, obj.pricing_source),
             ))
