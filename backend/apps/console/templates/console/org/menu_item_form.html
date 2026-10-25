@@ -17,11 +17,31 @@
   {% endif %}
   {% if object %}
   <section class="staff-card" aria-label="Add product photo from phone">
-    <h2>Add a photo from your phone</h2>
-    <p>Open this secure link on your phone, sign in to the same business, then take or upload a photo. Continue editing product details on this computer. Photos are optional.</p>
-    <div class="grocery-form-links"><a href="{% url 'console-org-menu-item-photo' item_id=object.pk %}" target="_blank" rel="noopener">Phone photo upload</a>
-    <button type="button" class="staff-btn staff-btn--ghost" data-copy-photo-link>Copy phone link</button><button type="button" class="staff-btn staff-btn--ghost" data-refresh-phone-photo>Check for photo</button></div>
-    <p class="staff-muted" data-phone-photo-status aria-live="polite">Waiting for a photo is optional.</p>
+    <div class="d-flex flex-wrap align-items-start gap-3">
+      {% if phone_photo_qr_data_uri %}
+      <div>
+        <img src="{{ phone_photo_qr_data_uri }}" width="150" height="150" alt="QR code to upload a photo for {{ object.name }}">
+        <p class="staff-muted small mb-0 text-center">Scan with phone</p>
+      </div>
+      {% endif %}
+      <div class="flex-grow-1">
+        <h2>Add photo from phone</h2>
+        <p class="staff-muted">Scan the QR or send the upload request to your account. Take the photo on your phone; it appears here automatically.</p>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-photo' item_id=object.pk %}" target="_blank" rel="noopener"><i class="bi bi-phone-camera"></i> Open upload</a>
+          {% if can_notify_phone_account %}
+          <form method="post" action="{% url 'console-org-menu-item-photo' item_id=object.pk %}" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="notify_phone">
+            <button type="submit" class="staff-btn staff-btn--ghost"><i class="bi bi-bell"></i> Send to my account</button>
+          </form>
+          {% endif %}
+          <button type="button" class="staff-btn staff-btn--ghost" data-copy-photo-link><i class="bi bi-link-45deg"></i> Copy link</button>
+          <button type="button" class="staff-btn staff-btn--ghost" data-refresh-phone-photo><i class="bi bi-arrow-clockwise"></i> Check photo</button>
+        </div>
+        <p class="staff-muted small mt-2 mb-0" data-phone-photo-status aria-live="polite">Waiting for phone photo.</p>
+      </div>
+    </div>
   </section>
   {% else %}
   <p class="staff-muted">You can save this product without a photo, then use its phone photo link from Edit product.</p>
@@ -80,7 +100,7 @@
   if (button) button.addEventListener("click", function () {
     var full = new URL(url, window.location.href).href;
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(full).then(function () { if (status) status.textContent = "Link copied. Open it on your phone and sign in."; });
+      navigator.clipboard.writeText(full).then(function () { if (status) status.textContent = "Link copied."; });
     } else if (status) status.textContent = full;
   });
   function checkPhoto() {
