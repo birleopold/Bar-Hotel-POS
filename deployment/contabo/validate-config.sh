@@ -7,8 +7,8 @@ test -f deployment/contabo/leosoft-pos-gunicorn.service.example
 test -f deployment/contabo/pos.env.example
 bash -n deployment/contabo/preflight.sh
 bash -n deployment/contabo/deploy-app.sh
-grep -q 'Migration database URL (hidden):' deployment/contabo/deploy-app.sh
-grep -q 'Migration role must differ from runtime role' deployment/contabo/deploy-app.sh
+grep -q 'manage.py migrate --noinput' deployment/contabo/deploy-app.sh
+! grep -q 'MIGRATION_DATABASE_URL' deployment/contabo/deploy-app.sh
 grep -q '^pos.leosoftug.com {' deployment/contabo/pos.Caddyfile.example
 grep -q 'reverse_proxy 127.0.0.1:18083' deployment/contabo/pos.Caddyfile.example
 grep -q '\-\-bind 127.0.0.1:18083' deployment/contabo/leosoft-pos-gunicorn.service.example
