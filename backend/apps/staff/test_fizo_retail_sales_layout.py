@@ -570,6 +570,23 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("Confirm quantity and add to basket.", js)
         self.assertNotIn("Confirm quantity and choose Add to basket.", js)
 
+    def test_completed_retail_sale_offers_new_customer_without_locking_terminal(self):
+        root = Path(__file__).resolve().parent
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        supermarket = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
+
+        self.assertIn("staff-order-next-customer", detail)
+        self.assertIn("New customer", detail)
+        closed_block = detail.split("{% if order.status == 'closed' %}", 1)[1].split("{% endif %}", 1)[0]
+        self.assertIn("is_supermarket_outlet and order.is_paid", closed_block)
+        self.assertIn("staff-order-quick-create", closed_block)
+        self.assertIn("Done · lock terminal", detail)
+        self.assertIn("reference-sale-complete", supermarket)
+        self.assertIn("Receipt ready", supermarket)
+        self.assertIn("> New customer</button>", supermarket)
+        self.assertIn(".reference-sale-complete{", css)
+
     def test_basket_stays_tall_until_cashier_opens_payment(self):
         root = Path(__file__).resolve().parent
         supermarket = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
@@ -615,7 +632,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("grid-template-columns:48px minmax(0,1fr) auto", css)
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
-        self.assertIn("retail-cashier.css' %}?v=20261025.7", supermarket)
+        self.assertIn("retail-cashier.css' %}?v=20261025.8", supermarket)
         self.assertIn("retail-counter-v2.js' %}?v=20261025.4", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
