@@ -298,6 +298,43 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         self.assertEqual(subscription.plan_id, second_plan.pk)
         self.assertEqual(subscription.status, SubscriptionStatus.ACTIVE)
 
+    def test_platform_workspace_list_counts_blocked_access_and_filters_expired_trials(self):
+        from django.utils import timezone
+        from apps.tenants.models import Plan, SubscriptionStatus, TenantSubscription
+        plan = Plan.objects.create(name="List Access Plan", code="list-access-plan")
+        active = Tenant.objects.create(name="Access Active", slug="access-active")
+        expired = Tenant.objects.create(name="Access Expired", slug="access-expired")
+        suspended = Tenant.objects.create(name="Access Suspended", slug="access-suspended")
+        for tenant in (active, expired, suspended):
+            TenantSettings.objects.create(tenant=tenant)
+        TenantSubscription.objects.create(
+            tenant=active, plan=plan, status=SubscriptionStatus.ACTIVE,
+        )
+        TenantSubscription.objects.create(
+            tenant=expired,
+            plan=plan,
+            status=SubscriptionStatus.TRIAL,
+            trial_ends_at=timezone.now() - timedelta(hours=1),
+        )
+        TenantSubscription.objects.create(
+            tenant=suspended, plan=plan, status=SubscriptionStatus.SUSPENDED,
+        )
+
+        url = reverse("console-platform-tenants")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["tenant_total"], 3)
+        self.assertEqual(response.context["tenant_active"], 1)
+        self.assertEqual(response.context["tenant_needs_attention"], 2)
+        self.assertContains(response, "Access Expired")
+        self.assertContains(response, "Blocked")
+
+        filtered = self.client.get(url, {"subscription": "expired_trial"})
+        self.assertEqual(filtered.status_code, 200)
+        self.assertContains(filtered, "Access Expired")
+        self.assertNotContains(filtered, "Access Active")
+        self.assertNotContains(filtered, "Access Suspended")
+
     def test_tenant_scope_middleware_precedes_staff_membership_lookup(self):
         from django.conf import settings
         middleware = settings.MIDDLEWARE
