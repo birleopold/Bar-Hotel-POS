@@ -604,10 +604,12 @@
     }).then(function(data){
       return window.retailRefreshCheckout().then(function(){return data;});
     }).then(function(data){
-      var refreshed=document.querySelector(config.statusSelector);
+      var refreshed=document.querySelector("[data-retail-finance-status]")||
+        document.querySelector(config.statusSelector);
       if(refreshed)refreshed.textContent=data.message||"Refund recorded.";
     }).catch(function(error){
-      var liveStatus=document.querySelector(config.statusSelector)||status;
+      var liveStatus=document.querySelector("[data-retail-finance-status]")||
+        document.querySelector(config.statusSelector)||status;
       if(liveStatus)showCheckoutRecovery(liveStatus,error);
     }).then(function(){
       delete form.dataset.submitting;
