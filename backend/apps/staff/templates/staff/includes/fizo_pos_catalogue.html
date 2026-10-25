@@ -39,7 +39,7 @@
                         <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-box-seam"></i></span>
                       {% endif %}
                       <span class="staff-pos-menu-tile__name">{{ item.name }}</span>
-                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>
+                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {% if is_supermarket_outlet %}{{ item.cashier_display_price }}{% else %}{{ item.unit_price }}{% endif %}</span>
                       {% if is_supermarket_outlet and item.track_inventory %}
                         <span class="staff-pos-menu-tile__stock{% if item.cashier_stock_low %} staff-pos-menu-tile__stock--low{% endif %}" aria-label="Stock at this outlet: {{ item.cashier_stock_quantity }} units">
                           {% if item.cashier_stock_quantity <= 0 %}No sellable stock{% elif item.cashier_stock_low %}Low stock · {{ item.cashier_stock_quantity }} left{% else %}Sellable · {{ item.cashier_stock_quantity }}{% endif %}{% if item.cashier_stock_batch_limited %} · Check held/expired batches{% endif %}
