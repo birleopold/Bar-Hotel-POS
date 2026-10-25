@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.audit.models import AuditEvent, ExceptionPolicy, ExceptionReview
+from apps.audit.models import AuditEvent, ExceptionPolicy, ExceptionReview, SensitiveActionApproval
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.models import StockBalance
 from apps.lodging.models import Reservation
@@ -153,6 +153,51 @@ class ManagementWorkspaceTests(TestCase):
         self.assertEqual(self.rows(), [])
         self.assertEqual(self.client.get(reverse("staff-management-shift", args=[self.shift.pk])).status_code, 404)
         self.assertFalse(self.client.get(reverse("staff-management"), {"view": "approvals"}).context["approval_orders"])
+
+    def test_manager_approval_evidence_is_outlet_scoped_and_redacted(self):
+        requester = Membership.objects.get(tenant=self.tenant, user=self.worker)
+        approver = Membership.objects.get(tenant=self.tenant, user=self.manager)
+        visible = SensitiveActionApproval.objects.create(
+            tenant=self.tenant,
+            requester=requester,
+            approver=approver,
+            scope_outlet=self.outlet,
+            action="refund",
+            entity_type="order",
+            entity_id=str(self.order.pk),
+            request_key="management-visible-approval",
+            intent_hash="a" * 64,
+            intent_payload={"amount": "20.00", "reason": "Customer return"},
+            expires_at=timezone.now() + timedelta(minutes=2),
+            used_at=timezone.now(),
+        )
+        hidden_order = Order.objects.create(
+            tenant=self.tenant, outlet=self.other, total=50, status="closed", currency="UGX",
+        )
+        SensitiveActionApproval.objects.create(
+            tenant=self.tenant,
+            requester=requester,
+            approver=approver,
+            scope_outlet=self.other,
+            action="refund",
+            entity_type="order",
+            entity_id=str(hidden_order.pk),
+            request_key="management-hidden-approval",
+            intent_hash="b" * 64,
+            intent_payload={"amount": "999.00", "reason": "Hidden outlet"},
+            expires_at=timezone.now() + timedelta(minutes=2),
+            used_at=timezone.now(),
+        )
+        self.login(self.manager)
+        response = self.client.get(reverse("staff-management"), {"view": "approvals"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item.pk for item in response.context["approval_evidence"]], [visible.pk])
+        self.assertContains(response, self.worker.email)
+        self.assertContains(response, self.manager.email)
+        self.assertContains(response, "amount 20.00")
+        self.assertContains(response, "Customer return")
+        self.assertNotContains(response, "999.00")
+        self.assertNotContains(response, "approver_pin")
 
     def test_malformed_or_hidden_source_cannot_be_reviewed(self):
         self.login()
