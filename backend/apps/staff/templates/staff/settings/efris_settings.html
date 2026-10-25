@@ -43,7 +43,8 @@
   {% endif %}
 
   <h2 class="staff-section-head mt-4">Submission queue</h2>
-  <p class="staff-muted small">Recent cashbook-linked EFRIS outbox rows for this workspace. Failed rows retry on the background schedule until they succeed or need credential fixes.</p>
+  <p class="staff-muted small">Recent cashbook-linked EFRIS outbox rows for this workspace. Automatic retries are capped; unknown provider outcomes are quarantined for operator review rather than blindly re-sent.</p>
+  <p><a class="staff-btn staff-btn--ghost staff-btn--sm" href="{% url 'staff-workspace-efris-evidence' %}">Export audit evidence CSV</a></p>
   {% if efris_submissions %}
     <div class="staff-table-wrap">
       <table class="staff-table">
