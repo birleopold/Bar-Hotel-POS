@@ -74,6 +74,65 @@ class ExceptionReview(models.Model):
 
 
 
+class SensitiveActionApproval(models.Model):
+    """Single-use manager approval bound to one immutable sensitive action."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="sensitive_action_approvals",
+    )
+    requester = models.ForeignKey(
+        "accounts.Membership",
+        on_delete=models.PROTECT,
+        related_name="sensitive_actions_requested",
+    )
+    approver = models.ForeignKey(
+        "accounts.Membership",
+        on_delete=models.PROTECT,
+        related_name="sensitive_actions_approved",
+    )
+    scope_outlet = models.ForeignKey(
+        "tenants.Outlet",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="sensitive_action_approvals",
+    )
+    action = models.CharField(max_length=32, db_index=True)
+    entity_type = models.CharField(max_length=32)
+    entity_id = models.CharField(max_length=64, db_index=True)
+    request_key = models.CharField(max_length=64)
+    intent_hash = models.CharField(max_length=64)
+    intent_payload = models.JSONField(default=dict, blank=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "action", "request_key"],
+                name="uniq_sensitive_action_request",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "action", "entity_id"],
+                name="sensitive_action_lookup_idx",
+            ),
+            models.Index(
+                fields=["tenant", "expires_at", "used_at"],
+                name="sensitive_action_expiry_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.action} {self.entity_type}:{self.entity_id}"
+
+
 class StaffNotification(models.Model):
     """Private inbox notification; source key deduplicates repeated alerts."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
