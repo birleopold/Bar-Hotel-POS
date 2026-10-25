@@ -29,6 +29,7 @@ from . import (
 urlpatterns = [
     path("help/", views.StaffHelpView.as_view(), name="staff-help"),
     path("notifications/", views_notifications.StaffNotificationsView.as_view(), name="staff-notifications"),
+    path("notifications/status/", views_notifications.StaffNotificationsStatusView.as_view(), name="staff-notifications-status"),
     path("search/", views_search.StaffGlobalSearchView.as_view(), name="staff-search"),
     path("inventory/intelligence/", views_inventory.StaffStockIntelligenceView.as_view(), name="staff-inventory-intelligence"),
     path("inventory/shelves/", views_shelves.StaffShelfLocationView.as_view(), name="staff-inventory-shelves"),
