@@ -75,6 +75,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('request.headers.get("X-Requested-With") == "XMLHttpRequest"', gate)
         self.assertIn('return JsonResponse({"ok": False, "message": message}, status=403)', gate)
 
+    def test_async_refresh_never_replaces_another_sales_basket(self):
+        js = (Path(__file__).resolve().parent /
+              "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn('var remoteBasket=remote.querySelector(".fizo-checkout-basket")', js)
+        self.assertIn('basket.dataset.orderId!==remoteBasket.dataset.orderId', js)
+        self.assertLess(js.index('basket.dataset.orderId!==remoteBasket.dataset.orderId'),
+                        js.index('current.replaceChildren.apply(current'))
+
     def test_first_item_checks_real_balance_before_binding_payment(self):
         js = (Path(__file__).resolve().parent /
               "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
