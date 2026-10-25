@@ -1721,3 +1721,74 @@ class SupermarketCashierLaneTests(TestCase):
         response = self.client.post(url)
         assert response.status_code == 302
         assert Order.objects.filter(tenant=self.tenant).count() == before + 1
+
+
+    def test_unpaid_basket_line_removal_ajax_updates_without_redirect(self):
+        from apps.pos.models import OrderLine
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("10000.00"), total=Decimal("10000.00"),
+        )
+        keep = OrderLine.objects.create(
+            order=order, label="Keep item", quantity=Decimal("1"),
+            unit_price=Decimal("7000.00"), line_total=Decimal("7000.00"),
+        )
+        remove = OrderLine.objects.create(
+            order=order, label="Remove item", quantity=Decimal("1"),
+            unit_price=Decimal("3000.00"), line_total=Decimal("3000.00"),
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        page = self.client.get(url)
+        self.assertContains(page, "data-retail-void-line-form")
+        self.assertContains(page, "data-retail-basket-mutation-status")
+
+        response = self.client.post(
+            url,
+            {"action": "void_line", "line_id": str(remove.pk), "reason": ""},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        remove.refresh_from_db()
+        keep.refresh_from_db()
+        order.refresh_from_db()
+        self.assertTrue(remove.is_voided)
+        self.assertFalse(keep.is_voided)
+        self.assertEqual(order.total, Decimal("7000.00"))
+
+    def test_part_paid_ajax_line_removal_requires_refund_before_reducing_total(self):
+        from apps.pos.models import OrderLine, Payment, PaymentMethod
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX", subtotal=Decimal("10000.00"), total=Decimal("10000.00"),
+        )
+        OrderLine.objects.create(
+            order=order, label="Keep item", quantity=Decimal("1"),
+            unit_price=Decimal("7000.00"), line_total=Decimal("7000.00"),
+        )
+        remove = OrderLine.objects.create(
+            order=order, label="Remove item", quantity=Decimal("1"),
+            unit_price=Decimal("3000.00"), line_total=Decimal("3000.00"),
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=order, amount=Decimal("8000.00"),
+            method=PaymentMethod.CASH, idempotency_key="part-paid-void-guard",
+            recorded_by=self.user,
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        response = self.client.post(
+            url,
+            {"action": "void_line", "line_id": str(remove.pk), "reason": ""},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 409)
+        body = response.json()
+        self.assertFalse(body["ok"])
+        self.assertTrue(body["refund_required"])
+        self.assertIn("Refund UGX 1000.00", body["message"])
+        remove.refresh_from_db()
+        order.refresh_from_db()
+        self.assertFalse(remove.is_voided)
+        self.assertEqual(order.total, Decimal("10000.00"))
