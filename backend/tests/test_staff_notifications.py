@@ -1,4 +1,5 @@
 """Staff notification deduplication, access and read-state tests."""
+from pathlib import Path
 from decimal import Decimal
 
 from django.test import TestCase
@@ -87,3 +88,28 @@ class StaffNotificationTests(TestCase):
             refresh_staff_alerts(tenant=unrelated, membership=self.membership_a), 0,
         )
         self.assertFalse(StaffNotification.objects.exists())
+
+    def test_active_session_notification_status_stays_membership_scoped(self):
+        source = (Path(__file__).resolve().parents[1] /
+                  "apps/staff/views_notifications.py").read_text(encoding="utf-8")
+        block = source.split("class StaffNotificationsStatusView", 1)[1].split(
+            "class StaffNotificationsView", 1
+        )[0]
+        self.assertIn("tenant=request.tenant", block)
+        self.assertIn("recipient=request.tenant_membership", block)
+        self.assertIn("read_at__isnull=True", block)
+        self.assertIn('response["Cache-Control"] = "private, no-store"', block)
+
+    def test_shared_notification_client_never_fetches_cross_account_data(self):
+        source = (Path(__file__).resolve().parents[1] /
+                  "apps/staff/static/staff/notification-client.js").read_text(encoding="utf-8")
+        staff_base = (Path(__file__).resolve().parents[1] /
+                      "apps/staff/templates/staff/base.html").read_text(encoding="utf-8")
+        console_base = (Path(__file__).resolve().parents[1] /
+                        "apps/console/templates/console/base.html").read_text(encoding="utf-8")
+        self.assertIn('credentials:"same-origin"', source)
+        self.assertIn("Notification.permission", source)
+        self.assertIn("data-staff-notification-client", staff_base)
+        self.assertIn("request.tenant_membership.pk", staff_base)
+        self.assertIn("data-staff-notification-client", console_base)
+        self.assertIn("request.tenant_membership.pk", console_base)
