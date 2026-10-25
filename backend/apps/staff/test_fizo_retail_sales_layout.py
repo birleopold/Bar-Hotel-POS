@@ -610,7 +610,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("The cash-received figure is not the sale amount", supermarket)
         self.assertIn("Partial cash. Save this amount, then collect or hold the balance.", supermarket)
         self.assertIn("Change ready.", supermarket)
-        self.assertIn(">Pay</button>", detail)
+        self.assertIn("{% if is_supermarket_outlet %}Pay{% else %}Record payment{% endif %}", detail)
         self.assertNotIn("Choose a method, confirm the amount, then record the payment.", detail)
 
         self.assertIn("min-height:180px", css)
