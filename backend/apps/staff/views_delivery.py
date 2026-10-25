@@ -60,9 +60,13 @@ class StaffDeliveriesView(StaffTenantRequiredMixin, View):
         ).select_related("outlet", "customer").order_by("-created_at")[:60])
         for delivery in deliveries:
             delivery.allowed_next_stages = ALLOWED_NEXT.get(delivery.status, ())
-        workers = list(Membership.objects.filter(
-            tenant=request.tenant, is_active=True,
-        ).select_related("user").order_by("user__email"))
+        from apps.access.outlets import outlet_belongs_to_membership
+        workers = [
+            member for member in Membership.objects.filter(
+                tenant=request.tenant, is_active=True,
+            ).select_related("user").order_by("user__email")
+            if any(outlet_belongs_to_membership(member, oid) for oid in ids)
+        ]
         return render(request, self.template_name, {
             "delivery_outlets": [
                 {"outlet":outlet, "enabled":settings.get(outlet.pk, False)}
