@@ -383,7 +383,15 @@
                 <input type="hidden" name="action" value="void_order">
                 <label class="staff-label" for="void_reason">Void all</label>
                 <input class="staff-input mb-2" id="void_reason" name="reason" maxlength="255" placeholder="Reason" autocomplete="off">
-                <button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch">Void</button>
+                {% if is_supermarket_outlet and refundable_remaining %}
+                  {% if can_record_refund %}
+                    <a class="staff-btn staff-btn--ghost staff-btn--touch" href="#retail-refund-controls">Refund before void</a>
+                  {% else %}
+                    <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Supervisor refund required</button>
+                  {% endif %}
+                {% else %}
+                  <button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch">Void</button>
+                {% endif %}
               </form>
             </div>
           </div>
@@ -403,7 +411,7 @@
             {% endif %}
           {% endif %}
           {% include "staff/includes/form_errors_block.html" with form=refund_form title="Fix refund details" %}
-          <form method="post" class="row g-2 align-items-end" data-retail-refund-form>
+          <form method="post" class="row g-2 align-items-end" id="retail-refund-controls" data-retail-refund-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="record_refund">
             <input type="hidden" name="refund_request_key" value="{{ refund_request_key }}">
