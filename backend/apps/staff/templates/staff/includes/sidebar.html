@@ -26,6 +26,6 @@
     {% if staff_nav.events %}<a href="{% url 'staff-events-bookings' %}"{% if u == 'staff-events-bookings' %} aria-current="page"{% endif %}><i class="bi bi-calendar-event"></i>Events</a>{% endif %}
     {% if staff_nav.workspace %}<a href="{% url 'staff-workspace-branding' %}"{% if u == 'staff-workspace-branding' %} aria-current="page"{% endif %}><i class="bi bi-gear"></i>Settings</a>{% endif %}
   </nav>
-  <div class="fz-sidefoot"><a href="{% url 'staff-pin-setup' %}">Set PIN</a><form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit"><i class="bi bi-lock"></i> Lock terminal</button></form></div>
+  <div class="fz-sidefoot"><a class="fz-sidefoot__help" href="{% url 'staff-help' %}"><i class="bi bi-question-circle"></i> Help</a><a class="fz-sidefoot__pin" href="{% url 'staff-pin-setup' %}">Set PIN</a><form method="post" action="{% url 'staff-terminal-lock' %}">{% csrf_token %}<button type="submit"><i class="bi bi-lock"></i> Lock terminal</button></form></div>
 </aside>
 {% endwith %}
