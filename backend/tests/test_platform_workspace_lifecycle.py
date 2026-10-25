@@ -134,6 +134,55 @@ class PlatformWorkspaceLifecycleTests(TestCase):
             site__tenant=tenant, outlet_type=OutletType.SUPERMARKET,
         ).exists())
 
+    def test_subscription_transition_requires_reason_and_clears_cancelled_date_on_reactivation(self):
+        from apps.tenants.models import (
+            Plan, TenantSubscription, SubscriptionStatus, BillingEvent,
+            BillingEventType,
+        )
+        tenant = Tenant.objects.create(name="Subscription control", slug="subscription-control")
+        TenantSettings.objects.create(tenant=tenant)
+        plan = Plan.objects.create(name="Lifecycle Plan", code="lifecycle-test")
+        subscription = TenantSubscription.objects.create(
+            tenant=tenant, plan=plan, status=SubscriptionStatus.ACTIVE,
+        )
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        denied = self.client.post(url, {
+            "transition_subscription": "1",
+            "trn-target_status": SubscriptionStatus.SUSPENDED,
+            "trn-reason": "",
+        })
+        self.assertEqual(denied.status_code, 200)
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, SubscriptionStatus.ACTIVE)
+        self.assertContains(denied, "Give a reason for suspension or cancellation.")
+
+        for target, reason in [
+            (SubscriptionStatus.CANCELLED, "Customer requested closure"),
+            (SubscriptionStatus.ACTIVE, "Reactivated on customer request"),
+        ]:
+            response = self.client.post(url, {
+                "transition_subscription": "1",
+                "trn-target_status": target,
+                "trn-reason": reason,
+            })
+            self.assertRedirects(response, url)
+            subscription.refresh_from_db()
+            self.assertEqual(subscription.status, target)
+            self.assertEqual(subscription.cancelled_at is not None, target == SubscriptionStatus.CANCELLED)
+
+        count = BillingEvent.objects.filter(
+            tenant=tenant, event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
+        ).count()
+        response = self.client.post(url, {
+            "transition_subscription": "1",
+            "trn-target_status": SubscriptionStatus.ACTIVE,
+            "trn-reason": "Repeated click",
+        })
+        self.assertRedirects(response, url)
+        self.assertEqual(BillingEvent.objects.filter(
+            tenant=tenant, event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
+        ).count(), count)
+
     def test_tenant_scope_middleware_precedes_staff_membership_lookup(self):
         from django.conf import settings
         middleware = settings.MIDDLEWARE
