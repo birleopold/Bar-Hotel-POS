@@ -280,6 +280,11 @@ class DeliveryPersistenceTests(TestCase):
         from apps.lodging.models import (
             RoomType, Room, Reservation, ReservationStatus, Folio,
         )
+        # This tenant's normal fixture enables supermarket only. Hotel access
+        # must be explicitly provisioned, not bypassed by the delivery service.
+        settings = TenantSettings.objects.get(tenant=self.tenant)
+        settings.business_lines = ["supermarket", "hotel"]
+        settings.save(update_fields=["business_lines"])
         hotel = Outlet.objects.create(
             site=self.site, name="Hotel reception",
             outlet_type=OutletType.LODGING_FRONT_DESK,
