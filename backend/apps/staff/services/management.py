@@ -1,4 +1,5 @@
 """Scoped management destinations and live exceptions; no financial posting here."""
+import uuid
 import hashlib
 from dataclasses import dataclass
 from datetime import timedelta
@@ -228,11 +229,14 @@ def management_approval_evidence(request):
         )
         .order_by("-used_at", "-created_at")[:50]
     )
-    order_ids = [
-        item.entity_id
-        for item in approvals
-        if item.entity_type == "order"
-    ]
+    order_ids = []
+    for item in approvals:
+        if item.entity_type != "order":
+            continue
+        try:
+            order_ids.append(uuid.UUID(str(item.entity_id)))
+        except (ValueError, TypeError, AttributeError):
+            continue
     order_map = {
         str(order.pk): order
         for order in Order.objects.filter(
