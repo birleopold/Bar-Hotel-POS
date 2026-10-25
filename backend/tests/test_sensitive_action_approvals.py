@@ -740,3 +740,126 @@ def test_stock_csv_rejects_negative_adjustments_that_need_manager_approval(clien
     failed = client.session.get("staff_inventory_upload_error_rows") or []
     assert failed
     assert "manager approval required" in failed[0]["error"]
+
+
+@pytest.mark.django_db
+def test_retail_refund_ajax_preserves_manager_approval_and_rotates_key(client, approval_setup):
+    from apps.pos.models import Order, OrderStatus, Payment, PaymentMethod, Refund
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+    from django.urls import reverse
+
+    setup = approval_setup
+    order = Order.objects.create(
+        tenant=setup["tenant"],
+        outlet=setup["outlet"],
+        created_by=setup["cashier"].user,
+        status=OrderStatus.CLOSED,
+        is_paid=True,
+        subtotal=Decimal("100.00"),
+        total=Decimal("100.00"),
+    )
+    Payment.objects.create(
+        tenant=setup["tenant"], order=order, amount=Decimal("100.00"),
+        method=PaymentMethod.CASH, idempotency_key="ajax-refund-payment",
+        recorded_by=setup["cashier"].user,
+    )
+    client.force_login(setup["cashier"].user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+    url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+    request_key = str(uuid.uuid4())
+
+    response = client.post(
+        url,
+        {
+            "action": "record_refund",
+            "refund_request_key": request_key,
+            "amount": "25.00",
+            "reason": "Price correction",
+            "approver_id": str(setup["manager"].pk),
+            "approver_pin": "573951",
+        },
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["next_request_key"] != request_key
+    uuid.UUID(body["next_request_key"])
+    assert Refund.objects.filter(
+        order=order, idempotency_key=request_key, amount=Decimal("25.00"),
+    ).exists()
+    approval = SensitiveActionApproval.objects.get(
+        tenant=setup["tenant"], action="refund", request_key=request_key,
+    )
+    assert approval.intent_payload["amount"] == "25.00"
+
+
+@pytest.mark.django_db
+def test_retail_line_refund_ajax_records_return_once_and_rotates_key(client, approval_setup):
+    from apps.pos.models import (
+        Order, OrderLine, OrderStatus, Payment, PaymentMethod, Refund,
+        SupermarketLineReturn,
+    )
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+    from django.urls import reverse
+
+    setup = approval_setup
+    order = Order.objects.create(
+        tenant=setup["tenant"],
+        outlet=setup["outlet"],
+        created_by=setup["cashier"].user,
+        status=OrderStatus.CLOSED,
+        is_paid=True,
+        subtotal=Decimal("100.00"),
+        total=Decimal("100.00"),
+    )
+    line = OrderLine.objects.create(
+        order=order, label="Returned item", quantity=Decimal("1.000"),
+        unit_price=Decimal("100.00"), line_total=Decimal("100.00"),
+    )
+    Payment.objects.create(
+        tenant=setup["tenant"], order=order, amount=Decimal("100.00"),
+        method=PaymentMethod.CASH, idempotency_key="ajax-line-refund-payment",
+        recorded_by=setup["cashier"].user,
+    )
+    client.force_login(setup["cashier"].user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+    url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+    request_key = str(uuid.uuid4())
+    payload = {
+        "action": "retail_line_refund",
+        "retail_refund_request_key": request_key,
+        "line_id": str(line.pk),
+        "quantity": "0.500",
+        "amount": "50.00",
+        "reason": "Half quantity returned",
+        "approver_id": str(setup["manager"].pk),
+        "approver_pin": "573951",
+    }
+
+    response = client.post(
+        url, payload, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["next_request_key"] != request_key
+    uuid.UUID(body["next_request_key"])
+    refund = Refund.objects.get(order=order, idempotency_key=request_key)
+    returned = SupermarketLineReturn.objects.get(refund=refund)
+    assert returned.order_line_id == line.pk
+    assert returned.quantity == Decimal("0.500")
+    assert returned.restocked is False
+
+    replay = client.post(
+        url, payload, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+    )
+    assert replay.status_code == 200
+    assert Refund.objects.filter(order=order, idempotency_key=request_key).count() == 1
+    assert SupermarketLineReturn.objects.filter(refund=refund).count() == 1
