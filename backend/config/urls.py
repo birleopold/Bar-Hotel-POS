@@ -1,4 +1,9 @@
+import mimetypes
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib import admin
+from django.http import FileResponse, Http404
 from django.shortcuts import redirect
 from django.urls import include, path
 
@@ -15,7 +20,25 @@ def root_entry(request):
     return redirect("staff-login")
 
 
+def public_product_media(request, path):
+    """Serve public product photos when the reverse proxy has no media handler yet."""
+    product_root = Path(settings.MEDIA_ROOT) / "products"
+    try:
+        candidate = (product_root / path).resolve(strict=True)
+        root = product_root.resolve(strict=True)
+    except (FileNotFoundError, OSError):
+        raise Http404
+    if root not in candidate.parents or not candidate.is_file():
+        raise Http404
+    content_type = mimetypes.guess_type(candidate.name)[0] or "application/octet-stream"
+    response = FileResponse(candidate.open("rb"), content_type=content_type)
+    response["Cache-Control"] = "public, max-age=86400"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 urlpatterns = [
+    path("media/products/<path:path>", public_product_media, name="public-product-media"),
     path("", root_entry, name="root-entry"),
     path("signup/", PublicSignupView.as_view(), name="public-signup"),
     path("password-reset/", StaffPasswordRecoveryRequestView.as_view(), name="staff-password-reset-request"),
