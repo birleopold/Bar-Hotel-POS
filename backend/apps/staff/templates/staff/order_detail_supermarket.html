@@ -101,7 +101,7 @@
       <h2 class="staff-card__title">Line discount</h2>
       <p class="staff-muted">Choose the item to discount, then enter an amount or percent.</p>
       {% include "staff/includes/form_errors_block.html" with form=line_discount_form title="Fix discount details" %}
-      <form method="post" class="row g-2 align-items-end">
+      <form method="post" class="row g-2 align-items-end" data-retail-discount-form>
         {% csrf_token %}
         <input type="hidden" name="action" value="line_discount">
         <input type="hidden" name="discount_request_key" value="{{ discount_request_key }}">
@@ -117,6 +117,7 @@
         <div class="col-md-2">{{ line_discount_form.approver_id.label_tag }}{{ line_discount_form.approver_id }}</div>
         <div class="col-md-2">{{ line_discount_form.approver_pin.label_tag }}{{ line_discount_form.approver_pin }}</div>
         <div class="col-md-1"><button type="submit" class="staff-btn staff-btn--ghost">Apply</button></div>
+        <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-discount-status></p></div>
       </form>
     </div>
   {% endif %}
