@@ -157,6 +157,27 @@ def test_sensitive_approval_rejects_bad_pin_and_non_manager(approval_setup):
 
 
 @pytest.mark.django_db
+def test_sensitive_approval_rejects_self_approval(approval_setup):
+    setup = approval_setup
+    request_key = str(uuid.uuid4())
+    with pytest.raises(SensitiveApprovalError, match="different authorized manager"):
+        authorize_sensitive_action(
+            requester=setup["manager"],
+            approver_id=setup["manager"].pk,
+            approver_pin="573951",
+            action="discount",
+            entity_type="order",
+            entity_id="self-approved-order",
+            request_key=request_key,
+            intent_payload={"line_id": "line-1", "discount_amount": "10.00"},
+            outlet_id=setup["outlet"].pk,
+        )
+    assert not SensitiveActionApproval.objects.filter(
+        tenant=setup["tenant"], action="discount", request_key=request_key,
+    ).exists()
+
+
+@pytest.mark.django_db
 def test_sensitive_approvers_are_pin_enabled_and_outlet_scoped(approval_setup):
     setup = approval_setup
     second_site = Site.objects.create(tenant=setup["tenant"], name="Other")
