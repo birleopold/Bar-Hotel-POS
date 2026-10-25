@@ -43,7 +43,7 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-nav a{
 }
 body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-nav a i{width:auto;font-size:22px}
 body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-nav a[aria-current=page]{
-  background:#dff2ff;color:#006dcc;font-weight:800;
+  background:#e7f8ed;color:#007940;font-weight:800;
 }
 body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-sidefoot{
   margin-top:auto;padding:10px 4px 0;border-top:0;
@@ -72,7 +72,7 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .fizo-cashier-identity{
 .reference-pos-brand>i{font-size:34px;color:var(--retail-green)}
 .reference-pos-brand span{min-width:0}
 .reference-pos-brand strong{display:block;font-size:21px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.reference-pos-brand small{display:block;color:#3e67a4;font-size:12px;margin-top:3px}
+.reference-pos-brand small{display:block;color:#567266;font-size:12px;margin-top:3px}
 .reference-top-search{
   display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;
   min-height:48px;border:1px solid #cfdce6;border-radius:9px;padding:0 8px 0 14px;background:#fff;
@@ -99,11 +99,11 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .fizo-cashier-identity{
 .fizo-cashier-identity__person{display:flex;align-items:center;gap:9px}
 .fizo-cashier-identity__avatar{
   display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:50%;
-  background:#e7eef5;color:#245990;font-weight:850;
+  background:#e7f8ed;color:#087a43;font-weight:850;
 }
 .reference-customer-display-link{
   display:grid;place-items:center;width:42px;height:42px;border:1px solid #d9e4eb;border-radius:9px;
-  background:#fff;color:#42617f;text-decoration:none;
+  background:#fff;color:#24704c;text-decoration:none;
 }
 .reference-customer-display-link span{display:none}
 .reference-register-settings{display:none}
