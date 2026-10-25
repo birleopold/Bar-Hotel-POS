@@ -316,7 +316,9 @@
            basket.dataset.orderId!==remoteBasket.dataset.orderId){
           throw new Error("Checkout sale identity changed; reload the original sale.");
         }
-        if(activePayment&&!remotePayment){
+        var completingPayment=!!activePayment&&!remotePayment&&
+          remoteBasket.classList.contains("is-complete");
+        if(activePayment&&!remotePayment&&!completingPayment){
           throw new Error("Checkout payment controls changed; reopen this sale to continue.");
         }
         if(activatingPayment&&!basket){
@@ -326,7 +328,7 @@
         // basket. A partial HTML response must never leave mixed totals.
         var cash=document.querySelector("[data-retail-cash-panel]");
         var nextCash=remote.querySelector("[data-retail-cash-panel]");
-        if(!!cash!==!!nextCash && !activatingPayment){
+        if(!!cash!==!!nextCash && !activatingPayment && !completingPayment){
           throw new Error("Checkout cash controls changed; reopen this sale to continue.");
         }
         if(activatingPayment&&!nextCash){
@@ -379,6 +381,26 @@
         }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
         document.dispatchEvent(new Event("retail:basket-lines-replaced"));
+        if(completingPayment){
+          // The final tender closes the sale. Reconcile that state in place:
+          // keep the same page, remove tender controls and expose receipt /
+          // next-customer actions rendered by Django.
+          basket.classList.add("is-complete");
+          var oldTools=basket.querySelector(".fizo-retail-basket-tools");
+          if(oldTools&&oldTools.parentNode)oldTools.parentNode.removeChild(oldTools);
+          var oldCta=basket.querySelector(".fizo-cashier-pay-cta");
+          if(oldCta&&oldCta.parentNode)oldCta.parentNode.removeChild(oldCta);
+          var oldComplete=basket.querySelector(".fizo-sale-complete-actions");
+          if(oldComplete&&oldComplete.parentNode)oldComplete.parentNode.removeChild(oldComplete);
+          var nextComplete=remoteBasket.querySelector(".fizo-sale-complete-actions");
+          if(nextComplete)basket.appendChild(document.importNode(nextComplete,true));
+          if(paymentCard&&paymentCard.parentNode)paymentCard.parentNode.removeChild(paymentCard);
+          paymentForm=null;
+          paymentCard=null;
+          cashPanel=null;
+          activePayment=null;
+          cash=null;
+        }
         ['[data-retail-summary="subtotal"] strong',
          '[data-retail-summary="discount"] strong',
          '[data-retail-summary="tax"] strong',
@@ -388,6 +410,31 @@
           var a=document.querySelector(selector),b=remote.querySelector(selector);
           if(a&&b)a.textContent=b.textContent;
         });
+        if(activePayment&&remotePayment&&!completingPayment){
+          var currentCard=activePayment.closest(".staff-card--pos");
+          var nextCard=remotePayment.closest(".staff-card--pos");
+          if(currentCard&&nextCard){
+            var currentHint=currentCard.querySelector(".staff-pos-side-hint");
+            var nextHint=nextCard.querySelector(".staff-pos-side-hint");
+            if(currentHint&&nextHint)currentHint.textContent=nextHint.textContent;
+            var currentKey=activePayment.querySelector('input[name="payment_request_key"]');
+            var nextKey=remotePayment.querySelector('input[name="payment_request_key"]');
+            if(currentKey&&nextKey)currentKey.value=nextKey.value;
+            var currentPartial=currentCard.querySelector(".reference-partial-payment");
+            var nextPartial=nextCard.querySelector(".reference-partial-payment");
+            if(nextPartial){
+              var importedPartial=document.importNode(nextPartial,true);
+              if(currentPartial&&currentPartial.parentNode){
+                currentPartial.parentNode.replaceChild(importedPartial,currentPartial);
+              }else{
+                var intro=currentCard.querySelector(".fizo-cashier-pay-intro");
+                currentCard.insertBefore(importedPartial,intro||activePayment);
+              }
+            }else if(currentPartial&&currentPartial.parentNode){
+              currentPartial.parentNode.removeChild(currentPartial);
+            }
+          }
+        }
         if(cash&&nextCash){
           var oldDue=activatingPayment ? null : cash.getAttribute("data-balance-due");
           var amount=activePayment&&activePayment.querySelector('input[name="amount"]');
