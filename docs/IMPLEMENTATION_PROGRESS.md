@@ -35,13 +35,13 @@ This is the practical progress index, **not a claim of production certification*
 | 12 Housekeeping | [-] | Housekeeping board and staff actions | Mobile and cross-role real workflow certification | — |
 | 13 Kitchen display | [-] | KDS state/service UI | Routing and device-level timing/interaction evidence | — |
 | 14 Events journey | [-] | Bookings, quotes, payments | Full package, settlement and invoice workflow | — |
-| 15 Hardware | [-] | Workstation configuration, receipt/scanner hooks | Supported barcode printer, scale and customer-display adapters | SM-03, SM-12, SM-15, SM-28 |
+| 15 Hardware | [-] | Workstation configuration, receipt/scanner hooks, outlet-scoped shelf-label PDF output | Physical barcode/shelf-label printer alignment, scale and customer-display adapters | SM-03, SM-12, SM-15, SM-28 |
 | 16 Offline | [-] | Offline queue, replay and conflict basics | Retail till offline safety policy and privacy | SM-21 |
 | 17 EFRIS | [-] | Fiscal outbox, status and bounded retries | Provider-certified format, reference checks and URA sandbox proof | SM-13 |
 | 18 Analytics | [-] | Sales overview, management reports | Real cost/margin, shift drilldowns, supplier and basket analytics | SM-19, SM-29, SM-35 |
 | 19 Scheduled reports | [-] | Daily/weekly/monthly email reports | Delivery diagnostics and calendar/provider proof | SM-29 |
 | 20 Capability permissions | [-] | Inventory/purchasing capability policy | Consistent POS/finance/hotel API-service checks | SM-20 |
-| 21 Manager approvals | [-] | Manager action eligibility | Exact action PIN, different approver, expiry and one-time audit | SM-20, SM-35 |
+| 21 Manager approvals | [-] | Transaction-bound manager PIN approval service with exact intent hash, different approver, outlet scope, expiry, replay safety and evidence; retail refunds and line discounts wired | Extend the same approval boundary to every remaining sensitive action (void/reopen/write-off/price override/withdrawal) and complete deployed manager-till acceptance | SM-20, SM-35 |
 | 22 Owner audit | [-] | Event/review histories | Retail price overrides and source-to-document export | SM-35 |
 | 23 UI density | [-] | Responsive themes/touch and dense layouts | Scan-first cashier, tablet and keyboard evidence | SM-11, SM-33 |
 | 24 Command palette | [-] | Command search/shortcuts | Staff scope/accessibility and entity completion | SM-33 |
@@ -206,3 +206,10 @@ Refresh this ledger from actual GitHub Actions evidence with every delivery chec
 This keeps opening-float reconciliation because established retail POS products use it to make expected-vs-counted drawer close meaningful, while hiding register administration from routine cashier work. Current reference patterns checked: Lightspeed Retail opening shifts, StoreConnect shift start, and other current retail register guidance all use cashier/PIN + opening float + direct POS entry rather than separate technical setup pages.
 
 Regression coverage added for direct retail PIN landing, cashier password landing, manager password dashboard preservation, one-action shift+first-basket creation, multi-till same-screen choice, shift-length retail PIN idle behavior and simplified template language. **Do not mark browser verified until the new head is deployed and TinyFish reaches the product grid without navigating through shift/workstation administration.**
+
+
+### 2026-10-26 — roadmap reconciliation checkpoint
+
+- Current main has advanced Phase 21 beyond role eligibility: transaction-bound approval evidence exists and is visible in the manager workspace; retail refund and line-discount flows enforce manager PIN approval with exact intent, scope, expiry and replay protection. Phase 21 remains **in progress** because not every named sensitive action is wired through the same boundary and field acceptance is incomplete.
+- Phase 15 now includes a software shelf-label workflow using existing catalog/barcode data and outlet prices. Hardware certification remains open, so the phase stays **in progress**.
+- Retail line discount is now included in the cashier no-refresh workstream. This does not imply refunds, returns, voids, holds/resume or all approval actions have been converted to same-screen asynchronous flows.
