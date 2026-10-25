@@ -9,6 +9,30 @@ from apps.pos.services import menu_items_for_outlet_queryset
 from apps.tenants.models import Outlet
 
 
+def _add_sensitive_approval_fields(form, approvers) -> None:
+    if approvers is None:
+        return
+    form.fields["approver_id"] = forms.ChoiceField(
+        label="Supervisor",
+        choices=[("", "Select manager")] + [
+            (str(member.pk), member.user.get_full_name() or member.user.email)
+            for member in approvers
+        ],
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
+    form.fields["approver_pin"] = forms.RegexField(
+        regex=r"^[0-9]{6,8}$",
+        label="Supervisor PIN",
+        widget=forms.PasswordInput(attrs={
+            "class": "staff-input",
+            "inputmode": "numeric",
+            "autocomplete": "off",
+            "minlength": 6,
+            "maxlength": 8,
+        }),
+    )
+
+
 class StaffTableForm(forms.ModelForm):
     class Meta:
         model = Table
@@ -236,6 +260,10 @@ class StaffOrderLineDiscountForm(forms.Form):
         decimal_places=2,
         widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.01", "min": "0", "max": "100"}),
     )
+
+    def __init__(self, *args, approvers=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        _add_sensitive_approval_fields(self, approvers)
 
     def clean(self):
         cleaned = super().clean()
