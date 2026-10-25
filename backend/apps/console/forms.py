@@ -110,8 +110,17 @@ class ConsoleTenantSubscriptionForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         status = cleaned.get("status")
+        started_at = cleaned.get("started_at")
+        trial_ends_at = cleaned.get("trial_ends_at")
+        period_ends_at = cleaned.get("current_period_ends_at")
         if status == SubscriptionStatus.CANCELLED and not cleaned.get("cancelled_at"):
             self.add_error("cancelled_at", "Cancelled subscriptions require a cancelled timestamp.")
+        elif status != SubscriptionStatus.CANCELLED:
+            cleaned["cancelled_at"] = None
+        if started_at and trial_ends_at and trial_ends_at < started_at:
+            self.add_error("trial_ends_at", "Trial end cannot be before the subscription start.")
+        if started_at and period_ends_at and period_ends_at < started_at:
+            self.add_error("current_period_ends_at", "Current period end cannot be before the subscription start.")
         return cleaned
 
 
@@ -234,8 +243,18 @@ class ConsoleBillingInvoiceForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         status = cleaned.get("status")
-        if status == BillingInvoiceStatus.PAID and not cleaned.get("paid_at"):
-            cleaned["paid_at"] = timezone.now()
+        amount = cleaned.get("amount")
+        issued_at = cleaned.get("issued_at")
+        due_at = cleaned.get("due_at")
+        if amount is not None and amount <= 0:
+            self.add_error("amount", "Invoice amount must be greater than zero.")
+        if issued_at and due_at and due_at < issued_at:
+            self.add_error("due_at", "Due date cannot be before the issue date.")
+        if status == BillingInvoiceStatus.PAID:
+            if not cleaned.get("paid_at"):
+                cleaned["paid_at"] = timezone.now()
+        else:
+            cleaned["paid_at"] = None
         return cleaned
 
 
