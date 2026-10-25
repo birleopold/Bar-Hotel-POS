@@ -4,6 +4,8 @@ These paths previously returned 500 with production PostgreSQL RLS enabled.
 SQLite exercises view behavior; production RLS must also be checked with the
 non-owner PostgreSQL application role before release certification.
 """
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -182,6 +184,95 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         self.assertEqual(BillingEvent.objects.filter(
             tenant=tenant, event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
         ).count(), count)
+
+    def test_paying_last_past_due_invoice_reactivates_only_past_due_subscription(self):
+        from apps.tenants.models import (
+            BillingEvent, BillingEventType, BillingInvoice, BillingInvoiceStatus,
+            Plan, SubscriptionStatus, TenantSubscription,
+        )
+        tenant = Tenant.objects.create(name="Billing reconcile", slug="billing-reconcile")
+        TenantSettings.objects.create(tenant=tenant)
+        plan = Plan.objects.create(name="Billing Reconcile Plan", code="billing-reconcile-plan")
+        subscription = TenantSubscription.objects.create(
+            tenant=tenant, plan=plan, status=SubscriptionStatus.PAST_DUE,
+        )
+        invoice = BillingInvoice.objects.create(
+            tenant=tenant,
+            subscription=subscription,
+            invoice_number="INV-RECON-1",
+            amount="100.00",
+            currency="UGX",
+            status=BillingInvoiceStatus.PAST_DUE,
+        )
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        response = self.client.post(url, {
+            "invoice_set_status": "1",
+            "invoice_id": str(invoice.pk),
+            "status": BillingInvoiceStatus.PAID,
+        })
+        self.assertRedirects(response, url)
+        subscription.refresh_from_db()
+        invoice.refresh_from_db()
+        self.assertEqual(subscription.status, SubscriptionStatus.ACTIVE)
+        self.assertIsNotNone(invoice.paid_at)
+        self.assertTrue(BillingEvent.objects.filter(
+            tenant=tenant,
+            event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
+            previous_subscription_status=SubscriptionStatus.PAST_DUE,
+            new_subscription_status=SubscriptionStatus.ACTIVE,
+        ).exists())
+
+        subscription.status = SubscriptionStatus.SUSPENDED
+        subscription.save(update_fields=["status", "updated_at"])
+        second = BillingInvoice.objects.create(
+            tenant=tenant,
+            subscription=subscription,
+            invoice_number="INV-RECON-2",
+            amount="200.00",
+            currency="UGX",
+            status=BillingInvoiceStatus.PAST_DUE,
+        )
+        response = self.client.post(url, {
+            "invoice_set_status": "1",
+            "invoice_id": str(second.pk),
+            "status": BillingInvoiceStatus.PAID,
+        })
+        self.assertRedirects(response, url)
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, SubscriptionStatus.SUSPENDED)
+
+    def test_subscription_and_invoice_forms_reject_impossible_dates_and_amounts(self):
+        from django.utils import timezone
+        from apps.console.forms import ConsoleBillingInvoiceForm, ConsoleTenantSubscriptionForm
+        from apps.tenants.models import BillingInvoiceStatus, Plan, SubscriptionStatus
+        plan = Plan.objects.create(name="Validation Plan", code="validation-plan")
+        now = timezone.now()
+        subscription_form = ConsoleTenantSubscriptionForm(data={
+            "plan": str(plan.pk),
+            "status": SubscriptionStatus.ACTIVE,
+            "started_at": now.strftime("%Y-%m-%dT%H:%M"),
+            "trial_ends_at": (now - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+            "current_period_ends_at": (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M"),
+            "cancelled_at": "",
+        })
+        self.assertFalse(subscription_form.is_valid())
+        self.assertIn("trial_ends_at", subscription_form.errors)
+        self.assertIn("current_period_ends_at", subscription_form.errors)
+
+        invoice_form = ConsoleBillingInvoiceForm(data={
+            "invoice_number": "INV-BAD-DATES",
+            "amount": "-1.00",
+            "currency": "ugx",
+            "status": BillingInvoiceStatus.ISSUED,
+            "issued_at": now.strftime("%Y-%m-%dT%H:%M"),
+            "due_at": (now - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+            "paid_at": now.strftime("%Y-%m-%dT%H:%M"),
+            "external_ref": "",
+            "note": "",
+        })
+        self.assertFalse(invoice_form.is_valid())
+        self.assertIn("amount", invoice_form.errors)
+        self.assertIn("due_at", invoice_form.errors)
 
     def test_tenant_scope_middleware_precedes_staff_membership_lookup(self):
         from django.conf import settings
