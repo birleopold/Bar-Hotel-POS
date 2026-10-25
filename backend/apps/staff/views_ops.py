@@ -499,6 +499,7 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
         manager = self.request.tenant_membership.role in {
             MembershipRole.OWNER, MembershipRole.TENANT_ADMIN, MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
         }
+        ctx["can_review_shift_history"] = manager
         operator = manager or self.request.tenant_membership.role in {MembershipRole.SERVER, MembershipRole.BARTENDER}
         ctx["can_verify_handover"] = bool(pending and operator and pending.status == ShiftHandover.Status.SUBMITTED and pending.shift.closed_by_id != self.request.user.pk)
         ctx["can_approve_handover"] = bool(pending and manager and pending.status == ShiftHandover.Status.VERIFIED and self.request.user.pk not in {pending.shift.closed_by_id, pending.verified_by_id})
