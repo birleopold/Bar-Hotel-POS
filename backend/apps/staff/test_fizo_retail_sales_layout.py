@@ -255,8 +255,10 @@ class RetailSalesLandingTests(SimpleTestCase):
         supermarket = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
         self.assertIn('ctx["refund_request_key"] = uuid.uuid4()', view)
         self.assertIn('ctx["retail_refund_request_key"] = uuid.uuid4()', view)
-        self.assertIn('idempotency_key=self._refund_request_key(request)', view)
-        self.assertIn('idempotency_key=self._refund_request_key(request, "retail_refund_request_key")', view)
+        self.assertIn('request_key = self._refund_request_key(request)', view)
+        self.assertIn('request_key = self._refund_request_key(request, "retail_refund_request_key")', view)
+        self.assertGreaterEqual(view.count('idempotency_key=request_key'), 2)
+        self.assertGreaterEqual(view.count('request_key=request_key'), 2)
         self.assertIn('name="refund_request_key" value="{{ refund_request_key }}"', detail)
         self.assertIn('name="retail_refund_request_key" value="{{ retail_refund_request_key }}"', supermarket)
 
