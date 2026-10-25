@@ -2,7 +2,7 @@
 
 **Date:** 25 October 2026  
 **Decision:** Build an optional **Delivery / Fulfillment** capability *inside* the existing multi-tenant POS. Do not create a second order ledger or a courier-only SaaS for ordinary business deliveries.  
-**Implementation state:** Pure validation/policy foundation committed; persistent deliveries, UI, routes and payment flows **not yet implemented**. Do not enable delivery to customers or label the feature complete.
+**Implementation state (25 October D01/D02 continuation):** D01 migration-backed `OutletDeliverySettings` and `OrderDelivery` records with PostgreSQL RLS, outlet-manager opt-in, paid-order registration, duplicate pickup/delivery prevention and manager-scoped delivery staff queue are now source-implemented. D02 additionally has guarded worker assignment and fulfillment transitions. The migration and test suite must pass, and deployment must be verified, before enabling in production. COD, rider payments, delivery fees, KDS/hotel acceptance and third-party integrations are **not implemented**.
 
 ## Evidence and external workflow comparison
 
@@ -49,6 +49,16 @@ These are design references, *not* dependencies. No paid third-party provider or
 | D05 | Bar delivery via explicit business enablement, legal controls, customer handover checks | Local policy signoff |
 | D06 | COD/partial-pay rider collection, returns/refunds and driver shifts, delivery fees, SMS, business reports | End-to-end financial reconciliation, duplicate submission tests |
 | D07 | Optional integrations: online ordering, third-party dispatch, mobile driver UI, maps/route estimates | Contracts, API idempotency, consent/privacy and provider sandbox |
+
+## D01/D02 source progress (25 October 2026)
+
+- `backend/apps/pos/models.py`: `OutletDeliverySettings` (default off, one-to-one per outlet) and `OrderDelivery` (one-to-one existing sale, separate status, destination/contact snapshot, driver, optional scheduled time, fee/currency snapshot, handoff timestamps). `0030_delivery_fulfillment.py` creates the tables; `0031_delivery_fulfillment_rls.py` adds PostgreSQL tenant RLS to both. No conversion or deletion of historical POS orders.
+- `backend/apps/pos/services/deliveries.py`: manager-only enable/disable, paid-order delivery registration with recorded-payment check and tenant/outlet scoping, safe replay on identical request, customer pickup mutual exclusion, and role/outlet-scoped driver assignment and audited state changes. No new payment or stock mutation.
+- `backend/apps/pos/services/pickups.py`: reject paid pickup if that sale already has a delivery record. Pickups remain independent where not delivery-assigned.
+- `backend/apps/staff/views_delivery.py` and `staff/pos/deliveries.html`: manager-only Delivery queue at `/staff/pos/deliveries/` with opt-in per outlet, eligible settled-sale selector, recipient/destination form, worker assignment and state actions. Existing staff navigation links to it. Workers are scoped to accessible outlets.
+- Hotel-room deliveries in the service require a matching actual checked-in folio/reservation room; external deliveries require recipient name/contact/address. Cash-on-delivery and unpaid orders are rejected in the first release.
+- `backend/tests/test_delivery_persistence.py` covers disabled-by-default, settled-ledger requirement, duplicate pickup prevention, replay, tenant/manager authorization, state transitions, hotel checkout, and rendered staff queue/registration; `test_postgres_rls_policy_presence.py` checks both delivery tables. Existing `quality.yml` runs persistence and policy tests in PostgreSQL.
+- **Not yet accepted:** observed `makemigrations --check`/PostgreSQL CI results, actual migration execution, browser flows, all five target viewport screenshots, driver confirmation on physical devices, restaurant KDS, hotel room/folio financial integration, fee calculation and cash-on-delivery reconciliation. Do not represent these as tested or shipped.
 
 ## Current implementation artifacts
 
