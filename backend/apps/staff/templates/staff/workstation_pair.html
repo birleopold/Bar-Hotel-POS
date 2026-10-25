@@ -4,7 +4,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261022.2">{% endblock %}
 {% block content %}
 <div class="fizo-register fizo-register--workstation-pair">
-<header class="fizo-register__header"><div><p class="fizo-register__eyebrow">Fizo / Cashier / Workstations</p><h1>Approve workstation browser</h1><p>{{ station.name }} · {{ station.code }} · {{ station.outlet.name }}</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">All workstations</a></header>
+<header class="fizo-register__header"><div><p class="fizo-register__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Workstations</p><h1>Approve workstation browser</h1><p>{{ station.name }} · {{ station.code }} · {{ station.outlet.name }}</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">All workstations</a></header>
 <div class="fizo-register__panel"><h2 class="staff-card__title">Approve this browser</h2><p class="staff-muted">Use this screen on the actual till or tablet. Approval lasts 30 days and survives worker handoff. Each worker still uses their own login or PIN.</p>
 <form method="post" class="staff-register-form">{% csrf_token %}{% include "staff/includes/form_errors_block.html" with form=form title="Fix browser approval" %}
 {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}</div>{% endfor %}<button class="staff-btn staff-btn--primary">Approve this browser</button></form></div>
