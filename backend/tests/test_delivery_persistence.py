@@ -149,7 +149,7 @@ class DeliveryPersistenceTests(TestCase):
         self.assertFalse(OrderDelivery.objects.exists())
 
     def test_delivery_requires_manager_role(self):
-        self.member.role = MembershipRole.CASHIER
+        self.member.role = MembershipRole.SERVER
         self.member.save(update_fields=["role"])
         with self.assertRaises(ValidationError):
             set_outlet_delivery_enabled(
