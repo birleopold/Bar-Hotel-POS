@@ -167,6 +167,22 @@ class RetailSalesLandingTests(SimpleTestCase):
         )
         self.assertIn("Order.objects.select_for_update().get(pk=order.pk)", services)
 
+    def test_payment_and_refund_balances_are_tenant_scoped(self):
+        payments = (Path(__file__).resolve().parent.parent /
+                    "pos/services/payments.py").read_text(encoding="utf-8")
+        self.assertGreaterEqual(
+            payments.count('Payment.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id)'),
+            1,
+        )
+        self.assertGreaterEqual(
+            payments.count('Refund.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id)'),
+            1,
+        )
+        self.assertIn(
+            'Refund.objects.filter(payment_id=p.id, tenant_id=order.tenant_id)',
+            payments,
+        )
+
     def test_open_basket_cancellation_does_not_restock_unsold_inventory(self):
         root = Path(__file__).resolve().parent
         orders = (root.parent / "pos/services/orders.py").read_text(encoding="utf-8")
