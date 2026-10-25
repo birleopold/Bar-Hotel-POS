@@ -231,6 +231,35 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "Grocery milk")
         self.assertContains(page, "milk.png")
 
+    def test_cashier_tile_uses_effective_outlet_price_not_global_base(self):
+        from apps.catalog.models import MenuItemOutlet
+        from apps.pos.services import add_line_to_open_order
+
+        cat = MenuCategory.objects.create(tenant=self.tenant, name="Outlet pricing")
+        item = MenuItem.objects.create(
+            tenant=self.tenant, category=cat, name="Mineral water",
+            sku="PRICE-OVERRIDE", unit_price=Decimal("3500.00"),
+            track_inventory=False,
+        )
+        MenuItemOutlet.objects.create(
+            menu_item=item, outlet=self.outlet, price_override=Decimal("2400.00"),
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            currency="UGX",
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        page = self.client.get(url, {"catalogue_q": "PRICE-OVERRIDE"})
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "UGX 2400.00")
+        self.assertNotContains(page, "UGX 3500.00")
+        line = add_line_to_open_order(
+            order=order, menu_item=item, quantity=Decimal("1"), user=self.user,
+        )
+        self.assertEqual(line.unit_price, Decimal("2400.00"))
+        order.refresh_from_db()
+        self.assertEqual(order.total, Decimal("2400.00"))
+
     def test_cashier_tile_excludes_expired_and_held_batches(self):
         from datetime import timedelta
         from django.utils import timezone
