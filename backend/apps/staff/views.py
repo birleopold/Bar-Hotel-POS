@@ -328,6 +328,16 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
     login_url = reverse_lazy("staff-login")
 
     def dispatch(self, request: HttpRequest, *args, **kwargs):
+        central_hosts = {
+            str(host).strip().lower().rstrip(".")
+            for host in getattr(settings, "TENANT_CENTRAL_HOSTS", ())
+        }
+        if (
+            request.user.is_authenticated
+            and user_is_platform_operator(request.user)
+            and request.get_host().split(":")[0].lower().rstrip(".") in central_hosts
+        ):
+            return redirect("console-platform-tenants")
         response = super().dispatch(request, *args, **kwargs)
         active = getattr(request, "tenant_membership", None)
         if active is not None and not getattr(active.tenant, "is_active", True):
