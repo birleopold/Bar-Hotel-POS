@@ -475,17 +475,23 @@ class OrgMenuItemOutletDeleteView(MenuItemScopedMixin, DeleteView):
     def get_success_url(self):
         return reverse("console-org-menu-item-outlets", kwargs={"item_id": self.menu_item.pk})
 
-    def delete(self, request, *args, **kwargs):
-        obj = self.get_object()
+    def form_valid(self, form):
+        obj = self.object
         name = obj.outlet.name
         override = obj.price_override
         outlet_id = obj.outlet_id
         link_id = obj.pk
-        response = super().delete(request, *args, **kwargs)
+        response = super().form_valid(form)
         if override is not None:
+            remaining_links = MenuItemOutlet.objects.filter(menu_item=self.menu_item).exists()
+            after_value = (
+                str(self.menu_item.unit_price)
+                if not remaining_links
+                else "not offered at this sales area"
+            )
             log_audit(
-                tenant_id=request.tenant.pk,
-                user_id=request.user.pk,
+                tenant_id=self.request.tenant.pk,
+                user_id=self.request.user.pk,
                 action="catalog.outlet_price_override_changed",
                 entity_type="menu_item_outlet",
                 entity_id=str(link_id),
@@ -495,13 +501,13 @@ class OrgMenuItemOutletDeleteView(MenuItemScopedMixin, DeleteView):
                     "outlet_id": str(outlet_id),
                     "outlet_name": name,
                     "before": str(override),
-                    "after": str(self.menu_item.unit_price),
+                    "after": after_value,
                     "override_before": str(override),
                     "override_after": None,
                     "link_removed": True,
                 },
             )
-        messages.success(request, f"Removed outlet link for “{name}”.")
+        messages.success(self.request, f"Removed outlet link for “{name}”.")
         return response
 
     def get_context_data(self, **kwargs):
