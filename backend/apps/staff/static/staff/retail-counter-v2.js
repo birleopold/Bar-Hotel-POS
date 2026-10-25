@@ -247,6 +247,14 @@
         // request identity, tender and cash-change listeners are bound when
         // Django renders checkout. A mismatch needs a normal navigation.
         var activatingPayment=!activePayment&&!!remotePayment;
+        // Check the server-rendered sale identity before reconciling any
+        // lines. A redirected or otherwise mismatched sale must not replace
+        // the current customer's basket.
+        var remoteBasket=remote.querySelector(".fizo-checkout-basket");
+        if(!basket||!remoteBasket||
+           basket.dataset.orderId!==remoteBasket.dataset.orderId){
+          throw new Error("Checkout sale identity changed; reload the original sale.");
+        }
         if(activePayment&&!remotePayment){
           throw new Error("Checkout payment controls changed; reopen this sale to continue.");
         }
