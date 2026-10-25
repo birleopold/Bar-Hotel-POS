@@ -121,12 +121,13 @@
       </form>
     </div>
   {% endif %}
+  <div data-retail-return-zone>
   {% if retail_refund_form %}
-    <div class="staff-card">
+    <div class="staff-card" data-retail-line-refund-card>
       <h2 class="staff-card__title">Return and refund</h2>
       <p class="staff-muted small">Refund till: {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}automatic when one shift is open{% endif %} · <a href="{% url 'staff-workstations' %}">Choose till</a></p>
       <p class="staff-muted">Record the returned quantity and the customer refund together. Enter the actual amount to return, including any discount or tax adjustment. Choose the original payment when the order has split tenders. Restock only goods physically received and suitable for resale.</p>
-      <form method="post" class="row g-3 align-items-end">
+      <form method="post" class="row g-3 align-items-end" data-retail-line-refund-form>
         {% csrf_token %}
         <input type="hidden" name="action" value="retail_line_refund">
         <input type="hidden" name="retail_refund_request_key" value="{{ retail_refund_request_key }}">
@@ -134,6 +135,7 @@
           <div class="col-6 col-lg-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
         {% endfor %}
         <div class="col-12"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Record return and refund</button></div>
+        <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-line-refund-status></p></div>
       </form>
     </div>
   {% endif %}
@@ -160,7 +162,7 @@
     </div>
   {% endif %}
   {% if order.supermarket_returns.all %}
-    <div class="staff-card">
+    <div class="staff-card" data-retail-return-history>
       <h2 class="staff-card__title">Return history</h2>
       <div class="staff-table-wrap"><table class="staff-table">
         <caption class="visually-hidden">Physical returns recorded for this order</caption>
@@ -169,6 +171,7 @@
       </table></div>
     </div>
   {% endif %}
+  </div>
 {% endblock %}
 
 {% block extra_js %}
