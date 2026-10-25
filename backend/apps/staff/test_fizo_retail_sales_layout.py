@@ -63,6 +63,18 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('remotePayment.value', source)
         self.assertIn('reconcileFromServer()', source)
 
+    def test_retail_quantity_outlet_denial_returns_forbidden_json(self):
+        source = (Path(__file__).resolve().parent /
+                  "views_ops.py").read_text(encoding="utf-8")
+        # The browser stepper expects a structured denial, not a login or
+        # order-page redirect which can leave the displayed basket stale.
+        gate = source.split(
+            'if not staff_outlet_allowed_for_membership(m, order.outlet_id):'
+        )[1].split('if action == "ack_ready_line":', 1)[0]
+        self.assertIn('action == "adjust_line_qty"', gate)
+        self.assertIn('request.headers.get("X-Requested-With") == "XMLHttpRequest"', gate)
+        self.assertIn('return JsonResponse({"ok": False, "message": message}, status=403)', gate)
+
     def test_retail_quantity_confirmation_has_no_false_success_fallback(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
