@@ -451,6 +451,16 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("Nothing requiring attention is available yet.", template)
         get_template("staff/dashboard.html")
 
+    def test_live_cashier_sidebar_matches_approved_operational_rail(self):
+        root = Path(__file__).resolve().parent
+        sidebar = (root / "templates/staff/includes/sidebar.html").read_text(encoding="utf-8")
+        css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
+        self.assertIn('class="fz-nav__dashboard"', sidebar)
+        self.assertIn('class="fz-nav__deliveries"', sidebar)
+        self.assertIn("}Reports{% else %}Sales &amp; reports{% endif %}", sidebar)
+        self.assertIn(".fz-nav__dashboard,", css)
+        self.assertIn(".fz-nav__deliveries{display:none}", css)
+
     def test_approved_product_card_density_and_named_totals(self):
         root = Path(__file__).resolve().parent
         css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
@@ -505,7 +515,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("grid-template-columns:60px minmax(0,1fr) auto", css)
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
-        self.assertIn("retail-cashier.css' %}?v=20261025.4", supermarket)
+        self.assertIn("retail-cashier.css' %}?v=20261025.5", supermarket)
         self.assertIn("retail-counter-v2.js' %}?v=20261025.3", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
