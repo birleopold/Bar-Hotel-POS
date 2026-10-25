@@ -295,6 +295,20 @@
       });
   }
   window.retailRefreshCheckout=refreshCheckout;
+  // A successful POST followed by an incomplete GET is ambiguous. Offer a
+  // safe read-only reload; never replay the sale mutation.
+  function showCheckoutRecovery(node,error){
+    if(!node)return;
+    node.textContent=(error&&error.message?error.message:"Basket confirmation unavailable.")+
+      " Your sale may already be updated. ";
+    var retry=document.createElement("button");
+    retry.type="button";
+    retry.className="staff-btn staff-btn--secondary";
+    retry.textContent="Reload sale safely";
+    retry.addEventListener("click",function(){window.location.reload();});
+    node.appendChild(retry);
+  }
+
   // Only enhance an already payable basket. The initial item keeps native
   // submission so Django can create its payment form with the correct
   // cashier permissions and server-issued payment identity.
@@ -343,8 +357,7 @@
         if(live)live.textContent="Item added to basket.";
       }).catch(function(error){
         // Never replay a POST whose response was lost: it may have committed.
-        if(live)live.textContent=(error.message||"Could not verify item.")+
-          " Check the basket before trying again.";
+        showCheckoutRecovery(live,error);
       }).then(unlock);
     });
     window.addEventListener("pageshow",function(){delete addForm.dataset.submitting;});
