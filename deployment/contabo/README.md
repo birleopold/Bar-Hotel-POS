@@ -75,13 +75,16 @@ to check template consistency without changing the machine.
 
 Use `pos.env.example` as a checklist and store the runtime environment at
 `/etc/leosoft-pos/pos.env`. During the current development/acceptance stage,
-`deploy-app.sh` uses the existing application `DATABASE_URL` directly for
-Django migrations, matching the simpler deployment style used by the other
-applications on this VPS. No separate `MIGRATION_DATABASE_URL` prompt is
-required.
+`deploy-app.sh` uses the existing application `DATABASE_URL` and local
+PostgreSQL administrator access to run migrations automatically, matching the
+simpler deployment style used by the other applications on this VPS. No
+separate `MIGRATION_DATABASE_URL` or database-password prompt is required.
+When the runtime role is not the database owner, the script temporarily grants
+that role owner membership only while migrations run and immediately revokes
+it afterwards.
 
 Before final production hardening, review the PostgreSQL ownership/RLS model
-again and restore a dedicated migration-owner path if required. Do not expose
+again and restore a stricter dedicated migration-owner path if desired. Do not expose
 `/home/admin` through the web server; POS static assets are published under
 `/var/www/leosoft-pos/static`.
 
