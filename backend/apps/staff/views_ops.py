@@ -946,7 +946,15 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     row["menu_item_id"]: row["usable"] or Decimal("0")
                     for row in batches
                 }
+                outlet_prices = dict(
+                    MenuItemOutlet.objects.filter(
+                        outlet_id=order.outlet_id, menu_item__tenant_id=order.tenant_id,
+                        menu_item_id__in=[item.pk for item in menu_qs],
+                        price_override__isnull=False,
+                    ).values_list("menu_item_id", "price_override")
+                )
                 for item in menu_qs:
+                    item.cashier_display_price = outlet_prices.get(item.pk, item.unit_price)
                     if not item.track_inventory:
                         continue
                     on_hand = stock_by_product.get(item.pk, Decimal("0"))
