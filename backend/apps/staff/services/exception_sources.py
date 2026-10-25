@@ -12,7 +12,7 @@ from apps.integrations.models import EfrisSubmission
 from apps.pos.models import Order, OrderLine, OfflineQueuedOperation, Payment, Refund
 from apps.purchasing.models import PurchaseReceipt
 
-EXTRA_KINDS = ("discount", "line_discount", "void", "drawer_no_sale", "manual_price", "stock_adjustment", "delivery_discrepancy", "efris_failure", "offline_conflict", "pin_failure")
+EXTRA_KINDS = ("discount", "line_discount", "void", "drawer_no_sale", "manual_price", "price_change", "stock_adjustment", "delivery_discrepancy", "efris_failure", "offline_conflict", "pin_failure")
 
 
 def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
@@ -101,6 +101,55 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
                 " · compare with the authorized selling price",
                 reverse("staff-order-detail", kwargs={"order_id": obj.order_id}),
                 (obj.unit_price, obj.quantity, obj.updated_at, obj.pricing_source),
+            ))
+        price_events_qs = AuditEvent.objects.filter(
+            tenant=request.tenant,
+            action__in=[
+                "catalog.unit_price_changed",
+                "catalog.outlet_price_override_changed",
+            ],
+            created_at__gte=cutoff,
+        ).select_related("user").order_by("-created_at")
+        price_events = list(limited(price_events_qs, "price_change"))
+        scoped_price_events = []
+        outlet_id_strings = {str(i) for i in ids}
+        for obj in price_events:
+            payload = obj.payload if isinstance(obj.payload, dict) else {}
+            event_outlet = str(payload.get("outlet_id") or "")
+            explicit = {str(value) for value in (payload.get("outlet_ids") or [])}
+            applies_all = bool(payload.get("applies_to_all_outlets"))
+            if applies_all or event_outlet in outlet_id_strings or bool(explicit & outlet_id_strings):
+                scoped_price_events.append(obj)
+        for obj in scoped_price_events:
+            payload = obj.payload if isinstance(obj.payload, dict) else {}
+            actor = (
+                obj.user.get_full_name() or obj.user.email
+                if obj.user_id and obj.user
+                else "Former or system user"
+            )
+            scope_label = payload.get("outlet_name") or (
+                "All sales areas" if payload.get("applies_to_all_outlets") else "Selected sales areas"
+            )
+            detail = (
+                f"{payload.get('item_name') or 'Product'} · {scope_label}"
+                f" · {payload.get('before', '?')} → {payload.get('after', '?')}"
+                f" · changed by {actor}"
+            )
+            result.append(row(
+                "price_change",
+                obj,
+                "Selling price changed",
+                detail,
+                source_url("price_change", obj),
+                (
+                    obj.pk,
+                    obj.created_at,
+                    obj.action,
+                    payload.get("before"),
+                    payload.get("after"),
+                    obj.user_id,
+                ),
+                outlet_id=payload.get("outlet_id") or None,
             ))
         drawer_events = list(limited(
             AuditEvent.objects.filter(
