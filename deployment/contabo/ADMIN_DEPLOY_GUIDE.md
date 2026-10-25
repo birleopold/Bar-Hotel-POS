@@ -80,30 +80,18 @@ sudo cp deployment/contabo/leosoft-pos-gunicorn.service.example /etc/systemd/sys
 sudo systemctl daemon-reload
 ```
 
-For an interactive deploy, run the deployment script normally. If migrations
-are pending and `MIGRATION_DATABASE_URL` is absent, it will ask for the
-schema-owner URL with hidden input and will not persist it:
+During the current development/acceptance stage the deploy uses the existing
+runtime `DATABASE_URL` and applies migrations automatically. No second
+database-owner login is requested:
 
 ```bash
+cd /home/admin/Bar-Hotel-POS
 bash deployment/contabo/deploy-app.sh
-# When prompted, enter:
-# postgresql://leosoft_pos_owner:OWNER_PASSWORD@127.0.0.1:5432/leosoft_pos
 ```
 
-For a non-interactive deploy, supply the temporary migration owner's DB URL
-only in the current terminal:
-
-```bash
-read -rsp 'POS schema-owner PostgreSQL password: ' OWNER_PW; echo
-export MIGRATION_DATABASE_URL="postgresql://leosoft_pos_owner:${OWNER_PW}@127.0.0.1:5432/leosoft_pos"
-unset OWNER_PW
-bash deployment/contabo/deploy-app.sh
-unset MIGRATION_DATABASE_URL
-```
-
-The deploy script runs the two post-migration runtime-role `GRANT` statements
-before restarting Gunicorn. Those privileges are confined to `leosoft_pos`.
-If it stops, inspect the error; do not restart unrelated applications.
+If it stops, inspect the migration or service error; do not restart unrelated
+applications. Before final production hardening, revisit the separate
+migration-owner/RLS deployment model.
 
 Check: `sudo systemctl status leosoft-pos-gunicorn.service --no-pager`
 and `sudo journalctl -u leosoft-pos-gunicorn.service -n 80 --no-pager`.
