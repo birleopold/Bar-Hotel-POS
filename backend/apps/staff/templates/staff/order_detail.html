@@ -403,7 +403,7 @@
             {% endif %}
           {% endif %}
           {% include "staff/includes/form_errors_block.html" with form=refund_form title="Fix refund details" %}
-          <form method="post" class="row g-2 align-items-end">
+          <form method="post" class="row g-2 align-items-end" data-retail-refund-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="record_refund">
             {% for field in refund_form %}
