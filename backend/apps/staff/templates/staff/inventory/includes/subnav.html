@@ -4,6 +4,7 @@
   <a class="fizo-inventory__tab {% if n == 'staff-inventory-batches' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
   {% if 'supermarket' in request.tenant.settings.business_lines or 'retail' in request.tenant.settings.business_lines %}
   <a class="fizo-inventory__tab {% if n == 'staff-inventory-scale-labels' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-scale-labels' %}">Scale labels</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-shelf-labels' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-shelf-labels' %}">Shelf labels</a>
   {% endif %}
   <a class="fizo-inventory__tab {% if n == 'staff-inventory-shelves' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-shelves' %}">Aisles &amp; shelves</a>
   <a class="fizo-inventory__tab {% if n == 'staff-inventory-intelligence' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-intelligence' %}">Stock planning</a>
