@@ -42,7 +42,7 @@
                       <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>
                       {% if is_supermarket_outlet and item.track_inventory %}
                         <span class="staff-pos-menu-tile__stock{% if item.cashier_stock_low %} staff-pos-menu-tile__stock--low{% endif %}" aria-label="Stock at this outlet: {{ item.cashier_stock_quantity }} units">
-                          {% if item.cashier_stock_quantity <= 0 %}Out of stock{% elif item.cashier_stock_low %}Low stock · {{ item.cashier_stock_quantity }} left{% else %}On hand · {{ item.cashier_stock_quantity }}{% endif %}
+                          {% if item.cashier_stock_quantity <= 0 %}No sellable stock{% elif item.cashier_stock_low %}Low stock · {{ item.cashier_stock_quantity }} left{% else %}Sellable · {{ item.cashier_stock_quantity }}{% endif %}{% if item.cashier_stock_batch_limited %} · Check held/expired batches{% endif %}
                         </span>
                       {% endif %}
                       {% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Select</span>{% endif %}
