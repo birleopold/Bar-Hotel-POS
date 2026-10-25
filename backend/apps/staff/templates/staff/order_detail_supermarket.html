@@ -245,12 +245,45 @@
       }
       // Do not lock the scanner when native form constraints prevent submission.
       if (!scanForm.checkValidity()) return;
+      var inline = !!(window.fetch && window.FormData &&
+        document.querySelector("[data-pos-payment-form]") &&
+        window.retailRefreshCheckout);
+      if (inline) event.preventDefault();
       scanPending = true;
-      try {
-        if (scanInput) window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1");
-      } catch (ignored) { /* Scanning still works without storage. */ }
+      if (!inline) {
+        try {
+          if (scanInput) window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1");
+        } catch (ignored) { /* Scanning still works without storage. */ }
+      }
       if (scanButton) scanButton.disabled = true;
       if (scanStatus) scanStatus.textContent = "Adding item to basket…";
+      if (!inline) return;
+      var csrf = scanForm.querySelector('input[name="csrfmiddlewaretoken"]');
+      fetch(scanForm.getAttribute("action") || window.location.pathname + window.location.search, {
+        method: "POST", body: new FormData(scanForm), credentials: "same-origin",
+        redirect: "follow", headers: {
+          "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf ? csrf.value : ""
+        }
+      }).then(function(response) {
+        if (response.redirected || !(response.headers.get("Content-Type") || "").toLowerCase().includes("application/json"))
+          throw new Error("Checkout session expired or unexpected response.");
+        return response.json().then(function(data) {
+          if (!response.ok || !data.ok) throw new Error(data.message || "Could not add barcode.");
+          return data;
+        });
+      }).then(function() {
+        return window.retailRefreshCheckout();
+      }).then(function() {
+        if (scanStatus) scanStatus.textContent = "Item scanned and basket updated.";
+        if (scanInput) { scanInput.value = ""; scanInput.focus(); }
+      }).catch(function(error) {
+        // A committed scan must not be posted twice after a response failure.
+        if (scanStatus) scanStatus.textContent = (error.message || "Scan unconfirmed.") +
+          " Check the basket before scanning this item again.";
+      }).then(function() {
+        scanPending = false;
+        if (scanButton) scanButton.disabled = false;
+      });
     });
     window.addEventListener("pageshow", function () {
       scanPending = false;
