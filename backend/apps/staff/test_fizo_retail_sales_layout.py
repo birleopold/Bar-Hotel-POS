@@ -570,6 +570,34 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("Confirm quantity and add to basket.", js)
         self.assertNotIn("Confirm quantity and choose Add to basket.", js)
 
+    def test_basket_stays_tall_until_cashier_opens_payment(self):
+        root = Path(__file__).resolve().parent
+        supermarket = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
+        js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+
+        self.assertNotIn("If the customer gives less than the amount due", supermarket)
+        self.assertNotIn("The cash-received figure is not the sale amount", supermarket)
+        self.assertIn("Partial cash. Save this amount, then collect or hold the balance.", supermarket)
+        self.assertIn("Change ready.", supermarket)
+        self.assertIn(">Pay</button>", detail)
+        self.assertNotIn("Choose a method, confirm the amount, then record the payment.", detail)
+
+        self.assertIn("min-height:180px", css)
+        self.assertIn("grid-template-columns:48px minmax(0,1fr) auto", css)
+        self.assertIn(".fizo-checkout-basket>.reference-payment-card{", css)
+        self.assertIn("display:none;position:absolute", css)
+        self.assertIn(".fizo-checkout-basket>.reference-payment-card.is-open{display:block}", css)
+        self.assertIn(".fizo-checkout-basket>.reference-payment-idle{display:none!important}", css)
+
+        self.assertIn("function openPaymentDrawer()", js)
+        self.assertIn('paymentCard.classList.add("is-open")', js)
+        self.assertIn("function closePaymentDrawer()", js)
+        self.assertIn("newCard.appendChild(newCash)", js)
+        self.assertIn("setupPaymentDrawer(newCard,newCash)", js)
+        self.assertNotIn('card.scrollIntoView({behavior:"smooth",block:"nearest"})', js)
+
     def test_approved_cashier_header_order_and_compact_density(self):
         root = Path(__file__).resolve().parent
         detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
@@ -584,11 +612,11 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("min-height:68px;margin:0 -14px 8px", css)
         self.assertIn("grid-template-columns:repeat(5,minmax(0,1fr))", css)
         self.assertIn("flex:0 0 96px;min-width:96px;min-height:72px", css)
-        self.assertIn("grid-template-columns:60px minmax(0,1fr) auto", css)
+        self.assertIn("grid-template-columns:48px minmax(0,1fr) auto", css)
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
-        self.assertIn("retail-cashier.css' %}?v=20261025.6", supermarket)
-        self.assertIn("retail-counter-v2.js' %}?v=20261025.3", detail)
+        self.assertIn("retail-cashier.css' %}?v=20261025.7", supermarket)
+        self.assertIn("retail-counter-v2.js' %}?v=20261025.4", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
