@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Delivery packing slip · {{ order.bill_reference }}</title>
+<style>
+  @page { size: A4; margin: 13mm; }
+  body { font-family: system-ui, Arial, sans-serif; color:#18313b; max-width:760px; margin:0 auto; padding:20px; font-size:14px; }
+  h1 { margin:0 0 4px; font-size:23px; }
+  h2 { font-size:16px; margin:20px 0 7px; }
+  .muted { color:#607482; }
+  .header { border-bottom:2px solid #0a8053; padding-bottom:12px; }
+  .detail { padding:9px 0; border-bottom:1px solid #dbe4e8; }
+  .detail strong { display:inline-block; min-width:122px; }
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  th,td { padding:10px 8px; border-bottom:1px solid #dbe4e8; text-align:left; }
+  th:last-child,td:last-child { text-align:right; width:100px; }
+  .check { font-size:17px; margin-right:10px; }
+  .signature { margin-top:45px; display:flex; gap:30px; }
+  .signature div { flex:1; border-top:1px solid #556977; padding-top:6px; }
+  .toolbar { display:flex; gap:12px; margin:12px 0 20px; }
+  .toolbar button,.toolbar a { padding:9px 14px; background:#0a8053; color:white; border:0; border-radius:5px; text-decoration:none; cursor:pointer; }
+  @media print { .toolbar { display:none; } body { padding:0; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button type="button" onclick="window.print()">Print checklist</button>
+  <a href="{% url 'staff-deliveries' %}">Back to deliveries</a>
+</div>
+<header class="header">
+  <div class="muted">{{ request.tenant.name }} · {{ delivery.outlet.name }}</div>
+  <h1>Delivery packing &amp; handover slip</h1>
+  <div><strong>Sale {{ order.bill_reference }}</strong> · Delivery {{ delivery.id }}</div>
+  <div class="muted">Status: {{ delivery.get_status_display }} · Created {{ delivery.created_at }}</div>
+  <p class="muted">Fulfillment document only — not a receipt or request for payment. Do not collect the sale again.</p>
+</header>
+<section aria-label="Delivery destination">
+  <h2>Destination and contact</h2>
+  {% if delivery.destination_type == 'room' %}
+    <div class="detail"><strong>Guest room</strong>{{ delivery.room_reference }}</div>
+  {% else %}
+    <div class="detail"><strong>Recipient</strong>{{ delivery.recipient_name }}</div>
+    <div class="detail"><strong>Phone</strong>{{ delivery.contact_phone }}</div>
+    <div class="detail"><strong>Address</strong>{{ delivery.address }}</div>
+  {% endif %}
+  {% if delivery.instructions %}<div class="detail"><strong>Instructions</strong>{{ delivery.instructions }}</div>{% endif %}
+  <div class="detail"><strong>Assigned worker</strong>{% if delivery.assigned_driver %}{{ delivery.assigned_driver.email }}{% else %}Not yet assigned{% endif %}</div>
+</section>
+<section aria-label="Items to pack">
+  <h2>Items to pick and pack</h2>
+  <table>
+    <thead><tr><th>Check</th><th>Product</th><th>Quantity</th></tr></thead>
+    <tbody>
+    {% for line in packing_lines %}
+      <tr><td><span class="check" aria-hidden="true">&#9633;</span></td><td>{{ line.label }}</td><td>{{ line.quantity }}</td></tr>
+    {% empty %}
+      <tr><td colspan="3">No active product lines recorded.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+<div class="signature"><div>Picked and packed by / time</div><div>Worker handover / time</div><div>Delivery confirmation / time</div></div>
+<p class="muted">Customer information is for authorized fulfillment only. Keep this slip secure and do not use it to record a second sale.</p>
+</body>
+</html>
