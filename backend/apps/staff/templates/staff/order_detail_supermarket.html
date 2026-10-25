@@ -298,9 +298,8 @@
 
   function bindRetailPaymentControls() {
   var paymentForm = document.querySelector("[data-pos-payment-form]");
-  if(paymentForm && paymentForm.dataset.retailPaymentBound==="1") return;
-  if(paymentForm)paymentForm.dataset.retailPaymentBound="1";
-  if (paymentForm) {
+  if (paymentForm && paymentForm.dataset.retailPaymentBound !== "1") {
+    paymentForm.dataset.retailPaymentBound = "1";
     var paymentPending = false;
     var paymentSubmitButton = paymentForm.querySelector('button[type="submit"]');
     var paymentSubmitLabel = paymentSubmitButton ? paymentSubmitButton.textContent : "";
@@ -323,7 +322,8 @@
   }
 
   var cashPanel = document.querySelector("[data-retail-cash-panel]");
-  if (cashPanel) {
+  if (cashPanel && cashPanel.dataset.retailCashBound !== "1") {
+    cashPanel.dataset.retailCashBound = "1";
     var received = cashPanel.querySelector("[data-retail-cash-received]");
     var change = cashPanel.querySelector("[data-retail-change]");
     var tenderStatus = cashPanel.querySelector("[data-retail-tender-status]");
@@ -412,14 +412,15 @@
       if (node && amount != null) node.textContent = currency + " " + amount;
     };
     show('[data-retail-summary="subtotal"] strong', values.subtotal);
-    show('[data-retail-summary="discount"] strong', values.discount);\n    show('[data-retail-summary="tax"] strong', values.tax);
+    show('[data-retail-summary="discount"] strong', values.discount);
+    show('[data-retail-summary="tax"] strong', values.tax);
     show('[data-retail-summary="total"] strong', values.due);
     show(".fizo-cashier-payment-summary strong", values.due);
     var header = document.querySelector(".staff-pos-totals-row__total strong");
     if (header && values.total != null) header.textContent = values.total;
     var meta = document.querySelector(".staff-pos-totals-row__meta");
-    if (meta && values.subtotal != null && values.tax != null) {
-      meta.textContent = "Sub " + values.subtotal + " · Tax " + values.tax;
+    if (meta && values.subtotal != null && values.discount != null && values.tax != null) {
+      meta.textContent = "Sub " + values.subtotal + " · Disc " + values.discount + " · Tax " + values.tax;
     }
     var payLabel = document.querySelector(".fizo-cashier-pay-cta span");
     if (payLabel && values.due != null) payLabel.textContent = "Pay " + currency + " " + values.due;
