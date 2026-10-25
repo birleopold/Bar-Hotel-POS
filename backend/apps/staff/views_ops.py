@@ -2111,15 +2111,23 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_retail_line_refund(self, request: HttpRequest, order: Order) -> HttpResponse:
-        if not membership_can_approve_sensitive_action(request.tenant_membership, "retail_line_refund"):
-            messages.error(request, "Your role cannot approve refunds.")
-            return redirect("staff-order-detail", order_id=order.id)
         if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
             messages.error(request, "Item refunds are only available for retail orders.")
             return redirect("staff-order-detail", order_id=order.id)
+        approvers = sensitive_action_approvers(
+            requester=request.tenant_membership,
+            action="retail_line_refund",
+            outlet_id=order.outlet_id,
+        )
+        if not approvers:
+            messages.error(request, "No PIN-enabled manager is available to approve this refund.")
+            return redirect("staff-order-detail", order_id=order.id)
         form = StaffRetailLineRefundForm(
-            request.POST, lines=list(order.lines.all()), payments=list(order.payments.all()),
+            request.POST,
+            lines=list(order.lines.all()),
+            payments=list(order.payments.all()),
             max_refund=order_refundable_remaining(order),
+            approvers=approvers,
         )
         if not form.is_valid():
             for field, errors in form.errors.items():
@@ -2130,19 +2138,51 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if line is None:
             messages.error(request, "That item is not on this order.")
             return redirect("staff-order-detail", order_id=order.id)
+        payment_id = (
+            uuid.UUID(form.cleaned_data["payment_id"])
+            if "payment_id" in form.fields else None
+        )
+        reason = form.cleaned_data.get("reason") or ""
+        restock = bool(form.cleaned_data.get("restock"))
         try:
-            refund_retail_line(
-                order=order, line=line, quantity=form.cleaned_data["quantity"],
-                amount=form.cleaned_data["amount"], reason=form.cleaned_data.get("reason") or "",
-                restock=bool(form.cleaned_data.get("restock")), user=request.user,
-                idempotency_key=self._refund_request_key(request, "retail_refund_request_key"),
-                workstation_id=settlement_workstation_id(request, outlet=order.outlet),
-                payment_id=uuid.UUID(form.cleaned_data["payment_id"]) if "payment_id" in form.fields else None,
-            )
+            request_key = self._refund_request_key(request, "retail_refund_request_key")
+            with transaction.atomic():
+                authorize_sensitive_action(
+                    requester=request.tenant_membership,
+                    approver_id=form.cleaned_data["approver_id"],
+                    approver_pin=form.cleaned_data["approver_pin"],
+                    action="retail_line_refund",
+                    entity_type="order",
+                    entity_id=str(order.pk),
+                    request_key=request_key,
+                    outlet_id=order.outlet_id,
+                    intent_payload={
+                        "line_id": str(line.pk),
+                        "quantity": str(form.cleaned_data["quantity"]),
+                        "amount": str(form.cleaned_data["amount"]),
+                        "reason": reason,
+                        "restock": restock,
+                        "payment_id": str(payment_id or ""),
+                    },
+                )
+                refund_retail_line(
+                    order=order,
+                    line=line,
+                    quantity=form.cleaned_data["quantity"],
+                    amount=form.cleaned_data["amount"],
+                    reason=reason,
+                    restock=restock,
+                    user=request.user,
+                    idempotency_key=request_key,
+                    workstation_id=settlement_workstation_id(request, outlet=order.outlet),
+                    payment_id=payment_id,
+                )
+        except SensitiveApprovalError as exc:
+            messages.error(request, str(exc))
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
         else:
-            messages.success(request, "Item return and customer refund recorded together.")
+            messages.success(request, "Manager-approved item return and customer refund recorded.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_resume_order(self, request: HttpRequest, order: Order) -> HttpResponse:
@@ -2285,12 +2325,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_record_refund(self, request: HttpRequest, order: Order) -> HttpResponse:
-        if not membership_can_approve_refunds(request.tenant_membership):
+        is_retail = order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        if not is_retail and not membership_can_approve_refunds(request.tenant_membership):
             messages.error(request, "Refunds require approval by a supervisor or manager.")
             return redirect("staff-order-detail", order_id=order.id)
         partial_retail = (
-            order.status == OrderStatus.OPEN and not order.is_paid
-            and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            order.status == OrderStatus.OPEN and not order.is_paid and is_retail
         )
         if not ((order.status == OrderStatus.CLOSED and order.is_paid) or partial_retail):
             messages.error(request, "Refunds require a paid sale or a partially paid retail basket.")
@@ -2300,10 +2340,22 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if refundable <= Decimal("0"):
             messages.error(request, "Nothing left to refund on this order.")
             return redirect("staff-order-detail", order_id=order.id)
+        approvers = (
+            sensitive_action_approvers(
+                requester=request.tenant_membership,
+                action="refund",
+                outlet_id=order.outlet_id,
+            )
+            if is_retail else None
+        )
+        if is_retail and not approvers:
+            messages.error(request, "No PIN-enabled manager is available to approve this refund.")
+            return redirect("staff-order-detail", order_id=order.id)
         form = StaffOrderRefundForm(
             request.POST,
             payments=pays,
             max_refund=refundable,
+            approvers=approvers,
         )
         if not form.is_valid():
             for fld, err_list in form.errors.items():
@@ -2313,21 +2365,58 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         payment_id = None
         if "payment_id" in form.fields:
             payment_id = uuid.UUID(form.cleaned_data["payment_id"])
+        reason = form.cleaned_data.get("reason") or ""
+        restock = bool(form.cleaned_data.get("restock")) and not partial_retail
         try:
-            record_order_refund(
-                order=order,
-                user=request.user,
-                amount=form.cleaned_data["amount"],
-                reason=form.cleaned_data.get("reason") or "",
-                idempotency_key=self._refund_request_key(request),
-                workstation_id=settlement_workstation_id(request, outlet=order.outlet),
-                restock=bool(form.cleaned_data.get("restock")) and not partial_retail,
-                payment_id=payment_id,
-            )
+            request_key = self._refund_request_key(request)
+            if is_retail:
+                with transaction.atomic():
+                    authorize_sensitive_action(
+                        requester=request.tenant_membership,
+                        approver_id=form.cleaned_data["approver_id"],
+                        approver_pin=form.cleaned_data["approver_pin"],
+                        action="refund",
+                        entity_type="order",
+                        entity_id=str(order.pk),
+                        request_key=request_key,
+                        outlet_id=order.outlet_id,
+                        intent_payload={
+                            "amount": str(form.cleaned_data["amount"]),
+                            "reason": reason,
+                            "restock": restock,
+                            "payment_id": str(payment_id or ""),
+                        },
+                    )
+                    record_order_refund(
+                        order=order,
+                        user=request.user,
+                        amount=form.cleaned_data["amount"],
+                        reason=reason,
+                        idempotency_key=request_key,
+                        workstation_id=settlement_workstation_id(request, outlet=order.outlet),
+                        restock=restock,
+                        payment_id=payment_id,
+                    )
+            else:
+                record_order_refund(
+                    order=order,
+                    user=request.user,
+                    amount=form.cleaned_data["amount"],
+                    reason=reason,
+                    idempotency_key=request_key,
+                    workstation_id=settlement_workstation_id(request, outlet=order.outlet),
+                    restock=restock,
+                    payment_id=payment_id,
+                )
+        except SensitiveApprovalError as exc:
+            messages.error(request, str(exc))
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
         else:
-            messages.success(request, "Refund recorded.")
+            messages.success(
+                request,
+                "Manager-approved refund recorded." if is_retail else "Refund recorded.",
+            )
         return redirect("staff-order-detail", order_id=order.id)
 
 
