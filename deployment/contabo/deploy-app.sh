@@ -7,6 +7,8 @@ APP=/home/admin/Bar-Hotel-POS
 VENV="$APP/.venv"
 ENVFILE=/etc/leosoft-pos/pos.env
 SERVICE=leosoft-pos-gunicorn.service
+MEDIA_DIR=/var/www/leosoft-pos/media
+LEGACY_MEDIA_DIR="$APP/backend/media"
 
 cd "$APP"
 git checkout main
@@ -85,9 +87,26 @@ restore_db_role
 
 "$VENV/bin/python" manage.py collectstatic --noinput
 
-sudo install -d -o admin -g www-data -m 0755 /var/www/leosoft-pos/static
+# Stop the app briefly before consolidating uploaded media so a phone upload
+# cannot land in the old release-local directory during the migration window.
+if sudo systemctl is-active --quiet "$SERVICE"; then
+  sudo systemctl stop "$SERVICE"
+  SERVICE_STOPPED_BY_DEPLOY=1
+fi
+
+sudo install -d -o admin -g www-data -m 2775 /var/www/leosoft-pos/static
 sudo rsync -a --delete "$APP/backend/staticfiles/" /var/www/leosoft-pos/static/
 sudo chmod -R a+rX /var/www/leosoft-pos/static
+
+# Preserve pre-fix uploads (for example phone product photos) without
+# overwriting files already present in the canonical persistent media store.
+sudo install -d -o admin -g www-data -m 2775 "$MEDIA_DIR"
+if [[ -d "$LEGACY_MEDIA_DIR" && "$LEGACY_MEDIA_DIR" != "$MEDIA_DIR" ]]; then
+  sudo rsync -a --ignore-existing "$LEGACY_MEDIA_DIR/" "$MEDIA_DIR/"
+fi
+sudo chown -R admin:www-data "$MEDIA_DIR"
+sudo find "$MEDIA_DIR" -type d -exec chmod 2775 {} +
+sudo find "$MEDIA_DIR" -type f -exec chmod 0664 {} +
 
 sudo systemctl restart "$SERVICE"
 SERVICE_STOPPED_BY_DEPLOY=0
