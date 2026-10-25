@@ -243,6 +243,16 @@
         if(!!activePayment!==!!remotePayment){
           throw new Error("Checkout payment controls changed; reopen this sale to continue.");
         }
+        // Confirm all required payment-state data before touching the live
+        // basket. A partial HTML response must never leave mixed totals.
+        var cash=document.querySelector("[data-retail-cash-panel]");
+        var nextCash=remote.querySelector("[data-retail-cash-panel]");
+        if(!!cash!==!!nextCash){
+          throw new Error("Checkout cash controls changed; reopen this sale to continue.");
+        }
+        if(cash&&nextCash&&!nextCash.hasAttribute("data-balance-due")){
+          throw new Error("Checkout returned an incomplete balance.");
+        }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
         document.dispatchEvent(new Event("retail:basket-lines-replaced"));
         [".fizo-retail-basket-summary > div:nth-child(1) strong",
@@ -253,8 +263,6 @@
           var a=document.querySelector(selector),b=remote.querySelector(selector);
           if(a&&b)a.textContent=b.textContent;
         });
-        var cash=document.querySelector("[data-retail-cash-panel]");
-        var nextCash=remote.querySelector("[data-retail-cash-panel]");
         if(cash&&nextCash){
           var oldDue=cash.getAttribute("data-balance-due");
           var amount=activePayment&&activePayment.querySelector('input[name="amount"]');
