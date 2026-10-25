@@ -275,6 +275,78 @@ class RetailPickup(TimeStampedModel):
         ordering = ["expected_on", "created_at"]
 
 
+
+class OutletDeliverySettings(TimeStampedModel):
+    """Explicit opt-in. A tenant's other outlets never inherit delivery."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="delivery_settings",
+    )
+    outlet = models.OneToOneField(
+        "tenants.Outlet", on_delete=models.CASCADE, related_name="delivery_settings",
+    )
+    is_enabled = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["outlet"]
+
+
+class OrderDelivery(TimeStampedModel):
+    """Fulfillment lifecycle for one existing order, not another sale/payment."""
+    class Status(models.TextChoices):
+        REQUESTED = "requested", "Requested"
+        ACCEPTED = "accepted", "Accepted"
+        PREPARING = "preparing", "Preparing"
+        READY = "ready", "Ready to dispatch"
+        DISPATCHED = "dispatched", "Dispatched"
+        DELIVERED = "delivered", "Delivered"
+        FAILED = "failed", "Failed attempt"
+        RETURNED = "returned", "Returned"
+        CANCELLED = "cancelled", "Cancelled"
+
+    class DestinationType(models.TextChoices):
+        ADDRESS = "address", "External address"
+        ROOM = "room", "Hotel guest room"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="order_deliveries",
+    )
+    outlet = models.ForeignKey(
+        "tenants.Outlet", on_delete=models.PROTECT, related_name="order_deliveries",
+    )
+    order = models.OneToOneField(
+        "pos.Order", on_delete=models.PROTECT, related_name="delivery",
+    )
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.REQUESTED,
+    )
+    destination_type = models.CharField(max_length=16, choices=DestinationType.choices)
+    recipient_name = models.CharField(max_length=120, blank=True)
+    contact_phone = models.CharField(max_length=40, blank=True)
+    address = models.CharField(max_length=500, blank=True)
+    room_reference = models.CharField(max_length=64, blank=True)
+    instructions = models.CharField(max_length=500, blank=True)
+    promised_at = models.DateTimeField(null=True, blank=True)
+    fee = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+    currency = models.CharField(max_length=3)
+    assigned_driver = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="assigned_deliveries",
+    )
+    created_by = models.ForeignKey(
+        "accounts.User", null=True, on_delete=models.SET_NULL,
+        related_name="created_deliveries",
+    )
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    delivery_note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["tenant", "outlet", "status"], name="pos_delivery_queue_idx")]
+
+
 class PaymentMethod(models.TextChoices):
     CASH = "cash", "Cash"
     CARD = "card", "Card"
