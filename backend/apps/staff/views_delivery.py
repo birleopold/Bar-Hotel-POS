@@ -52,6 +52,12 @@ class StaffDeliveriesView(StaffTenantRequiredMixin, View):
         deliveries = list(OrderDelivery.objects.filter(
             tenant=request.tenant, outlet_id__in=ids,
         ).select_related("order", "outlet", "assigned_driver").order_by("-created_at")[:75])
+        enabled_ids = [oid for oid, enabled in settings.items() if enabled]
+        pending_orders = list(Order.objects.filter(
+            tenant=request.tenant, outlet_id__in=enabled_ids,
+            status="closed", is_paid=True, delivery__isnull=True,
+            retail_pickup__isnull=True,
+        ).select_related("outlet", "customer").order_by("-created_at")[:60])
         for delivery in deliveries:
             delivery.allowed_next_stages = ALLOWED_NEXT.get(delivery.status, ())
         workers = list(Membership.objects.filter(
@@ -63,6 +69,7 @@ class StaffDeliveriesView(StaffTenantRequiredMixin, View):
                 for outlet in outlets
             ],
             "delivery_records":deliveries, "delivery_workers":workers,
+            "delivery_ready_orders":pending_orders,
         })
 
     def post(self, request):
