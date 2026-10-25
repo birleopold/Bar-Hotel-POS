@@ -1,6 +1,5 @@
 """Scoped management destinations and live exceptions; no financial posting here."""
 import uuid
-import hashlib
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -12,7 +11,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from apps.accounts.models import Membership, MembershipRole
 from apps.audit.models import AuditEvent, ExceptionPolicy, ExceptionReview, SensitiveActionApproval
-from apps.audit.services import log_audit
+from apps.audit.services import exception_fingerprint, log_audit
 from apps.inventory.models import StockBalance, StockMovement, StockReason
 from apps.lodging.models import Reservation, ReservationStatus
 from apps.pos.models import Order, PosShift, PosShiftStatus, Refund
@@ -53,7 +52,7 @@ class ExceptionRow:
 
 
 def _row(kind, obj, title, detail, url, version, *, outlet_id=None, site_id=None):
-    fingerprint = hashlib.sha256(str(version).encode()).hexdigest()
+    fingerprint = exception_fingerprint(version)
     outlet_id = outlet_id or getattr(obj, "outlet_id", None)
     if not outlet_id and getattr(obj, "order_id", None):
         outlet_id = obj.order.outlet_id
