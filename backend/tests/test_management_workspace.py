@@ -666,6 +666,15 @@ class ManagementWorkspaceTests(TestCase):
             review.pk,
             {case.pk for case in response.context["exception_cases"]},
         )
+        source = self.client.get(
+            reverse(
+                "staff-management-source",
+                args=["delivery_discrepancy", receipt.pk],
+            )
+        )
+        self.assertEqual(source.status_code, 200)
+        self.assertEqual(source.context["exception"].review.pk, review.pk)
+        self.assertIn("Old shortage still awaiting supplier resolution", source.content.decode())
 
     def test_receiving_discrepancy_appears_from_staff_workflow(self):
         from apps.purchasing.models import Supplier,PurchaseOrder,PurchaseOrderLine,PurchaseReceipt
