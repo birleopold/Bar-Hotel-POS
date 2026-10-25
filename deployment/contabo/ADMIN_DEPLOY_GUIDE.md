@@ -80,7 +80,18 @@ sudo cp deployment/contabo/leosoft-pos-gunicorn.service.example /etc/systemd/sys
 sudo systemctl daemon-reload
 ```
 
-Supply the temporary migration owner's DB URL only in the current terminal:
+For an interactive deploy, run the deployment script normally. If migrations
+are pending and `MIGRATION_DATABASE_URL` is absent, it will ask for the
+schema-owner URL with hidden input and will not persist it:
+
+```bash
+bash deployment/contabo/deploy-app.sh
+# When prompted, enter:
+# postgresql://leosoft_pos_owner:OWNER_PASSWORD@127.0.0.1:5432/leosoft_pos
+```
+
+For a non-interactive deploy, supply the temporary migration owner's DB URL
+only in the current terminal:
 
 ```bash
 read -rsp 'POS schema-owner PostgreSQL password: ' OWNER_PW; echo
