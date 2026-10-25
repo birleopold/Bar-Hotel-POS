@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import csv
+import hashlib
+import json
+
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import CreateView, FormView, ListView, UpdateView
 
+from apps.audit.services import log_audit
 from apps.integrations.efris import EFRIS_PROVIDER_KEY, get_efris_adapter
 from apps.integrations.models import EfrisSubmission, IntegrationLink
 from apps.tenants.models import TenantSettings
@@ -200,6 +206,78 @@ class StaffIntegrationLinkUpdateView(StaffTenantRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Integration link updated.")
         return super().form_valid(form)
+
+
+class StaffEfrisEvidenceExportView(StaffTenantRequiredMixin, View):
+    """Export tenant-scoped EFRIS audit evidence without raw payloads or secrets."""
+
+    staff_nav_capability = "workspace"
+
+    def get(self, request, *args, **kwargs):
+        if not membership_can_manage_workspace_settings(request.tenant_membership):
+            messages.error(request, "Only an owner or tenant admin can export EFRIS evidence.")
+            return redirect("staff-workspace-efris")
+
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="efris-evidence-{request.tenant.slug}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow([
+            "submission_id",
+            "status",
+            "created_at",
+            "submitted_at",
+            "attempts",
+            "provider_reference",
+            "cashbook_entry_id",
+            "transaction_date",
+            "amount",
+            "payload_sha256",
+            "has_last_error",
+            "last_error_sha256",
+            "provider_response_retained",
+        ])
+        submissions = (
+            EfrisSubmission.objects.filter(tenant=request.tenant)
+            .select_related("cashbook_entry")
+            .order_by("created_at")
+        )
+        exported = 0
+        for submission in submissions:
+            canonical_payload = json.dumps(
+                submission.payload or {},
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+            error_text = submission.last_error or ""
+            writer.writerow([
+                str(submission.pk),
+                submission.status,
+                submission.created_at.isoformat() if submission.created_at else "",
+                submission.submitted_at.isoformat() if submission.submitted_at else "",
+                submission.attempts,
+                submission.provider_reference,
+                str(submission.cashbook_entry_id),
+                submission.cashbook_entry.transaction_date.isoformat(),
+                str(submission.cashbook_entry.amount),
+                hashlib.sha256(canonical_payload).hexdigest(),
+                "yes" if error_text else "no",
+                hashlib.sha256(error_text.encode("utf-8")).hexdigest() if error_text else "",
+                "no",
+            ])
+            exported += 1
+
+        log_audit(
+            tenant_id=request.tenant.pk,
+            user_id=request.user.pk,
+            action="staff.efris_evidence_exported",
+            entity_type="tenant",
+            entity_id=str(request.tenant.pk),
+            payload={"row_count": exported, "format": "csv", "raw_payload_included": False},
+        )
+        return response
 
 
 class StaffEfrisSettingsView(StaffTenantRequiredMixin, FormView):
