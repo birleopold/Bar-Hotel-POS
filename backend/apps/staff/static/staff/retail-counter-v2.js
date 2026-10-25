@@ -68,6 +68,19 @@
     paymentCard=paymentForm&&paymentForm.closest(".staff-card--pos");
     var payLink=document.querySelector(".fizo-cashier-pay-cta");
     if(!paymentForm)return;
+    if(payLink){
+      var dueLabel=document.querySelector(".fizo-retail-basket-summary__total strong");
+      if(dueLabel){
+        var label=payLink.querySelector("span");
+        if(!label){
+          label=document.createElement("span");
+          var arrow=payLink.querySelector(".bi-arrow-right");
+          if(arrow)payLink.insertBefore(label,arrow);
+          else payLink.appendChild(label);
+        }
+        label.textContent="Pay "+dueLabel.textContent.trim();
+      }
+    }
     if(payLink&&payLink.dataset.retailPayBound!=="1"){
       payLink.dataset.retailPayBound="1";
       payLink.addEventListener("click",function(event){
