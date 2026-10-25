@@ -235,6 +235,14 @@
         var fresh=remote.querySelector("#fizo-current-basket .fizo-retail-basket-items");
         var current=document.querySelector("#fizo-current-basket .fizo-retail-basket-items");
         if(!fresh||!current)throw new Error("Checkout confirmation is unavailable.");
+        var activePayment=document.querySelector("[data-pos-payment-form]");
+        var remotePayment=remote.querySelector("[data-pos-payment-form]");
+        // Never manufacture a payment form from fetched HTML: its CSRF,
+        // request identity, tender and cash-change listeners are bound when
+        // Django renders checkout. A mismatch needs a normal navigation.
+        if(!!activePayment!==!!remotePayment){
+          throw new Error("Checkout payment controls changed; reopen this sale to continue.");
+        }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
         document.dispatchEvent(new Event("retail:basket-lines-replaced"));
         [".fizo-retail-basket-summary > div:nth-child(1) strong",
@@ -247,14 +255,6 @@
         });
         var cash=document.querySelector("[data-retail-cash-panel]");
         var nextCash=remote.querySelector("[data-retail-cash-panel]");
-        var activePayment=document.querySelector("[data-pos-payment-form]");
-        var remotePayment=remote.querySelector("[data-pos-payment-form]");
-        // Never manufacture a payment form from fetched HTML: its CSRF,
-        // request identity, tender and cash-change listeners are bound when
-        // Django renders checkout. A mismatch needs a normal navigation.
-        if(!!activePayment!==!!remotePayment){
-          throw new Error("Checkout payment controls changed; reopen this sale to continue.");
-        }
         if(cash&&nextCash){
           var oldDue=cash.getAttribute("data-balance-due");
           var amount=activePayment&&activePayment.querySelector('input[name="amount"]');
