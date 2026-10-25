@@ -97,4 +97,4 @@ def test_efris_evidence_export_requires_workspace_admin(client):
 
     response = client.get(reverse("staff-workspace-efris-evidence"))
     assert response.status_code == 302
-    assert response["Location"] == reverse("staff-workspace-efris")
+    assert response["Location"] == reverse("staff-dashboard")
