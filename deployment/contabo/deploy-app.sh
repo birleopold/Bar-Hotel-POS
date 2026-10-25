@@ -101,6 +101,14 @@ sudo chmod -R a+rX /var/www/leosoft-pos/static
 # Preserve pre-fix uploads (for example phone product photos) without
 # overwriting files already present in the canonical persistent media store.
 sudo install -d -o admin -g www-data -m 2775 "$MEDIA_DIR"
+
+# The installed service may already use ProtectSystem=strict. Add a scoped
+# drop-in instead of replacing the service unit so product uploads can persist.
+sudo install -d -m 0755 "/etc/systemd/system/$SERVICE.d"
+printf '[Service]\nReadWritePaths=%s\n' "$MEDIA_DIR" | \
+  sudo tee "/etc/systemd/system/$SERVICE.d/media.conf" >/dev/null
+sudo systemctl daemon-reload
+
 if [[ -d "$LEGACY_MEDIA_DIR" && "$LEGACY_MEDIA_DIR" != "$MEDIA_DIR" ]]; then
   sudo rsync -a --ignore-existing "$LEGACY_MEDIA_DIR/" "$MEDIA_DIR/"
 fi
