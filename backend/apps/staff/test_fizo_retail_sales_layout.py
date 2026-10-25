@@ -211,6 +211,18 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('href="#retail-refund-controls">Refund {{ order.currency }} {{ refundable_remaining }} before void</a>', detail)
         self.assertIn('Supervisor refund {{ order.currency }} {{ refundable_remaining }} required', detail)
 
+    def test_refund_required_messages_never_render_raw_drf_containers(self):
+        view = (Path(__file__).resolve().parent / "views_ops.py").read_text(encoding="utf-8")
+        void_block = view.split("    def _post_void_order(", 1)[1].split(
+            "    def _post_apply_promotion(", 1
+        )[0]
+        self.assertIn("def _drf_detail_messages", view)
+        self.assertIn("def _drf_has_code", view)
+        self.assertIn('_drf_has_code(exc.get_codes(), "refund_required")', void_block)
+        self.assertIn("_drf_detail_messages(exc.detail)", void_block)
+        self.assertNotIn("messages.error(request, str(exc.detail))", void_block)
+        self.assertNotIn("ErrorDetail(", void_block)
+
     def test_refunds_use_rendered_stable_idempotency_keys(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
