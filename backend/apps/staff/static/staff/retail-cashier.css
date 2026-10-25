@@ -50,10 +50,15 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-nav a[aria-current=page]{
 body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-sidefoot{
   margin-top:auto;padding:10px 4px 0;border-top:0;
 }
-body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-sidefoot a{display:none}
+body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-sidefoot__pin{display:none}
+body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-sidefoot__help,
 body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-sidefoot button{
-  border:0;background:transparent;color:#5c7187;font-size:12px;padding:7px 3px;
+  display:flex;align-items:center;justify-content:center;gap:5px;width:100%;
+  border:0;background:transparent;color:#5c7187;font-size:11px;padding:6px 3px;
+  text-decoration:none;
 }
+body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-sidefoot__help:hover,
+body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-sidefoot button:hover{color:#087a43}
 body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-nav{display:none}
 body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-main--pos{
   height:100dvh;overflow:hidden;padding:0 14px 14px;background:#f5f8fa;
