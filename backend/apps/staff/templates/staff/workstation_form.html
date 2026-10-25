@@ -4,7 +4,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261022.2">{% endblock %}
 {% block content %}
 <div class="fizo-register fizo-register--workstation-form">
-<header class="fizo-register__header"><div><p class="fizo-register__eyebrow">Fizo / Cashier / Workstations</p><h1>{% if form.instance.created_at %}Edit workstation{% else %}Add workstation{% endif %}</h1><p>Configure the register, section and hardware labels.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">All workstations</a></header>
+<header class="fizo-register__header"><div><p class="fizo-register__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Workstations</p><h1>{% if form.instance.created_at %}Edit workstation{% else %}Add workstation{% endif %}</h1><p>Configure the register, section and hardware labels.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstations' %}">All workstations</a></header>
 <div class="fizo-register__panel"><form method="post" class="staff-register-form{% if grocery_owner_shell %} grocery-admin-form{% endif %}">{% csrf_token %}
   {% if form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {% if grocery_owner_shell %}<div class="grocery-admin-fields">{% endif %}
