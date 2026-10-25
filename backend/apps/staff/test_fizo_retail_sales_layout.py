@@ -118,6 +118,14 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("window.retailRefreshCheckout=refreshCheckout", js)
         self.assertIn('new Event("retail:basket-lines-replaced")', js)
 
+    def test_failed_product_confirmation_offers_read_only_recovery(self):
+        script = (Path(__file__).resolve().parent /
+                  "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn("function showCheckoutRecovery(node,error)", script)
+        self.assertIn('retry.type="button"', script)
+        self.assertIn('window.location.reload()', script)
+        self.assertIn("showCheckoutRecovery(live,error);", script)
+
     def test_retail_product_add_requires_explicit_server_confirmation(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
