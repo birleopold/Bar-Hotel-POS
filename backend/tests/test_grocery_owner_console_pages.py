@@ -7,7 +7,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole
-from apps.catalog.models import MenuCategory, MenuItem
+from apps.audit.models import AuditEvent
+from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet
 from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
@@ -118,6 +119,64 @@ class GroceryOwnerConsolePagesTests(TestCase):
         )
         self.assertContains(response, "Prices by sales area")
         self.assertContains(response, "One price for all sales areas")
+
+    def test_catalog_selling_price_changes_are_audited(self):
+        response = self.client.post(
+            reverse("console-org-menu-item-edit", kwargs={"item_id": self.product.pk}),
+            {
+                "category": str(self.category.pk),
+                "name": self.product.name,
+                "description": "",
+                "sku": "",
+                "barcode": "",
+                "unit_of_measure": "each",
+                "units_per_carton": "1",
+                "track_inventory": "",
+                "reorder_level": "",
+                "unit_price": "5500.00",
+                "tax_rate_percent": "",
+                "is_active": "on",
+                "kds_station": "",
+                "consume_recipe_on_sale": "",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.unit_price, Decimal("5500.00"))
+        base_event = AuditEvent.objects.get(
+            tenant=self.tenant,
+            action="catalog.unit_price_changed",
+            entity_id=str(self.product.pk),
+        )
+        self.assertEqual(base_event.user_id, self.user.pk)
+        self.assertEqual(base_event.payload["before"], "5000.00")
+        self.assertEqual(base_event.payload["after"], "5500.00")
+        self.assertTrue(base_event.payload["applies_to_all_outlets"])
+
+        link = MenuItemOutlet.objects.create(
+            menu_item=self.product,
+            outlet=self.outlet,
+            price_override=None,
+        )
+        response = self.client.post(
+            reverse(
+                "console-org-menu-item-outlet-edit",
+                kwargs={"item_id": self.product.pk, "link_id": link.pk},
+            ),
+            {"price_override": "4800.00"},
+        )
+        self.assertEqual(response.status_code, 302)
+        link.refresh_from_db()
+        self.assertEqual(link.price_override, Decimal("4800.00"))
+        override_event = AuditEvent.objects.filter(
+            tenant=self.tenant,
+            action="catalog.outlet_price_override_changed",
+            entity_id=str(link.pk),
+        ).latest("created_at")
+        self.assertEqual(override_event.user_id, self.user.pk)
+        self.assertEqual(override_event.payload["outlet_id"], str(self.outlet.pk))
+        self.assertEqual(override_event.payload["before"], "5500.00")
+        self.assertEqual(override_event.payload["after"], "4800.00")
 
     def test_store_branch_form_still_validates_submissions(self):
         response = self.client.post(
