@@ -261,6 +261,7 @@ class SupermarketCashierLaneTests(TestCase):
         )
         a = PurchaseOrderLine.objects.create(
             purchase_order=po, menu_item=item_a, quantity_ordered=Decimal("5"),
+            units_per_carton_snapshot=2,
         )
         b = PurchaseOrderLine.objects.create(
             purchase_order=po, menu_item=item_b, quantity_ordered=Decimal("2"),
@@ -304,6 +305,28 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(PurchaseReceipt.objects.filter(purchase_order=po).count(), 1)
         self.assertEqual(StockMovement.objects.filter(
             purchase_order=po, reason=StockReason.RECEIVE).count(), 2)
+        # A supplier carton represented as "1.0" is a valid whole carton.
+        # The second delivery completes the two remaining units in the PO.
+        receive_purchase_order_goods(
+            po=po,
+            lines_payload=[{
+                "line_id": str(a.pk), "quantity": "0", "cartons": "1.0",
+            }],
+            user=self.user, membership=membership,
+            delivery_reference="DEL-124",
+        )
+        po.refresh_from_db()
+        a.refresh_from_db()
+        self.assertEqual(po.status, PurchaseOrderStatus.RECEIVED)
+        self.assertEqual(a.quantity_received, Decimal("5"))
+        self.assertEqual(StockBalance.objects.get(
+            outlet=self.outlet, menu_item=item_a).quantity, Decimal("5"))
+        receipt = PurchaseReceipt.objects.get(
+            purchase_order=po, delivery_reference="DEL-124",
+        )
+        self.assertEqual(receipt.lines.get().cartons_received, 1)
+        self.assertEqual(PurchaseReceipt.objects.filter(
+            purchase_order=po).count(), 2)
 
     def test_cashier_tile_uses_effective_outlet_price_not_global_base(self):
         from apps.catalog.models import MenuItemOutlet
