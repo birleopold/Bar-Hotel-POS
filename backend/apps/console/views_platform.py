@@ -77,6 +77,11 @@ class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
             qs = qs.filter(is_active=False)
         if subscription_status == "none":
             qs = qs.filter(subscription__isnull=True)
+        elif subscription_status == "expired_trial":
+            qs = qs.filter(
+                subscription__status=SubscriptionStatus.TRIAL,
+                subscription__trial_ends_at__lte=timezone.now(),
+            )
         elif subscription_status in {value for value, _ in SubscriptionStatus.choices}:
             qs = qs.filter(subscription__status=subscription_status)
         return qs
@@ -85,10 +90,26 @@ class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         tenants = Tenant.objects.all()
         ctx["tenant_total"] = tenants.count()
-        ctx["tenant_active"] = tenants.filter(is_active=True).count()
+        now = timezone.now()
+        blocked_subscription = (
+            Q(subscription__status__in=[SubscriptionStatus.SUSPENDED, SubscriptionStatus.CANCELLED])
+            | Q(
+                subscription__status=SubscriptionStatus.TRIAL,
+                subscription__trial_ends_at__lte=now,
+            )
+        )
+        ctx["tenant_active"] = tenants.filter(is_active=True).exclude(blocked_subscription).count()
         ctx["tenant_paused"] = tenants.filter(is_active=False).count()
         ctx["tenant_needs_attention"] = tenants.filter(
-            Q(subscription__status__in=[SubscriptionStatus.PAST_DUE, SubscriptionStatus.SUSPENDED])
+            Q(subscription__status__in=[
+                SubscriptionStatus.PAST_DUE,
+                SubscriptionStatus.SUSPENDED,
+                SubscriptionStatus.CANCELLED,
+            ])
+            | Q(
+                subscription__status=SubscriptionStatus.TRIAL,
+                subscription__trial_ends_at__lte=now,
+            )
             | Q(subscription__isnull=True),
         ).distinct().count()
         ctx["search_query"] = (self.request.GET.get("q") or "").strip()
