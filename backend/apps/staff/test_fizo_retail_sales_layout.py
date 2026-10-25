@@ -583,6 +583,9 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("Next customer", detail)
         self.assertIn("fizo-sale-next-customer", detail)
         self.assertIn('action="{% url \'staff-order-quick-create\' %}"', detail)
+        self.assertIn('{% if not order.is_paid %}\n        <nav class="fizo-retail-basket-tools"', detail)
+        complete_block = detail.split('<section class="fizo-sale-complete-actions"', 1)[1].split("</section>", 1)[0]
+        self.assertEqual(complete_block.count("Print receipt"), 1)
         self.assertIn('name="quick_create_key" value="{{ next_sale_request_key }}"', detail)
         self.assertIn("is-complete", detail)
         self.assertIn(".fizo-checkout-basket.is-complete .fizo-cashier-payment-summary{display:none}", css)
