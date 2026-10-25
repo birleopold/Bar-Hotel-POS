@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole
-from apps.audit.models import AuditLog
+from apps.audit.models import AuditEvent
 from apps.finance.models import CashbookEntry, FinanceCategory, FinanceCategoryKind
 from apps.integrations.models import EfrisSubmission, EfrisSubmissionStatus
 from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
@@ -74,7 +74,7 @@ def test_efris_evidence_export_is_tenant_scoped_and_hash_only(client):
     assert "last_error_sha256" in body
     assert "provider_response_retained" in body
     assert "URA-OWN" in body
-    assert AuditLog.objects.filter(
+    assert AuditEvent.objects.filter(
         tenant=first,
         action="staff.efris_evidence_exported",
     ).exists()
