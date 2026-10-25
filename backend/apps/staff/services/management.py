@@ -154,7 +154,7 @@ def visible_cases(request):
         scope |= Q(scope_outlet__isnull=True, scope_site__isnull=True)
     kinds = ["pin_failure"]
     if "pos" in modules and vis.orders:
-        kinds += ["cash_variance", "refund", "discount", "line_discount", "void", "manual_price", "offline_conflict"]
+        kinds += ["cash_variance", "refund", "discount", "line_discount", "void", "drawer_no_sale", "manual_price", "offline_conflict"]
     if "inventory" in modules and vis.inventory:
         kinds += ["low_stock", "stock_adjustment"]
     if "purchasing" in modules and vis.purchasing:
