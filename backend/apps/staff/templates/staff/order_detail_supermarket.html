@@ -294,22 +294,88 @@
     var paymentPending = false;
     var paymentSubmitButton = paymentForm.querySelector('button[type="submit"]');
     var paymentSubmitLabel = paymentSubmitButton ? paymentSubmitButton.textContent : "";
-    paymentForm.addEventListener("submit", function (event) {
-      if (paymentPending) { event.preventDefault(); return; }
-      if (!paymentForm.checkValidity()) return;
-      paymentPending = true;
-      if (paymentSubmitButton) {
-        paymentSubmitButton.disabled = true;
-        paymentSubmitButton.textContent = "Recording payment…";
-      }
-    });
-    window.addEventListener("pageshow", function () {
+    var paymentStatus = paymentForm.parentNode.querySelector("[data-retail-payment-status]");
+
+    function unlockPayment() {
       paymentPending = false;
       if (paymentSubmitButton) {
         paymentSubmitButton.disabled = false;
         paymentSubmitButton.textContent = paymentSubmitLabel;
       }
+    }
+
+    paymentForm.addEventListener("submit", function (event) {
+      if (paymentPending) { event.preventDefault(); return; }
+      if (!paymentForm.checkValidity()) return;
+      var inline = !!(window.fetch && window.FormData && window.retailRefreshCheckout);
+      paymentPending = true;
+      if (paymentSubmitButton) {
+        paymentSubmitButton.disabled = true;
+        paymentSubmitButton.textContent = "Recording payment…";
+      }
+      if (!inline) return;
+
+      event.preventDefault();
+      if (paymentStatus) paymentStatus.textContent = "Recording payment…";
+      var csrf = paymentForm.querySelector('input[name="csrfmiddlewaretoken"]');
+      fetch(paymentForm.getAttribute("action") || window.location.pathname + window.location.search, {
+        method: "POST",
+        body: new FormData(paymentForm),
+        credentials: "same-origin",
+        redirect: "follow",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": csrf ? csrf.value : ""
+        }
+      }).then(function (response) {
+        var type = (response.headers.get("Content-Type") || "").toLowerCase();
+        if (response.redirected || !type.includes("application/json")) {
+          throw new Error("Checkout session changed or returned an unexpected payment response.");
+        }
+        return response.json().then(function (data) {
+          if (!response.ok || !data.ok) {
+            var confirmed = new Error(data.message || "Payment was not recorded.");
+            confirmed.confirmedFailure = true;
+            throw confirmed;
+          }
+          return data;
+        });
+      }).then(function (data) {
+        // Reset tender-only UI before the authoritative GET reconciliation.
+        // Never replay this POST if that reconciliation fails.
+        var panel = document.querySelector("[data-retail-cash-panel]");
+        var oldDue = panel && panel.getAttribute("data-balance-due");
+        var amount = paymentForm.querySelector('input[name="amount"]');
+        if (amount && oldDue != null && Number.isFinite(Number(oldDue))) {
+          amount.value = oldDue;
+        }
+        var tender = panel && panel.querySelector("[data-retail-cash-received]");
+        if (tender) tender.value = "";
+        try {
+          var basket = document.querySelector("#fizo-current-basket");
+          if (basket && basket.dataset.orderId) {
+            localStorage.removeItem("pos:tender:" + basket.dataset.orderId);
+          }
+        } catch (ignored) { /* Payment remains valid without local storage. */ }
+        return window.retailRefreshCheckout().then(function () { return data; });
+      }).then(function (data) {
+        if (paymentStatus && document.documentElement.contains(paymentStatus)) {
+          paymentStatus.textContent = data.message || "Payment recorded.";
+        }
+      }).catch(function (error) {
+        if (error && error.confirmedFailure) {
+          if (paymentStatus) paymentStatus.textContent = error.message;
+          return;
+        }
+        if (window.retailShowCheckoutRecovery) {
+          window.retailShowCheckoutRecovery(paymentStatus, error);
+        } else if (paymentStatus) {
+          paymentStatus.textContent = (error.message || "Payment confirmation unavailable.") +
+            " Reload this sale to verify before trying again.";
+        }
+      }).then(unlockPayment);
     });
+    window.addEventListener("pageshow", unlockPayment);
   }
 
   var cashPanel = document.querySelector("[data-retail-cash-panel]");
