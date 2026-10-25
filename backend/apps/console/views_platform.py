@@ -940,11 +940,12 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
             .select_related("subscription")
             .order_by("-created_at")[:30]
         )
-        status_labels = dict(BillingInvoiceStatus.choices)
         for invoice in ctx["invoices"]:
+            allowed = INVOICE_STATUS_TRANSITIONS.get(invoice.status, set())
             invoice.allowed_status_transitions = [
-                (status, status_labels[status])
-                for status in INVOICE_STATUS_TRANSITIONS.get(invoice.status, set())
+                (status, label)
+                for status, label in BillingInvoiceStatus.choices
+                if status in allowed
             ]
         ctx["billing_events"] = list(
             BillingEvent.objects.filter(tenant=self.tenant_obj)
