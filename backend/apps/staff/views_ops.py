@@ -92,6 +92,7 @@ from .mixins import StaffTenantRequiredMixin
 from .workstations import selected_workstation, settlement_workstation_id, require_staff_register_selection
 from .report_csv import format_sales_summary_csv
 from .sales_summary import build_sales_summary
+from .services.shift_reconciliation import build_shift_reconciliation
 from .services import (
     attach_order_payment_display,
     membership_can_acknowledge_ready_handoff,
@@ -640,6 +641,69 @@ class StaffPosShiftListView(StaffTenantRequiredMixin, TemplateView):
             return redirect("staff-pos-shifts")
         messages.error(request, "Unknown shift action.")
         return redirect("staff-pos-shifts")
+
+
+class StaffPosShiftDetailView(StaffTenantRequiredMixin, TemplateView):
+    """Manager review of one physical register shift using existing ledger links."""
+    staff_nav_capability = "orders"
+    template_name = "staff/pos_shift_detail.html"
+    http_method_names = ["get", "head", "options"]
+
+    manager_roles = {
+        MembershipRole.OWNER,
+        MembershipRole.TENANT_ADMIN,
+        MembershipRole.SITE_MANAGER,
+        MembershipRole.OUTLET_MANAGER,
+    }
+
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
+        membership = request.tenant_membership
+        if membership.role not in self.manager_roles:
+            messages.error(request, "Register history is available to managers.")
+            return redirect("staff-pos-shifts")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _shift(self):
+        allowed_outlet_ids = [
+            outlet.id for outlet in staff_accessible_outlets(self.request.tenant_membership)
+        ]
+        return (
+            PosShift.objects.filter(
+                pk=self.kwargs["shift_id"],
+                tenant=self.request.tenant,
+                outlet_id__in=allowed_outlet_ids,
+            )
+            .select_related("outlet", "workstation", "opened_by", "closed_by")
+            .first()
+        )
+
+    def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        shift = self._shift()
+        if shift is None:
+            messages.error(request, "Register shift not found in your assigned sections.")
+            return redirect("staff-pos-shifts")
+        self.shift = shift
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        shift = self.shift
+        reconciliation = build_shift_reconciliation(shift)
+        snapshot = shift_cash_snapshot(shift=shift)
+        ctx.update({
+            "shift": shift,
+            "reconciliation": reconciliation,
+            "cash_snapshot": snapshot,
+            "cash_movements": list(
+                shift.cash_movements.select_related("recorded_by").order_by("-created_at")[:100]
+            ),
+            "cash_variance": (
+                shift.counted_cash - shift.expected_cash
+                if shift.counted_cash is not None else None
+            ),
+            "shift_currency": default_currency_for_tenant(self.request.tenant),
+        })
+        return ctx
 
 
 class RetailQuickProductForm(forms.Form):
