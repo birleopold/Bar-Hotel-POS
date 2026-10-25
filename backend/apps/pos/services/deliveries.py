@@ -199,6 +199,10 @@ def assign_delivery_driver(*, delivery, driver, user, membership):
         raise ValidationError({"delivery":"Not authorized to assign drivers."})
     if locked.order.tenant_id != locked.tenant_id or locked.order.outlet_id != locked.outlet_id:
         raise ValidationError({"delivery":"Fulfillment record and sale do not belong together."})
+    if not OutletDeliverySettings.objects.filter(
+        tenant_id=locked.tenant_id, outlet_id=locked.outlet_id, is_enabled=True,
+    ).exists():
+        raise ValidationError({"delivery":"Delivery is disabled for this outlet."})
     if locked.status not in {"requested", "accepted", "preparing", "ready", "failed"}:
         raise ValidationError({"delivery":"Cannot reassign a dispatched or completed delivery."})
     if driver is None or not Membership.objects.filter(
