@@ -272,6 +272,28 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
 }
 .fizo-cashier-pay-cta:hover{background:#008b44;color:#fff}
 
+.fizo-checkout-basket.is-complete .fizo-cashier-payment-summary{display:none}
+.fizo-sale-complete-actions{
+  order:4;flex:0 0 auto;display:grid;gap:8px;margin:0;padding:9px 0 0;
+  border-top:1px solid #dfe9e3;background:#fff;
+}
+.fizo-sale-complete-actions__status{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;
+  background:#eaf8ef;color:#12653c;
+}
+.fizo-sale-complete-actions__status>i{font-size:20px;color:#0a9a50}
+.fizo-sale-complete-actions__status span{display:grid;gap:1px}
+.fizo-sale-complete-actions__status strong{font-size:13px}
+.fizo-sale-complete-actions__status small{font-size:10px;color:#567565}
+.fizo-sale-complete-actions__buttons{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:7px}
+.fizo-sale-complete-actions__buttons .staff-btn{
+  min-height:48px;display:flex;align-items:center;justify-content:center;gap:7px;
+  margin:0;border-radius:8px;font-weight:850;
+}
+.fizo-sale-next-customer{margin:0}
+.fizo-sale-next-customer .staff-btn{width:100%;font-size:15px}
+.fizo-sale-complete-actions__print{font-size:12px}
+
 /* Payment is a temporary drawer over the basket, never permanent basket height. */
 .fizo-checkout-basket>.reference-payment-card{
   display:none;position:absolute;z-index:50;left:8px;right:8px;bottom:8px;
@@ -398,6 +420,7 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
   .fizo-retail-basket-row__void{grid-column:2}
   .reference-payment-card [data-pos-payment-form]{grid-template-columns:1fr}
   .reference-payment-card [data-pos-payment-form]>.col-12{width:100%}
+  .fizo-sale-complete-actions__buttons{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
   .fizo-checkout-catalogue .staff-pos-menu-tile{transition:none}
