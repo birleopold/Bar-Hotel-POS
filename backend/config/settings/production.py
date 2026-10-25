@@ -17,6 +17,10 @@ if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
 
 DEBUG = False
 
+# Uploaded product images must live outside the release/static tree and match
+# the reverse-proxy /media/ file-server path. Override only for reviewed installs.
+MEDIA_ROOT = env.path("MEDIA_ROOT", default="/var/www/leosoft-pos/media")
+
 _DEV_SECRET = "dev-only-change-in-production"
 if not SECRET_KEY or str(SECRET_KEY).strip() == _DEV_SECRET:
     raise ImproperlyConfigured(
