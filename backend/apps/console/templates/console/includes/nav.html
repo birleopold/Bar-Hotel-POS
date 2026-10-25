@@ -26,6 +26,7 @@
         <li><a class="staff-nav__link" href="{% url 'console-org-rooms' %}">Rooms</a></li>
         <li><a class="staff-nav__link" href="{% url 'console-org-room-rates' %}">Rates</a></li>
       {% endif %}
+      <li><a class="staff-nav__link" href="{% url 'staff-notifications' %}">Alerts</a></li>
       <li><a class="staff-nav__link" href="{% url 'staff-dashboard' %}">Staff</a></li>
       {% if user.is_superuser or user.is_platform_staff %}
         <li><a class="staff-nav__link" href="{% url 'console-platform-tenants' %}">Platform</a></li>
