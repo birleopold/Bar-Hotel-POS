@@ -2074,7 +2074,15 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
             messages.error(request, "Line discount is only available on supermarket or retail outlets.")
             return redirect("staff-order-detail", order_id=order.id)
-        form = StaffOrderLineDiscountForm(request.POST)
+        approvers = sensitive_action_approvers(
+            requester=request.tenant_membership,
+            action="discount",
+            outlet_id=order.outlet_id,
+        )
+        if not approvers:
+            messages.error(request, "No PIN-enabled manager is available to approve this discount.")
+            return redirect("staff-order-detail", order_id=order.id)
+        form = StaffOrderLineDiscountForm(request.POST, approvers=approvers)
         if not form.is_valid():
             for fld, err_list in form.errors.items():
                 for err in err_list:
@@ -2088,17 +2096,45 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             messages.error(request, "That line is not on this order.")
             return redirect("staff-order-detail", order_id=order.id)
         try:
-            apply_supermarket_line_discount(
-                order=order,
-                line=line,
-                user=request.user,
-                discount_amount=form.cleaned_data.get("discount_amount"),
-                discount_percent=form.cleaned_data.get("discount_percent"),
-            )
+            request_key = self._sensitive_request_key(request, "discount_request_key")
+            with transaction.atomic():
+                locked_order = Order.objects.select_for_update().get(pk=order.pk)
+                locked_line = OrderLine.objects.select_for_update().get(
+                    pk=line.pk,
+                    order_id=locked_order.pk,
+                )
+                approval = authorize_sensitive_action(
+                    requester=request.tenant_membership,
+                    approver_id=form.cleaned_data["approver_id"],
+                    approver_pin=form.cleaned_data["approver_pin"],
+                    action="discount",
+                    entity_type="order",
+                    entity_id=str(locked_order.pk),
+                    request_key=request_key,
+                    outlet_id=locked_order.outlet_id,
+                    intent_payload={
+                        "line_id": str(locked_line.pk),
+                        "discount_amount": str(form.cleaned_data.get("discount_amount") or ""),
+                        "discount_percent": str(form.cleaned_data.get("discount_percent") or ""),
+                        "quantity": str(locked_line.quantity),
+                        "unit_price": str(locked_line.unit_price),
+                        "line_total_before": str(locked_line.line_total),
+                    },
+                )
+                if not getattr(approval, "idempotent_replay", False):
+                    apply_supermarket_line_discount(
+                        order=locked_order,
+                        line=locked_line,
+                        user=request.user,
+                        discount_amount=form.cleaned_data.get("discount_amount"),
+                        discount_percent=form.cleaned_data.get("discount_percent"),
+                    )
+        except SensitiveApprovalError as exc:
+            messages.error(request, str(exc))
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
         else:
-            messages.success(request, "Line discount saved.")
+            messages.success(request, "Manager-approved line discount saved.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_line_return(self, request: HttpRequest, order: Order) -> HttpResponse:
