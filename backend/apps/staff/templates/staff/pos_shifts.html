@@ -110,7 +110,7 @@
                 <td class="staff-money">{% if s.status == 'closed' %}{{ shift_currency }} {{ s.expected_cash }}{% else %}—{% endif %}</td>
                 <td class="staff-money">{% if s.counted_cash != None %}{{ shift_currency }} {{ s.counted_cash }}{% else %}—{% endif %}</td>
                 <td class="staff-money">{% if s.cash_variance != None %}<strong{% if s.cash_variance != 0 %} class="staff-register-variance"{% endif %}>{{ shift_currency }} {{ s.cash_variance }}</strong>{% else %}—{% endif %}</td>
-                {% if can_review_shift_history %}<td><a class="staff-btn staff-btn--ghost" href="{% url 'staff-pos-shift-detail' s.pk %}">Review</a></td>{% endif %}
+                {% if can_review_shift_history %}<td><a class="staff-btn staff-btn--ghost" href="{% url 'staff-management-shift' s.pk %}">Review</a></td>{% endif %}
               </tr>
             {% endfor %}
           </tbody>
