@@ -777,8 +777,14 @@ def cancel_open_unpaid_order(*, order: Order, user, reason: str = "") -> Order:
         raise ValidationError("Paid orders cannot be cancelled.")
     # A part-paid basket is still OPEN/is_paid=False. Never abandon money
     # already taken without a separately audited refund/reconciliation.
-    recorded = Payment.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
-    refunded = Refund.objects.filter(order_id=locked.id).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    recorded = (
+        Payment.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id)
+        .aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    )
+    refunded = (
+        Refund.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id)
+        .aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    )
     if recorded > refunded:
         remaining_refund = (recorded - refunded).quantize(Decimal("0.01"))
         raise ValidationError(
@@ -796,7 +802,12 @@ def cancel_open_unpaid_order(*, order: Order, user, reason: str = "") -> Order:
         action="order.cancelled",
         entity_type="order",
         entity_id=str(locked.id),
-        payload={"reason": (reason or "")[:255]},
+        payload={
+            "reason": (reason or "")[:255],
+            "recorded_payments": str(recorded),
+            "recorded_refunds": str(refunded),
+            "net_payment": str((recorded - refunded).quantize(Decimal("0.01"))),
+        },
     )
     return locked
 
