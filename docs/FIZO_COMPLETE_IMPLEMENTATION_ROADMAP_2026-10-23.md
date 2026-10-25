@@ -170,6 +170,10 @@ The original sale, received partial tenders and outstanding balance continue to 
 - P15 regression tests in the existing supermarket cashier module check that the selected outlet never reveals another outlet's 90-unit balance, that on-hand zero/low/healthy statuses reflect the existing reorder threshold, and that only 3 of 12 physical items display as usable when 5 are expired and 4 quarantined (`a32fc39c`, `ce339cdf`). Existing PostgreSQL CI targets both checks (`8eafd600`).
 - Purchase-order receiving, batch/stock transaction invariants, and split hospitality stock semantics remain in their existing services. **Unverified:** new test execution, visual parity with the five approved viewport references, live POS/batch hardware and production deployment. P08/P09/P15 gates remain open.
 
+### P06/P08/P15 actual outlet price parity — 25 October follow-on
+
+The supermarket cashier product tile previously displayed `MenuItem.unit_price` even when the payment/order service applied `MenuItemOutlet.price_override` for that till. The existing `StaffOrderDetailView` now loads visible products' effective outlet prices using one tenant-constrained batched query, and the canonical catalogue tile displays that actual selling price on retail screens; hospitality display remains unchanged (`d3b18f9c`, `a1c37a1b`). Existing cashier integration test checks the tile and resulting transaction both use the configured override rather than the global base (`5dadb053`), with PostgreSQL CI target (`d54c9f7b`). This is a source correction; browser screenshots and tests still need confirmed execution.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
