@@ -48,6 +48,7 @@
         <select class="staff-input" name="subscription">
           <option value="">Any subscription</option>
           {% for value,label in subscription_statuses %}<option value="{{ value }}" {% if subscription_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          <option value="expired_trial" {% if subscription_filter == 'expired_trial' %}selected{% endif %}>Expired trial</option>
           <option value="none" {% if subscription_filter == 'none' %}selected{% endif %}>No subscription</option>
         </select>
       </label>
@@ -63,7 +64,7 @@
         {% for t in tenants %}
           <tr>
             <td><strong>{{ t.name }}</strong><br><code>{{ t.slug }}</code></td>
-            <td>{% if t.is_active %}<span class="platform-pill">Active</span>{% else %}<span class="platform-pill platform-pill--paused">Paused</span>{% endif %}</td>
+            <td>{% if not t.is_active %}<span class="platform-pill platform-pill--paused">Paused</span>{% elif t.platform_access.allowed %}<span class="platform-pill">Active</span>{% else %}<span class="platform-pill platform-pill--paused">Blocked</span><br><span class="staff-muted small">{{ t.platform_access.message }}</span>{% endif %}</td>
             <td>{{ t.site_count }}</td>
             <td>{{ t.member_count }}</td>
             <td>{% if t.subscription and t.subscription.plan %}{{ t.subscription.plan.name }}{% else %}<span class="staff-muted">Unassigned</span>{% endif %}</td>
