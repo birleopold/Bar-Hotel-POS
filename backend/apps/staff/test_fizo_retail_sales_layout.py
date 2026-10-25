@@ -702,13 +702,20 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("Full report", dashboard)
         get_template("staff/dashboard.html")
 
-    def test_shared_workstation_screen_never_hardcodes_fizo_identity(self):
+    def test_shared_workstation_screens_never_hardcode_fizo_identity(self):
         root = Path(__file__).resolve().parent
-        page = (root / "templates/staff/workstations.html").read_text(encoding="utf-8")
-        self.assertNotIn("Fizo / Supermarket / Cashier operations", page)
-        self.assertIn('request.tenant.name|default:"Business"', page)
-        self.assertIn('staff_product.workspace_label|default:"Business"', page)
-        get_template("staff/workstations.html")
+        templates = (
+            "workstations.html",
+            "workstation_form.html",
+            "workstation_pair.html",
+            "workstation_test.html",
+        )
+        for name in templates:
+            page = (root / "templates/staff" / name).read_text(encoding="utf-8")
+            self.assertNotIn("Fizo /", page)
+            self.assertIn('request.tenant.name|default:"Business"', page)
+            self.assertIn('staff_product.workspace_label|default:"Business"', page)
+            get_template("staff/" + name)
 
     def test_register_shift_heading_is_business_specific(self):
         root = Path(__file__).resolve().parent
