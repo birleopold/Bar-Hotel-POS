@@ -72,11 +72,27 @@ def exception_rows(request, *, source=None):
         if source:
             return qs.filter(pk=source[1]) if source[0] == kind else qs.none()
         return qs[:50]
+
+    def actor_label(user, fallback="Operator not recorded"):
+        if user is None:
+            return fallback
+        return user.get_full_name() or user.email
     if "pos" in modules and vis.orders:
-        shifts = PosShift.objects.filter(tenant=request.tenant, outlet_id__in=outlet_ids, status=PosShiftStatus.CLOSED, closed_at__gte=cutoff, counted_cash__isnull=False).annotate(variance=F("counted_cash") - F("expected_cash")).filter(Q(variance__gt=policy.cash_variance_threshold) | Q(variance__lt=-policy.cash_variance_threshold)).select_related("outlet", "workstation").order_by("-closed_at")
+        shifts = PosShift.objects.filter(tenant=request.tenant, outlet_id__in=outlet_ids, status=PosShiftStatus.CLOSED, closed_at__gte=cutoff, counted_cash__isnull=False).annotate(variance=F("counted_cash") - F("expected_cash")).filter(Q(variance__gt=policy.cash_variance_threshold) | Q(variance__lt=-policy.cash_variance_threshold)).select_related("outlet", "workstation", "closed_by").order_by("-closed_at")
         for shift in limited(shifts, "cash_variance"):
-            rows.append(_row("cash_variance", shift, "Cash variance", f"{shift.outlet.name} · {shift.workstation.name if shift.workstation else 'Section register'} · {shift.variance:+.2f}", reverse("staff-management-shift", kwargs={"shift_id": shift.pk}), (shift.expected_cash, shift.counted_cash, shift.closed_at)))
-        refunds = Refund.objects.filter(tenant=request.tenant, order__tenant=request.tenant, order__outlet_id__in=outlet_ids, created_at__gte=cutoff, amount__gte=policy.refund_threshold).select_related("order", "order__outlet").order_by("-created_at")
+            rows.append(_row(
+                "cash_variance",
+                shift,
+                "Cash variance",
+                (
+                    f"{shift.outlet.name} · "
+                    f"{shift.workstation.name if shift.workstation else 'Section register'} · "
+                    f"{shift.variance:+.2f} · closed by {actor_label(shift.closed_by)}"
+                ),
+                reverse("staff-management-shift", kwargs={"shift_id": shift.pk}),
+                (shift.expected_cash, shift.counted_cash, shift.closed_at),
+            ))
+        refunds = Refund.objects.filter(tenant=request.tenant, order__tenant=request.tenant, order__outlet_id__in=outlet_ids, created_at__gte=cutoff, amount__gte=policy.refund_threshold).select_related("order", "order__outlet", "recorded_by").order_by("-created_at")
         visible_refunds = list(limited(refunds, "refund"))
         # Aggregate from all refunds for each visible sale, including refunds
         # below the single-refund threshold. Do not treat the 50-row display
@@ -99,6 +115,7 @@ def exception_rows(request, *, source=None):
             detail = (
                 f"{refund.order.outlet.name} · {refund.amount:.2f} "
                 f"{refund.order.currency} · {refund.reason or 'No reason recorded'}"
+                f" · recorded by {actor_label(refund.recorded_by)}"
             )
             if count > 1:
                 detail += (
