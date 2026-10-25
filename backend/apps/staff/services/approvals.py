@@ -139,20 +139,24 @@ def authorize_sensitive_action(
     now = timezone.now()
     if existing is None:
         try:
-            approval = SensitiveActionApproval.objects.create(
-                tenant_id=requester.tenant_id,
-                requester=requester,
-                approver=approver,
-                scope_outlet_id=outlet_id,
-                action=action,
-                entity_type=entity_type,
-                entity_id=str(entity_id),
-                request_key=request_key,
-                intent_hash=intent_hash,
-                intent_payload=intent_payload,
-                expires_at=now + APPROVAL_TTL,
-                used_at=now,
-            )
+            # Keep the uniqueness race inside its own savepoint. Catching an
+            # IntegrityError directly in the outer transaction would leave it
+            # unusable for the idempotent lookup below.
+            with transaction.atomic():
+                approval = SensitiveActionApproval.objects.create(
+                    tenant_id=requester.tenant_id,
+                    requester=requester,
+                    approver=approver,
+                    scope_outlet_id=outlet_id,
+                    action=action,
+                    entity_type=entity_type,
+                    entity_id=str(entity_id),
+                    request_key=request_key,
+                    intent_hash=intent_hash,
+                    intent_payload=intent_payload,
+                    expires_at=now + APPROVAL_TTL,
+                    used_at=now,
+                )
         except IntegrityError:
             approval = SensitiveActionApproval.objects.select_for_update().get(
                 tenant_id=requester.tenant_id,
