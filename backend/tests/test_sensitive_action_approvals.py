@@ -185,3 +185,76 @@ def test_sensitive_approvers_are_pin_enabled_and_outlet_scoped(approval_setup):
     )
     assert setup["manager"] in approvers
     assert remote not in approvers
+
+
+@pytest.mark.django_db
+def test_retail_cashier_refund_requires_and_records_manager_approval(client, approval_setup):
+    from apps.pos.models import Order, OrderStatus, Payment, PaymentMethod, Refund
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+    from django.urls import reverse
+
+    setup = approval_setup
+    order = Order.objects.create(
+        tenant=setup["tenant"],
+        outlet=setup["outlet"],
+        created_by=setup["cashier"].user,
+        status=OrderStatus.CLOSED,
+        is_paid=True,
+        subtotal=Decimal("12000.00"),
+        total=Decimal("12000.00"),
+    )
+    Payment.objects.create(
+        tenant=setup["tenant"],
+        order=order,
+        amount=Decimal("12000.00"),
+        method=PaymentMethod.CASH,
+        idempotency_key="approval-payment-1",
+        recorded_by=setup["cashier"].user,
+    )
+
+    client.force_login(setup["cashier"].user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+
+    url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+    page = client.get(url)
+    assert page.status_code == 200
+    assert b"Supervisor PIN" in page.content
+    assert setup["manager"].user.email.encode() in page.content
+
+    bad_key = str(uuid.uuid4())
+    denied = client.post(url, {
+        "action": "record_refund",
+        "refund_request_key": bad_key,
+        "amount": "12000.00",
+        "reason": "Customer changed mind",
+        "approver_id": str(setup["manager"].pk),
+        "approver_pin": "000000",
+    })
+    assert denied.status_code == 302
+    assert not Refund.objects.filter(order=order).exists()
+    assert not SensitiveActionApproval.objects.filter(
+        tenant=setup["tenant"], action="refund", request_key=bad_key,
+    ).exists()
+
+    good_key = str(uuid.uuid4())
+    approved = client.post(url, {
+        "action": "record_refund",
+        "refund_request_key": good_key,
+        "amount": "12000.00",
+        "reason": "Customer changed mind",
+        "approver_id": str(setup["manager"].pk),
+        "approver_pin": "573951",
+    })
+    assert approved.status_code == 302
+    refund = Refund.objects.get(order=order)
+    assert refund.amount == Decimal("12000.00")
+    approval = SensitiveActionApproval.objects.get(
+        tenant=setup["tenant"], action="refund", request_key=good_key,
+    )
+    assert approval.used_at is not None
+    assert approval.requester_id == setup["cashier"].pk
+    assert approval.approver_id == setup["manager"].pk
+    assert approval.intent_payload["amount"] == "12000.00"
