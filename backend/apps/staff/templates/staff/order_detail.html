@@ -214,7 +214,7 @@
         <div class="fizo-cashier-payment-summary" aria-label="Sale total and payment">
           <span>Payable now</span><strong>{{ order.currency }} {{ balance_due }}</strong>
           {% if can_record_payment %}
-          <a href="#fizo-cashier-payment" class="fizo-cashier-pay-cta"><i class="bi bi-credit-card" aria-hidden="true"></i> Take payment <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+          <a href="#fizo-cashier-payment" class="fizo-cashier-pay-cta"><i class="bi bi-credit-card" aria-hidden="true"></i><span>Pay {{ order.currency }} {{ balance_due }}</span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
           {% endif %}
         </div>
         <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>{{ active_basket_line_count }} lines · {{ order.bill_reference }}</span></h2>
@@ -297,10 +297,9 @@
           </div>
           {% endif %}
           {% if is_supermarket_outlet and amount_paid > 0 %}
-          <section class="staff-alert staff-alert--pos" aria-label="Resume partial payment">
-            <strong>Continue this basket's payment</strong>
-            <p class="mb-1">Already received: {{ order.currency }} {{ amount_paid }}. Outstanding: <strong>{{ order.currency }} {{ balance_due }}</strong>.</p>
-            <p class="mb-0">Enter only the next amount collected. Choose Cash, Mobile Money or Card; the earlier payments remain recorded against this same sale. Fully settling the balance completes the sale.</p>
+          <section class="reference-partial-payment" aria-label="Partial payment status">
+            <span>Paid {{ order.currency }} {{ amount_paid }}</span>
+            <strong>Due {{ order.currency }} {{ balance_due }}</strong>
           </section>
           {% endif %}
           {% if is_supermarket_outlet %}<div id="fizo-cashier-payment" class="fizo-cashier-pay-intro"><strong>Collect payment</strong><span>Choose a method, confirm the amount, then record the payment.</span></div>{% endif %}
