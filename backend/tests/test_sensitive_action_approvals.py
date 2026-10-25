@@ -610,3 +610,77 @@ def test_cash_payout_requires_different_manager_and_records_one_exact_approval(c
     assert approval.approver_id == approver.pk
     assert approval.intent_payload["amount"] == "10000.00"
     assert approval.intent_payload["reason"] == "Emergency petty cash"
+
+
+@pytest.mark.django_db
+def test_storekeeper_stock_write_off_requires_manager_approval_and_replay_is_safe(client, approval_setup):
+    from apps.catalog.models import MenuCategory, MenuItem
+    from apps.inventory.models import StockBalance, StockMovement, StockReason
+    from apps.inventory.services import apply_manual_stock_change
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+    from django.urls import reverse
+
+    setup = approval_setup
+    category = MenuCategory.objects.create(tenant=setup["tenant"], name="Write-off test")
+    item = MenuItem.objects.create(
+        tenant=setup["tenant"], category=category, name="Damaged tins",
+        sku="DAMAGED-TINS", unit_price=Decimal("1000.00"),
+        track_inventory=True, is_active=True,
+    )
+    apply_manual_stock_change(
+        tenant_id=setup["tenant"].pk, outlet=setup["outlet"], menu_item=item,
+        quantity_change=Decimal("10.000"), reason=StockReason.RECEIVE,
+        user=setup["manager"].user, note="Opening test stock",
+    )
+    worker_user = User.objects.create_user(
+        email="approval-storekeeper@example.test", password="StrongPass!2026",
+    )
+    worker = Membership.objects.create(
+        tenant=setup["tenant"], user=worker_user, role=MembershipRole.STOREKEEPER,
+    )
+    worker.sites.add(setup["site"])
+    worker.outlets.add(setup["outlet"])
+    client.force_login(worker_user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+    url = reverse("staff-inventory-movement-create")
+
+    page = client.get(url)
+    assert page.status_code == 200
+    assert b"Supervisor PIN" in page.content
+    assert setup["manager"].user.email.encode() in page.content
+
+    request_key = str(uuid.uuid4())
+    payload = {
+        "outlet": str(setup["outlet"].pk),
+        "menu_item": str(item.pk),
+        "reason": StockReason.WASTE.value,
+        "quantity": "2.000",
+        "note": "Two tins crushed",
+        "approval_request_key": request_key,
+        "approver_id": str(setup["manager"].pk),
+        "approver_pin": "573951",
+    }
+    approved = client.post(url, payload)
+    assert approved.status_code == 302
+    balance = StockBalance.objects.get(outlet=setup["outlet"], menu_item=item)
+    assert balance.quantity == Decimal("8.000")
+    approval = SensitiveActionApproval.objects.get(
+        tenant=setup["tenant"], action="stock_write_off", request_key=request_key,
+    )
+    assert approval.requester_id == worker.pk
+    assert approval.approver_id == setup["manager"].pk
+    assert approval.intent_payload["quantity_change"] == "-2.000"
+    assert StockMovement.objects.filter(
+        outlet=setup["outlet"], menu_item=item, reason=StockReason.WASTE,
+    ).count() == 1
+
+    replay = client.post(url, payload)
+    assert replay.status_code == 302
+    balance.refresh_from_db()
+    assert balance.quantity == Decimal("8.000")
+    assert StockMovement.objects.filter(
+        outlet=setup["outlet"], menu_item=item, reason=StockReason.WASTE,
+    ).count() == 1
