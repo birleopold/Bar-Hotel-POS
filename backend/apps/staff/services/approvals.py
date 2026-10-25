@@ -39,6 +39,7 @@ def sensitive_action_approvers(*, requester: Membership, action: str, outlet_id)
             role__in=SENSITIVE_APPROVAL_ROLES,
             user__is_active=True,
         )
+        .exclude(pk=requester.pk)
         .exclude(staff_pin_hash="")
         .select_related("user", "tenant")
         .order_by("user__email")
