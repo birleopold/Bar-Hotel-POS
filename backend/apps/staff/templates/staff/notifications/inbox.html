@@ -22,8 +22,9 @@
         <button type="submit" class="staff-btn staff-btn--ghost">Mark all read</button>
       </form>
     {% endif %}
+    <button type="button" class="staff-btn staff-btn--ghost" data-enable-device-alerts><i class="bi bi-phone-vibrate"></i> Enable device alerts</button>
   </div>
-  <p class="staff-muted mt-3 mb-0">Refresh to review current low stock, unresolved room repairs and recorded delivery discrepancies. This version does not send SMS or push notifications; alerts are available inside the POS only.</p>
+  <p class="staff-muted mt-3 mb-0" data-device-alert-status>Alerts are private to this staff account. Device alerts work while this site is open; full background push is not enabled yet.</p>
 </section>
 {% if alerts %}
 <div class="row g-3">
@@ -70,4 +71,36 @@
   {% endif %}
 </nav>
 {% endif %}
+{% endblock %}
+{% block extra_js %}{{ block.super }}
+<script>
+(function () {
+  var button = document.querySelector("[data-enable-device-alerts]");
+  var status = document.querySelector("[data-device-alert-status]");
+  if (!button) return;
+  if (!("Notification" in window)) {
+    button.hidden = true;
+    if (status) status.textContent = "This browser does not support device notifications. In-app alerts still work.";
+    return;
+  }
+  function renderPermission() {
+    if (Notification.permission === "granted") {
+      button.textContent = "Device alerts enabled";
+      button.disabled = true;
+      if (status) status.textContent = "Device alerts are enabled while this site is open. In-app alerts remain available here.";
+    } else if (Notification.permission === "denied") {
+      button.textContent = "Device alerts blocked";
+      button.disabled = true;
+      if (status) status.textContent = "Browser notifications are blocked for this site. In-app alerts still work.";
+    }
+  }
+  renderPermission();
+  button.addEventListener("click", function () {
+    Notification.requestPermission().then(function () {
+      renderPermission();
+      if (window.staffPollNotifications) window.staffPollNotifications();
+    });
+  });
+}());
+</script>
 {% endblock %}
