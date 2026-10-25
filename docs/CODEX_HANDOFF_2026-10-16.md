@@ -112,6 +112,10 @@ The canonical purchase-order receiving service in `apps/purchasing/services.py` 
 
 Existing regression `test_purchase_delivery_preflight_and_duplicate_reference_keep_stock_accurate` (`bf6cb496`) checks invalid second line leaves no PO receipt/stock effects, valid partial receipt posts balances and updates PO status, then repeated supplier reference leaves stock untouched. PostgreSQL CI includes it (`fd07baad`). **Tests not executed and production flow not browser-accepted**. Next verify CI, carton conversion and expiry batch receipt against live cashier availability.
 
+## P09 carton representation parity — 25 October
+
+The central `to_stock_units` accepts `"1.0"` as a whole carton, but purchase receiving later tried `int("1.0")`. `ae591cff` normalizes using Decimal after validation. The existing PO regression `8d1c1982` now covers a second delivery completing the PO via one two-unit carton, including final PO status, stock and carton count. CI target remains in quality.yml; no passing result verified.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
