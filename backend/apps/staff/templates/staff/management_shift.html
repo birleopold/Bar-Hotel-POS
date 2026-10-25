@@ -1,45 +1,156 @@
 {% extends "staff/base.html" %}
 {% block title %}Register reconciliation{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
-<header class="staff-page-hero"><div class="staff-dash-hero__panel">
-<p class="staff-dash-hero__eyebrow">Management · Register reconciliation</p>
-<h1 class="staff-page-title">{{ shift.outlet.name }} · {{ shift.workstation.name|default:"Section register" }}</h1>
-<p>{{ shift.get_status_display }} · {{ shift.opened_at }}{% if shift.closed_at %} → {{ shift.closed_at }}{% endif %}</p>
-</div></header>
-<a href="{% url 'staff-management' %}?view=exceptions" class="staff-btn staff-btn--ghost mb-3">Back to exceptions</a>
-<section class="staff-card mb-3"><h2 class="staff-section-head">Cashier close</h2>
-<dl><dt>Opened by</dt><dd>{{ shift.opened_by.email|default:"Former worker" }}</dd>
-<dt>Closed by</dt><dd>{{ shift.closed_by.email|default:"—" }}</dd>
-<dt>Opening float</dt><dd>{{ shift.opening_cash }}</dd>
-<dt>Expected cash at close (recorded)</dt><dd>{{ shift.expected_cash }}</dd>
-<dt>Cash physically counted</dt><dd>{{ shift.counted_cash|default_if_none:"Not counted" }}</dd>
-<dt>Cash variance</dt><dd>{{ variance|default_if_none:"Not counted" }}</dd>
-<dt>Shift note</dt><dd>{{ shift.note|default:"No note" }}</dd></dl>
-{% if reconciliation.handover %}<p class="staff-muted">Handover: {{ reconciliation.handover.get_status_display }}
-{% if reconciliation.handover.verified_by %} · Verified by {{ reconciliation.handover.verified_by.email }}{% endif %}
-{% if reconciliation.handover.approved_by %} · Approved by {{ reconciliation.handover.approved_by.email }}{% endif %}</p>{% endif %}
-</section>
-<section class="staff-card mb-3" aria-label="Shift tender activity">
-<h2 class="staff-section-head">Recorded tender and refund activity</h2>
-{% if reconciliation.is_exact_attribution %}
-<p class="staff-muted">These amounts are explicitly linked to this register shift; refund amounts are grouped by the original sale's payment method, not proof of how a refund was paid. Recorded expected/count figures above remain authoritative.</p>
-{% else %}
-<p class="staff-alert staff-alert--info">Legacy register shift: payment attribution by time window was used historically. This linked-only activity may be incomplete and must not be treated as a reconciled total.</p>
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Management · Register reconciliation</p>
+    <h1 class="staff-page-title">{{ shift.outlet.name }} · {{ shift.workstation.name|default:"Section register" }}</h1>
+    <p>{{ shift.get_status_display }} · {{ shift.opened_at }}{% if shift.closed_at %} → {{ shift.closed_at }}{% endif %}</p>
+  </div>
+</header>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a href="{% url 'staff-management' %}?view=reports" class="staff-btn staff-btn--ghost">Back to management reports</a>
+  <a href="{% url 'staff-pos-shifts' %}" class="staff-btn staff-btn--ghost">Register shifts</a>
+</div>
+
+{% if not reconciliation.is_exact_attribution %}
+<div class="staff-alert staff-alert--warning mb-3">
+  Legacy register shift: linked payment/refund activity may be incomplete. Use this page as investigation evidence, not as proof of a fully attributed historical till.
+</div>
 {% endif %}
-<p class="staff-muted">{{ reconciliation.payments_count }} payment records · {{ reconciliation.refunds_count }} refund records</p>
-{% if reconciliation.methods %}
-<div class="staff-table-wrap"><table class="staff-table">
-<thead><tr><th>Currency</th><th>Original tender</th><th>Received payments</th><th>Refunds against tender</th><th>Difference (not expected cash)</th></tr></thead>
-<tbody>{% for line in reconciliation.methods %}<tr><td>{{ line.currency }}</td><td>{{ line.method }}</td><td>{{ line.gross }}</td><td>{{ line.refunded }}</td><td>{{ line.net }}</td></tr>{% endfor %}</tbody>
-</table></div>
-{% else %}<p class="staff-muted">No shift-linked payment or refund activity to display.</p>{% endif %}
+
+<section class="staff-card mb-3" aria-labelledby="shift-close-title">
+  <h2 class="staff-section-head" id="shift-close-title">Cashier close</h2>
+  <div class="staff-tile-grid">
+    <div class="staff-tile"><strong>{{ shift_currency }} {{ shift.opening_cash }}</strong><span>Opening float</span></div>
+    <div class="staff-tile"><strong>{{ shift_currency }} {{ cash_snapshot.expected }}</strong><span>Expected cash</span></div>
+    <div class="staff-tile"><strong>{% if shift.counted_cash != None %}{{ shift_currency }} {{ shift.counted_cash }}{% else %}Not counted{% endif %}</strong><span>Counted cash</span></div>
+    <div class="staff-tile"><strong>{% if variance != None %}{{ shift_currency }} {{ variance }}{% else %}—{% endif %}</strong><span>Difference</span></div>
+  </div>
+  <dl class="mt-3 mb-0">
+    <dt>Opened by</dt><dd>{{ shift.opened_by.email|default:"Former worker" }}</dd>
+    <dt>Closed by</dt><dd>{{ shift.closed_by.email|default:"—" }}</dd>
+    <dt>Shift note</dt><dd>{{ shift.note|default:"No note" }}</dd>
+  </dl>
 </section>
-<section class="staff-card" aria-label="Recent shift transactions"><h2 class="staff-section-head">Recent transaction drill-down</h2>
-{% for payment in reconciliation.recent_payments %}
-<p class="staff-muted"><a href="{% url 'staff-order-detail' order_id=payment.order_id %}">{{ payment.order.bill_reference }}</a> · {{ payment.amount }} {{ payment.order.currency }} · {{ payment.get_method_display }} · {{ payment.created_at }}</p>
-{% empty %}<p class="staff-muted">No linked payments.</p>{% endfor %}
-{% for refund in reconciliation.recent_refunds %}
-<p class="staff-muted"><a href="{% url 'staff-order-detail' order_id=refund.order_id %}">{{ refund.order.bill_reference }}</a> · Refund {{ refund.amount }} {{ refund.order.currency }} · {{ refund.created_at }}</p>
-{% endfor %}
+
+<section class="staff-card mb-3" aria-labelledby="drawer-calculation-title">
+  <h2 class="staff-section-head" id="drawer-calculation-title">Drawer calculation</h2>
+  <p class="staff-muted">The expected drawer is calculated from recorded cash events for this shift. Paid-in/out events are separate from business expense postings.</p>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Component</th><th>Effect</th><th class="text-end">Amount</th></tr></thead>
+      <tbody>
+        <tr><td>Opening float</td><td>Starting cash</td><td class="text-end">{{ shift_currency }} {{ shift.opening_cash }}</td></tr>
+        <tr><td>Cash sales</td><td>Add</td><td class="text-end">{{ shift_currency }} {{ cash_snapshot.cash_payments }}</td></tr>
+        <tr><td>Cash refunds</td><td>Subtract</td><td class="text-end">{{ shift_currency }} {{ cash_snapshot.cash_refunds }}</td></tr>
+        <tr><td>Float added</td><td>Add</td><td class="text-end">{{ shift_currency }} {{ cash_snapshot.float_added }}</td></tr>
+        <tr><td>Cash drops</td><td>Subtract</td><td class="text-end">{{ shift_currency }} {{ cash_snapshot.drops }}</td></tr>
+        <tr><td>Cash payouts</td><td>Subtract</td><td class="text-end">{{ shift_currency }} {{ cash_snapshot.payouts }}</td></tr>
+        <tr><td><strong>Expected cash</strong></td><td></td><td class="text-end"><strong>{{ shift_currency }} {{ cash_snapshot.expected }}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
 </section>
+
+<section class="staff-card mb-3" aria-label="Shift tender activity">
+  <h2 class="staff-section-head">Recorded tender and refund activity</h2>
+  {% if reconciliation.is_exact_attribution %}
+    <p class="staff-muted">Amounts below are explicitly linked to this register shift. Refunds are grouped by the original tender method; that does not claim the refund was paid out using that same method.</p>
+  {% endif %}
+  <p class="staff-muted">{{ reconciliation.payments_count }} payment records · {{ reconciliation.refunds_count }} refund records</p>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Currency</th><th>Original tender</th><th class="text-end">Received</th><th class="text-end">Refunded</th><th class="text-end">Net tender</th></tr></thead>
+      <tbody>
+      {% for line in reconciliation.methods %}
+        <tr><td>{{ line.currency }}</td><td>{{ line.method|title }}</td><td class="text-end">{{ line.gross }}</td><td class="text-end">{{ line.refunded }}</td><td class="text-end"><strong>{{ line.net }}</strong></td></tr>
+      {% empty %}
+        <tr><td colspan="5" class="staff-muted">No shift-linked payment or refund activity to display.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="staff-card mb-3" aria-labelledby="drawer-events-title">
+  <h2 class="staff-section-head" id="drawer-events-title">Drawer movement history</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>When</th><th>Movement</th><th class="text-end">Amount</th><th>Reason</th><th>Recorded by</th></tr></thead>
+      <tbody>
+      {% for movement in cash_movements %}
+        <tr>
+          <td>{{ movement.created_at }}</td>
+          <td>{{ movement.get_direction_display }}</td>
+          <td class="text-end">{{ shift_currency }} {{ movement.amount }}</td>
+          <td>{{ movement.reason }}</td>
+          <td>{{ movement.recorded_by.email|default:"Former worker" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="staff-muted">No drawer movement events were recorded for this shift.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="staff-card mb-3" aria-labelledby="payments-title">
+  <h2 class="staff-section-head" id="payments-title">Recent payment drill-down</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>When</th><th>Receipt</th><th>Method</th><th class="text-end">Amount</th><th>Recorded by</th></tr></thead>
+      <tbody>
+      {% for payment in reconciliation.recent_payments %}
+        <tr>
+          <td>{{ payment.created_at }}</td>
+          <td><a href="{% url 'staff-order-detail' order_id=payment.order_id %}">{{ payment.order.bill_reference }}</a></td>
+          <td>{{ payment.get_method_display }}</td>
+          <td class="text-end">{{ payment.order.currency }} {{ payment.amount }}</td>
+          <td>{{ payment.recorded_by.email|default:"Former worker" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="staff-muted">No linked payments.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="staff-card mb-3" aria-labelledby="refunds-title">
+  <h2 class="staff-section-head" id="refunds-title">Recent refund drill-down</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>When</th><th>Receipt</th><th>Original tender</th><th class="text-end">Amount</th><th>Reason</th><th>Recorded by</th></tr></thead>
+      <tbody>
+      {% for refund in reconciliation.recent_refunds %}
+        <tr>
+          <td>{{ refund.created_at }}</td>
+          <td><a href="{% url 'staff-order-detail' order_id=refund.order_id %}">{{ refund.order.bill_reference }}</a></td>
+          <td>{{ refund.payment.get_method_display }}</td>
+          <td class="text-end">{{ refund.order.currency }} {{ refund.amount }}</td>
+          <td>{{ refund.reason|default:"—" }}</td>
+          <td>{{ refund.recorded_by.email|default:"Former worker" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="staff-muted">No linked refunds.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if reconciliation.handover %}
+<section class="staff-card" aria-labelledby="handover-title">
+  <h2 class="staff-section-head" id="handover-title">Handover evidence</h2>
+  <p><strong>{{ reconciliation.handover.get_status_display }}</strong></p>
+  {% if reconciliation.handover.variance_explanation %}<p class="staff-muted">Cashier explanation: {{ reconciliation.handover.variance_explanation }}</p>{% endif %}
+  {% if reconciliation.handover.verified_cash != None %}<p class="staff-muted">Independent count: {{ shift_currency }} {{ reconciliation.handover.verified_cash }}{% if reconciliation.handover.verified_by %} · {{ reconciliation.handover.verified_by.email }}{% endif %}</p>{% endif %}
+  {% if reconciliation.handover.verification_note %}<p class="staff-muted">Verification note: {{ reconciliation.handover.verification_note }}</p>{% endif %}
+  {% if reconciliation.handover.approved_by %}<p class="staff-muted">Approved by {{ reconciliation.handover.approved_by.email }}{% if reconciliation.handover.approval_note %} · {{ reconciliation.handover.approval_note }}{% endif %}</p>{% endif %}
+  {% if reconciliation.handover.accepted_by %}<p class="staff-muted">Accepted by {{ reconciliation.handover.accepted_by.email }}</p>{% endif %}
+</section>
+{% endif %}
 {% endblock %}
