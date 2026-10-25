@@ -1062,8 +1062,10 @@ class ConsoleAccessTests(TestCase):
                                        unit_price="2500.00", sku="CUP-1")
         url = reverse("console-org-menu-item-photo", kwargs={"item_id": item.id})
         self.assertContains(self.client.get(url), "Imported cup")
-        self.assertContains(self.client.get(reverse("console-org-menu-item-edit", kwargs={"item_id": item.id})),
-                            "Copy phone link")
+        editor = self.client.get(reverse("console-org-menu-item-edit", kwargs={"item_id": item.id}))
+        self.assertContains(editor, "Scan with phone")
+        self.assertContains(editor, "Copy link")
+        self.assertContains(editor, "Send to my account")
         self.assertContains(self.client.get(reverse("console-org-menu-items")), "Add photo")
         output = io.BytesIO()
         Image.new("RGB", (2, 2), "white").save(output, format="PNG")
