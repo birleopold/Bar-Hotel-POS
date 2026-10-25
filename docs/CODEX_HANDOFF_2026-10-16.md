@@ -102,6 +102,10 @@ Existing cashier catalogue product tiles were stock-blind. `views_ops.py` now ba
 
 Tests in `backend/tests/test_supermarket_cashier_lane.py` cover zero/low/adequate stock and selected-outlet isolation, plus quarantined/expired FEFO balances (`a32fc39c`, `ce339cdf`). PostgreSQL quality CI explicitly includes both (`8eafd600`), but **there is no observed passing result, screenshot parity or live tenant verification**. Avoid creating a second inventory query service or a new tile CSS. P08–P09 and P15 remain open.
 
+## 25 October: retail displayed price now matches actual outlet sale
+
+A retail catalogue tile formerly rendered the global `item.unit_price` even when `add_line_to_open_order` charged `item.unit_price_for_outlet(outlet_id)` using an outlet-specific override. `views_ops.py` now looks up nonnull `MenuItemOutlet.price_override` records for only the displayed products at the current outlet/tenant, attaches `cashier_display_price`, and the existing `fizo_pos_catalogue.html` shows it only on retail screens (`d3b18f9c`, `a1c37a1b`). Existing integration test `5dadb053` verifies UI selling price and committed line/total match; CI adds the case (`d54c9f7b`). Not independently run or visually verified.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
