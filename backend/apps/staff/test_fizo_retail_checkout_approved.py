@@ -165,6 +165,23 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('value="quick_create_product"', page)
         self.assertIn("{% csrf_token %}", page)
 
+    def test_catalogue_selection_and_retail_mutation_have_separate_owners(self):
+        root = Path(__file__).resolve().parent
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        controller = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+
+        self.assertIn(
+            'tile.dispatchEvent(new Event("pos:menu-item-selected", { bubbles: true }))',
+            detail,
+        )
+        self.assertIn(
+            'root.addEventListener("pos:menu-item-selected",function(event){',
+            controller,
+        )
+        self.assertIn('tile.dataset.retailDirectAdd=direct?"1":"0"', controller)
+        self.assertNotIn('tile.addEventListener("click",function(){', controller)
+        self.assertIn("addForm.requestSubmit();", controller)
+
     def test_quick_product_review_and_outlet_scoping(self):
         root = Path(__file__).resolve().parent
         views = (root / 'views_ops.py').read_text(encoding='utf-8')

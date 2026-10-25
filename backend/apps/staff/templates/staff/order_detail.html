@@ -482,7 +482,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.5"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.6"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>
@@ -640,6 +640,10 @@
             });
             var option = select.options[select.selectedIndex];
             if (announcement && option) announcement.textContent = option.text + " selected. Set quantity and add it to the order.";
+            // Selection is generic catalogue behavior. Business-line checkout
+            // controllers may react to this event without attaching a second
+            // click owner to the same tile.
+            tile.dispatchEvent(new Event("pos:menu-item-selected", { bubbles: true }));
           });
         });
         select.addEventListener("change", function () {

@@ -915,27 +915,32 @@
     qty.min=fractional?"0.001":"1";
     if(!fractional&&Number(qty.value)%1!==0)qty.value="1";
   }
-  // Enhance ordinary retail tiles into direct Add actions. Measured goods and
-  // products with options keep the existing quantity/modifier confirmation.
+  // Enhance ordinary retail tiles into direct Add actions. The generic
+  // catalogue owns click/selection; retail reacts only after selection is
+  // published, so mutation no longer depends on listener registration order.
   var modifierData=document.getElementById("staff-pos-menu-modifiers");
   var modifierMap=null;
   try{modifierMap=JSON.parse(modifierData.textContent);}catch(error){}
   root.querySelectorAll("[data-pos-menu-tile]").forEach(function(tile){
     var groups=modifierMap&&modifierMap[tile.dataset.itemId]||[];
     var direct=modifierMap!==null&&groups.length===0&&tile.dataset.fractionalQuantity!=="1";
+    tile.dataset.retailDirectAdd=direct?"1":"0";
     var label=tile.querySelector(".fizo-tile-add");
     if(direct&&addForm&&addForm.requestSubmit&&label)label.textContent="Add";
-    tile.addEventListener("click",function(){
-      adjustUnitStep(tile);
-      if(addForm)addForm.classList.toggle("is-required",!direct);
-      if(direct&&addForm&&addForm.requestSubmit&&product&&product.value===tile.dataset.itemId){
-        if(addForm.dataset.submitting==="1")return;
-        qty.value="1";
-        addForm.requestSubmit();
-        return;
-      }
-      if(qty)qty.focus({preventScroll:true});
-    });
+  });
+  root.addEventListener("pos:menu-item-selected",function(event){
+    var tile=event.target&&event.target.closest&&event.target.closest("[data-pos-menu-tile]");
+    if(!tile||!root.contains(tile))return;
+    var direct=tile.dataset.retailDirectAdd==="1";
+    adjustUnitStep(tile);
+    if(addForm)addForm.classList.toggle("is-required",!direct);
+    if(direct&&addForm&&addForm.requestSubmit&&product&&product.value===tile.dataset.itemId){
+      if(addForm.dataset.submitting==="1")return;
+      qty.value="1";
+      addForm.requestSubmit();
+      return;
+    }
+    if(qty)qty.focus({preventScroll:true});
   });
   if(product)product.addEventListener("change",function(){
     var tile=root.querySelector('[data-pos-menu-tile][data-item-id="'+product.value+'"]');
