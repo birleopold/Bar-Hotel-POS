@@ -29,8 +29,18 @@ grep -q '\-\-bind 127.0.0.1:18083' deployment/contabo/leosoft-pos-gunicorn.servi
 grep -q '/var/www/leosoft-pos/media' deployment/contabo/leosoft-pos-gunicorn.service.example
 grep -q '^TENANT_PLATFORM_DOMAIN=pos.leosoftug.com$' deployment/contabo/pos.env.example
 grep -q '^MEDIA_ROOT=/var/www/leosoft-pos/media$' deployment/contabo/pos.env.example
-grep -q '^MEDIA_DIR=/var/www/leosoft-pos/media$' deployment/contabo/deploy-app.sh
+grep -q '^MEDIA_DIR=/var/www/leosoft-pos/media
+if command -v systemd-analyze >/dev/null 2>&1; then
+  systemd-analyze verify deployment/contabo/leosoft-pos-gunicorn.service.example 2>&1 || \
+    echo "NOTE: Example unit needs deployment-specific paths and .service filename for final validation"
+fi
+
+echo 'PASS: POS template consistency; no configuration was changed'
+ deployment/contabo/deploy-app.sh
 grep -q 'rsync -a --ignore-existing "$LEGACY_MEDIA_DIR/" "$MEDIA_DIR/"' deployment/contabo/deploy-app.sh
+grep -q 'media.conf' deployment/contabo/deploy-app.sh
+grep -q 'ReadWritePaths=%s' deployment/contabo/deploy-app.sh
+grep -q 'systemctl daemon-reload' deployment/contabo/deploy-app.sh
 
 if command -v systemd-analyze >/dev/null 2>&1; then
   systemd-analyze verify deployment/contabo/leosoft-pos-gunicorn.service.example 2>&1 || \
