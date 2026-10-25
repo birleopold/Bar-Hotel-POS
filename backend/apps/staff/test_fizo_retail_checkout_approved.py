@@ -21,7 +21,7 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn("retail-fast-checkout",retail)
         self.assertIn("data-retail-scan-form",retail)
         self.assertIn("scanInput.focus()",retail)
-        self.assertIn("staff-order-quick-create",retail)
+        self.assertIn("staff-order-quick-create",parent)
         self.assertIn("data-pos-menu-tile",cards)
         self.assertIn('value="add_line"',cards)
         self.assertIn("data-fizo-add-line-form",cards)
@@ -49,10 +49,15 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
         marker = view.split("class StaffRetailPosEntryView(", 1)[1].split("class StaffOrderQuickCreateView(", 1)[0]
+        get_block = marker.split("    def get(", 1)[1].split("    def post(", 1)[0]
+        post_block = marker.split("    def post(", 1)[1]
         self.assertIn("PosShiftStatus.OPEN", marker)
         self.assertIn("created_by=request.user", marker)
         self.assertIn('redirect("staff-order-detail"', marker)
-        self.assertNotIn("create_order_with_lines(", marker)
+        self.assertNotIn("create_order_with_lines(", get_block)
+        self.assertIn("create_order_with_lines(", post_block)
+        self.assertIn("transaction.atomic()", post_block)
+        self.assertIn("Tenant.objects.select_for_update()", post_block)
         sidebar = (root/"templates/staff/includes/sidebar.html").read_text(encoding="utf-8")
         self.assertIn("staff-retail-pos-entry", sidebar)
         self.assertIn("Sales</a>", sidebar)
@@ -84,13 +89,15 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         root = Path(__file__).resolve().parent
         page = (root/"templates/staff/retail_pos_start.html").read_text(encoding="utf-8")
         self.assertIn('method="post"', page)
-        self.assertIn("staff-order-quick-create", page)
+        self.assertIn("staff-retail-pos-entry", page)
+        self.assertIn('name="action" value="start_selling"', page)
         self.assertIn("{% csrf_token %}", page)
         self.assertIn("current_shift", page)
         view = (root/"views_ops.py").read_text(encoding="utf-8")
         entry = view.split("class StaffRetailPosEntryView(", 1)[1].split("class StaffOrderQuickCreateView(", 1)[0]
         self.assertIn('render(request, "staff/retail_pos_start.html"', entry)
-        self.assertNotIn("create_order_with_lines(", entry)
+        self.assertIn("create_order_with_lines(", entry)
+        self.assertIn("transaction.atomic()", entry)
 
     def test_search_uses_real_sku_and_barcode_and_shortcuts_use_existing_routes(self):
         root = Path(__file__).resolve().parent
