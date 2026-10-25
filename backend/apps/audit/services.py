@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from typing import Any
 
 from .context import get_audit_request_context
 from .models import AuditEvent
+
+
+def exception_fingerprint(version: Any) -> str:
+    """Stable fingerprint used to bind an exception review to one source version."""
+    return hashlib.sha256(str(version).encode()).hexdigest()
 
 
 def log_audit(
