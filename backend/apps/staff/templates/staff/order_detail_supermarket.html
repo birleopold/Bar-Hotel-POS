@@ -143,9 +143,10 @@
     <div class="staff-card">
       <h2 class="staff-card__title">Physical return only</h2>
       {% include "staff/includes/form_errors_block.html" with form=line_return_form title="Fix return details" %}
-      <form method="post" class="row g-2 align-items-end">
+      <form method="post" class="row g-2 align-items-end" data-retail-line-return-form>
         {% csrf_token %}
         <input type="hidden" name="action" value="line_return">
+        <input type="hidden" name="line_return_request_key" value="{{ line_return_request_key }}">
         <p class="staff-muted col-12">Use this for an exchange or an item received without a customer refund. For a refund, use “Return and refund” above. Select restock only for direct-sale goods actually back on hand; prepared recipe ingredients are not recovered automatically.</p>
         <div class="col-md-3">
           <label class="staff-label" for="ret_line">Order item</label>
@@ -158,6 +159,7 @@
         <div class="col-md-4">{{ line_return_form.reason.label_tag }}{{ line_return_form.reason }}</div>
         <div class="col-md-2"><label class="staff-label" for="{{ line_return_form.restock.id_for_label }}">{{ line_return_form.restock }} Restock received goods</label></div>
         <div class="col-md-1"><button type="submit" class="staff-btn staff-btn--primary">Return</button></div>
+        <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-line-return-status></p></div>
       </form>
     </div>
   {% endif %}
