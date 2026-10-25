@@ -218,8 +218,9 @@
           {% endif %}
         </div>
         <h2 class="fizo-checkout-basket__title"><i class="bi bi-cart3" aria-hidden="true"></i> Current basket <span>{{ active_basket_line_count }} lines · {{ order.bill_reference }}</span></h2>
+        {% if not order.is_paid %}
         <nav class="fizo-retail-basket-tools" aria-label="Cashier shortcuts">
-          {% if can_modify_open_order and order.status == 'open' and not order.is_paid %}
+          {% if can_modify_open_order and order.status == 'open' %}
           <a href="#hold_label"><i class="bi bi-pause-circle" aria-hidden="true"></i> Hold Sale</a>
           <a href="#void_reason" class="reference-clear-basket"><i class="bi bi-trash3" aria-hidden="true"></i> Clear Basket</a>
           {% endif %}
@@ -227,6 +228,7 @@
           <a href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=80mm" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> Print Receipt</a>
           {% endif %}
         </nav>
+        {% endif %}
     <section class="fizo-checkout-basket__lines" aria-label="Basket items">
       <div class="fizo-retail-basket-items">
         {% for line in order.lines.all %}
