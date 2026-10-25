@@ -16,7 +16,7 @@ from apps.audit.models import AuditEvent, ExceptionPolicy
 from apps.audit.services import log_audit
 from .mixins import StaffTenantRequiredMixin
 from .services.permissions import membership_can_manage_workspace_settings
-from .services.management import EXCEPTION_KINDS, MANAGER_ROLES, exception_assignees, update_exception_case, visible_cases, exception_rows, management_orders, management_scope, management_team, review_exception
+from .services.management import EXCEPTION_KINDS, MANAGER_ROLES, exception_assignees, update_exception_case, visible_cases, exception_rows, management_approval_evidence, management_orders, management_scope, management_team, review_exception
 from .services.dashboard_insights import dashboard_operations_snapshot
 
 
@@ -94,6 +94,7 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
             ctx.update(exception_cases=cases, exception_assignees=exception_assignees(request))
         elif mode == "approvals":
             ctx["approval_orders"] = management_orders(request)
+            ctx["approval_evidence"] = management_approval_evidence(request)
         elif mode == "team":
             ctx["team_members"] = management_team(request)
             if vis.workspace and membership_can_manage_workspace_settings(request.tenant_membership):
