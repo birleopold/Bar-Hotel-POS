@@ -77,8 +77,9 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
         if mode == "exceptions":
             rows, policy = exception_rows(request)
             grouped = {
-                "Money": {"refund", "discount", "line_discount", "cash_variance"},
-                "Cashier actions": {"void", "drawer_no_sale", "manual_price"},
+                "Money": {"refund", "cash_variance"},
+                "Cashier actions": {"void", "drawer_no_sale"},
+                "Pricing": {"discount", "line_discount", "manual_price", "price_change"},
                 "Stock": {"stock_adjustment", "low_stock", "delivery_discrepancy"},
                 "Security & sync": {"pin_failure", "offline_conflict", "efris_failure"},
             }
