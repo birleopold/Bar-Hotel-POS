@@ -99,7 +99,7 @@
       <section class="fizo-register__panel fizo-register__history" aria-labelledby="recent-shifts-title"><h2 class="staff-section-title" id="recent-shifts-title">Recent shifts</h2>
       <div class="fizo-register__tablewrap">
         <table class="fizo-register__table">
-          <thead><tr><th>Workstation</th><th>Opened</th><th>Closed</th><th>Status</th><th>Expected</th><th>Counted</th><th>Difference</th></tr></thead>
+          <thead><tr><th>Workstation</th><th>Opened</th><th>Closed</th><th>Status</th><th>Expected</th><th>Counted</th><th>Difference</th>{% if can_review_shift_history %}<th>Review</th>{% endif %}</tr></thead>
           <tbody>
             {% for s in recent_shifts %}
               <tr>
@@ -110,6 +110,7 @@
                 <td class="staff-money">{% if s.status == 'closed' %}{{ shift_currency }} {{ s.expected_cash }}{% else %}—{% endif %}</td>
                 <td class="staff-money">{% if s.counted_cash != None %}{{ shift_currency }} {{ s.counted_cash }}{% else %}—{% endif %}</td>
                 <td class="staff-money">{% if s.cash_variance != None %}<strong{% if s.cash_variance != 0 %} class="staff-register-variance"{% endif %}>{{ shift_currency }} {{ s.cash_variance }}</strong>{% else %}—{% endif %}</td>
+                {% if can_review_shift_history %}<td><a class="staff-btn staff-btn--ghost" href="{% url 'staff-pos-shift-detail' s.pk %}">Review</a></td>{% endif %}
               </tr>
             {% endfor %}
           </tbody>
