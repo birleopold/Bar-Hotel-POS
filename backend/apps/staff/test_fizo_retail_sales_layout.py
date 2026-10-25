@@ -450,6 +450,26 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("Nothing requiring attention is available yet.", template)
         get_template("staff/dashboard.html")
 
+    def test_cashier_payment_stack_matches_compact_target(self):
+        root = Path(__file__).resolve().parent
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
+        js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn(
+            '<span>Pay {{ order.currency }} {{ balance_due }}</span>',
+            detail,
+        )
+        self.assertNotIn(
+            'aria-hidden="true"></i> Take payment <i class="bi bi-arrow-right"',
+            detail,
+        )
+        self.assertIn('class="reference-partial-payment"', detail)
+        self.assertNotIn("Continue this basket's payment", detail)
+        self.assertIn(".reference-partial-payment{", css)
+        self.assertIn('label.textContent="Pay "+dueLabel.textContent.trim()', js)
+        self.assertNotIn("Confirm quantity and add to basket.", js)
+        self.assertNotIn("Confirm quantity and choose Add to basket.", js)
+
     def test_approved_cashier_header_order_and_compact_density(self):
         root = Path(__file__).resolve().parent
         detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
@@ -467,8 +487,8 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("grid-template-columns:60px minmax(0,1fr) auto", css)
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
-        self.assertIn("retail-cashier.css' %}?v=20261025.2", supermarket)
-        self.assertIn("retail-counter-v2.js' %}?v=20261025.1", detail)
+        self.assertIn("retail-cashier.css' %}?v=20261025.3", supermarket)
+        self.assertIn("retail-counter-v2.js' %}?v=20261025.2", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
