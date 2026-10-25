@@ -98,6 +98,29 @@ def register_paid_order_delivery(
         )
     except DeliveryPolicyError as exc:
         raise ValidationError({"delivery":str(exc)}) from exc
+    if destination_type == "room":
+        # Hotel room deliveries must use the genuine guest's checked-in folio;
+        # arbitrary room labels cannot grant access or create phantom guests.
+        from apps.lodging.models import Folio, ReservationStatus
+        folio = (
+            Folio.objects.select_related("reservation__room")
+            .filter(pk=locked.folio_id, tenant_id=locked.tenant_id,
+                    site_id=locked.outlet.site_id)
+            .first()
+            if locked.folio_id else None
+        )
+        reservation = folio.reservation if folio else None
+        if (
+            reservation is None
+            or reservation.tenant_id != locked.tenant_id
+            or reservation.site_id != locked.outlet.site_id
+            or reservation.status != ReservationStatus.CHECKED_IN
+            or reservation.room is None
+            or reservation.room.name.strip().casefold() != room_reference.strip().casefold()
+        ):
+            raise ValidationError({
+                "room_reference": "Choose the room on this order's checked-in guest folio."
+            })
     if not isinstance(instructions, str) or len(instructions) > 500:
         raise ValidationError({"instructions":"Use at most 500 characters."})
     if promised_at is not None:
