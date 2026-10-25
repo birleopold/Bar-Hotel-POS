@@ -441,8 +441,9 @@
         </div>
       {% endif %}
 
+      {% if is_supermarket_outlet %}<div data-retail-refund-zone>{% endif %}
       {% if can_record_refund and refund_form %}
-        <div class="staff-card staff-card--pos">
+        <div class="staff-card staff-card--pos" data-retail-refund-card>
           <h2 class="staff-card__title staff-card__title--pos">{% if is_supermarket_outlet %}Other refund{% else %}Refund{% endif %}</h2>
           <p class="staff-muted staff-pos-side-hint">Max {{ refundable_remaining }}</p>
           <p class="staff-muted small">Refunds are paid out from {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}the only open register{% endif %}. <a href="{% url 'staff-workstations' %}">Choose refund till</a></p>
@@ -464,9 +465,11 @@
               {% endif %}
             {% endfor %}
             <div class="col-12 col-md-auto"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Refund</button></div>
+            {% if is_supermarket_outlet %}<div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-refund-status></p></div>{% endif %}
           </form>
         </div>
       {% endif %}
+      {% if is_supermarket_outlet %}</div>{% endif %}
 
       {% block order_extra %}{% endblock %}
     </aside>
