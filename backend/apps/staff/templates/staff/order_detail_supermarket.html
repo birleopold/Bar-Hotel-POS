@@ -50,15 +50,13 @@
     </div>
   {% endif %}
   {% if can_record_payment and payment_form %}
-    <section class="staff-card" aria-label="Cash tender calculator" data-retail-cash-panel data-balance-due="{{ balance_due }}">
-      <h2 class="staff-card__title">Cash payment · calculate change</h2>
-      <p class="staff-muted small">Enter what the shopper hands you to see their change. To complete payment, use <strong>Pay</strong> and select <strong>Cash</strong>. The cash-received figure is not the sale amount.</p>
+    <section class="staff-card" aria-label="Cash and change" data-retail-cash-panel data-balance-due="{{ balance_due }}">
+      <h2 class="staff-card__title">Cash &amp; change</h2>
       <div class="row g-2 align-items-end">
         <div class="col-12 col-sm-6"><label class="staff-label" for="retail-cash-received">Cash received ({{ order.currency }})</label><input id="retail-cash-received" class="staff-input" type="number" min="0" step="0.01" inputmode="decimal" data-retail-cash-received></div>
-        <div class="col-12 col-sm-6"><span class="staff-label">Change to return</span><output class="d-block fw-bold" for="retail-cash-received" data-retail-change>—</output></div>
+        <div class="col-12 col-sm-6"><span class="staff-label">Change</span><output class="d-block fw-bold" for="retail-cash-received" data-retail-change>—</output></div>
       </div>
-      <p class="staff-muted small mt-2 mb-0" role="status" aria-live="polite" data-retail-tender-status>Enter the cash handed over to calculate change.</p>
-      <p class="staff-muted small mt-2 mb-0">If the customer gives less than the amount due, record the amount received as a partial cash payment. You can hold this same sale and receive the remaining balance later, or select Mobile Money / Card to collect the balance now. Each payment is saved separately.</p>
+      <p class="staff-muted small mt-2 mb-0" role="status" aria-live="polite" data-retail-tender-status>Enter cash received.</p>
     </section>
   {% endif %}
   {% if order.is_paid and order.status == 'closed' %}
@@ -341,7 +339,7 @@
       change.textContent = "—";
       if (!Number.isFinite(dueRaw) || !Number.isFinite(tender) || tender < 0 ||
           !Number.isSafeInteger(cents) || Math.abs(tender * 100 - cents) > 0.000001) {
-        tenderStatus.textContent = "Enter a valid cash amount with at most two decimal places.";
+        tenderStatus.textContent = "Enter a valid cash amount.";
         return;
       }
       if (cents < dueCents) {
@@ -350,11 +348,11 @@
         if (paymentAmount && paymentMethod && paymentMethod.value === "cash") {
           paymentAmount.value = (cents / 100).toFixed(2);
         }
-        tenderStatus.textContent = "Partial cash received. Record this amount as Cash, then hold the basket for the remaining balance or collect the rest by Mobile Money / Card.";
+        tenderStatus.textContent = "Partial cash. Save this amount, then collect or hold the balance.";
         return;
       }
       change.textContent = ((cents - dueCents) / 100).toFixed(2);
-      tenderStatus.textContent = "Change shown above. Record the due amount, not the cash tendered.";
+      tenderStatus.textContent = "Change ready.";
       if (paymentAmount && paymentMethod && paymentMethod.value === "cash") {
         paymentAmount.value = (dueCents / 100).toFixed(2);
       }
