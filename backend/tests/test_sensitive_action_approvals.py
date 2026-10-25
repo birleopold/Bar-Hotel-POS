@@ -175,6 +175,11 @@ def test_sensitive_approval_rejects_self_approval(approval_setup):
     assert not SensitiveActionApproval.objects.filter(
         tenant=setup["tenant"], action="discount", request_key=request_key,
     ).exists()
+    assert setup["manager"] not in sensitive_action_approvers(
+        requester=setup["manager"],
+        action="discount",
+        outlet_id=setup["outlet"].pk,
+    )
 
 
 @pytest.mark.django_db
@@ -438,3 +443,75 @@ def test_retail_line_discount_ajax_keeps_exact_manager_approval_and_rotates_requ
     uuid.UUID(body["next_request_key"])
     line.refresh_from_db()
     assert line.line_discount_amount == Decimal("10.00")
+
+
+@pytest.mark.django_db
+def test_retail_cashier_full_basket_void_requires_different_manager_approval(client, approval_setup):
+    from apps.pos.models import Order, OrderLine, OrderStatus
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+    from django.urls import reverse
+
+    setup = approval_setup
+    order = Order.objects.create(
+        tenant=setup["tenant"],
+        outlet=setup["outlet"],
+        created_by=setup["cashier"].user,
+        status=OrderStatus.OPEN,
+        is_paid=False,
+        subtotal=Decimal("7500.00"),
+        total=Decimal("7500.00"),
+    )
+    OrderLine.objects.create(
+        order=order,
+        label="Basket item",
+        quantity=Decimal("1"),
+        unit_price=Decimal("7500.00"),
+        line_total=Decimal("7500.00"),
+    )
+    client.force_login(setup["cashier"].user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+    url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+
+    page = client.get(url)
+    assert page.status_code == 200
+    assert b"Manager approve &amp; void" in page.content
+    assert b"Supervisor PIN" in page.content
+    assert setup["manager"].user.email.encode() in page.content
+
+    bad_key = str(uuid.uuid4())
+    denied = client.post(url, {
+        "action": "void_order",
+        "void_request_key": bad_key,
+        "reason": "Customer cancelled basket",
+        "approver_id": str(setup["manager"].pk),
+        "approver_pin": "000000",
+    })
+    assert denied.status_code == 302
+    order.refresh_from_db()
+    assert order.status == OrderStatus.OPEN
+    assert not SensitiveActionApproval.objects.filter(
+        tenant=setup["tenant"], action="void", request_key=bad_key,
+    ).exists()
+
+    request_key = str(uuid.uuid4())
+    approved = client.post(url, {
+        "action": "void_order",
+        "void_request_key": request_key,
+        "reason": "Customer cancelled basket",
+        "approver_id": str(setup["manager"].pk),
+        "approver_pin": "573951",
+    })
+    assert approved.status_code == 302
+    assert approved["Location"] == reverse("staff-retail-pos-entry")
+    order.refresh_from_db()
+    assert order.status == OrderStatus.CANCELLED
+    approval = SensitiveActionApproval.objects.get(
+        tenant=setup["tenant"], action="void", request_key=request_key,
+    )
+    assert approval.requester_id == setup["cashier"].pk
+    assert approval.approver_id == setup["manager"].pk
+    assert approval.intent_payload["reason"] == "Customer cancelled basket"
+    assert approval.intent_payload["active_line_count"] == 1
