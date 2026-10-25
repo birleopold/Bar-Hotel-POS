@@ -262,6 +262,24 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('name="refund_request_key" value="{{ refund_request_key }}"', detail)
         self.assertIn('name="retail_refund_request_key" value="{{ retail_refund_request_key }}"', supermarket)
 
+    def test_approved_retail_refunds_reconcile_without_page_refresh(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        supermarket = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        script = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn('data-retail-refund-zone', detail)
+        self.assertIn('data-retail-finance-status', detail)
+        self.assertIn('data-retail-return-zone', supermarket)
+        self.assertIn('data-retail-line-refund-form', supermarket)
+        self.assertIn('async_refund =', view)
+        self.assertIn('"next_request_key": str(uuid.uuid4())', view)
+        self.assertIn('function approvedRefundFormConfig(form)', script)
+        self.assertIn('window.retailRefreshCheckout()', script)
+        self.assertIn('"[data-retail-refund-zone]"', script)
+        self.assertIn('"[data-retail-return-zone]"', script)
+        self.assertIn('showCheckoutRecovery(liveStatus,error)', script)
+
     def test_part_paid_quantity_reduction_routes_to_authorized_refund_controls(self):
         root = Path(__file__).resolve().parent
         services = (root.parent / "pos/services/orders.py").read_text(encoding="utf-8")
@@ -651,7 +669,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
         self.assertIn("retail-cashier.css' %}?v=20261025.8", supermarket)
-        self.assertIn("retail-counter-v2.js' %}?v=20261025.4", detail)
+        self.assertIn("retail-counter-v2.js' %}?v=20261026.1", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
