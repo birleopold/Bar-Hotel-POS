@@ -160,3 +160,99 @@ def register_paid_order_delivery(
         },
     )
     return delivery, False
+
+
+@transaction.atomic
+def assign_delivery_driver(*, delivery, driver, user, membership):
+    """Assign a tenant/outlet-authorized worker; do not dispatch or charge."""
+    from apps.accounts.models import Membership
+    locked = OrderDelivery.objects.select_for_update().select_related(
+        "outlet__site", "order",
+    ).get(pk=delivery.pk)
+    if not _authorized_delivery_manager(
+        membership=membership, user=user,
+        tenant_id=locked.tenant_id, outlet_id=locked.outlet_id,
+    ):
+        raise ValidationError({"delivery":"Not authorized to assign drivers."})
+    if locked.order.tenant_id != locked.tenant_id or locked.order.outlet_id != locked.outlet_id:
+        raise ValidationError({"delivery":"Fulfillment record and sale do not belong together."})
+    if locked.status not in {"requested", "accepted", "preparing", "ready", "failed"}:
+        raise ValidationError({"delivery":"Cannot reassign a dispatched or completed delivery."})
+    if driver is None or not Membership.objects.filter(
+        tenant_id=locked.tenant_id, user=driver,
+        is_active=True,
+    ).exists():
+        raise ValidationError({"driver":"Choose an active worker in this tenant."})
+    driver_membership = Membership.objects.get(tenant_id=locked.tenant_id, user=driver)
+    if not outlet_belongs_to_membership(driver_membership, locked.outlet_id):
+        raise ValidationError({"driver":"That worker is not authorized for this outlet."})
+    if locked.assigned_driver_id == driver.pk:
+        return locked, True
+    locked.assigned_driver = driver
+    locked.save(update_fields=["assigned_driver", "updated_at"])
+    log_audit(
+        tenant_id=locked.tenant_id, user_id=user.pk,
+        action="delivery.driver_assigned", entity_type="order_delivery",
+        entity_id=str(locked.pk), payload={
+            "order_id":str(locked.order_id), "driver_id":str(driver.pk),
+        },
+    )
+    return locked, False
+
+
+@transaction.atomic
+def transition_order_delivery(*, delivery, target_status, user, membership, note=""):
+    """Transition one paid fulfillment without touching payment or inventory."""
+    from django.utils import timezone
+    from .delivery_policy import (
+        validate_delivery_transition, validate_delivery_dispatch,
+    )
+    locked = OrderDelivery.objects.select_for_update().select_related(
+        "outlet__site", "order",
+    ).get(pk=delivery.pk)
+    if not _authorized_delivery_manager(
+        membership=membership, user=user,
+        tenant_id=locked.tenant_id, outlet_id=locked.outlet_id,
+    ):
+        raise ValidationError({"delivery":"Not authorized to update this delivery."})
+    if locked.order.tenant_id != locked.tenant_id or locked.order.outlet_id != locked.outlet_id:
+        raise ValidationError({"delivery":"Fulfillment and sale scope mismatch."})
+    if not OutletDeliverySettings.objects.filter(
+        tenant_id=locked.tenant_id, outlet_id=locked.outlet_id,
+        is_enabled=True,
+    ).exists():
+        raise ValidationError({"delivery":"Delivery is disabled for this outlet."})
+    if not isinstance(note, str) or len(note.strip()) > 500:
+        raise ValidationError({"note":"Provide a note of at most 500 characters."})
+    if locked.status == target_status:
+        return locked, True
+    try:
+        validate_delivery_transition(locked.status, target_status)
+        if target_status in {"dispatched", "delivered"}:
+            validate_delivery_dispatch(
+                order_status=locked.order.status, is_paid=locked.order.is_paid,
+                assigned_driver_id=locked.assigned_driver_id,
+                has_refunds=locked.order.refunds.exists(),
+            )
+    except DeliveryPolicyError as exc:
+        raise ValidationError({"delivery":str(exc)}) from exc
+    locked.status = target_status
+    if target_status == "dispatched":
+        locked.dispatched_at = timezone.now()
+    if target_status == "delivered":
+        locked.delivered_at = timezone.now()
+    if target_status in {"failed", "returned", "cancelled"}:
+        if not note.strip():
+            raise ValidationError({"note":"Explain failed, returned or cancelled delivery."})
+        locked.delivery_note = note.strip()
+    locked.save(update_fields=[
+        "status", "dispatched_at", "delivered_at",
+        "delivery_note", "updated_at",
+    ])
+    log_audit(
+        tenant_id=locked.tenant_id, user_id=user.pk,
+        action="delivery.status_changed", entity_type="order_delivery",
+        entity_id=str(locked.pk),
+        payload={"order_id":str(locked.order_id), "status":target_status},
+    )
+    return locked, False
