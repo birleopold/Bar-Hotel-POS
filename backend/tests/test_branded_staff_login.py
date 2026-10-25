@@ -161,7 +161,7 @@ class BrandedStaffLoginTests(TestCase):
     def test_terminal_without_pairing_never_reveals_other_tenant_staff(self):
         response = self.client.get(reverse("staff-terminal"), HTTP_HOST="sennana.example.test")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Sennana Supermarket · STAFF TERMINAL")
+        self.assertContains(response, "Sennana Supermarket · Staff terminal")
         self.assertNotContains(response, self.user.email)
         self.assertNotContains(response, "Kartel Bar")
 
