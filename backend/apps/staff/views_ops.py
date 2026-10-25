@@ -1113,7 +1113,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         m = self.request.tenant_membership
 
         if not staff_outlet_allowed_for_membership(m, order.outlet_id):
-            messages.error(request, "You cannot modify this order for its outlet.")
+            message = "You cannot modify this order for its outlet."
+            if (action == "adjust_line_qty"
+                    and request.headers.get("X-Requested-With") == "XMLHttpRequest"):
+                return JsonResponse({"ok": False, "message": message}, status=403)
+            messages.error(request, message)
             return redirect("staff-order-detail", order_id=order.id)
         # A held retail basket is parked, not an active checkout. Reopen it
         # explicitly before scanning, editing or collecting further tenders.
