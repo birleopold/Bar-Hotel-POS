@@ -199,7 +199,7 @@
       if(exact.length===1){
         event.preventDefault();
         exact[0].click();
-        if(live)live.textContent="Product matched. Confirm quantity and add to basket.";
+        if(live)live.textContent="Product matched.";
       } else if(server&&term.length>0&&tiles.every(function(tile){return tile.hidden;})){
         /* The local filter does not cover unloaded products. Search the whole
            outlet rather than silently pretending that no SKU exists. */
@@ -227,7 +227,7 @@
            modifier rendering path as selecting with a mouse. */
         matched[0].click();
         if(qty)qty.focus();
-        if(live)live.textContent="Product found. Confirm quantity and choose Add to basket.";
+        if(live)live.textContent="Product matched.";
       }
       /* An unknown barcode submits the full-catalogue GET search. */
     });
