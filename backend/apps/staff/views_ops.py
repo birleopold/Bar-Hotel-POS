@@ -1563,7 +1563,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             _flash_drf_validation(request, exc)
         else:
             if async_add:
-                order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
+                order.refresh_from_db(fields=["subtotal", "discount_amount", "tax_total", "total", "currency"])
                 return JsonResponse({"ok": True, "order_id": str(order.pk),
                     "total": str(order.total), "currency": order.currency})
             messages.success(request, "Line added.")
@@ -1672,7 +1672,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     "ok": True, "line_id": str(adjusted.pk),
                     "quantity": str(adjusted.quantity),
                     "line_total": str(adjusted.line_total),
-                    "subtotal": str(order.subtotal), "tax": str(order.tax_total),
+                    "subtotal": str(order.subtotal), "discount": str(order.discount_amount), "tax": str(order.tax_total),
                     "total": str(order.total), "paid": str(paid),
                     "due": str(due), "currency": order.currency,
                 })
