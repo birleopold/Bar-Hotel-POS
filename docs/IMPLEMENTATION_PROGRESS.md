@@ -41,7 +41,7 @@ This is the practical progress index, **not a claim of production certification*
 | 18 Analytics | [-] | Sales overview, management reports | Real cost/margin, shift drilldowns, supplier and basket analytics | SM-19, SM-29, SM-35 |
 | 19 Scheduled reports | [-] | Daily/weekly/monthly email reports | Delivery diagnostics and calendar/provider proof | SM-29 |
 | 20 Capability permissions | [-] | Inventory/purchasing capability policy | Consistent POS/finance/hotel API-service checks | SM-20 |
-| 21 Manager approvals | [-] | Transaction-bound manager PIN approval service with exact intent hash, different approver, outlet scope, expiry, replay safety and evidence; retail refunds and line discounts wired | Extend the same approval boundary to every remaining sensitive action (void/reopen/write-off/price override/withdrawal) and complete deployed manager-till acceptance | SM-20, SM-35 |
+| 21 Manager approvals | [-] | Transaction-bound manager PIN approval service with exact intent hash, enforced different approver, outlet scope, expiry, replay safety and evidence; retail refunds, line discounts, full-basket voids, cash payouts and manual stock write-offs wired | Finish remaining sensitive paths (notably line-level void and any future reopen/cashier price-override workflow), service/API parity, and deployed manager-till acceptance | SM-20, SM-35 |
 | 22 Owner audit | [-] | Event/review histories | Retail price overrides and source-to-document export | SM-35 |
 | 23 UI density | [-] | Responsive themes/touch and dense layouts | Scan-first cashier, tablet and keyboard evidence | SM-11, SM-33 |
 | 24 Command palette | [-] | Command search/shortcuts | Staff scope/accessibility and entity completion | SM-33 |
@@ -213,3 +213,13 @@ Regression coverage added for direct retail PIN landing, cashier password landin
 - Current main has advanced Phase 21 beyond role eligibility: transaction-bound approval evidence exists and is visible in the manager workspace; retail refund and line-discount flows enforce manager PIN approval with exact intent, scope, expiry and replay protection. Phase 21 remains **in progress** because not every named sensitive action is wired through the same boundary and field acceptance is incomplete.
 - Phase 15 now includes a software shelf-label workflow using existing catalog/barcode data and outlet prices. Hardware certification remains open, so the phase stays **in progress**.
 - Retail line discount is now included in the cashier no-refresh workstream. This does not imply refunds, returns, voids, holds/resume or all approval actions have been converted to same-screen asynchronous flows.
+
+
+### 2026-10-26 — Phase 21 approval boundary expansion
+
+- Enforced segregation of duties centrally: the requester is excluded from eligible approvers and the authorization service rejects self-approval even if a manager's own PIN is supplied.
+- Retail full-basket void now allows a cashier to request a different manager's PIN approval. The exact order totals, active line count and reason are bound to the approval before cancellation; part-paid baskets still require separately audited refunds first.
+- Cash drawer payouts now require a second manager approval bound to the shift, workstation, amount and reason. Float additions and safe drops keep their existing workflow.
+- Manual inventory adjust-out and waste now require a transaction-bound manager approval and one-time request identity. Replays do not deduct stock twice. CSV uploads reject negative adjustment rows so bulk import cannot bypass the approval boundary.
+- No generic cancelled-sale reopen flow exists in the current product, and outlet price override is currently catalog configuration rather than a cashier override action. Those names remain policy placeholders rather than falsely claimed completed workflows.
+- Phase 21 remains **in progress** until the remaining applicable sensitive actions, API/service parity, deployed browser/PIN acceptance and production-style concurrency evidence are complete.
