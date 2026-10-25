@@ -204,10 +204,18 @@ class StaffManagementShiftView(StaffManagementView):
             raise Http404
         shift = get_object_or_404(PosShift.objects.select_related("outlet", "workstation", "opened_by", "closed_by"), tenant=request.tenant, outlet__in=outlets, pk=shift_id)
         from .services.shift_reconciliation import build_shift_reconciliation
+        from apps.pos.services import default_currency_for_tenant, shift_cash_snapshot
         summary = build_shift_reconciliation(shift)
         variance = shift.counted_cash - shift.expected_cash if shift.counted_cash is not None else None
         return render(request, "staff/management_shift.html", {
-            "shift": shift, "variance": variance, "reconciliation": summary,
+            "shift": shift,
+            "variance": variance,
+            "reconciliation": summary,
+            "cash_snapshot": shift_cash_snapshot(shift=shift),
+            "cash_movements": list(
+                shift.cash_movements.select_related("recorded_by").order_by("-created_at")[:100]
+            ),
+            "shift_currency": default_currency_for_tenant(request.tenant),
         })
 
 
