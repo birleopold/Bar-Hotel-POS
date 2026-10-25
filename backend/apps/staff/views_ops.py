@@ -2285,17 +2285,23 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_retail_line_refund(self, request: HttpRequest, order: Order) -> HttpResponse:
-        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-            messages.error(request, "Item refunds are only available for retail orders.")
+        async_refund = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        def reject(message, status=422):
+            if async_refund:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
             return redirect("staff-order-detail", order_id=order.id)
+
+        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            return reject("Item refunds are only available for retail orders.", 409)
         approvers = sensitive_action_approvers(
             requester=request.tenant_membership,
             action="retail_line_refund",
             outlet_id=order.outlet_id,
         )
         if not approvers:
-            messages.error(request, "No PIN-enabled manager is available to approve this refund.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("No PIN-enabled manager is available to approve this refund.", 409)
         form = StaffRetailLineRefundForm(
             request.POST,
             lines=list(order.lines.all()),
@@ -2304,14 +2310,15 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             approvers=approvers,
         )
         if not form.is_valid():
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field}: {error}")
-            return redirect("staff-order-detail", order_id=order.id)
+            detail = "; ".join(
+                f"{field}: {error}"
+                for field, errors in form.errors.items()
+                for error in errors
+            ) or "Check the return and refund details."
+            return reject(detail)
         line = order.lines.filter(id=form.cleaned_data["line_id"]).first()
         if line is None:
-            messages.error(request, "That item is not on this order.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("That item is not on this order.", 404)
         payment_id = (
             uuid.UUID(form.cleaned_data["payment_id"])
             if "payment_id" in form.fields else None
@@ -2321,7 +2328,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         try:
             request_key = self._refund_request_key(request, "retail_refund_request_key")
             with transaction.atomic():
-                authorize_sensitive_action(
+                approval = authorize_sensitive_action(
                     requester=request.tenant_membership,
                     approver_id=form.cleaned_data["approver_id"],
                     approver_pin=form.cleaned_data["approver_pin"],
@@ -2352,11 +2359,17 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     payment_id=payment_id,
                 )
         except SensitiveApprovalError as exc:
-            messages.error(request, str(exc))
+            return reject(exc)
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
-        else:
-            messages.success(request, "Manager-approved item return and customer refund recorded.")
+            return reject(exc.detail)
+        if async_refund:
+            return JsonResponse({
+                "ok": True,
+                "message": "Manager-approved item return and customer refund recorded.",
+                "order_id": str(order.pk),
+                "next_request_key": str(uuid.uuid4()),
+            })
+        messages.success(request, "Manager-approved item return and customer refund recorded.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_resume_order(self, request: HttpRequest, order: Order) -> HttpResponse:
@@ -2551,20 +2564,28 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
 
     def _post_record_refund(self, request: HttpRequest, order: Order) -> HttpResponse:
         is_retail = order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
-        if not is_retail and not membership_can_approve_refunds(request.tenant_membership):
-            messages.error(request, "Refunds require approval by a supervisor or manager.")
+        async_refund = (
+            is_retail
+            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+
+        def reject(message, status=422):
+            if async_refund:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
             return redirect("staff-order-detail", order_id=order.id)
+
+        if not is_retail and not membership_can_approve_refunds(request.tenant_membership):
+            return reject("Refunds require approval by a supervisor or manager.", 403)
         partial_retail = (
             order.status == OrderStatus.OPEN and not order.is_paid and is_retail
         )
         if not ((order.status == OrderStatus.CLOSED and order.is_paid) or partial_retail):
-            messages.error(request, "Refunds require a paid sale or a partially paid retail basket.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Refunds require a paid sale or a partially paid retail basket.", 409)
         pays = list(order.payments.order_by("created_at"))
         refundable = order_refundable_remaining(order)
         if refundable <= Decimal("0"):
-            messages.error(request, "Nothing left to refund on this order.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Nothing left to refund on this order.", 409)
         approvers = (
             sensitive_action_approvers(
                 requester=request.tenant_membership,
@@ -2574,8 +2595,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if is_retail else None
         )
         if is_retail and not approvers:
-            messages.error(request, "No PIN-enabled manager is available to approve this refund.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("No PIN-enabled manager is available to approve this refund.", 409)
         form = StaffOrderRefundForm(
             request.POST,
             payments=pays,
@@ -2583,10 +2603,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             approvers=approvers,
         )
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            detail = "; ".join(
+                f"{field}: {error}"
+                for field, errors in form.errors.items()
+                for error in errors
+            ) or "Check the refund details."
+            return reject(detail)
         payment_id = None
         if "payment_id" in form.fields:
             payment_id = uuid.UUID(form.cleaned_data["payment_id"])
@@ -2634,14 +2656,20 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     payment_id=payment_id,
                 )
         except SensitiveApprovalError as exc:
-            messages.error(request, str(exc))
+            return reject(exc)
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
-        else:
-            messages.success(
-                request,
-                "Manager-approved refund recorded." if is_retail else "Refund recorded.",
-            )
+            return reject(exc.detail)
+        if async_refund:
+            return JsonResponse({
+                "ok": True,
+                "message": "Manager-approved refund recorded.",
+                "order_id": str(order.pk),
+                "next_request_key": str(uuid.uuid4()),
+            })
+        messages.success(
+            request,
+            "Manager-approved refund recorded." if is_retail else "Refund recorded.",
+        )
         return redirect("staff-order-detail", order_id=order.id)
 
 
