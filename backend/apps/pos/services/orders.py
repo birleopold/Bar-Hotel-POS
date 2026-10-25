@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max, Sum, Q
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -827,6 +827,7 @@ def process_supermarket_line_return(
     reason: str,
     restock: bool,
     user,
+    idempotency_key: str = "",
 ) -> SupermarketLineReturn:
     locked_o = Order.objects.select_for_update().get(pk=order.pk)
     if locked_o.status != OrderStatus.CLOSED or not locked_o.is_paid:
@@ -843,6 +844,27 @@ def process_supermarket_line_return(
         raise ValidationError({"restock": "This order was already restocked by its final refund."})
     if quantity <= Decimal("0"):
         raise ValidationError({"quantity": "Quantity must be greater than zero."})
+
+    request_key = str(idempotency_key or "").strip()
+    if request_key:
+        existing = SupermarketLineReturn.objects.select_for_update().filter(
+            tenant_id=locked_o.tenant_id,
+            idempotency_key=request_key,
+        ).first()
+        if existing is not None:
+            if (
+                existing.order_id != locked_o.id
+                or existing.order_line_id != locked_ln.id
+                or existing.quantity != quantity
+                or existing.restocked != restock
+                or existing.reason != (reason or "")[:255]
+            ):
+                raise ValidationError({
+                    "Idempotency-Key": "This physical return key was already used for different details."
+                })
+            existing.idempotent_replay = True
+            return existing
+
     returned = (
         SupermarketLineReturn.objects.filter(order_line=locked_ln).aggregate(s=Sum("quantity"))["s"]
         or Decimal("0")
@@ -865,16 +887,41 @@ def process_supermarket_line_return(
         )
         if sold <= 0 or quantity > sold - restored:
             raise ValidationError({"restock": "Only stock consumed by this sale can be put back on hand."})
-    ret = SupermarketLineReturn.objects.create(
-        tenant_id=locked_o.tenant_id,
-        order=locked_o,
-        order_line=locked_ln,
-        quantity=quantity,
-        reason=(reason or "")[:255],
-        restocked=restock,
-        created_by=user,
-    )
+    try:
+        with transaction.atomic():
+            ret = SupermarketLineReturn.objects.create(
+                tenant_id=locked_o.tenant_id,
+                order=locked_o,
+                order_line=locked_ln,
+                quantity=quantity,
+                reason=(reason or "")[:255],
+                restocked=restock,
+                created_by=user,
+                idempotency_key=request_key,
+            )
+    except IntegrityError:
+        if not request_key:
+            raise
+        ret = SupermarketLineReturn.objects.select_for_update().get(
+            tenant_id=locked_o.tenant_id,
+            idempotency_key=request_key,
+        )
+        if (
+            ret.order_id != locked_o.id
+            or ret.order_line_id != locked_ln.id
+            or ret.quantity != quantity
+            or ret.restocked != restock
+            or ret.reason != (reason or "")[:255]
+        ):
+            raise ValidationError({
+                "Idempotency-Key": "This physical return key was already used for different details."
+            })
+        ret.idempotent_replay = True
+        return ret
+
     if restock:
+        if not locked_ln.menu_item_id:
+            raise ValidationError({"restock": "This line has no direct-sale stock to return."})
         apply_manual_stock_change(
             tenant_id=locked_o.tenant_id,
             outlet=locked_o.outlet,
@@ -894,8 +941,10 @@ def process_supermarket_line_return(
             "order_id": str(locked_o.id),
             "quantity": str(quantity),
             "restock": restock,
+            "idempotency_key": request_key,
         },
     )
+    ret.idempotent_replay = False
     return ret
 
 
