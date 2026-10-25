@@ -283,7 +283,7 @@ class DeliveryPersistenceTests(TestCase):
         # This tenant's normal fixture enables supermarket only. Hotel access
         # must be explicitly provisioned, not bypassed by the delivery service.
         settings = TenantSettings.objects.get(tenant=self.tenant)
-        settings.business_lines = ["supermarket", "hotel"]
+        settings.business_lines = ["supermarket", "lodging"]
         settings.save(update_fields=["business_lines"])
         hotel = Outlet.objects.create(
             site=self.site, name="Hotel reception",
