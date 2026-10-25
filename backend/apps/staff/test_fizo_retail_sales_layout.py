@@ -75,6 +75,20 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('request.headers.get("X-Requested-With") == "XMLHttpRequest"', gate)
         self.assertIn('return JsonResponse({"ok": False, "message": message}, status=403)', gate)
 
+    def test_barcode_scan_json_and_shared_inline_basket_refresh(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        scan = view.split("    def _post_scan_add_line(", 1)[1].split(
+            "    def _post_line_discount(", 1)[0]
+        template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn('"ok": True', scan)
+        self.assertIn('"ok": False', scan)
+        self.assertIn("window.retailRefreshCheckout()", template)
+        self.assertIn("if (!response.ok || !data.ok)", template)
+        self.assertIn("window.retailRefreshCheckout=refreshCheckout", js)
+        self.assertIn('new Event("retail:basket-lines-replaced")', js)
+
     def test_retail_product_add_requires_explicit_server_confirmation(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
