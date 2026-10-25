@@ -26,19 +26,11 @@
           <a class="staff-btn staff-btn--sm staff-btn--ghost staff-order-print-link" href="{% url 'staff-order-print' order_id=order.id %}?type=bill&amp;format=a4" target="_blank" rel="noopener" aria-label="Print A4 bill">A4</a>
         </div>
       {% endif %}
-      {% if order.status == 'closed' %}
-        {% if is_supermarket_outlet and order.is_paid %}
-          <form method="post" action="{% url 'staff-order-quick-create' %}" class="staff-order-next-customer" onsubmit="if (this.dataset.submitting === '1') return false; this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">
-            {% csrf_token %}
-            <input type="hidden" name="quick_create_key" value="{{ next_sale_request_key }}">
-            <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary"><i class="bi bi-cart-plus" aria-hidden="true"></i> New customer</button>
-          </form>
-        {% else %}
-          <form method="post" action="{% url 'staff-terminal-lock' %}" class="staff-order-finish">
-            {% csrf_token %}
-            <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Done · lock terminal</button>
-          </form>
-        {% endif %}
+      {% if order.status == 'closed' and not is_supermarket_outlet %}
+        <form method="post" action="{% url 'staff-terminal-lock' %}" class="staff-order-finish">
+          {% csrf_token %}
+          <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Done · lock terminal</button>
+        </form>
       {% endif %}
       <a class="staff-btn staff-btn--sm staff-btn--ghost" href="{% url 'staff-orders' %}">{% if is_supermarket_outlet %}All sales{% else %}All orders{% endif %}</a>
     </div>
@@ -218,7 +210,7 @@
         </div>
       {% endif %}
       {% if is_supermarket_outlet %}
-      <div class="fizo-checkout-basket" id="fizo-current-basket" data-order-id="{{ order.id }}" aria-label="Current basket">
+      <div class="fizo-checkout-basket{% if order.status == 'closed' and order.is_paid %} is-complete{% endif %}" id="fizo-current-basket" data-order-id="{{ order.id }}" aria-label="Current basket">
         <div class="fizo-cashier-payment-summary" aria-label="Sale total and payment">
           <span>Payable now</span><strong>{{ order.currency }} {{ balance_due }}</strong>
           {% if can_record_payment %}
@@ -279,6 +271,28 @@
       <div data-retail-summary="tax"><span>Tax</span><strong>{{ order.currency }} {{ order.tax_total }}</strong></div>
       <div class="fizo-retail-basket-summary__total" data-retail-summary="total"><span>Total due</span><strong>{{ order.currency }} {{ balance_due }}</strong></div>
     </div>
+    {% if order.status == 'closed' and order.is_paid %}
+      <section class="fizo-sale-complete-actions" aria-label="Completed sale actions">
+        <div class="fizo-sale-complete-actions__status">
+          <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+          <span><strong>Sale complete</strong><small>Receipt ready</small></span>
+        </div>
+        <div class="fizo-sale-complete-actions__buttons">
+          {% if hardware.receipt_printer_enabled %}
+          <a class="staff-btn staff-btn--ghost fizo-sale-complete-actions__print" href="{% url 'staff-order-print' order_id=order.id %}?type=receipt&amp;format=80mm" target="_blank" rel="noopener">
+            <i class="bi bi-printer" aria-hidden="true"></i> Print receipt
+          </a>
+          {% endif %}
+          <form method="post" action="{% url 'staff-order-quick-create' %}" class="fizo-sale-next-customer" onsubmit="if (this.dataset.submitting === '1') return false; this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">
+            {% csrf_token %}
+            <input type="hidden" name="quick_create_key" value="{{ next_sale_request_key }}">
+            <button type="submit" class="staff-btn staff-btn--primary">
+              <i class="bi bi-cart-plus" aria-hidden="true"></i> Next customer
+            </button>
+          </form>
+        </div>
+      </section>
+    {% endif %}
       </div>
       {% endif %}
       {% if is_supermarket_outlet and not can_record_payment %}
