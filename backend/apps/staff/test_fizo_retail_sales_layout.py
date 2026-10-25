@@ -450,6 +450,24 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertNotIn("Nothing requiring attention is available yet.", template)
         get_template("staff/dashboard.html")
 
+    def test_approved_cashier_header_order_and_compact_density(self):
+        root = Path(__file__).resolve().parent
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        supermarket = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
+        register = detail.index('class="fizo-cashier-identity__register"')
+        cashier = detail.index('class="fizo-cashier-identity__person"')
+        customer_display = detail.index('class="reference-customer-display-link"')
+        self.assertLess(register, cashier)
+        self.assertLess(cashier, customer_display)
+        self.assertIn("--retail-sidebar:104px", css)
+        self.assertIn("min-height:68px;margin:0 -14px 8px", css)
+        self.assertIn("grid-template-columns:repeat(5,minmax(0,1fr))", css)
+        self.assertIn("flex:0 0 96px;min-width:96px;min-height:72px", css)
+        self.assertIn("grid-template-columns:60px minmax(0,1fr) auto", css)
+        self.assertIn("retail-cashier.css' %}?v=20261025.1", supermarket)
+        self.assertIn("retail-counter-v2.js' %}?v=20261025.1", detail)
+
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
         self.assertIn("Here's your store at a glance", dashboard)
