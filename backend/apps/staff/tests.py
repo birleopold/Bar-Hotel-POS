@@ -1,4 +1,5 @@
 import uuid
+import time
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
@@ -7,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.template.loader import render_to_string
 from django.utils import timezone
-from django.test import Client, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from apps.accounts.invite_service import create_user_invite
@@ -38,10 +39,12 @@ from apps.purchasing.models import (
     Supplier,
 )
 from apps.staff.middleware import (
+    RETAIL_PIN_IDLE_SECONDS,
     STAFF_SESSION_OUTLET_ALL,
     STAFF_SESSION_OUTLET_KEY,
     STAFF_SESSION_SITE_KEY,
     STAFF_SESSION_TENANT_KEY,
+    staff_pin_idle_seconds,
 )
 from apps.staff.terminal import set_member_pin
 from apps.staff.services import membership_can_manage_workspace_settings
@@ -191,6 +194,35 @@ class SharedTerminalTests(TestCase):
         signed_out = self.client.post(reverse("staff-logout"))
         self.assertEqual(signed_out.cookies["staff_terminal"].value, "")
         self.assertNotContains(self.client.get(url), "worker-terminal@test.local")
+
+    def test_retail_pin_session_survives_normal_cashier_idle_gap(self):
+        self._owner_at_counter()
+        set_member_pin(self.worker_member, "681347")
+        self.client.post(reverse("staff-terminal-lock"))
+        self.client.post(
+            reverse("staff-terminal"),
+            {"worker": str(self.worker_member.id), "pin": "681347"},
+        )
+        session = self.client.session
+        session["staff_pin_last_activity"] = int(time.time()) - (5 * 60)
+        session.save()
+
+        response = self.client.get(reverse("staff-dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_retail_checkout_gets_shift_length_idle_policy_without_selected_outlet(self):
+        TenantSettings.objects.create(
+            tenant=self.tenant,
+            business_lines=["retail", "bar"],
+            enabled_staff_modules=["pos"],
+        )
+        request = RequestFactory().get(reverse("staff-retail-pos-entry"))
+        request.tenant_membership = self.worker_member
+        request.session = {}
+
+        self.assertEqual(staff_pin_idle_seconds(request), RETAIL_PIN_IDLE_SECONDS)
 
     def test_server_idle_timeout_ends_pin_session(self):
         self._owner_at_counter()
