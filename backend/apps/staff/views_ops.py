@@ -1883,7 +1883,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 reason=form.cleaned_data.get("reason") or "",
             )
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
+            if getattr(exc, "get_codes", None) and exc.get_codes() == "refund_required":
+                messages.error(request, str(exc.detail))
+                messages.info(request, "Use the authorized refund controls below, then cancel this basket again.")
+            else:
+                _flash_drf_validation(request, exc)
         else:
             if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
                 from .views_customer_display import clear_customer_display_active
