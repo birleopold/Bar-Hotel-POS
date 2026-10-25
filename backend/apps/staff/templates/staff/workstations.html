@@ -6,7 +6,7 @@
 {% block content %}
 <div class="fizo-register fizo-register--workstations">
 
-<header class="fizo-register__header"><div><p class="fizo-register__eyebrow">Fizo / Supermarket / Cashier operations</p><h1>Cashier workstations</h1><p>Pair and manage the physical devices used by authorized cashiers.</p></div><div class="fizo-register__header-actions">{% if can_manage %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-create' %}">Add workstation</a>{% endif %}</div></header>
+<header class="fizo-register__header"><div><p class="fizo-register__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Cashier operations</p><h1>Cashier workstations</h1><p>Pair and manage the physical devices used by authorized cashiers.</p></div><div class="fizo-register__header-actions">{% if can_manage %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-create' %}">Add workstation</a>{% endif %}</div></header>
 <div class="fizo-register__panel">
   <h2 class="staff-card__title">This browser</h2>
   {% if selected_station %}<p><strong>{{ selected_station.name }}</strong> · {{ selected_station.code }} · {{ selected_station.outlet.name }}</p>
