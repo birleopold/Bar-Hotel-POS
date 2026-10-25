@@ -54,6 +54,10 @@ These are design references, *not* dependencies. No paid third-party provider or
 
 Disabling an outlet stops new delivery registrations immediately but does **not** cancel or strand deliveries already recorded. Authorized managers may still assign their worker or finish a legitimate earlier delivery. No fulfillment step automatically reopens the original sale, records another tender or deducts stock again. D02 staff manager controls are available in source at `/staff/pos/deliveries/`, but no live tenant rollout or passing end-to-end run has been established.
 
+## Initial D02 staff exposure (25 October)
+
+The manager-facing delivery queue intentionally operates **only on authorized RETAIL and SUPERMARKET outlets** in its first rollout. The shared delivery policy and model remain cross-industry, but restaurant/KDS readiness, hotel folio room-service dispatch and legally regulated bar handover require D03–D05 acceptance before staff can enable those business lines. The D02 UI makes this explicit and an integration test rejects attempting to enable a bar through its POST action. Existing delivery records created through authorized backend tests for other industries remain a foundation, not production activation.
+
 ## D01/D02 source progress (25 October 2026)
 
 - `backend/apps/pos/models.py`: `OutletDeliverySettings` (default off, one-to-one per outlet) and `OrderDelivery` (one-to-one existing sale, separate status, destination/contact snapshot, driver, optional scheduled time, fee/currency snapshot, handoff timestamps). `0030_delivery_fulfillment.py` creates the tables; `0031_delivery_fulfillment_rls.py` adds PostgreSQL tenant RLS to both. No conversion or deletion of historical POS orders.
