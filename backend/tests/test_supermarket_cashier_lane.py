@@ -39,13 +39,13 @@ class SupermarketCashierLaneTests(TestCase):
     def test_pin_idle_policy_matches_selected_business_and_rejects_foreign_outlet(self):
         """Assigned retail cashiers must not inherit the two-minute hotel timer."""
         from types import SimpleNamespace
-        from apps.staff.middleware import staff_pin_idle_seconds
+        from apps.staff.middleware import RETAIL_PIN_IDLE_SECONDS, staff_pin_idle_seconds
 
         retail = SimpleNamespace(
             tenant_membership=Membership.objects.get(tenant=self.tenant, user=self.user),
             session={STAFF_SESSION_OUTLET_KEY: str(self.outlet.pk)},
         )
-        self.assertEqual(staff_pin_idle_seconds(retail), 15 * 60)
+        self.assertEqual(staff_pin_idle_seconds(retail), RETAIL_PIN_IDLE_SECONDS)
 
         hospitality_outlet = Outlet.objects.create(
             site=self.outlet.site, name="Shared Bar", outlet_type=OutletType.BAR,
@@ -665,10 +665,11 @@ class SupermarketCashierLaneTests(TestCase):
         assert response.status_code == 200
         # Checkout staff can view the change calculator only when payment is allowed.
         if response.context["can_record_payment"] and response.context["payment_form"]:
-            assert "Cash payment · calculate change".encode("utf-8") in response.content
+            assert "Cash &amp; change".encode("utf-8") in response.content
             assert b"data-retail-cash-received" in response.content
             assert b"data-balance-due" in response.content
-            assert b"Record the due amount, not the cash tendered" in response.content
+            assert b"Enter cash received." in response.content
+            assert b"The cash-received figure is not the sale amount" not in response.content
 
     def test_payment_form_contains_stable_retry_key(self):
         order = Order.objects.create(
@@ -1147,9 +1148,9 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["retail_held"])
         if response.context["can_record_payment"]:
-            self.assertContains(response, "Continue this basket")
-            self.assertContains(response, "20000.00")
-            self.assertContains(response, "15000.00")
+            self.assertContains(response, "Paid UGX 15000.00")
+            self.assertContains(response, "Due UGX 20000.00")
+            self.assertContains(response, "reference-partial-payment")
             self.assertEqual(response.context["payment_form"].initial["amount"], Decimal("20000.00"))
 
     def test_part_paid_receipt_identifies_balance_without_marking_sale_paid(self):
@@ -1299,7 +1300,7 @@ class SupermarketCashierLaneTests(TestCase):
             assert b"data-retail-cash-panel" in response.content
             assert b"data-retail-cash-received" in response.content
             assert b"Number.isSafeInteger(cents)" in response.content
-            assert b"at most two decimal places" in response.content
+            assert b"Enter a valid cash amount." in response.content
         if response.context["scan_add_form"]:
             assert b"at most three decimal places" in response.content
             assert b"data-retail-scan-form" in response.content
@@ -1542,7 +1543,8 @@ class SupermarketCashierLaneTests(TestCase):
             follow=True,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Cannot reduce this basket")
+        self.assertContains(response, "Refund UGX 1000.00 before applying this reduction")
+        self.assertNotContains(response, "ErrorDetail(")
         line.refresh_from_db()
         order.refresh_from_db()
         self.assertEqual(line.quantity, Decimal("2"))
