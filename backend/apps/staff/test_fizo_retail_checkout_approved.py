@@ -95,7 +95,8 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn("current_shift", page)
         view = (root/"views_ops.py").read_text(encoding="utf-8")
         entry = view.split("class StaffRetailPosEntryView(", 1)[1].split("class StaffOrderQuickCreateView(", 1)[0]
-        self.assertIn('render(request, "staff/retail_pos_start.html"', entry)
+        self.assertIn('return render(', entry)
+        self.assertIn('"staff/retail_pos_start.html"', entry)
         self.assertIn("create_order_with_lines(", entry)
         self.assertIn("transaction.atomic()", entry)
 
