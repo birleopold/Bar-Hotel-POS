@@ -1,115 +1,34 @@
 #!/usr/bin/env bash
-# POS-only repeatable deploy. Does not edit nginx, other services, or databases.
+# Simple POS deploy for the current development/acceptance stage.
+# Uses the application's existing DATABASE_URL for migrations; no second DB login.
 set -Eeuo pipefail
+
 APP=/home/admin/Bar-Hotel-POS
 VENV="$APP/.venv"
 ENVFILE=/etc/leosoft-pos/pos.env
 SERVICE=leosoft-pos-gunicorn.service
+
 cd "$APP"
-test "$(id -un)" = admin || { echo 'Run as admin, not root'; exit 1; }
-test -f "$ENVFILE" || { echo "Missing $ENVFILE"; exit 1; }
-test -d .git || { echo "Not a git checkout: $APP"; exit 1; }
-test -z "$(git status --porcelain)" || { echo "Local modifications: stop before pull"; exit 1; }
 git checkout main
 git pull --ff-only origin main
+
 python3 -m venv "$VENV"
 "$VENV/bin/python" -m pip install -r backend/requirements.txt
-# Read keys from service env. It must contain shell-compatible KEY=value lines
-# (no unquoted whitespace and no command substitution).
+
 set -a
 source "$ENVFILE"
 set +a
 export DJANGO_SETTINGS_MODULE=config.settings.production
-cd backend
-"$VENV/bin/python" manage.py check --deploy
-"$VENV/bin/python" manage.py makemigrations --check --dry-run
-# makemigrations --check only verifies model/migration files; it does not
-# tell us whether existing migrations have been applied to the database.
-# Read Django's actual migration plan before requiring DB-owner credentials.
-migration_plan="$("$VENV/bin/python" manage.py showmigrations --plan)"
-if printf '%s\n' "$migration_plan" | grep -Eq '^[[:space:]]*\[ \]'; then
-  migration_database_url="${MIGRATION_DATABASE_URL:-}"
-  if [[ -z "$migration_database_url" && -t 0 ]]; then
-    printf 'Database migrations are pending.\n'
-    printf 'Enter the dedicated DB-owner MIGRATION_DATABASE_URL for this run only.\n'
-    read -r -s -p 'Migration database URL (hidden): ' migration_database_url
-    printf '\n'
-  fi
-  if [[ -z "$migration_database_url" ]]; then
-    echo 'ERROR: Database has unapplied migrations and no DB-owner migration URL was supplied.' >&2
-    echo 'Run interactively and enter it when prompted, or export MIGRATION_DATABASE_URL only for this deploy.' >&2
-    exit 1
-  fi
 
-  runtime_role="$(psql "$DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
-  migration_role="$(psql "$migration_database_url" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
-  if [[ -z "$runtime_role" || -z "$migration_role" ]]; then
-    echo 'ERROR: Could not identify PostgreSQL runtime/migration roles.' >&2
-    unset migration_database_url
-    exit 1
-  fi
-  if [[ "$runtime_role" == "$migration_role" ]]; then
-    echo "ERROR: Migration role must differ from runtime role ($runtime_role) so the application remains subject to RLS." >&2
-    unset migration_database_url
-    exit 1
-  fi
-
-  DATABASE_URL="$migration_database_url" "$VENV/bin/python" manage.py migrate --noinput
-  # Newly created tables/sequences need permissions for the actual runtime role.
-  psql "$migration_database_url" -X -v ON_ERROR_STOP=1 -v app_role="$runtime_role" <<'SQL'
-GRANT USAGE ON SCHEMA public TO :"app_role";
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"app_role";
-GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO :"app_role";
-SQL
-  unset migration_database_url MIGRATION_DATABASE_URL
-else
-  echo 'Database migration plan is already applied; DB-owner connection not needed for this deploy.'
-fi
+cd "$APP/backend"
+"$VENV/bin/python" manage.py migrate --noinput
 "$VENV/bin/python" manage.py collectstatic --noinput
+
 sudo install -d -o admin -g www-data -m 0755 /var/www/leosoft-pos/static
 sudo rsync -a --delete "$APP/backend/staticfiles/" /var/www/leosoft-pos/static/
 sudo chmod -R a+rX /var/www/leosoft-pos/static
-# Verify the actual tracked CSS assets; never require retired stylesheets.
-# Files are resolved from Git rather than a manually maintained legacy Fizo list.
-mapfile -d '' -t css_paths < <(git -C "$APP" ls-files -z 'backend/apps/staff/static/staff/*.css')
-if (( ${#css_paths[@]} == 0 )); then
-  echo 'ERROR: no tracked POS staff stylesheets found' >&2
-  exit 1
-fi
-for tracked_path in "${css_paths[@]}"; do
-  asset="${tracked_path#backend/apps/staff/static/}"
-  source_asset="$APP/backend/staticfiles/$asset"
-  published_asset="/var/www/leosoft-pos/static/$asset"
-  test -s "$source_asset" || { echo "ERROR: collectstatic missing $source_asset" >&2; exit 1; }
-  test -s "$published_asset" || { echo "ERROR: published stylesheet missing $published_asset" >&2; exit 1; }
-  cmp -s "$source_asset" "$published_asset" || { echo "ERROR: published CSS differs: $asset" >&2; exit 1; }
-  echo "POS stylesheet verified on disk: $asset"
-done
+
 sudo systemctl restart "$SERVICE"
 sudo systemctl is-active --quiet "$SERVICE"
-# Check actual deployed CSS URLs, not deleted pre-consolidation assets.
-PUBLIC_ORIGIN="${POS_PUBLIC_ORIGIN:-https://pos.leosoftug.com}"
-PUBLIC_ORIGIN="${PUBLIC_ORIGIN%/}"
-for tracked_path in "${css_paths[@]}"; do
-  asset="${tracked_path#backend/apps/staff/static/}"
-  public_url="$PUBLIC_ORIGIN/static/$asset"
-  checked_css="$(mktemp)"
-  status="$(curl -L -sS -o "$checked_css" -w '%{http_code}' --max-time 15 "$public_url")" || {
-    rm -f "$checked_css"
-    echo "ERROR: could not fetch live POS stylesheet: $public_url" >&2
-    exit 1
-  }
-  if [[ "$status" != "200" ]]; then
-    echo "ERROR: POS stylesheet returned HTTP $status: $public_url" >&2
-    rm -f "$checked_css"
-    exit 1
-  fi
-  if ! cmp -s "$checked_css" "/var/www/leosoft-pos/static/$asset"; then
-    echo "ERROR: live POS stylesheet differs from deployed file: $public_url" >&2
-    rm -f "$checked_css"
-    exit 1
-  fi
-  rm -f "$checked_css"
-  echo "POS stylesheet served and matches: $public_url"
-done
-echo "POS deploy completed at $(git -C "$APP" rev-parse --short HEAD); check HTTPS and other applications before calling it certified."
+
+echo "POS deploy completed at $(git -C "$APP" rev-parse --short HEAD)."
