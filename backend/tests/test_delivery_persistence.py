@@ -282,7 +282,10 @@ class DeliveryPersistenceTests(TestCase):
         )
         # This tenant's normal fixture enables supermarket only. Hotel access
         # must be explicitly provisioned, not bypassed by the delivery service.
-        settings = TenantSettings.objects.get(tenant=self.tenant)
+        # Membership has the same Tenant object cached from setUp, including
+        # its reverse settings relation. Update that instance, not a second
+        # stale/uncached Settings object.
+        settings = self.tenant.settings
         settings.business_lines = ["supermarket", "lodging"]
         settings.save(update_fields=["business_lines"])
         hotel = Outlet.objects.create(
@@ -447,7 +450,10 @@ class DeliveryPersistenceTests(TestCase):
         self.assertNotContains(response, "Voided product")
         self.assertContains(response, "Central Kampala")
         self.assertContains(response, "Fulfillment document only")
-        self.assertEqual(response["Cache-Control"], "no-store, private")
+        self.assertEqual(
+            set(part.strip() for part in response["Cache-Control"].split(",")),
+            {"no-store", "private"},
+        )
         self.assertEqual(Payment.objects.filter(order=self.sale).count(), count_before)
         self.assertFalse(StockMovement.objects.filter(order=self.sale).exists())
         self.assertEqual(OrderDelivery.objects.get(pk=delivery.pk).status, "requested")
