@@ -104,6 +104,9 @@ class ConsoleTenantSubscriptionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["plan"].queryset = Plan.objects.filter(is_active=True).order_by("name")
+        if getattr(self.instance, "pk", None):
+            self.fields["status"].disabled = True
+            self.fields["status"].help_text = "Use Subscription transition below to change status with audit evidence."
         for name in ("started_at", "trial_ends_at", "current_period_ends_at", "cancelled_at"):
             self.fields[name].required = False
 
