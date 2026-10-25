@@ -98,6 +98,42 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(TenantSettings.objects.filter(tenant=tenant).exists())
 
+    def test_supermarket_preset_refuses_mixed_tenant_without_reconfiguring(self):
+        from apps.tenants.models import Plan, TenantSubscription, SubscriptionStatus
+        tenant = Tenant.objects.create(name="Mixed business", slug="mixed-business-preset")
+        TenantSettings.objects.create(
+            tenant=tenant, business_lines=["supermarket", "restaurant"],
+        )
+        plan = Plan.objects.create(code="mixed-custom-plan", name="Mixed Plan", monthly_price=120)
+        TenantSubscription.objects.create(
+            tenant=tenant, plan=plan, status=SubscriptionStatus.TRIAL,
+        )
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        response = self.client.post(url, {"provision_supermarket": "1"})
+        self.assertRedirects(response, url)
+        sub = TenantSubscription.objects.get(tenant=tenant)
+        self.assertEqual(sub.plan_id, plan.pk)
+        self.assertEqual(sub.status, SubscriptionStatus.TRIAL)
+        self.assertEqual(
+            TenantSettings.objects.get(tenant=tenant).business_lines,
+            ["supermarket", "restaurant"],
+        )
+
+    def test_supermarket_preset_provisions_fresh_tenant(self):
+        from apps.tenants.models import TenantSubscription, Outlet, OutletType
+        tenant = Tenant.objects.create(name="Fresh store", slug="fresh-store-preset")
+        TenantSettings.objects.create(tenant=tenant, business_lines=["supermarket"])
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        response = self.client.post(url, {"provision_supermarket": "1"})
+        self.assertRedirects(response, url)
+        self.assertEqual(
+            TenantSubscription.objects.get(tenant=tenant).plan.code,
+            "supermarket-core",
+        )
+        self.assertTrue(Outlet.objects.filter(
+            site__tenant=tenant, outlet_type=OutletType.SUPERMARKET,
+        ).exists())
+
     def test_tenant_scope_middleware_precedes_staff_membership_lookup(self):
         from django.conf import settings
         middleware = settings.MIDDLEWARE
