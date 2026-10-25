@@ -315,6 +315,66 @@ class DeliveryPersistenceTests(TestCase):
                 destination_type="room", room_reference="204",
             )
 
+    def test_staff_delivery_queue_opt_in_and_register_paid_sale(self):
+        from django.urls import reverse
+        from apps.staff.middleware import (
+            STAFF_SESSION_TENANT_KEY, STAFF_SESSION_OUTLET_KEY,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
+        session.save()
+        url = reverse("staff-deliveries")
+        view = self.client.get(url)
+        self.assertEqual(view.status_code, 200)
+        self.assertContains(view, "Enable delivery")
+        self.assertNotContains(view, 'value="' + str(self.sale.pk) + '">')
+        enabled = self.client.post(url, {
+            "action":"configure", "outlet_id":str(self.outlet.pk),
+            "enabled":"true",
+        })
+        self.assertEqual(enabled.status_code, 302)
+        self.assertTrue(OutletDeliverySettings.objects.get(
+            outlet=self.outlet).is_enabled)
+        view = self.client.get(url)
+        self.assertContains(view, str(self.sale.pk))
+        registered = self.client.post(url, {
+            "action":"register", "order_id":str(self.sale.pk),
+            "destination_type":"address",
+            "recipient_name":"Jane customer",
+            "contact_phone":"0700000000",
+            "address":"Kampala",
+        })
+        self.assertEqual(registered.status_code, 302)
+        self.assertEqual(OrderDelivery.objects.filter(order=self.sale).count(), 1)
+        queue = self.client.get(url)
+        self.assertContains(queue, self.sale.bill_reference)
+        self.assertContains(queue, "Jane customer")
+        self.assertEqual(Payment.objects.filter(order=self.sale).count(), 1)
+        self.assertFalse(StockMovement.objects.filter(order=self.sale).exists())
+
+    def test_nonmanager_cannot_read_or_change_delivery_queue(self):
+        from django.urls import reverse
+        from apps.staff.middleware import (
+            STAFF_SESSION_TENANT_KEY, STAFF_SESSION_OUTLET_KEY,
+        )
+        self.member.role = MembershipRole.SERVER
+        self.member.save(update_fields=["role"])
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
+        session.save()
+        url = reverse("staff-deliveries")
+        # The shared navigation guard may redirect nonmanagers before the
+        # view's explicit 403, but can never disclose the delivery queue.
+        self.assertNotEqual(self.client.get(url).status_code, 200)
+        self.assertNotEqual(self.client.post(url, {
+            "action":"configure", "outlet_id":str(self.outlet.pk), "enabled":"true",
+        }).status_code, 200)
+        self.assertFalse(OutletDeliverySettings.objects.exists())
+
     def test_delivery_requires_manager_role(self):
         self.member.role = MembershipRole.SERVER
         self.member.save(update_fields=["role"])
