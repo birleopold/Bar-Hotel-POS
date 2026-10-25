@@ -24,7 +24,7 @@ from apps.customers.models import Customer
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, ServiceOffering, ServiceOfferingOption
-from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table
+from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table, Workstation
 from apps.pos.services import (
     adjust_open_order_line_quantity,
     add_line_to_open_order,
@@ -89,7 +89,7 @@ from .services.customers import can_manage_customers, visible_customers
 from .services.permissions import membership_can_approve_sensitive_action
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
-from .workstations import selected_workstation, settlement_workstation_id, require_staff_register_selection
+from .workstations import active_pairing, select_workstation, selected_workstation, settlement_workstation_id, require_staff_register_selection
 from .report_csv import format_sales_summary_csv
 from .sales_summary import build_sales_summary
 from .services import (
@@ -365,37 +365,279 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
 
 
 class StaffRetailPosEntryView(StaffTenantRequiredMixin, View):
-    """A safe GET entry into retail checkout: resume, never create or pay on GET."""
+    """Simple retail start: identify the till, open the shift, and start selling."""
     staff_nav_capability = "orders"
+    http_method_names = ["get", "post", "head", "options"]
 
-    def get(self, request: HttpRequest) -> HttpResponse:
+    def _scope(self, request):
         if "pos" not in get_tenant_staff_modules(request.tenant):
-            return redirect("staff-dashboard")
+            return None, None
         outlets = staff_accessible_outlets(request.tenant_membership)
         outlet = resolve_staff_outlet(request, outlets)
-        if outlet is None:
-            messages.info(request, "Select one supermarket register to begin checkout.")
-            return redirect("staff-orders")
-        if outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-            return redirect("staff-orders")
-        shift = PosShift.objects.filter(
-            tenant=request.tenant, outlet=outlet, status=PosShiftStatus.OPEN,
-            workstation=selected_workstation(request, outlets=outlets),
-        ).first()
-        if shift is None:
-            messages.info(request, "Open your register shift before starting checkout.")
-            return redirect("staff-pos-shifts")
-        current_sale = (
-            Order.objects.filter(
-                tenant=request.tenant, outlet=outlet, status=OrderStatus.OPEN,
-                is_paid=False, created_by=request.user, table_label="",
-                currency=default_currency_for_tenant(request.tenant),
-            ).order_by("-updated_at").first()
+        if outlet is None or outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            return outlets, None
+        return outlets, outlet
+
+    def _station_state(self, request, *, outlets, outlet):
+        selected = selected_workstation(request, outlets=outlets)
+        if selected is not None and selected.outlet_id == outlet.pk:
+            return selected, [], False
+
+        all_stations = list(
+            Workstation.objects.filter(
+                tenant=request.tenant,
+                outlet=outlet,
+                is_active=True,
+            ).select_related("outlet").order_by("name", "code")
         )
-        if current_sale:
-            return redirect("staff-order-detail", order_id=current_sale.id)
-        # Show a focused start screen; creation stays an authenticated POST.
-        return render(request, "staff/retail_pos_start.html", {"current_outlet": outlet, "current_shift": shift, "checkout_currency": default_currency_for_tenant(request.tenant)})
+        if not all_stations:
+            # Small shops do not need a device record. Their shift is scoped to
+            # the retail section and the cashier never sees workstation setup.
+            return None, [], False
+
+        pair = active_pairing(request, tenant_id=request.tenant.pk)
+        usable = [
+            station for station in all_stations
+            if not station.requires_pairing
+            or (pair is not None and pair.workstation_id == station.pk)
+        ]
+        if not usable:
+            return None, [], True
+
+        # If this worker already owns exactly one live register shift, resume
+        # that till instead of asking which register they are on.
+        worker_shifts = list(
+            PosShift.objects.filter(
+                tenant=request.tenant,
+                outlet=outlet,
+                status=PosShiftStatus.OPEN,
+                opened_by=request.user,
+                workstation__in=usable,
+            ).select_related("workstation")[:2]
+        )
+        if len(worker_shifts) == 1 and worker_shifts[0].workstation is not None:
+            return worker_shifts[0].workstation, [], False
+
+        if len(usable) == 1:
+            return usable[0], [], False
+        return None, usable, False
+
+    def _open_shift(self, request, *, outlet, station):
+        filters = {
+            "tenant": request.tenant,
+            "outlet": outlet,
+            "status": PosShiftStatus.OPEN,
+            "workstation": station,
+        }
+        return PosShift.objects.filter(**filters).select_related("workstation", "opened_by").first()
+
+    def _current_sale(self, request, *, outlet):
+        return (
+            Order.objects.filter(
+                tenant=request.tenant,
+                outlet=outlet,
+                status=OrderStatus.OPEN,
+                is_paid=False,
+                created_by=request.user,
+                table_label="",
+                currency=default_currency_for_tenant(request.tenant),
+            )
+            .order_by("-updated_at")
+            .first()
+        )
+
+    def _render_start(
+        self,
+        request,
+        *,
+        outlet,
+        shift,
+        station,
+        register_choices,
+        pairing_blocked=False,
+        opening_form=None,
+        status=200,
+    ):
+        return render(
+            request,
+            "staff/retail_pos_start.html",
+            {
+                "current_outlet": outlet,
+                "current_shift": shift,
+                "selected_station": station,
+                "register_choices": register_choices,
+                "pairing_blocked": pairing_blocked,
+                "opening_form": opening_form or StaffPosShiftOpenForm(),
+                "checkout_currency": default_currency_for_tenant(request.tenant),
+            },
+            status=status,
+        )
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        outlets, outlet = self._scope(request)
+        if outlet is None:
+            messages.info(request, "Choose a retail section to start selling.")
+            return redirect("staff-orders")
+
+        station, register_choices, pairing_blocked = self._station_state(
+            request,
+            outlets=outlets,
+            outlet=outlet,
+        )
+        if pairing_blocked:
+            return self._render_start(
+                request,
+                outlet=outlet,
+                shift=None,
+                station=None,
+                register_choices=[],
+                pairing_blocked=True,
+            )
+
+        # A single known till should be remembered automatically. This is a
+        # device convenience only; it never grants worker permissions.
+        if station is not None and selected_workstation(request, outlets=outlets) is None:
+            response = redirect("staff-retail-pos-entry")
+            return select_workstation(response, station)
+
+        shift = self._open_shift(request, outlet=outlet, station=station)
+        if shift is None and station is None and register_choices:
+            # The only daily choice shown to a cashier: which physical till.
+            return self._render_start(
+                request,
+                outlet=outlet,
+                shift=None,
+                station=None,
+                register_choices=register_choices,
+            )
+
+        if shift is not None:
+            current_sale = self._current_sale(request, outlet=outlet)
+            if current_sale:
+                return redirect("staff-order-detail", order_id=current_sale.id)
+
+        return self._render_start(
+            request,
+            outlet=outlet,
+            shift=shift,
+            station=station,
+            register_choices=register_choices,
+        )
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        outlets, outlet = self._scope(request)
+        if outlet is None:
+            messages.error(request, "Choose a retail section before starting a sale.")
+            return redirect("staff-orders")
+        if request.POST.get("action") != "start_selling":
+            messages.error(request, "Choose Start selling to continue.")
+            return redirect("staff-retail-pos-entry")
+
+        station, register_choices, pairing_blocked = self._station_state(
+            request,
+            outlets=outlets,
+            outlet=outlet,
+        )
+        posted_station = (request.POST.get("workstation_id") or "").strip()
+        if posted_station:
+            try:
+                station_id = uuid.UUID(posted_station)
+            except (TypeError, ValueError, AttributeError):
+                station_id = None
+            chosen = next((item for item in register_choices if item.pk == station_id), None)
+            if chosen is None and station is not None and station.pk == station_id:
+                chosen = station
+            if chosen is None:
+                messages.error(request, "Choose one of the available tills.")
+                return self._render_start(
+                    request,
+                    outlet=outlet,
+                    shift=None,
+                    station=station,
+                    register_choices=register_choices,
+                    pairing_blocked=pairing_blocked,
+                    status=400,
+                )
+            station = chosen
+
+        if pairing_blocked:
+            messages.error(request, "This checkout device needs one-time manager approval before it can be used.")
+            return self._render_start(
+                request,
+                outlet=outlet,
+                shift=None,
+                station=None,
+                register_choices=[],
+                pairing_blocked=True,
+                status=403,
+            )
+        if station is None and register_choices:
+            messages.error(request, "Choose the till you are using.")
+            return self._render_start(
+                request,
+                outlet=outlet,
+                shift=None,
+                station=None,
+                register_choices=register_choices,
+                status=400,
+            )
+
+        shift = self._open_shift(request, outlet=outlet, station=station)
+        opening_form = StaffPosShiftOpenForm(request.POST)
+        if shift is None and not opening_form.is_valid():
+            return self._render_start(
+                request,
+                outlet=outlet,
+                shift=None,
+                station=station,
+                register_choices=register_choices,
+                opening_form=opening_form,
+                status=400,
+            )
+
+        try:
+            with transaction.atomic():
+                if shift is None:
+                    shift = open_pos_shift(
+                        tenant_id=request.tenant.id,
+                        outlet=outlet,
+                        user=request.user,
+                        opening_cash=opening_form.cleaned_data["opening_cash"],
+                        note="",
+                        workstation=station,
+                    )
+
+                # Serialize first-basket creation per tenant so a double tap on
+                # Start selling does not create two empty active baskets.
+                from apps.tenants.models import Tenant
+                Tenant.objects.select_for_update().get(pk=request.tenant.pk)
+                order = self._current_sale(request, outlet=outlet)
+                if order is None:
+                    order = create_order_with_lines(
+                        tenant_id=request.tenant.id,
+                        outlet=outlet,
+                        created_by=request.user,
+                        currency=default_currency_for_tenant(request.tenant),
+                        table_label="",
+                        lines=[],
+                    )
+        except DRFValidationError as exc:
+            for message in _drf_detail_messages(exc.detail):
+                messages.error(request, message)
+            return self._render_start(
+                request,
+                outlet=outlet,
+                shift=self._open_shift(request, outlet=outlet, station=station),
+                station=station,
+                register_choices=register_choices,
+                opening_form=opening_form,
+                status=409,
+            )
+
+        response = redirect("staff-order-detail", order_id=order.id)
+        if station is not None:
+            response = select_workstation(response, station)
+        return response
 
 
 class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
