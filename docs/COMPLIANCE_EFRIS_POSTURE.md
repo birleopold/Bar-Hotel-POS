@@ -23,7 +23,8 @@ Official references (verify current requirements before go-live):
 ## Roadmap (compliance hardening)
 
 - Map responses to a documented error taxonomy where URA publishes stable codes.
-- Evidence export (submission id, payload hash, response body redacted) for audits.
+- Evidence export is available from the staff EFRIS settings page as a tenant-scoped CSV containing submission id, canonical payload SHA-256, provider reference, attempts and hashed error evidence. Raw payloads, integration secrets and provider response bodies are not exported; provider response bodies are not currently retained.
+- Add provider-certified response/error taxonomy and any required redacted response-evidence fields once URA/integrator contracts define stable codes and retention requirements.
 - Explicit distinction between **EFD-mandatory** flows and **API-only** flows per tenant category.
 
 
