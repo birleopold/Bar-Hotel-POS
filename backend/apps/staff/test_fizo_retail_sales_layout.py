@@ -75,6 +75,16 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('request.headers.get("X-Requested-With") == "XMLHttpRequest"', gate)
         self.assertIn('return JsonResponse({"ok": False, "message": message}, status=403)', gate)
 
+    def test_inline_basket_refresh_checks_remote_payment_before_dom_changes(self):
+        js = (Path(__file__).resolve().parent /
+              "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn('if(!!cash!==!!nextCash)', js)
+        self.assertIn('!nextCash.hasAttribute("data-balance-due")', js)
+        self.assertLess(js.index('if(!!cash!==!!nextCash)'),
+                        js.index('current.replaceChildren.apply(current'))
+        self.assertLess(js.index('if(!!activePayment!==!!remotePayment)'),
+                        js.index('current.replaceChildren.apply(current'))
+
     def test_inline_refresh_preserves_manual_partial_tender(self):
         js = (Path(__file__).resolve().parent /
               "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
