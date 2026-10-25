@@ -167,6 +167,22 @@ class RetailSalesLandingTests(SimpleTestCase):
         )
         self.assertIn("Order.objects.select_for_update().get(pk=order.pk)", services)
 
+    def test_part_paid_cancellation_requires_exact_refund_reconciliation(self):
+        root = Path(__file__).resolve().parent
+        services = (root.parent / "pos/services/orders.py").read_text(encoding="utf-8")
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        self.assertIn('remaining_refund = (recorded - refunded).quantize(Decimal("0.01"))', services)
+        self.assertIn('code="refund_required"', services)
+        self.assertIn('Payment.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id)', services)
+        self.assertIn('Refund.objects.filter(order_id=locked.id, tenant_id=locked.tenant_id)', services)
+        self.assertIn('"recorded_payments": str(recorded)', services)
+        self.assertIn('"recorded_refunds": str(refunded)', services)
+        self.assertIn('"net_payment": str((recorded - refunded).quantize(Decimal("0.01")))', services)
+        self.assertIn('Use the authorized refund controls below, then cancel this basket again.', view)
+        self.assertIn('href="#retail-refund-controls">Refund before void</a>', detail)
+        self.assertIn('Supervisor refund required', detail)
+
     def test_refunds_use_rendered_stable_idempotency_keys(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
