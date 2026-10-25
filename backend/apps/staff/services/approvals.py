@@ -134,6 +134,8 @@ def authorize_sensitive_action(
     )
     if approver is None or not membership_can_approve_sensitive_action(approver, action):
         raise SensitiveApprovalError("Supervisor approval failed. Check the selected manager and PIN.")
+    if approver.pk == requester.pk:
+        raise SensitiveApprovalError("A different authorized manager must approve this action.")
     if outlet_id and not staff_outlet_allowed_for_membership(approver, outlet_id):
         raise SensitiveApprovalError("That manager is not authorized for this outlet.")
 
