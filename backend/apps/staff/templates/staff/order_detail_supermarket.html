@@ -469,14 +469,14 @@
       // Copy rendered amounts from the fresh server page, including totals
       // changed by discounts or previously recorded partial payments.
       [".staff-pos-totals-row__total strong", ".staff-pos-totals-row__meta",
-       ".fizo-cashier-payment-summary strong", ".fizo-retail-basket-summary__total strong",
-       ".fizo-retail-basket-summary > div:nth-child(1) strong",
-       ".fizo-retail-basket-summary > div:nth-child(2) strong"].forEach(function (selector) {
+       ".fizo-cashier-payment-summary strong", '[data-retail-summary="subtotal"] strong',
+       '[data-retail-summary="discount"] strong', '[data-retail-summary="tax"] strong',
+       '[data-retail-summary="total"] strong'].forEach(function (selector) {
         var local = document.querySelector(selector);
         var remote = page.querySelector(selector);
         if (local && remote) local.textContent = remote.textContent;
       });
-      var currentDue = document.querySelector(".fizo-retail-basket-summary__total strong");
+      var currentDue = document.querySelector('[data-retail-summary="total"] strong');
       var payLabel = document.querySelector(".fizo-cashier-pay-cta span");
       if (currentDue && payLabel) payLabel.textContent = "Pay " + currentDue.textContent.trim();
       var cash = document.querySelector("[data-retail-cash-panel]");
