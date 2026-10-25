@@ -28,16 +28,40 @@ cd backend
 # Read Django's actual migration plan before requiring DB-owner credentials.
 migration_plan="$("$VENV/bin/python" manage.py showmigrations --plan)"
 if printf '%s\n' "$migration_plan" | grep -Eq '^[[:space:]]*\[ \]'; then
-  if [[ -z "${MIGRATION_DATABASE_URL:-}" ]]; then
-    echo 'ERROR: Database has unapplied migrations. Configure a separate DB-owner MIGRATION_DATABASE_URL before deploying.' >&2
+  migration_database_url="${MIGRATION_DATABASE_URL:-}"
+  if [[ -z "$migration_database_url" && -t 0 ]]; then
+    printf 'Database migrations are pending.\n'
+    printf 'Enter the dedicated DB-owner MIGRATION_DATABASE_URL for this run only.\n'
+    read -r -s -p 'Migration database URL (hidden): ' migration_database_url
+    printf '\n'
+  fi
+  if [[ -z "$migration_database_url" ]]; then
+    echo 'ERROR: Database has unapplied migrations and no DB-owner migration URL was supplied.' >&2
+    echo 'Run interactively and enter it when prompted, or export MIGRATION_DATABASE_URL only for this deploy.' >&2
     exit 1
   fi
-  DATABASE_URL="$MIGRATION_DATABASE_URL" "$VENV/bin/python" manage.py migrate --noinput
-  # Newly created tables/sequences need permissions for the runtime role.
-  psql "$MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO leosoft_pos_app;
-GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO leosoft_pos_app;
+
+  runtime_role="$(psql "$DATABASE_URL" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
+  migration_role="$(psql "$migration_database_url" -X -A -t -v ON_ERROR_STOP=1 -c 'SELECT current_user')"
+  if [[ -z "$runtime_role" || -z "$migration_role" ]]; then
+    echo 'ERROR: Could not identify PostgreSQL runtime/migration roles.' >&2
+    unset migration_database_url
+    exit 1
+  fi
+  if [[ "$runtime_role" == "$migration_role" ]]; then
+    echo "ERROR: Migration role must differ from runtime role ($runtime_role) so the application remains subject to RLS." >&2
+    unset migration_database_url
+    exit 1
+  fi
+
+  DATABASE_URL="$migration_database_url" "$VENV/bin/python" manage.py migrate --noinput
+  # Newly created tables/sequences need permissions for the actual runtime role.
+  psql "$migration_database_url" -X -v ON_ERROR_STOP=1 -v app_role="$runtime_role" <<'SQL'
+GRANT USAGE ON SCHEMA public TO :"app_role";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"app_role";
+GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO :"app_role";
 SQL
+  unset migration_database_url MIGRATION_DATABASE_URL
 else
   echo 'Database migration plan is already applied; DB-owner connection not needed for this deploy.'
 fi
