@@ -515,3 +515,99 @@ def test_retail_cashier_full_basket_void_requires_different_manager_approval(cli
     assert approval.approver_id == setup["manager"].pk
     assert approval.intent_payload["reason"] == "Customer cancelled basket"
     assert approval.intent_payload["active_line_count"] == 1
+
+
+@pytest.mark.django_db
+def test_cash_payout_requires_different_manager_and_records_one_exact_approval(client, approval_setup):
+    from django.core import signing
+    from django.urls import reverse
+    from apps.pos.models import CashDrawerMovement, PosShift, PosShiftStatus, Workstation
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+    from apps.staff.terminal import set_member_pin
+    from apps.staff.workstations import COOKIE as WORKSTATION_COOKIE, SALT as WORKSTATION_SALT
+
+    setup = approval_setup
+    approver_user = User.objects.create_user(
+        email="approval-second-manager@example.test",
+        password="StrongPass!2026",
+    )
+    approver = Membership.objects.create(
+        tenant=setup["tenant"],
+        user=approver_user,
+        role=MembershipRole.OUTLET_MANAGER,
+    )
+    approver.sites.add(setup["site"])
+    approver.outlets.add(setup["outlet"])
+    set_member_pin(approver, "864209")
+
+    station = Workstation.objects.create(
+        tenant=setup["tenant"],
+        outlet=setup["outlet"],
+        name="Approval Till",
+        code="approval-till",
+        requires_pairing=False,
+    )
+    shift = PosShift.objects.create(
+        tenant=setup["tenant"],
+        outlet=setup["outlet"],
+        workstation=station,
+        status=PosShiftStatus.OPEN,
+        opened_by=setup["manager"].user,
+        opening_cash=Decimal("50000.00"),
+    )
+
+    client.force_login(setup["manager"].user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+    client.cookies[WORKSTATION_COOKIE] = signing.dumps(
+        str(station.pk), salt=WORKSTATION_SALT,
+    )
+    url = reverse("staff-pos-shifts")
+
+    page = client.get(url)
+    assert page.status_code == 200
+    assert b"Supervisor PIN" in page.content
+    assert approver.user.email.encode() in page.content
+    assert setup["manager"].user.email.encode() not in page.content.split(b"Supervisor PIN")[0][-2000:]
+
+    bad_key = str(uuid.uuid4())
+    denied = client.post(url, {
+        "action": "cash_movement",
+        "shift_id": str(shift.pk),
+        "idempotency_key": bad_key,
+        "direction": "payout",
+        "amount": "10000.00",
+        "reason": "Emergency petty cash",
+        "approver_id": str(approver.pk),
+        "approver_pin": "000000",
+    })
+    assert denied.status_code == 302
+    assert not CashDrawerMovement.objects.filter(shift=shift).exists()
+    assert not SensitiveActionApproval.objects.filter(
+        tenant=setup["tenant"], action="withdrawal", request_key=bad_key,
+    ).exists()
+
+    good_key = str(uuid.uuid4())
+    approved = client.post(url, {
+        "action": "cash_movement",
+        "shift_id": str(shift.pk),
+        "idempotency_key": good_key,
+        "direction": "payout",
+        "amount": "10000.00",
+        "reason": "Emergency petty cash",
+        "approver_id": str(approver.pk),
+        "approver_pin": "864209",
+    })
+    assert approved.status_code == 302
+    movement = CashDrawerMovement.objects.get(shift=shift, idempotency_key=good_key)
+    assert movement.direction == "payout"
+    assert movement.amount == Decimal("10000.00")
+    approval = SensitiveActionApproval.objects.get(
+        tenant=setup["tenant"], action="withdrawal", request_key=good_key,
+    )
+    assert approval.requester_id == setup["manager"].pk
+    assert approval.approver_id == approver.pk
+    assert approval.intent_payload["amount"] == "10000.00"
+    assert approval.intent_payload["reason"] == "Emergency petty cash"
