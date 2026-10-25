@@ -24,6 +24,20 @@ STAFF_SESSION_SITE_KEY = "staff_site_id"
 RETAIL_PIN_IDLE_SECONDS = 8 * 60 * 60
 
 
+def _subscription_gate(request: HttpRequest, tenant):
+    """Block ordinary tenant operations when platform access is not valid."""
+    from apps.console.mixins import user_is_platform_operator
+    from apps.tenants.subscriptions import tenant_operational_access
+
+    if user_is_platform_operator(request.user):
+        return None
+    access = tenant_operational_access(tenant)
+    request.tenant_operational_access = access
+    if access.allowed or request.path == "/staff/pending-approval/":
+        return None
+    return redirect("staff-pending-approval")
+
+
 def staff_pin_idle_seconds(request):
     """Effective PIN inactivity limit for the selected, authorized business line.
 
@@ -163,6 +177,9 @@ class StaffSessionTenantMiddleware:
                 return HttpResponseForbidden("Your account has no access to this workspace.")
             request.tenant = domain_tenant
             request.tenant_membership = membership
+            blocked = _subscription_gate(request, domain_tenant)
+            if blocked is not None:
+                return blocked
             return self.get_response(request)
         if path == "/staff/terminal/" and not request.user.is_authenticated:
             from .terminal import terminal_scope
@@ -205,5 +222,8 @@ class StaffSessionTenantMiddleware:
 
         request.tenant = membership.tenant
         request.tenant_membership = membership
+        blocked = _subscription_gate(request, membership.tenant)
+        if blocked is not None:
+            return blocked
 
         return self.get_response(request)
