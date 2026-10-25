@@ -537,6 +537,29 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
             messages.success(request, f"Workspace access {action}.")
             return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
         if "provision_supermarket" in request.POST:
+            existing_subscription = TenantSubscription.objects.filter(
+                tenant=self.tenant_obj,
+            ).select_related("plan").first()
+            existing_types = set(Outlet.objects.filter(
+                site__tenant=self.tenant_obj,
+            ).values_list("outlet_type", flat=True))
+            settings_obj = TenantSettings.objects.filter(tenant=self.tenant_obj).first()
+            business_lines = set(settings_obj.business_lines or []) if settings_obj else set()
+            # This preset is for an unconfigured supermarket workspace only.
+            # It must never replace a paid/custom plan, disable another line,
+            # or silently reconfigure existing store policies.
+            if (
+                (existing_subscription is not None and existing_subscription.plan.code != "supermarket-core")
+                or (existing_types - {OutletType.RETAIL, OutletType.SUPERMARKET})
+                or (business_lines - {"supermarket", "retail", "grocery"})
+                or TenantFeatureEntitlement.objects.filter(tenant=self.tenant_obj).exists()
+                or TenantOutletModulePolicy.objects.filter(tenant=self.tenant_obj).exists()
+            ):
+                messages.error(
+                    request,
+                    "This workspace already has subscription, entitlement, outlet policy, or mixed-business configuration. Use the individual controls below; the supermarket starter preset will not overwrite it.",
+                )
+                return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
             self._provision_supermarket_tenant()
             messages.success(request, "Supermarket workspace baseline provisioned.")
             return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
