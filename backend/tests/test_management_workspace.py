@@ -421,6 +421,57 @@ class ManagementWorkspaceTests(TestCase):
         self.assertContains(response, "Loss-prevention snapshot")
         self.assertContains(response, "They are not a second reporting ledger.")
 
+    def test_shrink_watch_groups_negative_adjustments_without_cross_tenant_leakage(self):
+        from apps.inventory.models import StockMovement, StockReason
+        self.login()
+        StockMovement.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.balance.menu_item,
+            quantity_change=Decimal("-2"),
+            reason=StockReason.WASTE,
+            created_by=self.worker,
+        )
+        StockMovement.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.balance.menu_item,
+            quantity_change=Decimal("-3"),
+            reason=StockReason.ADJUST_OUT,
+            created_by=self.worker,
+        )
+        StockMovement.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.balance.menu_item,
+            quantity_change=Decimal("7"),
+            reason=StockReason.ADJUST_IN,
+            created_by=self.worker,
+        )
+        foreign_item = MenuItem.objects.create(
+            tenant=self.foreign,
+            category=MenuCategory.objects.create(tenant=self.foreign, name="Foreign shrink"),
+            name="Foreign shrink item",
+            unit_price=1,
+            track_inventory=True,
+        )
+        StockMovement.objects.create(
+            tenant=self.foreign,
+            outlet=self.foreign_outlet,
+            menu_item=foreign_item,
+            quantity_change=Decimal("-99"),
+            reason=StockReason.WASTE,
+        )
+        response = self.client.get(reverse("staff-management"), {"view": "exceptions"})
+        self.assertEqual(response.status_code, 200)
+        rows = response.context["shrink_watch"]
+        own = next(row for row in rows if row["menu_item_id"] == self.balance.menu_item_id)
+        self.assertEqual(own["event_count"], 2)
+        self.assertEqual(own["quantity_removed"], Decimal("5"))
+        self.assertFalse(any(row["menu_item_id"] == foreign_item.pk for row in rows))
+        self.assertContains(response, "Shrink watch")
+        self.assertContains(response, "no monetary loss is inferred")
+
     def test_follow_up_ownership_history_and_resolved_case_after_source_clears(self):
         self.login()
         row = next(r for r in self.rows() if r.kind == "low_stock")
