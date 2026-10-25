@@ -7,16 +7,16 @@
               {% if is_supermarket_outlet %}
               <form method="get" class="fizo-server-catalogue-search" role="search">
                 <label for="fizo-catalogue-server-query">Search all available products</label>
-                <div><input id="fizo-catalogue-server-query" name="catalogue_q" value="{{ retail_catalogue_q|default:'' }}" maxlength="80" type="search" placeholder="Product name, SKU or barcode" autocomplete="off">
+                <div><input id="fizo-catalogue-server-query" name="catalogue_q" value="{{ retail_catalogue_q|default:'' }}" maxlength="80" type="search" placeholder="Product name, SKU, barcode or PLU" autocomplete="off">
                 <button type="submit" class="staff-btn staff-btn--primary">Search catalogue</button></div>
-                {% if retail_catalogue_has_more %}<p>Showing the first 80 products. Search by name, SKU or barcode to find others.</p>{% endif %}
+                {% if retail_catalogue_has_more %}<p>Showing the first 80 products. Search by name, SKU, barcode or PLU to find others.</p>{% endif %}
                 {% if retail_catalogue_q %}<a href="?">Reset catalogue search</a>{% endif %}
               </form>
               {% endif %}
           {% if pos_menu_categories %}
             <div class="staff-pos-menu-browser" data-pos-menu-browser>
               <div class="staff-pos-menu-tools">
-                <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="{% if is_supermarket_outlet %}Search name, SKU or barcode{% else %}Search items{% endif %}" autocomplete="off" data-pos-menu-search></label>
+                <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="{% if is_supermarket_outlet %}Search name, SKU, barcode or PLU{% else %}Search items{% endif %}" autocomplete="off" data-pos-menu-search></label>
                 {% if is_supermarket_outlet %}<button type="button" class="fizo-pos-search-clear" data-fizo-search-clear aria-label="Clear product search">Clear</button>{% endif %}<span class="staff-pos-menu-count">{{ add_line_form.menu_item.field.queryset.count }} items</span>
               </div>
               {% if is_supermarket_outlet %}
@@ -39,7 +39,13 @@
                         <span class="staff-pos-menu-tile__icon" aria-hidden="true"><i class="bi bi-box-seam"></i></span>
                       {% endif %}
                       <span class="staff-pos-menu-tile__name">{{ item.name }}</span>
-                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>{% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Select</span>{% endif %}
+                      <span class="staff-pos-menu-tile__price">{{ order.currency }} {{ item.unit_price }}</span>
+                      {% if is_supermarket_outlet and item.track_inventory %}
+                        <span class="staff-pos-menu-tile__stock{% if item.cashier_stock_low %} staff-pos-menu-tile__stock--low{% endif %}" aria-label="Stock at this outlet: {{ item.cashier_stock_quantity }} units">
+                          {% if item.cashier_stock_quantity <= 0 %}Out of stock{% elif item.cashier_stock_low %}Low stock · {{ item.cashier_stock_quantity }} left{% else %}On hand · {{ item.cashier_stock_quantity }}{% endif %}
+                        </span>
+                      {% endif %}
+                      {% if is_supermarket_outlet %}<span class="fizo-tile-add" aria-hidden="true">Select</span>{% endif %}
                     </button>
                   {% endfor %}
                 {% endfor %}
@@ -54,7 +60,7 @@
               <p class="visually-hidden" aria-live="polite" data-pos-menu-selection></p>
             </div>
           {% endif %}
-          {% if is_supermarket_outlet and not pos_menu_categories %}<div class="staff-empty-state"><p>No matching products. Try another name, SKU or barcode.</p></div>{% endif %}
+          {% if is_supermarket_outlet and not pos_menu_categories %}<div class="staff-empty-state"><p>No matching products. Try another name, SKU, barcode or PLU.</p></div>{% endif %}
           {% include "staff/includes/form_errors_block.html" with form=add_line_form title="Fix item details" %}
           <form method="post" class="staff-pos-add-item-form" data-fizo-add-line-form>
             {% csrf_token %}
