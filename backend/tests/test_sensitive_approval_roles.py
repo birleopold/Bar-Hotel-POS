@@ -1,4 +1,4 @@
-"""Phase 21 approver eligibility: not yet a transaction-bound manager approval."""
+"""Phase 21 manager eligibility used by transaction-bound sensitive approvals."""
 from types import SimpleNamespace
 import pytest
 
