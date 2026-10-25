@@ -37,6 +37,8 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-brand__icon{
 }
 body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-scope{display:none}
 body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-nav{gap:5px;padding-top:2px}
+body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-nav__dashboard,
+body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-nav__deliveries{display:none}
 body.staff-body--pos:has(.fizo-checkout-catalogue) .fz-nav a{
   min-height:56px;padding:6px 5px;gap:4px;flex-direction:column;justify-content:center;
   text-align:center;font-size:13px;font-weight:650;color:#405876;border-radius:9px;
