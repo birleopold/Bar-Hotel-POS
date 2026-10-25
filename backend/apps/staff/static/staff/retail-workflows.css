@@ -59,14 +59,19 @@
 
 .fizo-sales__resume-banner{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;border:1px solid #cfe9d9;border-radius:12px;padding:17px;margin:0 0 13px;background:#fff}.fizo-sales__resume-banner strong{font-size:17px;color:#143c30}.fizo-sales__resume-banner p{font-size:13px;color:#647d78;margin:5px 0 0}@media(max-width:650px){.fizo-sales__resume-banner .fizo-sales__primary{width:100%}}
 
-/* 2026 retail checkout entry, one safe action per context. */
+/* 2026 retail checkout entry: one cashier decision, then sell. */
 .fizo-sales--start{padding-top:clamp(8px,2vw,24px)}
 .fizo-sales--start .fizo-sales__start{min-height:160px}
-.fizo-sales__start-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:15px}
-.fizo-sales__start-links a{display:flex;align-items:center;gap:10px;min-height:52px;padding:12px;border:1px solid #e1ebe5;border-radius:10px;text-decoration:none;font-weight:800;color:#12623e;background:#f9fdfa}
-.fizo-sales__start-links a:hover{background:#e8f7ed}
-.fizo-sales__start-links i{font-size:19px}
-@media(max-width:800px){.fizo-sales__start-links{grid-template-columns:1fr}}
+.fizo-sales__start-form{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-left:auto}
+.fizo-sales__start-field{display:grid;gap:5px;min-width:min(240px,100%)}
+.fizo-sales__start-field>span{font-size:12px;font-weight:800;color:#355d50}
+.fizo-sales__start-field .staff-input{width:100%;min-height:48px;border:1px solid #c9ddd2;border-radius:9px;background:#fff;padding:10px 12px}
+.fizo-sales__panel--quiet{padding:14px 17px;background:#fbfdfc;color:#60766f}
+.fizo-sales__panel--quiet a{color:#007f46;font-weight:800;text-decoration:none}
+@media(max-width:800px){
+  .fizo-sales__start-form{width:100%;margin-left:0}
+  .fizo-sales__start-field,.fizo-sales__start-form .fizo-sales__primary{width:100%}
+}
 
 /* Supermarket / retail management dashboard.
  * Reference hierarchy: store glance + cashier launch, KPI strip, setup/common
