@@ -656,3 +656,14 @@ Reference design: Django transactional row locking and Yotpo's documented propor
 **Guardrails and explicit unavailable workflows:** customers can still use anonymous supermarket sales with no name or room/table. Retail credit accounts/credit-sale AR and *unpaid layaway with deposits/reservations/cancellations* are **not enabled**: the current payment-finance cashbook recognizes POS receipts immediately and does not provide the accrual receivable/deposit-liability ledger, credit write-offs and reserved-inventory allocation those promises require. A fully paid pickup must not be marketed as layaway. Customer-facing second-screen is staff-session authenticated, not publicly paired hardware. Redemption is non-cash only. Approved retail hardware/scale, tax and receipt certification, real PostgreSQL/RLS concurrency, multi-device browser/accessible scanner tests and backup/rollback remain acceptance tasks, **not certified by CI**.
 
 **Delivery truth:** F6 is *software-in-progress* for SM-23/24/25/28/34/35; the new F6 subworkflows are code-delivered with automated regression checks. This is not a claim that the full batch is fully completed or approved for rollout. The parent 34-phase roadmap remains in force. See `docs/SUPERMARKET_F6_ACCEPTANCE.md`.
+
+
+### 2026-10-26 — Phase 21 transaction-bound approval expansion
+
+- The earlier role-eligibility foundation has now been extended with a transaction-bound approval service: exact intent hashing, outlet scope, short expiry, replay-safe request identity, immutable approval evidence and centrally enforced different approver.
+- Wired retail-sensitive paths now include refunds/retail-line refunds, line discounts, full-basket voids, cash payouts and manual stock write-offs. Self-approval is rejected centrally and the requester is excluded from eligible approver lists.
+- Full-basket cancellation still refuses to abandon recorded payments: any remaining payment must be refunded through the separately approved refund workflow before the void can commit.
+- Cash payout approval is atomic with the drawer movement. Float additions and safe drops remain normal shift operations.
+- Manual adjust-out/waste uses one-time approval evidence; exact replay does not deduct inventory twice. Negative stock rows are rejected from CSV upload to prevent bulk bypass.
+- No generic cancelled-sale reopen command exists today, and catalog outlet price overrides are administrative price configuration rather than a cashier override workflow. Keep those policy names open until a real corresponding mutation is implemented.
+- Phase 21 stays **in progress** pending remaining applicable sensitive paths, API/service parity, browser/PIN acceptance, production-style concurrency/RLS evidence and manager usability drills.
