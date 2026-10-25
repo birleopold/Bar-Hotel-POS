@@ -258,3 +258,92 @@ def test_retail_cashier_refund_requires_and_records_manager_approval(client, app
     assert approval.requester_id == setup["cashier"].pk
     assert approval.approver_id == setup["manager"].pk
     assert approval.intent_payload["amount"] == "12000.00"
+
+
+@pytest.mark.django_db
+def test_retail_line_discount_requires_exact_manager_approval_and_replay_is_safe(client, approval_setup):
+    from apps.audit.models import AuditEvent
+    from apps.pos.models import Order, OrderLine, OrderStatus
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+    from django.urls import reverse
+
+    setup = approval_setup
+    order = Order.objects.create(
+        tenant=setup["tenant"],
+        outlet=setup["outlet"],
+        created_by=setup["cashier"].user,
+        status=OrderStatus.OPEN,
+        is_paid=False,
+        subtotal=Decimal("100.00"),
+        total=Decimal("100.00"),
+    )
+    line = OrderLine.objects.create(
+        order=order,
+        label="Discount item",
+        quantity=Decimal("1"),
+        unit_price=Decimal("100.00"),
+        line_total=Decimal("100.00"),
+    )
+    client.force_login(setup["cashier"].user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+    url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+
+    page = client.get(url)
+    assert page.status_code == 200
+    assert b"Line discount" in page.content
+    assert b"Supervisor PIN" in page.content
+    assert b'discount_request_key' in page.content
+
+    denied_key = str(uuid.uuid4())
+    denied = client.post(url, {
+        "action": "line_discount",
+        "discount_request_key": denied_key,
+        "line_id": str(line.pk),
+        "discount_amount": "10.00",
+        "discount_percent": "",
+        "approver_id": str(setup["manager"].pk),
+        "approver_pin": "000000",
+    })
+    assert denied.status_code == 302
+    line.refresh_from_db()
+    assert line.line_discount_amount == Decimal("0")
+    assert not SensitiveActionApproval.objects.filter(
+        tenant=setup["tenant"], action="discount", request_key=denied_key,
+    ).exists()
+
+    request_key = str(uuid.uuid4())
+    payload = {
+        "action": "line_discount",
+        "discount_request_key": request_key,
+        "line_id": str(line.pk),
+        "discount_amount": "10.00",
+        "discount_percent": "",
+        "approver_id": str(setup["manager"].pk),
+        "approver_pin": "573951",
+    }
+    approved = client.post(url, payload)
+    assert approved.status_code == 302
+    line.refresh_from_db()
+    assert line.line_discount_amount == Decimal("10.00")
+    approval = SensitiveActionApproval.objects.get(
+        tenant=setup["tenant"], action="discount", request_key=request_key,
+    )
+    assert approval.used_at is not None
+    assert approval.intent_payload["line_id"] == str(line.pk)
+    assert approval.intent_payload["discount_amount"] == "10.00"
+    assert AuditEvent.objects.filter(
+        tenant=setup["tenant"],
+        action="order.line_discount_applied",
+        entity_id=str(line.pk),
+    ).count() == 1
+
+    replay = client.post(url, payload)
+    assert replay.status_code == 302
+    assert AuditEvent.objects.filter(
+        tenant=setup["tenant"],
+        action="order.line_discount_applied",
+        entity_id=str(line.pk),
+    ).count() == 1
