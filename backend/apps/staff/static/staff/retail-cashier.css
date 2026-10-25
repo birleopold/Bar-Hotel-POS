@@ -175,6 +175,13 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
 .fizo-checkout-catalogue .staff-pos-menu-tile__price{
   padding:0 4px;color:#009a4f;font-size:13px;font-weight:850;font-variant-numeric:tabular-nums;
 }
+.fizo-checkout-catalogue .staff-pos-menu-tile__stock{
+  display:block;padding:2px 4px;color:#536977;font-size:11px;line-height:1.2;
+  font-variant-numeric:tabular-nums;
+}
+.fizo-checkout-catalogue .staff-pos-menu-tile__stock--low{
+  color:#9a4b18;font-weight:800;
+}
 .fizo-checkout-catalogue .fizo-tile-add{
   margin-top:auto;display:block;border-radius:7px;padding:6px;text-align:center;
   background:#e2f6e9;color:#087a43;font-size:12px;font-weight:850;
