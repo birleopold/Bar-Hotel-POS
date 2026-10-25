@@ -733,6 +733,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         hardware = _tenant_hardware_flags(order.tenant)
         ctx["hardware"] = hardware
         ctx["payment_request_key"] = uuid.uuid4()
+        ctx["refund_request_key"] = uuid.uuid4()
+        ctx["retail_refund_request_key"] = uuid.uuid4()
         ctx["quick_product_request_key"] = uuid.uuid4()
         ctx["next_sale_request_key"] = uuid.uuid4()
         from apps.customers.models import LoyaltyLedgerEntry
@@ -1354,6 +1356,16 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         except (TypeError, ValueError):
             raise DRFValidationError("Invalid payment request identity.")
 
+    @staticmethod
+    def _refund_request_key(request: HttpRequest, field: str = "refund_request_key") -> str:
+        # Refund forms also carry stable request identities so a double click
+        # or browser replay cannot create a second financial transaction.
+        raw = (request.POST.get(field) or "").strip()
+        try:
+            return str(uuid.UUID(raw)) if raw else str(uuid.uuid4())
+        except (TypeError, ValueError):
+            raise DRFValidationError("Invalid refund request identity.")
+
     def _post_record_payment(self, request: HttpRequest, order: Order) -> HttpResponse:
         _, bal = order_payment_totals(order)
         if (
@@ -1796,7 +1808,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 order=order, line=line, quantity=form.cleaned_data["quantity"],
                 amount=form.cleaned_data["amount"], reason=form.cleaned_data.get("reason") or "",
                 restock=bool(form.cleaned_data.get("restock")), user=request.user,
-                idempotency_key=str(uuid.uuid4()),
+                idempotency_key=self._refund_request_key(request, "retail_refund_request_key"),
                 workstation_id=settlement_workstation_id(request, outlet=order.outlet),
                 payment_id=uuid.UUID(form.cleaned_data["payment_id"]) if "payment_id" in form.fields else None,
             )
@@ -1975,7 +1987,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 user=request.user,
                 amount=form.cleaned_data["amount"],
                 reason=form.cleaned_data.get("reason") or "",
-                idempotency_key=str(uuid.uuid4()),
+                idempotency_key=self._refund_request_key(request),
                 workstation_id=settlement_workstation_id(request, outlet=order.outlet),
                 restock=bool(form.cleaned_data.get("restock")) and not partial_retail,
                 payment_id=payment_id,
