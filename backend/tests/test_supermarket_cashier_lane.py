@@ -712,6 +712,11 @@ class SupermarketCashierLaneTests(TestCase):
 
     def test_held_sale_search_all_retail_outlets_recovers_older_basket(self):
         """All-retail register view must search held receipt/notes, not only 50 newest."""
+        # Tenant product configuration must explicitly include both outlet
+        # types, otherwise access controls correctly hide the retail outlet.
+        settings = self.tenant.settings
+        settings.business_lines = ["supermarket", "retail"]
+        settings.save(update_fields=["business_lines"])
         second = Outlet.objects.create(
             site=self.outlet.site, name="Second Retail Till",
             outlet_type=OutletType.RETAIL,
