@@ -244,6 +244,77 @@ class DeliveryPersistenceTests(TestCase):
             )
         self.assertEqual(delivery.status, "ready")
 
+    def test_hotel_room_delivery_requires_own_checked_in_folio_and_room(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.lodging.models import (
+            RoomType, Room, Reservation, ReservationStatus, Folio,
+        )
+        hotel = Outlet.objects.create(
+            site=self.site, name="Hotel reception",
+            outlet_type=OutletType.LODGING_FRONT_DESK,
+        )
+        self.member.outlets.add(hotel)
+        set_outlet_delivery_enabled(
+            outlet=hotel, enabled=True, user=self.user, membership=self.member,
+        )
+        room_type = RoomType.objects.create(
+            tenant=self.tenant, site=self.site, name="Standard",
+        )
+        room = Room.objects.create(room_type=room_type, name="204")
+        reservation = Reservation.objects.create(
+            tenant=self.tenant, site=self.site, guest_name="Guest",
+            room=room, status=ReservationStatus.CHECKED_IN,
+            check_in=timezone.localdate() - timedelta(days=1),
+            check_out=timezone.localdate() + timedelta(days=2),
+        )
+        folio = Folio.objects.create(
+            tenant=self.tenant, site=self.site, guest_name="Guest",
+            reservation=reservation, currency="UGX",
+        )
+        room_sale = Order.objects.create(
+            tenant=self.tenant, outlet=hotel, created_by=self.user,
+            folio=folio, currency="UGX", total=Decimal("5000"),
+            subtotal=Decimal("5000"), is_paid=True,
+            status=OrderStatus.CLOSED,
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=room_sale,
+            amount=Decimal("5000"), method=PaymentMethod.CASH,
+            idempotency_key="hotel-room-delivery", recorded_by=self.user,
+        )
+        args = dict(
+            order=room_sale, user=self.user, membership=self.member,
+            destination_type="room",
+        )
+        with self.assertRaises(ValidationError):
+            register_paid_order_delivery(**args, room_reference="205")
+        registered, replay = register_paid_order_delivery(
+            **args, room_reference="204",
+        )
+        self.assertFalse(replay)
+        self.assertEqual(registered.destination_type, "room")
+        self.assertEqual(registered.room_reference, "204")
+        self.assertEqual(registered.tenant_id, self.tenant.pk)
+        reservation.status = ReservationStatus.CHECKED_OUT
+        reservation.save(update_fields=["status"])
+        other_sale = Order.objects.create(
+            tenant=self.tenant, outlet=hotel, created_by=self.user,
+            folio=folio, currency="UGX", total=Decimal("5000"),
+            subtotal=Decimal("5000"), is_paid=True,
+            status=OrderStatus.CLOSED,
+        )
+        Payment.objects.create(
+            tenant=self.tenant, order=other_sale,
+            amount=Decimal("5000"), method=PaymentMethod.CASH,
+            idempotency_key="hotel-room-after-checkout", recorded_by=self.user,
+        )
+        with self.assertRaises(ValidationError):
+            register_paid_order_delivery(
+                order=other_sale, user=self.user, membership=self.member,
+                destination_type="room", room_reference="204",
+            )
+
     def test_delivery_requires_manager_role(self):
         self.member.role = MembershipRole.SERVER
         self.member.save(update_fields=["role"])
