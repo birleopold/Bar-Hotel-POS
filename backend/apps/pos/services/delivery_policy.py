@@ -84,3 +84,27 @@ def validate_delivery_charge(amount, *, currency: str) -> Decimal:
     if fee != fee.quantize(Decimal("0.01")):
         raise DeliveryPolicyError("Delivery fee can have at most two decimal places.")
     return fee
+
+
+def validate_delivery_dispatch(
+    *, order_status: str, is_paid: bool,
+    assigned_driver_id, has_refunds: bool = False,
+) -> None:
+    """Phase-one dispatch gate: settled sale, driver assignment, no refunds.
+
+    Cash-on-delivery and third-party dispatch are deliberately not enabled by
+    merely creating a destination. They need their own permission and cash
+    reconciliation workflow in a later migration-backed release.
+    """
+    if order_status != "closed" or not is_paid:
+        raise DeliveryPolicyError(
+            "Collect and confirm the full order payment before dispatch."
+        )
+    if has_refunds:
+        raise DeliveryPolicyError(
+            "Refunded sales need supervisor review before delivery."
+        )
+    if not assigned_driver_id:
+        raise DeliveryPolicyError(
+            "Assign an authorized delivery worker before dispatch."
+        )
