@@ -24,6 +24,27 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("fz-top-operator", foundation)
         self.assertIn("{% url 'staff-retail-pos-entry' %}", sidebar)
 
+    def test_retail_startup_hides_technical_shift_and_device_workflow(self):
+        root = Path(__file__).resolve().parent
+        start = (root / "templates/staff/retail_pos_start.html").read_text(encoding="utf-8")
+        terminal = (root / "templates/staff/terminal.html").read_text(encoding="utf-8")
+        login = (root / "templates/staff/login.html").read_text(encoding="utf-8")
+        views = (root / "views_ops.py").read_text(encoding="utf-8")
+
+        self.assertIn('name="action" value="start_selling"', start)
+        self.assertIn("Cash in drawer now", start)
+        self.assertIn("Start selling", start)
+        self.assertIn("Which till are you using?", start)
+        self.assertIn("Held sales", start)
+        self.assertNotIn("Shift and drawer", start)
+        self.assertNotIn("Register devices", start)
+        self.assertIn("open_pos_shift(", views)
+        self.assertIn("create_order_with_lines(", views)
+        self.assertIn("Tenant.objects.select_for_update()", views)
+        self.assertIn("Continue to checkout", terminal)
+        self.assertIn("CHECKOUT TERMINAL", terminal)
+        self.assertIn("STORE SIGN IN", login)
+
     def test_receipt_uses_shared_pin_idle_policy_and_scoped_lock_broadcast(self):
         root = Path(__file__).resolve().parent
         receipt = (root / "templates/staff/order_print.html").read_text(encoding="utf-8")
