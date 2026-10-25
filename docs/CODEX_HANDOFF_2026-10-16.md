@@ -134,6 +134,10 @@ Decision: keep ordinary first-party restaurant, supermarket, retail, bar and hot
 - `tests/test_delivery_persistence.py` covers manager/non-manager GET/POST, enabled outlet, paid ledger, foreign-tenant/outlet denial, delivery vs pickup conflict, replay, dispatch, assignment, hotel checked-in folio and checkout. `test_postgres_rls_policy_presence.py` includes both delivery tables. Existing GitHub quality job includes these tests on PostgreSQL and the complete suite on SQLite.
 - **CI evidence:** GitHub run 40171883331 reported successful Django system and migration-drift checks; full suite and PostgreSQL outcomes not observed as passed, and subsequent main pushes cancelled/restarted runs. Run migrations on staging, execute current CI + real browser before enabling delivery in production. Never call these features production-certified. See `docs/DELIVERY_FULFILLMENT_IMPLEMENTATION_2026-10-25.md`.
 
+## D02 safe rollout boundary — 25 October
+
+The new `StaffDeliveriesView._outlets()` restricts initial staff delivery actions to authorized retail/supermarket outlets (`171e7586`), even though the shared policy is business-line neutral. The page now states that restaurant/KDS, hotel room-service and regulated bars are not yet operationally enabled (`1cd60af9`); integration test `05d942e4` verifies manager cannot configure a bar through D02. `set_outlet_delivery_enabled(False)` stops new registrations without cancelling already active deliveries (`e831c31e`, `0390efbf`). Still requires green CI, deployed migration and physical browser flow.
+
 ## Quick start
 
 **Latest owner direction (23 October 2026):** follow `docs/FIZO_COMPLETE_IMPLEMENTATION_ROADMAP_2026-10-23.md` sequentially. P00 is underway; see `docs/evidence/p00-2026-10-23/README.md` for the `8d45fb3` baseline, failing CI and missing asset references. Earlier checkpoint counts below are historical. No later visual phase is complete by implication.
