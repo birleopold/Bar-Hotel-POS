@@ -178,6 +178,24 @@ class GroceryOwnerConsolePagesTests(TestCase):
         self.assertEqual(override_event.payload["before"], "5500.00")
         self.assertEqual(override_event.payload["after"], "4800.00")
 
+        response = self.client.post(
+            reverse(
+                "console-org-menu-item-outlet-delete",
+                kwargs={"item_id": self.product.pk, "link_id": link.pk},
+            ),
+            {},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(MenuItemOutlet.objects.filter(pk=link.pk).exists())
+        removal_event = AuditEvent.objects.filter(
+            tenant=self.tenant,
+            action="catalog.outlet_price_override_changed",
+            entity_id=str(link.pk),
+        ).latest("created_at")
+        self.assertTrue(removal_event.payload["link_removed"])
+        self.assertEqual(removal_event.payload["before"], "4800.00")
+        self.assertEqual(removal_event.payload["after"], "5500.00")
+
     def test_store_branch_form_still_validates_submissions(self):
         response = self.client.post(
             reverse("console-org-site-create"),
