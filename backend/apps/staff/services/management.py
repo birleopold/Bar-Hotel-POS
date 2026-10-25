@@ -10,7 +10,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from apps.accounts.models import Membership, MembershipRole
-from apps.audit.models import AuditEvent, ExceptionPolicy, ExceptionReview
+from apps.audit.models import AuditEvent, ExceptionPolicy, ExceptionReview, SensitiveActionApproval
 from apps.audit.services import log_audit
 from apps.inventory.models import StockBalance
 from apps.lodging.models import Reservation, ReservationStatus
@@ -208,6 +208,61 @@ def management_orders(request):
     if "pos" not in modules or not vis.orders:
         return Order.objects.none()
     return Order.objects.filter(tenant=request.tenant, outlet__in=outlets, status__in=["open", "closed"]).select_related("outlet").order_by("-created_at")[:50]
+
+
+def management_approval_evidence(request):
+    """Recent consumed sensitive approvals within the manager's current scope."""
+    outlets, modules, vis = management_scope(request)
+    if "pos" not in modules or not vis.orders or not outlets:
+        return []
+    approvals = list(
+        SensitiveActionApproval.objects.filter(
+            tenant=request.tenant,
+            scope_outlet__in=outlets,
+            used_at__isnull=False,
+        )
+        .select_related(
+            "requester__user",
+            "approver__user",
+            "scope_outlet",
+        )
+        .order_by("-used_at", "-created_at")[:50]
+    )
+    order_ids = [
+        item.entity_id
+        for item in approvals
+        if item.entity_type == "order"
+    ]
+    order_map = {
+        str(order.pk): order
+        for order in Order.objects.filter(
+            tenant=request.tenant,
+            outlet__in=outlets,
+            pk__in=order_ids,
+        ).only("id", "bill_reference", "outlet_id")
+    }
+    for item in approvals:
+        order = order_map.get(item.entity_id)
+        item.receipt_label = (
+            order.bill_reference or str(order.pk)
+            if order is not None
+            else item.entity_id
+        )
+        item.source_url = (
+            reverse("staff-order-detail", kwargs={"order_id": order.pk})
+            if order is not None
+            else ""
+        )
+        intent = item.intent_payload if isinstance(item.intent_payload, dict) else {}
+        parts = []
+        if intent.get("amount"):
+            parts.append(f"amount {intent['amount']}")
+        if intent.get("quantity"):
+            parts.append(f"qty {intent['quantity']}")
+        if intent.get("reason"):
+            parts.append(f"reason: {intent['reason']}")
+        item.intent_summary = " · ".join(parts) or "Exact transaction intent recorded"
+    return approvals
 
 
 def management_team(request):
