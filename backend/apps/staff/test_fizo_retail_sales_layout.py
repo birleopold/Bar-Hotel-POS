@@ -75,6 +75,16 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('request.headers.get("X-Requested-With") == "XMLHttpRequest"', gate)
         self.assertIn('return JsonResponse({"ok": False, "message": message}, status=403)', gate)
 
+    def test_inline_refresh_preserves_manual_partial_tender(self):
+        js = (Path(__file__).resolve().parent /
+              "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn('var tender=cash.querySelector("[data-retail-cash-received]")', js)
+        self.assertIn('(!tender||!tender.value.trim())', js)
+        self.assertIn('Number(amount.value)===Number(oldDue)', js)
+        self.assertIn('if(!!activePayment!==!!remotePayment)', js)
+        self.assertLess(js.index('if(!!activePayment!==!!remotePayment)'),
+                        js.index('current.replaceChildren.apply(current'))
+
     def test_barcode_scan_json_and_shared_inline_basket_refresh(self):
         root = Path(__file__).resolve().parent
         view = (root / "views_ops.py").read_text(encoding="utf-8")
