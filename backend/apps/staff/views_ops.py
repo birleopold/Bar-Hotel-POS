@@ -1553,7 +1553,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
         ):
             return self._post_line_discount(request, order)
-        cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order", "resume_order", "void_order"}
+        cashier_actions = {"add_line", "scan_add_line", "adjust_line_qty", "record_payment", "hold_order", "resume_order", "void_order", "void_line"}
         if not (membership_can_modify_lodging(m) or (
             action in cashier_actions and _can_operate_retail_checkout(m, order)
         )):
@@ -2530,25 +2530,40 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_void_line(self, request: HttpRequest, order: Order) -> HttpResponse:
-        if order.status != OrderStatus.OPEN or order.is_paid:
-            messages.error(
-                request,
-                "Lines can only be voided on open orders that are not yet paid.",
-            )
+        async_void = (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+
+        def reject(message, status=422, *, refund_required=False):
+            if async_void:
+                return JsonResponse({
+                    "ok": False,
+                    "message": str(message),
+                    "refund_required": refund_required,
+                }, status=status)
+            messages.error(request, str(message))
             return redirect("staff-order-detail", order_id=order.id)
+
+        if order.status != OrderStatus.OPEN or order.is_paid:
+            return reject(
+                "Lines can only be voided on open orders that are not yet paid.",
+                409,
+            )
         form = StaffOrderVoidLineForm(request.POST)
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            detail = "; ".join(
+                f"{field}: {error}"
+                for field, errors in form.errors.items()
+                for error in errors
+            ) or "Check the item removal details."
+            return reject(detail)
         line = OrderLine.objects.filter(
             id=form.cleaned_data["line_id"],
             order_id=order.id,
         ).first()
         if line is None:
-            messages.error(request, "That line is not on this order.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("That line is not on this order.", 404)
         try:
             void_open_order_line(
                 order=order,
@@ -2557,9 +2572,27 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 user=request.user,
             )
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
-        else:
-            messages.success(request, "Line voided.")
+            refund_required = bool(
+                getattr(exc, "get_codes", None)
+                and _drf_has_code(exc.get_codes(), "refund_required")
+            )
+            return reject(
+                " ".join(_drf_detail_messages(exc.detail)),
+                409 if refund_required else 422,
+                refund_required=refund_required,
+            )
+        if async_void:
+            order.refresh_from_db(
+                fields=["subtotal", "discount_amount", "tax_total", "total", "currency"]
+            )
+            return JsonResponse({
+                "ok": True,
+                "message": "Item removed from basket.",
+                "order_id": str(order.pk),
+                "currency": order.currency,
+                "total": str(order.total),
+            })
+        messages.success(request, "Line voided.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_record_refund(self, request: HttpRequest, order: Order) -> HttpResponse:
