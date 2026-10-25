@@ -69,7 +69,6 @@ urlpatterns = [
     path("pos/workstations/new/", views_workstations.StaffWorkstationEditView.as_view(), name="staff-workstation-create"),
     path("pos/workstations/<uuid:workstation_id>/edit/", views_workstations.StaffWorkstationEditView.as_view(), name="staff-workstation-edit"),
     path("pos/shifts/", views_ops.StaffPosShiftListView.as_view(), name="staff-pos-shifts"),
-    path("pos/shifts/<uuid:shift_id>/", views_ops.StaffPosShiftDetailView.as_view(), name="staff-pos-shift-detail"),
     path("tables/new/", views_ops.StaffTableCreateView.as_view(), name="staff-table-create"),
     path(
         "tables/<uuid:table_id>/edit/",
