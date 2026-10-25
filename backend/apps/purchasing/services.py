@@ -122,30 +122,11 @@ def receive_purchase_order_goods(
     )
 
     for row in lines_payload:
-        line_id = row["line_id"]
         qty: Decimal = row["quantity"]
         if qty <= 0:
             continue
-        any_positive = True
         line = row["_line"]
-        remaining = line.quantity_ordered - line.quantity_received
-        if qty > remaining:
-            raise ValidationError(
-                {
-                    "lines": (
-                        f"Quantity for line {line_id} exceeds remaining "
-                        f"({remaining} left to receive)."
-                    )
-                }
-            )
         batch_code = str(row.get("batch_code") or "").strip()
-        if row.get("expiry_date") and not batch_code:
-            raise ValidationError({"batch_code": "Enter a batch code when setting an expiry date."})
-        if not batch_code and InventoryBatch.objects.filter(
-            tenant_id=po_locked.tenant_id, outlet=po_locked.outlet,
-            menu_item=line.menu_item,
-        ).exists():
-            raise ValidationError({"batch_code": f"Enter a batch code for {line.menu_item.name}; this product is batch-tracked."})
         batch = None
         if batch_code:
             batch, _ = receive_tracked_batch(
@@ -176,9 +157,6 @@ def receive_purchase_order_goods(
             cartons_received=row["cartons"],
             inventory_batch=batch,
         )
-
-    if not any_positive:
-        raise ValidationError({"lines": "At least one line must have quantity greater than zero."})
 
     _sync_po_status(po_locked)
     # Trace the delivery itself, including shortages and supplier reference.
