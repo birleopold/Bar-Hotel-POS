@@ -65,10 +65,10 @@ def receive_purchase_order_goods(
             units=row.get("quantity", 0), cartons=row.get("cartons", 0),
             units_per_carton=line.units_per_carton_snapshot, allow_zero=True,
         )
-        try:
-            carton_count = int(row.get("cartons") or 0)
-        except (TypeError, ValueError) as exc:
-            raise ValidationError({"cartons": "Enter whole cartons."}) from exc
+        # to_stock_units already verifies that cartons are a nonnegative
+        # integer. Normalize through Decimal as well: "1.0" and 1.0 are
+        # accepted there but Python's int("1.0") would otherwise fail here.
+        carton_count = int(Decimal(str(row.get("cartons") or 0)))
         normalized.append({
             **row, "line_id": line.pk, "quantity": qty,
             "cartons": carton_count, "_line": line,
