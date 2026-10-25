@@ -50,6 +50,7 @@ from .forms import (
 from .mixins import PlatformOperatorRequiredMixin
 from .setup_flow import build_tenant_setup_state, sync_tenant_setup_progress
 from apps.tenants.domains import begin_custom_domain_verification, create_platform_alias, create_platform_domain, verify_custom_domain
+from apps.tenants.subscriptions import tenant_operational_access
 
 
 class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
@@ -116,6 +117,8 @@ class PlatformTenantListView(PlatformOperatorRequiredMixin, ListView):
         ctx["active_filter"] = (self.request.GET.get("active") or "").strip()
         ctx["subscription_filter"] = (self.request.GET.get("subscription") or "").strip()
         ctx["subscription_statuses"] = SubscriptionStatus.choices
+        for tenant in ctx.get("tenants", ()):
+            tenant.platform_access = tenant_operational_access(tenant)
         return ctx
 
 
