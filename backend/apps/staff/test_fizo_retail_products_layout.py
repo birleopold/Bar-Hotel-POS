@@ -81,7 +81,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
 
     def test_paid_sale_next_customer_uses_server_idempotency(self):
         root = Path(__file__).resolve().parent
-        template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        template = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
         views = (root / "views_ops.py").read_text(encoding="utf-8")
         self.assertIn('name="quick_create_key" value="{{ next_sale_request_key }}"', template)
         self.assertIn("this.dataset.submitting = '1'", template)
