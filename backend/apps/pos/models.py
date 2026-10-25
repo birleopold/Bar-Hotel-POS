@@ -581,9 +581,22 @@ class SupermarketLineReturn(TimeStampedModel):
         blank=True,
         related_name="supermarket_returns_created",
     )
+    idempotency_key = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="Optional tenant-scoped retry identity for a physical return.",
+    )
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="uniq_supermarket_return_retry_key",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.order.bill_reference} return {self.quantity}"
