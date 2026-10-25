@@ -260,9 +260,18 @@
         redirect:"follow",headers:{"X-Requested-With":"XMLHttpRequest",
           "X-CSRFToken":csrf?csrf.value:""}})
       .then(function(response){
-        // Native POST redirects after committing the item. A redirected
-        // authenticated GET must contain the same checkout basket.
-        if(!response.ok)throw new Error("Item was not confirmed (HTTP "+response.status+").");
+        if(response.redirected)throw new Error("Checkout session changed or access was redirected.");
+        var type=(response.headers.get("Content-Type")||"").toLowerCase();
+        if(!type.includes("application/json"))throw new Error("Unexpected checkout response.");
+        return response.json().then(function(data){
+          if(!response.ok||!data.ok)throw new Error(data.message||"Product could not be added.");
+          return data;
+        });
+      }).then(function(){
+        return fetch(window.location.href,{credentials:"same-origin",cache:"no-store",
+          headers:{"Accept":"text/html"}});
+      }).then(function(response){
+        if(!response.ok||response.redirected)throw new Error("Cannot refresh basket display.");
         return response.text();
       }).then(function(html){
         var remote=new DOMParser().parseFromString(html,"text/html");
