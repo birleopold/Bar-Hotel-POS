@@ -246,15 +246,22 @@
         // Never manufacture a payment form from fetched HTML: its CSRF,
         // request identity, tender and cash-change listeners are bound when
         // Django renders checkout. A mismatch needs a normal navigation.
-        if(!!activePayment!==!!remotePayment){
+        var activatingPayment=!activePayment&&!!remotePayment;
+        if(activePayment&&!remotePayment){
           throw new Error("Checkout payment controls changed; reopen this sale to continue.");
+        }
+        if(activatingPayment&&!basket){
+          throw new Error("Checkout basket container is unavailable.");
         }
         // Confirm all required payment-state data before touching the live
         // basket. A partial HTML response must never leave mixed totals.
         var cash=document.querySelector("[data-retail-cash-panel]");
         var nextCash=remote.querySelector("[data-retail-cash-panel]");
-        if(!!cash!==!!nextCash){
+        if(!!cash!==!!nextCash && !activatingPayment){
           throw new Error("Checkout cash controls changed; reopen this sale to continue.");
+        }
+        if(activatingPayment&&!nextCash){
+          throw new Error("Checkout cash calculator was not returned.");
         }
         if(cash&&nextCash&&!nextCash.hasAttribute("data-balance-due")){
           throw new Error("Checkout returned an incomplete balance.");
@@ -273,6 +280,21 @@
           return !!before!==!!after || (before&&after&&!after.textContent.trim());
         })){
           throw new Error("Incomplete checkout totals; reopen this sale to continue.");
+        }
+        if(activatingPayment){
+          var freshCard=remotePayment.closest(".staff-card--pos");
+          if(!freshCard)throw new Error("Payment details missing from checkout.");
+          if(idlePayment&&idlePayment.parentNode)idlePayment.remove();
+          var newCard=document.importNode(freshCard,true);
+          newCard.classList.add("reference-payment-card");
+          basket.appendChild(newCard);
+          var newCash=document.importNode(nextCash,true);
+          basket.appendChild(newCash);
+          paymentForm=newCard.querySelector("[data-pos-payment-form]");
+          paymentCard=newCard;
+          activePayment=paymentForm;
+          cash=newCash;
+          document.dispatchEvent(new Event("retail:payment-controls-added"));
         }
         current.replaceChildren.apply(current,Array.from(fresh.childNodes).map(function(n){return document.importNode(n,true);}));
         document.dispatchEvent(new Event("retail:basket-lines-replaced"));
@@ -330,7 +352,7 @@
       if(!addForm.checkValidity())return;
       var submit=addForm.querySelector('button[type="submit"]');
       var previous=submit&&submit.textContent;
-      var asyncReady=!!(window.fetch&&window.FormData&&paymentForm&&
+      var asyncReady=!!(window.fetch&&window.FormData&&
         document.querySelector("#fizo-current-basket .fizo-retail-basket-items"));
       addForm.dataset.submitting="1";
       if(submit){submit.disabled=true;submit.textContent="Adding…";}
