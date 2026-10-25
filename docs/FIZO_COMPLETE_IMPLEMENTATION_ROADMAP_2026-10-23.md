@@ -205,6 +205,10 @@ The supermarket cashier product tile previously displayed `MenuItem.unit_price` 
 - **Test evidence:** previous GitHub run 40171883331 recorded successful Django system checks and `makemigrations --check --dry-run`, but its full suite was still underway when superseded by subsequent pushes; latest-run green tests are not yet observed. D01/D02 **not accepted** until passing PostgreSQL, schema deployment, manager browser flow, five approved viewports and customer payment/stock isolation are verified.
 - **Related phases:** P03 tenant scope, P04 terminal authorization, P05 order identity, P07 financial separation, P08 stock ledger, P10 restaurant KDS, P12 hotel folio, P13 optional modules and P15 CI must all be regression-checked before rollout. See `docs/DELIVERY_FULFILLMENT_IMPLEMENTATION_2026-10-25.md`.
 
+### D02 retail-only staff rollout guard — 25 October
+
+The first manager delivery screen is restricted to accessible supermarket/retail outlets until restaurant/KDS, hotel room/folio and regulated bar compliance are accepted (`171e7586`). Staff page copy identifies the limited rollout (`1cd60af9`) and the database-backed integration test confirms a bar outlet cannot be enabled through that screen (`05d942e4`). Shared delivery policy remains extensible across business lines. Existing deliveries may progress after a manager disables new registrations, avoiding stranded dispatches (`e831c31e`, `0390efbf`). No production test result is claimed.
+
 ## Approved visual baseline
 
 - **Supermarket management dashboard:** sidebar, branch/search/user top bar, greeting/banner/open POS CTA, four KPIs, setup checklist, quick actions, attention and recent activity, green/navy/white palette.
