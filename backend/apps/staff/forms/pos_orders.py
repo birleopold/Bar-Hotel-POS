@@ -288,6 +288,13 @@ class StaffOrderVoidOrderForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "staff-input", "maxlength": 255}),
     )
 
+    def __init__(self, *args, approvers=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if approvers is not None:
+            self.fields["reason"].required = True
+            self.fields["reason"].widget.attrs["placeholder"] = "Reason required"
+            _add_sensitive_approval_fields(self, approvers)
+
 
 class StaffOrderLineReturnForm(forms.Form):
     line_id = forms.UUIDField(widget=forms.HiddenInput())
