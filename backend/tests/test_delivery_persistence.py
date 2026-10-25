@@ -415,6 +415,68 @@ class DeliveryPersistenceTests(TestCase):
         self.assertEqual(denied.status_code, 404)
         self.assertFalse(OutletDeliverySettings.objects.filter(outlet=bar).exists())
 
+    def test_packing_slip_uses_existing_order_and_never_exposes_other_tenant(self):
+        from django.urls import reverse
+        from apps.pos.models import OrderLine
+        from apps.staff.middleware import (
+            STAFF_SESSION_TENANT_KEY, STAFF_SESSION_OUTLET_KEY,
+        )
+        set_outlet_delivery_enabled(
+            outlet=self.outlet, enabled=True, user=self.user, membership=self.member,
+        )
+        delivery, _ = self._register()
+        OrderLine.objects.create(
+            order=self.sale, label="Keep packed", quantity=Decimal("2"),
+            unit_price=Decimal("4500"), line_total=Decimal("9000"),
+        )
+        OrderLine.objects.create(
+            order=self.sale, label="Voided product", quantity=Decimal("1"),
+            unit_price=Decimal("0"), line_total=Decimal("0"),
+            is_voided=True,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
+        session.save()
+        url = reverse("staff-delivery-packing-slip", kwargs={"delivery_id":delivery.pk})
+        count_before = Payment.objects.filter(order=self.sale).count()
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Keep packed")
+        self.assertNotContains(response, "Voided product")
+        self.assertContains(response, "Central Kampala")
+        self.assertContains(response, "Fulfillment document only")
+        self.assertEqual(response["Cache-Control"], "no-store, private")
+        self.assertEqual(Payment.objects.filter(order=self.sale).count(), count_before)
+        self.assertFalse(StockMovement.objects.filter(order=self.sale).exists())
+        self.assertEqual(OrderDelivery.objects.get(pk=delivery.pk).status, "requested")
+        self.member.role = MembershipRole.SERVER
+        self.member.save(update_fields=["role"])
+        denied = self.client.get(url)
+        self.assertNotEqual(denied.status_code, 200)
+        self.assertNotIn(b"Central Kampala", denied.content)
+
+    def test_packing_slip_denies_unassigned_foreign_outlet(self):
+        from django.urls import reverse
+        from apps.staff.middleware import (
+            STAFF_SESSION_TENANT_KEY, STAFF_SESSION_OUTLET_KEY,
+        )
+        set_outlet_delivery_enabled(
+            outlet=self.outlet, enabled=True, user=self.user, membership=self.member,
+        )
+        delivery, _ = self._register()
+        self.member.outlets.set([self.other_outlet])
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.other_outlet.pk)
+        session.save()
+        url = reverse("staff-delivery-packing-slip", kwargs={"delivery_id":delivery.pk})
+        denied = self.client.get(url)
+        self.assertNotEqual(denied.status_code, 200)
+        self.assertNotIn(b"Central Kampala", denied.content)
+
     def test_nonmanager_cannot_read_or_change_delivery_queue(self):
         from django.urls import reverse
         from apps.staff.middleware import (
