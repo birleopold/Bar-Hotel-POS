@@ -35,7 +35,7 @@
 | SM-17 | [-] | Stocktaking and blind/cycle counts | stock-count sessions, movements and staff screens | Offline handheld count, zones/aisles, blind double count, variance approval, import scans, count lock | 07, 16, 21 |
 | SM-18 | [-] | FEFO, expiry, recall and shrink management | batches/expiry, stock write-off, ledger | Automatic FEFO reservation/consumption under concurrency, recall trace, sale block, damaged/expired disposal approvals | 08 |
 | SM-19 | [-] | Low stock, dead stock, margin and reorder intelligence | `inventory/intelligence.html` with movement-based hints | Lead times, landed cost, sales velocity accuracy, days of cover, seasonality, explainable reorder suggestions | 07, 18 |
-| SM-20 | [-] | Manager authorizations and fraud controls | manager roles, exception center, partial action eligibility | Separate manager PIN, exact sale/discount/price/return approval, expiry/replay protection and auditable overrides | 20, 21 |
+| SM-20 | [-] | Manager authorizations and fraud controls | transaction-bound manager PIN approval with different approver, outlet scope, expiry/replay evidence; retail refunds, line discounts, full-basket voids, cash payouts and manual stock write-offs are wired | Complete remaining applicable sensitive actions, API/service parity and deployed multi-manager till acceptance | 20, 21 |
 | SM-21 | [-] | Offline cashier lane | offline queue/replay safety and UI | Explicit offline tender/amount limits, local privacy, device identity, conflict review and reconnection simulator | 16 |
 | SM-22 | [-] | Customer history and loyalty | customer directory, points ledger, POS-linked customer records | Reward redemption, tiers, coupons, points liability, consent, customer-facing receipt balance | 05, 06 |
 | SM-23 | [ ] | Retail credit accounts and credit limits | guest folios are not a general retail customer-credit engine | Authorized debt sales, aged debt, statements, payments, locks, bad-debt/writeoff approvals | 05, 32 |
@@ -50,10 +50,10 @@
 | SM-32 | [-] | Branch aisle/bin/shelf locator | outlet/stock fields, no evidenced detailed bin/location ledger | Shelf/bin IDs, picking path, mobile lookup and bin-count integration | 07, 25 |
 | SM-33 | [-] | Search, staff lock/PIN and cashier ergonomics | role workspaces, global search, PIN locking, screen density settings | Real supermarket transaction stopwatch and keyboard/scanner/mobile accessibility audit | 02, 23–25 |
 | SM-34 | [-] | Retail-specific setup, training and release | onboarding, local training command, release preflight | Demo sale, safe reset, real barcode printer/scanner/scale trials, offline/restore/rollback evidence | 27–33 |
-| SM-35 | [ ] | Loss-prevention reports | manager exceptions and refund events exist | Suspicious refunds, repeated voids, no-sale drawer opens, price overrides, shrink heat map and actionable audit | 03, 18, 22 |
+| SM-35 | [-] | Loss-prevention reports | manager exception centre, repeated-void/manual-price exception sources, refund/discount/void/withdrawal/write-off approval evidence and scoped manager history exist | Add no-sale drawer-open evidence, shrink heat map/trend analytics, remaining price-override sources and deployed investigation acceptance | 03, 18, 22 |
 | SM-36 | [ ] | Stock receiving invoice matching and electronic supplier documents | PO invoice/receipt basis | Three-way match PO–GRN–invoice, discrepancy approvals, duplicate supplier invoice protection and credit notes | 09, 32 |
 
-**Current inventory (code-evidence only):** 10 existing foundations `[x]`, 13 partial `[-]`, 13 not evidenced `[ ]` (36 items). This does **not** mean 10 workflows passed physical/browser certification. Refresh counts whenever a checkbox changes.
+**Current inventory (code-evidence only):** 10 existing foundations `[x]`, 20 partial `[-]`, 6 not evidenced `[ ]` (36 items). This does **not** mean these workflows passed physical/browser certification. Refresh counts whenever a checkbox changes.
 
 ## Supermarket priority and implementation order
 
@@ -276,3 +276,11 @@ Do not conflate a committed regression test with a passing test or a completed r
 - Shelf-label output is software-only acceptance. Physical printer model/media alignment, thermal/shelf-tag dimensions, barcode scanner read-back and change-queue workflow remain open, so **SM-15 moves from [ ] to [-]**, not complete.
 - Manager-approved retail line discounts now support the existing asynchronous checkout pattern: the server still requires the exact scoped manager PIN approval and idempotent request identity, returns JSON to supported browsers, rotates the one-time request key after success and refreshes basket/totals without a whole-page reload. Native form POST remains the fallback.
 - These commits require exact-head CI and deployed browser acceptance. They do not certify physical label printers, barcode scanners, supervisor-PIN usability on real tills or every remaining cashier mutation.
+
+
+### 2026-10-26 — SM-20 / SM-35 approval and loss-prevention checkpoint
+
+- The central sensitive-action approval service now enforces a different PIN-enabled manager, exact intent identity, outlet scope and replay-safe evidence. Retail refunds, line discounts, full-basket voids, register payouts and manual stock write-offs use it.
+- Manual stock decreases cannot bypass approval through CSV; adjust-out/waste rows are rejected from bulk upload and must use the manager-approved movement form.
+- The existing manager workspace exposes scoped approval evidence alongside exception follow-up. SM-35 therefore moves from not evidenced to partial, but remains open for no-sale drawer events, richer shrink/price-override analytics and deployed investigation drills.
+- SM-20 remains partial until every applicable sensitive mutation and API/service route shares the same boundary and real multi-manager register acceptance is recorded.
