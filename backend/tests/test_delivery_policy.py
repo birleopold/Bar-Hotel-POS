@@ -46,6 +46,21 @@ class DeliveryPolicyTests(SimpleTestCase):
                 destination_type="room", room_reference="",
             )
 
+    def test_null_or_nontext_destination_is_validation_error_not_server_error(self):
+        for broken in (None, 42, {}, []):
+            with self.subTest(value=broken):
+                with self.assertRaises(DeliveryPolicyError):
+                    validate_delivery_destination(
+                        outlet_type=OutletType.RETAIL, destination_type="address",
+                        recipient_name="Recipient", contact_phone="0700000000",
+                        address=broken,
+                    )
+                with self.assertRaises(DeliveryPolicyError):
+                    validate_delivery_destination(
+                        outlet_type=OutletType.LODGING_FRONT_DESK,
+                        destination_type="room", room_reference=broken,
+                    )
+
     def test_dispatch_transitions_reject_skipping_and_terminal_reopening(self):
         for first, second in zip(
             ("requested", "accepted", "preparing", "ready", "dispatched"),
