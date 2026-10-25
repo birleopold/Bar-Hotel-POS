@@ -13,14 +13,20 @@
   <aside class="fizo-auth__aside">
 {% if login_brand.background_url %}<img class="fizo-auth__background" src="{{ login_brand.background_url }}" alt="" aria-hidden="true">{% endif %}
     <div class="fizo-auth__brand">{% if login_brand.logo_url %}<img src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %}<span>{% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</span></div>
-    <div><div class="fizo-auth__eyebrow">PRIVATE STAFF WORKSPACE · Your business. One workspace.</div><h2 class="fizo-auth__statement">One secure place to run your day.</h2><p>Sales, customers, inventory and operations — all in one connected workspace.</p></div>
-    <div class="fizo-auth__aside-foot">Fizo · Secure staff access</div>
+    <div>
+{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}
+<div class="fizo-auth__eyebrow">STORE SIGN IN</div><h2 class="fizo-auth__statement">Sign in and start selling.</h2><p>Cashiers go straight to checkout. Managers keep access to the wider store controls.</p>
+{% else %}
+<div class="fizo-auth__eyebrow">PRIVATE STAFF WORKSPACE · Your business. One workspace.</div><h2 class="fizo-auth__statement">One secure place to run your day.</h2><p>Sales, customers, inventory and operations — all in one connected workspace.</p>
+{% endif %}
+</div>
+    <div class="fizo-auth__aside-foot">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Secure store access{% else %}Fizo · Secure staff access{% endif %}</div>
   </aside>
   <section class="fizo-auth__panel" aria-labelledby="staff-login-title">
     <div class="fizo-auth__card">
       <div class="fizo-auth__mobile-brand">{% if login_brand.logo_url %}<img width="38" height="38" src="{{ login_brand.logo_url }}" alt="">{% else %}<span class="fizo-auth__mark">F</span>{% endif %} {% if login_brand %}{{ login_brand.name }}{% else %}Fizo{% endif %}</div>
-      <header class="fizo-auth__header"><h1 id="staff-login-title">Welcome back</h1><p>{% if login_brand.welcome_message %}{{ login_brand.welcome_message }}{% else %}Sign in securely to continue your work.{% endif %}</p></header>
-      <nav class="fizo-auth__tabs" aria-label="Sign-in method"><a href="{% url 'staff-login' %}" aria-current="page">Email &amp; password</a><a href="{% url 'staff-terminal' %}">Staff PIN</a></nav>
+      <header class="fizo-auth__header"><h1 id="staff-login-title">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Sign in{% else %}Welcome back{% endif %}</h1><p>{% if login_brand.welcome_message %}{{ login_brand.welcome_message }}{% elif login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Use your account, or choose Staff PIN on a counter terminal.{% else %}Sign in securely to continue your work.{% endif %}</p></header>
+      <nav class="fizo-auth__tabs" aria-label="Sign-in method"><a href="{% url 'staff-login' %}" aria-current="page">Account sign-in</a><a href="{% url 'staff-terminal' %}">Staff PIN</a></nav>
       <form method="post" action="{% url 'staff-login' %}" class="fizo-auth__form" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}<div role="alert" class="fizo-auth__errors">{{ form.non_field_errors }}</div>{% endif %}
@@ -28,9 +34,9 @@
         <div class="fizo-auth__field"><label for="{{ form.password.id_for_label }}">Password</label>{{ form.password }}{% if form.password.errors %}<div role="alert" class="fizo-auth__errors">{{ form.password.errors }}</div>{% endif %}</div>
         <input type="hidden" name="next" value="{{ next }}">
         <div style="text-align:right"><a href="{% url 'staff-password-reset-request' %}" style="color:var(--fz-auth-green);font-size:13px;font-weight:800">Forgot password?</a></div>
-        <button class="fizo-auth__submit" type="submit">Sign in to workspace</button>
+        <button class="fizo-auth__submit" type="submit">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}Continue{% else %}Sign in to workspace{% endif %}</button>
       </form>
-      <p class="fizo-auth__footer">Use your own account. On a shared cashier terminal, choose Staff PIN to switch between authorized workers.</p>
+      <p class="fizo-auth__footer">{% if login_brand.business_key == "supermarket" or login_brand.business_key == "retail" %}On a counter terminal, Staff PIN is the faster way to switch cashiers.{% else %}Use your own account. On a shared cashier terminal, choose Staff PIN to switch between authorized workers.{% endif %}</p>
     </div>
   </section>
 </main>
