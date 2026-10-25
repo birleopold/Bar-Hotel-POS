@@ -696,13 +696,14 @@ def adjust_open_order_line_quantity(
         - (Refund.objects.filter(order_id=locked_o.id).aggregate(amount=Sum("amount"))["amount"] or Decimal("0.00"))
     )
     if locked_o.total < paid_so_far:
+        excess = (paid_so_far - locked_o.total).quantize(Decimal("0.01"))
         raise ValidationError({
             "quantity": (
-                f"Cannot reduce this basket below its recorded payments "
-                f"({locked_o.currency} {paid_so_far:.2f}). "
-                "Use the authorized refund or adjustment workflow first."
+                f"Refund {locked_o.currency} {excess:.2f} before applying this reduction. "
+                f"The basket would otherwise be below the net amount already received "
+                f"({locked_o.currency} {paid_so_far:.2f})."
             )
-        })
+        }, code="refund_required")
     log_audit(
         tenant_id=locked_o.tenant_id,
         user_id=user.id if user else None,
