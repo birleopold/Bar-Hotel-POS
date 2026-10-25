@@ -63,36 +63,42 @@
     });
     if(more.children.length>1)basket.appendChild(more);
   }
-  var payLink=document.querySelector(".fizo-cashier-pay-cta");
-  if(payLink&&paymentForm){
-    var dueLabel=document.querySelector(".fizo-retail-basket-summary__total strong");
-    if(dueLabel){
-      payLink.innerHTML='<i class="bi bi-credit-card" aria-hidden="true"></i><span>Pay '+dueLabel.textContent.trim()+'</span><i class="bi bi-arrow-right" aria-hidden="true"></i>';
+  function bindRetailPayShortcuts(){
+    paymentForm=document.querySelector("[data-pos-payment-form]");
+    paymentCard=paymentForm&&paymentForm.closest(".staff-card--pos");
+    var payLink=document.querySelector(".fizo-cashier-pay-cta");
+    if(!paymentForm)return;
+    if(payLink&&payLink.dataset.retailPayBound!=="1"){
+      payLink.dataset.retailPayBound="1";
+      payLink.addEventListener("click",function(event){
+        event.preventDefault();
+        var card=document.querySelector("[data-pos-payment-form]");
+        card=card&&card.closest(".staff-card--pos");
+        if(card)card.scrollIntoView({behavior:"smooth",block:"nearest"});
+        var method=document.querySelector('[data-pos-payment-form] select[name="method"]');
+        var amount=document.querySelector('[data-pos-payment-form] input[name="amount"]');
+        if(method)method.focus({preventScroll:true});
+        else if(amount)amount.focus({preventScroll:true});
+      });
     }
-    payLink.addEventListener("click",function(event){
-      event.preventDefault();
-      paymentCard.scrollIntoView({behavior:"smooth",block:"nearest"});
-      var method=paymentForm.querySelector('select[name="method"]');
-      var amount=paymentForm.querySelector('input[name="amount"]');
-      if(method)method.focus({preventScroll:true});
-      else if(amount)amount.focus({preventScroll:true});
-    });
     var paymentMethod=paymentForm.querySelector('select[name="method"]');
     document.querySelectorAll("[data-fizo-payment-method]").forEach(function(button){
-      function reflect(){
-        button.setAttribute("aria-pressed",String(!!paymentMethod&&paymentMethod.value===button.dataset.fizoPaymentMethod));
-      }
+      if(button.dataset.retailMethodBound==="1")return;
+      button.dataset.retailMethodBound="1";
       button.addEventListener("click",function(){
-        if(!paymentMethod)return;
-        paymentMethod.value=button.dataset.fizoPaymentMethod;
-        paymentMethod.dispatchEvent(new Event("change",{bubbles:true}));
+        var method=document.querySelector('[data-pos-payment-form] select[name="method"]');
+        if(!method)return;
+        method.value=button.dataset.fizoPaymentMethod;
+        method.dispatchEvent(new Event("change",{bubbles:true}));
         document.querySelectorAll("[data-fizo-payment-method]").forEach(function(other){
           other.setAttribute("aria-pressed",String(other===button));
         });
       });
-      reflect();
+      button.setAttribute("aria-pressed",String(!!paymentMethod&&paymentMethod.value===button.dataset.fizoPaymentMethod));
     });
   }
+  document.addEventListener("retail:payment-controls-added",bindRetailPayShortcuts);
+  bindRetailPayShortcuts();
   var server=root.querySelector("#fizo-catalogue-server-query");
   var local=root.querySelector("[data-pos-menu-search]");
   var addForm=root.querySelector("[data-fizo-add-line-form]");
