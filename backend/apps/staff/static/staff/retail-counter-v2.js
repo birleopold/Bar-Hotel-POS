@@ -451,6 +451,24 @@
         if(activatingPayment){
           document.dispatchEvent(new Event("retail:payment-controls-added"));
         }
+        // Refund/return controls live outside the basket, but their limits,
+        // request identities and histories are server-authoritative. Replace
+        // only these stable zones after the checkout identity/totals above
+        // have passed validation.
+        ["[data-retail-refund-zone]","[data-retail-return-zone]"].forEach(function(selector){
+          var liveZone=document.querySelector(selector);
+          var remoteZone=remote.querySelector(selector);
+          if(!liveZone||!remoteZone){
+            throw new Error("Checkout refund controls are incomplete; reload this sale safely.");
+          }
+          liveZone.replaceChildren.apply(
+            liveZone,
+            Array.from(remoteZone.childNodes).map(function(node){
+              return document.importNode(node,true);
+            })
+          );
+        });
+        document.dispatchEvent(new Event("retail:refund-zones-replaced"));
         // The existing delegated +/- handler will manage new basket rows.
       });
   }
@@ -524,6 +542,79 @@
     });
     window.addEventListener("pageshow",function(){delete addForm.dataset.submitting;});
   }
+  function approvedRefundFormConfig(form){
+    if(form.matches("[data-retail-refund-form]")){
+      return {
+        keyName:"refund_request_key",
+        statusSelector:"[data-retail-refund-status]",
+        busy:"Refunding…",
+        pending:"Recording manager-approved refund…",
+        fallback:"Refund",
+        error:"Refund could not be recorded."
+      };
+    }
+    if(form.matches("[data-retail-line-refund-form]")){
+      return {
+        keyName:"retail_refund_request_key",
+        statusSelector:"[data-retail-line-refund-status]",
+        busy:"Refunding item…",
+        pending:"Recording manager-approved return and refund…",
+        fallback:"Record return and refund",
+        error:"Return and refund could not be recorded."
+      };
+    }
+    return null;
+  }
+
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement))return;
+    var config=approvedRefundFormConfig(form);
+    if(!config)return;
+    var asyncReady=!!(window.fetch&&window.FormData&&window.retailRefreshCheckout);
+    if(!asyncReady)return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){
+      form.reportValidity();
+      return;
+    }
+    form.dataset.submitting="1";
+    var submit=form.querySelector('button[type="submit"]');
+    var previous=submit&&submit.textContent;
+    var status=form.querySelector(config.statusSelector);
+    if(submit){submit.disabled=true;submit.textContent=config.busy;}
+    if(status)status.textContent=config.pending;
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",body:new FormData(form),credentials:"same-origin",redirect:"follow",
+      headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+    }).then(function(response){
+      if(response.redirected)throw new Error("Checkout session changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected refund response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok)throw new Error(data.message||config.error);
+        var key=form.querySelector('input[name="'+config.keyName+'"]');
+        if(key&&data.next_request_key)key.value=data.next_request_key;
+        var pin=form.querySelector('input[name="approver_pin"]');
+        if(pin)pin.value="";
+        return data;
+      });
+    }).then(function(data){
+      return window.retailRefreshCheckout().then(function(){return data;});
+    }).then(function(data){
+      var refreshed=document.querySelector(config.statusSelector);
+      if(refreshed)refreshed.textContent=data.message||"Refund recorded.";
+    }).catch(function(error){
+      var liveStatus=document.querySelector(config.statusSelector)||status;
+      if(liveStatus)showCheckoutRecovery(liveStatus,error);
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(submit){submit.disabled=false;submit.textContent=previous||config.fallback;}
+    });
+  });
+
   var discountForm=document.querySelector("[data-retail-discount-form]");
   if(discountForm){
     discountForm.addEventListener("submit",function(e){
