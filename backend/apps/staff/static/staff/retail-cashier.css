@@ -158,7 +158,7 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
   max-height:none;
 }
 .fizo-checkout-catalogue .staff-pos-menu-tile{
-  min-width:0;min-height:205px;padding:7px;gap:5px;display:flex;flex-direction:column;align-items:stretch;
+  min-width:0;min-height:184px;padding:6px;gap:4px;display:flex;flex-direction:column;align-items:stretch;
   text-align:left;border:1px solid #e1e9ee;border-radius:10px;background:#fff;color:var(--retail-ink);
   box-shadow:0 1px 3px rgb(16 33 61 / 4%);cursor:pointer;overflow:hidden;
 }
@@ -169,7 +169,7 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
 }
 .fizo-checkout-catalogue .staff-pos-menu-tile__photo,
 .fizo-checkout-catalogue .staff-pos-menu-tile__icon{
-  width:100%;height:120px;display:grid;place-items:center;border-radius:7px;background:#f5f7f8;overflow:hidden;
+  width:100%;height:106px;display:grid;place-items:center;border-radius:7px;background:#f5f7f8;overflow:hidden;
 }
 .fizo-checkout-catalogue .staff-pos-menu-tile__photo img{width:100%;height:100%;object-fit:contain}
 .fizo-checkout-catalogue .staff-pos-menu-tile__icon{color:#8da1af;font-size:32px}
@@ -333,7 +333,7 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
   }
   .fizo-cashier-identity__register{display:none}
   .fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .fizo-checkout-catalogue .staff-pos-menu-tile{min-height:190px}
+  .fizo-checkout-catalogue .staff-pos-menu-tile{min-height:174px}
 }
 @media (max-width:850px){
   body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-main--pos{height:auto;min-height:100dvh;overflow:visible}
@@ -361,8 +361,8 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
   .fizo-checkout-catalogue .staff-pos-menu-categories{gap:6px;padding-bottom:8px}
   .fizo-checkout-catalogue .staff-pos-category-filter{flex-basis:92px;min-width:92px;min-height:70px}
   .fizo-checkout-catalogue .staff-pos-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-  .fizo-checkout-catalogue .staff-pos-menu-tile{min-height:175px}
-  .fizo-checkout-catalogue .staff-pos-menu-tile__photo,.fizo-checkout-catalogue .staff-pos-menu-tile__icon{height:100px}
+  .fizo-checkout-catalogue .staff-pos-menu-tile{min-height:164px}
+  .fizo-checkout-catalogue .staff-pos-menu-tile__photo,.fizo-checkout-catalogue .staff-pos-menu-tile__icon{height:92px}
   .fizo-retail-basket-row{grid-template-columns:58px minmax(0,1fr);align-items:start}
   .reference-basket-thumb{width:58px;height:58px}
   .fizo-retail-stepper{grid-column:2;justify-self:start}
