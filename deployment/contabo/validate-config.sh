@@ -10,8 +10,8 @@ bash -n deployment/contabo/deploy-app.sh
 grep -q 'manage.py migrate --noinput' deployment/contabo/deploy-app.sh
 ! grep -q 'MIGRATION_DATABASE_URL' deployment/contabo/deploy-app.sh
 ! grep -q 'psql "$DATABASE_URL"' deployment/contabo/deploy-app.sh
+! grep -q 'PGPASSWORD=' deployment/contabo/deploy-app.sh
 grep -q 'settings.DATABASES\["default"\]' deployment/contabo/deploy-app.sh
-grep -q 'PGPASSWORD="$DB_PASSWORD" psql' deployment/contabo/deploy-app.sh
 grep -q 'GRANT .*DB_OWNER.*APP_ROLE' deployment/contabo/deploy-app.sh
 grep -q 'REVOKE .*DB_OWNER.*APP_ROLE' deployment/contabo/deploy-app.sh
 grep -q '^pos.leosoftug.com {' deployment/contabo/pos.Caddyfile.example
