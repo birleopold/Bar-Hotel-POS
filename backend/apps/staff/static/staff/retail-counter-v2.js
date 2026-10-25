@@ -343,6 +343,8 @@
     node.appendChild(retry);
   }
 
+  window.retailShowCheckoutRecovery=showCheckoutRecovery;
+
   // Only enhance an already payable basket. The initial item keeps native
   // submission so Django can create its payment form with the correct
   // cashier permissions and server-issued payment identity.
