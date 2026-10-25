@@ -347,3 +347,73 @@ def test_retail_line_discount_requires_exact_manager_approval_and_replay_is_safe
         action="order.line_discount_applied",
         entity_id=str(line.pk),
     ).count() == 1
+
+
+@pytest.mark.django_db
+def test_retail_line_discount_ajax_keeps_exact_manager_approval_and_rotates_request_key(client, approval_setup):
+    from apps.pos.models import Order, OrderLine, OrderStatus
+    from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+    from django.urls import reverse
+
+    setup = approval_setup
+    order = Order.objects.create(
+        tenant=setup["tenant"],
+        outlet=setup["outlet"],
+        created_by=setup["cashier"].user,
+        status=OrderStatus.OPEN,
+        is_paid=False,
+        subtotal=Decimal("100.00"),
+        total=Decimal("100.00"),
+    )
+    line = OrderLine.objects.create(
+        order=order,
+        label="Async discount item",
+        quantity=Decimal("1"),
+        unit_price=Decimal("100.00"),
+        line_total=Decimal("100.00"),
+    )
+    client.force_login(setup["cashier"].user)
+    session = client.session
+    session[STAFF_SESSION_TENANT_KEY] = str(setup["tenant"].pk)
+    session[STAFF_SESSION_OUTLET_KEY] = str(setup["outlet"].pk)
+    session.save()
+    url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+
+    denied = client.post(
+        url,
+        {
+            "action": "line_discount",
+            "discount_request_key": str(uuid.uuid4()),
+            "line_id": str(line.pk),
+            "discount_amount": "10.00",
+            "discount_percent": "",
+            "approver_id": str(setup["manager"].pk),
+            "approver_pin": "000000",
+        },
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+    )
+    assert denied.status_code == 422
+    assert denied.json()["ok"] is False
+
+    request_key = str(uuid.uuid4())
+    approved = client.post(
+        url,
+        {
+            "action": "line_discount",
+            "discount_request_key": request_key,
+            "line_id": str(line.pk),
+            "discount_amount": "10.00",
+            "discount_percent": "",
+            "approver_id": str(setup["manager"].pk),
+            "approver_pin": "573951",
+        },
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+    )
+    assert approved.status_code == 200
+    body = approved.json()
+    assert body["ok"] is True
+    assert body["message"] == "Manager-approved line discount saved."
+    assert body["next_request_key"] != request_key
+    uuid.UUID(body["next_request_key"])
+    line.refresh_from_db()
+    assert line.line_discount_amount == Decimal("10.00")
