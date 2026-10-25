@@ -524,6 +524,58 @@
     });
     window.addEventListener("pageshow",function(){delete addForm.dataset.submitting;});
   }
+  var discountForm=document.querySelector("[data-retail-discount-form]");
+  if(discountForm){
+    discountForm.addEventListener("submit",function(e){
+      if(discountForm.dataset.submitting==="1"){e.preventDefault();return;}
+      if(!discountForm.checkValidity())return;
+      var status=discountForm.querySelector("[data-retail-discount-status]");
+      var submit=discountForm.querySelector('button[type="submit"]');
+      var previous=submit&&submit.textContent;
+      var asyncReady=!!(window.fetch&&window.FormData&&window.retailRefreshCheckout);
+      discountForm.dataset.submitting="1";
+      if(submit){submit.disabled=true;submit.textContent="Applying…";}
+      function unlock(){
+        delete discountForm.dataset.submitting;
+        if(submit){submit.disabled=false;submit.textContent=previous||"Apply";}
+      }
+      if(!asyncReady){
+        window.addEventListener("pageshow",unlock,{once:true});
+        return;
+      }
+      e.preventDefault();
+      if(status)status.textContent="Requesting manager-approved discount…";
+      var csrf=discountForm.querySelector('input[name="csrfmiddlewaretoken"]');
+      fetch(discountForm.getAttribute("action")||window.location.pathname+window.location.search,{
+        method:"POST",body:new FormData(discountForm),credentials:"same-origin",redirect:"follow",
+        headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+      }).then(function(response){
+        if(response.redirected)throw new Error("Checkout session changed or access was redirected.");
+        var type=(response.headers.get("Content-Type")||"").toLowerCase();
+        if(!type.includes("application/json"))throw new Error("Unexpected discount response.");
+        return response.json().then(function(data){
+          if(!response.ok||!data.ok)throw new Error(data.message||"Discount could not be applied.");
+          var key=discountForm.querySelector('input[name="discount_request_key"]');
+          if(key&&data.next_request_key)key.value=data.next_request_key;
+          var pin=discountForm.querySelector('input[name="approver_pin"]');
+          if(pin)pin.value="";
+          return data;
+        });
+      }).then(function(data){
+        return window.retailRefreshCheckout().then(function(){return data;});
+      }).then(function(data){
+        var amount=discountForm.querySelector('input[name="discount_amount"]');
+        var percent=discountForm.querySelector('input[name="discount_percent"]');
+        if(amount)amount.value="";
+        if(percent)percent.value="";
+        if(status)status.textContent=data.message||"Manager-approved line discount saved.";
+      }).catch(function(error){
+        if(status)showCheckoutRecovery(status,error);
+      }).then(unlock);
+    });
+    window.addEventListener("pageshow",function(){delete discountForm.dataset.submitting;});
+  }
+
   function adjustUnitStep(tile){
     if(!qty||!tile)return;
     var fractional=tile.dataset.fractionalQuantity==="1";
