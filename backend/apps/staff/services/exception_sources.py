@@ -5,7 +5,8 @@ from django.db.models.functions import Cast, Replace
 from django.utils import timezone
 from django.urls import reverse
 from apps.accounts.models import MembershipRole
-from apps.audit.models import AuditEvent
+from apps.audit.models import AuditEvent, ExceptionReview
+from apps.audit.services import exception_fingerprint
 from apps.finance.models import FinancePostingLink
 from apps.inventory.models import StockMovement, StockReason
 from apps.integrations.models import EfrisSubmission
@@ -257,9 +258,53 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
         for obj in limited(movements,"stock_adjustment"):
             result.append(row("stock_adjustment",obj,"Stock adjustment",f"{obj.menu_item.name} · {obj.quantity_change:+} · {obj.get_reason_display()}",source_url("stock_adjustment",obj),(obj.quantity_change,obj.created_at)))
     if "purchasing" in modules and vis.purchasing:
-        receipts = PurchaseReceipt.objects.filter(tenant=request.tenant, purchase_order__tenant=request.tenant, purchase_order__outlet_id__in=ids, created_at__gte=cutoff).exclude(discrepancy_note="").select_related("purchase_order").order_by("-created_at")
-        for obj in limited(receipts,"delivery_discrepancy"):
-            result.append(row("delivery_discrepancy",obj,"Delivery discrepancy",obj.discrepancy_note,reverse("staff-purchasing-order-detail",kwargs={"po_id":obj.purchase_order_id}),(obj.discrepancy_note,obj.updated_at)))
+        # A supplier payment is blocked until a delivery discrepancy is resolved,
+        # regardless of age. Do not let the management lookback hide the action
+        # required to unblock that payment. Resolved versions remain in Cases.
+        receipts = (
+            PurchaseReceipt.objects.filter(
+                tenant=request.tenant,
+                purchase_order__tenant=request.tenant,
+                purchase_order__outlet_id__in=ids,
+            )
+            .exclude(discrepancy_note="")
+            .select_related("purchase_order")
+            .order_by("-created_at")
+        )
+        if source:
+            receipts = (
+                receipts.filter(pk=source[1])
+                if source[0] == "delivery_discrepancy"
+                else receipts.none()
+            )
+        resolved_versions = {}
+        for entity_id, fingerprint in ExceptionReview.objects.filter(
+            tenant=request.tenant,
+            kind="delivery_discrepancy",
+            status="resolved",
+        ).values_list("entity_id", "fingerprint"):
+            resolved_versions.setdefault(entity_id, set()).add(fingerprint)
+        shown = 0
+        for obj in receipts.iterator():
+            current_fingerprint = exception_fingerprint(
+                (obj.discrepancy_note, obj.updated_at)
+            )
+            if current_fingerprint in resolved_versions.get(str(obj.pk), set()):
+                continue
+            result.append(row(
+                "delivery_discrepancy",
+                obj,
+                "Delivery discrepancy",
+                obj.discrepancy_note,
+                reverse(
+                    "staff-purchasing-order-detail",
+                    kwargs={"po_id": obj.purchase_order_id},
+                ),
+                (obj.discrepancy_note, obj.updated_at),
+            ))
+            shown += 1
+            if not source and shown >= 50:
+                break
     if "finance" in modules and vis.finance:
         site_ids = {o.site_id for o in outlets}
         if not site_ids:
