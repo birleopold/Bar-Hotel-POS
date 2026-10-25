@@ -246,7 +246,7 @@
       // Do not lock the scanner when native form constraints prevent submission.
       if (!scanForm.checkValidity()) return;
       var inline = !!(window.fetch && window.FormData &&
-        document.querySelector("[data-pos-payment-form]") &&
+        document.querySelector("#fizo-current-basket .fizo-retail-basket-items") &&
         window.retailRefreshCheckout);
       if (inline) event.preventDefault();
       scanPending = true;
