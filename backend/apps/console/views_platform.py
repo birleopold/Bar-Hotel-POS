@@ -326,6 +326,47 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
             occurred_at=timezone.now(),
         )
 
+    def _reconcile_subscription_from_invoice(self, invoice: BillingInvoice) -> None:
+        subscription = invoice.subscription
+        if subscription is None:
+            return
+        if (
+            invoice.status == BillingInvoiceStatus.PAST_DUE
+            and subscription.status not in {
+                SubscriptionStatus.PAST_DUE,
+                SubscriptionStatus.SUSPENDED,
+                SubscriptionStatus.CANCELLED,
+            }
+        ):
+            previous = subscription.status
+            subscription.status = SubscriptionStatus.PAST_DUE
+            subscription.save(update_fields=["status", "updated_at"])
+            self._event(
+                event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
+                message=f"Subscription moved to past_due from invoice {invoice.invoice_number}.",
+                subscription=subscription,
+                invoice=invoice,
+                prev_sub_status=previous,
+                new_sub_status=subscription.status,
+            )
+            return
+        if invoice.status == BillingInvoiceStatus.PAID and subscription.status == SubscriptionStatus.PAST_DUE:
+            other_past_due = BillingInvoice.objects.filter(
+                subscription=subscription,
+                status=BillingInvoiceStatus.PAST_DUE,
+            ).exclude(pk=invoice.pk).exists()
+            if not other_past_due:
+                subscription.status = SubscriptionStatus.ACTIVE
+                subscription.save(update_fields=["status", "updated_at"])
+                self._event(
+                    event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
+                    message=f"Subscription reactivated after invoice {invoice.invoice_number} was paid.",
+                    subscription=subscription,
+                    invoice=invoice,
+                    prev_sub_status=SubscriptionStatus.PAST_DUE,
+                    new_sub_status=SubscriptionStatus.ACTIVE,
+                )
+
     def _provision_supermarket_tenant(self) -> None:
         allowed_modules = ["pos", "inventory", "purchasing", "promotions", "workspace"]
         # 1) Supermarket baseline plan.
@@ -746,6 +787,7 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
                     invoice=invoice,
                     new_invoice_status=invoice.status,
                 )
+                self._reconcile_subscription_from_invoice(invoice)
                 messages.success(request, "Invoice saved.")
                 return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
             return self.render_to_response(
@@ -786,45 +828,7 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
                 prev_invoice_status=prev_status,
                 new_invoice_status=new_status,
             )
-            # Invoice state may move an ordinary subscription into/out of
-            # past_due. Never auto-reactivate suspended or cancelled access.
-            if invoice.subscription is not None:
-                sub = invoice.subscription
-                if (
-                    new_status == BillingInvoiceStatus.PAST_DUE
-                    and sub.status not in {
-                        SubscriptionStatus.PAST_DUE,
-                        SubscriptionStatus.SUSPENDED,
-                        SubscriptionStatus.CANCELLED,
-                    }
-                ):
-                    before = sub.status
-                    sub.status = SubscriptionStatus.PAST_DUE
-                    sub.save(update_fields=["status", "updated_at"])
-                    self._event(
-                        event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
-                        message=f"Subscription moved to past_due from invoice {invoice.invoice_number}.",
-                        subscription=sub,
-                        invoice=invoice,
-                        prev_sub_status=before,
-                        new_sub_status=sub.status,
-                    )
-                elif new_status == BillingInvoiceStatus.PAID and sub.status == SubscriptionStatus.PAST_DUE:
-                    other_past_due = BillingInvoice.objects.filter(
-                        subscription=sub,
-                        status=BillingInvoiceStatus.PAST_DUE,
-                    ).exclude(pk=invoice.pk).exists()
-                    if not other_past_due:
-                        sub.status = SubscriptionStatus.ACTIVE
-                        sub.save(update_fields=["status", "updated_at"])
-                        self._event(
-                            event_type=BillingEventType.SUBSCRIPTION_STATUS_CHANGED,
-                            message=f"Subscription reactivated after invoice {invoice.invoice_number} was paid.",
-                            subscription=sub,
-                            invoice=invoice,
-                            prev_sub_status=SubscriptionStatus.PAST_DUE,
-                            new_sub_status=SubscriptionStatus.ACTIVE,
-                        )
+            self._reconcile_subscription_from_invoice(invoice)
             messages.success(request, "Invoice status updated.")
             return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
         if "transition_subscription" in request.POST:
