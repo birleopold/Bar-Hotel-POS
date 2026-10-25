@@ -163,7 +163,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         editor = (root / "console/templates/console/org/menu_item_form.html").read_text(encoding="utf-8")
         phone = (root / "console/templates/console/org/menu_item_photo.html").read_text(encoding="utf-8")
         handler = (root / "console/views_catalog.py").read_text(encoding="utf-8")
-        requirements = (root / "requirements.txt").read_text(encoding="utf-8")
+        requirements = (Path(__file__).resolve().parents[2] / "requirements.txt").read_text(encoding="utf-8")
 
         self.assertIn("phone_photo_qr_data_uri", editor)
         self.assertIn("Scan with phone", editor)
