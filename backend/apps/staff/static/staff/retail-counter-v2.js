@@ -3,19 +3,65 @@
   "use strict";
   var root=document.querySelector(".fizo-checkout-catalogue");
   if(!root)return;
-  // Keep settlement immediately below the basket pay action, as in the owner's
-  // references. Move only the existing permission-gated payment card; do not
-  // clone forms or generate new POST endpoints.
+  // Keep the basket dominant while items are being scanned. Settlement uses
+  // the existing permission-gated form, but opens as an on-demand drawer only
+  // after the cashier presses Pay.
   var basket=document.querySelector(".fizo-checkout-basket");
   var paymentForm=document.querySelector("[data-pos-payment-form]");
   var paymentCard=paymentForm&&paymentForm.closest(".staff-card--pos");
-  if(basket&&paymentCard&&!basket.contains(paymentCard)){
-    paymentCard.classList.add("reference-payment-card");
-    basket.appendChild(paymentCard);
-  }
-  // Empty baskets have no eligible payment form. Still present the methods
-  // in their intended fixed position, disabled until there is an amount due.
+  var cashPanel=document.querySelector("[data-retail-cash-panel]");
   var idlePayment=document.querySelector(".reference-payment-idle");
+
+  function syncCashPanelVisibility(){
+    if(!cashPanel)return;
+    var method=document.querySelector('[data-pos-payment-form] select[name="method"]');
+    cashPanel.hidden=!!method&&method.value!=="cash";
+  }
+  function closePaymentDrawer(){
+    if(!paymentCard)return;
+    paymentCard.classList.remove("is-open");
+    paymentCard.setAttribute("aria-hidden","true");
+  }
+  function openPaymentDrawer(){
+    if(!paymentCard)return;
+    paymentCard.classList.add("is-open");
+    paymentCard.setAttribute("aria-hidden","false");
+    syncCashPanelVisibility();
+    var method=paymentCard.querySelector('select[name="method"]');
+    if(method)method.focus({preventScroll:true});
+  }
+  function setupPaymentDrawer(card,panel){
+    if(!basket||!card)return;
+    paymentCard=card;
+    paymentForm=card.querySelector("[data-pos-payment-form]");
+    cashPanel=panel||card.querySelector("[data-retail-cash-panel]")||cashPanel;
+    card.classList.add("reference-payment-card");
+    if(!basket.contains(card))basket.appendChild(card);
+    if(cashPanel&&!card.contains(cashPanel)){
+      cashPanel.classList.add("reference-cash-panel");
+      card.appendChild(cashPanel);
+    }else if(cashPanel){
+      cashPanel.classList.add("reference-cash-panel");
+    }
+    if(!card.querySelector("[data-retail-payment-close]")){
+      var close=document.createElement("button");
+      close.type="button";
+      close.className="reference-payment-close";
+      close.setAttribute("data-retail-payment-close","");
+      close.setAttribute("aria-label","Close payment");
+      close.innerHTML='<i class="bi bi-x-lg" aria-hidden="true"></i>';
+      close.addEventListener("click",closePaymentDrawer);
+      card.insertBefore(close,card.firstChild);
+    }
+    if(card.querySelector('[role="alert"],.errorlist,.staff-alert--danger')){
+      openPaymentDrawer();
+    }else if(!card.classList.contains("is-open")){
+      card.setAttribute("aria-hidden","true");
+    }
+    syncCashPanelVisibility();
+  }
+
+  if(paymentCard)setupPaymentDrawer(paymentCard,cashPanel);
   if(basket&&idlePayment&&!basket.contains(idlePayment))basket.appendChild(idlePayment);
   // Keep Hold/Clear actions accessible without showing their bulky staff card
   // in the cashier workspace. Reuse the existing, authenticated forms.
@@ -81,17 +127,12 @@
         label.textContent="Pay "+dueLabel.textContent.trim();
       }
     }
+    setupPaymentDrawer(paymentCard,document.querySelector("[data-retail-cash-panel]"));
     if(payLink&&payLink.dataset.retailPayBound!=="1"){
       payLink.dataset.retailPayBound="1";
       payLink.addEventListener("click",function(event){
         event.preventDefault();
-        var card=document.querySelector("[data-pos-payment-form]");
-        card=card&&card.closest(".staff-card--pos");
-        if(card)card.scrollIntoView({behavior:"smooth",block:"nearest"});
-        var method=document.querySelector('[data-pos-payment-form] select[name="method"]');
-        var amount=document.querySelector('[data-pos-payment-form] input[name="amount"]');
-        if(method)method.focus({preventScroll:true});
-        else if(amount)amount.focus({preventScroll:true});
+        openPaymentDrawer();
       });
     }
     var paymentMethod=paymentForm.querySelector('select[name="method"]');
@@ -103,6 +144,7 @@
         if(!method)return;
         method.value=button.dataset.fizoPaymentMethod;
         method.dispatchEvent(new Event("change",{bubbles:true}));
+        syncCashPanelVisibility();
         document.querySelectorAll("[data-fizo-payment-method]").forEach(function(other){
           other.setAttribute("aria-pressed",String(other===button));
         });
@@ -111,6 +153,12 @@
     });
   }
   document.addEventListener("retail:payment-controls-added",bindRetailPayShortcuts);
+  document.addEventListener("keydown",function(event){
+    if(event.key==="Escape"&&paymentCard&&paymentCard.classList.contains("is-open")){
+      event.preventDefault();
+      closePaymentDrawer();
+    }
+  });
   bindRetailPayShortcuts();
   var server=root.querySelector("#fizo-catalogue-server-query");
   var local=root.querySelector("[data-pos-menu-search]");
@@ -319,12 +367,13 @@
             liveSummary.appendChild(document.importNode(remoteCta,true));
           }
           var newCard=document.importNode(freshCard,true);
-          newCard.classList.add("reference-payment-card");
-          basket.appendChild(newCard);
           var newCash=document.importNode(nextCash,true);
-          basket.appendChild(newCash);
+          newCard.appendChild(newCash);
+          basket.appendChild(newCard);
+          setupPaymentDrawer(newCard,newCash);
           paymentForm=newCard.querySelector("[data-pos-payment-form]");
           paymentCard=newCard;
+          cashPanel=newCash;
           activePayment=paymentForm;
           cash=newCash;
         }
