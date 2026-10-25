@@ -247,11 +247,22 @@
         });
         var cash=document.querySelector("[data-retail-cash-panel]");
         var nextCash=remote.querySelector("[data-retail-cash-panel]");
+        var activePayment=document.querySelector("[data-pos-payment-form]");
+        var remotePayment=remote.querySelector("[data-pos-payment-form]");
+        // Never manufacture a payment form from fetched HTML: its CSRF,
+        // request identity, tender and cash-change listeners are bound when
+        // Django renders checkout. A mismatch needs a normal navigation.
+        if(!!activePayment!==!!remotePayment){
+          throw new Error("Checkout payment controls changed; reopen this sale to continue.");
+        }
         if(cash&&nextCash){
           var oldDue=cash.getAttribute("data-balance-due");
-          var amount=paymentForm.querySelector('input[name="amount"]');
-          if(amount&&Number(amount.value)===Number(oldDue)){
-            var remoteAmount=remote.querySelector('[data-pos-payment-form] input[name="amount"]');
+          var amount=activePayment&&activePayment.querySelector('input[name="amount"]');
+          var tender=cash.querySelector("[data-retail-cash-received]");
+          if(amount&&remotePayment&&Number.isFinite(Number(oldDue))&&
+             Number(amount.value)===Number(oldDue)&&
+             (!tender||!tender.value.trim())){
+            var remoteAmount=remotePayment.querySelector('input[name="amount"]');
             if(remoteAmount)amount.value=remoteAmount.value;
           }
           cash.setAttribute("data-balance-due",nextCash.getAttribute("data-balance-due"));
