@@ -349,10 +349,31 @@ class StaffOrderRefundForm(forms.Form):
         *args,
         payments: list | None = None,
         max_refund: Decimal | None = None,
+        approvers: list | None = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._max_refund = (max_refund or Decimal("0")).quantize(Decimal("0.01"))
+        if approvers is not None:
+            self.fields["approver_id"] = forms.ChoiceField(
+                label="Supervisor",
+                choices=[("", "Select manager")] + [
+                    (str(member.pk), member.user.get_full_name() or member.user.email)
+                    for member in approvers
+                ],
+                widget=forms.Select(attrs={"class": "staff-input"}),
+            )
+            self.fields["approver_pin"] = forms.RegexField(
+                regex=r"^[0-9]{6,8}$",
+                label="Supervisor PIN",
+                widget=forms.PasswordInput(attrs={
+                    "class": "staff-input",
+                    "inputmode": "numeric",
+                    "autocomplete": "off",
+                    "minlength": 6,
+                    "maxlength": 8,
+                }),
+            )
         pays = list(payments or [])
         if len(pays) > 1:
             self.fields["payment_id"] = forms.ChoiceField(
