@@ -336,6 +336,7 @@
             <div class="col-12 col-md-4">{{ payment_form.method.label_tag }}{{ payment_form.method }}</div>
             <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">{% if is_supermarket_outlet %}Pay{% else %}Record payment{% endif %}</button></div>
           </form>
+          {% if is_supermarket_outlet %}<p class="staff-muted small mt-2 mb-0" role="status" aria-live="polite" data-retail-payment-status>Ready to record payment.</p>{% endif %}
         </div>
       {% endif %}
 
