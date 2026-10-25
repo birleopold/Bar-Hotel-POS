@@ -51,6 +51,8 @@ if [[ -z "$DB_OWNER" || ! "$DB_OWNER" =~ ^[A-Za-z0-9_]+$ ]]; then
 fi
 
 ROLE_ELEVATED=0
+SERVICE_STOPPED_BY_DEPLOY=0
+
 restore_db_role() {
   if [[ "$ROLE_ELEVATED" == "1" ]]; then
     sudo -u postgres psql -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
@@ -58,10 +60,21 @@ restore_db_role() {
     ROLE_ELEVATED=0
   fi
 }
-trap restore_db_role EXIT
+
+deploy_cleanup() {
+  restore_db_role
+  if [[ "$SERVICE_STOPPED_BY_DEPLOY" == "1" ]]; then
+    sudo systemctl start "$SERVICE" >/dev/null 2>&1 || true
+    SERVICE_STOPPED_BY_DEPLOY=0
+  fi
+}
+trap deploy_cleanup EXIT
 
 if [[ "$APP_ROLE" != "$DB_OWNER" ]]; then
-  sudo systemctl stop "$SERVICE" || true
+  if sudo systemctl is-active --quiet "$SERVICE"; then
+    sudo systemctl stop "$SERVICE"
+    SERVICE_STOPPED_BY_DEPLOY=1
+  fi
   sudo -u postgres psql -d "$DB_NAME" -X -v ON_ERROR_STOP=1 \
     -c "ALTER ROLE \"$APP_ROLE\" INHERIT; GRANT \"$DB_OWNER\" TO \"$APP_ROLE\";" >/dev/null
   ROLE_ELEVATED=1
@@ -69,7 +82,6 @@ fi
 
 "$VENV/bin/python" manage.py migrate --noinput
 restore_db_role
-trap - EXIT
 
 "$VENV/bin/python" manage.py collectstatic --noinput
 
@@ -78,6 +90,8 @@ sudo rsync -a --delete "$APP/backend/staticfiles/" /var/www/leosoft-pos/static/
 sudo chmod -R a+rX /var/www/leosoft-pos/static
 
 sudo systemctl restart "$SERVICE"
+SERVICE_STOPPED_BY_DEPLOY=0
 sudo systemctl is-active --quiet "$SERVICE"
+trap - EXIT
 
 echo "POS deploy completed at $(git -C "$APP" rev-parse --short HEAD)."
