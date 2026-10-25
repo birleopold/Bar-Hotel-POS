@@ -167,6 +167,19 @@ class RetailSalesLandingTests(SimpleTestCase):
         )
         self.assertIn("Order.objects.select_for_update().get(pk=order.pk)", services)
 
+    def test_part_paid_quantity_reduction_routes_to_authorized_refund_controls(self):
+        root = Path(__file__).resolve().parent
+        services = (root.parent / "pos/services/orders.py").read_text(encoding="utf-8")
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        checkout = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn('code="refund_required"', services)
+        self.assertIn('Refund {locked_o.currency} {excess:.2f} before applying this reduction.', services)
+        self.assertIn('"refund_required": refund_required', view)
+        self.assertIn('data-retail-refund-form', detail)
+        self.assertIn('if (data.refund_required)', checkout)
+        self.assertIn('"Open refund controls"', checkout)
+
     def test_barcode_and_product_errors_share_read_only_recovery(self):
         root = Path(__file__).resolve().parent
         js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
