@@ -715,7 +715,6 @@ def adjust_open_order_line_quantity(
 
 
 @transaction.atomic
-@transaction.atomic
 def hold_open_order(*, order: Order, hold_label: str, user) -> Order:
     locked = Order.objects.select_for_update().get(pk=order.pk)
     if locked.status != OrderStatus.OPEN:
