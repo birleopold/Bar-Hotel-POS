@@ -251,7 +251,7 @@
                   <button type="button" data-fizo-step="1" aria-label="Increase quantity of {{ line.label }}">+</button>
                   <button type="submit" class="fizo-retail-stepper__save" aria-label="Save updated quantity">Update</button>
                 </form>
-                <form method="post" class="fizo-retail-basket-row__void">
+                <form method="post" class="fizo-retail-basket-row__void" data-retail-void-line-form>
                   {% csrf_token %}
                   <input type="hidden" name="action" value="void_line">
                   <input type="hidden" name="line_id" value="{{ line.id }}">
@@ -266,6 +266,7 @@
           <div class="fizo-retail-basket-empty"><i class="bi bi-basket2"></i><p>Basket empty. Scan a barcode or select a product to begin.</p></div>
         {% endfor %}
       </div>
+      <p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-basket-mutation-status></p>
     </section>
     <div class="fizo-retail-basket-summary" aria-label="Sale totals">
       <div data-retail-summary="subtotal"><span>Subtotal</span><strong>{{ order.currency }} {{ order.subtotal }}</strong></div>
