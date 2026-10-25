@@ -46,11 +46,11 @@
   <p>Subtotal {{ order.currency }} {{ order.subtotal }}</p>
   <p>Tax {{ order.currency }} {{ order.tax_total }}</p>
   <p class="tot">Total {{ order.currency }} {{ order.total }}</p>
-  <p>Net paid {{ order.currency }} {{ amount_paid }} · Balance {{ order.currency }} {{ balance_due }}</p>
+  <p>Net paid {{ order.currency }} {{ amount_paid }} · Balance {{ order.currency }} {{ balance_due|floatformat:2 }}</p>
   {% if order.status == "closed" and order.is_paid %}
     <p><strong>Paid in full</strong></p>
   {% elif balance_due > 0 %}
-    <p><strong>Payment outstanding · {{ order.currency }} {{ balance_due }}</strong></p>
+    <p><strong>Payment outstanding · {{ order.currency }} {{ balance_due|floatformat:2 }}</strong></p>
   {% endif %}
   {% if show_payment_history %}
     <div aria-label="Recorded payments">
