@@ -45,6 +45,9 @@ def set_outlet_delivery_enabled(*, outlet, enabled: bool, user, membership):
         raise ValidationError({"delivery": "Not authorized to configure this outlet."})
     if not isinstance(enabled, bool):
         raise ValidationError({"enabled": "Choose true or false."})
+    from .delivery_policy import DELIVERY_OUTLET_TYPES
+    if not outlet.is_active or outlet.outlet_type not in DELIVERY_OUTLET_TYPES:
+        raise ValidationError({"delivery": "This active business section does not support delivery."})
     setting, _ = OutletDeliverySettings.objects.select_for_update().get_or_create(
         outlet=outlet, defaults={"tenant_id":outlet.site.tenant_id, "is_enabled":False},
     )
@@ -199,10 +202,6 @@ def assign_delivery_driver(*, delivery, driver, user, membership):
         raise ValidationError({"delivery":"Not authorized to assign drivers."})
     if locked.order.tenant_id != locked.tenant_id or locked.order.outlet_id != locked.outlet_id:
         raise ValidationError({"delivery":"Fulfillment record and sale do not belong together."})
-    if not OutletDeliverySettings.objects.filter(
-        tenant_id=locked.tenant_id, outlet_id=locked.outlet_id, is_enabled=True,
-    ).exists():
-        raise ValidationError({"delivery":"Delivery is disabled for this outlet."})
     if locked.status not in {"requested", "accepted", "preparing", "ready", "failed"}:
         raise ValidationError({"delivery":"Cannot reassign a dispatched or completed delivery."})
     if driver is None or not Membership.objects.filter(
@@ -244,11 +243,6 @@ def transition_order_delivery(*, delivery, target_status, user, membership, note
         raise ValidationError({"delivery":"Not authorized to update this delivery."})
     if locked.order.tenant_id != locked.tenant_id or locked.order.outlet_id != locked.outlet_id:
         raise ValidationError({"delivery":"Fulfillment and sale scope mismatch."})
-    if not OutletDeliverySettings.objects.filter(
-        tenant_id=locked.tenant_id, outlet_id=locked.outlet_id,
-        is_enabled=True,
-    ).exists():
-        raise ValidationError({"delivery":"Delivery is disabled for this outlet."})
     if not isinstance(note, str) or len(note.strip()) > 500:
         raise ValidationError({"note":"Provide a note of at most 500 characters."})
     if locked.status == target_status:
