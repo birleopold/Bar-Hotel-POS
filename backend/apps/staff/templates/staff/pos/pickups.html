@@ -11,7 +11,8 @@
 <a class="staff-btn staff-btn--ghost" href="?status=overdue">Overdue</a>
 <a class="staff-btn staff-btn--ghost" href="?status=collected">Collected</a>
 <a class="staff-btn staff-btn--ghost" href="?status=all">All</a>
-<a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Sales</a></nav>
+<a class="staff-btn staff-btn--ghost" href="{% url 'staff-orders' %}">Sales</a>
+<a class="staff-btn staff-btn--ghost" href="{% url 'staff-deliveries' %}">Deliveries</a></nav>
 <section class="staff-card"><div class="staff-table-wrap"><table class="staff-table">
 <thead><tr><th>Pickup date</th><th>Store</th><th>Receipt</th><th>Customer</th><th>Status</th><th>Open order</th></tr></thead>
 <tbody>{% for pickup in pickups %}<tr>
