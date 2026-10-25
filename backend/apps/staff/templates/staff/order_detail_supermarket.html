@@ -291,7 +291,10 @@
     });
   }
 
+  function bindRetailPaymentControls() {
   var paymentForm = document.querySelector("[data-pos-payment-form]");
+  if(paymentForm && paymentForm.dataset.retailPaymentBound==="1") return;
+  if(paymentForm)paymentForm.dataset.retailPaymentBound="1";
   if (paymentForm) {
     var paymentPending = false;
     var paymentSubmitButton = paymentForm.querySelector('button[type="submit"]');
@@ -379,6 +382,10 @@
       publishCustomerTender();
     });
   }
+
+  }
+  document.addEventListener("retail:payment-controls-added", bindRetailPaymentControls);
+  bindRetailPaymentControls();
 
   // Keep every visible checkout amount synchronized with the authoritative
   // response. This is one renderer for POST success and GET reconciliation.
