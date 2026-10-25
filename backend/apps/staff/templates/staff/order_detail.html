@@ -441,7 +441,10 @@
         </div>
       {% endif %}
 
-      {% if is_supermarket_outlet %}<div data-retail-refund-zone>{% endif %}
+      {% if is_supermarket_outlet %}
+      <p class="staff-muted small mb-2" role="status" aria-live="polite" data-retail-finance-status></p>
+      <div data-retail-refund-zone>
+      {% endif %}
       {% if can_record_refund and refund_form %}
         <div class="staff-card staff-card--pos" data-retail-refund-card>
           <h2 class="staff-card__title staff-card__title--pos">{% if is_supermarket_outlet %}Other refund{% else %}Refund{% endif %}</h2>
