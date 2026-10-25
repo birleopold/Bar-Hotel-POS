@@ -62,50 +62,11 @@
     </script>
   {% endif %}
   {% if request.user.is_authenticated and request.tenant and request.tenant_membership %}
-    <script>
-      (function () {
-        var statusUrl = "{% url 'staff-notifications-status' %}";
-        var inboxUrl = "{% url 'staff-notifications' %}";
-        var seenKey = "staff-notification-seen:{{ request.tenant.pk|escapejs }}:{{ request.tenant_membership.pk|escapejs }}";
-        function updateBadge(count) {
-          document.querySelectorAll("[data-staff-notification-count]").forEach(function (badge) {
-            badge.textContent = String(count || 0);
-            badge.hidden = !count;
-          });
-        }
-        function showBrowserAlert(alert) {
-          if (!alert || !("Notification" in window) || Notification.permission !== "granted") return;
-          var previous = "";
-          try { previous = localStorage.getItem(seenKey) || ""; } catch (error) {}
-          if (previous === alert.id) return;
-          try { localStorage.setItem(seenKey, alert.id); } catch (error) {}
-          var notice = new Notification(alert.title || "Notification", {
-            body: alert.body || "",
-            tag: "staff-alert-" + alert.id
-          });
-          notice.onclick = function () {
-            window.focus();
-            window.location.href = alert.url || inboxUrl;
-            notice.close();
-          };
-        }
-        function pollNotifications() {
-          fetch(statusUrl, {credentials: "same-origin", cache: "no-store"})
-            .then(function (response) {
-              if (!response.ok) throw new Error("notification status");
-              return response.json();
-            })
-            .then(function (data) {
-              updateBadge(data.unread_count);
-              showBrowserAlert(data.latest);
-            })
-            .catch(function () {});
-        }
-        window.staffPollNotifications = pollNotifications;
-        pollNotifications();
-        window.setInterval(pollNotifications, 15000);
-      }());
-    </script>
+    <span data-staff-notification-client
+          data-status-url="{% url 'staff-notifications-status' %}"
+          data-inbox-url="{% url 'staff-notifications' %}"
+          data-scope-key="{{ request.tenant.pk }}:{{ request.tenant_membership.pk }}" hidden></span>
+    <script defer src="{% static 'staff/notification-client.js' %}?v=20261025.1"></script>
   {% endif %}
   {% if request.session.staff_pin_session %}
     <form id="staff-idle-lock" method="post" action="{% url 'staff-terminal-lock' %}" hidden>{% csrf_token %}</form>
