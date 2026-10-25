@@ -75,6 +75,15 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('request.headers.get("X-Requested-With") == "XMLHttpRequest"', gate)
         self.assertIn('return JsonResponse({"ok": False, "message": message}, status=403)', gate)
 
+    def test_first_item_checks_real_balance_before_binding_payment(self):
+        js = (Path(__file__).resolve().parent /
+              "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn('var serverDue=nextCash.getAttribute("data-balance-due")', js)
+        self.assertIn('!Number.isFinite(Number(serverDue))', js)
+        self.assertIn('var oldDue=activatingPayment ? null : cash.getAttribute("data-balance-due")', js)
+        self.assertLess(js.index('current.replaceChildren.apply(current'),
+                        js.index('document.dispatchEvent(new Event("retail:payment-controls-added"))'))
+
     def test_first_item_activates_server_rendered_payment_controls_inline(self):
         root = Path(__file__).resolve().parent
         js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
