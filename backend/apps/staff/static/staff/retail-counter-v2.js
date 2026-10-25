@@ -489,6 +489,71 @@
 
   window.retailShowCheckoutRecovery=showCheckoutRecovery;
 
+  // Quick-register a genuinely missing product without refreshing the till.
+  // The server-side request key remains the idempotency boundary; an ambiguous
+  // response is never automatically replayed.
+  var quickForm=document.querySelector("[data-fizo-quick-product-form]");
+  if(quickForm){
+    quickForm.addEventListener("submit",function(event){
+      if(quickForm.dataset.submitting==="1"){event.preventDefault();return;}
+      if(!quickForm.checkValidity())return;
+      var asyncReady=!!(window.fetch&&window.FormData&&window.retailRefreshCheckout);
+      quickForm.dataset.submitting="1";
+      var submit=quickForm.querySelector('button[type="submit"]');
+      var previous=submit&&submit.textContent;
+      var status=quickForm.querySelector("[data-fizo-quick-product-status]");
+      if(submit){submit.disabled=true;submit.textContent="Saving product…";}
+      function unlock(){
+        delete quickForm.dataset.submitting;
+        if(submit){submit.disabled=false;submit.textContent=previous||"Save product & add to basket";}
+      }
+      if(!asyncReady){
+        window.addEventListener("pageshow",unlock,{once:true});
+        return;
+      }
+      event.preventDefault();
+      if(status)status.textContent="Saving product and adding it to this basket…";
+      var csrf=quickForm.querySelector('input[name="csrfmiddlewaretoken"]');
+      fetch(quickForm.getAttribute("action")||window.location.pathname+window.location.search,{
+        method:"POST",body:new FormData(quickForm),credentials:"same-origin",redirect:"follow",
+        headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+      }).then(function(response){
+        if(response.redirected)throw new Error("Checkout session changed or access was redirected.");
+        var type=(response.headers.get("Content-Type")||"").toLowerCase();
+        if(!type.includes("application/json"))throw new Error("Unexpected quick-product response.");
+        return response.json().then(function(data){
+          if(!response.ok||!data.ok){
+            var rejected=new Error(data.message||"Product could not be saved.");
+            rejected.serverRejected=true;
+            throw rejected;
+          }
+          var key=quickForm.querySelector('input[name="quick_product_request_key"]');
+          if(key&&data.next_request_key)key.value=data.next_request_key;
+          return data;
+        });
+      }).then(function(data){
+        return window.retailRefreshCheckout().then(function(){return data;});
+      }).then(function(data){
+        ["name","unit_price","barcode"].forEach(function(name){
+          var input=quickForm.querySelector('[name="'+name+'"]');
+          if(input)input.value="";
+        });
+        var quantity=quickForm.querySelector('input[name="quantity"]');
+        if(quantity)quantity.value="1";
+        var live=document.querySelector("[data-fizo-quick-product-status]")||status;
+        if(live)live.textContent=data.message||"Product saved and added to basket.";
+      }).catch(function(error){
+        var live=document.querySelector("[data-fizo-quick-product-status]")||status;
+        if(error&&error.serverRejected){
+          if(live)live.textContent=error.message;
+        }else if(live){
+          showCheckoutRecovery(live,error);
+        }
+      }).then(unlock);
+    });
+    window.addEventListener("pageshow",function(){delete quickForm.dataset.submitting;});
+  }
+
   // Django confirms each add and supplies payment controls when an empty
   // basket first becomes payable. Native submission remains a fallback only
   // for browsers without the supported asynchronous checkout APIs.

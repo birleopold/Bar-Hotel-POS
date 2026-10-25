@@ -20,6 +20,7 @@
       <label>Quantity<input class="staff-input" name="quantity" type="number" inputmode="numeric" min="1" step="1" value="1" required></label>
       <label>Barcode (optional)<input class="staff-input" name="barcode" maxlength="64" autocomplete="off" placeholder="Only if known"></label>
       <button class="staff-btn staff-btn--primary" type="submit">Save product &amp; add to basket</button>
+      <p class="staff-muted small mb-0" role="status" aria-live="polite" data-fizo-quick-product-status></p>
     </form>
   </details>
   {% endif %}
@@ -184,31 +185,6 @@
 
   /* The visible header owns search/scan focus and payment-method selection.
      This wrapper only protects the real authenticated POST forms. */
-  var quickForm = document.querySelector("[data-fizo-quick-product-form]");
-  if (quickForm) {
-    quickForm.addEventListener("submit", function (event) {
-      if (quickForm.dataset.submitting === "1") {
-        event.preventDefault();
-        return;
-      }
-      if (!quickForm.checkValidity()) return;
-      quickForm.dataset.submitting = "1";
-      var saveButton = quickForm.querySelector('button[type="submit"]');
-      if (saveButton) {
-        saveButton.disabled = true;
-        saveButton.textContent = "Saving product…";
-      }
-    });
-    window.addEventListener("pageshow", function () {
-      delete quickForm.dataset.submitting;
-      var saveButton = quickForm.querySelector('button[type="submit"]');
-      if (saveButton) {
-        saveButton.disabled = false;
-        saveButton.textContent = "Save product & add to basket";
-      }
-    });
-  }
-
   var scanForm = document.querySelector("[data-retail-scan-form]");
   if (scanForm) {
     var scanInput = scanForm.querySelector('input[name="code"]');

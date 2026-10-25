@@ -216,6 +216,83 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(page, "data-retail-scan-form")
         self.assertContains(page, "staff-pos-order-side")
 
+    def test_server_cashier_can_quick_add_missing_product_inline_once(self):
+        import uuid
+        from apps.audit.models import AuditEvent
+        from apps.catalog.models import MenuItemOutlet
+        from apps.pos.models import OrderLine
+
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        membership.role = MembershipRole.SERVER
+        membership.save(update_fields=["role"])
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.user,
+            currency="UGX",
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "data-fizo-quick-product-form")
+        self.assertContains(page, "data-fizo-quick-product-status")
+        key = str(uuid.uuid4())
+        payload = {
+            "action": "quick_create_product",
+            "quick_product_request_key": key,
+            "name": "New counter soap",
+            "unit_price": "4500.00",
+            "quantity": "2",
+            "barcode": "QUICK-SOAP-4500",
+        }
+
+        first = self.client.post(
+            url, payload, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(first.status_code, 200)
+        body = first.json()
+        self.assertTrue(body["ok"])
+        self.assertFalse(body["replay"])
+        self.assertIn("next_request_key", body)
+
+        item = MenuItem.objects.get(
+            tenant=self.tenant, name="New counter soap",
+        )
+        self.assertTrue(
+            MenuItemOutlet.objects.filter(
+                menu_item=item, outlet=self.outlet,
+            ).exists()
+        )
+        line = OrderLine.objects.get(order=order, menu_item=item)
+        self.assertEqual(line.quantity, Decimal("2"))
+        self.assertEqual(line.line_total, Decimal("9000.00"))
+        self.assertEqual(
+            AuditEvent.objects.filter(
+                tenant=self.tenant,
+                action="catalog.quick_product_created",
+                entity_id=str(item.pk),
+                payload__request_key=key,
+            ).count(),
+            1,
+        )
+
+        replay = self.client.post(
+            url, payload, HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(replay.status_code, 200)
+        self.assertTrue(replay.json()["ok"])
+        self.assertTrue(replay.json()["replay"])
+        self.assertEqual(
+            MenuItem.objects.filter(
+                tenant=self.tenant, name="New counter soap",
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            OrderLine.objects.filter(order=order, menu_item=item).count(),
+            1,
+        )
+
     def test_server_cashier_can_apply_eligible_offer_inline(self):
         from datetime import timedelta
         from django.utils import timezone

@@ -1612,6 +1612,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             # Eligible promotions are policy-defined offers, not manual price
             # overrides. Retail cashier UI already exposes them on active sales.
             "apply_promotion",
+            "quick_create_product",
         }
         if not (membership_can_modify_lodging(m) or (
             action in cashier_actions and _can_operate_retail_checkout(m, order)
@@ -1920,43 +1921,74 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_quick_create_product(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_quick = (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+
+        def reject(message, status=422):
+            if async_quick:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
+        def accepted(message, *, replay=False):
+            if async_quick:
+                return JsonResponse({
+                    "ok": True,
+                    "message": str(message),
+                    "order_id": str(order.pk),
+                    "replay": replay,
+                    "next_request_key": str(uuid.uuid4()),
+                })
+            if replay:
+                messages.info(request, str(message))
+            else:
+                messages.success(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
         if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-            messages.error(request, "Quick product creation is available only at retail checkouts.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Quick product creation is available only at retail checkouts.", 409)
         if not _tenant_item_catalog_enabled(order.tenant) or order.status != OrderStatus.OPEN or order.is_paid:
-            messages.error(request, "Open an unpaid retail sale before adding a new product.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Open an unpaid retail sale before adding a new product.", 409)
         form = RetailQuickProductForm(request.POST)
         if not form.is_valid():
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field}: {error}")
-            return redirect("staff-order-detail", order_id=order.id)
+            detail = "; ".join(
+                f"{field}: {error}"
+                for field, error_list in form.errors.items()
+                for error in error_list
+            ) or "Check the quick product details."
+            return reject(detail)
         data = form.cleaned_data
         try:
             request_key = str(uuid.UUID(request.POST.get("quick_product_request_key", "")))
         except (ValueError, AttributeError, TypeError):
-            messages.error(request, "Quick-add form expired. Reload the checkout and try again.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Quick-add form expired. Reload the checkout and try again.", 409)
         if AuditEvent.objects.filter(
             tenant_id=order.tenant_id, action="catalog.quick_product_created",
             payload__order_id=str(order.pk), payload__request_key=request_key,
         ).exists():
-            messages.info(request, "This product was already added; the repeated request was ignored.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return accepted(
+                "This product was already added; the repeated request was ignored.",
+                replay=True,
+            )
         if data["barcode"] and MenuItem.objects.filter(
             tenant_id=order.tenant_id, barcode=data["barcode"],
         ).exists():
-            messages.error(request, "This barcode already exists. Search for its registered product instead.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject(
+                "This barcode already exists. Search for its registered product instead.",
+                409,
+            )
         # Prevent a second quick-entry for an already catalogued product.
         duplicate = MenuItem.objects.filter(
             tenant_id=order.tenant_id, name__iexact=data["name"],
             is_active=True,
         ).first()
         if duplicate:
-            messages.error(request, "A product with this name already exists. Search the catalogue before creating another.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject(
+                "A product with this name already exists. Search the catalogue before creating another.",
+                409,
+            )
         try:
             with transaction.atomic():
                 # Serialize edits to this basket and reject a concurrent settlement.
@@ -1969,8 +2001,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     payload__request_key=request_key,
                 ).first()
                 if prior:
-                    messages.info(request, "This product was already added; the repeated request was ignored.")
-                    return redirect("staff-order-detail", order_id=order.id)
+                    return accepted(
+                        "This product was already added; the repeated request was ignored.",
+                        replay=True,
+                    )
                 if current.status != OrderStatus.OPEN or current.is_paid:
                     raise ValueError("This sale is no longer open; no product was created.")
                 category, _ = MenuCategory.objects.get_or_create(
@@ -2018,10 +2052,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     },
                 )
         except (DRFValidationError, ValueError, TypeError) as exc:
-            messages.error(request, f"Could not add product: {getattr(exc, 'detail', exc)}")
-        else:
-            messages.success(request, "New product saved and added to this sale. Catalogue review required.")
-        return redirect("staff-order-detail", order_id=order.id)
+            return reject(f"Could not add product: {getattr(exc, 'detail', exc)}")
+        return accepted("New product saved and added to this sale. Catalogue review required.")
 
     def _post_add_line(self, request: HttpRequest, order: Order) -> HttpResponse:
         async_add = (request.headers.get("X-Requested-With") == "XMLHttpRequest"
