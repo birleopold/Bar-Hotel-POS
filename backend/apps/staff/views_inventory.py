@@ -6,6 +6,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import F, Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
@@ -35,6 +36,11 @@ from .forms import (
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets, resolve_staff_outlet
+from .services.approvals import (
+    SensitiveApprovalError,
+    authorize_sensitive_action,
+    sensitive_action_approvers,
+)
 from .services.permissions import membership_can_modify_inventory, membership_has_inventory_capability, membership_can_modify_lodging
 
 UPLOAD_ERROR_REPORT_SESSION_KEY = "staff_inventory_upload_error_rows"
@@ -187,7 +193,17 @@ class StaffStockMovementCreateView(StaffTenantRequiredMixin, FormView):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         kw["outlets"] = outlets
         kw["default_outlet"] = resolve_staff_outlet(self.request, outlets)
+        kw["approvers"] = sensitive_action_approvers(
+            requester=self.request.tenant_membership,
+            action="stock_write_off",
+            outlet_id=None,
+        )
         return kw
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial["approval_request_key"] = uuid.uuid4()
+        return initial
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -251,24 +267,59 @@ class StaffStockMovementCreateView(StaffTenantRequiredMixin, FormView):
         menu_item = form.cleaned_data["menu_item"]
         reason = form.cleaned_data["reason"]
         qty = form.cleaned_data["quantity"]
-        if reason in (StockReason.ADJUST_OUT.value, StockReason.WASTE.value):
-            delta = -qty
-        else:
-            delta = qty
+        note = form.cleaned_data.get("note") or ""
+        write_off = reason in (StockReason.ADJUST_OUT.value, StockReason.WASTE.value)
+        delta = -qty if write_off else qty
         try:
-            apply_manual_stock_change(
-                tenant_id=self.request.tenant.id,
-                outlet=outlet,
-                menu_item=menu_item,
-                quantity_change=delta,
-                reason=reason,
-                user=self.request.user,
-                note=form.cleaned_data.get("note") or "",
-            )
+            if write_off:
+                with transaction.atomic():
+                    approval = authorize_sensitive_action(
+                        requester=self.request.tenant_membership,
+                        approver_id=form.cleaned_data["approver_id"],
+                        approver_pin=form.cleaned_data["approver_pin"],
+                        action="stock_write_off",
+                        entity_type="menu_item",
+                        entity_id=str(menu_item.pk),
+                        request_key=str(form.cleaned_data["approval_request_key"]),
+                        outlet_id=outlet.pk,
+                        intent_payload={
+                            "outlet_id": str(outlet.pk),
+                            "menu_item_id": str(menu_item.pk),
+                            "reason": reason,
+                            "quantity_change": str(delta),
+                            "note": note,
+                        },
+                    )
+                    if not getattr(approval, "idempotent_replay", False):
+                        apply_manual_stock_change(
+                            tenant_id=self.request.tenant.id,
+                            outlet=outlet,
+                            menu_item=menu_item,
+                            quantity_change=delta,
+                            reason=reason,
+                            user=self.request.user,
+                            note=note,
+                        )
+            else:
+                apply_manual_stock_change(
+                    tenant_id=self.request.tenant.id,
+                    outlet=outlet,
+                    menu_item=menu_item,
+                    quantity_change=delta,
+                    reason=reason,
+                    user=self.request.user,
+                    note=note,
+                )
+        except SensitiveApprovalError as exc:
+            messages.error(self.request, str(exc))
+            return self.form_invalid(form)
         except DRFValidationError as e:
             _flash_drf_validation(self.request, e)
             return self.form_invalid(form)
-        messages.success(self.request, "Movement recorded.")
+        messages.success(
+            self.request,
+            "Manager-approved stock write-off recorded." if write_off else "Movement recorded.",
+        )
         return redirect("staff-inventory-movements")
 
 
@@ -373,6 +424,16 @@ class StaffStockMovementUploadView(StaffTenantRequiredMixin, FormView):
             if reason is None:
                 errors.append(f"Row {row_num}: reason missing/invalid.")
                 failed_rows.append({"row": str(row_num), "error": "reason missing/invalid", "raw": str(row)})
+                continue
+            if reason in (StockReason.ADJUST_OUT.value, StockReason.WASTE.value):
+                errors.append(
+                    f"Row {row_num}: negative stock adjustments require the individual manager-approved stock movement form."
+                )
+                failed_rows.append({
+                    "row": str(row_num),
+                    "error": "manager approval required for adjust-out/waste",
+                    "raw": str(row),
+                })
                 continue
             try:
                 qty = Decimal(qty_raw)
