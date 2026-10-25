@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+from io import BytesIO
+
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.db.models import Q
@@ -145,6 +148,31 @@ class OrgMenuItemCreateView(ConsoleOrgAdminRequiredMixin, CreateView):
         return _save_catalog_item_safely(self, form, creating=True)
 
 
+def _phone_photo_handoff_context(request, item: MenuItem) -> dict:
+    """Build a same-account phone handoff without exposing a third-party QR service."""
+    photo_path = reverse("console-org-menu-item-photo", kwargs={"item_id": item.pk})
+    photo_url = request.build_absolute_uri(photo_path)
+    qr_data_uri = ""
+    try:
+        import qrcode
+
+        qr = qrcode.QRCode(version=None, box_size=6, border=2)
+        qr.add_data(photo_url)
+        qr.make(fit=True)
+        image = qr.make_image(fill_color="black", back_color="white")
+        output = BytesIO()
+        image.save(output, format="PNG")
+        qr_data_uri = "data:image/png;base64," + base64.b64encode(output.getvalue()).decode("ascii")
+    except Exception:
+        # Link/copy remains available if QR rendering is unavailable.
+        qr_data_uri = ""
+    return {
+        "phone_photo_url": photo_url,
+        "phone_photo_qr_data_uri": qr_data_uri,
+        "can_notify_phone_account": bool(getattr(request, "tenant_membership", None)),
+    }
+
+
 class OrgMenuItemUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
     model = MenuItem
     form_class = ConsoleMenuItemForm
@@ -163,6 +191,7 @@ class OrgMenuItemUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["menu_item_for_nav"] = self.object
+        ctx.update(_phone_photo_handoff_context(self.request, self.object))
         return ctx
 
     def form_valid(self, form):
@@ -196,6 +225,32 @@ class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, View):
         from django.shortcuts import render
 
         item = self.get_product(request, item_id)
+
+        if request.POST.get("action") == "notify_phone":
+            from apps.audit.models import StaffNotification
+
+            membership = getattr(request, "tenant_membership", None)
+            if membership is None:
+                messages.error(request, "This account does not have a staff notification inbox for this business.")
+            else:
+                photo_path = reverse("console-org-menu-item-photo", kwargs={"item_id": item.pk})
+                StaffNotification.objects.update_or_create(
+                    tenant=request.tenant,
+                    recipient=membership,
+                    source_type="product_photo",
+                    source_id=str(item.pk),
+                    defaults={
+                        "priority": "normal",
+                        "title": f"Add photo · {item.name}",
+                        "body": "Open this on your phone to take or upload the product photo.",
+                        "url": photo_path,
+                        "active": True,
+                        "read_at": None,
+                    },
+                )
+                messages.success(request, "Photo request sent to your account notifications.")
+            return redirect("console-org-menu-item-edit", item_id=item.pk)
+
         class ProductPhotoForm(forms.Form):
             photo = forms.ImageField(
                 widget=forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp"})
@@ -223,6 +278,15 @@ class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, View):
                 item = MenuItem.objects.select_for_update().get(pk=item.pk, tenant=request.tenant)
                 item.product_image = form.cleaned_data["photo"]
                 item.save(update_fields=["product_image", "updated_at"])
+                from apps.audit.models import StaffNotification
+                membership = getattr(request, "tenant_membership", None)
+                if membership is not None:
+                    StaffNotification.objects.filter(
+                        tenant=request.tenant,
+                        recipient=membership,
+                        source_type="product_photo",
+                        source_id=str(item.pk),
+                    ).update(active=False)
             messages.success(request, "Photo saved. The desktop editor will show it shortly.")
             return redirect("console-org-menu-item-photo", item_id=item.pk)
         return render(request, self.template_name, {"item": item, "photo_form": form}, status=400)
