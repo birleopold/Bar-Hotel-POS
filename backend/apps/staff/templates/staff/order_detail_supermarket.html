@@ -452,7 +452,10 @@
       }
     });
   }
-  document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
+  function bindQuantityForms() {
+    document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
+    if (form.dataset.quantityBound === "1") return;
+    form.dataset.quantityBound = "1";
     var input = form.querySelector('input[name="quantity"]');
     if (input) input.dataset.confirmedQuantity = input.value;
     form.addEventListener("submit", function (event) {
@@ -531,6 +534,9 @@
       });
     });
   });
+  }
+  document.addEventListener("retail:basket-lines-replaced", bindQuantityForms);
+  bindQuantityForms();
   window.addEventListener("pageshow", function () {
     document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
       delete form.dataset.submitting;
