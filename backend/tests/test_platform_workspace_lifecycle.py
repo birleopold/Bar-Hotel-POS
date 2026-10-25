@@ -335,6 +335,39 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         self.assertNotContains(filtered, "Access Active")
         self.assertNotContains(filtered, "Access Suspended")
 
+    def test_creating_past_due_invoice_reconciles_subscription_status(self):
+        from apps.tenants.models import (
+            BillingInvoice, BillingInvoiceStatus, Plan,
+            SubscriptionStatus, TenantSubscription,
+        )
+        tenant = Tenant.objects.create(name="Past due create", slug="past-due-create")
+        TenantSettings.objects.create(tenant=tenant)
+        plan = Plan.objects.create(name="Past Due Create Plan", code="past-due-create-plan")
+        subscription = TenantSubscription.objects.create(
+            tenant=tenant, plan=plan, status=SubscriptionStatus.ACTIVE,
+        )
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        response = self.client.post(url, {
+            "create_invoice": "1",
+            "inv-invoice_number": "INV-PAST-DUE-CREATE",
+            "inv-amount": "50000.00",
+            "inv-currency": "UGX",
+            "inv-status": BillingInvoiceStatus.PAST_DUE,
+            "inv-issued_at": "",
+            "inv-due_at": "",
+            "inv-paid_at": "",
+            "inv-external_ref": "",
+            "inv-note": "",
+        })
+        self.assertRedirects(response, url)
+        self.assertTrue(BillingInvoice.objects.filter(
+            tenant=tenant,
+            invoice_number="INV-PAST-DUE-CREATE",
+            status=BillingInvoiceStatus.PAST_DUE,
+        ).exists())
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.status, SubscriptionStatus.PAST_DUE)
+
     def test_tenant_scope_middleware_precedes_staff_membership_lookup(self):
         from django.conf import settings
         middleware = settings.MIDDLEWARE
