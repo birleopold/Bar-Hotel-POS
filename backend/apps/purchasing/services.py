@@ -5,7 +5,8 @@ from django.db.models import Sum
 from rest_framework.exceptions import ValidationError
 
 from apps.access.outlets import outlet_belongs_to_membership
-from apps.audit.services import log_audit
+from apps.audit.models import ExceptionReview
+from apps.audit.services import exception_fingerprint, log_audit
 from apps.catalog.packaging import to_stock_units
 from apps.finance.models import FinancePostingLink, FinancePostingSource
 from apps.finance.services import post_supplier_payment_expense
@@ -235,6 +236,29 @@ def confirm_missing_unit_cost(*, po: PurchaseOrder, line_id, unit_cost: Decimal,
     return line
 
 
+def _unresolved_delivery_discrepancies(po: PurchaseOrder) -> list[PurchaseReceipt]:
+    """Current receipt discrepancies without a resolved manager assessment."""
+    unresolved = []
+    receipts = PurchaseReceipt.objects.filter(
+        tenant_id=po.tenant_id,
+        purchase_order=po,
+    ).exclude(discrepancy_note="")
+    for receipt in receipts:
+        fingerprint = exception_fingerprint(
+            (receipt.discrepancy_note, receipt.updated_at)
+        )
+        resolved = ExceptionReview.objects.filter(
+            tenant_id=po.tenant_id,
+            kind="delivery_discrepancy",
+            entity_id=str(receipt.pk),
+            fingerprint=fingerprint,
+            status="resolved",
+        ).exists()
+        if not resolved:
+            unresolved.append(receipt)
+    return unresolved
+
+
 def record_supplier_payment(
     *, po: PurchaseOrder, amount: Decimal, method: str, reference: str,
     idempotency_key: str, user, membership, invoice_id=None,
@@ -275,6 +299,14 @@ def record_supplier_payment(
             return existing, True
         if method not in SupplierPaymentMethod.values:
             raise ValidationError({"method": "Select a valid payment method."})
+        unresolved_discrepancies = _unresolved_delivery_discrepancies(po)
+        if unresolved_discrepancies:
+            raise ValidationError({
+                "detail": (
+                    "Resolve the recorded delivery discrepancy in Manager → "
+                    "Exceptions before paying this supplier."
+                )
+            })
         if amount <= 0 or amount != amount.quantize(Decimal("0.01")):
             raise ValidationError({"amount": "Enter a positive amount with at most two decimal places."})
         received_lines = po.lines.filter(quantity_received__gt=0)
