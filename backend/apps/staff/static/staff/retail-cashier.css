@@ -288,6 +288,12 @@ body.staff-body--pos:has(.fizo-checkout-catalogue) .staff-pos-order-side{
 .reference-payment-card [data-pos-payment-form] label{font-size:10px;color:#60758b}
 .reference-payment-card [data-pos-payment-form] .staff-input{min-height:38px;padding:6px 8px}
 .reference-payment-card [data-pos-payment-form] button{min-height:38px;white-space:nowrap}
+.reference-partial-payment{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:0 0 7px;padding:7px 9px;border:1px solid #d9eadf;border-radius:7px;
+  background:#f4fbf6;color:#526c5f;font-size:11px;
+}
+.reference-partial-payment strong{color:#087a43;font-size:12px}
 .reference-payment-idle p{margin:3px 0 0;color:#6a7b8d;font-size:11px}
 .fizo-retail-basket-tools{
   order:6;flex:0 0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;
