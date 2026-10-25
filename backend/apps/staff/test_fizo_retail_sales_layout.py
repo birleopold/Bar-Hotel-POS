@@ -167,6 +167,18 @@ class RetailSalesLandingTests(SimpleTestCase):
         )
         self.assertIn("Order.objects.select_for_update().get(pk=order.pk)", services)
 
+    def test_refunds_use_rendered_stable_idempotency_keys(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        supermarket = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        self.assertIn('ctx["refund_request_key"] = uuid.uuid4()', view)
+        self.assertIn('ctx["retail_refund_request_key"] = uuid.uuid4()', view)
+        self.assertIn('idempotency_key=self._refund_request_key(request)', view)
+        self.assertIn('idempotency_key=self._refund_request_key(request, "retail_refund_request_key")', view)
+        self.assertIn('name="refund_request_key" value="{{ refund_request_key }}"', detail)
+        self.assertIn('name="retail_refund_request_key" value="{{ retail_refund_request_key }}"', supermarket)
+
     def test_part_paid_quantity_reduction_routes_to_authorized_refund_controls(self):
         root = Path(__file__).resolve().parent
         services = (root.parent / "pos/services/orders.py").read_text(encoding="utf-8")
