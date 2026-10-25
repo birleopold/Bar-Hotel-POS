@@ -920,9 +920,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         pk__in=[item.pk for item in menu_qs],
                     ).order_by("name")
             if is_retail_catalogue:
+                from django.db.models import Sum
                 from apps.inventory.models import StockBalance
-                # One tenant/outlet-scoped query for the visible page of products;
-                # never load or expose other outlets' stock on the cashier tile.
+                from apps.inventory.batches import InventoryBatch
+                # Only the visible page's tracked products, scoped to the
+                # authorized tenant and till. FEFO batches may include stock
+                # that is physically counted but quarantined or expired.
                 tracked_ids = [item.pk for item in menu_qs if item.track_inventory]
                 stock_by_product = dict(
                     StockBalance.objects.filter(
@@ -930,11 +933,29 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         menu_item_id__in=tracked_ids,
                     ).values_list("menu_item_id", "quantity")
                 )
+                batches = InventoryBatch.objects.filter(
+                    tenant_id=order.tenant_id, outlet_id=order.outlet_id,
+                    menu_item_id__in=tracked_ids,
+                ).values("menu_item_id").annotate(
+                    usable=Sum("remaining_quantity", filter=(
+                        Q(quarantined=False)
+                        & (Q(expiry_date__isnull=True) | Q(expiry_date__gte=timezone.localdate()))
+                    )),
+                )
+                usable_by_product = {
+                    row["menu_item_id"]: row["usable"] or Decimal("0")
+                    for row in batches
+                }
                 for item in menu_qs:
                     if not item.track_inventory:
                         continue
-                    qty = stock_by_product.get(item.pk, Decimal("0"))
+                    on_hand = stock_by_product.get(item.pk, Decimal("0"))
+                    has_batches = item.pk in usable_by_product
+                    # Once batch tracking starts, settlement requires usable
+                    # FEFO quantity, not the potentially larger legacy balance.
+                    qty = min(on_hand, usable_by_product[item.pk]) if has_batches else on_hand
                     item.cashier_stock_quantity = qty
+                    item.cashier_stock_batch_limited = has_batches and qty < on_hand
                     item.cashier_stock_low = (
                         qty <= item.reorder_level
                         if item.reorder_level is not None else qty <= 0
