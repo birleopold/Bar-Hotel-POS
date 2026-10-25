@@ -1633,14 +1633,22 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         except DRFValidationError as exc:
             if async_qty:
                 detail = exc.detail
+                refund_required = False
                 if isinstance(detail, dict):
-                    message = "; ".join(
-                        str(item) for value in detail.values()
+                    items = [
+                        item for value in detail.values()
                         for item in (value if isinstance(value, (list, tuple)) else [value])
-                    )
+                    ]
+                    message = "; ".join(str(item) for item in items)
+                    refund_required = any(getattr(item, "code", "") == "refund_required" for item in items)
                 else:
-                    message = "; ".join(str(v) for v in detail) if isinstance(detail, (list, tuple)) else str(detail)
-                return JsonResponse({"ok": False, "message": message}, status=422)
+                    items = detail if isinstance(detail, (list, tuple)) else [detail]
+                    message = "; ".join(str(v) for v in items)
+                    refund_required = any(getattr(item, "code", "") == "refund_required" for item in items)
+                return JsonResponse({
+                    "ok": False, "message": message,
+                    "refund_required": refund_required,
+                }, status=422)
             _flash_drf_validation(request, exc)
         else:
             if async_qty:
