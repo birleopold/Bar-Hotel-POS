@@ -21,6 +21,8 @@ class PostgresRlsPolicyPresenceTests(TestCase):
             "inventory_stockbalance",
             "pos_order",
             "pos_payment",
+            "pos_orderdelivery",
+            "pos_outletdeliverysettings",
             "tenants_site",
         )
         with connection.cursor() as cursor:
