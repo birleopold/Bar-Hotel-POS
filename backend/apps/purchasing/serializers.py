@@ -129,10 +129,10 @@ class SupplierInvoiceReadSerializer(serializers.ModelSerializer):
     matching_status = serializers.SerializerMethodField()
     matched_lines = serializers.SerializerMethodField()
 
-    def get_matching_status(self, obj):
+    def get_matching_status(self, obj: SupplierInvoice) -> str:
         return "three_way_matched" if obj.matched_lines.exists() else "legacy_unmatched"
 
-    def get_matched_lines(self, obj):
+    def get_matched_lines(self, obj: SupplierInvoice) -> list[dict[str, str]]:
         return [{"line_id": str(line.purchase_order_line_id), "quantity": str(line.quantity),
                  "unit_cost": str(line.unit_cost), "amount": str(line.amount)}
                 for line in obj.matched_lines.all()]
@@ -144,26 +144,26 @@ class SupplierInvoiceReadSerializer(serializers.ModelSerializer):
     overdue_days = serializers.SerializerMethodField()
 
     @staticmethod
-    def _numbers(obj):
+    def _numbers(obj: SupplierInvoice) -> tuple[Decimal, Decimal, Decimal]:
         credited = sum((entry.amount for entry in obj.credits.all()), Decimal("0"))
         paid = sum((entry.amount for entry in obj.allocated_payments.all()), Decimal("0"))
         return credited, paid, max(Decimal("0"), obj.amount - credited - paid)
 
-    def get_credited_amount(self, obj):
+    def get_credited_amount(self, obj: SupplierInvoice) -> str:
         return f"{self._numbers(obj)[0]:.2f}"
 
-    def get_linked_payments_amount(self, obj):
+    def get_linked_payments_amount(self, obj: SupplierInvoice) -> str:
         return f"{self._numbers(obj)[1]:.2f}"
 
-    def get_unlinked_payment_warning(self, obj):
+    def get_unlinked_payment_warning(self, obj: SupplierInvoice) -> bool:
         return obj.purchase_order.payments.filter(invoice__isnull=True).exists()
 
-    def get_unpaid_amount(self, obj):
+    def get_unpaid_amount(self, obj: SupplierInvoice) -> str | None:
         if self.get_unlinked_payment_warning(obj):
             return None  # Never pretend an unattributed PO payment belongs to this invoice.
         return f"{self._numbers(obj)[2]:.2f}"
 
-    def get_overdue_days(self, obj):
+    def get_overdue_days(self, obj: SupplierInvoice) -> int | None:
         from django.utils import timezone
         if self.get_unlinked_payment_warning(obj):
             return None
