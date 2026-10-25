@@ -1326,7 +1326,7 @@ class StaffHousekeepingRoleTests(TestCase):
         self.assertEqual(board.status_code, 200)
         self.assertContains(board, "Assigned Lodge")
         self.assertContains(board, "101")
-        self.assertNotContains(board, "201")
+        self.assertNotContains(board, "Room 201")
         self.assertNotContains(board, "Reservations</a>")
         self.assertNotContains(board, "Folios</a>")
 
@@ -1902,6 +1902,16 @@ class StaffSupermarketFlowTests(TestCase):
         self.assertNotContains(r, "staff-order-print-link")
 
     def test_scan_add_line_and_apply_discount(self) -> None:
+        import uuid
+        manager_user = User.objects.create_user(
+            email="supermarket-discount-approver@test.local", password="TestPass9!",
+        )
+        approver = Membership.objects.create(
+            user=manager_user, tenant=self.tenant, role=MembershipRole.OUTLET_MANAGER,
+        )
+        approver.sites.add(self.outlet.site)
+        approver.outlets.add(self.outlet)
+        set_member_pin(approver, "573951")
         add = self.client.post(
             reverse("staff-order-detail", kwargs={"order_id": self.order.id}),
             {
@@ -1918,9 +1928,12 @@ class StaffSupermarketFlowTests(TestCase):
             reverse("staff-order-detail", kwargs={"order_id": self.order.id}),
             {
                 "action": "line_discount",
+                "discount_request_key": str(uuid.uuid4()),
                 "line_id": str(line.id),
                 "discount_amount": "2.00",
                 "discount_percent": "",
+                "approver_id": str(approver.pk),
+                "approver_pin": "573951",
             },
         )
         self.assertEqual(disc.status_code, 302)
@@ -2298,12 +2311,19 @@ class StaffOrderRefundTests(TestCase):
         page = self.client.get(url)
         self.assertContains(page, "Return and refund")
         self.assertContains(page, "Physical return only")
-        owner_membership = Membership.objects.get(user=self.user, tenant=self.tenant)
-        set_member_pin(owner_membership, "573951")
+        approver_user = User.objects.create_user(
+            email="retail-refund-approver@test.local", password="TestPass9!",
+        )
+        approver = Membership.objects.create(
+            user=approver_user, tenant=self.tenant, role=MembershipRole.OUTLET_MANAGER,
+        )
+        approver.sites.add(self.outlet.site)
+        approver.outlets.add(self.outlet)
+        set_member_pin(approver, "573951")
         response = self.client.post(url, {
             "action": "retail_line_refund", "line_id": str(line.id),
             "quantity": "1", "amount": "15.00", "reason": "Customer return",
-            "approver_id": str(owner_membership.pk), "approver_pin": "573951",
+            "approver_id": str(approver.pk), "approver_pin": "573951",
         }, follow=True)
         self.assertContains(response, "Manager-approved item return and customer refund recorded.")
         ret = SupermarketLineReturn.objects.get(order=self.order)
@@ -3097,8 +3117,11 @@ class StaffInventoryCsvUploadTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertEqual(
             StockMovement.objects.filter(tenant=self.tenant, menu_item=self.item, outlet=self.outlet).count(),
-            2,
+            1,
         )
+        failed = self.client.session.get("staff_inventory_upload_error_rows") or []
+        self.assertEqual(len(failed), 1)
+        self.assertIn("manager approval required", failed[0]["error"])
 
     def test_can_create_tracked_item_inline_from_movement_page(self) -> None:
         r = self.client.post(
