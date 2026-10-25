@@ -121,6 +121,7 @@ def authorize_sensitive_action(
                 "This approval request identity was already used for different transaction details."
             )
         if existing.used_at is not None:
+            existing.idempotent_replay = True
             return existing
         if existing.expires_at <= timezone.now():
             raise SensitiveApprovalError("Supervisor approval expired. Ask the manager to approve again.")
@@ -172,6 +173,9 @@ def authorize_sensitive_action(
                 raise SensitiveApprovalError(
                     "This approval request identity was already used for different transaction details."
                 )
+            if approval.used_at is not None:
+                approval.idempotent_replay = True
+                return approval
     else:
         approval = existing
         approval.approver = approver
@@ -179,6 +183,7 @@ def authorize_sensitive_action(
         approval.used_at = now
         approval.save(update_fields=["approver", "scope_outlet", "used_at"])
 
+    approval.idempotent_replay = False
     log_audit(
         tenant_id=requester.tenant_id,
         user_id=approver.user_id,
