@@ -78,7 +78,7 @@ class ChangeEventQuoteSerializer(serializers.Serializer):
 
 
 class CreateEventPaymentSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=0.01)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
     method = serializers.ChoiceField(choices=EventPaymentMethod.choices)
     reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
     idempotency_key = serializers.CharField(max_length=128)
