@@ -71,6 +71,27 @@ class MenuOutletSyncTests(TestCase):
         self.assertEqual(link.price_override, Decimal("9.00"))
 
 
+    def test_setup_wizard_uses_one_unified_card_surface(self):
+        from pathlib import Path
+        from django.template.loader import get_template
+
+        get_template("console/org/setup_wizard.html")
+        root = Path(__file__).resolve().parent
+        template = (root / "templates/console/org/setup_wizard.html").read_text(encoding="utf-8")
+        css = (root.parent / "staff/static/staff/fizo-setup-area.css").read_text(encoding="utf-8")
+
+        self.assertIn('class="setup-hub"', template)
+        self.assertIn("setup-card--profile", template)
+        self.assertIn("setup-card--go-live", template)
+        self.assertIn("setup-hub__cards", template)
+        self.assertIn("setup-hub__shortcut-grid", template)
+        self.assertIn("setup_steps", template)
+        self.assertIn("setup_optional_steps", template)
+        self.assertNotIn("{% if grocery_console_shell or hospitality_console_shell %}", template)
+        self.assertNotIn("Workspace setup<span", template)
+        self.assertIn(".fizo-setup-page .setup-hub__cards", css)
+
+
 class MenuModifierSyncTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:

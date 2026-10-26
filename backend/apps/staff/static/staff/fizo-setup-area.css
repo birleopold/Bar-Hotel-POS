@@ -183,3 +183,65 @@
 .fizo-setup-page .grocery-setup__profile .staff-checklist input{width:auto;min-height:0}
 @media(max-width:1000px){.fizo-setup-page .grocery-setup__aside{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.fizo-setup-page .fizo-optional__grid,.fizo-setup-page .grocery-setup__aside{grid-template-columns:1fr}.fizo-setup-page .grocery-setup__profile .staff-checklist{grid-template-columns:1fr}}
+
+
+/* Unified tenant setup hub — one card-based setup surface for every business line. */
+.fizo-setup-page .setup-hub{width:100%;max-width:1360px;margin:0 auto}
+.fizo-setup-page .setup-hub__hero{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;margin-bottom:20px}
+.fizo-setup-page .setup-hub__hero>div:first-child{max-width:760px}
+.fizo-setup-page .setup-hub__eyebrow,.fizo-setup-page .setup-hub__label{display:block;color:#087d48;font-size:.75rem;font-weight:800;letter-spacing:.065em;text-transform:uppercase}
+.fizo-setup-page .setup-hub__hero h1{font-size:clamp(1.9rem,3vw,2.55rem);font-weight:850;letter-spacing:-.045em;color:#14283b;margin:.3rem 0 .55rem}
+.fizo-setup-page .setup-hub__hero p{color:#617589;max-width:760px;margin:0;line-height:1.55}
+.fizo-setup-page .setup-hub__hero-actions{display:flex;gap:9px;flex-wrap:wrap}
+.fizo-setup-page .setup-hub__progress{padding:18px 20px!important;margin-bottom:20px}
+.fizo-setup-page .setup-hub__progress-copy{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:11px}
+.fizo-setup-page .setup-hub__progress-copy strong{display:block;font-size:1.12rem;color:#1b3348;margin-top:3px}
+.fizo-setup-page .setup-hub__progress-copy>a{font-size:.84rem;font-weight:750;color:#087d48;text-decoration:none}
+.fizo-setup-page .setup-hub__progress progress{display:block;width:100%;height:11px;accent-color:#008d4e}
+.fizo-setup-page .setup-hub__grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(310px,.65fr);gap:16px;margin-bottom:27px}
+.fizo-setup-page .setup-card{padding:20px!important;min-width:0}
+.fizo-setup-page .setup-card__icon{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:#eaf7ef;color:#07834a;font-size:1.15rem;margin-bottom:14px}
+.fizo-setup-page .setup-card__head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.fizo-setup-page .setup-card h2,.fizo-setup-page .setup-hub__section-head h2,.fizo-setup-page .setup-hub__shortcuts h2{font-size:1.22rem;font-weight:820;letter-spacing:-.025em;color:#1b3145;margin:.25rem 0 .45rem}
+.fizo-setup-page .setup-card__copy,.fizo-setup-page .setup-card__note{color:#697d91;font-size:.85rem;line-height:1.5}
+.fizo-setup-page .setup-card__form{margin-top:15px}
+.fizo-setup-page .setup-card__checklist ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;list-style:none;padding:0;margin:0 0 12px}
+.fizo-setup-page .setup-card__checklist label{display:flex;gap:8px;align-items:flex-start;padding:10px;border:1px solid #e1e9ef;border-radius:9px;background:#fbfcfd;font-size:.83rem}
+.fizo-setup-page .setup-card__actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.fizo-setup-page .setup-hub__checks{list-style:none;padding:0;margin:13px 0}
+.fizo-setup-page .setup-hub__checks li{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #edf2f5;color:#40586e;font-size:.84rem}
+.fizo-setup-page .setup-hub__checks li:last-child{border-bottom:0}
+.fizo-setup-page .setup-hub__checks i{color:#07864b;margin-top:2px}
+.fizo-setup-page .setup-hub__checks a{color:#087d48;font-weight:750;text-decoration:none;margin-left:4px}
+.fizo-setup-page .setup-hub__state{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:800;color:#718296;background:#f2f5f7;border-radius:999px;padding:5px 9px;white-space:nowrap}
+.fizo-setup-page .setup-hub__state--done{background:#def4e6;color:#087d48}
+.fizo-setup-page .setup-hub__state--blocked{background:#fff0ed;color:#ae4538}
+.fizo-setup-page .setup-hub__section{margin:0 0 28px}
+.fizo-setup-page .setup-hub__section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:13px}
+.fizo-setup-page .setup-hub__section-head h2{font-size:1.4rem;margin-bottom:0}
+.fizo-setup-page .setup-hub__section-head>span{font-size:.8rem;color:#7b8b9b}
+.fizo-setup-page .setup-hub__cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.fizo-setup-page .setup-hub__cards--optional{grid-template-columns:repeat(3,minmax(0,1fr))}
+.fizo-setup-page .setup-task-card{padding:18px!important;display:flex;flex-direction:column;min-width:0;min-height:210px}
+.fizo-setup-page .setup-task-card--done{background:#f7fcf9!important;border-color:#d8ecdf!important}
+.fizo-setup-page .setup-task-card--blocked{border-color:#ecc6c0!important}
+.fizo-setup-page .setup-task-card__top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:13px}
+.fizo-setup-page .setup-task-card__number,.fizo-setup-page .setup-task-card__icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#edf5f1;color:#087d48;font-weight:850}
+.fizo-setup-page .setup-task-card h3{font-size:1rem;font-weight:820;color:#20364a;margin:0 0 7px}
+.fizo-setup-page .setup-task-card>p{font-size:.82rem;color:#6d7f91;line-height:1.5;margin:0 0 16px;flex:1}
+.fizo-setup-page .setup-task-card__actions{display:flex;gap:8px;flex-wrap:wrap}
+.fizo-setup-page .setup-task-card__more{margin-top:10px;font-size:.76rem}
+.fizo-setup-page .setup-task-card__more summary{cursor:pointer;color:#788899}
+.fizo-setup-page .setup-task-card__more form{display:flex;gap:10px;flex-wrap:wrap;padding-top:8px}
+.fizo-setup-page .setup-task-card__more button{border:0;background:transparent;color:#087d48;padding:0;text-decoration:underline;font-size:.75rem}
+.fizo-setup-page .setup-hub__shortcuts{padding:20px!important;display:grid;grid-template-columns:minmax(240px,.65fr) minmax(0,1.35fr);gap:22px;align-items:start}
+.fizo-setup-page .setup-hub__shortcuts p{color:#6b7e91;font-size:.84rem;line-height:1.5;margin:0}
+.fizo-setup-page .setup-hub__shortcut-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.fizo-setup-page .setup-hub__shortcut-grid>a{display:flex;align-items:center;gap:11px;padding:12px;border:1px solid #e2eaef;border-radius:10px;text-decoration:none;color:#20364b;background:#fbfcfd}
+.fizo-setup-page .setup-hub__shortcut-grid>a:hover{border-color:#a8d6ba;background:#f8fcfa}
+.fizo-setup-page .setup-hub__shortcut-grid>a>i{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:#eaf7ef;color:#07834a;flex:0 0 34px}
+.fizo-setup-page .setup-hub__shortcut-grid span{display:flex;flex-direction:column;min-width:0}
+.fizo-setup-page .setup-hub__shortcut-grid strong{font-size:.82rem}
+.fizo-setup-page .setup-hub__shortcut-grid small{font-size:.72rem;color:#7a8b9c}
+@media(max-width:1000px){.fizo-setup-page .setup-hub__grid{grid-template-columns:1fr}.fizo-setup-page .setup-hub__cards--optional{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-setup-page .setup-hub__shortcuts{grid-template-columns:1fr}}
+@media(max-width:700px){.fizo-setup-page .setup-hub__cards,.fizo-setup-page .setup-hub__cards--optional,.fizo-setup-page .setup-hub__shortcut-grid{grid-template-columns:1fr}.fizo-setup-page .setup-card__checklist ul{grid-template-columns:1fr}.fizo-setup-page .setup-hub__hero-actions{width:100%}.fizo-setup-page .setup-hub__hero-actions .staff-btn{flex:1}.fizo-setup-page .setup-task-card{min-height:0}}
