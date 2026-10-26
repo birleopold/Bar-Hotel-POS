@@ -73,5 +73,5 @@ def test_housekeeper_can_open_housekeeping_but_not_front_desk_reservation(client
         ),
     )
     assert reservation_page.status_code == 302
-    assert reservation_page["Location"] == reverse("staff-dashboard")
+    assert reservation_page["Location"] == reverse("staff-lodging-reservations")
     assert b"Front Desk Only Guest" not in reservation_page.content
