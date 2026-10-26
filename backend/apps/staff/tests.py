@@ -3617,6 +3617,22 @@ class StaffTableStaffTests(TestCase):
             order.lines.filter(menu_item=dish, is_voided=False).count(),
             1,
         )
+        from apps.pos.services.kds import update_order_line_kds_status
+        line = order.lines.get(menu_item=dish, is_voided=False)
+        update_order_line_kds_status(
+            order=order,
+            line=line,
+            kds_status=KdsLineStatus.IN_PREP,
+            kds_station=None,
+            user=server,
+        )
+        update_order_line_kds_status(
+            order=order,
+            line=line,
+            kds_status=KdsLineStatus.READY,
+            kds_station=None,
+            user=server,
+        )
 
         paid = self.client.post(
             detail_url,

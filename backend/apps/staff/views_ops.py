@@ -1783,6 +1783,17 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 )
                 .first()
             )
+            if customer is None and can_manage_customers(membership):
+                # A newly created customer can remain hidden from the shared
+                # directory until it is linked to this worker's scoped sale.
+                # Keep this narrow exception inside checkout; never widen the
+                # tenant/site customer directory just because the user created it.
+                customer = Customer.objects.filter(
+                    pk=customer_id,
+                    tenant_id=order.tenant_id,
+                    merged_into__isnull=True,
+                    created_by=request.user,
+                ).first()
             if customer is None:
                 return reject("Choose a customer visible at this register.", status=403)
 
