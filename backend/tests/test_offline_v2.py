@@ -1,6 +1,7 @@
 """Offline POS v2: catalog version pin + order_create replay queue."""
 
 import uuid
+from unittest.mock import patch
 from decimal import Decimal
 
 import pytest
@@ -262,6 +263,49 @@ def test_offline_order_add_lines_appends_and_replay(api_client):
     assert r2.json()["replay"] is True
     order.refresh_from_db()
     assert order.lines.count() == 2
+
+
+@pytest.mark.django_db
+def test_offline_batch_hides_unexpected_server_exception_details(api_client):
+    a = _seed_tenant_bundle(
+        name="Batch Error Redaction",
+        slug="batch-error-redaction",
+        user_email="batch-error@test.local",
+    )
+    assert api_client.login(username=a["user"].email, password="TestPass9!")
+    cv = catalog_version_payload(
+        tenant_id=a["tenant"].id,
+        outlet_id=a["outlet"].id,
+    )["catalog_version"]
+    operation = {
+        "outlet": str(a["outlet"].id),
+        "client_mutation_id": "batch:redacted-error",
+        "operation_type": "order_create",
+        "payload": {
+            "lines": [{"menu_item": str(a["item"].id), "quantity": "1"}],
+            "catalog_version": cv,
+        },
+    }
+
+    with patch(
+        "apps.pos.offline_views.process_offline_queue_entry",
+        side_effect=RuntimeError("database password=should-never-leak"),
+    ):
+        response = api_client.post(
+            "/api/v1/pos/offline-sync/batch/",
+            {"operations": [operation]},
+            format="json",
+            HTTP_X_TENANT_ID=str(a["tenant"].id),
+        )
+
+    assert response.status_code == 200
+    result = response.json()["results"][0]
+    assert result["status_code"] == 500
+    assert result["error"]["code"] == "server_error"
+    rendered = str(result)
+    assert "should-never-leak" not in rendered
+    assert "password=" not in rendered
+    assert "Keep it queued" in result["error"]["message"]
 
 
 @pytest.mark.django_db

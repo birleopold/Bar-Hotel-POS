@@ -1,3 +1,5 @@
+import logging
+
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -19,6 +21,9 @@ from .serializers import (
 )
 from .services.catalog_version import catalog_version_payload
 from .services.offline import process_offline_queue_entry, record_catalog_stale_rejection
+
+
+logger = logging.getLogger(__name__)
 
 
 def catalog_stale_response_if_needed(*, tenant_id, outlet: Outlet, payload: dict) -> Response | None:
@@ -282,14 +287,28 @@ class OfflineQueueBatchSubmitView(APIView):
                         "error": exc.detail,
                     }
                 )
-            except Exception as exc:
+            except Exception:
+                logger.exception(
+                    "Unexpected offline batch operation failure",
+                    extra={
+                        "tenant_id": str(request.tenant.pk),
+                        "client_mutation_id": str(mid)[:128],
+                        "operation_type": str(vd_op.get("operation_type", ""))[:64],
+                    },
+                )
                 results.append(
                     {
                         "index": idx,
                         "client_mutation_id": mid,
                         "ok": False,
                         "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        "error": {"code": "server_error", "message": str(exc)[:500]},
+                        "error": {
+                            "code": "server_error",
+                            "message": (
+                                "The offline action could not be processed. "
+                                "Keep it queued and retry after connectivity is stable."
+                            ),
+                        },
                     }
                 )
             else:
