@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 
 from django.conf import settings
 from django.core.cache import cache
+from django.utils.crypto import constant_time_compare
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
@@ -60,7 +62,8 @@ class PaymentProviderWebhookView(APIView):
                 },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        if request.headers.get("X-Webhook-Secret") != secret.strip():
+        supplied_secret = request.headers.get("X-Webhook-Secret") or ""
+        if not constant_time_compare(supplied_secret, secret.strip()):
             return Response(
                 {"error": {"code": "forbidden", "message": "Invalid webhook secret."}},
                 status=status.HTTP_403_FORBIDDEN,
@@ -96,21 +99,38 @@ class PaymentProviderWebhookView(APIView):
                 {"error": {"code": "event_id_required", "message": "event_id is required."}},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        cache_key = f"payment_webhook:{tenant_uuid}:{event_id}"
+        if len(event_id) > 256:
+            return Response(
+                {
+                    "error": {
+                        "code": "event_id_too_long",
+                        "message": "event_id must be 256 characters or fewer.",
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        event_digest = hashlib.sha256(event_id.encode("utf-8")).hexdigest()
+        cache_key = f"payment_webhook:{tenant_uuid}:{event_digest}"
         if not cache.add(cache_key, "1", timeout=86400 * 30):
             return Response({"ok": True, "replay": True}, status=status.HTTP_200_OK)
 
-        log_audit(
-            tenant_id=tenant_uuid,
-            user_id=None,
-            action="integrations.payment_webhook_received",
-            entity_type="payment_webhook",
-            entity_id=event_id[:128],
-            payload={
-                "provider": str(body.get("provider", ""))[:64],
-                "status": str(body.get("status", ""))[:64],
-                "raw_keys": list(body.keys())[:40],
-            },
-            source="system",
-        )
+        try:
+            log_audit(
+                tenant_id=tenant_uuid,
+                user_id=None,
+                action="integrations.payment_webhook_received",
+                entity_type="payment_webhook",
+                entity_id=event_id[:128],
+                payload={
+                    "provider": str(body.get("provider", ""))[:64],
+                    "status": str(body.get("status", ""))[:64],
+                    "raw_keys": list(body.keys())[:40],
+                },
+                source="system",
+            )
+        except Exception:
+            # Do not burn the provider's idempotency key if durable audit
+            # persistence failed. A provider retry must be able to try again.
+            cache.delete(cache_key)
+            raise
         return Response({"ok": True, "replay": False}, status=status.HTTP_200_OK)
