@@ -213,11 +213,11 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         SetupStep(
             key="first_team_invite",
             section="people",
-            name="Invite your first teammate",
-            description="Send an invite so day-to-day operations are not tied to one owner account.",
+            name="Add your first teammate",
+            description="Create a worker account with the correct role and branch access.",
             done=has_team_invite_or_member,
-            cta_label="Invite teammate",
-            cta_url=reverse("staff-workspace-invite-create"),
+            cta_label="Add worker",
+            cta_url=reverse("console-org-team-create"),
             required=False,
         ),
         *(
