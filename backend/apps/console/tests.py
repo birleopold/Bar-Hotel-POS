@@ -46,6 +46,22 @@ User = get_user_model()
 
 
 
+class ConsoleAdminRouteOwnershipTests(SimpleTestCase):
+    def test_business_settings_modules_and_team_have_console_routes(self):
+        self.assertEqual(reverse("console-org-settings-branding"), "/console/org/settings/business/")
+        self.assertEqual(reverse("console-org-settings-modules"), "/console/org/settings/modules/")
+        self.assertEqual(reverse("console-org-team"), "/console/org/team/")
+        self.assertEqual(reverse("console-org-team-create"), "/console/org/team/new/")
+
+    def test_console_admin_templates_render_from_console_shell(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parent / "templates/console/org"
+        for name in ("settings_branding.html", "settings_modules.html", "team_list.html", "team_form.html"):
+            template = (root / name).read_text(encoding="utf-8")
+            self.assertIn('{% extends "console/base.html" %}', template)
+            self.assertNotIn('{% extends "staff/base.html" %}', template)
+
+
 class NavigationOwnershipContractTests(SimpleTestCase):
     def test_console_navigation_stays_admin_except_explicit_operations_switch(self):
         from pathlib import Path
