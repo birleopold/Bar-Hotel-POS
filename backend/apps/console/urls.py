@@ -44,6 +44,7 @@ urlpatterns = [
     path("org/setup/", views_org.OrgSetupWizardView.as_view(), name="console-org-setup"),
     path("org/settings/business/", views_org.OrgWorkspaceBrandingView.as_view(), name="console-org-settings-branding"),
     path("org/settings/modules/", views_org.OrgWorkspaceModulesView.as_view(), name="console-org-settings-modules"),
+    path("org/workstations/", views_org.OrgWorkstationListView.as_view(), name="console-org-workstations"),
     path("org/team/", views_org.OrgTeamListView.as_view(), name="console-org-team"),
     path("org/team/new/", views_org.OrgWorkerCreateView.as_view(), name="console-org-team-create"),
     path("org/team/<uuid:membership_id>/edit/", views_org.OrgMembershipUpdateView.as_view(), name="console-org-team-edit"),
