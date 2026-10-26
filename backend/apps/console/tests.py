@@ -545,6 +545,18 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(response, reverse("console-org-team-create"))
         self.assertNotContains(response, reverse("staff-workspace-invite-create"))
 
+    def test_org_workstations_uses_management_directory(self) -> None:
+        user = User.objects.create_user(email="org-device-directory@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(user)
+        response = self.client.get(reverse("console-org-workstations"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Devices &amp; registers")
+        self.assertContains(response, reverse("staff-workstation-create"))
+        overview = self.client.get(reverse("console-org"))
+        self.assertContains(overview, reverse("console-org-workstations"))
+        self.assertContains(overview, reverse("console-org-team"))
+
     def test_org_setup_shows_first_step_when_workspace_empty(self) -> None:
         user = User.objects.create_user(email="co-setup-empty@test.local", password="TestPass9!")
         Membership.objects.create(
