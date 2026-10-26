@@ -131,6 +131,16 @@ All operational UIs must assume a human, barcode scanner, touch screen or hardwa
 - Payments, refunds, voids, cancellations and other irreversible/financial commands remain idempotent and may intentionally stay single-flight.
 - This model is **shared platform behavior** and must be reused by retail, hospitality, lodging, inventory and future modules instead of being reimplemented tenant-by-tenant.
 
+## 5.2 Console vs Staff ownership boundary
+
+Route ownership is intentionally split by purpose:
+
+- **`/console/org/` = administration/configuration.** Business profile, setup, branches/outlets, master catalogue, categories/modifiers/services, room inventory/rates, tenant settings, staff/access administration, workstation configuration, branding/modules/integrations and audit belong here.
+- **`/staff/` = live operations.** POS, orders/sales, tables, kitchen/service queues, inventory handling, purchasing execution, reports, reservations/folios, housekeeping, customers, events and day-to-day workstation use belong here.
+- Navigation inside either shell must stay within that shell. The only ordinary cross-shell links are explicit switch actions named **Operations workspace** (Console → Staff) and **Administration** (Staff → Console).
+- A menu item must never unexpectedly change shells. If a capability is still implemented under the wrong historical route, do not expose it as an ordinary menu entry in the other shell; migrate it deliberately with permissions and tests.
+- This boundary is navigation/ownership only and must not alter POS order, basket, payment or stock transaction semantics.
+
 ## 6. Async work and integrations
 
 | Concern | Pattern |

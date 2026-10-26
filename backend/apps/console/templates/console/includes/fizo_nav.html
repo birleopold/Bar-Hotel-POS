@@ -1,6 +1,6 @@
 <header class="staff-nav" role="banner">
   <div class="fizo-shell-top">
-    <div><div class="fizo-shell-top__title">{{ console_active_tenant.name|default:"Business workspace" }}</div><div class="fizo-shell-top__subtitle">{% if grocery_console_shell %}Store management{% elif console_has_lodging %}Hotel management{% elif console_has_fnb %}Hospitality management{% else %}Business management{% endif %}</div></div>
-    <div class="fizo-shell-top__actions"><a href="{% url 'console-org-setup' %}"><i class="bi bi-list-check" aria-hidden="true"></i> Setup</a><a href="{% url 'staff-notifications' %}"><i class="bi bi-bell" aria-hidden="true"></i> Alerts</a><a href="{% url 'staff-dashboard' %}"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i> Workspace</a><span class="fizo-shell-top__user">{{ request.user.email }}</span></div>
+    <div><div class="fizo-shell-top__title">{{ console_active_tenant.name|default:"Business workspace" }}</div><div class="fizo-shell-top__subtitle">{% if grocery_console_shell %}Store administration{% elif console_has_lodging %}Hotel administration{% elif console_has_fnb %}Hospitality administration{% else %}Business administration{% endif %}</div></div>
+    <div class="fizo-shell-top__actions"><a href="{% url 'console-org-setup' %}"><i class="bi bi-list-check" aria-hidden="true"></i> Setup</a><a href="{% url 'staff-dashboard' %}"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i> Operations workspace</a><span class="fizo-shell-top__user">{{ request.user.email }}</span></div>
   </div>
 </header>

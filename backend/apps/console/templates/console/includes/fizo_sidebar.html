@@ -21,10 +21,8 @@
     <a href="{% url 'console-org-room-types' %}"><i class="bi bi-house" aria-hidden="true"></i>Room types</a>
     <a href="{% url 'console-org-room-rates' %}"><i class="bi bi-cash-stack" aria-hidden="true"></i>Rates</a>
     {% endif %}
-    <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people" aria-hidden="true"></i>Staff</a>
-    {% if console_has_fnb or console_has_retail %}<a href="{% url 'staff-workstations' %}"><i class="bi bi-printer" aria-hidden="true"></i>Registers</a>{% endif %}
-    <a href="{% url 'staff-dashboard' %}"><i class="bi bi-speedometer2" aria-hidden="true"></i>Operations workspace</a>
+    <a class="fizo-shell-nav__switch" href="{% url 'staff-dashboard' %}"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i>Operations workspace</a>
   </nav>
-  <div class="fizo-shell-help">Manage your team and daily operations.</div>
+  <div class="fizo-shell-help">Administration only. Use Operations workspace for day-to-day work.</div>
 </aside>
 {% endwith %}
