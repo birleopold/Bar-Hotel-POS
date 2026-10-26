@@ -1623,42 +1623,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-order-detail", order_id=order.id)
 
         if action == "set_customer":
-            if order.status != OrderStatus.OPEN and m.role not in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}:
-                messages.error(request, "Only an owner can correct a closed order's customer link.")
-                return redirect("staff-order-detail", order_id=order.id)
-            raw = request.POST.get("customer_id", "").strip()
-            try:
-                customer_id = uuid.UUID(raw) if raw else None
-            except ValueError:
-                messages.error(request, "Invalid customer reference.")
-                return redirect("staff-order-detail", order_id=order.id)
-            customer = None
-            if customer_id:
-                customer = visible_customers(m, request.user).filter(pk=customer_id).filter(
-                    Q(orders__outlet_id=order.outlet_id) | Q(created_by=request.user) | Q(pk=order.customer_id)
-                ).first()
-                if customer is None:
-                    messages.error(request, "Choose a customer visible at this register.")
-                    return redirect("staff-order-detail", order_id=order.id)
-            before = str(order.customer_id) if order.customer_id else None
-            if order.customer_id != customer_id:
-                from apps.customers.models import LoyaltyLedgerEntry
-                if LoyaltyLedgerEntry.objects.filter(
-                    tenant_id=order.tenant_id,
-                    source_type="sale", source_key=str(order.pk),
-                ).exists():
-                    messages.error(
-                        request,
-                        "This sale has earned customer points. Its customer cannot be relinked directly; "
-                        "review the original transaction or use the verified customer merge."
-                    )
-                    return redirect("staff-order-detail", order_id=order.pk)
-                order.customer = customer
-                order.save(update_fields=["customer", "updated_at"])
-                log_audit(tenant_id=order.tenant_id, user_id=request.user.pk, action="order.customer_link_changed",
-                    entity_type="order", entity_id=str(order.pk), payload={"before": before, "after": str(customer_id) if customer_id else None})
-            messages.success(request, "Customer link saved. Transaction amounts and receipt details were not changed.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return self._post_set_customer(request, order)
 
         if action == "apply_wholesale":
             return self._post_apply_wholesale(request, order)
@@ -1703,6 +1668,97 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if action == "void_line":
             return self._post_void_line(request, order)
         messages.error(request, "Unknown action.")
+        return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_set_customer(self, request: HttpRequest, order: Order) -> HttpResponse:
+        membership = request.tenant_membership
+        async_retail = (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+
+        def reject(message: str, *, status: int = 422) -> HttpResponse:
+            if async_retail:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
+        if (
+            order.status != OrderStatus.OPEN
+            and membership.role not in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}
+        ):
+            return reject(
+                "Only an owner can correct a closed order's customer link.",
+                status=403,
+            )
+
+        raw = request.POST.get("customer_id", "").strip()
+        try:
+            customer_id = uuid.UUID(raw) if raw else None
+        except ValueError:
+            return reject("Invalid customer reference.")
+
+        customer = None
+        if customer_id:
+            customer = (
+                visible_customers(membership, request.user)
+                .filter(pk=customer_id)
+                .filter(
+                    Q(orders__outlet_id=order.outlet_id)
+                    | Q(created_by=request.user)
+                    | Q(pk=order.customer_id)
+                )
+                .first()
+            )
+            if customer is None:
+                return reject("Choose a customer visible at this register.", status=403)
+
+        before = str(order.customer_id) if order.customer_id else None
+        changed = order.customer_id != customer_id
+        if changed:
+            from apps.customers.models import LoyaltyLedgerEntry
+
+            if LoyaltyLedgerEntry.objects.filter(
+                tenant_id=order.tenant_id,
+                source_type="sale",
+                source_key=str(order.pk),
+            ).exists():
+                return reject(
+                    "This sale has earned customer points. Its customer cannot be relinked directly; "
+                    "review the original transaction or use the verified customer merge.",
+                    status=409,
+                )
+            order.customer = customer
+            order.save(update_fields=["customer", "updated_at"])
+            log_audit(
+                tenant_id=order.tenant_id,
+                user_id=request.user.pk,
+                action="order.customer_link_changed",
+                entity_type="order",
+                entity_id=str(order.pk),
+                payload={
+                    "before": before,
+                    "after": str(customer_id) if customer_id else None,
+                },
+            )
+
+        message = (
+            "Customer link saved. Transaction amounts and receipt details were not changed."
+            if changed
+            else "Customer link was already current."
+        )
+        if async_retail:
+            return JsonResponse({
+                "ok": True,
+                "message": message,
+                "changed": changed,
+                "customer_id": str(customer.pk) if customer else "",
+                "customer_name": customer.name if customer else "",
+            })
+        if changed:
+            messages.success(request, message)
+        else:
+            messages.info(request, message)
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_paid_pickup(

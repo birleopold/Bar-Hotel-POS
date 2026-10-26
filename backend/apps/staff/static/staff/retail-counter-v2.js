@@ -575,6 +575,72 @@
     });
   });
 
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.matches("[data-retail-customer-form]"))return;
+    if(!(window.fetch&&window.FormData&&window.retailRefreshZone))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){
+      form.reportValidity();
+      return;
+    }
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var previous=button&&button.textContent;
+    var status=document.querySelector("[data-retail-customer-status]");
+    if(button){button.disabled=true;button.textContent="Saving…";}
+    if(status)status.textContent="Saving customer link…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",
+      body:new FormData(form),
+      credentials:"same-origin",
+      redirect:"follow",
+      headers:{
+        "X-Requested-With":"XMLHttpRequest",
+        "X-CSRFToken":csrf?csrf.value:""
+      }
+    }).then(function(response){
+      if(response.redirected)throw new Error("Sale session changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected customer-link response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){
+          var rejected=new Error(data.message||"Customer link could not be saved.");
+          rejected.serverRejected=true;
+          throw rejected;
+        }
+        return data;
+      });
+    }).then(function(data){
+      var summary=document.querySelector("[data-retail-customer-summary]");
+      if(summary&&data.customer_name){
+        summary.textContent="Customer: "+data.customer_name;
+      }else if(summary&&!data.customer_name&&summary.parentNode){
+        summary.parentNode.removeChild(summary);
+      }
+      return window.retailRefreshZone("[data-retail-customer-zone]").then(function(){
+        return data;
+      });
+    }).then(function(data){
+      var live=document.querySelector("[data-retail-customer-status]");
+      if(live)live.textContent=data.message||"Customer link saved.";
+    }).catch(function(error){
+      var live=document.querySelector("[data-retail-customer-status]")||status;
+      if(error&&error.serverRejected){
+        if(live)live.textContent=error.message;
+      }else if(live){
+        // The customer link may already be committed; never repeat the POST.
+        showCheckoutRecovery(live,error);
+      }
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(button){button.disabled=false;button.textContent=previous||"Save customer link";}
+    });
+  });
+
   // Quick-register a genuinely missing product without refreshing the till.
   // The server-side request key remains the idempotency boundary; an ambiguous
   // response is never automatically replayed.

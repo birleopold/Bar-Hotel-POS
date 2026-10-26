@@ -361,6 +361,80 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(order.discount_amount, Decimal("2000.00"))
         self.assertEqual(order.total, Decimal("18000.00"))
 
+    def test_retail_manager_relinks_existing_customer_without_page_reload(self):
+        from apps.audit.models import AuditEvent
+        from apps.customers.models import Customer
+
+        original = Customer.objects.create(
+            tenant=self.tenant,
+            name="Original shopper",
+            created_by=self.user,
+        )
+        replacement = Customer.objects.create(
+            tenant=self.tenant,
+            name="Replacement shopper",
+            created_by=self.user,
+        )
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.user,
+            customer=original,
+            currency="UGX",
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "data-retail-customer-zone")
+        self.assertContains(page, "data-retail-customer-form")
+        self.assertContains(page, "Original shopper")
+
+        response = self.client.post(
+            url,
+            {
+                "action": "set_customer",
+                "customer_id": str(replacement.pk),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body["ok"])
+        self.assertTrue(body["changed"])
+        self.assertEqual(body["customer_id"], str(replacement.pk))
+        self.assertEqual(body["customer_name"], "Replacement shopper")
+
+        order.refresh_from_db()
+        self.assertEqual(order.customer_id, replacement.pk)
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                tenant=self.tenant,
+                action="order.customer_link_changed",
+                entity_id=str(order.pk),
+                payload__before=str(original.pk),
+                payload__after=str(replacement.pk),
+            ).exists()
+        )
+
+        replay = self.client.post(
+            url,
+            {
+                "action": "set_customer",
+                "customer_id": str(replacement.pk),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(replay.status_code, 200)
+        self.assertFalse(replay.json()["changed"])
+        self.assertEqual(
+            AuditEvent.objects.filter(
+                tenant=self.tenant,
+                action="order.customer_link_changed",
+                entity_id=str(order.pk),
+            ).count(),
+            1,
+        )
+
     def test_grocery_tiles_can_display_catalogue_photos(self):
         cat = MenuCategory.objects.create(tenant=self.tenant, name="Fresh items")
         MenuItem.objects.create(
