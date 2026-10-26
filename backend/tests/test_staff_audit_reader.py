@@ -1,5 +1,6 @@
 """Safety checks for management audit visibility, redaction and export."""
 from django.test import TestCase
+from rest_framework.test import APIClient
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.audit.models import AuditEvent
@@ -91,6 +92,36 @@ class StaffAuditReaderTests(TestCase):
         row = audit_view_row(event)
         self.assertNotIn("secret", row["details"])
         self.assertIn("redacted", row["details"])
+
+    def test_api_audit_matches_manager_scope_and_redacts_payload(self):
+        a = self.log(self.outlet_a)
+        self.log(self.outlet_b)
+        client = APIClient()
+        client.force_login(self.manager)
+
+        response = client.get(
+            "/api/v1/audit-events/",
+            HTTP_X_TENANT_ID=str(self.tenant.pk),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        rows = payload.get("results", payload) if isinstance(payload, dict) else payload
+        self.assertEqual([row["id"] for row in rows], [str(a.id)])
+        self.assertEqual(rows[0]["payload"]["token"], "[redacted]")
+        self.assertEqual(rows[0]["payload"]["quantity"], "-4")
+
+    def test_api_audit_non_manager_receives_no_events(self):
+        self.log(self.outlet_a)
+        client = APIClient()
+        client.force_login(self.worker)
+        response = client.get(
+            "/api/v1/audit-events/",
+            HTTP_X_TENANT_ID=str(self.tenant.pk),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        rows = payload.get("results", payload) if isinstance(payload, dict) else payload
+        self.assertEqual(rows, [])
 
     def test_wrong_tenant_membership_shows_nothing(self):
         self.log(self.outlet_a)
