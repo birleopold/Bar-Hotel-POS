@@ -133,7 +133,18 @@
       signal: controller ? controller.signal : undefined,
       cache: "no-store"
     }).then(function (response) {
-      if (!response.ok) throw new Error(response.status === 429 ? "Too many searches. Try again shortly." : "Search is unavailable.");
+      if (response.redirected) {
+        throw new Error("Search session changed. Reload this workspace and try again.");
+      }
+      var type = (response.headers.get("Content-Type") || "").toLowerCase();
+      if (!response.ok) {
+        throw new Error(response.status === 429
+          ? "Too many searches. Try again shortly."
+          : "Search is unavailable.");
+      }
+      if (!type.includes("application/json")) {
+        throw new Error("Search returned an unexpected response. Reload this workspace and try again.");
+      }
       return response.json();
     }).then(function (data) {
       if (thisGeneration !== generation || !dialog.open) return;

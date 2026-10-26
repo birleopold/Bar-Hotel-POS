@@ -634,7 +634,7 @@ For **every** HTML entry: record named URL, base/inclusion chain, line-of-busine
 **JavaScript sources (5):**
 - [x] `backend/apps/staff/static/staff/grocery-checkout.js` — retired after the Fizo cashier replaced it; no live template/code references remain, and the obsolete JS/CSS assets are deleted so they cannot regain controller authority.
 - [x] `backend/apps/staff/static/staff/retail-counter-v2.js` — canonical modern cashier behavior owner for catalogue selection reactions, add/scan, quantity, payment/tender, void/refund/return, promotion, wholesale and quick-product flows; single-flight, confirmed-error and ambiguous-response recovery contracts are covered by regression tests.
-- [ ] `backend/apps/staff/static/staff/staff-command.js` — map each event listener, search/scanner handler, update and network call; eliminate duplicate controller authority; test happy/error/retry cases.
+- [x] `backend/apps/staff/static/staff/staff-command.js` — active shared command-palette owner; trigger restored in the tenant-neutral top bar, requests are same-origin/no-store, stale searches are aborted/generation-guarded, redirected/non-JSON/error responses are handled, and result URLs/text are constrained before navigation/rendering.
 - [x] `backend/apps/staff/static/staff/staff-density.js` — retired with the rejected density UI: no toggle or template reference remains, its CSS was already removed, and the legacy-asset regression now prevents the JS from returning.
 - [ ] `backend/apps/staff/static/staff/staff-kds-live.js` — map each event listener, search/scanner handler, update and network call; eliminate duplicate controller authority; test happy/error/retry cases.
 

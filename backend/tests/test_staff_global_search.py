@@ -3,6 +3,8 @@
 The public search view and palette both use this same query service, preventing
 independent feature-specific search bypasses.
 """
+from pathlib import Path
+
 from django.test import TestCase
 
 from apps.accounts.models import Membership, MembershipRole, User
@@ -95,6 +97,37 @@ class ScopedStaffSearchTests(TestCase):
         )
         groups = self.search("SUP-001")
         self.assertIn("SUP-001", self.labels(groups))
+
+    def test_command_palette_has_live_trigger_and_safe_request_contract(self):
+        root = Path(__file__).resolve().parents[1] / "apps" / "staff"
+        nav = (root / "templates/staff/includes/nav.html").read_text(encoding="utf-8")
+        palette = (root / "templates/staff/search/palette.html").read_text(encoding="utf-8")
+        script = (root / "static/staff/staff-command.js").read_text(encoding="utf-8")
+
+        self.assertIn("data-staff-command-open", nav)
+        self.assertIn('data-search-url="{% url \'staff-search\' %}"', nav)
+        self.assertIn("staff-command.js", palette)
+        self.assertIn('trigger.getAttribute("data-search-url")', script)
+        self.assertIn('credentials: "same-origin"', script)
+        self.assertIn('cache: "no-store"', script)
+        self.assertIn("response.redirected", script)
+        self.assertIn('response.headers.get("Content-Type")', script)
+        self.assertIn('type.includes("application/json")', script)
+
+    def test_command_palette_cancels_stale_search_and_rejects_untrusted_links(self):
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "apps" / "staff" / "static" / "staff" / "staff-command.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("if (controller) controller.abort();", script)
+        self.assertIn("var thisGeneration = generation;", script)
+        self.assertIn("if (thisGeneration !== generation || !dialog.open) return;", script)
+        self.assertIn('error.name === "AbortError"', script)
+        self.assertIn('!record.url.startsWith("/staff/")', script)
+        self.assertIn('record.url.startsWith("//")', script)
+        self.assertIn("title.textContent", script)
+        self.assertNotIn("innerHTML", script)
 
     def test_results_are_bounded(self):
         for ix in range(11):
