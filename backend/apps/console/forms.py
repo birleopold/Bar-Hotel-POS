@@ -472,7 +472,7 @@ class ConsoleMenuItemForm(forms.ModelForm):
         self.fields["description"].required = False
         self.fields["tax_rate_percent"].required = False
         self.fields["reorder_level"].required = False
-        if not self.instance.pk:
+        if self.instance._state.adding:
             try:
                 from apps.tenants.business_lines import normalize_business_lines
                 lines = set(normalize_business_lines(tenant.settings.business_lines))
