@@ -93,6 +93,8 @@ class StaffWorkstationListView(StaffTenantRequiredMixin, View):
 
 class StaffWorkstationEditView(StaffTenantRequiredMixin, View):
     staff_nav_capability = "orders"
+    template_name = "staff/workstation_form.html"
+    success_url_name = "staff-workstations"
 
     def dispatch(self, request, *args, **kwargs):
         if getattr(request, "tenant_membership", None) and not membership_can_manage_workspace_settings(request.tenant_membership):
@@ -109,7 +111,7 @@ class StaffWorkstationEditView(StaffTenantRequiredMixin, View):
 
     def get(self, request, workstation_id=None):
         form = WorkstationForm(instance=self._instance(request, workstation_id), tenant=request.tenant, outlets=staff_accessible_outlets(request.tenant_membership))
-        return render(request, "staff/workstation_form.html", {"form": form})
+        return render(request, self.template_name, {"form": form})
 
     @transaction.atomic
     def post(self, request, workstation_id=None):
@@ -123,15 +125,15 @@ class StaffWorkstationEditView(StaffTenantRequiredMixin, View):
                     station = form.save()
             except IntegrityError:
                 form.add_error("code", "This device code is already used in your workspace.")
-                return render(request, "staff/workstation_form.html", {"form": form}, status=400)
+                return render(request, self.template_name, {"form": form}, status=400)
             if (not station.is_active or station.outlet_id != form._original_outlet_id):
                 for pair in station.pairings.filter(revoked_at__isnull=True):
                     revoke_pairing(pairing=pair, user=request.user, reason="Workstation disabled or moved")
             log_audit(tenant_id=request.tenant.id, user_id=request.user.id, action="workstation.updated" if workstation_id else "workstation.created",
                       entity_type="workstation", entity_id=str(station.pk), payload={"outlet_id": str(station.outlet_id), "active": station.is_active})
             messages.success(request, "Workstation saved.")
-            return redirect("staff-workstations")
-        return render(request, "staff/workstation_form.html", {"form": form}, status=400)
+            return redirect(self.success_url_name)
+        return render(request, self.template_name, {"form": form}, status=400)
 
 
 class BrowserApprovalForm(forms.Form):
