@@ -1,0 +1,40 @@
+{% extends "console/base.html" %}
+{% block title %}Devices & registers{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div>
+      <p class="grocery-setup__eyebrow">Administration</p>
+      <h1>Devices &amp; registers</h1>
+      <p class="staff-muted">View your configured registers across branches. Device configuration reuses the existing secured workstation workflow; selecting a register for a shift remains in Staff.</p>
+    </div>
+    <div class="grocery-setup__hero-actions">
+      <a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-create' %}">Add workstation</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-setup' %}">Guided setup</a>
+    </div>
+  </header>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Register</th><th>Branch / section</th><th>Receipt printer</th><th>Status</th><th>Administration</th></tr></thead>
+      <tbody>
+        {% for station in workstations %}
+        <tr>
+          <td><strong>{{ station.name }}</strong><span class="staff-muted small d-block">{{ station.code }}</span></td>
+          <td>{{ station.outlet.site.name }} / {{ station.outlet.name }}</td>
+          <td>{{ station.receipt_printer|default:"Not assigned" }}</td>
+          <td>{% if station.is_active %}Enabled{% else %}Disabled{% endif %}{% if station.requires_pairing %}<span class="staff-muted small d-block">Browser approval required</span>{% endif %}</td>
+          <td>
+            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-edit' station.id %}">Configure</a>
+            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-test' station.id %}">Equipment check</a>
+            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-pair' station.id %}">Browser approvals</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="staff-muted">No registers configured yet. Add a workstation to get started.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="staff-muted">To select or detach the register on this browser, use <a href="{% url 'staff-workstations' %}">Staff register operations</a>.</p>
+</section>
+{% endblock %}
