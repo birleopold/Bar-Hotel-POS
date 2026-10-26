@@ -780,9 +780,14 @@
     });
   }
 
-  function enqueueRetailAdd(form,status,accepted){
+  function enqueueRetailAdd(form,status,accepted,overrides){
     var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
     var body=new FormData(form); // snapshot now; later scans may change inputs
+    if(overrides){
+      Object.keys(overrides).forEach(function(name){
+        body.set(name,String(overrides[name]));
+      });
+    }
     retailAddQueue.push({
       url:form.getAttribute("action")||window.location.pathname+window.location.search,
       body:body,
@@ -1197,10 +1202,16 @@
     var direct=tile.dataset.retailDirectAdd==="1";
     adjustUnitStep(tile);
     if(addForm)addForm.classList.toggle("is-required",!direct);
-    if(direct&&addForm&&addForm.requestSubmit&&product&&product.value===tile.dataset.itemId){
-      if(addForm.dataset.submitting==="1")return;
-      qty.value="1";
-      addForm.requestSubmit();
+    if(direct&&addForm&&window.retailEnqueueAddMutation){
+      // Never depend on the shared select's current value for rapid alternating
+      // taps. Snapshot the tile identity directly into this queued mutation.
+      window.retailEnqueueAddMutation(addForm,live,function(){
+        if(live)retailAddQueueStatus(live,"Item accepted");
+      },{
+        menu_item:tile.dataset.itemId,
+        quantity:"1",
+        action:"add_line"
+      });
       return;
     }
     if(qty)qty.focus({preventScroll:true});
