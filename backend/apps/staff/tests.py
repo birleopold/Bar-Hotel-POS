@@ -2231,6 +2231,31 @@ class StaffOrderVoidLineTests(TestCase):
         self.assertTrue(self.line.is_voided)
         self.assertEqual(self.line.void_reason, "wrong item")
 
+    def test_hospitality_void_line_is_async_without_refresh(self) -> None:
+        r = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": self.order.id}),
+            {
+                "action": "void_line",
+                "line_id": str(self.line.id),
+                "reason": "guest changed order",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["ok"])
+        self.assertEqual(r.json()["message"], "Item voided.")
+        self.line.refresh_from_db()
+        self.assertTrue(self.line.is_voided)
+        self.assertEqual(self.line.void_reason, "guest changed order")
+
+        from pathlib import Path
+        staff_root = Path(__file__).resolve().parent
+        detail = (staff_root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        controller = (staff_root / "static/staff/hospitality-order.js").read_text(encoding="utf-8")
+        self.assertIn("data-hospitality-void-form", detail)
+        self.assertIn("[data-hospitality-void-form]", controller)
+        self.assertIn("A lost response must never cause a second void", controller)
+
     def test_accountant_cannot_void_line(self) -> None:
         self.client.force_login(self.accountant)
         s = self.client.session

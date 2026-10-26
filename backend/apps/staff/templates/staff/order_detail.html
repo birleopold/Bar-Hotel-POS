@@ -202,12 +202,13 @@
                           <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Set</button>
                           <span class="staff-muted small" role="status" aria-live="polite" data-hospitality-qty-status></span>
                         </form>
-                        <form method="post" class="staff-pos-line-actions mt-1">
+                        <form method="post" class="staff-pos-line-actions mt-1" data-hospitality-void-form>
                           {% csrf_token %}
                           <input type="hidden" name="action" value="void_line">
                           <input type="hidden" name="line_id" value="{{ line.id }}">
                           <input class="staff-input staff-input--pos-reason" type="text" name="reason" placeholder="Why void" aria-label="Void reason">
                           <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Void</button>
+                          <span class="staff-muted small" role="status" aria-live="polite" data-hospitality-void-status></span>
                         </form>
                       {% endif %}
                     </td>
@@ -498,7 +499,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.3"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.4"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>

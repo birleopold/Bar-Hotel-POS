@@ -236,8 +236,56 @@
     });
   });
 
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.matches("[data-hospitality-void-form]"))return;
+    if(!(window.fetch&&window.FormData&&window.DOMParser))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var previous=button&&button.textContent;
+    var status=form.querySelector("[data-hospitality-void-status]");
+    if(button){button.disabled=true;button.textContent="Voiding…";}
+    if(status)status.textContent="Removing item…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",body:new FormData(form),credentials:"same-origin",redirect:"follow",
+      headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+    }).then(function(response){
+      if(response.redirected)throw new Error("The check changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected void response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){
+          var rejected=new Error(data.message||"Item could not be voided.");
+          rejected.serverRejected=true;throw rejected;
+        }
+        return data;
+      });
+    }).then(function(data){
+      return refreshHospitalityCheck().then(function(){return data;});
+    }).then(function(data){
+      if(status)status.textContent=data.message||"Item voided.";
+    }).catch(function(error){
+      if(error&&error.serverRejected){if(status)status.textContent=error.message;return;}
+      // A lost response must never cause a second void. Refresh from the
+      // authoritative check and let the operator verify the current state.
+      refreshHospitalityCheck().then(function(){
+        if(status)status.textContent="Check refreshed. Verify the item before trying again.";
+      }).catch(function(){
+        if(status)status.textContent="Could not verify whether the item was voided. Reload this check before trying again.";
+      });
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(button){button.disabled=false;button.textContent=previous||"Void";}
+    });
+  });
+
   window.addEventListener("pageshow",function(){
-    document.querySelectorAll("[data-fizo-add-line-form],[data-hospitality-seat-form],[data-hospitality-qty-form]").forEach(function(form){
+    document.querySelectorAll("[data-fizo-add-line-form],[data-hospitality-seat-form],[data-hospitality-qty-form],[data-hospitality-void-form]").forEach(function(form){
       delete form.dataset.submitting;
       var button=form.querySelector('button[type="submit"]');
       if(button)button.disabled=false;

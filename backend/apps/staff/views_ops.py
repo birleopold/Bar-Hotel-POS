@@ -3025,8 +3025,15 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
 
     def _post_void_line(self, request: HttpRequest, order: Order) -> HttpResponse:
         async_void = (
-            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
-            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            and order.outlet.outlet_type in {
+                OutletType.RETAIL,
+                OutletType.SUPERMARKET,
+                OutletType.RESTAURANT,
+                OutletType.BAR,
+                OutletType.LOUNGE,
+                OutletType.CAFETERIA,
+            }
         )
 
         def reject(message, status=422, *, refund_required=False):
@@ -3081,7 +3088,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             )
             return JsonResponse({
                 "ok": True,
-                "message": "Item removed from basket.",
+                "message": "Item voided.",
                 "order_id": str(order.pk),
                 "currency": order.currency,
                 "total": str(order.total),
