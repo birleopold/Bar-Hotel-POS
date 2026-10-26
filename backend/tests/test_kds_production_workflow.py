@@ -1,4 +1,6 @@
 """KDS workflow regression tests for fast start, optional acceptance and manager recall."""
+from pathlib import Path
+
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
@@ -98,6 +100,36 @@ class KdsProductionWorkflowTests(TestCase):
         self.step(KdsLineStatus.SERVED)
         self.line.refresh_from_db()
         self.assertEqual(self.line.kds_status, KdsLineStatus.SERVED)
+
+    def test_live_controller_retries_without_reload_and_rejects_session_redirect(self):
+        root = Path(__file__).resolve().parents[1] / "apps" / "staff"
+        script = (root / "static/staff/staff-kds-live.js").read_text(encoding="utf-8")
+        template = (root / "templates/staff/kds/queue.html").read_text(encoding="utf-8")
+
+        self.assertIn("staff-kds-live.js", template)
+        self.assertIn("refreshInFlight", script)
+        self.assertIn("refreshQueued", script)
+        self.assertIn("scheduleRefreshRetry()", script)
+        self.assertIn("maxRefreshRetryDelayMs = 15000", script)
+        self.assertIn("r.redirected", script)
+        self.assertIn('r.headers.get("Content-Type")', script)
+        self.assertIn('type.includes("text/html")', script)
+        self.assertIn('cache: "no-store"', script)
+        self.assertIn('redirect: "follow"', script)
+        self.assertNotIn("window.location.reload()", script)
+
+    def test_live_controller_preserves_operator_edit_until_focus_leaves_queue(self):
+        script = (
+            Path(__file__).resolve().parents[1]
+            / "apps" / "staff" / "static" / "staff" / "staff-kds-live.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("function queueHasActiveEdit()", script)
+        self.assertIn('active.matches("input, textarea, select")', script)
+        self.assertIn('setStatus("live", "Live · update waiting")', script)
+        self.assertIn('document.addEventListener("focusout"', script)
+        self.assertIn("if (queueHasActiveEdit())", script)
+        self.assertIn("clearRefreshRetry();", script)
 
     def test_cancelled_order_cannot_enter_prep(self):
         self.order.status = OrderStatus.CANCELLED

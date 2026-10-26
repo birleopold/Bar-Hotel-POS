@@ -105,9 +105,12 @@
   var unloaded = false;
 
   var refreshDebounceTimer = null;
+  var refreshRetryTimer = null;
   var refreshInFlight = false;
   var refreshQueued = false;
   var debounceMs = 140;
+  var refreshRetryDelayMs = 1000;
+  var maxRefreshRetryDelayMs = 15000;
 
   function wsUrl() {
     var proto = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -132,6 +135,35 @@
     delayMs = Math.min(maxDelayMs, Math.floor(delayMs * 1.65));
   }
 
+  function queueHasActiveEdit() {
+    var queue = document.getElementById("staff-kds-queue-region");
+    var active = document.activeElement;
+    return !!(
+      queue && active && queue.contains(active) &&
+      active.matches("input, textarea, select")
+    );
+  }
+
+  function clearRefreshRetry() {
+    if (refreshRetryTimer !== null) {
+      window.clearTimeout(refreshRetryTimer);
+      refreshRetryTimer = null;
+    }
+  }
+
+  function scheduleRefreshRetry() {
+    if (unloaded || refreshRetryTimer !== null) return;
+    setStatus("reconnecting", "Reconnecting…");
+    refreshRetryTimer = window.setTimeout(function () {
+      refreshRetryTimer = null;
+      applyQueueRefresh();
+    }, refreshRetryDelayMs);
+    refreshRetryDelayMs = Math.min(
+      maxRefreshRetryDelayMs,
+      Math.floor(refreshRetryDelayMs * 1.65)
+    );
+  }
+
   function replaceQueueFromHtml(html) {
     var previousIds = {};
     document.querySelectorAll("[data-kds-ticket-id]").forEach(function (item) {
@@ -145,8 +177,7 @@
     var next = doc.getElementById("staff-kds-queue-region");
     var cur = document.getElementById("staff-kds-queue-region");
     if (!next || !cur) {
-      window.location.reload();
-      return;
+      throw new Error("Kitchen queue response is incomplete.");
     }
     cur.replaceWith(document.importNode(next, true));
     var newSummary = doc.getElementById("staff-kds-summary");
@@ -161,29 +192,51 @@
 
   function applyQueueRefresh() {
     if (unloaded) return;
+    if (queueHasActiveEdit()) {
+      refreshQueued = true;
+      setStatus("live", "Live · update waiting");
+      return;
+    }
     if (refreshInFlight) {
       refreshQueued = true;
       return;
     }
+    clearRefreshRetry();
     refreshInFlight = true;
     var url = window.location.href;
     fetch(url, {
       credentials: "same-origin",
       headers: { Accept: "text/html" },
+      cache: "no-store",
+      redirect: "follow",
     })
       .then(function (r) {
-        if (!r.ok) throw new Error("refresh failed");
+        if (r.redirected) {
+          var changed = new Error("Kitchen display session changed.");
+          changed.noRetry = true;
+          throw changed;
+        }
+        var type = (r.headers.get("Content-Type") || "").toLowerCase();
+        if (!r.ok || !type.includes("text/html")) {
+          throw new Error("Kitchen queue refresh failed.");
+        }
         return r.text();
       })
       .then(function (html) {
         replaceQueueFromHtml(html);
+        refreshRetryDelayMs = 1000;
+        setStatus("live", "Live");
       })
-      .catch(function () {
-        window.location.reload();
+      .catch(function (error) {
+        if (error && error.noRetry) {
+          setStatus("offline", "Session changed · reopen KDS");
+          return;
+        }
+        scheduleRefreshRetry();
       })
       .then(function () {
         refreshInFlight = false;
-        if (refreshQueued && !unloaded) {
+        if (refreshQueued && !unloaded && !queueHasActiveEdit()) {
           refreshQueued = false;
           applyQueueRefresh();
         }
@@ -199,6 +252,16 @@
       applyQueueRefresh();
     }, debounceMs);
   }
+
+  document.addEventListener("focusout", function () {
+    if (!refreshQueued || refreshInFlight || unloaded) return;
+    window.setTimeout(function () {
+      if (!queueHasActiveEdit() && refreshQueued && !refreshInFlight && !unloaded) {
+        refreshQueued = false;
+        applyQueueRefresh();
+      }
+    }, 0);
+  });
 
   function connect() {
     if (unloaded) return;
@@ -245,6 +308,7 @@
       window.clearTimeout(refreshDebounceTimer);
     }
     clearReconnect();
+    clearRefreshRetry();
     if (ws) {
       try {
         ws.close();
