@@ -1057,12 +1057,21 @@ def close_pos_shift(*, shift: PosShift, user, counted_cash: Decimal, note: str =
         entity_type="pos_shift",
         entity_id=str(locked.id),
         payload={
-            "expected_cash": str(expected),
-            "counted_cash": str(locked.counted_cash),
+            "outlet_id": str(locked.outlet_id),
+            "workstation_id": str(locked.workstation_id) if locked.workstation_id else None,
+            "cash_attribution": locked.cash_attribution,
+            "opening_cash": str(locked.opening_cash),
+            "cash_payments": str(snapshot["cash_payments"]),
             "cash_refunds": str(snapshot["cash_refunds"]),
             "float_added": str(snapshot["float_added"]),
             "drops": str(snapshot["drops"]),
             "payouts": str(snapshot["payouts"]),
+            "expected_cash": str(expected),
+            "counted_cash": str(locked.counted_cash),
+            "variance": str(
+                (locked.counted_cash - expected).quantize(Decimal("0.01"))
+            ),
+            "variance_explanation": locked.note,
         },
     )
     return locked

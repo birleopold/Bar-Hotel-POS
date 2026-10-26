@@ -2055,6 +2055,23 @@ class StaffSupermarketFlowTests(TestCase):
         })
         shift.refresh_from_db()
         self.assertEqual(shift.expected_cash, Decimal("60.00"))
+        from apps.audit.models import AuditEvent
+        close_event = AuditEvent.objects.get(
+            tenant=self.tenant,
+            action="pos.shift_closed",
+            entity_id=str(shift.pk),
+        )
+        self.assertEqual(close_event.payload["outlet_id"], str(self.outlet.pk))
+        self.assertEqual(close_event.payload["opening_cash"], "50.00")
+        self.assertEqual(close_event.payload["cash_payments"], "12.00")
+        self.assertEqual(close_event.payload["cash_refunds"], "2.00")
+        self.assertEqual(close_event.payload["expected_cash"], "60.00")
+        self.assertEqual(close_event.payload["counted_cash"], "58.00")
+        self.assertEqual(close_event.payload["variance"], "-2.00")
+        self.assertEqual(
+            close_event.payload["variance_explanation"],
+            "Two units short on physical count",
+        )
         history = self.client.get(url)
         self.assertEqual(history.context["recent_shifts"][0].cash_variance, Decimal("-2.00"))
         self.assertContains(history, "Difference")
