@@ -1334,10 +1334,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         )
         order_refundable_state = (
             (order.status == OrderStatus.CLOSED and order.is_paid)
-            or (
-                order.status == OrderStatus.OPEN and not order.is_paid
-                and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
-            )
+            or (order.status == OrderStatus.OPEN and not order.is_paid)
         )
         if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
             can_refund = (
