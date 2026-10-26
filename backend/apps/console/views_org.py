@@ -63,6 +63,23 @@ class OrgOverviewView(ConsoleOrgAdminRequiredMixin, TemplateView):
         return ctx
 
 
+class OrgWorkstationListView(ConsoleOrgAdminRequiredMixin, TemplateView):
+    """Organization device directory; cashier selection remains a Staff operation."""
+
+    template_name = "console/org/workstations.html"
+
+    def get_context_data(self, **kwargs):
+        from apps.pos.models import Workstation
+
+        ctx = super().get_context_data(**kwargs)
+        ctx["workstations"] = (
+            Workstation.objects.filter(tenant=self.request.tenant)
+            .select_related("outlet", "outlet__site")
+            .order_by("outlet__name", "name")
+        )
+        return ctx
+
+
 class OrgTeamListView(staff_invite_views.StaffMembershipListView):
     """Console-native team directory reusing the established membership query rules."""
 
