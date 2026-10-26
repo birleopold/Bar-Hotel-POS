@@ -40,6 +40,9 @@
           currentPayment.remove();
         }
       }
+      var currentFolio=document.querySelector("[data-hospitality-folio-zone]");
+      var nextFolio=remote.querySelector("[data-hospitality-folio-zone]");
+      if(currentFolio&&nextFolio)currentFolio.replaceWith(document.importNode(nextFolio,true));
       return true;
     });
   }
@@ -436,6 +439,43 @@
         }).catch(function(){
           if(status)status.textContent="Could not verify offer. Reload check before retrying.";
         });
+      }).then(function(){
+        delete form.dataset.submitting;
+        if(button)button.disabled=false;
+      });
+  });
+
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||!form.matches("[data-hospitality-folio-form]"))return;
+    if(!document.querySelector("[data-hospitality-lines-zone]"))return;
+    if(!(window.fetch&&window.FormData&&window.DOMParser))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var status=form.querySelector("[data-hospitality-folio-status]");
+    if(button)button.disabled=true;
+    if(status)status.textContent="Saving folio…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.action||window.location.href,{
+      method:"POST",body:new FormData(form),credentials:"same-origin",redirect:"follow",
+      headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+    }).then(function(response){
+      if(response.redirected)throw new Error("Folio request redirected.");
+      if(!(response.headers.get("Content-Type")||"").includes("application/json"))throw new Error("Unexpected folio response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){var error=new Error(data.message||"Folio rejected.");error.rejected=true;throw error;}
+        return data;
+      });
+    }).then(function(){return refreshHospitalityCheck();})
+      .catch(function(error){
+        if(error.rejected){if(status)status.textContent=error.message;return;}
+        refreshHospitalityCheck().then(function(){
+          var live=document.querySelector("[data-hospitality-folio-status]");
+          if(live)live.textContent="Check refreshed. Verify folio assignment before retrying.";
+        }).catch(function(){window.alert("Could not verify folio assignment. Reload check before retrying.");});
       }).then(function(){
         delete form.dataset.submitting;
         if(button)button.disabled=false;

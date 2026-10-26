@@ -360,15 +360,16 @@
       {% endif %}
 
       {% if can_set_folio and folio_form %}
-        <div class="staff-card staff-card--pos">
+        <div class="staff-card staff-card--pos" data-hospitality-folio-zone>
           <h2 class="staff-card__title staff-card__title--pos">Folio</h2>
           <p class="staff-muted staff-pos-side-hint">Attach the guest folio, then collect payment here or charge the remaining balance to the room.</p>
           {% include "staff/includes/form_errors_block.html" with form=folio_form title="Fix folio assignment" %}
-          <form method="post" class="row g-2 align-items-end">
+          <form method="post" class="row g-2 align-items-end" data-hospitality-folio-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="set_folio">
             <div class="col-12 col-md-8">{{ folio_form.folio_id.label_tag }}{{ folio_form.folio_id }}</div>
             <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch w-100">Save</button></div>
+          <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-hospitality-folio-status></p></div>
           </form>
           {% if can_charge_to_folio %}
             <form method="post" class="staff-pos-folio-charge-form mt-3">
@@ -501,7 +502,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.7"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.8"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>

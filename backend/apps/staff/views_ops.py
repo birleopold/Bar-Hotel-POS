@@ -1985,12 +1985,24 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_set_folio(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_folio = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            and order.outlet.outlet_type in {
+                OutletType.RESTAURANT, OutletType.BAR,
+                OutletType.LOUNGE, OutletType.CAFETERIA,
+            }
+        )
+
+        def reject(message, status=422):
+            if async_folio:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
         if not _tenant_lodging_enabled(order.tenant):
-            messages.error(request, "Lodging and folios are not enabled for this business.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Lodging and folios are not enabled for this business.", 409)
         if order.status != OrderStatus.OPEN or order.is_paid:
-            messages.error(request, "Folio can only be changed on open, unpaid orders.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Folio can only be changed on open, unpaid orders.", 409)
         folio_qs = Folio.objects.filter(
             tenant_id=order.tenant_id,
             site_id=order.outlet.site_id,
@@ -2002,10 +2014,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             initial_folio_id=order.folio_id,
         )
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("; ".join(f"{fld}: {err}" for fld, errors in form.errors.items() for err in errors))
         folio_id = form.cleaned_data["folio_id"]
         try:
             set_open_order_folio(
@@ -2015,8 +2024,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 user=request.user,
             )
         except DRFValidationError as exc:
+            if async_folio:
+                return reject(" ".join(_drf_detail_messages(exc.detail)), 409)
             _flash_drf_validation(request, exc)
         else:
+            if async_folio:
+                return JsonResponse({"ok": True, "message": "Folio cleared." if folio_id is None else "Folio attached."})
             if folio_id is None:
                 messages.success(request, "Folio cleared.")
             else:
