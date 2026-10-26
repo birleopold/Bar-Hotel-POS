@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect
 from django.urls import include, path
+from django.views.decorators.http import require_safe
 
 from apps.api.web_password_reset import StaffPasswordResetConfirmView, StaffPasswordRecoveryRequestView
 from apps.api.web_signup import PublicSignupView
@@ -14,12 +15,14 @@ from config.admin_site import configure_platform_admin_site
 configure_platform_admin_site(admin.site)
 
 
+@require_safe
 def root_entry(request):
     if request.user.is_authenticated:
         return redirect("staff-dashboard")
     return redirect("staff-login")
 
 
+@require_safe
 def public_product_media(request, path):
     """Serve public product photos when the reverse proxy has no media handler yet."""
     product_root = Path(settings.MEDIA_ROOT) / "products"
