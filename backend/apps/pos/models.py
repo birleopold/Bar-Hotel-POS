@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from apps.common.models import TimeStampedModel
@@ -33,6 +33,13 @@ class OrderStatus(models.TextChoices):
     CLOSED = "closed", "Closed"
 
 
+class OrderServiceMode(models.TextChoices):
+    DINE_IN = "dine_in", "Dine in"
+    TAKEAWAY = "takeaway", "Takeaway"
+    COUNTER = "counter", "Counter sale"
+    BAR_TAB = "bar_tab", "Bar tab"
+
+
 class Order(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
@@ -61,6 +68,19 @@ class Order(TimeStampedModel):
     bill_reference = models.CharField(max_length=32, blank=True, default="", db_index=True)
     quick_create_key = models.UUIDField(null=True, blank=True, help_text="Idempotency key for staff quick basket creation.")
     table_label = models.CharField(max_length=64, blank=True)
+    service_mode = models.CharField(
+        max_length=16,
+        choices=OrderServiceMode.choices,
+        blank=True,
+        default="",
+        help_text="Operational hospitality order type; blank preserves legacy/non-hospitality orders.",
+    )
+    guest_count = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(999)],
+        help_text="Number of covers for hospitality service; null when not recorded or not applicable.",
+    )
     created_by = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,

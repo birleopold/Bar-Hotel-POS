@@ -38,7 +38,7 @@
               {% if t.active_order_count > 1 %}
                 <span class="fizo-floor__warning">Multiple open checks — manager review required</span>
               {% elif t.can_resume_order %}
-                <span class="fizo-floor__check">{{ t.active_order.bill_reference }} · {{ t.active_order.currency }} {{ t.active_order.total }}</span>
+                <span class="fizo-floor__check">{{ t.active_order.bill_reference }} · {{ t.active_order.currency }} {{ t.active_order.total }}{% if t.active_order.guest_count %} · {{ t.active_order.guest_count }} guest{{ t.active_order.guest_count|pluralize }}{% endif %}</span>
                 <a class="staff-btn staff-btn--primary fizo-floor__table-action" href="{% url 'staff-order-detail' order_id=t.active_order.id %}">Resume check</a>
                 {% if available_transfer_table_count %}
                   <form method="post" class="fizo-floor__transfer">
@@ -67,6 +67,8 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="open_table">
                   <input type="hidden" name="table_id" value="{{ t.id }}">
+                  <label class="staff-label staff-label--compact" for="guests-{{ t.id }}">Guests</label>
+                  <input class="staff-input" id="guests-{{ t.id }}" type="number" name="guest_count" min="1" max="999" value="1" inputmode="numeric" required>
                   <button class="staff-btn staff-btn--primary fizo-floor__table-action" type="submit">Open table</button>
                 </form>
               {% endif %}

@@ -3229,12 +3229,15 @@ class StaffTablesListView(StaffTenantRequiredMixin, ListView):
         try:
             if action == "open_table":
                 table_id = uuid.UUID((request.POST.get("table_id") or "").strip())
+                raw_guests = (request.POST.get("guest_count") or "").strip()
+                guest_count = int(raw_guests) if raw_guests else None
                 order, replay = open_or_resume_table_order(
                     tenant_id=request.tenant.pk,
                     outlet=outlet,
                     table_id=table_id,
                     membership=request.tenant_membership,
                     user=request.user,
+                    guest_count=guest_count,
                 )
                 if replay:
                     messages.info(request, f"Resuming {order.table_label or 'table'} check.")
@@ -3256,7 +3259,7 @@ class StaffTablesListView(StaffTenantRequiredMixin, ListView):
                 messages.error(request, "Unknown table action.")
                 return redirect("staff-tables")
         except (ValueError, AttributeError):
-            messages.error(request, "Choose a valid table.")
+            messages.error(request, "Choose a valid table and guest count.")
             return redirect("staff-tables")
         except DRFValidationError as exc:
             for message in _drf_detail_messages(exc.detail):

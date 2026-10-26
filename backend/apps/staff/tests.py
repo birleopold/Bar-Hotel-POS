@@ -3445,6 +3445,7 @@ class StaffTableStaffTests(TestCase):
         self.assertTrue(t.is_active)
 
     def test_server_opens_and_resumes_one_live_table_check(self) -> None:
+        from apps.pos.models import OrderServiceMode
         server = User.objects.create_user(email="tbl-server@test.local", password="TestPass9!")
         membership = Membership.objects.create(
             user=server,
@@ -3463,7 +3464,7 @@ class StaffTableStaffTests(TestCase):
 
         first = self.client.post(
             reverse("staff-tables"),
-            {"action": "open_table", "table_id": str(table.pk)},
+            {"action": "open_table", "table_id": str(table.pk), "guest_count": "3"},
         )
         self.assertEqual(first.status_code, 302)
         order = Order.objects.get(
@@ -3475,10 +3476,12 @@ class StaffTableStaffTests(TestCase):
         self.assertEqual(first.url, reverse("staff-order-detail", kwargs={"order_id": order.pk}))
         self.assertEqual(order.created_by_id, server.pk)
         self.assertEqual(order.table_label, "Dining 4")
+        self.assertEqual(order.service_mode, OrderServiceMode.DINE_IN)
+        self.assertEqual(order.guest_count, 3)
 
         replay = self.client.post(
             reverse("staff-tables"),
-            {"action": "open_table", "table_id": str(table.pk)},
+            {"action": "open_table", "table_id": str(table.pk), "guest_count": "9"},
         )
         self.assertEqual(replay.status_code, 302)
         self.assertEqual(replay.url, reverse("staff-order-detail", kwargs={"order_id": order.pk}))
@@ -3491,6 +3494,8 @@ class StaffTableStaffTests(TestCase):
             ).count(),
             1,
         )
+        order.refresh_from_db()
+        self.assertEqual(order.guest_count, 3)
 
         floor = self.client.get(reverse("staff-tables"))
         self.assertContains(floor, "Occupied")

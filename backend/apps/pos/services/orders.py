@@ -24,6 +24,7 @@ from apps.pos.models import (
     Order,
     OrderLine,
     OrderStatus,
+    OrderServiceMode,
     Payment,
     PaymentMethod,
     PosShift,
@@ -99,6 +100,7 @@ def open_or_resume_table_order(
     table_id,
     membership: Membership,
     user,
+    guest_count: int | None = None,
 ) -> tuple[Order, bool]:
     """Open one hospitality check for a table, or resume its existing check.
 
@@ -171,6 +173,10 @@ def open_or_resume_table_order(
             })
         return order, True
 
+    if guest_count is None or guest_count < 1 or guest_count > 999:
+        raise ValidationError({
+            "guest_count": "Enter the number of guests (1–999) before opening the table."
+        })
     order = create_order_with_lines(
         tenant_id=tenant_id,
         outlet=locked_table.outlet,
@@ -178,6 +184,8 @@ def open_or_resume_table_order(
         currency=default_currency_for_tenant(locked_table.outlet.site.tenant),
         table_label=locked_table.label,
         table=locked_table,
+        service_mode=OrderServiceMode.DINE_IN,
+        guest_count=guest_count,
         lines=[],
     )
     return order, False
@@ -456,7 +464,13 @@ def create_order_with_lines(
     lines: list[dict],
     table: Table | None = None,
     folio=None,
+    service_mode: str = "",
+    guest_count: int | None = None,
 ) -> Order:
+    if service_mode not in {"", *OrderServiceMode.values}:
+        raise ValidationError({"service_mode": "Choose a supported order type."})
+    if guest_count is not None and (guest_count < 1 or guest_count > 999):
+        raise ValidationError({"guest_count": "Guest count must be between 1 and 999."})
     order = Order.objects.create(
         tenant_id=tenant_id,
         outlet=outlet,
@@ -464,6 +478,8 @@ def create_order_with_lines(
         created_by=created_by,
         currency=currency,
         table_label=table_label or "",
+        service_mode=service_mode,
+        guest_count=guest_count,
         folio=folio,
     )
     from apps.catalog.modifiers_service import resolve_modifier_selection_drfsafe
@@ -505,6 +521,8 @@ def create_order_with_lines(
             "bill_reference": order.bill_reference,
             "outlet_id": str(outlet.id),
             "table_id": str(table.id) if table else None,
+            "service_mode": order.service_mode,
+            "guest_count": order.guest_count,
             "total": str(order.total),
         },
     )
