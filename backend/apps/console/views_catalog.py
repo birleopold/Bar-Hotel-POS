@@ -248,7 +248,7 @@ class OrgMenuItemPhotoView(ConsoleOrgAdminRequiredMixin, View):
         item = self.get_product(request, item_id)
         if request.GET.get("status") == "1":
             response = JsonResponse({
-                "image_url": item.product_image_src or "",
+                "image_url": item.product_image_render_src or "",
                 "image_key": item.product_image.name if item.product_image else "",
             })
             response["Cache-Control"] = "private, no-store"

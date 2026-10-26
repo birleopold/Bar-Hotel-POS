@@ -137,6 +137,15 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
+    def test_uploaded_product_photos_use_cache_safe_render_urls(self):
+        model = (Path(__file__).resolve().parents[1] / "catalog/models.py").read_text(encoding="utf-8")
+        editor = (Path(__file__).resolve().parents[1] / "console/templates/console/org/menu_item_form.html").read_text(encoding="utf-8")
+        checkout = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
+        self.assertIn("def product_image_render_src", model)
+        self.assertIn('separator = "&" if "?" in src else "?"', model)
+        self.assertIn("object.product_image_render_src", editor)
+        self.assertIn("item.product_image_render_src", checkout)
+
     def test_desktop_product_save_preserves_parallel_phone_photo(self):
         source = (Path(__file__).resolve().parents[1] / "console/views_catalog.py").read_text(encoding="utf-8")
         self.assertIn('elif "product_image" not in form.changed_data:', source)

@@ -62,6 +62,16 @@ class MenuItem(TimeStampedModel):
             return self.product_image.url
         return self.display_image_url
 
+    @property
+    def product_image_render_src(self):
+        """Cache-safe URL for displaying an uploaded product photo."""
+        src = self.product_image_src
+        if not src or not self.product_image:
+            return src
+        version = int(self.updated_at.timestamp()) if self.updated_at else 0
+        separator = "&" if "?" in src else "?"
+        return f"{src}{separator}v={version}"
+
     display_image_url = models.URLField(
         blank=True,
         help_text="Optional public image URL used on guest-facing and Service TV displays.",

@@ -4,7 +4,7 @@
 {% block content %}
 <section class="fizo-entity" aria-labelledby="photo-heading">
   <header class="fizo-entity__header"><div><p class="grocery-form-kicker">PRODUCT PHOTO</p><h1 id="photo-heading">{{ item.name }}</h1><p>Take a photo or choose one from your phone.</p></div></header>
-  {% if item.product_image_src %}<img src="{{ item.product_image_src }}" width="160" height="120" alt="Current photo for {{ item.name }}" class="fizo-entity__product-preview">{% endif %}
+  {% if item.product_image_render_src %}<img src="{{ item.product_image_render_src }}" width="160" height="120" alt="Current photo for {{ item.name }}" class="fizo-entity__product-preview">{% endif %}
   <form method="post" enctype="multipart/form-data" class="staff-card grocery-guided-form fizo-entity__card">
     {% csrf_token %}
     <div class="grocery-form-field"><label for="id_photo">Product photo</label><input type="file" id="id_photo" name="photo" accept="image/jpeg,image/png,image/webp" capture="environment" required>{% if photo_form.photo.errors %}<div class="grocery-form-errors" role="alert">{{ photo_form.photo.errors }}</div>{% endif %}</div>

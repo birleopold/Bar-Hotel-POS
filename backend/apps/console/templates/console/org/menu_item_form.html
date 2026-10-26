@@ -49,7 +49,7 @@
   <form method="post" enctype="multipart/form-data" class="staff-card grocery-guided-form fizo-entity__card">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-    {% if object and object.product_image_src %}<p class="staff-muted">Current photo</p><img src="{{ object.product_image_src }}" alt="{{ object.name }}" loading="lazy" width="160" height="120" class="fizo-entity__product-preview">{% endif %}
+    {% if object and object.product_image_render_src %}<p class="staff-muted">Current photo</p><img src="{{ object.product_image_render_src }}" alt="{{ object.name }}" loading="lazy" width="160" height="120" class="fizo-entity__product-preview">{% endif %}
     <div class="grocery-form-fields">
       {% for field in form %}
         {% if not grocery_console_shell or field.name != 'outlets' and field.name != 'modifier_groups' and field.name != 'kds_station' and field.name != 'consume_recipe_on_sale' %}
@@ -96,7 +96,7 @@
   var url = "{% url 'console-org-menu-item-photo' item_id=object.pk %}";
   var button = document.querySelector("[data-copy-photo-link]");
   var status = document.querySelector("[data-phone-photo-status]");
-  var known = "{{ object.product_image_src|escapejs }}";
+  var known = "{{ object.product_image_render_src|escapejs }}";
   if (button) button.addEventListener("click", function () {
     var full = new URL(url, window.location.href).href;
     if (navigator.clipboard && window.isSecureContext) {
