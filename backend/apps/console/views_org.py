@@ -63,6 +63,16 @@ class OrgOverviewView(ConsoleOrgAdminRequiredMixin, TemplateView):
         return ctx
 
 
+from apps.staff.views_workstations import StaffWorkstationEditView
+
+
+class OrgWorkstationEditView(ConsoleOrgAdminRequiredMixin, StaffWorkstationEditView):
+    """Reuse the validated workstation editor with an organization-native shell."""
+
+    template_name = "console/org/workstation_form.html"
+    success_url_name = "console-org-workstations"
+
+
 class OrgWorkstationListView(ConsoleOrgAdminRequiredMixin, TemplateView):
     """Organization device directory; cashier selection remains a Staff operation."""
 
