@@ -639,7 +639,7 @@ For **every** HTML entry: record named URL, base/inclusion chain, line-of-busine
 - [x] `backend/apps/staff/static/staff/staff-kds-live.js` — active KDS live-sync owner; WebSocket reconnect is bounded, HTML refresh is single-flight/no-store with bounded retry, redirects/non-HTML are rejected without reload loops, operator edits defer queue replacement, and unload cleanup plus regression contracts cover recovery behavior.
 
 **URL inventories:**
-- [ ] `backend/apps/api/urls.py` — enumerate named paths, permissions, request methods, mapped template and API dependencies.
+- [x] `backend/apps/api/urls.py` — inventoried in `docs/ROUTE_OWNER_INVENTORY.md`; public auth/webhook routes, tenant/module gates, router families, action permissions, offline/KDS/report dependencies and register-shift cash visibility are mapped to their canonical owners.
 - [ ] `backend/apps/console/urls.py` — enumerate named paths, permissions, request methods, mapped template and API dependencies.
 - [ ] `backend/apps/staff/urls.py` — enumerate named paths, permissions, request methods, mapped template and API dependencies.
 - [x] `backend/config/urls.py` — inventoried in `docs/ROUTE_OWNER_INVENTORY.md`; public function routes are explicitly GET/HEAD-only, signup/reset owners and dependencies are recorded, and delegated staff/console/API/admin roots are identified.
