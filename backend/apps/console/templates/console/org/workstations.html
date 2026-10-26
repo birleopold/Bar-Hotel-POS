@@ -9,7 +9,7 @@
       <p class="staff-muted">View your configured registers across branches. Device configuration reuses the existing secured workstation workflow; selecting a register for a shift remains in Staff.</p>
     </div>
     <div class="grocery-setup__hero-actions">
-      <a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-create' %}">Add workstation</a>
+      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-workstation-create' %}">Add workstation</a>
       <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-setup' %}">Guided setup</a>
     </div>
   </header>
@@ -24,7 +24,7 @@
           <td>{{ station.receipt_printer|default:"Not assigned" }}</td>
           <td>{% if station.is_active %}Enabled{% else %}Disabled{% endif %}{% if station.requires_pairing %}<span class="staff-muted small d-block">Browser approval required</span>{% endif %}</td>
           <td>
-            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-edit' station.id %}">Configure</a>
+            <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-workstation-edit' station.id %}">Configure</a>
             <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-test' station.id %}">Equipment check</a>
             <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-pair' station.id %}">Browser approvals</a>
           </td>
