@@ -46,6 +46,30 @@ User = get_user_model()
 
 
 
+class NavigationOwnershipContractTests(SimpleTestCase):
+    def test_console_navigation_stays_admin_except_explicit_operations_switch(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parent
+        sidebar = (root / "templates/console/includes/fizo_sidebar.html").read_text(encoding="utf-8")
+        nav = (root / "templates/console/includes/fizo_nav.html").read_text(encoding="utf-8")
+        self.assertNotIn("staff-workspace-members", sidebar)
+        self.assertNotIn("staff-workstations", sidebar)
+        self.assertNotIn("staff-notifications", nav)
+        self.assertIn("Operations workspace", sidebar)
+        self.assertIn("Operations workspace", nav)
+
+    def test_staff_navigation_exposes_admin_only_as_explicit_switch(self):
+        from pathlib import Path
+        sidebar = (
+            Path(__file__).resolve().parents[1]
+            / "staff/templates/staff/includes/sidebar.html"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn(">Settings</a>", sidebar)
+        self.assertIn("staff_show_console_entry", sidebar)
+        self.assertIn("Administration</a>", sidebar)
+        self.assertIn("{% url 'console-org' %}", sidebar)
+
+
 class SetupWizardStructureTests(SimpleTestCase):
     def test_setup_wizard_is_consolidated_into_four_cards(self):
         from pathlib import Path
