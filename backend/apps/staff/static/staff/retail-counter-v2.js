@@ -1335,122 +1335,141 @@
   }
   function bindQuantityForms() {
     document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
-    if (form.dataset.quantityBound === "1") return;
-    form.dataset.quantityBound = "1";
-    var input = form.querySelector('input[name="quantity"]');
-    if (input) input.dataset.confirmedQuantity = input.value;
-    form.addEventListener("submit", function (event) {
-      if (form.dataset.submitting === "1") {
-        event.preventDefault();
-        return;
-      }
-      if (!form.checkValidity()) return;
-      if (!window.fetch || !window.FormData) {
-        form.dataset.submitting = "1";
-        return;
-      }
-      event.preventDefault();
-      form.dataset.submitting = "1";
-      var buttons = form.querySelectorAll("button");
-      buttons.forEach(function (button) { button.disabled = true; });
-      var errorBox = form.parentNode.querySelector("[data-inline-qty-status]");
-      if (!errorBox) {
-        errorBox = document.createElement("p");
-        errorBox.setAttribute("data-inline-qty-status", "");
-        errorBox.setAttribute("role", "status");
-        errorBox.setAttribute("aria-live", "polite");
-        form.parentNode.appendChild(errorBox);
-      }
-      errorBox.textContent = "Updating basket…";
-      var requestedQuantity = input ? input.value : "";
-      var csrf = form.querySelector('input[name="csrfmiddlewaretoken"]');
-      // A hidden input named "action" shadows HTMLFormElement.action.
-      // Read the actual action attribute, never the shadowed property.
-      fetch(form.getAttribute("action") || window.location.pathname + window.location.search, {
-        method: "POST", body: new FormData(form),
-        credentials: "same-origin", redirect: "follow",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          "X-CSRFToken": csrf ? csrf.value : ""
+      if (form.dataset.quantityBound === "1") return;
+      form.dataset.quantityBound = "1";
+      var input = form.querySelector('input[name="quantity"]');
+      if (!input) return;
+      input.dataset.confirmedQuantity = input.value;
+      form.dataset.projectedQuantity = input.value;
+      form._retailQtyQueue = [];
+      form._retailQtyRunning = false;
+
+      function errorBoxForForm() {
+        var box = form.parentNode.querySelector("[data-inline-qty-status]");
+        if (!box) {
+          box = document.createElement("p");
+          box.setAttribute("data-inline-qty-status", "");
+          box.setAttribute("role", "status");
+          box.setAttribute("aria-live", "polite");
+          form.parentNode.appendChild(box);
         }
-      }).then(function (response) {
-        var type = response.headers.get("Content-Type") || "";
-        if (response.redirected || !type.toLowerCase().includes("application/json")) {
-          throw new Error("Checkout rejected the update (HTTP " + response.status +
-            "). The session may have expired or the action was redirected.");
-        }
-        if (!response.ok && response.status !== 422 && response.status !== 403 &&
-            response.status !== 404 && response.status !== 409) {
-          throw new Error("Checkout returned HTTP " + response.status + ".");
-        }
-        return response.json();
-      }).then(function (data) {
-        if (!data.ok) {
-          if (input) input.value = input.dataset.confirmedQuantity || input.defaultValue;
-          errorBox.textContent = data.message || "The quantity was not changed.";
-          if (data.refund_required) {
-            var refundForm = document.querySelector("[data-retail-refund-form]");
-            if (refundForm) {
-              var openRefund = document.createElement("button");
-              openRefund.type = "button";
-              openRefund.className = "staff-btn staff-btn--secondary ms-2";
-              openRefund.textContent = "Open refund controls";
-              openRefund.addEventListener("click", function () {
-                refundForm.scrollIntoView({behavior: "smooth", block: "center"});
-                var refundAmount = refundForm.querySelector('input[name="amount"]');
-                if (refundAmount) refundAmount.focus({preventScroll: true});
-              });
-              errorBox.appendChild(document.createTextNode(" "));
-              errorBox.appendChild(openRefund);
-            }
+        return box;
+      }
+
+      function runQuantityQueue() {
+        if (form._retailQtyRunning || !form._retailQtyQueue.length) return;
+        var job = form._retailQtyQueue.shift();
+        form._retailQtyRunning = true;
+        var errorBox = errorBoxForForm();
+        errorBox.textContent = form._retailQtyQueue.length
+          ? "Updating basket · " + (form._retailQtyQueue.length + 1) + " quantity changes queued"
+          : "Updating basket…";
+        var csrf = form.querySelector('input[name="csrfmiddlewaretoken"]');
+        fetch(form.getAttribute("action") || window.location.pathname + window.location.search, {
+          method: "POST",
+          body: job.body,
+          credentials: "same-origin",
+          redirect: "follow",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": csrf ? csrf.value : ""
           }
-          return;
-        }
-        if (input) {
-          input.value = data.quantity;
+        }).then(function (response) {
+          var type = response.headers.get("Content-Type") || "";
+          if (response.redirected || !type.toLowerCase().includes("application/json")) {
+            throw new Error("Checkout rejected the update (HTTP " + response.status +
+              "). The session may have expired or the action was redirected.");
+          }
+          if (!response.ok && response.status !== 422 && response.status !== 403 &&
+              response.status !== 404 && response.status !== 409) {
+            throw new Error("Checkout returned HTTP " + response.status + ".");
+          }
+          return response.json();
+        }).then(function (data) {
+          if (!data.ok) {
+            form._retailQtyQueue.length = 0;
+            input.value = input.dataset.confirmedQuantity || input.defaultValue;
+            form.dataset.projectedQuantity = input.value;
+            errorBox.textContent = data.message || "The quantity was not changed.";
+            if (data.refund_required) {
+              var refundForm = document.querySelector("[data-retail-refund-form]");
+              if (refundForm) {
+                var openRefund = document.createElement("button");
+                openRefund.type = "button";
+                openRefund.className = "staff-btn staff-btn--secondary ms-2";
+                openRefund.textContent = "Open refund controls";
+                openRefund.addEventListener("click", function () {
+                  refundForm.scrollIntoView({behavior: "smooth", block: "center"});
+                  var refundAmount = refundForm.querySelector('input[name="amount"]');
+                  if (refundAmount) refundAmount.focus({preventScroll: true});
+                });
+                errorBox.appendChild(document.createTextNode(" "));
+                errorBox.appendChild(openRefund);
+              }
+            }
+            return;
+          }
           input.dataset.confirmedQuantity = data.quantity;
-        }
-        var row = form.closest(".fizo-retail-basket-row");
-        var amount = row && row.querySelector(".fizo-retail-basket-row__amount");
-        if (amount) amount.textContent = data.currency + " " + data.line_total;
-        updateBasketAmounts(data);
-        errorBox.textContent = "Basket updated.";
-      }).catch(function (error) {
-        // Never repeat the POST: a failed response may follow a committed edit.
-        var why = error && error.message ? error.message : "Unknown network error";
-        return reconcileFromServer().then(function () {
-          var confirmed = input && Number(input.value) === Number(requestedQuantity);
-          errorBox.textContent = confirmed ? "Basket updated and verified." :
-            "Quantity unchanged. " + why;
-        }).catch(function () {
-          errorBox.textContent = "Could not verify quantity. " + why;
+          if (!form._retailQtyQueue.length) {
+            input.value = form.dataset.projectedQuantity || data.quantity;
+          }
+          var row = form.closest(".fizo-retail-basket-row");
+          var amount = row && row.querySelector(".fizo-retail-basket-row__amount");
+          if (amount) amount.textContent = data.currency + " " + data.line_total;
+          updateBasketAmounts(data);
+          errorBox.textContent = form._retailQtyQueue.length
+            ? "Basket updating · " + form._retailQtyQueue.length + " changes queued"
+            : "Basket updated.";
+        }).catch(function (error) {
+          form._retailQtyQueue.length = 0;
+          var why = error && error.message ? error.message : "Unknown network error";
+          return reconcileFromServer().then(function () {
+            input.dataset.confirmedQuantity = input.value;
+            form.dataset.projectedQuantity = input.value;
+            errorBox.textContent = "Basket verified after connection delay.";
+          }).catch(function () {
+            input.value = input.dataset.confirmedQuantity || input.defaultValue;
+            form.dataset.projectedQuantity = input.value;
+            errorBox.textContent = "Could not verify quantity. " + why;
+          });
+        }).then(function () {
+          form._retailQtyRunning = false;
+          runQuantityQueue();
         });
-      }).then(function () {
-        delete form.dataset.submitting;
-        buttons.forEach(function (button) { button.disabled = false; });
+      }
+
+      function enqueueQuantityTarget(target) {
+        var body = new FormData(form);
+        body.set("quantity", String(target));
+        form._retailQtyQueue.push({body: body, target: String(target)});
+        runQuantityQueue();
+      }
+
+      form._retailEnqueueQuantityTarget = enqueueQuantityTarget;
+
+      form.addEventListener("submit", function (event) {
+        if (!form.checkValidity()) return;
+        if (!window.fetch || !window.FormData) return;
+        event.preventDefault();
+        form.dataset.projectedQuantity = input.value;
+        enqueueQuantityTarget(input.value);
       });
     });
-  });
   }
   document.addEventListener("retail:basket-lines-replaced", bindQuantityForms);
   bindQuantityForms();
-  window.addEventListener("pageshow", function () {
-    document.querySelectorAll("[data-fizo-qty-form]").forEach(function (form) {
-      delete form.dataset.submitting;
-      form.querySelectorAll("button").forEach(function (button) {
-        button.disabled = false;
-      });
-    });
-  });
-  /* Ordinary products move in whole units; measured goods retain 0.001 steps. */
+
+  /* Ordinary products move in whole units; measured goods retain 0.001 steps.
+     Fast +/- clicks update the projected quantity immediately and queue every
+     resulting target; no click is dropped while an earlier POST is in flight. */
   document.addEventListener("click", function (event) {
     var button = event.target.closest("[data-fizo-step]");
     if (!button) return;
     var form = button.closest("[data-fizo-qty-form]");
-    if (!form || form.dataset.submitting === "1") return;
+    if (!form) return;
     var input = form.querySelector('input[name="quantity"]');
-    if (!input) return;
-    var current = Number(input.value);
+    if (!input || !form._retailEnqueueQuantityTarget) return;
+    var current = Number(form.dataset.projectedQuantity || input.value);
     var delta = Number(button.dataset.fizoStep);
     if (!Number.isFinite(current) || !Number.isFinite(delta)) return;
     var step = Number(input.step || "1");
@@ -1459,14 +1478,9 @@
       ? Math.round((current + delta * step) * 1000) / 1000
       : Math.round(current + delta);
     if (next < Number(input.min || step)) return;
+    form.dataset.projectedQuantity = String(next);
     input.value = String(next);
-    if (form.requestSubmit) {
-      form.requestSubmit();
-    } else {
-      // Calling form.submit() skips validation and the single-flight handler.
-      var save = form.querySelector('button[type="submit"]');
-      if (save) save.click();
-    }
+    form._retailEnqueueQuantityTarget(String(next));
   });
 
 
