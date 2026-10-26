@@ -8,6 +8,7 @@
     <a href="{% url 'console-org-sites' %}"{% if u == 'console-org-sites' or u == 'console-org-site-create' or u == 'console-org-site-edit' or u == 'console-org-outlets' or u == 'console-org-outlet-create' or u == 'console-org-outlet-edit' %} aria-current="page"{% endif %}><i class="bi bi-geo-alt" aria-hidden="true"></i>Branches</a>
     <a href="{% url 'console-org-settings-branding' %}"{% if u == 'console-org-settings-branding' %} aria-current="page"{% endif %}><i class="bi bi-sliders" aria-hidden="true"></i>Business settings</a>
     <a href="{% url 'console-org-settings-modules' %}"{% if u == 'console-org-settings-modules' %} aria-current="page"{% endif %}><i class="bi bi-toggles" aria-hidden="true"></i>Enabled areas</a>
+    <a href="{% url 'console-org-workstations' %}"{% if u == 'console-org-workstations' %} aria-current="page"{% endif %}><i class="bi bi-printer" aria-hidden="true"></i>Devices &amp; registers</a>
     <a href="{% url 'console-org-team' %}"{% if u == 'console-org-team' or u == 'console-org-team-create' or u == 'console-org-team-edit' %} aria-current="page"{% endif %}><i class="bi bi-people" aria-hidden="true"></i>Team &amp; access</a>
     {% if console_has_fnb or console_has_retail %}
     <a href="{% url 'console-org-menu-items' %}"{% if u == 'console-org-menu-items' or u == 'console-org-menu-item-create' or u == 'console-org-menu-item-edit' or u == 'console-org-catalog-import' %} aria-current="page"{% endif %}><i class="bi bi-box-seam" aria-hidden="true"></i>{% if grocery_console_shell %}Products{% else %}Menu items{% endif %}</a>
