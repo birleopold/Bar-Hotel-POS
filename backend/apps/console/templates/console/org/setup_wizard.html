@@ -80,6 +80,23 @@
           {% endif %}
         {% endfor %}
       </div>
+      {% for step in setup_optional_steps %}
+        {% if step.key == 'first_po_received' or step.key == 'lodging_basics' %}
+        <article class="setup-board__row{% if step.done %} is-done{% endif %}">
+          <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
+          <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
+          <div class="setup-board__row-actions"><a class="staff-btn staff-btn--ghost" href="{{ step.cta_url }}">{{ step.cta_label }}</a>{% if step.secondary_cta_url %}<a class="staff-btn staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}</div>
+          <details class="setup-board__row-more">
+            <summary>{% if step.status == 'skipped' %}Skipped{% else %}Optional{% endif %}</summary>
+            <form method="post" action="{{ setup_action_url }}">
+              {% csrf_token %}<input type="hidden" name="step_key" value="{{ step.key }}"><input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+              <button type="submit" name="state" value="skipped">Skip for now</button>
+              {% if step.manual_state %}<button type="submit" name="state" value="reset">Remove skip</button>{% endif %}
+            </form>
+          </details>
+        </article>
+        {% endif %}
+      {% endfor %}
       {% if show_catalog_import %}
       <div class="setup-board__footer-action">
         <a href="{% url 'console-org-catalog-import' %}"><i class="bi bi-file-earmark-spreadsheet"></i><span><strong>Import products</strong><small>Upload an existing catalogue instead of creating products one by one.</small></span><i class="bi bi-arrow-right"></i></a>
@@ -126,10 +143,10 @@
     <section class="staff-card setup-board__card setup-board__card--ready" aria-labelledby="setup-ready-title">
       <div class="setup-board__card-head">
         <span class="setup-board__icon"><i class="bi bi-shield-check"></i></span>
-        <div><span class="setup-hub__label">4 · Ready to open</span><h2 id="setup-ready-title">Final checks</h2></div>
+        <div><span class="setup-hub__label">4 · Finish & verify</span><h2 id="setup-ready-title">Opening checks</h2></div>
         {% if go_live_ready %}<span class="setup-hub__state setup-hub__state--done">Checks passed</span>{% endif %}
       </div>
-      <p class="setup-board__intro">One final place to see what is still blocking opening. These checks reference the setup above rather than duplicating it.</p>
+      <p class="setup-board__intro">See what is still blocking opening, then use the optional verification actions after the essentials are complete. Nothing here repeats setup from the other cards.</p>
       <ul class="setup-hub__checks setup-board__checks">
         {% for check in go_live_checks %}
           <li><i class="bi {% if check.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i><span>{{ check.label }}{% if not check.done %} <a href="{{ check.fix_url }}">Fix</a>{% endif %}</span></li>
@@ -137,7 +154,7 @@
       </ul>
       <div class="setup-board__rows setup-board__rows--compact">
         {% for step in setup_optional_steps %}
-          {% if step.key != 'first_team_invite' and step.key != 'device_test' %}
+          {% if step.key == 'practice_sale' or step.key == 'first_paid_order' %}
           <article class="setup-board__row{% if step.done %} is-done{% endif %}">
             <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
             <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
