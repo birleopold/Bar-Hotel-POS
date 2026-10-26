@@ -86,6 +86,25 @@ class NotReadOnlyRole(permissions.BasePermission):
         return membership.role != MembershipRole.ACCOUNTANT
 
 
+class CanManageCatalog(permissions.BasePermission):
+    """Tenant-wide catalog and promotion writes belong to workspace administrators."""
+
+    message = "Only owner or tenant admin can change the shared catalog."
+
+    def has_permission(self, request, view) -> bool:
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in {
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+            }
+        )
+
+
 class CanViewAuditEvents(permissions.BasePermission):
     """Restrict audit evidence to the same manager roles as the staff audit reader."""
 

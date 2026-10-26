@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
+from apps.api.permissions import CanManageCatalog, HasTenantContext, HasTenantModule, NotReadOnlyRole
 from apps.pos.menu_cache import menu_items_for_outlet_queryset_cached
 from apps.pos.services import menu_items_for_outlet_queryset
 
@@ -22,7 +22,7 @@ from .serializers import MenuCategorySerializer, MenuItemListSerializer, MenuIte
 
 
 class MenuCategoryViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, CanManageCatalog]
     required_staff_module = "pos"
     serializer_class = MenuCategorySerializer
 
@@ -38,7 +38,7 @@ class MenuCategoryViewSet(viewsets.ModelViewSet):
 
 
 class MenuItemViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, CanManageCatalog]
     required_staff_module = "pos"
 
     def get_queryset(self):
@@ -138,7 +138,7 @@ class MenuItemViewSet(viewsets.ModelViewSet):
 
 
 class ModifierGroupViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, CanManageCatalog]
     required_staff_module = "pos"
     serializer_class = ModifierGroupSerializer
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
@@ -162,7 +162,7 @@ class ModifierGroupViewSet(viewsets.ModelViewSet):
 
 
 class ModifierOptionViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, CanManageCatalog]
     required_staff_module = "pos"
     serializer_class = ModifierOptionSerializer
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
@@ -181,7 +181,7 @@ class ModifierOptionViewSet(viewsets.ModelViewSet):
 
 
 class PromotionViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, CanManageCatalog]
     required_staff_module = "pos"
     serializer_class = PromotionSerializer
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]

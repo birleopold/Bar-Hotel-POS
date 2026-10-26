@@ -107,6 +107,45 @@ class ApiPermissionMatrixTests(TestCase):
         )
         self.assertEqual(write_response.status_code, 403)
 
+    def test_floor_staff_cannot_mutate_shared_catalog(self) -> None:
+        server = User.objects.create_user(
+            email="catalog-server@test.local", password="TestPass9!"
+        )
+        membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site_allowed)
+        membership.outlets.add(self.outlet)
+        headers = self._auth(server, tenant_id=self.tenant.id)
+
+        response = self.client.post(
+            "/api/v1/menu/categories/",
+            {"name": "Unauthorized category", "sort_order": 1},
+            format="json",
+            **headers,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_owner_can_mutate_shared_catalog(self) -> None:
+        owner = User.objects.create_user(
+            email="catalog-owner@test.local", password="TestPass9!"
+        )
+        Membership.objects.create(
+            user=owner,
+            tenant=self.tenant,
+            role=MembershipRole.OWNER,
+        )
+        headers = self._auth(owner, tenant_id=self.tenant.id)
+        response = self.client.post(
+            "/api/v1/menu/categories/",
+            {"name": "Owner category", "sort_order": 1},
+            format="json",
+            **headers,
+        )
+        self.assertEqual(response.status_code, 201)
+
     def test_accountant_cannot_create_inventory_movements(self) -> None:
         headers = self._auth(self.accountant, tenant_id=self.tenant.id)
         response = self.client.post("/api/v1/stock/movements/", {"note": "test"}, format="json", **headers)
