@@ -4,6 +4,7 @@ from .kds import update_order_line_kds_status
 from .offline import process_offline_queue_entry
 from .orders import (
     adjust_open_order_line_quantity,
+    assign_order_line_seat,
     add_line_to_open_order,
     add_service_to_open_order,
     add_supermarket_line_by_code,
@@ -31,6 +32,7 @@ __all__ = [
     "add_service_to_open_order",
     "add_supermarket_line_by_code",
     "adjust_open_order_line_quantity",
+    "assign_order_line_seat",
     "apply_supermarket_line_discount",
     "apply_promotion_to_order",
     "cancel_open_unpaid_order",

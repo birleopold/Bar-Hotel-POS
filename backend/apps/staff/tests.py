@@ -10,6 +10,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.accounts.invite_service import create_user_invite
 from apps.accounts.models import Membership, MembershipRole
@@ -22,6 +23,7 @@ from apps.pos.models import (
     KdsLineStatus,
     Order,
     OrderLine,
+    OrderServiceMode,
     OrderStatus,
     Payment,
     PaymentMethod,
@@ -3628,6 +3630,155 @@ class StaffTableStaffTests(TestCase):
         order.refresh_from_db()
         self.assertTrue(order.is_paid)
         self.assertEqual(order.status, OrderStatus.CLOSED)
+
+    def test_server_can_assign_and_move_dine_in_item_seat(self) -> None:
+        server = User.objects.create_user(
+            email="tbl-seat@test.local",
+            password="TestPass9!",
+        )
+        membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet)
+        category = MenuCategory.objects.create(
+            tenant=self.tenant,
+            name="Seat dishes",
+        )
+        dish = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=category,
+            name="Seat pasta",
+            unit_price=Decimal("12000.00"),
+            is_active=True,
+            kds_station="kitchen",
+        )
+        table = Table.objects.create(
+            outlet=self.outlet,
+            label="Dining seats",
+            capacity=4,
+        )
+        self._session_tenant_outlet(server)
+        self.client.post(
+            reverse("staff-tables"),
+            {
+                "action": "open_table",
+                "table_id": str(table.pk),
+                "guest_count": "3",
+            },
+        )
+        order = Order.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            table=table,
+            status=OrderStatus.OPEN,
+        )
+        detail_url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        add = self.client.post(
+            detail_url,
+            {
+                "action": "add_line",
+                "menu_item": str(dish.pk),
+                "quantity": "1",
+                "seat_number": "1",
+            },
+        )
+        self.assertEqual(add.status_code, 302)
+        line = order.lines.get(menu_item=dish, is_voided=False)
+        self.assertEqual(line.seat_number, 1)
+
+        page = self.client.get(detail_url)
+        self.assertContains(page, "Seat 1")
+        self.assertContains(page, 'name="action" value="assign_line_seat"')
+
+        moved = self.client.post(
+            detail_url,
+            {
+                "action": "assign_line_seat",
+                "line_id": str(line.pk),
+                "seat_number": "3",
+            },
+        )
+        self.assertEqual(moved.status_code, 302)
+        line.refresh_from_db()
+        self.assertEqual(line.seat_number, 3)
+        event = AuditEvent.objects.get(
+            tenant=self.tenant,
+            action="order.line_seat_changed",
+            entity_id=str(line.pk),
+        )
+        self.assertEqual(event.payload["before"], 1)
+        self.assertEqual(event.payload["after"], 3)
+
+        invalid = self.client.post(
+            detail_url,
+            {
+                "action": "assign_line_seat",
+                "line_id": str(line.pk),
+                "seat_number": "4",
+            },
+            follow=True,
+        )
+        self.assertContains(invalid, "Choose a seat between 1 and 3")
+        line.refresh_from_db()
+        self.assertEqual(line.seat_number, 3)
+
+        cleared = self.client.post(
+            detail_url,
+            {
+                "action": "assign_line_seat",
+                "line_id": str(line.pk),
+                "seat_number": "",
+            },
+        )
+        self.assertEqual(cleared.status_code, 302)
+        line.refresh_from_db()
+        self.assertIsNone(line.seat_number)
+
+    def test_takeaway_check_rejects_seat_assignment(self) -> None:
+        from apps.pos.services import assign_order_line_seat
+
+        server = User.objects.create_user(
+            email="takeaway-seat@test.local",
+            password="TestPass9!",
+        )
+        category = MenuCategory.objects.create(
+            tenant=self.tenant,
+            name="Takeaway seat dishes",
+        )
+        dish = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=category,
+            name="Takeaway burger",
+            unit_price=Decimal("10000.00"),
+            is_active=True,
+        )
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=server,
+            service_mode=OrderServiceMode.TAKEAWAY,
+        )
+        line = OrderLine.objects.create(
+            order=order,
+            menu_item=dish,
+            label=dish.name,
+            quantity=Decimal("1"),
+            unit_price=dish.unit_price,
+            line_total=dish.unit_price,
+        )
+        with self.assertRaisesMessage(
+            DRFValidationError,
+            "Seats are available only on dine-in hospitality checks.",
+        ):
+            assign_order_line_seat(
+                order=order,
+                line=line,
+                seat_number=1,
+                user=server,
+            )
 
     def test_paid_restaurant_check_can_finish_ready_to_served_handoff(self) -> None:
         from apps.pos.services.kds import update_order_line_kds_status

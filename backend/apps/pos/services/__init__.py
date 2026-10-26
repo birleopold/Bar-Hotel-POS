@@ -5,6 +5,7 @@ from .handover import accept_shift_handover, approve_shift_handover, submit_shif
 
 from .commands import (
     adjust_open_order_line_quantity,
+    assign_order_line_seat,
     add_line_to_open_order,
     add_service_to_open_order,
     add_supermarket_line_by_code,
@@ -48,6 +49,7 @@ __all__ = [
     "add_service_to_open_order",
     "add_supermarket_line_by_code",
     "adjust_open_order_line_quantity",
+    "assign_order_line_seat",
     "apply_supermarket_line_discount",
     "apply_promotion_to_order",
     "cancel_open_unpaid_order",

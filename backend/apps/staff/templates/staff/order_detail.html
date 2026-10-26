@@ -162,6 +162,9 @@
                   <tr>
                     <td>
                       {{ line.label }}{% if line.line_discount_amount %} <span class="staff-muted">(disc.)</span>{% endif %}
+                      {% if order.service_mode == "dine_in" and order.guest_count %}
+                        <div class="staff-muted small mt-1">{% if line.seat_number %}Seat {{ line.seat_number }}{% else %}Shared table item{% endif %}</div>
+                      {% endif %}
                       {% if line.modifiers_snapshot %}
                         <div class="staff-muted small mt-1">
                           {% for m in line.modifiers_snapshot %}{{ m.group }}: {{ m.name }}{% if not forloop.last %} · {% endif %}{% endfor %}
@@ -181,6 +184,15 @@
                         </form>
                       {% endif %}
                       {% if can_modify_open_order %}
+                        {% if order.service_mode == "dine_in" and order.guest_count %}
+                        <form method="post" class="staff-pos-line-actions mb-1">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="assign_line_seat">
+                          <input type="hidden" name="line_id" value="{{ line.id }}">
+                          <input class="staff-input staff-input--pos-qty" type="number" name="seat_number" min="1" max="{{ order.guest_count }}" value="{{ line.seat_number|default_if_none:'' }}" placeholder="Shared" aria-label="Seat for {{ line.label }}">
+                          <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Seat</button>
+                        </form>
+                        {% endif %}
                         <form method="post" class="staff-pos-line-actions">
                           {% csrf_token %}
                           <input type="hidden" name="action" value="adjust_line_qty">

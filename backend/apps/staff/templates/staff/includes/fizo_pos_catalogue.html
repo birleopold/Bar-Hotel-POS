@@ -67,6 +67,12 @@
             <input type="hidden" name="action" value="add_line">
             <div class="staff-pos-add-item-form__selection"><label class="staff-label" for="{{ add_line_form.menu_item.id_for_label }}">Selected item</label>{{ add_line_form.menu_item }}</div>
             <div class="staff-pos-add-item-form__quantity">{{ add_line_form.quantity.label_tag }}{{ add_line_form.quantity }}</div>
+            {% if not is_supermarket_outlet and order.service_mode == "dine_in" and order.guest_count %}
+              <div class="staff-pos-add-item-form__quantity">
+                <label class="staff-label" for="{{ add_line_form.seat_number.id_for_label }}">Seat <span class="staff-muted">(optional, 1–{{ order.guest_count }})</span></label>
+                {{ add_line_form.seat_number }}
+              </div>
+            {% endif %}
             <div class="staff-pos-add-item-form__submit"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch"><i class="bi bi-plus-lg" aria-hidden="true"></i>{% if is_supermarket_outlet %} Add to basket{% else %} Add to order{% endif %}</button></div>
             <div class="staff-pos-add-item-form__modifiers" id="staff-pos-add-line-modifiers" aria-live="polite"></div>
           </form>

@@ -79,6 +79,18 @@ class StaffOrderAddLineForm(forms.Form):
         initial=Decimal("1"),
         widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.001", "min": "0.001"}),
     )
+    seat_number = forms.IntegerField(
+        label="Seat",
+        required=False,
+        min_value=1,
+        max_value=999,
+        widget=forms.NumberInput(attrs={
+            "class": "staff-input",
+            "min": 1,
+            "inputmode": "numeric",
+            "placeholder": "Shared",
+        }),
+    )
 
     def __init__(self, *args, tenant_id, outlet_id, **kwargs):
         super().__init__(*args, **kwargs)

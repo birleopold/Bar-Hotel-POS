@@ -35,7 +35,7 @@
       {% for line in order.lines.all %}
         {% if not line.is_voided %}
           <tr>
-            <td>{{ line.label }}</td>
+            <td>{{ line.label }}{% if line.seat_number %} · Seat {{ line.seat_number }}{% endif %}</td>
             <td>{{ line.quantity }}</td>
             <td>{{ line.line_total }}</td>
           </tr>

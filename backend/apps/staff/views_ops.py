@@ -27,6 +27,7 @@ from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, ServiceO
 from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderServiceMode, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table, Workstation
 from apps.pos.services import (
     adjust_open_order_line_quantity,
+    assign_order_line_seat,
     add_line_to_open_order,
     add_service_to_open_order,
     add_supermarket_line_by_code,
@@ -1673,6 +1674,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             "add_line",
             "add_service_line",
             "adjust_line_qty",
+            "assign_line_seat",
             "record_payment",
             "void_line",
             "apply_promotion",
@@ -1718,6 +1720,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_add_service_line(request, order)
         if action == "adjust_line_qty":
             return self._post_adjust_line_quantity(request, order)
+        if action == "assign_line_seat":
+            return self._post_assign_line_seat(request, order)
         if action == "scan_add_line":
             return self._post_scan_add_line(request, order)
         if action == "line_discount":
@@ -2336,6 +2340,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 quantity=form.cleaned_data["quantity"],
                 user=request.user,
                 modifier_option_ids=modifier_option_ids or None,
+                seat_number=form.cleaned_data.get("seat_number"),
             )
         except DRFValidationError as exc:
             if async_add:
@@ -2382,6 +2387,47 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         else:
             messages.success(request, "Service added.")
         return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_assign_line_seat(self, request: HttpRequest, order: Order) -> HttpResponse:
+        if (
+            order.outlet.outlet_type not in {
+                OutletType.RESTAURANT,
+                OutletType.BAR,
+                OutletType.LOUNGE,
+                OutletType.CAFETERIA,
+            }
+            or order.service_mode != OrderServiceMode.DINE_IN
+        ):
+            messages.error(request, "Seat assignment is available only on dine-in checks.")
+            return redirect("staff-order-detail", order_id=order.pk)
+        try:
+            line_id = uuid.UUID((request.POST.get("line_id") or "").strip())
+        except (TypeError, ValueError):
+            messages.error(request, "Choose a valid order item.")
+            return redirect("staff-order-detail", order_id=order.pk)
+        line = OrderLine.objects.filter(
+            pk=line_id,
+            order=order,
+            is_voided=False,
+        ).first()
+        if line is None:
+            messages.error(request, "That item is no longer on this check.")
+            return redirect("staff-order-detail", order_id=order.pk)
+        try:
+            _, changed = assign_order_line_seat(
+                order=order,
+                line=line,
+                seat_number=(request.POST.get("seat_number") or "").strip(),
+                user=request.user,
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(
+                request,
+                "Seat updated." if changed else "Seat was already current.",
+            )
+        return redirect("staff-order-detail", order_id=order.pk)
 
     def _post_adjust_line_quantity(self, request: HttpRequest, order: Order) -> HttpResponse:
         async_qty = (

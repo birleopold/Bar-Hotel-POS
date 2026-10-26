@@ -222,6 +222,12 @@ class OrderLine(TimeStampedModel):
         help_text="Price source marker (menu, barcode, plu, weighted, manual).",
     )
     sort_order = models.PositiveSmallIntegerField(default=0)
+    seat_number = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(999)],
+        help_text="Optional dine-in seat assignment used for restaurant service and later bill splitting.",
+    )
     is_voided = models.BooleanField(default=False)
     void_reason = models.CharField(max_length=255, blank=True)
     voided_at = models.DateTimeField(null=True, blank=True)

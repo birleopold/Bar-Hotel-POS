@@ -72,6 +72,7 @@
                       <div class="staff-pos-kds-line__qty">{{ ln.quantity }}×</div>
                       <div class="staff-pos-kds-line__name">
                         {{ ln.label }}
+                        {% if ln.seat_number %}<span class="staff-muted"> · Seat {{ ln.seat_number }}</span>{% endif %}
                         {% if ln.kds_rush %}<strong class="kds-rush-tag">Rush</strong>{% endif %}
                         <span class="kds-line-timer"{% if row.overdue %} data-kds-overdue="true"{% endif %} data-kds-age-seconds="{{ row.minutes_waiting|default:0 }}">{{ row.minutes_waiting }} min waiting{% if row.overdue %} · Overdue{% endif %}</span>
                         {% if ln.modifiers_snapshot %}<ul class="kds-modifier-list">{% for modifier in ln.modifiers_snapshot %}<li>{{ modifier.name|default:"Option" }}</li>{% endfor %}</ul>{% endif %}

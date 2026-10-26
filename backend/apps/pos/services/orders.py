@@ -572,6 +572,76 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
     return locked
 
 
+def _normalize_dine_in_seat(order: Order, seat_number) -> int | None:
+    if seat_number in (None, ""):
+        return None
+    try:
+        seat = int(seat_number)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError({"seat_number": "Choose a valid seat number."}) from exc
+    if (
+        order.outlet.outlet_type not in HOSPITALITY_OUTLET_TYPES
+        or order.service_mode != OrderServiceMode.DINE_IN
+    ):
+        raise ValidationError({
+            "seat_number": "Seats are available only on dine-in hospitality checks."
+        })
+    if not order.guest_count:
+        raise ValidationError({
+            "seat_number": "Record the guest count before assigning seats."
+        })
+    if seat < 1 or seat > order.guest_count:
+        raise ValidationError({
+            "seat_number": f"Choose a seat between 1 and {order.guest_count}."
+        })
+    return seat
+
+
+@transaction.atomic
+def assign_order_line_seat(
+    *,
+    order: Order,
+    line: OrderLine,
+    seat_number,
+    user,
+) -> tuple[OrderLine, bool]:
+    locked = (
+        Order.objects.select_for_update()
+        .select_related("outlet")
+        .get(pk=order.pk)
+    )
+    if locked.status != OrderStatus.OPEN or locked.is_paid:
+        raise ValidationError({
+            "seat_number": "Seats can be changed only before the check is settled."
+        })
+    seat = _normalize_dine_in_seat(locked, seat_number)
+    locked_line = OrderLine.objects.select_for_update().filter(
+        pk=line.pk,
+        order=locked,
+        is_voided=False,
+    ).first()
+    if locked_line is None:
+        raise ValidationError({"line": "Choose an active item on this check."})
+    if locked_line.seat_number == seat:
+        return locked_line, False
+    before = locked_line.seat_number
+    locked_line.seat_number = seat
+    locked_line.save(update_fields=["seat_number", "updated_at"])
+    log_audit(
+        tenant_id=locked.tenant_id,
+        user_id=user.pk if user else None,
+        action="order.line_seat_changed",
+        entity_type="order_line",
+        entity_id=str(locked_line.pk),
+        payload={
+            "order_id": str(locked.pk),
+            "before": before,
+            "after": seat,
+        },
+    )
+    return locked_line, True
+
+
 @transaction.atomic
 def add_line_to_open_order(
     *,
@@ -581,6 +651,7 @@ def add_line_to_open_order(
     user,
     modifier_option_ids: list | None = None,
     pricing_source: str = "menu",
+    seat_number: int | None = None,
 ) -> OrderLine:
     from apps.catalog.modifiers_service import resolve_modifier_selection_drfsafe
 
@@ -599,6 +670,7 @@ def add_line_to_open_order(
     )
     if locked.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
         quantity = normalize_supermarket_quantity(menu_item=menu_item, quantity=quantity)
+    seat = _normalize_dine_in_seat(locked, seat_number)
     unit_price = menu_item.unit_price_for_outlet(locked.outlet_id)
     eff_unit = unit_price + per_unit_mod
     sub = line_total(quantity, eff_unit)
@@ -652,6 +724,7 @@ def add_line_to_open_order(
         tax_amount=tax,
         pricing_source=pricing_source,
         sort_order=next_sort,
+        seat_number=seat,
         kds_station=(menu_item.kds_station or "")[:32],
         modifiers_snapshot=mod_snapshot,
     )
@@ -662,7 +735,11 @@ def add_line_to_open_order(
         action="order.line_added",
         entity_type="order",
         entity_id=str(locked.id),
-        payload={"line_id": str(line.id), "menu_item_id": str(menu_item.id)},
+        payload={
+            "line_id": str(line.id),
+            "menu_item_id": str(menu_item.id),
+            "seat_number": seat,
+        },
     )
     return line
 
