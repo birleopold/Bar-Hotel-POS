@@ -1,0 +1,56 @@
+{% extends "console/base.html" %}
+{% block title %}Team & access{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div>
+      <p class="grocery-setup__eyebrow">Administration</p>
+      <h1>Team &amp; access</h1>
+      <p class="staff-muted">Manage worker roles, branch access and terminal readiness without leaving the administration area.</p>
+    </div>
+    <div class="grocery-setup__hero-actions">
+      {% if can_manage_members %}<a class="staff-btn staff-btn--primary" href="{% url 'console-org-team-create' %}">New worker</a>{% endif %}
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Overview</a>
+    </div>
+  </header>
+
+  {% if worker_reset_link %}
+  <div class="staff-card mb-3">
+    <strong>Password setup link ready</strong>
+    <p class="staff-muted mb-0">{{ worker_reset_link.email }} — <a href="{{ worker_reset_link.url }}" target="_blank" rel="noopener">open setup link</a></p>
+  </div>
+  {% endif %}
+
+  <form class="staff-card mb-3" method="get" role="search">
+    <div class="grocery-form-fields">
+      <div class="grocery-form-field"><label for="team-search">Name or email</label><input id="team-search" type="search" name="q" value="{{ filter_q }}" placeholder="Search team"></div>
+      <div class="grocery-form-field"><label for="team-role">Role</label><select id="team-role" name="role"><option value="">Any role</option>{% for val,label in role_choices %}<option value="{{ val }}"{% if filter_role == val %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="grocery-form-field"><label for="team-status">Access</label><select id="team-status" name="status"><option value="">Any status</option><option value="active"{% if filter_status == 'active' %} selected{% endif %}>Active</option><option value="inactive"{% if filter_status == 'inactive' %} selected{% endif %}>Inactive</option></select></div>
+      <div class="grocery-form-field"><label for="team-pin">Terminal PIN</label><select id="team-pin" name="pin"><option value="">Any</option><option value="ready"{% if filter_pin == 'ready' %} selected{% endif %}>Set</option><option value="missing"{% if filter_pin == 'missing' %} selected{% endif %}>Not set</option></select></div>
+    </div>
+    <div class="grocery-form-footer"><span>Filters affect only this directory view.</span><div><button type="submit" class="staff-btn staff-btn--ghost">Filter</button></div></div>
+  </form>
+
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Worker</th><th>Role</th><th>Access</th><th>Terminal PIN</th><th>Actions</th></tr></thead>
+      <tbody>
+      {% for m in memberships %}
+        <tr>
+          <td><strong>{{ m.user.get_full_name|default:m.user.email }}</strong>{% if m.user.get_full_name %}<span class="staff-muted small d-block">{{ m.user.email }}</span>{% endif %}</td>
+          <td>{{ m.get_role_display }}</td>
+          <td>{% if m.is_active %}<span class="setup-hub__state setup-hub__state--done">Active</span>{% else %}<span class="setup-hub__state">Inactive</span>{% endif %}</td>
+          <td>{% if m.staff_pin_hash %}<span class="setup-hub__state setup-hub__state--done">Set</span>{% else %}<span class="staff-muted">Not set</span>{% endif %}</td>
+          <td>{% if can_manage_members %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-team-edit' membership_id=m.id %}">Manage</a>{% else %}<span class="staff-muted">—</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="staff-muted">No workers match these filters.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if is_paginated %}
+  <nav class="staff-pager">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}<span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}</nav>
+  {% endif %}
+</section>
+{% endblock %}

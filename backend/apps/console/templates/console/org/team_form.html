@@ -1,0 +1,31 @@
+{% extends "console/base.html" %}
+{% block title %}{{ form_title|default:"Team access" }}{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header">
+    <div>
+      <p class="grocery-setup__eyebrow">Administration · Team</p>
+      <h1>{{ form_title|default:"Team access" }}</h1>
+      <p class="staff-muted">Roles and branch/outlet access use the same validation rules as the operational system.</p>
+    </div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-team' %}">Back to team</a>
+  </header>
+  {% include "staff/includes/form_errors_block.html" with form=form title="Fix worker access" %}
+  <form method="post" class="grocery-guided-form">
+    {% csrf_token %}
+    <div class="grocery-form-fields">
+      {% for field in form %}
+      <div class="grocery-form-field">
+        {{ field.label_tag }} {{ field }}
+        {% if field.help_text %}<small class="staff-muted">{{ field.help_text }}</small>{% endif %}
+        {{ field.errors }}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="grocery-form-footer">
+      <span>Changes affect this tenant only.</span>
+      <div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-team' %}">Cancel</a><button class="staff-btn staff-btn--primary" type="submit">Save worker access</button></div>
+    </div>
+  </form>
+</section>
+{% endblock %}
