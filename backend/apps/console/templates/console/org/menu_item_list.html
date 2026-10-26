@@ -15,10 +15,17 @@
   <div class="d-flex flex-wrap gap-2 mb-3">
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags"></i> Categories</a>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes"></i> View stock levels</a>
+    {% if missing_photo_count %}
+      {% if photo_filter == 'missing' %}
+        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-items' %}"><i class="bi bi-images"></i> Show all products</a>
+      {% else %}
+        <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}?photo=missing"><i class="bi bi-camera"></i> Add missing photos · {{ missing_photo_count }}</a>
+      {% endif %}
+    {% endif %}
   </div>
   <section class="staff-card">
     {% if items %}
-      <p class="grocery-setup__table-intro">All store products. Choose <strong>Edit</strong> to change a product or <strong>Branch pricing</strong> to review branch-specific prices.</p>
+      <p class="grocery-setup__table-intro">{% if photo_filter == 'missing' %}Products still needing a photo. Open <strong>Add photo</strong> on this computer or phone, then return here for the next item.{% else %}All store products. Choose <strong>Edit</strong> to change a product or <strong>Branch pricing</strong> to review branch-specific prices.{% endif %}</p>
       <div class="staff-table-wrap">
         <table class="staff-table">
           <thead><tr><th scope="col">Product</th><th scope="col">Category</th><th scope="col">Selling price</th><th scope="col">SKU</th><th scope="col">Stock tracked</th><th scope="col">Actions</th></tr></thead>

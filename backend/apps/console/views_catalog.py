@@ -92,12 +92,22 @@ class OrgMenuItemListView(ConsoleOrgAdminRequiredMixin, ListView):
     context_object_name = "items"
 
     def get_queryset(self):
-        return (
+        qs = (
             MenuItem.objects.filter(tenant=self.request.tenant)
             .select_related("category")
             .prefetch_related("outlets", "outlet_links", "recipe_lines")
             .order_by("category__sort_order", "category__name", "name")
         )
+        if (self.request.GET.get("photo") or "").strip() == "missing":
+            qs = qs.filter(product_image="", display_image_url="")
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        base = MenuItem.objects.filter(tenant=self.request.tenant)
+        ctx["missing_photo_count"] = base.filter(product_image="", display_image_url="").count()
+        ctx["photo_filter"] = (self.request.GET.get("photo") or "").strip()
+        return ctx
 
 
 def _save_catalog_item_safely(view, form, *, creating):
