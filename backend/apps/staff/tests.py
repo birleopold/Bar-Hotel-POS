@@ -1662,6 +1662,23 @@ class StaffOrderPaymentTests(TestCase):
         self.assertIn("fresh request key and current balance", controller)
         self.assertIn("Never repeat a payment automatically", controller)
 
+    def test_hospitality_folio_async_contract_is_wired(self) -> None:
+        """Folio assignment and charge share the hospitality check refresh."""
+        from pathlib import Path
+
+        staff_root = Path(__file__).resolve().parent
+        detail = (staff_root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        controller = (staff_root / "static/staff/hospitality-order.js").read_text(encoding="utf-8")
+        views = (staff_root / "views_ops.py").read_text(encoding="utf-8")
+        self.assertIn("data-hospitality-folio-form", detail)
+        self.assertIn("data-hospitality-folio-zone", detail)
+        self.assertIn("data-hospitality-folio-charge-form", detail)
+        self.assertIn("[data-hospitality-folio-form]", controller)
+        self.assertIn("[data-hospitality-folio-charge-form]", controller)
+        self.assertIn("refreshHospitalityCheck()", controller)
+        self.assertIn('"charge_to_folio"', views)
+        self.assertIn("async_charge", views)
+
     def test_mobile_money_is_available_as_a_pos_tender(self) -> None:
         response = self.client.get(
             reverse("staff-order-detail", kwargs={"order_id": self.order.id})
