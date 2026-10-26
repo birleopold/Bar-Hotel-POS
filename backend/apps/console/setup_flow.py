@@ -26,6 +26,7 @@ class SetupStep:
     secondary_cta_label: str | None = None
     secondary_cta_url: str | None = None
     manual_state: str = ""
+    section: str = "operations"
 
     def as_dict(self) -> dict:
         status = "done"
@@ -50,6 +51,7 @@ class SetupStep:
             "secondary_cta_label": self.secondary_cta_label,
             "secondary_cta_url": self.secondary_cta_url,
             "manual_state": self.manual_state,
+            "section": self.section,
         }
 
 
@@ -121,6 +123,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     required_steps = [
         SetupStep(
             key="business_profile",
+            section="business",
             name="Choose your business type",
             description="Select retail, hotel, bar, restaurant, events or services so irrelevant screens stay hidden.",
             done=lines_configured,
@@ -180,6 +183,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         required_steps.append(
             SetupStep(
                 key="first_workstation",
+                section="people",
                 name="Set up the counter or device",
                 description="Name the staff till or workstation and assign it to a section. Browser pairing can be required.",
                 done=has_workstation,
@@ -208,6 +212,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
     optional_steps = [
         SetupStep(
             key="first_team_invite",
+            section="people",
             name="Invite your first teammate",
             description="Send an invite so day-to-day operations are not tied to one owner account.",
             done=has_team_invite_or_member,
@@ -219,6 +224,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
             [
                 SetupStep(
                     key="first_po_received",
+                    section="operations",
                     name="Complete a purchasing receive cycle",
                     description="Mark at least one purchase order as partially or fully received.",
                     done=has_po_receive,
@@ -233,6 +239,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         *(
             [SetupStep(
                 key="device_test",
+                section="people",
                 name="Check the actual equipment",
                 description="Use the device test page and record a real print or scanner observation. A label alone is not proof.",
                 done=has_device_check,
@@ -244,6 +251,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         *(
             [SetupStep(
                 key="practice_sale",
+                section="verify",
                 name="Practice checkout totals safely",
                 description="Preview a product's section price and tax without placing an order, taking money or changing stock.",
                 done=has_practice_sale,
@@ -254,6 +262,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         ),
         SetupStep(
             key="first_paid_order",
+            section="verify",
             name="Review your first actual sale",
             description="After opening, inspect a real paid sale and its receipt. Setup never creates a fake financial transaction.",
             done=has_paid_order,
@@ -265,6 +274,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
             [
                 SetupStep(
                     key="lodging_basics",
+                    section="operations",
                     name="Configure lodging basics",
                     description="Create room types and rooms for front-desk operations.",
                     done=has_lodging_basics,
@@ -297,6 +307,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
             secondary_cta_label=step.secondary_cta_label,
             secondary_cta_url=step.secondary_cta_url,
             manual_state=st,
+            section=step.section,
         )
 
     required_steps = [_apply_override(s) for s in required_steps]
@@ -354,6 +365,10 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         "required_steps": [s.as_dict() for s in required_steps],
         "optional_steps": [s.as_dict() for s in optional_steps],
         "all_steps": [s.as_dict() for s in all_steps],
+        "business_steps": [s.as_dict() for s in all_steps if s.section == "business"],
+        "operations_steps": [s.as_dict() for s in all_steps if s.section == "operations"],
+        "people_steps": [s.as_dict() for s in all_steps if s.section == "people"],
+        "verify_steps": [s.as_dict() for s in all_steps if s.section == "verify"],
         "setup_complete": setup_complete,
         "required_completion_percent": required_completion_percent,
         "next_step": next_step.as_dict() if next_step else None,

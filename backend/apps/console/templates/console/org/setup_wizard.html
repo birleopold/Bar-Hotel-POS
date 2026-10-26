@@ -55,8 +55,7 @@
       </div>
       <p class="setup-board__intro">Create the places you operate, then the items or services you sell. Inventory steps only appear when relevant.</p>
       <div class="setup-board__rows">
-        {% for step in setup_steps %}
-          {% if step.key != 'business_profile' and step.key != 'first_workstation' %}
+        {% for step in setup_operations_steps %}
           <article class="setup-board__row{% if step.done %} is-done{% elif step.status == 'blocked' %} is-blocked{% endif %}">
             <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% elif step.status == 'blocked' %}bi-exclamation-circle-fill{% else %}bi-circle{% endif %}"></i></span>
             <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
@@ -77,11 +76,10 @@
             </details>
             {% endif %}
           </article>
-          {% endif %}
         {% endfor %}
       </div>
-      {% for step in setup_optional_steps %}
-        {% if step.key == 'first_po_received' or step.key == 'lodging_basics' %}
+      {% for step in setup_operations_steps %}
+        {% if not step.required %}
         <article class="setup-board__row{% if step.done %} is-done{% endif %}">
           <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
           <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
@@ -111,8 +109,8 @@
       </div>
       <p class="setup-board__intro">Set up who works here and the workstation they use. Hardware checks stay with the device they belong to.</p>
       <div class="setup-board__rows">
-        {% for step in setup_steps %}
-          {% if step.key == 'first_workstation' %}
+        {% for step in setup_people_steps %}
+          {% if step.required %}
           <article class="setup-board__row{% if step.done %} is-done{% endif %}">
             <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
             <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
@@ -120,8 +118,8 @@
           </article>
           {% endif %}
         {% endfor %}
-        {% for step in setup_optional_steps %}
-          {% if step.key == 'first_team_invite' or step.key == 'device_test' %}
+        {% for step in setup_people_steps %}
+          {% if not step.required %}
           <article class="setup-board__row{% if step.done %} is-done{% endif %}">
             <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
             <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
@@ -153,8 +151,7 @@
         {% endfor %}
       </ul>
       <div class="setup-board__rows setup-board__rows--compact">
-        {% for step in setup_optional_steps %}
-          {% if step.key == 'practice_sale' or step.key == 'first_paid_order' %}
+        {% for step in setup_verify_steps %}
           <article class="setup-board__row{% if step.done %} is-done{% endif %}">
             <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
             <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>

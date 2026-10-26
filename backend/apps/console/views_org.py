@@ -74,6 +74,9 @@ class OrgSetupWizardView(ConsoleOrgAdminRequiredMixin, TemplateView):
         ctx["setup_state"] = state
         ctx["setup_steps"] = state["required_steps"]
         ctx["setup_optional_steps"] = state["optional_steps"]
+        ctx["setup_operations_steps"] = state["operations_steps"]
+        ctx["setup_people_steps"] = state["people_steps"]
+        ctx["setup_verify_steps"] = state["verify_steps"]
         ctx["setup_complete"] = state["setup_complete"]
         ctx["next_step"] = state["next_step"]
         ctx["setup_completion_percent"] = state["required_completion_percent"]
