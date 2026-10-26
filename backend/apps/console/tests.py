@@ -45,6 +45,24 @@ from apps.tenants.models import (
 User = get_user_model()
 
 
+
+class SetupWizardStructureTests(SimpleTestCase):
+    def test_setup_wizard_is_consolidated_into_four_cards(self):
+        from pathlib import Path
+        template = (Path(__file__).resolve().parent / "templates/console/org/setup_wizard.html").read_text(encoding="utf-8")
+        for heading in (
+            "Business profile",
+            "Locations, products & stock",
+            "Staff, tills and devices",
+            "Final checks",
+        ):
+            self.assertIn(heading, template)
+        self.assertNotIn("Common setup tools", template)
+        self.assertNotIn("Useful when you are ready", template)
+        self.assertNotIn("Before serving customers", template)
+        self.assertIn("setup-board__grid", template)
+        self.assertIn("setup-board__row", template)
+
 class MenuOutletSyncTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
