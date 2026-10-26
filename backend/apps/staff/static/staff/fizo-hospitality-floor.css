@@ -19,3 +19,13 @@ a.fizo-floor__table:hover{border-color:#008f4f;color:#203a42;background:#f2faf5}
 .fizo-floor__table--inactive{opacity:.6;background:#f4f5f5}.fizo-floor__status--inactive{background:#eceded;color:#6e7678}
 .fizo-floor__empty{grid-column:1/-1;text-align:center;padding:35px;color:#71848b}.fizo-floor__empty i{font-size:29px;color:#008747}.fizo-floor__empty h3{color:#243b42;font-size:18px;margin:9px 0}
 @media(max-width:650px){.fizo-floor__surface{padding:12px}.fizo-floor__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.fizo-floor__table{min-height:160px;padding:11px}.fizo-floor__actions{width:100%}}
+
+.fizo-floor__table--occupied{border-color:#e7b45d;background:#fffaf0}
+.fizo-floor__table--occupied .fizo-floor__table-icon{background:#fff0cf;color:#9a6200}
+.fizo-floor__status--occupied{background:#fff0cf;color:#835400}
+.fizo-floor__check{font-size:12px;color:#526970;line-height:1.35}
+.fizo-floor__warning{font-size:12px;color:#9b3d2e;font-weight:800;line-height:1.35}
+.fizo-floor__table-open{margin:0}
+.fizo-floor__table-action{width:100%;justify-content:center;margin-top:2px}
+.fizo-floor__configure{font-size:12px;font-weight:750;color:#526970;text-decoration:underline;text-underline-offset:2px}
+.fizo-floor__configure:hover{color:#007c42}

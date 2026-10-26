@@ -46,6 +46,7 @@ from apps.pos.services import (
     resume_held_retail_order,
     menu_items_for_outlet_queryset,
     open_pos_shift,
+    open_or_resume_table_order,
     process_supermarket_line_return,
     shift_cash_snapshot,
     record_order_payment,
@@ -3125,11 +3126,14 @@ class StaffTablesListView(StaffTenantRequiredMixin, ListView):
     template_name = "staff/tables_list.html"
     context_object_name = "tables"
 
+    def _scope(self):
+        outlets = staff_accessible_outlets(self.request.tenant_membership)
+        return outlets, resolve_staff_outlet(self.request, outlets)
+
     def get_queryset(self):
         if "pos" not in get_tenant_staff_modules(self.request.tenant):
             return Table.objects.none()
-        outlets = staff_accessible_outlets(self.request.tenant_membership)
-        outlet = resolve_staff_outlet(self.request, outlets)
+        _, outlet = self._scope()
         if outlet is None:
             return Table.objects.none()
         qs = Table.objects.filter(outlet=outlet).select_related("outlet", "outlet__site")
@@ -3139,12 +3143,109 @@ class StaffTablesListView(StaffTenantRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        outlets = staff_accessible_outlets(self.request.tenant_membership)
+        outlets, outlet = self._scope()
         ctx["outlets"] = outlets
-        ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
-        ctx["can_modify_tables"] = membership_can_modify_lodging(self.request.tenant_membership)
+        ctx["current_outlet"] = outlet
+        membership = self.request.tenant_membership
+        ctx["can_modify_tables"] = membership_can_modify_lodging(membership)
         ctx["include_inactive"] = self.request.GET.get("include_inactive") == "1"
+        ctx["hospitality_floor"] = bool(
+            outlet and outlet.outlet_type in {
+                OutletType.RESTAURANT,
+                OutletType.BAR,
+                OutletType.LOUNGE,
+                OutletType.CAFETERIA,
+            }
+        )
+        ctx["floor_business_label"] = (
+            outlet.get_outlet_type_display() if outlet else "Hospitality"
+        )
+        ctx["can_operate_tables"] = bool(
+            ctx["hospitality_floor"]
+            and membership.is_active
+            and membership.role in {
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+                MembershipRole.SITE_MANAGER,
+                MembershipRole.OUTLET_MANAGER,
+                MembershipRole.SERVER,
+                MembershipRole.BARTENDER,
+            }
+        )
+
+        tables = list(ctx["tables"])
+        ctx["tables"] = tables
+        if not tables or not outlet:
+            return ctx
+        table_ids = [table.pk for table in tables]
+        live_orders = list(
+            Order.objects.filter(
+                tenant=self.request.tenant,
+                outlet=outlet,
+                table_id__in=table_ids,
+                status=OrderStatus.OPEN,
+            )
+            .select_related("created_by")
+            .order_by("created_at")
+        )
+        by_table = {}
+        counts = {}
+        for order in live_orders:
+            counts[order.table_id] = counts.get(order.table_id, 0) + 1
+            by_table.setdefault(order.table_id, order)
+        manager = membership.role in {
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+            MembershipRole.OUTLET_MANAGER,
+        }
+        for table in tables:
+            table.active_order = by_table.get(table.pk)
+            table.active_order_count = counts.get(table.pk, 0)
+            table.can_resume_order = bool(
+                table.active_order
+                and ctx["can_operate_tables"]
+                and (
+                    manager
+                    or table.active_order.created_by_id == self.request.user.pk
+                )
+            )
         return ctx
+
+    def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        if "pos" not in get_tenant_staff_modules(request.tenant):
+            messages.error(request, "Point of sale is not enabled for this workspace.")
+            return redirect("staff-dashboard")
+        outlets = staff_accessible_outlets(request.tenant_membership)
+        outlet = resolve_staff_outlet(request, outlets)
+        if outlet is None:
+            messages.error(request, "Select one hospitality section before opening a table.")
+            return redirect("staff-tables")
+        if (request.POST.get("action") or "").strip() != "open_table":
+            messages.error(request, "Unknown table action.")
+            return redirect("staff-tables")
+        try:
+            table_id = uuid.UUID((request.POST.get("table_id") or "").strip())
+        except (ValueError, AttributeError):
+            messages.error(request, "Choose a valid table.")
+            return redirect("staff-tables")
+        try:
+            order, replay = open_or_resume_table_order(
+                tenant_id=request.tenant.pk,
+                outlet=outlet,
+                table_id=table_id,
+                membership=request.tenant_membership,
+                user=request.user,
+            )
+        except DRFValidationError as exc:
+            for message in _drf_detail_messages(exc.detail):
+                messages.error(request, message)
+            return redirect("staff-tables")
+        if replay:
+            messages.info(request, f"Resuming {order.table_label or 'table'} check.")
+        else:
+            messages.success(request, f"{order.table_label or 'Table'} check opened.")
+        return redirect("staff-order-detail", order_id=order.pk)
 
 
 class StaffTableCreateView(StaffTenantRequiredMixin, CreateView):

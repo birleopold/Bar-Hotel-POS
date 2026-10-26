@@ -3444,6 +3444,105 @@ class StaffTableStaffTests(TestCase):
         self.assertEqual(t.capacity, 4)
         self.assertTrue(t.is_active)
 
+    def test_server_opens_and_resumes_one_live_table_check(self) -> None:
+        server = User.objects.create_user(email="tbl-server@test.local", password="TestPass9!")
+        membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet)
+        table = Table.objects.create(outlet=self.outlet, label="Dining 4", capacity=4)
+        self._session_tenant_outlet(server)
+
+        floor = self.client.get(reverse("staff-tables"))
+        self.assertEqual(floor.status_code, 200)
+        self.assertContains(floor, "Available")
+        self.assertContains(floor, "Open table")
+
+        first = self.client.post(
+            reverse("staff-tables"),
+            {"action": "open_table", "table_id": str(table.pk)},
+        )
+        self.assertEqual(first.status_code, 302)
+        order = Order.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            table=table,
+            status=OrderStatus.OPEN,
+        )
+        self.assertEqual(first.url, reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        self.assertEqual(order.created_by_id, server.pk)
+        self.assertEqual(order.table_label, "Dining 4")
+
+        replay = self.client.post(
+            reverse("staff-tables"),
+            {"action": "open_table", "table_id": str(table.pk)},
+        )
+        self.assertEqual(replay.status_code, 302)
+        self.assertEqual(replay.url, reverse("staff-order-detail", kwargs={"order_id": order.pk}))
+        self.assertEqual(
+            Order.objects.filter(
+                tenant=self.tenant,
+                outlet=self.outlet,
+                table=table,
+                status=OrderStatus.OPEN,
+            ).count(),
+            1,
+        )
+
+        floor = self.client.get(reverse("staff-tables"))
+        self.assertContains(floor, "Occupied")
+        self.assertContains(floor, order.bill_reference)
+        self.assertContains(floor, "Resume check")
+
+    def test_server_cannot_take_over_another_servers_table(self) -> None:
+        first_server = User.objects.create_user(email="table-a@test.local", password="TestPass9!")
+        first_membership = Membership.objects.create(
+            user=first_server, tenant=self.tenant, role=MembershipRole.SERVER,
+        )
+        first_membership.sites.add(self.site)
+        first_membership.outlets.add(self.outlet)
+        second_server = User.objects.create_user(email="table-b@test.local", password="TestPass9!")
+        second_membership = Membership.objects.create(
+            user=second_server, tenant=self.tenant, role=MembershipRole.SERVER,
+        )
+        second_membership.sites.add(self.site)
+        second_membership.outlets.add(self.outlet)
+        table = Table.objects.create(outlet=self.outlet, label="Dining 5", capacity=2)
+        existing = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            table=table,
+            table_label=table.label,
+            created_by=first_server,
+        )
+
+        self._session_tenant_outlet(second_server)
+        response = self.client.post(
+            reverse("staff-tables"),
+            {"action": "open_table", "table_id": str(table.pk)},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Use the transfer workflow instead of taking it over")
+        self.assertEqual(
+            Order.objects.filter(
+                tenant=self.tenant,
+                outlet=self.outlet,
+                table=table,
+                status=OrderStatus.OPEN,
+            ).count(),
+            1,
+        )
+        floor = self.client.get(reverse("staff-tables"))
+        self.assertContains(floor, "Occupied")
+        self.assertNotContains(
+            floor,
+            reverse("staff-order-detail", kwargs={"order_id": existing.pk}),
+        )
+
     def test_accountant_cannot_open_table_create(self) -> None:
         self._session_tenant_outlet(self.accountant)
         r = self.client.get(reverse("staff-table-create"))

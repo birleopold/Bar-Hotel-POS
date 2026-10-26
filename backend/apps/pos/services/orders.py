@@ -69,6 +69,120 @@ def resolve_table(tenant_id, outlet_id, table_id) -> Table | None:
     return t
 
 
+HOSPITALITY_TABLE_OPERATOR_ROLES = frozenset({
+    MembershipRole.OWNER,
+    MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER,
+    MembershipRole.OUTLET_MANAGER,
+    MembershipRole.SERVER,
+    MembershipRole.BARTENDER,
+})
+HOSPITALITY_TABLE_MANAGER_ROLES = frozenset({
+    MembershipRole.OWNER,
+    MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER,
+    MembershipRole.OUTLET_MANAGER,
+})
+HOSPITALITY_OUTLET_TYPES = frozenset({
+    OutletType.RESTAURANT,
+    OutletType.BAR,
+    OutletType.LOUNGE,
+    OutletType.CAFETERIA,
+})
+
+
+@transaction.atomic
+def open_or_resume_table_order(
+    *,
+    tenant_id,
+    outlet: Outlet,
+    table_id,
+    membership: Membership,
+    user,
+) -> tuple[Order, bool]:
+    """Open one hospitality check for a table, or resume its existing check.
+
+    The table row is the concurrency boundary. A normal server/bartender may
+    resume only their own live check; managers may investigate/resume any
+    scoped table. Explicit table transfer remains a separate workflow.
+    """
+    if (
+        membership is None
+        or not membership.is_active
+        or membership.tenant_id != tenant_id
+        or membership.user_id != user.pk
+        or membership.role not in HOSPITALITY_TABLE_OPERATOR_ROLES
+    ):
+        raise ValidationError({"table": "Your role cannot open table checks."})
+    if (
+        outlet.site.tenant_id != tenant_id
+        or not outlet.is_active
+        or outlet.outlet_type not in HOSPITALITY_OUTLET_TYPES
+        or not outlet_belongs_to_membership(membership, outlet.pk)
+    ):
+        raise ValidationError({"table": "This table is not in an accessible hospitality section."})
+
+    locked_table = (
+        Table.objects.select_for_update()
+        .select_related("outlet", "outlet__site")
+        .filter(
+            pk=table_id,
+            outlet_id=outlet.pk,
+            outlet__site__tenant_id=tenant_id,
+            is_active=True,
+        )
+        .first()
+    )
+    if locked_table is None:
+        raise ValidationError({"table": "Invalid or inactive table for this section."})
+
+    live = list(
+        Order.objects.select_for_update()
+        .filter(
+            tenant_id=tenant_id,
+            outlet_id=outlet.pk,
+            table=locked_table,
+            status=OrderStatus.OPEN,
+        )
+        .select_related("created_by")
+        .order_by("created_at")[:2]
+    )
+    if len(live) > 1:
+        raise ValidationError({
+            "table": "Multiple open checks are linked to this table. A manager must resolve them before service continues."
+        })
+    if live:
+        order = live[0]
+        if order.is_paid:
+            raise ValidationError({
+                "table": "This table has an open check already marked paid. Review that check before starting another."
+            })
+        if (
+            membership.role not in HOSPITALITY_TABLE_MANAGER_ROLES
+            and order.created_by_id != user.pk
+        ):
+            assigned = (
+                order.created_by.get_full_name()
+                or order.created_by.email
+                if order.created_by else "another worker"
+            )
+            raise ValidationError({
+                "table": f"This table is already assigned to {assigned}. Use the transfer workflow instead of taking it over."
+            })
+        return order, True
+
+    order = create_order_with_lines(
+        tenant_id=tenant_id,
+        outlet=locked_table.outlet,
+        created_by=user,
+        currency=default_currency_for_tenant(locked_table.outlet.site.tenant),
+        table_label=locked_table.label,
+        table=locked_table,
+        lines=[],
+    )
+    return order, False
+
+
 def resolve_order_create(
     tenant: Tenant,
     membership: Membership,
