@@ -2,6 +2,7 @@
 from decimal import Decimal
 from pathlib import Path
 
+from django.db.models import Sum
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.db import connection
@@ -1951,6 +1952,40 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(line.quantity, Decimal("2"))
         self.assertEqual(order.total, Decimal("3000"))
         self.assertEqual(order.payments.count(), 1)
+
+    def test_part_paid_basket_hold_and_resume_preserves_original_payment_and_balance(self):
+        from apps.pos.models import Payment
+        from apps.pos.services import hold_open_order, resume_held_retail_order
+
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user,
+            subtotal=Decimal("10000"), total=Decimal("10000"), currency="UGX",
+        )
+        payment = Payment.objects.create(
+            tenant=self.tenant, order=order, amount=Decimal("4000"),
+            idempotency_key="partial-payment-hold-resume",
+            recorded_by=self.user,
+        )
+
+        held = hold_open_order(
+            order=order, hold_label="Customer fetching another item", user=self.user,
+        )
+        self.assertEqual(held.table_label, "Customer fetching another item")
+        self.assertEqual(
+            Payment.objects.get(pk=payment.pk).amount,
+            Decimal("4000"),
+        )
+        self.assertEqual(order.total - order.payments.aggregate(s=Sum("amount"))["s"], Decimal("6000"))
+
+        resumed = resume_held_retail_order(order=held, user=self.user)
+        resumed.refresh_from_db()
+        self.assertEqual(resumed.table_label, "")
+        self.assertEqual(resumed.status, "open")
+        self.assertFalse(resumed.is_paid)
+        self.assertEqual(resumed.payments.count(), 1)
+        self.assertEqual(resumed.payments.get().pk, payment.pk)
+        self.assertEqual(resumed.payments.get().amount, Decimal("4000"))
+        self.assertEqual(resumed.total - resumed.payments.aggregate(s=Sum("amount"))["s"], Decimal("6000"))
 
     def test_part_paid_basket_can_be_held_but_not_voided(self):
         from rest_framework.exceptions import ValidationError
