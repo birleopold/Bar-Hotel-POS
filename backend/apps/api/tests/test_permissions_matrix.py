@@ -94,6 +94,24 @@ class ApiPermissionMatrixTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json().get("error", {}).get("code"), "tenant_forbidden")
 
+    def test_floor_staff_cannot_read_finance_api(self) -> None:
+        server = User.objects.create_user(
+            email="finance-server@test.local", password="TestPass9!"
+        )
+        membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site_allowed)
+        membership.outlets.add(self.outlet)
+        headers = self._auth(server, tenant_id=self.tenant.id)
+
+        categories = self.client.get("/api/v1/finance/categories/", **headers)
+        self.assertEqual(categories.status_code, 403)
+        entries = self.client.get("/api/v1/finance/entries/", **headers)
+        self.assertEqual(entries.status_code, 403)
+
     def test_accountant_can_read_but_not_write_finance(self) -> None:
         headers = self._auth(self.accountant, tenant_id=self.tenant.id)
         read_response = self.client.get("/api/v1/finance/categories/", **headers)

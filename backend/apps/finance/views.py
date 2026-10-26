@@ -15,7 +15,7 @@ from .serializers import CashbookEntrySerializer, FinanceCategorySerializer
 
 
 class FinanceCategoryViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, FinanceModuleEnabled, CanViewFinance]
     serializer_class = FinanceCategorySerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
 
@@ -43,7 +43,7 @@ class FinanceCategoryViewSet(viewsets.ModelViewSet):
 
 
 class CashbookEntryViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, FinanceModuleEnabled, CanViewFinance]
     serializer_class = CashbookEntrySerializer
 
     def get_permissions(self):
@@ -89,6 +89,23 @@ class FinanceModuleEnabled(BasePermission):
 
     def has_permission(self, request, view):
         return _tenant_has_finance(request.tenant)
+
+
+class CanViewFinance(BasePermission):
+    message = "Your role cannot view finance records."
+
+    def has_permission(self, request, view):
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in (
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+                MembershipRole.SITE_MANAGER,
+                MembershipRole.ACCOUNTANT,
+            )
+        )
 
 
 class CanManageFinance(BasePermission):
