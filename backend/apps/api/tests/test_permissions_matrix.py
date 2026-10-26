@@ -94,6 +94,46 @@ class ApiPermissionMatrixTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json().get("error", {}).get("code"), "tenant_forbidden")
 
+    def test_general_order_api_excludes_kitchen_but_keeps_server_floor_access(self) -> None:
+        kitchen = User.objects.create_user(
+            email="kitchen-order-api@test.local", password="TestPass9!"
+        )
+        kitchen_membership = Membership.objects.create(
+            user=kitchen,
+            tenant=self.tenant,
+            role=MembershipRole.KITCHEN,
+        )
+        kitchen_membership.sites.add(self.site_allowed)
+        kitchen_membership.outlets.add(self.outlet)
+        headers = self._auth(kitchen, tenant_id=self.tenant.id)
+
+        listing = self.client.get("/api/v1/orders/", **headers)
+        self.assertEqual(listing.status_code, 403)
+        mutation = self.client.post("/api/v1/orders/", {}, format="json", **headers)
+        self.assertEqual(mutation.status_code, 403)
+
+        server = User.objects.create_user(
+            email="server-order-api@test.local", password="TestPass9!"
+        )
+        server_membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        server_membership.sites.add(self.site_allowed)
+        server_membership.outlets.add(self.outlet)
+        headers = self._auth(server, tenant_id=self.tenant.id)
+
+        listing = self.client.get("/api/v1/orders/", **headers)
+        self.assertEqual(listing.status_code, 200)
+        table_create = self.client.post(
+            "/api/v1/tables/",
+            {"outlet": str(self.outlet.pk), "label": "Server-created"},
+            format="json",
+            **headers,
+        )
+        self.assertEqual(table_create.status_code, 403)
+
     def test_floor_staff_cannot_read_inventory_events_or_lodging_apis(self) -> None:
         settings = self.tenant.settings
         settings.business_lines = ["supermarket", "events", "lodging"]

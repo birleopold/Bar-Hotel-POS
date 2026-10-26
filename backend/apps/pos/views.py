@@ -4,7 +4,7 @@ from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
 
 from apps.api.permissions import CanApproveRefunds, CanUseKds, HasTenantContext, HasTenantModule, NotReadOnlyRole
@@ -52,8 +52,72 @@ from .services import (
 )
 
 
+POS_ORDER_READ_ROLES = frozenset({
+    MembershipRole.OWNER,
+    MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER,
+    MembershipRole.OUTLET_MANAGER,
+    MembershipRole.SERVER,
+    MembershipRole.BARTENDER,
+    MembershipRole.ACCOUNTANT,
+    MembershipRole.FRONT_DESK,
+})
+POS_ORDER_WRITE_ROLES = frozenset({
+    MembershipRole.OWNER,
+    MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER,
+    MembershipRole.OUTLET_MANAGER,
+    MembershipRole.SERVER,
+    MembershipRole.BARTENDER,
+    MembershipRole.FRONT_DESK,
+})
+POS_TABLE_WRITE_ROLES = frozenset({
+    MembershipRole.OWNER,
+    MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER,
+    MembershipRole.OUTLET_MANAGER,
+})
+
+
+class CanAccessOrderApi(BasePermission):
+    message = "Your role cannot use the general order API."
+
+    def has_permission(self, request, view):
+        membership = getattr(request, "tenant_membership", None)
+        if membership is None or not membership.is_active:
+            return False
+        action = getattr(view, "action", None)
+        if action == "kds_line":
+            return membership.role in {
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+                MembershipRole.SITE_MANAGER,
+                MembershipRole.OUTLET_MANAGER,
+                MembershipRole.KITCHEN,
+                MembershipRole.BARTENDER,
+            }
+        if request.method in SAFE_METHODS:
+            return membership.role in POS_ORDER_READ_ROLES
+        return membership.role in POS_ORDER_WRITE_ROLES
+
+
+class CanAccessTableApi(BasePermission):
+    message = "Your role cannot use the table-management API."
+
+    def has_permission(self, request, view):
+        membership = getattr(request, "tenant_membership", None)
+        if membership is None or not membership.is_active:
+            return False
+        if request.method in SAFE_METHODS:
+            return membership.role in POS_ORDER_READ_ROLES
+        return membership.role in POS_TABLE_WRITE_ROLES
+
+
 class TableViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [
+        IsAuthenticated, HasTenantContext, HasTenantModule,
+        NotReadOnlyRole, CanAccessTableApi,
+    ]
     required_staff_module = "pos"
     serializer_class = TableSerializer
 
@@ -74,7 +138,10 @@ class TableViewSet(viewsets.ModelViewSet):
 
 
 class OrderViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [
+        IsAuthenticated, HasTenantContext, HasTenantModule,
+        NotReadOnlyRole, CanAccessOrderApi,
+    ]
     required_staff_module = "pos"
     http_method_names = ["get", "post", "patch", "head", "options"]
 
