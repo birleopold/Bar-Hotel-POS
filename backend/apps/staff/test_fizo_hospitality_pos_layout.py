@@ -9,6 +9,17 @@ class FizoHospitalityPOSLayoutTests(SimpleTestCase):
         self.assertIn('messages.success(request, f"Check moved to {order.table_label}.")', transfer)
         self.assertIn('return redirect("staff-tables")', transfer)
 
+    def test_ready_handoff_ack_is_async_on_hospitality_check(self):
+        root = Path(__file__).resolve().parent
+        page = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        script = (root / "static/staff/hospitality-order.js").read_text(encoding="utf-8")
+        view = (root / "views_ops.py").read_text(encoding="utf-8")
+        self.assertIn("data-hospitality-handoff-form", page)
+        self.assertIn('[data-hospitality-handoff-form]', script)
+        self.assertIn('"X-Requested-With":"XMLHttpRequest"', script)
+        self.assertIn('xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"', view)
+        self.assertIn('"line_id": str(line.id)', view)
+
     def test_order_has_new_menu_and_bill_panes(self):
         root = Path(__file__).resolve().parent
         page = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")

@@ -524,4 +524,44 @@
       if(button)button.disabled=false;
     });
   });
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.matches("[data-hospitality-handoff-form]"))return;
+    if(!(window.fetch&&window.FormData))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var previous=button&&button.textContent;
+    var status=form.querySelector("[data-hospitality-handoff-status]");
+    if(button){button.disabled=true;button.textContent="Ack…";}
+    if(status)status.textContent="Acknowledging…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",
+      body:new FormData(form),
+      credentials:"same-origin",
+      redirect:"follow",
+      headers:{
+        "X-Requested-With":"XMLHttpRequest",
+        "X-CSRFToken":csrf?csrf.value:""
+      }
+    }).then(function(response){
+      if(response.redirected)throw new Error("The check changed or access was redirected.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok)throw new Error(data.message||"Ready item could not be acknowledged.");
+        return data;
+      });
+    }).then(function(data){
+      if(status)status.textContent=data.message||"Handoff acknowledged.";
+      return refreshHospitalityCheck();
+    }).catch(function(error){
+      if(status)status.textContent=error.message||"Could not acknowledge this ready item.";
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(button){button.disabled=false;button.textContent=previous||"Ack";}
+    });
+  });
+
 }());

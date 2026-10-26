@@ -2046,13 +2046,20 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_ack_ready_line(self, request: HttpRequest, order: Order) -> HttpResponse:
+        xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        def reject(message, status=400):
+            if xhr:
+                return JsonResponse({"ok": False, "message": message}, status=status)
+            messages.error(request, message)
+            return redirect("staff-order-detail", order_id=order.id)
+
         assigned_server = bool(order.created_by_id and order.created_by_id == request.user.id)
         if not membership_can_acknowledge_ready_handoff(
             request.tenant_membership,
             is_assigned_server=assigned_server,
         ):
-            messages.error(request, "Only the assigned server or a manager can acknowledge ready items.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Only the assigned server or a manager can acknowledge ready items.", 403)
         handoff_state_allowed = (
             (order.status == OrderStatus.OPEN and not order.is_paid)
             or (
@@ -2067,29 +2074,24 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             )
         )
         if not handoff_state_allowed:
-            messages.error(
-                request,
+            return reject(
                 "Handoff acknowledgements are available only on active checks "
                 "or paid hospitality checks still awaiting service.",
+                409,
             )
-            return redirect("staff-order-detail", order_id=order.id)
         form = StaffOrderReadyHandoffForm(request.POST)
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            error = next(iter(next(iter(form.errors.values()))), "Invalid handoff request.")
+            return reject(str(error))
         line = OrderLine.objects.filter(
             id=form.cleaned_data["line_id"],
             order_id=order.id,
             is_voided=False,
         ).first()
         if line is None:
-            messages.error(request, "That line is not on this order.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("That line is not on this order.", 404)
         if line.kds_status != KdsLineStatus.READY:
-            messages.error(request, "Only ready items can be acknowledged for handoff.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Only ready items can be acknowledged for handoff.", 409)
         try:
             update_order_line_kds_status(
                 order=order,
@@ -2099,12 +2101,18 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 user=request.user,
             )
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
-        else:
-            messages.success(request, f"Handoff acknowledged: {line.label}")
+            message = " ".join(_drf_detail_messages(exc.detail))
+            return reject(message)
+        message = f"Handoff acknowledged: {line.label}"
+        if xhr:
+            return JsonResponse({
+                "ok": True,
+                "message": message,
+                "line_id": str(line.id),
+            })
+        messages.success(request, message)
         return redirect("staff-order-detail", order_id=order.id)
 
-    @staticmethod
     def _payment_request_key(request: HttpRequest) -> str:
         # A rendered payment form carries one stable key. Retries of the same
         # form use the same domain idempotency identity, not a fresh UUID.

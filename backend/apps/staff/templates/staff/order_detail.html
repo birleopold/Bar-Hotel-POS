@@ -176,11 +176,12 @@
                     <td data-hospitality-line-total="{{ line.id }}">{{ line.line_total }}</td>
                     <td class="staff-table--pos-actions staff-table__actions-cell">
                       {% if line.id|stringformat:"s" in ready_line_ids and can_ack_ready_handoff %}
-                        <form method="post" class="d-inline">
+                        <form method="post" class="d-inline" data-hospitality-handoff-form>
                           {% csrf_token %}
                           <input type="hidden" name="action" value="ack_ready_line">
                           <input type="hidden" name="line_id" value="{{ line.id }}">
                           <button type="submit" class="staff-btn staff-btn--sm staff-btn--primary">Ack</button>
+                          <span class="staff-muted small" role="status" aria-live="polite" data-hospitality-handoff-status></span>
                         </form>
                       {% endif %}
                       {% if can_modify_open_order %}
