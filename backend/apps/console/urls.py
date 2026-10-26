@@ -42,6 +42,8 @@ urlpatterns = [
     ),
     path("org/", views_org.OrgOverviewView.as_view(), name="console-org"),
     path("org/setup/", views_org.OrgSetupWizardView.as_view(), name="console-org-setup"),
+    path("org/settings/business/", views_org.OrgWorkspaceBrandingView.as_view(), name="console-org-settings-branding"),
+    path("org/settings/modules/", views_org.OrgWorkspaceModulesView.as_view(), name="console-org-settings-modules"),
     path("org/menu/import/", views_catalog_import.OrgCatalogImportView.as_view(), name="console-org-catalog-import"),
     path("org/setup/practice-sale/", views_practice.OrgPracticeSaleView.as_view(), name="console-org-practice-sale"),
     path("org/setup/step-state/", views_org.OrgSetupStepStateView.as_view(), name="console-org-setup-step-state"),

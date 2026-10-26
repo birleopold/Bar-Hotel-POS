@@ -3,14 +3,17 @@ from __future__ import annotations
 import uuid
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
-from django.views.generic import CreateView, ListView, TemplateView, UpdateView
+from django.views.generic import CreateView, FormView, ListView, TemplateView, UpdateView
 
 from apps.catalog.models import ServiceOffering
 from apps.lodging.models import Room, RoomType
+from apps.staff.forms import StaffTenantBrandingForm, StaffTenantModulesForm
+from apps.staff.services.modules import STAFF_MODULE_CHOICES, initial_staff_modules_for_form
 from apps.tenants.business_lines import (
     modules_for_business_lines,
     normalize_business_lines,
@@ -57,6 +60,59 @@ class OrgOverviewView(ConsoleOrgAdminRequiredMixin, TemplateView):
         ctx["setup_url"] = reverse("console-org-setup")
         ctx["setup_action_url"] = reverse("console-org-setup-step-state")
         return ctx
+
+
+class OrgWorkspaceBrandingView(ConsoleOrgAdminRequiredMixin, UpdateView):
+    """Tenant identity, regional defaults and equipment flags belong to Console."""
+
+    model = TenantSettings
+    form_class = StaffTenantBrandingForm
+    template_name = "console/org/settings_branding.html"
+    success_url = reverse_lazy("console-org-settings-branding")
+
+    def get_object(self, queryset=None):
+        settings_obj, _ = TenantSettings.objects.get_or_create(tenant=self.request.tenant)
+        return settings_obj
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            tenant = self.request.tenant.__class__.objects.select_for_update().get(
+                pk=self.request.tenant.pk
+            )
+            tenant.name = form.cleaned_data["business_name"]
+            tenant.save(update_fields=["name", "updated_at"])
+            self.request.tenant.name = tenant.name
+            response = super().form_valid(form)
+        messages.success(self.request, "Business settings saved.")
+        return response
+
+
+class OrgWorkspaceModulesView(ConsoleOrgAdminRequiredMixin, FormView):
+    """Owner-facing module selection belongs to Console, not Staff operations."""
+
+    form_class = StaffTenantModulesForm
+    template_name = "console/org/settings_modules.html"
+    success_url = reverse_lazy("console-org-settings-modules")
+
+    def get_initial(self):
+        return {"modules": initial_staff_modules_for_form(self.request.tenant)}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        labels = dict(STAFF_MODULE_CHOICES)
+        selected = initial_staff_modules_for_form(self.request.tenant)
+        ctx["active_module_labels"] = [labels[key] for key in selected if key in labels]
+        return ctx
+
+    def form_valid(self, form):
+        settings_obj, _ = TenantSettings.objects.get_or_create(tenant=self.request.tenant)
+        settings_obj.enabled_staff_modules = list(form.cleaned_data["modules"])
+        settings_obj.save(update_fields=["enabled_staff_modules", "updated_at"])
+        messages.success(
+            self.request,
+            "Enabled areas saved. Staff navigation updates from this administration setting.",
+        )
+        return super().form_valid(form)
 
 
 class OrgSetupWizardView(ConsoleOrgAdminRequiredMixin, TemplateView):
