@@ -65,3 +65,71 @@ The API root is `/api/v1/`. Tenant-bound routes require a valid authenticated me
 - Register shift cash figures are protected by the same POS read roles as the staff Orders surface and by the POS module gate.
 - Webhook/offline unexpected server errors are returned through the redacting API exception handler; mutation idempotency keys are not burned when durable processing fails.
 - Router querysets remain tenant scoped and, where operational data is outlet/site specific, additionally use membership scope before user-supplied filters.
+
+
+## `backend/apps/console/urls.py`
+
+Console is split into a platform-neutral control plane and tenant-selected organization administration. Platform identity never derives from the selected tenant: tenant names appear only as explicit workspace records or the clearly labelled “Active workspace” being administered.
+
+| Route names / paths | Owner and methods | Access boundary | Main dependencies / isolation |
+| --- | --- | --- | --- |
+| `console-index` · `/console/` | `ConsoleIndexView` · GET | Login required. Shows memberships to ordinary users; platform operators may list active workspaces. | No mutation. The selected tenant is presented as an administration context, not platform branding. |
+| `console-select-tenant` · `select-tenant/` | `ConsoleSelectTenantView` · POST | Login required. Platform operators may select any active workspace; ordinary users must have an active membership in the target tenant. | Resets site/outlet session scope; validates same-host `next` before redirect. |
+| `console-platform-tenants`, `console-platform-tenant-create`, `console-platform-tenant-edit`, `console-platform-tenant-control-plane` | Platform tenant list/create/update/control-plane · GET plus POST on form/action views | `PlatformOperatorRequiredMixin`: superuser or `is_platform_staff` only. | Tenant creation, subscriptions, entitlements, domains, billing, owner provisioning and access pause/restore. Control-plane PostgreSQL RLS scope is set only after platform-operator verification and to the requested tenant. |
+| `console-platform-plans`, `console-platform-plan-create`, `console-platform-plan-edit` | Plan list/create/update · GET / POST | Platform operator only. | Global plan catalogue; tenant counts shown on list. |
+| `console-org`, `console-org-setup`, `console-org-setup-step-state`, `console-org-practice-sale`, `console-org-catalog-import` | Org overview/setup/practice/import · GET / POST as declared | `ConsoleOrgAdminRequiredMixin`: active tenant context; owner/tenant-admin for ordinary users; platform operator may administer selected workspace. | Business-line gates prevent lodging/catalog/services pages when not enabled. Setup state, practice transaction and imports are tenant scoped. |
+| `console-org-sites`, `console-org-site-create`, `console-org-site-edit`, `console-org-outlets`, `console-org-outlet-create`, `console-org-outlet-edit` | Branch/outlet list/forms · GET / POST | Org admin boundary. | Every queryset or nested lookup binds `tenant=request.tenant`; outlet form choices are restricted to configured business lines. |
+| `console-org-room-types`, `console-org-room-type-create`, `console-org-room-type-edit`, `console-org-rooms`, `console-org-room-create`, `console-org-room-edit`, `console-org-room-rates`, `console-org-room-rate-create`, `console-org-room-rate-edit` | Lodging setup lists/forms · GET / POST | Org admin + lodging business-line gate. | Room type/room/rate querysets traverse the active tenant; submitted room types/sites are tenant constrained. |
+| `console-org-modifier-groups`, create/edit, `console-org-modifier-options`, create/edit, `console-org-menu-categories`, create/edit | Menu structure lists/forms · GET / POST | Org admin + catalog business-line gate. | Tenant-scoped modifier/category querysets and nested scoped mixins. |
+| `console-org-menu-items`, `console-org-menu-item-create`, `console-org-menu-item-edit`, `console-org-menu-item-photo` | Product catalogue, editor and phone-photo handoff · GET / POST | Org admin + catalog business-line gate. | Item reads/writes require active tenant; product registration is serialized per tenant; photo upload/status is tenant scoped and preserves desktop/phone race safety. |
+| `console-org-menu-item-outlets`, create/edit/delete; `console-org-menu-item-recipe`, create/edit/delete | Product outlet and recipe children · GET / POST | `MenuItemScopedMixin` + org admin. | Parent item is first resolved with `tenant_id=request.tenant.id`; child querysets cannot cross tenant. |
+| `console-org-service-offerings`, create/edit; `console-org-service-offering-options`, create/edit | Services and packages · GET / POST | Org admin + services business-line gate. | Service parent and package children are tenant scoped through `ServiceOfferingScopedMixin`. |
+
+### Console-route regression contract
+
+- `ConsoleTenantRequiredMixin` requires an authenticated user, selected active workspace and either an active membership or verified platform-operator scope.
+- `ConsoleOrgAdminRequiredMixin` blocks non-admin worker roles and enforces business-line availability before organization pages execute.
+- Nested site, outlet, room, catalogue, recipe, service and package routes resolve their parent inside the active tenant before touching children.
+- Platform tenant and plan routes never rely on tenant membership; they require the independent platform-operator flag.
+- Tests cover unrelated-workspace switching denial, server-role org denial, platform-route denial without the platform flag, platform-operator cross-workspace administration, and tenant-neutral organization branding.
+
+
+## `backend/apps/staff/urls.py` and `backend/apps/staff/urls_workspace.py`
+
+Staff uses `StaffTenantRequiredMixin` as the common deep-link boundary. When a view declares `staff_nav_capability`, the mixin computes the active tenant/outlet modules and role visibility server-side; hidden navigation alone is never treated as authorization.
+
+| Route family / names | Owner and methods | Capability / access boundary | Main dependencies / isolation |
+| --- | --- | --- | --- |
+| `staff-login`, `staff-logout`, `staff-terminal`, `staff-terminal-lock`, `staff-pin-setup`, `staff-pending-approval` | Session/terminal views · GET/POST as declared | Login/PIN/terminal policies in the owner views. | Shared terminal session, PIN authentication and pending-workspace state. |
+| `staff-dashboard`, `staff-help`, `staff-select-tenant`, setup-prompt dismiss/resume | Core staff shell · GET/POST | Authenticated user; tenant selection validates membership. | Dashboard visibility comes from effective modules and role-scoped navigation. |
+| `staff-notifications`, `staff-notifications-status` | Notifications · GET, plus inbox POST actions | Active tenant membership; rows are always filtered to `recipient=request.tenant_membership`. | Private no-store inbox/status; read/refresh actions cannot target another recipient. |
+| `staff-search` | Global search · GET/HEAD | Active tenant membership; each result group reuses nav visibility and domain permissions. | Tenant/outlet scoped search, rate limited JSON palette, private no-store response. |
+| `staff-select-outlet`, `staff-retail-pos-entry`, `staff-orders`, `staff-order-quick-create`, `staff-order-detail`, `staff-order-print`, `staff-pos-shifts` | POS checkout/order views · GET/POST | `orders` capability, with action-specific cashier/manager approvals inside order detail. | Membership outlet scope, register shifts, payments/refunds, idempotency and canonical retail controller. |
+| `staff-workstations`, create/edit/test/pair | Register hardware setup · GET/POST | `orders` capability; edit/test owners apply additional workstation checks. | Selected outlet/register pairing and browser/device approval. |
+| `staff-tables`, `staff-table-create`, `staff-table-edit` | Table/floor setup · GET/POST | `tables` capability. | Tenant/outlet scoped tables; manager mutation checks in forms/views. |
+| `staff-menu`; promotion list/detail/create/edit | Menu/promotions · GET/POST | `menu` or `promotions` capability respectively. | Tenant catalogue and promotion querysets. |
+| `staff-sales` | Sales summary · GET | `sales` capability. | Date/outlet-bounded sales aggregation; membership outlet scope. |
+| `staff-kds` | Kitchen queue · GET/POST | `kitchen` capability plus KDS action rules. | Outlet/station scoped KDS lines. |
+| `staff-service-tv` | Service TV · GET | Custom read-only policy: active tenant membership, accessible outlet, enabled POS/kitchen module and hospitality business line. | Outlet-scoped orders/ready lines; guest mode strips staff performance/goal data. |
+| `staff-retail-customer-display` | Second-screen customer display · GET | `orders` capability and session-protected order scope. | Read-only active sale display; no public order lookup. |
+| Wholesale, pickup and delivery routes: `staff-wholesale-pricing`, `staff-retail-pickups`, `staff-deliveries`, `staff-delivery-packing-slip` | Retail operational views · GET/POST as declared | `orders` capability plus manager/customer/status rules inside each workflow. | Membership outlet scope; wholesale tier, pickup and delivery services. |
+| Inventory routes: balances, intelligence, batches, movements, movement create/upload/template/errors, transfer/receipts, counts, shelves, scale labels, shelf labels | Inventory views · GET/POST | `inventory` capability plus capability-specific adjust/transfer/count approval checks. | Tenant and accessible-outlet scope. CSV template/error deep links now also carry the inventory capability in `78f940f6`; raw failed rows are not exposed to unrelated roles. |
+| Purchasing routes: suppliers, supplier create/edit, POs list/create/detail, balances | Purchasing views · GET/POST | `purchasing` capability plus action-specific purchasing permissions. | Tenant/outlet scope; supplier invoices, payments, discrepancies, returns and costing. |
+| Lodging routes: site selection, reservations, availability, tape chart, folios, rooms, housekeeping, maintenance, room types, night audit | Lodging views · GET/POST | `lodging` capability; cleaner exception is limited to `housekeeping_only`; mutations use reservation/folio/room permissions. | Site-scoped PMS data and business-date/night-audit services. |
+| Event routes: spaces list/create/edit, bookings list/create/detail, calendar | Event views · GET/POST | `events` capability with event-manager checks for writes. | Site/event-space scope and booking services. |
+| Finance routes: `staff-finance-entries`, create, category create | Finance views · GET/POST | `finance` capability; create/configuration additionally enforce finance write roles. | Site/cashbook scope and tenant currency. |
+| Customer routes: list/create/detail | Customer views · GET/POST | Any of `orders`, `lodging`, `events` plus `can_manage_customers`/visible-customer rules. | Tenant and operational visibility scope; history/loyalty data remains customer-bound. |
+| `staff-management`, `staff-management-shift`, `staff-management-source` | F5 management workspace · GET/POST / read-only evidence | Custom manager-role gate; policy changes additionally require workspace-settings permission and password-authenticated owner/admin context. | Scoped exception engine, case history, approvals, shift reconciliation and source evidence. |
+| `staff-business-date` | Business date · GET/POST | `workspace` capability plus business-date management rules. | Tenant business calendar/night controls. |
+| `staff-offline-queue` | Offline queue · GET | `offline_sync` capability. | Tenant/outlet-scoped offline operation state. |
+| Workspace settings include: `staff-workspace-audit`, members/create/edit/deactivate/revoke-pin/bulk, invites/create/regenerate, branding, modules, integrations/create/edit, EFRIS/settings/evidence, owner reports | Settings/admin views · GET/POST | `workspace` capability. Mutating settings/team/integration routes require owner/tenant-admin; audit uses manager reader roles; owner reports require owner/admin password session. | All querysets bind active tenant; audit and EFRIS CSVs redact sensitive payloads; team objects are tenant scoped. |
+
+### Staff-route regression contract
+
+- `StaffTenantRequiredMixin` is a server-side capability gate for deep links; route visibility in templates is not authorization.
+- Cleaner access is limited to the housekeeping-only lodging owner; ordinary lodging deep links remain denied.
+- POS, inventory, purchasing, lodging, events, finance and workspace routes reuse the same capability names as navigation and effective module resolution.
+- Manager-only Management has its own role gate and evidence scope rather than pretending to be another dashboard.
+- Search and notifications intentionally lack a single nav capability because their service/query layers filter each result to the current membership’s authorized domains or recipient.
+- Inventory CSV template/error exports were corrected to inherit the inventory capability so direct URLs cannot bypass the ledger/upload permission.
+- Order/customer/display/report querysets remain tenant scoped and, where physical operations matter, are further restricted to accessible outlets/sites.

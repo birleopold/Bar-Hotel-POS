@@ -640,8 +640,8 @@ For **every** HTML entry: record named URL, base/inclusion chain, line-of-busine
 
 **URL inventories:**
 - [x] `backend/apps/api/urls.py` — inventoried in `docs/ROUTE_OWNER_INVENTORY.md`; public auth/webhook routes, tenant/module gates, router families, action permissions, offline/KDS/report dependencies and register-shift cash visibility are mapped to their canonical owners.
-- [ ] `backend/apps/console/urls.py` — enumerate named paths, permissions, request methods, mapped template and API dependencies.
-- [ ] `backend/apps/staff/urls.py` — enumerate named paths, permissions, request methods, mapped template and API dependencies.
+- [x] `backend/apps/console/urls.py` — inventoried in `docs/ROUTE_OWNER_INVENTORY.md`; platform/operator versus tenant-org authority, business-line gates, tenant-scoped nested resources, methods and setup/catalog/lodging dependencies are mapped.
+- [x] `backend/apps/staff/urls.py` — inventoried with `urls_workspace.py` in `docs/ROUTE_OWNER_INVENTORY.md`; capability-gated POS/inventory/purchasing/lodging/events/finance/workspace routes and custom management/search/notification/display policies are mapped.
 - [x] `backend/config/urls.py` — inventoried in `docs/ROUTE_OWNER_INVENTORY.md`; public function routes are explicitly GET/HEAD-only, signup/reset owners and dependencies are recorded, and delegated staff/console/API/admin roots are identified.
 
 **Backend dependency discovery:** map `backend/apps/*/` models, service modules, view functions, tasks, payments, signals, authorization, migrations and integration handlers to a face/flow. Backend-only modules are not ignored: security and correctness must be covered even without visible UI.
