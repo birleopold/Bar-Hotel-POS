@@ -117,7 +117,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("staff_product.business_key", s)
         self.assertIn("fizo-products__table", s)
         self.assertIn("cat.items.all", s)
-        self.assertIn("item.product_image_src", s)
+        self.assertIn("item.product_image_render_src", s)
         self.assertIn("item.unit_price", s)
         self.assertIn('name="q"', s)
         self.assertIn('value="display_details"', s)
@@ -131,9 +131,9 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         editor = (root / "console/templates/console/org/menu_item_form.html").read_text(encoding="utf-8")
         checkout = (Path(__file__).resolve().parent / "templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
         self.assertIn('enctype="multipart/form-data"', editor)
-        self.assertIn("object.product_image_src", editor)
-        self.assertIn("item.product_image_src", checkout)
-        self.assertIn("item.product_image_src", (Path(__file__).resolve().parent / "templates/staff/menu_list.html").read_text(encoding="utf-8"))
+        self.assertIn("object.product_image_render_src", editor)
+        self.assertIn("item.product_image_render_src", checkout)
+        self.assertIn("item.product_image_render_src", (Path(__file__).resolve().parent / "templates/staff/menu_list.html").read_text(encoding="utf-8"))
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
@@ -209,7 +209,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
     def test_desktop_photo_sync_tracks_effective_image_url(self):
         root = Path(__file__).resolve().parents[1] / "console/templates/console/org"
         source = (root / "menu_item_form.html").read_text(encoding="utf-8")
-        self.assertIn('var known = "{{ object.product_image_src|escapejs }}";', source)
+        self.assertIn('var known = "{{ object.product_image_render_src|escapejs }}";', source)
         self.assertIn("if (data.image_url === known) return;", source)
         self.assertIn("known = data.image_url;", source)
         self.assertIn('credentials: "same-origin"', source)

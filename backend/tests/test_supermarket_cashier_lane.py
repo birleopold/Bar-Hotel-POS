@@ -492,7 +492,7 @@ class SupermarketCashierLaneTests(TestCase):
             self.assertContains(page, item.product_image.url)
             self.assertContains(
                 page,
-                f'<img src="{item.product_image.url}"',
+                f'<img src="{item.product_image_render_src}"',
                 html=False,
             )
 
