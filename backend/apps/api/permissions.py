@@ -86,6 +86,25 @@ class NotReadOnlyRole(permissions.BasePermission):
         return membership.role != MembershipRole.ACCOUNTANT
 
 
+class CanViewAuditEvents(permissions.BasePermission):
+    """Restrict audit evidence to the same manager roles as the staff audit reader."""
+
+    message = "Your role cannot view audit events."
+
+    def has_permission(self, request, view) -> bool:
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in {
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+                MembershipRole.SITE_MANAGER,
+                MembershipRole.OUTLET_MANAGER,
+            }
+        )
+
+
 class CanViewSalesReports(permissions.BasePermission):
     """Mirror the staff sales-report role boundary for API reporting."""
 

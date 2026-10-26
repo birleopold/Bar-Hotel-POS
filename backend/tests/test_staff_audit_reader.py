@@ -118,10 +118,7 @@ class StaffAuditReaderTests(TestCase):
             "/api/v1/audit-events/",
             HTTP_X_TENANT_ID=str(self.tenant.pk),
         )
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()
-        rows = payload.get("results", payload) if isinstance(payload, dict) else payload
-        self.assertEqual(rows, [])
+        self.assertEqual(response.status_code, 403)
 
     def test_wrong_tenant_membership_shows_nothing(self):
         self.log(self.outlet_a)

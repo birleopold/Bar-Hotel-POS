@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
-from apps.api.permissions import HasTenantContext
+from apps.api.permissions import CanViewAuditEvents, HasTenantContext
 from apps.staff.services.audit_reader import visible_audit_events
 
 from .models import AuditEvent
@@ -9,7 +9,7 @@ from .serializers import AuditEventSerializer
 
 
 class AuditEventViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext]
+    permission_classes = [IsAuthenticated, HasTenantContext, CanViewAuditEvents]
     serializer_class = AuditEventSerializer
 
     def get_queryset(self):
