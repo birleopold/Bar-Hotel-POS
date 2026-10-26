@@ -32,7 +32,7 @@ class FizoCheckoutLayoutTests(SimpleTestCase):
         self.assertIn('name="action" value="adjust_line_qty"', main)
         self.assertIn('name="action" value="void_line"', main)
         self.assertIn('name="action" value="scan_add_line"', supermarket)
-        self.assertIn("form.requestSubmit()", counter)
+        self.assertIn("window.retailEnqueueAddMutation", counter)
         self.assertIn('name="action" value="scan_add_line"', supermarket)
         self.assertIn('data-retail-scan-form', supermarket)
         self.assertIn('name="action" value="retail_line_refund"', supermarket)

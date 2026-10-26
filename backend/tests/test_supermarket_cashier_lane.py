@@ -143,7 +143,7 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertContains(response, "fizo-setup-area.css")
         self.assertContains(response, "grocery-console-body")
         self.assertContains(response, "fizo-shell-top")
-        self.assertContains(response, "grocery-setup__hero-actions")
+        self.assertContains(response, "setup-hub__hero-actions")
         self.assertContains(response, "Guided setup")
 
     def test_grocery_setup_stays_styled_with_restaurant_module_enabled(self):
@@ -157,7 +157,7 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "grocery-console-body")
         self.assertContains(page, "fizo-setup-area.css")
-        self.assertContains(page, "grocery-setup__layout")
+        self.assertContains(page, "setup-board__grid")
 
     def test_owner_administration_shell_persists_after_navigation(self):
         membership = Membership.objects.get(tenant=self.tenant, user=self.user)

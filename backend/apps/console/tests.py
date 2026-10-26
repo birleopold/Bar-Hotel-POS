@@ -143,16 +143,16 @@ class MenuOutletSyncTests(TestCase):
         template = (root / "templates/console/org/setup_wizard.html").read_text(encoding="utf-8")
         css = (root.parent / "staff/static/staff/fizo-setup-area.css").read_text(encoding="utf-8")
 
-        self.assertIn('class="setup-hub"', template)
-        self.assertIn("setup-card--profile", template)
-        self.assertIn("setup-card--go-live", template)
-        self.assertIn("setup-hub__cards", template)
-        self.assertIn("setup-hub__shortcut-grid", template)
-        self.assertIn("setup_steps", template)
-        self.assertIn("setup_optional_steps", template)
+        self.assertIn('class="setup-hub setup-board"', template)
+        self.assertIn("setup-board__card", template)
+        self.assertIn("setup-board__card--ready", template)
+        self.assertIn("setup-board__grid", template)
+        self.assertNotIn("setup-hub__shortcut-grid", template)
+        self.assertIn("setup_operations_steps", template)
+        self.assertIn("setup_people_steps", template)
         self.assertNotIn("{% if grocery_console_shell or hospitality_console_shell %}", template)
         self.assertNotIn("Workspace setup<span", template)
-        self.assertIn(".fizo-setup-page .setup-hub__cards", css)
+        self.assertIn(".fizo-setup-page .setup-board__grid", css)
 
 
 class MenuModifierSyncTests(TestCase):
@@ -505,8 +505,8 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(response, "fizo-setup-area.css")
         self.assertNotContains(response, "fizo-setup-wizard.css")
         self.assertNotContains(response, "grocery-owner-console.css")
-        self.assertContains(response, "grocery-setup__step-visual")
-        self.assertContains(response, "Set up your store")
+        self.assertContains(response, "setup-board__card")
+        self.assertContains(response, "Set up your workspace")
         self.assertContains(response, "Required setup progress")
         self.assertContains(response, "fizo-shell-nav")
         self.assertContains(response, self.tenant.name)
@@ -518,7 +518,7 @@ class ConsoleAccessTests(TestCase):
         response = self.client.get(reverse("console-org-setup"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "hospitality-console-body")
-        self.assertContains(response, "Set up your business")
+        self.assertContains(response, "Set up your workspace")
         self.assertContains(response, "Hospitality management")
         self.assertNotContains(response, "grocery-console-body")
 
@@ -641,7 +641,7 @@ class ConsoleAccessTests(TestCase):
         prog.refresh_from_db()
         self.assertNotIn("first_team_invite", prog.step_state_overrides)
         r2 = self.client.get(reverse("console-org-setup"))
-        self.assertContains(r2, "Pending")
+        self.assertContains(r2, "Optional")
         prog.refresh_from_db()
         self.assertEqual(prog.last_next_step_key, "first_property")
 
@@ -674,7 +674,7 @@ class ConsoleAccessTests(TestCase):
         self._login_with_tenant(user)
         r = self.client.get(reverse("console-org-setup"))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "Setup complete")
+        self.assertContains(r, "Ready")
         self.assertContains(r, "Required setup progress")
 
     def test_org_forbidden_for_server_role(self) -> None:

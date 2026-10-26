@@ -65,9 +65,9 @@ class GroceryOwnerConsolePagesTests(TestCase):
     def test_step_by_step_setup_preserves_actual_progress_data_and_actions(self):
         response = self.client.get(reverse("console-org-setup"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Complete these steps")
+        self.assertContains(response, "Set up your workspace")
         self.assertContains(response, "Required setup progress")
-        self.assertContains(response, "Before your first sale")
+        self.assertContains(response, "Opening checks")
         self.assertContains(response, reverse("console-org-setup-step-state"))
         self.assertContains(response, reverse("console-org-sites"))
 
