@@ -3629,6 +3629,110 @@ class StaffTableStaffTests(TestCase):
         self.assertTrue(order.is_paid)
         self.assertEqual(order.status, OrderStatus.CLOSED)
 
+    def test_paid_restaurant_check_can_finish_ready_to_served_handoff(self) -> None:
+        from apps.pos.services.kds import update_order_line_kds_status
+
+        server = User.objects.create_user(
+            email="tbl-paid-handoff@test.local",
+            password="TestPass9!",
+        )
+        membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet)
+        category = MenuCategory.objects.create(
+            tenant=self.tenant,
+            name="Paid handoff dishes",
+        )
+        dish = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=category,
+            name="Paid chicken plate",
+            unit_price=Decimal("18000.00"),
+            is_active=True,
+            kds_station="kitchen",
+        )
+        table = Table.objects.create(
+            outlet=self.outlet,
+            label="Dining paid",
+            capacity=2,
+        )
+        self._session_tenant_outlet(server)
+        self.client.post(
+            reverse("staff-tables"),
+            {
+                "action": "open_table",
+                "table_id": str(table.pk),
+                "guest_count": "2",
+            },
+        )
+        order = Order.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            table=table,
+            status=OrderStatus.OPEN,
+        )
+        detail_url = reverse(
+            "staff-order-detail",
+            kwargs={"order_id": order.pk},
+        )
+        self.client.post(
+            detail_url,
+            {
+                "action": "add_line",
+                "menu_item": str(dish.pk),
+                "quantity": "1",
+            },
+        )
+        line = order.lines.get(menu_item=dish, is_voided=False)
+        update_order_line_kds_status(
+            order=order,
+            line=line,
+            kds_status=KdsLineStatus.IN_PREP,
+            kds_station=None,
+            user=server,
+        )
+        update_order_line_kds_status(
+            order=order,
+            line=line,
+            kds_status=KdsLineStatus.READY,
+            kds_station=None,
+            user=server,
+        )
+
+        paid = self.client.post(
+            detail_url,
+            {
+                "action": "record_payment",
+                "amount": "18000.00",
+                "method": PaymentMethod.CASH,
+            },
+        )
+        self.assertEqual(paid.status_code, 302)
+        order.refresh_from_db()
+        self.assertTrue(order.is_paid)
+        self.assertEqual(order.status, OrderStatus.CLOSED)
+
+        page = self.client.get(detail_url)
+        self.assertEqual(page.status_code, 200)
+        self.assertTrue(page.context["can_ack_ready_handoff"])
+        self.assertIn(str(line.pk), page.context["ready_line_ids"])
+        self.assertContains(page, "Ack")
+
+        served = self.client.post(
+            detail_url,
+            {
+                "action": "ack_ready_line",
+                "line_id": str(line.pk),
+            },
+        )
+        self.assertEqual(served.status_code, 302)
+        line.refresh_from_db()
+        self.assertEqual(line.kds_status, KdsLineStatus.SERVED)
+
     def test_server_cannot_operate_another_servers_hospitality_check(self) -> None:
         assigned = User.objects.create_user(
             email="tbl-assigned@test.local",

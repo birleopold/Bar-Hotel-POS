@@ -1246,11 +1246,26 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 initial_folio_id=order.folio_id,
             )
         assigned_server = bool(order.created_by_id and order.created_by_id == self.request.user.id)
+        hospitality_handoff_after_payment = (
+            order.outlet.outlet_type in {
+                OutletType.RESTAURANT,
+                OutletType.BAR,
+                OutletType.LOUNGE,
+                OutletType.CAFETERIA,
+            }
+            and order.status == OrderStatus.CLOSED
+            and order.is_paid
+        )
         can_ack_handoff = (
             staff_outlet_allowed_for_membership(m, order.outlet_id)
-            and order.status == OrderStatus.OPEN
-            and not order.is_paid
-            and membership_can_acknowledge_ready_handoff(m, is_assigned_server=assigned_server)
+            and (
+                (order.status == OrderStatus.OPEN and not order.is_paid)
+                or hospitality_handoff_after_payment
+            )
+            and membership_can_acknowledge_ready_handoff(
+                m,
+                is_assigned_server=assigned_server,
+            )
         )
         ready_line_ids = {
             str(line.id)
@@ -1991,8 +2006,25 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ):
             messages.error(request, "Only the assigned server or a manager can acknowledge ready items.")
             return redirect("staff-order-detail", order_id=order.id)
-        if order.status != OrderStatus.OPEN or order.is_paid:
-            messages.error(request, "Handoff acknowledgements are only available on open, unpaid orders.")
+        handoff_state_allowed = (
+            (order.status == OrderStatus.OPEN and not order.is_paid)
+            or (
+                order.outlet.outlet_type in {
+                    OutletType.RESTAURANT,
+                    OutletType.BAR,
+                    OutletType.LOUNGE,
+                    OutletType.CAFETERIA,
+                }
+                and order.status == OrderStatus.CLOSED
+                and order.is_paid
+            )
+        )
+        if not handoff_state_allowed:
+            messages.error(
+                request,
+                "Handoff acknowledgements are available only on active checks "
+                "or paid hospitality checks still awaiting service.",
+            )
             return redirect("staff-order-detail", order_id=order.id)
         form = StaffOrderReadyHandoffForm(request.POST)
         if not form.is_valid():
