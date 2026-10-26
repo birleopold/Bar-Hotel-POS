@@ -27,6 +27,7 @@ STAFF_MODULE_KEYS: FrozenSet[str] = frozenset(
         "events",
         "finance",
         "workspace",
+        "delivery",
     }
 )
 DEFAULT_STAFF_MODULES: FrozenSet[str] = STAFF_MODULE_KEYS
@@ -42,6 +43,7 @@ STAFF_MODULE_CHOICES: tuple[tuple[str, str], ...] = (
     ("events", "Events & spaces"),
     ("finance", "Finance (income & expenses)"),
     ("workspace", "Workspace & team"),
+    ("delivery", "Delivery / fulfillment"),
 )
 
 
@@ -84,14 +86,18 @@ def resolve_effective_staff_modules(
             return frozenset()
         # Empty profile predates business-line scoping and remains the documented
         # legacy tenant state. A configured profile can never be widened by modules.
-        configured_line_modules = frozenset(
+        default_line_modules = frozenset(
             modules_for_business_lines(lines) if lines else DEFAULT_MODULES_ALL
         )
+        optional_line_modules = frozenset(
+            {"delivery"} if set(lines) & {"retail", "supermarket"} else set()
+        )
+        configured_line_modules = default_line_modules | optional_line_modules
         raw = settings.enabled_staff_modules
         if not isinstance(raw, list):
             settings_modules = frozenset()
         elif not raw:
-            settings_modules = configured_line_modules
+            settings_modules = default_line_modules
         else:
             settings_modules = STAFF_MODULE_KEYS & frozenset(str(x) for x in raw)
         settings_modules = settings_modules & configured_line_modules
@@ -195,6 +201,7 @@ class StaffNavVisibility:
     events: bool = False
     finance: bool = False
     workspace: bool = False
+    delivery: bool = False
 
 
 def staff_nav_visibility(membership: Membership, modules: FrozenSet[str]) -> StaffNavVisibility:
@@ -305,6 +312,15 @@ def staff_nav_visibility(membership: Membership, modules: FrozenSet[str]) -> Sta
             M.ACCOUNTANT,
         }
 
+    delivery = False
+    if "delivery" in modules:
+        delivery = r in {
+            M.OWNER,
+            M.TENANT_ADMIN,
+            M.SITE_MANAGER,
+            M.OUTLET_MANAGER,
+        }
+
     workspace = False
     if "workspace" in modules:
         workspace = r in {
@@ -329,6 +345,7 @@ def staff_nav_visibility(membership: Membership, modules: FrozenSet[str]) -> Sta
         events=events,
         finance=finance,
         workspace=workspace,
+        delivery=delivery,
     )
 
 

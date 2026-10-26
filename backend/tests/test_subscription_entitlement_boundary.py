@@ -43,6 +43,46 @@ def test_entitlement_does_not_reenable_owner_disabled_area():
 
 
 @pytest.mark.django_db
+def test_delivery_is_optional_and_requires_owner_plus_plan_enablement():
+    tenant = Tenant.objects.create(name="Optional delivery", slug="optional-delivery")
+    settings = TenantSettings.objects.create(
+        tenant=tenant,
+        business_lines=["retail"],
+        enabled_staff_modules=["pos", "workspace"],
+    )
+    plan = Plan.objects.create(
+        name="Delivery Plan", code="delivery-plan",
+        included_modules=["pos", "workspace", "delivery"],
+    )
+    TenantSubscription.objects.create(
+        tenant=tenant, plan=plan, status=SubscriptionStatus.ACTIVE,
+    )
+    assert "delivery" not in resolve_effective_staff_modules(tenant)
+
+    settings.enabled_staff_modules = ["pos", "workspace", "delivery"]
+    settings.save(update_fields=["enabled_staff_modules", "updated_at"])
+    assert "delivery" in resolve_effective_staff_modules(tenant)
+
+
+@pytest.mark.django_db
+def test_delivery_entitlement_cannot_leak_into_lodging_only_profile():
+    tenant = Tenant.objects.create(name="Hotel only", slug="hotel-delivery-boundary")
+    TenantSettings.objects.create(
+        tenant=tenant,
+        business_lines=["lodging"],
+        enabled_staff_modules=["lodging", "workspace", "delivery"],
+    )
+    plan = Plan.objects.create(
+        name="Hotel Plan", code="hotel-plan-delivery-boundary",
+        included_modules=["lodging", "workspace", "delivery"],
+    )
+    TenantSubscription.objects.create(
+        tenant=tenant, plan=plan, status=SubscriptionStatus.ACTIVE,
+    )
+    assert "delivery" not in resolve_effective_staff_modules(tenant)
+
+
+@pytest.mark.django_db
 def test_entitlement_cannot_widen_business_profile():
     tenant = Tenant.objects.create(name="Retail Module Policy", slug="retail-module-entitlement")
     TenantSettings.objects.create(

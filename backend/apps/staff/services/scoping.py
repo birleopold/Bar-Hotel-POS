@@ -21,6 +21,7 @@ def _caps_for_outlet_type(outlet_type: str) -> set[str]:
             "purchasing",
             "finance",
             "workspace",
+            "delivery",
         }
     if ot in {"retail", "supermarket"}:
         return {
@@ -32,6 +33,7 @@ def _caps_for_outlet_type(outlet_type: str) -> set[str]:
             "purchasing",
             "finance",
             "workspace",
+            "delivery",
         }
     if ot == "lodging_front_desk":
         return {
@@ -97,6 +99,7 @@ def _caps_for_business_lines(lines: list[str]) -> set[str]:
             "sales",
             "inventory",
             "purchasing",
+            "delivery",
         }
     if "lodging" in s:
         caps |= {"lodging", "orders", "sales", "promotions"}
@@ -148,6 +151,8 @@ def staff_nav_visibility_scoped(
             allowed.discard("finance")
         if "workspace" not in modules:
             allowed.discard("workspace")
+        if "delivery" not in modules:
+            allowed.discard("delivery")
     else:
         module_caps = set()
         module_to_caps = {
@@ -159,6 +164,7 @@ def staff_nav_visibility_scoped(
             "events": {"events"},
             "finance": {"finance"},
             "workspace": {"workspace"},
+            "delivery": {"delivery"},
         }
         for module_key in modules:
             module_caps.update(module_to_caps.get(module_key, set()))
@@ -178,4 +184,5 @@ def staff_nav_visibility_scoped(
         events=base.events and "events" in allowed,
         finance=base.finance and "finance" in allowed,
         workspace=base.workspace and "workspace" in allowed,
+        delivery=base.delivery and "delivery" in allowed,
     )

@@ -29,7 +29,7 @@ def _uuid_or_none(value):
 
 
 class StaffDeliveriesView(StaffTenantRequiredMixin, View):
-    staff_nav_capability = "orders"
+    staff_nav_capability = "delivery"
     template_name = "staff/pos/deliveries.html"
 
     def _can_manage(self):
@@ -147,7 +147,7 @@ class StaffDeliveryPackingSlipView(StaffTenantRequiredMixin, View):
     This is NOT a fiscal receipt. Viewing/printing does not mutate fulfillment,
     settlement, customer identity, or stock.
     """
-    staff_nav_capability = "orders"
+    staff_nav_capability = "delivery"
     template_name = "staff/pos/delivery_packing_slip.html"
 
     def get(self, request, delivery_id):
