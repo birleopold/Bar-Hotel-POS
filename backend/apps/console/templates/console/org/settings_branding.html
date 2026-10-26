@@ -1,0 +1,38 @@
+{% extends "console/base.html" %}
+{% block title %}Business settings{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div>
+      <p class="grocery-setup__eyebrow">Administration</p>
+      <h1>Business settings</h1>
+      <p class="staff-muted">Business identity, currency, regional defaults, branding and equipment flags.</p>
+    </div>
+    <div class="grocery-setup__hero-actions">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-settings-modules' %}">Enabled areas</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Overview</a>
+    </div>
+  </header>
+  {% include "staff/includes/form_errors_block.html" with form=form title="Fix these business settings" %}
+  <form method="post" class="grocery-guided-form">
+    {% csrf_token %}
+    <div class="grocery-form-fields">
+      {% for field in form %}
+        <div class="grocery-form-field{% if field.name == 'receipt_footer' %} grocery-form-field--wide{% endif %}">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.help_text %}<small class="staff-muted">{{ field.help_text }}</small>{% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="grocery-form-footer">
+      <span>These settings apply to this tenant across administration and operations.</span>
+      <div>
+        <a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}">Cancel</a>
+        <button class="staff-btn staff-btn--primary" type="submit">Save business settings</button>
+      </div>
+    </div>
+  </form>
+</section>
+{% endblock %}
