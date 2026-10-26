@@ -1764,14 +1764,26 @@ class StaffOrderAddLineTests(TestCase):
                 "menu_item": str(self.menu_item.id),
                 "quantity": "2",
             },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["ok"])
         self.order.refresh_from_db()
         self.assertEqual(self.order.lines.filter(is_voided=False).count(), 1)
         ln = self.order.lines.first()
         assert ln is not None
+        self.assertEqual(str(ln.pk), r.json()["line_id"])
         self.assertEqual(ln.quantity, Decimal("2"))
         self.assertGreater(self.order.total, Decimal("0"))
+
+        from pathlib import Path
+        staff_root = Path(__file__).resolve().parent
+        detail = (staff_root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        controller = (staff_root / "static/staff/hospitality-order.js").read_text(encoding="utf-8")
+        self.assertIn("data-hospitality-lines-zone", detail)
+        self.assertIn("[data-fizo-add-line-form]", controller)
+        self.assertIn("refreshHospitalityCheck()", controller)
+        self.assertIn("never repeat the mutation automatically", controller)
 
     def test_add_service_line_to_open_order(self) -> None:
         r = self.client.post(

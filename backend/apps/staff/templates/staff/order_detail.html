@@ -142,7 +142,7 @@
       {% if not is_supermarket_outlet %}
         <div class="fizo-hospitality-bill" aria-label="Current order">
           <h2><i class="bi bi-receipt" aria-hidden="true"></i> Current order <span>{{ order.bill_reference }}</span></h2>
-    <section class="fizo-hospitality-bill__lines" aria-label="{% if is_supermarket_outlet %}Sale items{% else %}Order lines{% endif %}">
+    <section class="fizo-hospitality-bill__lines" aria-label="{% if is_supermarket_outlet %}Sale items{% else %}Order lines{% endif %}"{% if not is_supermarket_outlet %} data-hospitality-lines-zone{% endif %}>
       <div class="staff-card staff-card--pos mb-0">
         <h2 class="staff-card__title staff-card__title--pos">Lines</h2>
         <div class="staff-table-wrap staff-table-wrap--pos">
@@ -498,7 +498,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.2"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.3"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>

@@ -1,9 +1,110 @@
 (function(){
   "use strict";
 
+  function refreshHospitalityCheck(){
+    return fetch(window.location.pathname+window.location.search,{
+      method:"GET",
+      credentials:"same-origin",
+      redirect:"follow",
+      headers:{"X-Requested-With":"XMLHttpRequest"}
+    }).then(function(response){
+      if(!response.ok||response.redirected)throw new Error("Could not refresh this check.");
+      return response.text();
+    }).then(function(html){
+      var remote=new DOMParser().parseFromString(html,"text/html");
+      var currentLines=document.querySelector("[data-hospitality-lines-zone]");
+      var nextLines=remote.querySelector("[data-hospitality-lines-zone]");
+      if(currentLines&&nextLines){
+        currentLines.replaceChildren.apply(
+          currentLines,
+          Array.prototype.map.call(nextLines.childNodes,function(node){
+            return document.importNode(node,true);
+          })
+        );
+      }
+      var currentTotal=document.querySelector("[data-hospitality-order-total]");
+      var nextTotal=remote.querySelector("[data-hospitality-order-total]");
+      if(currentTotal&&nextTotal)currentTotal.textContent=nextTotal.textContent;
+      var currentMeta=document.querySelector("[data-hospitality-order-meta]");
+      var nextMeta=remote.querySelector("[data-hospitality-order-meta]");
+      if(currentMeta&&nextMeta)currentMeta.textContent=nextMeta.textContent;
+      return true;
+    });
+  }
+
   function statusFor(form){
     return form.querySelector("[data-hospitality-seat-status]");
   }
+
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.matches("[data-fizo-add-line-form]"))return;
+    if(!(window.fetch&&window.FormData&&window.DOMParser))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){
+      form.reportValidity();
+      return;
+    }
+
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var previous=button&&button.textContent;
+    var status=form.querySelector("[data-hospitality-add-status]");
+    if(button){button.disabled=true;button.textContent="Adding…";}
+    if(status)status.textContent="Adding item…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",
+      body:new FormData(form),
+      credentials:"same-origin",
+      redirect:"follow",
+      headers:{
+        "X-Requested-With":"XMLHttpRequest",
+        "X-CSRFToken":csrf?csrf.value:""
+      }
+    }).then(function(response){
+      if(response.redirected)throw new Error("The check changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected add-item response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){
+          var rejected=new Error(data.message||"Item could not be added.");
+          rejected.serverRejected=true;
+          throw rejected;
+        }
+        return data;
+      });
+    }).then(function(data){
+      return refreshHospitalityCheck().then(function(){return data;});
+    }).then(function(data){
+      var qty=form.querySelector('input[name="quantity"]');
+      if(qty)qty.value="1";
+      var seat=form.querySelector('input[name="seat_number"]');
+      if(seat)seat.value="";
+      form.querySelectorAll('input[name="modifier_option"]').forEach(function(input){
+        input.checked=false;
+      });
+      if(status)status.textContent=data.message||"Line added.";
+    }).catch(function(error){
+      if(error&&error.serverRejected){
+        if(status)status.textContent=error.message;
+        return;
+      }
+      // The POST may have committed even when its response was lost. Reconcile
+      // from the authoritative check; never repeat the mutation automatically.
+      refreshHospitalityCheck().then(function(){
+        if(status)status.textContent="Check refreshed. Verify the item before trying again.";
+      }).catch(function(){
+        if(status)status.textContent="Could not verify whether the item was added. Reload this check before trying again.";
+      });
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(button){button.disabled=false;button.textContent=previous||"Add to order";}
+    });
+  });
 
   document.addEventListener("submit",function(event){
     var form=event.target;
@@ -136,7 +237,7 @@
   });
 
   window.addEventListener("pageshow",function(){
-    document.querySelectorAll("[data-hospitality-seat-form],[data-hospitality-qty-form]").forEach(function(form){
+    document.querySelectorAll("[data-fizo-add-line-form],[data-hospitality-seat-form],[data-hospitality-qty-form]").forEach(function(form){
       delete form.dataset.submitting;
       var button=form.querySelector('button[type="submit"]');
       if(button)button.disabled=false;

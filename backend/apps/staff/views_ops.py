@@ -2321,8 +2321,17 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return accepted("New product saved and added to this sale. Catalogue review required.")
 
     def _post_add_line(self, request: HttpRequest, order: Order) -> HttpResponse:
-        async_add = (request.headers.get("X-Requested-With") == "XMLHttpRequest"
-                     and order.outlet.outlet_type in {OutletType.RETAIL, OutletType.SUPERMARKET})
+        async_add = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            and order.outlet.outlet_type in {
+                OutletType.RETAIL,
+                OutletType.SUPERMARKET,
+                OutletType.RESTAURANT,
+                OutletType.BAR,
+                OutletType.LOUNGE,
+                OutletType.CAFETERIA,
+            }
+        )
         def reject(message, status=422):
             if async_add:
                 return JsonResponse({"ok": False, "message": str(message)}, status=status)
@@ -2355,7 +2364,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             except ValueError:
                 return reject("Invalid modifier selection.")
         try:
-            add_line_to_open_order(
+            added_line = add_line_to_open_order(
                 order=order,
                 menu_item=form.cleaned_data["menu_item"],
                 quantity=form.cleaned_data["quantity"],
@@ -2370,8 +2379,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         else:
             if async_add:
                 order.refresh_from_db(fields=["subtotal", "discount_amount", "tax_total", "total", "currency"])
-                return JsonResponse({"ok": True, "order_id": str(order.pk),
-                    "total": str(order.total), "currency": order.currency})
+                return JsonResponse({
+                    "ok": True,
+                    "message": "Line added.",
+                    "order_id": str(order.pk),
+                    "line_id": str(added_line.pk),
+                    "total": str(order.total),
+                    "currency": order.currency,
+                })
             messages.success(request, "Line added.")
         return redirect("staff-order-detail", order_id=order.id)
 

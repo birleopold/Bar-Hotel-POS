@@ -75,6 +75,7 @@
             {% endif %}
             <div class="staff-pos-add-item-form__submit"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch"><i class="bi bi-plus-lg" aria-hidden="true"></i>{% if is_supermarket_outlet %} Add to basket{% else %} Add to order{% endif %}</button></div>
             <div class="staff-pos-add-item-form__modifiers" id="staff-pos-add-line-modifiers" aria-live="polite"></div>
+            {% if not is_supermarket_outlet %}<p class="staff-muted small mb-0" role="status" aria-live="polite" data-hospitality-add-status></p>{% endif %}
           </form>
         </div>
       {% endif %}
