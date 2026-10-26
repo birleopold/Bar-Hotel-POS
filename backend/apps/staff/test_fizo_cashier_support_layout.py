@@ -68,12 +68,11 @@ class FizoCashierSupportTests(SimpleTestCase):
         self.assertIn("--retail-basket:minmax(390px,33.5%)", styles)
         self.assertNotIn("grid-template-columns:minmax(0,1fr)!important", styles)
 
-    def test_legacy_grocery_script_does_not_reparent_modern_catalogue(self):
+    def test_legacy_grocery_checkout_assets_are_retired(self):
         root = Path(__file__).resolve().parent / "static/staff"
-        source = (root / "grocery-checkout.js").read_text(encoding="utf-8")
-        guard = 'root.querySelector(".fizo-checkout-catalogue")'
-        mutation = 'right.insertBefore(basket, right.firstChild)'
-        self.assertIn(guard, source)
-        self.assertIn(mutation, source)
-        self.assertLess(source.index(guard), source.index(mutation))
-        self.assertIn('root.querySelector(".fizo-checkout-basket")', source)
+        self.assertFalse((root / "grocery-checkout.js").exists())
+        self.assertFalse((root / "grocery-checkout.css").exists())
+        controller = (root / "retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn("window.retailRefreshCheckout=refreshCheckout", controller)
+        self.assertIn("function bindQuantityForms()", controller)
+        self.assertIn("function bindRetailPaymentControls()", controller)
