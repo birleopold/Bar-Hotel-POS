@@ -28,6 +28,18 @@
       var currentMeta=document.querySelector("[data-hospitality-order-meta]");
       var nextMeta=remote.querySelector("[data-hospitality-order-meta]");
       if(currentMeta&&nextMeta)currentMeta.textContent=nextMeta.textContent;
+      var currentState=document.querySelector("[data-hospitality-order-state]");
+      var nextState=remote.querySelector("[data-hospitality-order-state]");
+      if(currentState&&nextState)currentState.textContent=nextState.textContent;
+      var currentPayment=document.querySelector("[data-hospitality-payment-zone]");
+      var nextPayment=remote.querySelector("[data-hospitality-payment-zone]");
+      if(currentPayment){
+        if(nextPayment){
+          currentPayment.replaceWith(document.importNode(nextPayment,true));
+        }else{
+          currentPayment.remove();
+        }
+      }
       return true;
     });
   }
@@ -284,8 +296,73 @@
     });
   });
 
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.matches("[data-pos-payment-form]"))return;
+    if(!(window.fetch&&window.FormData&&window.DOMParser))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var previous=button&&button.textContent;
+    var feedback=document.querySelector("[data-hospitality-payment-feedback]");
+    if(button){button.disabled=true;button.textContent="Recording…";}
+    if(feedback)feedback.textContent="Recording payment…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",
+      body:new FormData(form),
+      credentials:"same-origin",
+      redirect:"follow",
+      headers:{
+        "X-Requested-With":"XMLHttpRequest",
+        "X-CSRFToken":csrf?csrf.value:""
+      }
+    }).then(function(response){
+      if(response.redirected)throw new Error("The check changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected payment response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){
+          var rejected=new Error(data.message||"Payment could not be recorded.");
+          rejected.serverRejected=true;
+          throw rejected;
+        }
+        return data;
+      });
+    }).then(function(data){
+      // Payment POSTs are idempotent. Re-read the authoritative check after
+      // success so the next payment gets a fresh request key and current balance.
+      return refreshHospitalityCheck().then(function(){return data;});
+    }).then(function(data){
+      if(feedback)feedback.textContent=data.message||"Payment recorded.";
+    }).catch(function(error){
+      if(error&&error.serverRejected){
+        if(feedback)feedback.textContent=error.message;
+        return;
+      }
+      // Never repeat a payment automatically after an uncertain response.
+      // The request key protects replay, but the operator must verify state.
+      refreshHospitalityCheck().then(function(){
+        if(feedback)feedback.textContent="Check refreshed. Verify the payment before trying again.";
+      }).catch(function(){
+        if(feedback)feedback.textContent="Could not verify whether payment was recorded. Reload this check before trying again.";
+      });
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(button&&button.isConnected){
+        button.disabled=false;
+        button.textContent=previous||"Record payment";
+      }
+    });
+  });
+
   window.addEventListener("pageshow",function(){
-    document.querySelectorAll("[data-fizo-add-line-form],[data-hospitality-seat-form],[data-hospitality-qty-form],[data-hospitality-void-form]").forEach(function(form){
+    document.querySelectorAll("[data-fizo-add-line-form],[data-hospitality-seat-form],[data-hospitality-qty-form],[data-hospitality-void-form],[data-pos-payment-form]").forEach(function(form){
       delete form.dataset.submitting;
       var button=form.querySelector('button[type="submit"]');
       if(button)button.disabled=false;

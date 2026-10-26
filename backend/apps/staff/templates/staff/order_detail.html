@@ -10,7 +10,7 @@
     <div class="staff-context-bar__items">
       <span class="staff-context-pill staff-context-pill--primary"><strong>{{ order.bill_reference }}</strong></span>
       <span class="staff-context-pill">{{ order.outlet.name }}</span>
-      <span class="staff-context-pill">{{ order.get_status_display }}{% if order.is_paid %} · Paid{% elif order.status == 'closed' and order.folio_id %} · Charged to folio{% endif %}</span>
+      <span class="staff-context-pill"{% if not is_supermarket_outlet %} data-hospitality-order-state{% endif %}>{{ order.get_status_display }}{% if order.is_paid %} · Paid{% elif order.status == 'closed' and order.folio_id %} · Charged to folio{% endif %}</span>
       {% if not is_supermarket_outlet and order.table_label %}<span class="staff-context-pill">Tab: {{ order.table_label }}</span>{% endif %}
     </div>
     <div class="staff-context-bar__actions staff-context-bar__actions--pos">
@@ -326,8 +326,9 @@
           <p>Add an item to enable payment.</p>
         </section>
       {% endif %}
+      {% if not is_supermarket_outlet %}<p class="staff-muted small mb-2" role="status" aria-live="polite" data-hospitality-payment-feedback></p>{% endif %}
       {% if can_record_payment and payment_form %}
-        <div class="staff-card staff-card--pos{% if is_supermarket_outlet %} reference-payment-card{% endif %}">
+        <div class="staff-card staff-card--pos{% if is_supermarket_outlet %} reference-payment-card{% endif %}"{% if not is_supermarket_outlet %} data-hospitality-payment-zone{% endif %}>
           <h2 class="staff-card__title staff-card__title--pos">Pay</h2>
           {% if not is_supermarket_outlet %}<p class="staff-muted small">Register: {% if settlement_station %}<strong>{{ settlement_station.name }}</strong>{% else %}Automatic when one shift is open{% endif %} · <a href="{% url 'staff-workstations' %}">Choose till</a></p>{% endif %}
           <p class="staff-muted staff-pos-side-hint">Due <strong>{{ order.currency }} {{ balance_due }}</strong> · Paid {{ order.currency }} {{ amount_paid }}</p>
@@ -499,7 +500,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.4"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.5"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>

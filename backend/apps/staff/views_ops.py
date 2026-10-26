@@ -2112,13 +2112,20 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             raise DRFValidationError("Invalid refund request identity.")
 
     def _post_record_payment(self, request: HttpRequest, order: Order) -> HttpResponse:
-        async_retail = (
+        async_payment = (
             request.headers.get("X-Requested-With") == "XMLHttpRequest"
-            and order.outlet.outlet_type in {OutletType.RETAIL, OutletType.SUPERMARKET}
+            and order.outlet.outlet_type in {
+                OutletType.RETAIL,
+                OutletType.SUPERMARKET,
+                OutletType.RESTAURANT,
+                OutletType.BAR,
+                OutletType.LOUNGE,
+                OutletType.CAFETERIA,
+            }
         )
 
         def reject(message: str, *, status: int = 422) -> HttpResponse:
-            if async_retail:
+            if async_payment:
                 return JsonResponse({"ok": False, "message": message}, status=status)
             messages.error(request, message)
             return redirect("staff-order-detail", order_id=order.id)
@@ -2152,7 +2159,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             )
         except DRFValidationError as exc:
             detail = " ".join(_drf_detail_messages(exc.detail)) or "Payment could not be recorded."
-            if async_retail:
+            if async_payment:
                 return JsonResponse({"ok": False, "message": detail}, status=409)
             _flash_drf_validation(request, exc)
             return redirect("staff-order-detail", order_id=order.id)
@@ -2160,18 +2167,27 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         order.refresh_from_db(fields=["is_paid", "status"])
         paid, remaining = order_payment_totals(order)
         completed = bool(order.is_paid and order.status == OrderStatus.CLOSED)
+        is_retail = order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
         if completed:
-            if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            if is_retail:
                 from .views_customer_display import mark_customer_display_completed
                 mark_customer_display_completed(order, request)
-            message = "Sale fully paid and completed. The final receipt is ready."
+            message = (
+                "Sale fully paid and completed. The final receipt is ready."
+                if is_retail
+                else "Check fully paid and completed. The final receipt is ready."
+            )
         else:
             message = (
                 f"Partial payment recorded. Balance remaining: {order.currency} {remaining:.2f}. "
-                "You may hold this basket and resume payment later."
+                + (
+                    "You may hold this basket and resume payment later."
+                    if is_retail
+                    else "You can continue service or collect the remaining payment later."
+                )
             )
 
-        if async_retail:
+        if async_payment:
             return JsonResponse(
                 {
                     "ok": True,
