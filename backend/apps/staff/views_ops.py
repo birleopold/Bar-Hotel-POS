@@ -3003,7 +3003,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
 
     def _post_apply_promotion(self, request: HttpRequest, order: Order) -> HttpResponse:
         async_retail = (
-            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            order.outlet.outlet_type in {
+                OutletType.SUPERMARKET, OutletType.RETAIL,
+                OutletType.RESTAURANT, OutletType.BAR,
+                OutletType.LOUNGE, OutletType.CAFETERIA,
+            }
             and request.headers.get("X-Requested-With") == "XMLHttpRequest"
         )
 
