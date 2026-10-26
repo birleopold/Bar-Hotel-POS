@@ -482,6 +482,41 @@
       });
   });
 
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||!form.matches("[data-hospitality-folio-charge-form]"))return;
+    if(!document.querySelector("[data-hospitality-lines-zone]"))return;
+    if(!(window.fetch&&window.FormData&&window.DOMParser))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    if(button)button.disabled=true;
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.action||window.location.href,{
+      method:"POST",body:new FormData(form),credentials:"same-origin",redirect:"follow",
+      headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+    }).then(function(response){
+      if(response.redirected)throw new Error("Folio charge redirected.");
+      if(!(response.headers.get("Content-Type")||"").includes("application/json"))throw new Error("Unexpected folio charge response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){var error=new Error(data.message||"Folio charge rejected.");error.rejected=true;throw error;}
+        return data;
+      });
+    }).then(function(){return refreshHospitalityCheck();})
+      .catch(function(error){
+        if(error.rejected){window.alert(error.message);return;}
+        refreshHospitalityCheck().then(function(){
+          window.alert("Check refreshed. Verify the folio charge before retrying.");
+        }).catch(function(){
+          window.alert("Charge status unknown. Reload and verify the folio before retrying.");
+        });
+      }).then(function(){
+        delete form.dataset.submitting;
+        if(button)button.disabled=false;
+      });
+  });
+
   window.addEventListener("pageshow",function(){
     document.querySelectorAll("[data-fizo-add-line-form],[data-hospitality-seat-form],[data-hospitality-qty-form],[data-hospitality-void-form],[data-pos-payment-form],[data-hospitality-service-form],[data-hospitality-promotion-form]").forEach(function(form){
       delete form.dataset.submitting;

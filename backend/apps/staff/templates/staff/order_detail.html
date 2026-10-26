@@ -372,7 +372,7 @@
           <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-hospitality-folio-status></p></div>
           </form>
           {% if can_charge_to_folio %}
-            <form method="post" class="staff-pos-folio-charge-form mt-3">
+            <form method="post" class="staff-pos-folio-charge-form mt-3" data-hospitality-folio-charge-form>
               {% csrf_token %}<input type="hidden" name="action" value="charge_to_folio">
               <p class="staff-muted mb-2">Charge {{ order.currency }} {{ balance_due }} to {{ order.folio.guest_name }}. POS payments already collected will appear as a folio credit.</p>
               <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Charge balance to folio</button>
@@ -502,7 +502,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.8"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.9"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>

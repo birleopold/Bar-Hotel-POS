@@ -1715,11 +1715,23 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if action == "set_folio":
             return self._post_set_folio(request, order)
         if action == "charge_to_folio":
+            async_charge = (
+                request.headers.get("X-Requested-With") == "XMLHttpRequest"
+                and order.outlet.outlet_type in {
+                    OutletType.RESTAURANT, OutletType.BAR,
+                    OutletType.LOUNGE, OutletType.CAFETERIA,
+                }
+            )
             try:
                 charge_order_to_folio(order=order, membership=m, user=request.user)
             except DRFValidationError as exc:
+                detail = " ".join(_drf_detail_messages(exc.detail)) or "Folio charge rejected."
+                if async_charge:
+                    return JsonResponse({"ok": False, "message": detail}, status=409)
                 _flash_drf_validation(request, exc)
             else:
+                if async_charge:
+                    return JsonResponse({"ok": True, "message": "Remaining balance charged to the guest folio."})
                 messages.success(request, "Remaining balance charged to the guest folio.")
             return redirect("staff-order-detail", order_id=order.id)
         if action == "quick_create_product":
