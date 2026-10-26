@@ -535,6 +535,16 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(response, "Set up your workspace")
         self.assertNotContains(response, "hospitality-console-body")
 
+    def test_org_setup_worker_action_stays_in_administration(self) -> None:
+        user = User.objects.create_user(email="org-worker-entry@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        self._login_with_tenant(user)
+        response = self.client.get(reverse("console-org-setup"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Add your first teammate")
+        self.assertContains(response, reverse("console-org-team-create"))
+        self.assertNotContains(response, reverse("staff-workspace-invite-create"))
+
     def test_org_setup_shows_first_step_when_workspace_empty(self) -> None:
         user = User.objects.create_user(email="co-setup-empty@test.local", password="TestPass9!")
         Membership.objects.create(
