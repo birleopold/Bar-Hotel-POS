@@ -39,6 +39,7 @@ def staff_module_choices() -> list[tuple[str, str]]:
         ("events", "Events & spaces"),
         ("finance", "Finance (income & expenses)"),
         ("workspace", "Workspace & team"),
+        ("delivery", "Delivery / fulfillment"),
     ]
 
 
@@ -52,6 +53,7 @@ STAFF_MODULE_KEYS = {
     "events",
     "finance",
     "workspace",
+    "delivery",
 }
 
 

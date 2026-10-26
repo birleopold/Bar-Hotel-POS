@@ -42,6 +42,18 @@ def test_entitlement_does_not_reenable_owner_disabled_area():
     assert "purchasing" not in modules  # Owner disabled this area.
 
 
+def test_delivery_is_exposed_in_control_plane_choices_but_not_default_enabled():
+    from apps.tenants.models import (
+        STAFF_MODULE_KEYS,
+        default_enabled_staff_modules,
+        staff_module_choices,
+    )
+    choices = dict(staff_module_choices())
+    assert choices["delivery"] == "Delivery / fulfillment"
+    assert "delivery" in STAFF_MODULE_KEYS
+    assert "delivery" not in default_enabled_staff_modules()
+
+
 @pytest.mark.django_db
 def test_delivery_is_optional_and_requires_owner_plus_plan_enablement():
     tenant = Tenant.objects.create(name="Optional delivery", slug="optional-delivery")
