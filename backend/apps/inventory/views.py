@@ -5,7 +5,7 @@ from apps.access.outlets import membership_outlet_ids, outlet_belongs_to_members
 from apps.catalog.models import MenuItem
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 
@@ -31,9 +31,19 @@ from .services import (
 from apps.staff.services.permissions import membership_has_inventory_capability
 
 
+class CanViewInventory(BasePermission):
+    message = "Your role cannot view inventory records."
+
+    def has_permission(self, request, view):
+        return membership_has_inventory_capability(
+            getattr(request, "tenant_membership", None),
+            "view",
+        )
+
+
 class StockShelfLocationViewSet(viewsets.GenericViewSet):
     """Fast searchable shelf addresses, updated without changing inventory quantities."""
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, CanViewInventory]
     required_staff_module = "inventory"
     serializer_class = ShelfLocationReadSerializer
 
@@ -75,7 +85,7 @@ class StockShelfLocationViewSet(viewsets.GenericViewSet):
 
 
 class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, CanViewInventory]
     required_staff_module = "inventory"
     serializer_class = StockBalanceSerializer
 
@@ -108,7 +118,7 @@ class StockBalanceViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class StockMovementViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, CanViewInventory]
     required_staff_module = "inventory"
 
     def get_queryset(self):
@@ -156,7 +166,7 @@ class StockMovementViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, views
 
 
 class StockTransferViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, CanViewInventory]
     required_staff_module = "inventory"
     serializer_class = StockTransferSerializer
 
@@ -240,7 +250,7 @@ class StockTransferViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
 
 class StockCountSessionViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole, CanViewInventory]
     required_staff_module = "inventory"
     http_method_names = ["get", "post", "head", "options"]
 

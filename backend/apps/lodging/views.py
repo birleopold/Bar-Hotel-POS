@@ -42,6 +42,25 @@ class LodgingModuleEnabled(BasePermission):
         return "lodging" in get_tenant_staff_modules(request.tenant)
 
 
+class CanViewLodging(BasePermission):
+    message = "Your role cannot view lodging records."
+
+    def has_permission(self, request, view):
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in (
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+                MembershipRole.SITE_MANAGER,
+                MembershipRole.OUTLET_MANAGER,
+                MembershipRole.FRONT_DESK,
+                MembershipRole.ACCOUNTANT,
+            )
+        )
+
+
 class CanManageLodging(BasePermission):
     message = "Your role cannot modify lodging records."
 
@@ -92,7 +111,7 @@ class CanManageFolioPayments(BasePermission):
 
 
 class RoomTypeViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, LodgingModuleEnabled, CanViewLodging]
     serializer_class = RoomTypeSerializer
 
     def get_permissions(self):
@@ -127,7 +146,7 @@ class RoomTypeViewSet(viewsets.ModelViewSet):
 
 
 class RoomViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, LodgingModuleEnabled, CanViewLodging]
     serializer_class = RoomSerializer
 
     def get_permissions(self):
@@ -168,7 +187,7 @@ class RoomViewSet(viewsets.ModelViewSet):
 
 
 class ReservationViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, LodgingModuleEnabled, CanViewLodging]
     serializer_class = ReservationSerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
 
@@ -284,7 +303,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
 
 class RoomRateWindowViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, LodgingModuleEnabled, CanViewLodging]
     serializer_class = RoomRateWindowSerializer
     http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
 
@@ -324,7 +343,7 @@ class RoomRateWindowViewSet(viewsets.ModelViewSet):
 
 
 class FolioViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, LodgingModuleEnabled, CanViewLodging]
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_permissions(self):

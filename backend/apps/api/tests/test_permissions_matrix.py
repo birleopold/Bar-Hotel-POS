@@ -94,6 +94,40 @@ class ApiPermissionMatrixTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json().get("error", {}).get("code"), "tenant_forbidden")
 
+    def test_floor_staff_cannot_read_inventory_events_or_lodging_apis(self) -> None:
+        settings = self.tenant.settings
+        settings.business_lines = ["supermarket", "events", "lodging"]
+        settings.enabled_staff_modules = [
+            "pos", "inventory", "purchasing", "finance",
+            "events", "lodging", "workspace",
+        ]
+        settings.save(update_fields=["business_lines", "enabled_staff_modules", "updated_at"])
+
+        server = User.objects.create_user(
+            email="scope-server@test.local", password="TestPass9!"
+        )
+        membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site_allowed)
+        membership.outlets.add(self.outlet)
+        headers = self._auth(server, tenant_id=self.tenant.id)
+
+        for url in (
+            "/api/v1/stock/balances/",
+            "/api/v1/events/spaces/",
+            "/api/v1/lodging/rooms/",
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url, **headers)
+                self.assertEqual(response.status_code, 403)
+
+        headers = self._auth(self.accountant, tenant_id=self.tenant.id)
+        inventory = self.client.get("/api/v1/stock/balances/", **headers)
+        self.assertEqual(inventory.status_code, 200)
+
     def test_floor_staff_cannot_read_finance_api(self) -> None:
         server = User.objects.create_user(
             email="finance-server@test.local", password="TestPass9!"

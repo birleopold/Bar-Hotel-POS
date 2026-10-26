@@ -19,7 +19,7 @@ from .services_journey import create_event_quote, change_event_quote_status, rec
 
 
 class EventSpaceViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, EventsModuleEnabled, CanViewEvents]
     serializer_class = EventSpaceSerializer
 
     def get_permissions(self):
@@ -48,7 +48,7 @@ class EventSpaceViewSet(viewsets.ModelViewSet):
 
 
 class EventBookingViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, EventsModuleEnabled, CanViewEvents]
     serializer_class = EventBookingSerializer
     http_method_names = ["get", "post", "patch", "head", "options"]
 
@@ -136,6 +136,25 @@ class EventsModuleEnabled(BasePermission):
 
     def has_permission(self, request, view):
         return _events_enabled(request.tenant)
+
+
+class CanViewEvents(BasePermission):
+    message = "Your role cannot view event records."
+
+    def has_permission(self, request, view):
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in (
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+                MembershipRole.SITE_MANAGER,
+                MembershipRole.OUTLET_MANAGER,
+                MembershipRole.FRONT_DESK,
+                MembershipRole.ACCOUNTANT,
+            )
+        )
 
 
 class CanManageEvents(BasePermission):
