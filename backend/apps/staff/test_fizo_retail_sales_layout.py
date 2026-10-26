@@ -292,7 +292,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         services = (root.parent / "pos/services/orders.py").read_text(encoding="utf-8")
         view = (root / "views_ops.py").read_text(encoding="utf-8")
         detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
-        checkout = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        checkout = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn('code="refund_required"', services)
         self.assertIn('Refund {locked_o.currency} {excess:.2f} before applying this reduction.', services)
         self.assertIn('"refund_required": refund_required', view)
@@ -303,7 +303,7 @@ class RetailSalesLandingTests(SimpleTestCase):
     def test_barcode_and_product_errors_share_read_only_recovery(self):
         root = Path(__file__).resolve().parent
         js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
-        scan = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        scan = js
         self.assertIn("window.retailShowCheckoutRecovery=showCheckoutRecovery", js)
         self.assertIn("showCheckoutRecovery(live,error)", js)
         self.assertIn("window.retailShowCheckoutRecovery(scanStatus, error)", scan)
@@ -543,7 +543,7 @@ class RetailSalesLandingTests(SimpleTestCase):
 
     def test_dynamic_payment_and_cash_controls_bind_independently(self):
         checkout = (Path(__file__).resolve().parent /
-                    "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+                    "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn(
             'paymentForm && paymentForm.dataset.retailPaymentBound !== "1"',
             checkout,
@@ -568,7 +568,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         root = Path(__file__).resolve().parent
         css = (root / "static/staff/retail-cashier.css").read_text(encoding="utf-8")
         detail = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
-        checkout = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        checkout = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         view = (root / "views_ops.py").read_text(encoding="utf-8")
         self.assertIn("min-height:184px", css)
         self.assertIn("height:106px", css)
@@ -639,8 +639,8 @@ class RetailSalesLandingTests(SimpleTestCase):
 
         self.assertNotIn("If the customer gives less than the amount due", supermarket)
         self.assertNotIn("The cash-received figure is not the sale amount", supermarket)
-        self.assertIn("Partial cash. Save this amount, then collect or hold the balance.", supermarket)
-        self.assertIn("Change ready.", supermarket)
+        self.assertIn("Partial cash. Save this amount, then collect or hold the balance.", js)
+        self.assertIn("Change ready.", js)
         self.assertIn("{% if is_supermarket_outlet %}Pay{% else %}Record payment{% endif %}", detail)
         self.assertNotIn("Choose a method, confirm the amount, then record the payment.", detail)
 

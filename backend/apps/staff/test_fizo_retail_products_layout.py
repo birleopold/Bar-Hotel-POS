@@ -24,13 +24,13 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("Open shift first", page)
 
     def test_scan_validation_handles_fractional_quantity_precision(self):
-        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn("Math.abs(Math.round(qty * 1000) - qty * 1000) > 0.000001", source)
         self.assertNotIn("Math.round(qty * 1000) !== qty * 1000", source)
         get_template("staff/order_detail_supermarket.html")
 
     def test_scanner_restores_focus_only_for_the_same_sale_after_redirect(self):
-        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn('var focusKey = "retail-scan-focus:" + window.location.pathname;', source)
         self.assertIn('window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1")', source)
         self.assertIn('window.sessionStorage.removeItem(focusKey)', source)
@@ -39,7 +39,7 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("staff/order_detail_supermarket.html")
 
     def test_basket_quantity_forms_block_duplicate_submits_and_recover_on_back_navigation(self):
-        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn('form.addEventListener("submit", function (event)', source)
         self.assertIn('if (form.dataset.submitting === "1")', source)
         self.assertIn('event.preventDefault()', source)
@@ -51,20 +51,20 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertNotIn('form.dataset.submitting = "1";\\n    if (form.requestSubmit)', source)
 
     def test_payment_button_restores_original_label_on_browser_navigation(self):
-        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn("var paymentSubmitLabel = paymentSubmitButton ? paymentSubmitButton.textContent", source)
         self.assertIn("paymentSubmitButton.textContent = paymentSubmitLabel;", source)
         self.assertIn('paymentSubmitButton.textContent = "Recording payment…";', source)
 
     def test_scanner_stays_available_when_browser_form_validation_fails(self):
-        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         validation = source.index("if (!scanForm.checkValidity()) return;")
         pending = source.index("scanPending = true;", validation)
         self.assertLess(validation, pending)
         self.assertIn('if (scanPending) { event.preventDefault(); return; }', source)
 
     def test_short_cash_tender_prefills_only_partial_payment(self):
-        source = (Path(__file__).resolve().parent / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         short_tender = source.split("if (cents < dueCents) {", 1)[1].split("return;", 1)[0]
         self.assertIn('paymentMethod.value === "cash"', short_tender)
         self.assertIn('paymentAmount.value = (cents / 100).toFixed(2);', short_tender)
