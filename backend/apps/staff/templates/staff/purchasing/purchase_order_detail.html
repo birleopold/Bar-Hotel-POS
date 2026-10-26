@@ -45,7 +45,11 @@
             <input id="receive-all-confirm" type="checkbox" name="verified_physical_delivery" value="yes" required>
             <span>I physically counted and accepted every outstanding item on this purchase order.</span>
           </label>
-          <p class="staff-muted small mb-2">Only use this when everything outstanding was delivered. For shortages, damages, batch codes or expiry dates, use Partial goods received below.</p>
+          <div class="mb-2">
+            <label class="staff-label" for="receive-all-delivery-reference">Supplier delivery reference</label>
+            <input class="staff-input" id="receive-all-delivery-reference" name="delivery_reference" maxlength="128" placeholder="Delivery note or shipment number" required>
+          </div>
+          <p class="staff-muted small mb-2">Only use this when everything outstanding was delivered. The supplier reference prevents the same delivery being recorded twice. For shortages, damages, batch codes or expiry dates, use Partial goods received below.</p>
           <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Receive verified outstanding</button>
         </form>
       {% endif %}

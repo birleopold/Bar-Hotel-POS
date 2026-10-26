@@ -50,6 +50,8 @@ class SupermarketReceiveAllConfirmationTests(TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, 'name="verified_physical_delivery"')
         self.assertContains(page, "I physically counted and accepted")
+        self.assertContains(page, 'name="delivery_reference"')
+        self.assertContains(page, "supplier reference prevents the same delivery being recorded twice")
         response = self.client.post(self.url, {"action": "receive_all"})
         self.assertEqual(response.status_code, 302)
         self.line.refresh_from_db()
@@ -58,11 +60,26 @@ class SupermarketReceiveAllConfirmationTests(TestCase):
         self.assertFalse(StockMovement.objects.filter(tenant=self.tenant).exists())
         self.assertFalse(StockBalance.objects.filter(outlet=self.outlet, menu_item=self.item).exists())
 
+    def test_receive_all_requires_supplier_reference_without_stock_side_effect(self):
+        response = self.client.post(
+            self.url,
+            {"action": "receive_all", "verified_physical_delivery": "yes"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.line.refresh_from_db()
+        self.assertEqual(self.line.quantity_received, Decimal("0"))
+        self.assertFalse(PurchaseReceipt.objects.filter(purchase_order=self.po).exists())
+        self.assertFalse(StockMovement.objects.filter(tenant=self.tenant).exists())
+
     def test_confirmed_receive_all_records_a_single_receipt(self):
         self.assertEqual(
             self.client.post(
                 self.url,
-                {"action": "receive_all", "verified_physical_delivery": "yes"},
+                {
+                    "action": "receive_all",
+                    "verified_physical_delivery": "yes",
+                    "delivery_reference": "DN-1001",
+                },
             ).status_code,
             302,
         )

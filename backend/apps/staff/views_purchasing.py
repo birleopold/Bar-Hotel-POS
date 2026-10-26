@@ -552,6 +552,10 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if request.POST.get("verified_physical_delivery") != "yes":
                 messages.error(request, "Confirm that every outstanding item was physically counted before receiving all.")
                 return redirect("staff-purchasing-order-detail", po_id=po.id)
+            delivery_reference = (request.POST.get("delivery_reference") or "").strip()
+            if not delivery_reference:
+                messages.error(request, "Enter the supplier delivery note or shipment reference before receiving all.")
+                return redirect("staff-purchasing-order-detail", po_id=po.id)
             po_fresh = (
                 PurchaseOrder.objects.filter(pk=po.pk)
                 .prefetch_related("lines__menu_item")
@@ -575,7 +579,7 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     user=request.user,
                     membership=request.tenant_membership,
                     discrepancy_note=(request.POST.get("discrepancy_note") or "").strip(),
-                    delivery_reference=(request.POST.get("delivery_reference") or "").strip(),
+                    delivery_reference=delivery_reference,
                     note=(request.POST.get("receipt_note") or "").strip(),
                 )
             except DRFValidationError as e:
