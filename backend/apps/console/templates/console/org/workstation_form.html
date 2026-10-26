@@ -1,0 +1,29 @@
+{% extends "console/base.html" %}
+{% block title %}Configure workstation{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header">
+    <div>
+      <p class="grocery-setup__eyebrow">Administration / Devices &amp; registers</p>
+      <h1>{% if form.instance.pk %}Edit workstation{% else %}Add workstation{% endif %}</h1>
+      <p class="staff-muted">Assign the register to a section and configure its device labels and browser-approval policy.</p>
+    </div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-workstations' %}">All devices</a>
+  </header>
+  <div class="staff-card">
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="grocery-form-fields">
+        {% for field in form %}
+        <div class="grocery-form-field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}{% for error in field.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}</div>
+        {% endfor %}
+      </div>
+      <div class="grocery-form-footer">
+        <span>Changing the section, active state or pairing policy requires closing any open shift first.</span>
+        <div><button type="submit" class="staff-btn staff-btn--primary">Save workstation</button> <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-workstations' %}">Cancel</a></div>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
