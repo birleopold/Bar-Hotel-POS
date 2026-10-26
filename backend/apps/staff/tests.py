@@ -1702,7 +1702,7 @@ class StaffOrderPaymentTests(TestCase):
         self.assertEqual(self.order.status, OrderStatus.OPEN)
         self.assertFalse(self.order.is_paid)
         self.assertEqual(Payment.objects.filter(order=self.order).count(), 1)
-        self.assertContains(attempt, "Refund all recorded payments")
+        self.assertContains(attempt, "Refund USD 10.00 before void")
 
     def test_mobile_money_is_available_as_a_pos_tender(self) -> None:
         response = self.client.get(

@@ -450,7 +450,7 @@
                   {% if can_record_refund %}
                     <a class="staff-btn staff-btn--ghost staff-btn--touch" href="#retail-refund-controls">Refund {{ order.currency }} {{ refundable_remaining }} before void</a>
                   {% else %}
-                    <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Authorized refund {{ order.currency }} {{ refundable_remaining }} required</button>
+                    <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">{% if is_supermarket_outlet %}Supervisor refund{% else %}Authorized refund{% endif %} {{ order.currency }} {{ refundable_remaining }} required</button>
                   {% endif %}
                 {% elif is_supermarket_outlet and not void_order_form %}
                   <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Manager approval required</button>
