@@ -532,7 +532,7 @@ class ConsoleAccessTests(TestCase):
         response = self.client.get(reverse("console-org-setup"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "grocery-console-body")
-        self.assertContains(response, "Set up your store")
+        self.assertContains(response, "Set up your workspace")
         self.assertNotContains(response, "hospitality-console-body")
 
     def test_org_setup_shows_first_step_when_workspace_empty(self) -> None:
