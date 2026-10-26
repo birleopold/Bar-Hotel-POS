@@ -446,11 +446,11 @@
                   <label class="staff-label" for="void_reason">Void all</label>
                   <input class="staff-input mb-2" id="void_reason" name="reason" maxlength="255" placeholder="Reason" autocomplete="off">
                 {% endif %}
-                {% if is_supermarket_outlet and refundable_remaining %}
+                {% if refundable_remaining %}
                   {% if can_record_refund %}
                     <a class="staff-btn staff-btn--ghost staff-btn--touch" href="#retail-refund-controls">Refund {{ order.currency }} {{ refundable_remaining }} before void</a>
                   {% else %}
-                    <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Supervisor refund {{ order.currency }} {{ refundable_remaining }} required</button>
+                    <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Authorized refund {{ order.currency }} {{ refundable_remaining }} required</button>
                   {% endif %}
                 {% elif is_supermarket_outlet and not void_order_form %}
                   <button type="button" class="staff-btn staff-btn--ghost staff-btn--touch" disabled aria-disabled="true">Manager approval required</button>
