@@ -206,6 +206,18 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertNotIn("if (scanPending) { event.preventDefault(); return; }", controller)
         self.assertIn("window.retailEnqueueAddMutation(scanForm, scanStatus", controller)
 
+    def test_fast_basket_quantity_clicks_are_queued_per_line(self):
+        root = Path(__file__).resolve().parent
+        controller = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        self.assertIn("form._retailQtyQueue = []", controller)
+        self.assertIn("form._retailQtyRunning = false", controller)
+        self.assertIn("function enqueueQuantityTarget(target)", controller)
+        self.assertIn('body.set("quantity", String(target))', controller)
+        self.assertIn("form.dataset.projectedQuantity", controller)
+        self.assertIn("form._retailEnqueueQuantityTarget(String(next))", controller)
+        self.assertNotIn('if (form.dataset.submitting === "1")', controller)
+        self.assertNotIn("buttons.forEach(function (button) { button.disabled = true; });", controller)
+
     def test_quick_product_review_and_outlet_scoping(self):
         root = Path(__file__).resolve().parent
         views = (root / 'views_ops.py').read_text(encoding='utf-8')
