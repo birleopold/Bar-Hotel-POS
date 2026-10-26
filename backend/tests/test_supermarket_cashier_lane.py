@@ -1545,8 +1545,12 @@ class SupermarketCashierLaneTests(TestCase):
         if response.context["can_record_payment"]:
             assert b"data-retail-cash-panel" in response.content
             assert b"data-retail-cash-received" in response.content
-            assert b"Number.isSafeInteger(cents)" in response.content
-            assert b"Enter a valid cash amount." in response.content
+            controller = (
+                Path(__file__).resolve().parents[1]
+                / "apps" / "staff" / "static" / "staff" / "retail-counter-v2.js"
+            ).read_text(encoding="utf-8")
+            assert "Number.isSafeInteger(cents)" in controller
+            assert "Enter a valid cash amount." in controller
         if response.context["scan_add_form"]:
             assert b"at most three decimal places" in response.content
             assert b"data-retail-scan-form" in response.content
@@ -1561,8 +1565,12 @@ class SupermarketCashierLaneTests(TestCase):
         if page.context["can_record_payment"]:
             assert b"data-pos-payment-form" in page.content
             assert b'name="payment_request_key"' in page.content
-            assert b"paymentPending" in page.content
-            assert b"Recording payment" in page.content
+            controller = (
+                Path(__file__).resolve().parents[1]
+                / "apps" / "staff" / "static" / "staff" / "retail-counter-v2.js"
+            ).read_text(encoding="utf-8")
+            assert "paymentPending" in controller
+            assert "Recording payment" in controller
 
     def test_invalid_async_quantity_returns_explanation_not_redirect(self):
         from apps.pos.models import OrderLine

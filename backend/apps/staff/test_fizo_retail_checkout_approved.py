@@ -13,6 +13,7 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         root=Path(__file__).resolve().parent
         parent=(root/"templates/staff/order_detail.html").read_text(encoding="utf-8")
         retail=(root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        controller=(root/"static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         cards=(root/"templates/staff/includes/fizo_pos_catalogue.html").read_text(encoding="utf-8")
         self.assertIn("fizo-checkout-catalogue",parent)
         self.assertIn("fizo-checkout-basket",parent)
@@ -20,7 +21,8 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('value="scan_add_line"',retail)
         self.assertIn("retail-fast-checkout",retail)
         self.assertIn("data-retail-scan-form",retail)
-        self.assertIn("scanInput.focus()",retail)
+        self.assertIn("scanInput.focus()",controller)
+        self.assertNotIn("scanInput.focus()",retail)
         self.assertIn("staff-order-quick-create",parent)
         self.assertIn("data-pos-menu-tile",cards)
         self.assertIn('value="add_line"',cards)
@@ -40,7 +42,7 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('value="void_line"', page)
         self.assertIn('name="reason"', page)
         self.assertIn("{% csrf_token %}", page)
-        self.assertIn("data-fizo-step", retail)
+        self.assertIn("data-fizo-step", page)
         self.assertIn("function bindQuantityForms()", controller)
         self.assertIn("form.requestSubmit()", controller)
         self.assertIn('document.addEventListener("retail:basket-lines-replaced", bindQuantityForms)', controller)
@@ -69,9 +71,11 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         for value in ("cash", "card", "mobile_money"):
             self.assertIn('data-fizo-payment-method="' + value + '"', detail)
         retail = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        controller = (root/"static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn('select[name="method"]', retail)
-        self.assertIn("calculateChange()", retail)
-        self.assertIn("paymentMethod.addEventListener", retail)
+        self.assertIn("calculateChange()", controller)
+        self.assertIn("paymentMethod.addEventListener", controller)
+        self.assertNotIn("<script>", retail)
 
 
     def test_basket_totals_are_server_rendered_and_only_retail_style_applies(self):

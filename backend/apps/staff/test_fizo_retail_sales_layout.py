@@ -84,8 +84,9 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('Number(localPayment.value) === Number(previousDue)', controller)
         self.assertIn('remotePayment.value', controller)
         self.assertIn('reconcileFromServer()', controller)
-        self.assertIn('cashPanel.addEventListener("retail:balance-updated"', template)
+        self.assertIn('cashPanel.addEventListener("retail:balance-updated"', controller)
         self.assertNotIn('function bindQuantityForms()', template)
+        self.assertNotIn("<script>", template)
 
     def test_retail_quantity_outlet_denial_returns_forbidden_json(self):
         source = (Path(__file__).resolve().parent /
@@ -141,10 +142,10 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("document.importNode(freshCard,true)", js)
         self.assertIn('new Event("retail:payment-controls-added")', js)
         self.assertIn('function bindRetailPayShortcuts()', js)
-        self.assertIn('function bindRetailPaymentControls()', template)
-        self.assertIn('document.addEventListener("retail:payment-controls-added", bindRetailPaymentControls)', template)
-        self.assertNotIn('var asyncReady=!!(window.fetch&&window.FormData&&paymentForm&&', js)
-        self.assertIn('document.querySelector("#fizo-current-basket .fizo-retail-basket-items") &&', template)
+        self.assertIn('function bindRetailPaymentControls()', js)
+        self.assertIn('document.addEventListener("retail:payment-controls-added", bindRetailPaymentControls)', js)
+        self.assertIn('document.querySelector("#fizo-current-basket .fizo-retail-basket-items") &&', js)
+        self.assertNotIn("<script>", template)
 
     def test_inline_refresh_rejects_incomplete_totals_before_mutating_basket(self):
         js = (Path(__file__).resolve().parent /
@@ -318,8 +319,8 @@ class RetailSalesLandingTests(SimpleTestCase):
         js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn('"ok": True', scan)
         self.assertIn('"ok": False', scan)
-        self.assertIn("window.retailRefreshCheckout()", template)
-        self.assertIn("if (!response.ok || !data.ok)", template)
+        self.assertIn("window.retailRefreshCheckout()", js)
+        self.assertIn("if (!response.ok || !data.ok)", js)
         self.assertIn("window.retailRefreshCheckout=refreshCheckout", js)
         self.assertIn('new Event("retail:basket-lines-replaced")', js)
 
@@ -675,7 +676,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
         self.assertIn("retail-cashier.css' %}?v=20261025.8", supermarket)
-        self.assertIn("retail-counter-v2.js' %}?v=20261026.8", detail)
+        self.assertIn("retail-counter-v2.js' %}?v=20261026.9", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")

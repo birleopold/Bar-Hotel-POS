@@ -1248,4 +1248,266 @@
     }
   });
 
+
+  // Scan, settlement and cash-tender behavior belong to the same modern
+  // checkout controller as add/quantity/refund mutations. This nested scope
+  // prevents variable collisions while keeping one file as the behavior owner.
+  (function () {
+    "use strict";
+  
+    /* The visible header owns search/scan focus and payment-method selection.
+       This wrapper only protects the real authenticated POST forms. */
+    var scanForm = document.querySelector("[data-retail-scan-form]");
+    if (scanForm) {
+      var scanInput = scanForm.querySelector('input[name="code"]');
+      var scanQuantity = scanForm.querySelector('input[name="quantity"]');
+      var scanButton = scanForm.querySelector("[data-retail-scan-submit]");
+      var scanStatus = document.querySelector("[data-retail-scan-status]");
+      var scanPending = false;
+      if (scanInput) {
+        scanInput.setAttribute("aria-label", "Barcode or product lookup code");
+        scanInput.setAttribute("enterkeyhint", "done");
+        // Resume scanner focus after the existing server POST redirects to this basket.
+        // Use only session-scoped state for this exact sale, never a shared register flag.
+        var focusKey = "retail-scan-focus:" + window.location.pathname;
+        try {
+          if (window.sessionStorage.getItem(focusKey) === "1") {
+            window.sessionStorage.removeItem(focusKey);
+            if (!window.matchMedia || window.matchMedia("(pointer: fine)").matches) scanInput.focus();
+          }
+        } catch (ignored) { /* Private browsing may disable storage. */ }
+      }
+      scanForm.addEventListener("submit", function (event) {
+        if (scanPending) { event.preventDefault(); return; }
+        if (!scanInput || !scanInput.value.trim()) {
+          event.preventDefault();
+          if (scanInput) scanInput.focus();
+          if (scanStatus) scanStatus.textContent = "Scan a barcode or type a PLU first.";
+          return;
+        }
+        var qty = scanQuantity ? Number(scanQuantity.value) : 1;
+        if (!Number.isFinite(qty) || qty <= 0 || Math.abs(Math.round(qty * 1000) - qty * 1000) > 0.000001) {
+          event.preventDefault();
+          if (scanQuantity) scanQuantity.focus();
+          if (scanStatus) scanStatus.textContent = "Enter a positive quantity with at most three decimal places.";
+          return;
+        }
+        // Do not lock the scanner when native form constraints prevent submission.
+        if (!scanForm.checkValidity()) return;
+        var inline = !!(window.fetch && window.FormData &&
+          document.querySelector("#fizo-current-basket .fizo-retail-basket-items") &&
+          window.retailRefreshCheckout);
+        if (inline) event.preventDefault();
+        scanPending = true;
+        if (!inline) {
+          try {
+            if (scanInput) window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1");
+          } catch (ignored) { /* Scanning still works without storage. */ }
+        }
+        if (scanButton) scanButton.disabled = true;
+        if (scanStatus) scanStatus.textContent = "Adding item to basket…";
+        if (!inline) return;
+        var csrf = scanForm.querySelector('input[name="csrfmiddlewaretoken"]');
+        fetch(scanForm.getAttribute("action") || window.location.pathname + window.location.search, {
+          method: "POST", body: new FormData(scanForm), credentials: "same-origin",
+          redirect: "follow", headers: {
+            "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf ? csrf.value : ""
+          }
+        }).then(function(response) {
+          if (response.redirected || !(response.headers.get("Content-Type") || "").toLowerCase().includes("application/json"))
+            throw new Error("Checkout session expired or unexpected response.");
+          return response.json().then(function(data) {
+            if (!response.ok || !data.ok) throw new Error(data.message || "Could not add barcode.");
+            return data;
+          });
+        }).then(function() {
+          return window.retailRefreshCheckout();
+        }).then(function() {
+          if (scanStatus) scanStatus.textContent = "Item scanned and basket updated.";
+          if (scanInput) { scanInput.value = ""; scanInput.focus(); }
+        }).catch(function(error) {
+          // A committed scan must not be posted twice after a response failure.
+          if (window.retailShowCheckoutRecovery) {
+            window.retailShowCheckoutRecovery(scanStatus, error);
+          } else if (scanStatus) {
+            scanStatus.textContent = (error.message || "Scan unconfirmed.") +
+              " Reload this sale to verify before scanning again.";
+          }
+        }).then(function() {
+          scanPending = false;
+          if (scanButton) scanButton.disabled = false;
+        });
+      });
+      window.addEventListener("pageshow", function () {
+        scanPending = false;
+        if (scanButton) scanButton.disabled = false;
+      });
+    }
+  
+    function bindRetailPaymentControls() {
+    var paymentForm = document.querySelector("[data-pos-payment-form]");
+    if (paymentForm && paymentForm.dataset.retailPaymentBound !== "1") {
+      paymentForm.dataset.retailPaymentBound = "1";
+      var paymentPending = false;
+      var paymentSubmitButton = paymentForm.querySelector('button[type="submit"]');
+      var paymentSubmitLabel = paymentSubmitButton ? paymentSubmitButton.textContent : "";
+      var paymentStatus = paymentForm.parentNode.querySelector("[data-retail-payment-status]");
+  
+      function unlockPayment() {
+        paymentPending = false;
+        if (paymentSubmitButton) {
+          paymentSubmitButton.disabled = false;
+          paymentSubmitButton.textContent = paymentSubmitLabel;
+        }
+      }
+  
+      paymentForm.addEventListener("submit", function (event) {
+        if (paymentPending) { event.preventDefault(); return; }
+        if (!paymentForm.checkValidity()) return;
+        var inline = !!(window.fetch && window.FormData && window.retailRefreshCheckout);
+        paymentPending = true;
+        if (paymentSubmitButton) {
+          paymentSubmitButton.disabled = true;
+          paymentSubmitButton.textContent = "Recording payment…";
+        }
+        if (!inline) return;
+  
+        event.preventDefault();
+        if (paymentStatus) paymentStatus.textContent = "Recording payment…";
+        var csrf = paymentForm.querySelector('input[name="csrfmiddlewaretoken"]');
+        fetch(paymentForm.getAttribute("action") || window.location.pathname + window.location.search, {
+          method: "POST",
+          body: new FormData(paymentForm),
+          credentials: "same-origin",
+          redirect: "follow",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": csrf ? csrf.value : ""
+          }
+        }).then(function (response) {
+          var type = (response.headers.get("Content-Type") || "").toLowerCase();
+          if (response.redirected || !type.includes("application/json")) {
+            throw new Error("Checkout session changed or returned an unexpected payment response.");
+          }
+          return response.json().then(function (data) {
+            if (!response.ok || !data.ok) {
+              var confirmed = new Error(data.message || "Payment was not recorded.");
+              confirmed.confirmedFailure = true;
+              throw confirmed;
+            }
+            return data;
+          });
+        }).then(function (data) {
+          // Reset tender-only UI before the authoritative GET reconciliation.
+          // Never replay this POST if that reconciliation fails.
+          var panel = document.querySelector("[data-retail-cash-panel]");
+          var oldDue = panel && panel.getAttribute("data-balance-due");
+          var amount = paymentForm.querySelector('input[name="amount"]');
+          if (amount && oldDue != null && Number.isFinite(Number(oldDue))) {
+            amount.value = oldDue;
+          }
+          var tender = panel && panel.querySelector("[data-retail-cash-received]");
+          if (tender) tender.value = "";
+          try {
+            var basket = document.querySelector("#fizo-current-basket");
+            if (basket && basket.dataset.orderId) {
+              localStorage.removeItem("pos:tender:" + basket.dataset.orderId);
+            }
+          } catch (ignored) { /* Payment remains valid without local storage. */ }
+          return window.retailRefreshCheckout().then(function () { return data; });
+        }).then(function (data) {
+          if (paymentStatus && document.documentElement.contains(paymentStatus)) {
+            paymentStatus.textContent = data.message || "Payment recorded.";
+          }
+        }).catch(function (error) {
+          if (error && error.confirmedFailure) {
+            if (paymentStatus) paymentStatus.textContent = error.message;
+            return;
+          }
+          if (window.retailShowCheckoutRecovery) {
+            window.retailShowCheckoutRecovery(paymentStatus, error);
+          } else if (paymentStatus) {
+            paymentStatus.textContent = (error.message || "Payment confirmation unavailable.") +
+              " Reload this sale to verify before trying again.";
+          }
+        }).then(unlockPayment);
+      });
+      window.addEventListener("pageshow", unlockPayment);
+    }
+  
+    var cashPanel = document.querySelector("[data-retail-cash-panel]");
+    if (cashPanel && cashPanel.dataset.retailCashBound !== "1") {
+      cashPanel.dataset.retailCashBound = "1";
+      var received = cashPanel.querySelector("[data-retail-cash-received]");
+      var change = cashPanel.querySelector("[data-retail-change]");
+      var tenderStatus = cashPanel.querySelector("[data-retail-tender-status]");
+      var paymentAction = document.querySelector('form input[name="action"][value="record_payment"]');
+      var realPaymentForm = paymentAction && paymentAction.form;
+      var paymentAmount = realPaymentForm && realPaymentForm.querySelector('input[name="amount"]');
+      var paymentMethod = realPaymentForm && realPaymentForm.querySelector('select[name="method"]');
+      var dueRaw = Number(cashPanel.getAttribute("data-balance-due"));
+      var dueCents = Math.round(dueRaw * 100);
+      function calculateChange() {
+        if (!received || !change || !tenderStatus) return;
+        var raw = received.value.trim();
+        var tender = raw === "" ? NaN : Number(raw);
+        var cents = Math.round(tender * 100);
+        change.textContent = "—";
+        if (!Number.isFinite(dueRaw) || !Number.isFinite(tender) || tender < 0 ||
+            !Number.isSafeInteger(cents) || Math.abs(tender * 100 - cents) > 0.000001) {
+          tenderStatus.textContent = "Enter a valid cash amount.";
+          return;
+        }
+        if (cents < dueCents) {
+          // Partial cash tender is a partial payment, never the full amount due.
+          // Keep the actual payment field consistent with the cashier's tender.
+          if (paymentAmount && paymentMethod && paymentMethod.value === "cash") {
+            paymentAmount.value = (cents / 100).toFixed(2);
+          }
+          tenderStatus.textContent = "Partial cash. Save this amount, then collect or hold the balance.";
+          return;
+        }
+        change.textContent = ((cents - dueCents) / 100).toFixed(2);
+        tenderStatus.textContent = "Change ready.";
+        if (paymentAmount && paymentMethod && paymentMethod.value === "cash") {
+          paymentAmount.value = (dueCents / 100).toFixed(2);
+        }
+      }
+      function publishCustomerTender() {
+        if (!received) return;
+        var amount = received.value.trim() === "" ? NaN : Number(received.value);
+        try {
+          var basket = document.querySelector("#fizo-current-basket");
+          if (!basket || !basket.dataset.orderId) return;
+          var key = "pos:tender:" + basket.dataset.orderId;
+          if (!Number.isFinite(amount) || amount < 0) {
+            localStorage.removeItem(key);
+          } else {
+            localStorage.setItem(key, JSON.stringify({
+              received: amount, due: dueRaw, updated: Date.now()
+            }));
+          }
+        } catch (error) {
+          // Local storage can be unavailable in restricted browsers.
+        }
+      }
+      if (received) received.addEventListener("input", function () {
+        calculateChange();
+        publishCustomerTender();
+      });
+      if (paymentMethod) paymentMethod.addEventListener("change", calculateChange);
+      cashPanel.addEventListener("retail:balance-updated", function () {
+        dueRaw = Number(cashPanel.getAttribute("data-balance-due"));
+        dueCents = Math.round(dueRaw * 100);
+        calculateChange();
+        publishCustomerTender();
+      });
+    }
+  
+    }
+    document.addEventListener("retail:payment-controls-added", bindRetailPaymentControls);
+    bindRetailPaymentControls();
+  
+  }());
+
 })();
