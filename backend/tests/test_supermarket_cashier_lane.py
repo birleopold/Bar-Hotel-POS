@@ -1556,7 +1556,7 @@ class SupermarketCashierLaneTests(TestCase):
             scan_quantity = response.context["scan_add_form"].fields["quantity"]
             assert scan_quantity.decimal_places == 3
             assert scan_quantity.widget.attrs["step"] == "0.001"
-            assert scan_quantity.widget.attrs["min"] == "0.001"
+            assert Decimal(str(scan_quantity.widget.attrs["min"])) == Decimal("0.001")
             assert b"data-retail-scan-form" in response.content
 
     def test_retail_payment_form_has_stable_key_and_double_submit_guard(self):
