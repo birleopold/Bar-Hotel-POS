@@ -11,6 +11,7 @@ class FizoFreshShellTests(SimpleTestCase):
             "static/staff/staff-theme.css",
             "static/staff/staff-command.css",
             "static/staff/staff-density.css",
+            "static/staff/staff-density.js",
             "static/staff/fizo-retail-owner.css",
             "static/staff/fizo-floor-dashboard.css",
             "templates/staff/includes/workbench_sidebar.html",
