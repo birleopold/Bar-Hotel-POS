@@ -188,9 +188,9 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
                 description="Name the staff till or workstation and assign it to a section. Browser pairing can be required.",
                 done=has_workstation,
                 cta_label="Set up workstation",
-                cta_url=reverse("staff-workstation-create"),
+                cta_url=reverse("console-org-workstations"),
                 secondary_cta_label="View devices",
-                secondary_cta_url=reverse("staff-workstations"),
+                secondary_cta_url=reverse("console-org-workstations"),
             )
         )
     if has_inventory_work and has_tracked_stock:
@@ -244,7 +244,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
                 description="Use the device test page and record a real print or scanner observation. A label alone is not proof.",
                 done=has_device_check,
                 cta_label="Open equipment checks",
-                cta_url=reverse("staff-workstations"),
+                cta_url=reverse("console-org-workstations"),
                 required=False,
             )] if has_pos_work else []
         ),
@@ -351,7 +351,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
         ),
         *(
             [{"label": "Named workstation configured",
-              "done": has_workstation, "fix_url": reverse("staff-workstations")}]
+              "done": has_workstation, "fix_url": reverse("console-org-workstations")}]
             if has_pos_work else []
         ),
         {
