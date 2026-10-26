@@ -126,6 +126,14 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("staff_nav.workspace", s)
         self.assertEqual(s.count("{% block "), s.count("{% endblock %}"))
 
+    def test_catalog_import_routes_missing_photos_into_follow_up_queue(self):
+        source = (Path(__file__).resolve().parents[1] / "console/views_catalog_import.py").read_text(encoding="utf-8")
+        self.assertIn('missing_photo_count = MenuItem.objects.filter(', source)
+        self.assertIn('product_image=""', source)
+        self.assertIn('display_image_url=""', source)
+        self.assertIn('reverse("console-org-menu-items") + "?photo=missing"', source)
+        self.assertIn("products still need photos", source)
+
     def test_product_list_can_filter_items_missing_photos(self):
         root = Path(__file__).resolve().parents[1]
         view = (root / "console/views_catalog.py").read_text(encoding="utf-8")

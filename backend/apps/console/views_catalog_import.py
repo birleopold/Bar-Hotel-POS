@@ -190,5 +190,16 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
             entity_type="menu_items", entity_id=str(self.request.tenant.pk),
             payload={"count": count, "source": "setup_csv"},
         )
+        missing_photo_count = MenuItem.objects.filter(
+            tenant=self.request.tenant,
+            product_image="",
+            display_image_url="",
+        ).count()
+        if missing_photo_count:
+            messages.success(
+                self.request,
+                f"Imported {count} items. {missing_photo_count} products still need photos; stock quantities were not changed.",
+            )
+            return redirect(reverse("console-org-menu-items") + "?photo=missing")
         messages.success(self.request, f"Imported {count} items. Stock quantities have not been changed.")
         return redirect("console-org-menu-items")
