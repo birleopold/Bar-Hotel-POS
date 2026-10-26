@@ -38,9 +38,9 @@
       <a href="{% url 'console-org-room-types' %}"><i class="bi bi-house" aria-hidden="true"></i><span><strong>Room types</strong><small>Categories and guest capacity</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       <a href="{% url 'console-org-room-rates' %}"><i class="bi bi-cash-stack" aria-hidden="true"></i><span><strong>Nightly rates</strong><small>Accommodation pricing windows</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       {% endif %}
-      <a href="{% url 'staff-workspace-members' %}"><i class="bi bi-people" aria-hidden="true"></i><span><strong>Staff &amp; permissions</strong><small>Team access and roles</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      <a href="{% url 'console-org-team' %}"><i class="bi bi-people" aria-hidden="true"></i><span><strong>Staff &amp; permissions</strong><small>Team access and roles</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
       {% if console_has_retail or console_has_fnb %}<a href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes" aria-hidden="true"></i><span><strong>Stock</strong><small>Review quantities and stock movements</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>{% endif %}
-      <a href="{% url 'staff-workstations' %}"><i class="bi bi-printer" aria-hidden="true"></i><span><strong>Devices &amp; registers</strong><small>Configure workstations and printers</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+      <a href="{% url 'console-org-workstations' %}"><i class="bi bi-printer" aria-hidden="true"></i><span><strong>Devices &amp; registers</strong><small>Configure workstations and printers</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></a>
     </div>
   </section>
   <section class="staff-card fizo-overview__footer">
