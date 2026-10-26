@@ -3142,6 +3142,33 @@ class StaffInventoryCsvUploadTests(TestCase):
         self.assertTrue(created.track_inventory)
         self.assertTrue(created.is_active)
 
+    def test_inventory_csv_downloads_require_inventory_capability(self) -> None:
+        worker = User.objects.create_user(
+            email="inv-csv-server@test.local", password="TestPass9!"
+        )
+        member = Membership.objects.create(
+            user=worker, tenant=self.tenant, role=MembershipRole.SERVER,
+        )
+        member.sites.add(self.site)
+        member.outlets.add(self.outlet)
+        self.client.force_login(worker)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.id)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.id)
+        session["staff_inventory_upload_error_rows"] = [
+            {"row": "2", "error": "private inventory error", "raw": "secret row"}
+        ]
+        session.save()
+
+        for route in (
+            "staff-inventory-movement-upload-template",
+            "staff-inventory-movement-upload-errors",
+        ):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.url, reverse("staff-dashboard"))
+
     def test_upload_template_csv_downloads(self) -> None:
         r = self.client.get(reverse("staff-inventory-movement-upload-template"))
         self.assertEqual(r.status_code, 200)

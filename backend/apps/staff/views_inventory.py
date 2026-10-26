@@ -482,6 +482,8 @@ class StaffStockMovementUploadView(StaffTenantRequiredMixin, FormView):
 class StaffStockMovementUploadTemplateCsvView(StaffTenantRequiredMixin, FormView):
     """Download CSV template for inventory movement uploads."""
 
+    staff_nav_capability = "inventory"
+
     def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="stock-movement-template.csv"'
@@ -495,6 +497,8 @@ class StaffStockMovementUploadTemplateCsvView(StaffTenantRequiredMixin, FormView
 
 class StaffStockMovementUploadErrorCsvView(StaffTenantRequiredMixin, FormView):
     """Download failed-row error report from latest CSV upload."""
+
+    staff_nav_capability = "inventory"
 
     def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         rows = list(request.session.get(UPLOAD_ERROR_REPORT_SESSION_KEY) or [])
