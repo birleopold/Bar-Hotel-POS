@@ -3439,6 +3439,10 @@ class StaffTableStaffTests(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.tenant = Tenant.objects.create(name="Table Staff Tenant", slug="table-staff-tenant")
+        TenantSettings.objects.update_or_create(
+            tenant=cls.tenant,
+            defaults={"business_lines": ["restaurant"]},
+        )
         cls.site = Site.objects.create(tenant=cls.tenant, name="Main")
         cls.outlet = Outlet.objects.create(
             site=cls.site,
