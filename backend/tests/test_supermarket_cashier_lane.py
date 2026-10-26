@@ -490,14 +490,14 @@ class SupermarketCashierLaneTests(TestCase):
             self.assertEqual(page.status_code, 200)
             self.assertContains(page, "Geisha soap")
             self.assertTrue(item.product_image.name.startswith("products/"))
-            self.assertContains(page, item.product_image.url)
+            self.assertTrue(item.product_image_render_src.startswith("/product-media/"))
             self.assertContains(
                 page,
                 f'<img src="{item.product_image_render_src}"',
                 html=False,
             )
 
-            media = self.client.get(item.product_image.url)
+            media = self.client.get(item.product_image_render_src)
             self.assertEqual(media.status_code, 200)
             self.assertEqual(media["Content-Type"], "image/png")
             self.assertEqual(media["X-Content-Type-Options"], "nosniff")
