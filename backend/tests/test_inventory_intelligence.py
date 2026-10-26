@@ -1,18 +1,21 @@
 """Explainable inventory planning calculations using recorded stock movements."""
 from datetime import timedelta
+from types import SimpleNamespace
 from decimal import Decimal
 
 from django.test import TestCase
 from django.utils import timezone
 
 from apps.catalog.models import MenuCategory, MenuItem
+from apps.console.forms import ConsoleMenuItemForm
 from apps.inventory.batches import InventoryBatch
 from apps.inventory.insights import build_stock_intelligence
 from apps.inventory.models import StockBalance, StockMovement, StockReason
 from apps.purchasing.models import (
     Supplier, PurchaseOrder, PurchaseOrderLine, PurchaseReceipt, PurchaseReceiptLine,
 )
-from apps.tenants.models import Tenant, Site, Outlet, OutletType
+from apps.tenants.models import Tenant, TenantSettings, Site, Outlet, OutletType
+from apps.staff.views_inventory import StaffStockBalanceListView
 
 
 class InventoryIntelligenceTests(TestCase):
@@ -98,3 +101,46 @@ class InventoryIntelligenceTests(TestCase):
             build_stock_intelligence(tenant=other, balances=[self.balance])
         with self.assertRaises(ValueError):
             self.insight(safety_days=40)
+
+
+class InventoryCatalogueVisibilityTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Retail Stock", slug="retail-stock-visibility")
+        TenantSettings.objects.create(
+            tenant=self.tenant,
+            business_lines=["supermarket"],
+            enabled_staff_modules=["pos", "inventory"],
+        )
+        self.site = Site.objects.create(tenant=self.tenant, name="Main")
+        self.outlet = Outlet.objects.create(
+            site=self.site,
+            name="Shop floor",
+            outlet_type=OutletType.SUPERMARKET,
+        )
+        self.category = MenuCategory.objects.create(tenant=self.tenant, name="General")
+
+    def test_tracked_product_without_movement_gets_zero_balance(self):
+        item = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=self.category,
+            name="Geisha",
+            unit_price=Decimal("3500"),
+            track_inventory=True,
+        )
+        self.assertFalse(
+            StockBalance.objects.filter(outlet=self.outlet, menu_item=item).exists()
+        )
+
+        view = StaffStockBalanceListView()
+        view.request = SimpleNamespace(tenant=self.tenant)
+        view._ensure_zero_balances_for_tracked_items(
+            [self.outlet],
+            [self.outlet.id],
+        )
+
+        balance = StockBalance.objects.get(outlet=self.outlet, menu_item=item)
+        self.assertEqual(balance.quantity, Decimal("0"))
+
+    def test_new_supermarket_product_defaults_to_inventory_tracking(self):
+        form = ConsoleMenuItemForm(tenant=self.tenant)
+        self.assertIs(form.fields["track_inventory"].initial, True)
