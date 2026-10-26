@@ -119,6 +119,77 @@ def test_api_cannot_close_order_without_settlement():
 
 
 @pytest.mark.django_db
+def test_closed_checkout_folio_allows_safe_payment_replay_but_rejects_new_money():
+    tenant = Tenant.objects.create(name="Closed Replay Hotel", slug="closed-replay-hotel")
+    TenantSettings.objects.create(tenant=tenant, default_currency="UGX")
+    site = Site.objects.create(tenant=tenant, name="Main property")
+    user = User.objects.create_user(email="closed-replay@example.invalid", password="TestPass9!")
+    room_type = RoomType.objects.create(tenant=tenant, site=site, name="Standard")
+    room = Room.objects.create(room_type=room_type, name="201")
+    reservation = Reservation.objects.create(
+        tenant=tenant,
+        site=site,
+        room=room,
+        guest_name="Replay Guest",
+        check_in=date(2026, 9, 21),
+        check_out=date(2026, 9, 22),
+        status=ReservationStatus.CHECKED_IN,
+    )
+    folio = Folio.objects.create(
+        tenant=tenant,
+        site=site,
+        reservation=reservation,
+        guest_name=reservation.guest_name,
+        currency="UGX",
+    )
+    FolioLine.objects.create(
+        tenant=tenant,
+        folio=folio,
+        description="Room night",
+        amount=Decimal("100000"),
+        tax_amount=Decimal("0"),
+    )
+    payment = record_folio_payment(
+        folio=folio,
+        amount=Decimal("100000"),
+        method="cash",
+        reference="CASH-201",
+        idempotency_key="closed-replay-payment",
+        user=user,
+    )
+    postings_before = CashbookEntry.objects.count()
+
+    checked_out = check_out_reservation(reservation=reservation, user=user)
+    folio.refresh_from_db()
+    assert checked_out.status == ReservationStatus.CHECKED_OUT
+    assert folio.status == FolioStatus.CLOSED
+
+    replay = record_folio_payment(
+        folio=folio,
+        amount=Decimal("100000"),
+        method="cash",
+        reference="CASH-201",
+        idempotency_key="closed-replay-payment",
+        user=user,
+    )
+    assert replay.pk == payment.pk
+    assert CashbookEntry.objects.count() == postings_before
+    assert folio.payments.count() == 1
+
+    with pytest.raises(ValidationError, match="open folio"):
+        record_folio_payment(
+            folio=folio,
+            amount=Decimal("1"),
+            method="cash",
+            reference="CASH-NEW",
+            idempotency_key="closed-replay-new-money",
+            user=user,
+        )
+    assert folio.payments.count() == 1
+    assert CashbookEntry.objects.count() == postings_before
+
+
+@pytest.mark.django_db
 def test_unpaid_folio_blocks_checkout_then_payment_closes_stay_and_posts_income():
     tenant = Tenant.objects.create(name="Settlement Hotel", slug="settlement-hotel")
     TenantSettings.objects.create(tenant=tenant, default_currency="UGX")
