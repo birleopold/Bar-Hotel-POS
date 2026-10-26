@@ -606,16 +606,21 @@ class PlatformTenantControlPlaneView(PlatformOperatorRequiredMixin, TemplateView
             return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
         if "toggle_tenant_access" in request.POST:
             was_active = self.tenant_obj.is_active
+            reason = (request.POST.get("access_reason") or "").strip()
+            if was_active and not reason:
+                messages.error(request, "Give a reason before pausing workspace access.")
+                return redirect("console-platform-tenant-control-plane", tenant_id=self.tenant_obj.id)
             self.tenant_obj.is_active = not was_active
             self.tenant_obj.save(update_fields=["is_active", "updated_at"])
             action = "restored" if self.tenant_obj.is_active else "paused"
             self._event(
                 event_type=BillingEventType.NOTE,
-                message=f"Workspace access {action} by platform operator.",
+                message=reason or f"Workspace access {action} by platform operator.",
                 metadata={
                     "action": "tenant_access_changed",
                     "previous_is_active": was_active,
                     "is_active": self.tenant_obj.is_active,
+                    "reason": reason,
                 },
             )
             messages.success(request, f"Workspace access {action}.")

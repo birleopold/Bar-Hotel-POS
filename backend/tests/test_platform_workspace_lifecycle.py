@@ -55,6 +55,24 @@ class PlatformWorkspaceLifecycleTests(TestCase):
             ).exists()
         )
 
+    def test_workspace_pause_requires_reason_and_preserves_state_when_missing(self):
+        tenant = Tenant.objects.create(name="Pause reason", slug="pause-reason")
+        TenantSettings.objects.create(tenant=tenant)
+        url = reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+
+        response = self.client.post(url, {"toggle_tenant_access": "1"})
+        self.assertRedirects(response, url)
+        tenant.refresh_from_db()
+        self.assertTrue(tenant.is_active)
+
+        response = self.client.post(url, {
+            "toggle_tenant_access": "1",
+            "access_reason": "Customer requested temporary suspension",
+        })
+        self.assertRedirects(response, url)
+        tenant.refresh_from_db()
+        self.assertFalse(tenant.is_active)
+
     def test_control_plane_loads_and_can_create_platform_domain(self):
         tenant = Tenant.objects.create(name="Example Retail", slug="example-retail")
         TenantSettings.objects.create(tenant=tenant)

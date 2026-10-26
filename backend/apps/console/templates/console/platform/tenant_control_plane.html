@@ -13,6 +13,10 @@
     </div>
     <form method="post" onsubmit="return confirm('{% if tenant_obj.is_active %}Pause this workspace? Its data will be kept and access can be restored later.{% else %}Restore access for this workspace?{% endif %}');">
       {% csrf_token %}
+      {% if tenant_obj.is_active %}
+        <label class="staff-label" for="workspace-access-reason">Reason for pause</label>
+        <input class="staff-input mb-2" id="workspace-access-reason" name="access_reason" maxlength="255" required placeholder="Billing, compliance, customer request, or other reason">
+      {% endif %}
       <button type="submit" name="toggle_tenant_access" value="1" class="staff-btn {% if tenant_obj.is_active %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}">{% if tenant_obj.is_active %}Pause workspace{% else %}Restore workspace{% endif %}</button>
     </form>
   </section>
