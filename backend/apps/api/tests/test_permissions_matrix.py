@@ -142,6 +142,37 @@ class ApiPermissionMatrixTests(TestCase):
         )
         self.assertEqual(allowed_to_validate.status_code, 400)
 
+    def test_register_shift_api_matches_pos_read_roles(self) -> None:
+        kitchen = User.objects.create_user(
+            email="kitchen-shifts@test.local", password="TestPass9!"
+        )
+        kitchen_membership = Membership.objects.create(
+            user=kitchen,
+            tenant=self.tenant,
+            role=MembershipRole.KITCHEN,
+        )
+        kitchen_membership.sites.add(self.site_allowed)
+        kitchen_membership.outlets.add(self.outlet)
+        headers = self._auth(kitchen, tenant_id=self.tenant.id)
+
+        denied = self.client.get("/api/v1/pos/shifts/", **headers)
+        self.assertEqual(denied.status_code, 403)
+
+        server = User.objects.create_user(
+            email="server-shifts@test.local", password="TestPass9!"
+        )
+        server_membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        server_membership.sites.add(self.site_allowed)
+        server_membership.outlets.add(self.outlet)
+        headers = self._auth(server, tenant_id=self.tenant.id)
+
+        allowed = self.client.get("/api/v1/pos/shifts/", **headers)
+        self.assertEqual(allowed.status_code, 200)
+
     def test_general_order_api_excludes_kitchen_but_keeps_server_floor_access(self) -> None:
         kitchen = User.objects.create_user(
             email="kitchen-order-api@test.local", password="TestPass9!"

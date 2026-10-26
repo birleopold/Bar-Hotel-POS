@@ -1,9 +1,23 @@
 import uuid
 from rest_framework import serializers, viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from apps.access.outlets import membership_outlet_ids
-from apps.api.permissions import HasTenantContext, NotReadOnlyRole
+from apps.api.permissions import HasTenantContext, HasTenantModule, POS_ORDER_READ_ROLES
 from apps.pos.models import PosShift
+
+
+class CanViewRegisterShifts(BasePermission):
+    """Expose register cash state only to the same roles that can read POS orders."""
+
+    message = "Your role cannot view register shifts."
+
+    def has_permission(self, request, view):
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in POS_ORDER_READ_ROLES
+        )
 
 
 class RegisterShiftSerializer(serializers.ModelSerializer):
@@ -19,7 +33,14 @@ class RegisterShiftSerializer(serializers.ModelSerializer):
 
 class RegisterShiftViewSet(viewsets.ReadOnlyModelViewSet):
     """Clients capture the original shift ID before recording offline tenders."""
-    permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole]
+
+    permission_classes = [
+        IsAuthenticated,
+        HasTenantContext,
+        HasTenantModule,
+        CanViewRegisterShifts,
+    ]
+    required_staff_module = "pos"
     serializer_class = RegisterShiftSerializer
 
     def get_queryset(self):
