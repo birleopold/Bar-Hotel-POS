@@ -19,6 +19,20 @@ from apps.tenants.models import Tenant, TenantDomain, TenantSettings
     TENANT_PLATFORM_DOMAIN="pos.example.test",
 )
 class PlatformWorkspaceLifecycleTests(TestCase):
+    def test_platform_pages_stay_neutral_when_tenant_session_is_stale(self):
+        from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
+        tenant = Tenant.objects.create(name="Fizo Test Tenant", slug="fizo-neutrality")
+        TenantSettings.objects.create(tenant=tenant, business_lines=["supermarket"])
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(tenant.pk)
+        session.save()
+
+        response = self.client.get(reverse("console-platform-tenants"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context["console_active_tenant"])
+        self.assertFalse(response.context["grocery_console_shell"])
+        self.assertFalse(response.context["hospitality_console_shell"])
+
     def setUp(self):
         self.user = get_user_model().objects.create_superuser(
             email="platform-operator@example.test", password="test-password-safe"

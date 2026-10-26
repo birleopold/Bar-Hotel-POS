@@ -18,6 +18,13 @@ def console_nav(request):
     tm = getattr(request, "tenant_membership", None)
     active_tenant = getattr(request, "tenant", None)
     platform_operator = user_is_platform_operator(user) if getattr(user, "is_authenticated", False) else False
+    url_name = getattr(getattr(request, "resolver_match", None), "url_name", "") or ""
+    platform_control_page = platform_operator and url_name.startswith("console-platform-")
+    if platform_control_page:
+        # The platform control plane is the owner's neutral workspace manager.
+        # A previously selected tenant may remain in the shared staff session for
+        # organization administration, but must never brand or scope platform pages.
+        active_tenant = None
     platform_tenants = (
         list(Tenant.objects.filter(is_active=True).order_by("name")) if platform_operator else []
     )
