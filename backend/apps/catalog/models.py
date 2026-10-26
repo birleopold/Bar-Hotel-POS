@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.urls import reverse
 
 from apps.common.models import TimeStampedModel
 
@@ -64,10 +65,20 @@ class MenuItem(TimeStampedModel):
 
     @property
     def product_image_render_src(self):
-        """Cache-safe URL for displaying an uploaded product photo."""
-        src = self.product_image_src
-        if not src or not self.product_image:
-            return src
+        """Cache-safe, app-served URL for displaying an uploaded product photo.
+
+        Do not depend on a reverse proxy's /media/ alias for uploaded product
+        images. The dedicated Django route reads the same canonical MEDIA_ROOT
+        and therefore survives stale or mismatched nginx/Caddy media aliases.
+        """
+        if not self.product_image:
+            return self.display_image_url
+        name = (self.product_image.name or "").lstrip("/")
+        prefix = "products/"
+        if not name.startswith(prefix):
+            return self.product_image.url
+        path = name[len(prefix):]
+        src = reverse("public-product-media-direct", kwargs={"path": path})
         version = int(self.updated_at.timestamp()) if self.updated_at else 0
         separator = "&" if "?" in src else "?"
         return f"{src}{separator}v={version}"

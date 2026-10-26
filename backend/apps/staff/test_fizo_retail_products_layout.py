@@ -160,6 +160,13 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         get_template("console/org/menu_item_form.html")
         get_template("staff/includes/fizo_pos_catalogue.html")
 
+    def test_uploaded_product_photos_use_django_product_media_route(self):
+        model = (Path(__file__).resolve().parents[1] / "catalog/models.py").read_text(encoding="utf-8")
+        urls = (Path(__file__).resolve().parents[2] / "config/urls.py").read_text(encoding="utf-8")
+        self.assertIn('reverse("public-product-media-direct"', model)
+        self.assertIn('path("product-media/<path:path>"', urls)
+        self.assertIn("public_product_media", urls)
+
     def test_uploaded_product_photos_use_cache_safe_render_urls(self):
         model = (Path(__file__).resolve().parents[1] / "catalog/models.py").read_text(encoding="utf-8")
         editor = (Path(__file__).resolve().parents[1] / "console/templates/console/org/menu_item_form.html").read_text(encoding="utf-8")

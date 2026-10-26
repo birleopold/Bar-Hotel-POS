@@ -42,6 +42,9 @@ def public_product_media(request, path):
 
 urlpatterns = [
     path("media/products/<path:path>", public_product_media, name="public-product-media"),
+    # Canonical product-photo route used by rendered UI. Kept outside /media/
+    # so a stale reverse-proxy media alias cannot shadow Django's file handler.
+    path("product-media/<path:path>", public_product_media, name="public-product-media-direct"),
     path("", root_entry, name="root-entry"),
     path("signup/", PublicSignupView.as_view(), name="public-signup"),
     path("password-reset/", StaffPasswordRecoveryRequestView.as_view(), name="staff-password-reset-request"),
