@@ -16,6 +16,13 @@ class FizoInventoryCompletionTests(SimpleTestCase):
         "transfer_receipts.html",
     )
 
+    def test_purchasing_uses_shared_tenant_currency_resolver(self):
+        source = (Path(__file__).resolve().parent / "views_purchasing.py").read_text(encoding="utf-8")
+        self.assertIn("from apps.pos.services import default_currency_for_tenant", source)
+        self.assertIn('ctx["purchase_currency"] = default_currency_for_tenant(self.object.tenant)', source)
+        self.assertIn('ctx["purchase_currency"] = default_currency_for_tenant(self.request.tenant)', source)
+        self.assertNotIn('settings.default_currency if settings else "USD"', source)
+
     def test_all_inventory_templates_compile(self):
         for name in self.names:
             with self.subTest(name=name):

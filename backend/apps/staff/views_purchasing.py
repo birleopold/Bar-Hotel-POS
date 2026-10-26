@@ -13,6 +13,7 @@ from django.views.generic import DetailView, FormView, ListView, UpdateView, Tem
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem
+from apps.pos.services import default_currency_for_tenant
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
@@ -384,8 +385,7 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["legacy_receipt_expenses"] = has_legacy_receipt_expenses(self.object)
         ctx["uncosted_received"] = self.object.lines.filter(quantity_received__gt=0, unit_cost__isnull=True).exists()
         ctx["supplier_payment_methods"] = SupplierPaymentMethod.choices
-        settings = TenantSettings.objects.filter(tenant_id=self.object.tenant_id).first()
-        ctx["purchase_currency"] = settings.default_currency if settings else "USD"
+        ctx["purchase_currency"] = default_currency_for_tenant(self.object.tenant)
         from apps.purchasing.services_exposure import supplier_invoice_settlement_rows
         ctx["invoice_settlement_rows"], ctx["unallocated_supplier_payments"] = supplier_invoice_settlement_rows(po=self.object)
         ctx["supplier_returns"] = self.object.returns_to_supplier.select_related("receipt_line__purchase_order_line__menu_item", "returned_by").all()
@@ -659,8 +659,7 @@ class StaffSupplierBalancesView(StaffTenantRequiredMixin, TemplateView):
         ctx["exposure_rows"] = purchase_order_exposure(
             tenant=self.request.tenant, outlet_ids=ids,
         )
-        settings = TenantSettings.objects.filter(tenant=self.request.tenant).first()
-        ctx["purchase_currency"] = settings.default_currency if settings else "UGX"
+        ctx["purchase_currency"] = default_currency_for_tenant(self.request.tenant)
         ctx["missing_cost_count"] = sum(
             int(row["missing_cost_data"]) for row in ctx["exposure_rows"]
         )
