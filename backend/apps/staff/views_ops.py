@@ -3510,6 +3510,7 @@ class StaffTablesListView(StaffTenantRequiredMixin, ListView):
                     user=request.user,
                 )
                 messages.success(request, f"Check moved to {order.table_label}.")
+                return redirect("staff-tables")
             else:
                 messages.error(request, "Unknown table action.")
                 return redirect("staff-tables")

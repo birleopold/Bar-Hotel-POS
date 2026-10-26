@@ -3,6 +3,12 @@ from pathlib import Path
 from django.test import SimpleTestCase
 
 class FizoHospitalityPOSLayoutTests(SimpleTestCase):
+    def test_table_transfer_keeps_operator_on_floor_view(self):
+        source = (Path(__file__).resolve().parent / "views_ops.py").read_text(encoding="utf-8")
+        transfer = source.split('elif action == "transfer_table":', 1)[1].split("else:", 1)[0]
+        self.assertIn('messages.success(request, f"Check moved to {order.table_label}.")', transfer)
+        self.assertIn('return redirect("staff-tables")', transfer)
+
     def test_order_has_new_menu_and_bill_panes(self):
         root = Path(__file__).resolve().parent
         page = (root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
