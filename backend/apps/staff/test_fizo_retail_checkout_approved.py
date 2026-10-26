@@ -33,6 +33,7 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         root = Path(__file__).resolve().parent
         page = (root/"templates/staff/order_detail.html").read_text(encoding="utf-8")
         retail = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        controller = (root/"static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn("fizo-retail-basket-row", page)
         self.assertIn("data-fizo-qty-form", page)
         self.assertIn('value="adjust_line_qty"', page)
@@ -40,7 +41,10 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn('name="reason"', page)
         self.assertIn("{% csrf_token %}", page)
         self.assertIn("data-fizo-step", retail)
-        self.assertIn("form.requestSubmit()", retail)
+        self.assertIn("function bindQuantityForms()", controller)
+        self.assertIn("form.requestSubmit()", controller)
+        self.assertIn('document.addEventListener("retail:basket-lines-replaced", bindQuantityForms)', controller)
+        self.assertNotIn("function bindQuantityForms()", retail)
 
 
     def test_checkout_entry_is_non_mutating_and_payment_quick_choices(self):

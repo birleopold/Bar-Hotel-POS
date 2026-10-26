@@ -66,24 +66,26 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("{{ order.currency }} {{ r.amount }}", template)
 
     def test_retail_quantity_updates_every_visible_total_and_change_calculator(self):
-        source = (Path(__file__).resolve().parent /
-                  "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+        root = Path(__file__).resolve().parent
+        controller = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
+        template = (root / "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
         # Regression: only updating the old page header left the approved
         # right-side basket, Pay CTA, tender and change calculator stale.
-        self.assertIn('function updateBasketAmounts(values)', source)
-        self.assertIn('updateBasketAmounts(data);', source)
-        self.assertIn('[data-retail-summary="subtotal"] strong', source)
-        self.assertIn('[data-retail-summary="discount"] strong', source)
-        self.assertIn('[data-retail-summary="tax"] strong', source)
-        self.assertIn('[data-retail-summary="total"] strong', source)
-        self.assertIn('.fizo-cashier-pay-cta span', source)
-        self.assertIn('new Event("retail:balance-updated")', source)
-        self.assertIn('cashPanel.addEventListener("retail:balance-updated"', source)
-        self.assertIn('Number(payment.value) === Number(oldDue)', source)
-        self.assertIn('(!enteredCash || !enteredCash.value.trim())', source)
-        self.assertIn('Number(localPayment.value) === Number(previousDue)', source)
-        self.assertIn('remotePayment.value', source)
-        self.assertIn('reconcileFromServer()', source)
+        self.assertIn('function updateBasketAmounts(values)', controller)
+        self.assertIn('updateBasketAmounts(data);', controller)
+        self.assertIn('[data-retail-summary="subtotal"] strong', controller)
+        self.assertIn('[data-retail-summary="discount"] strong', controller)
+        self.assertIn('[data-retail-summary="tax"] strong', controller)
+        self.assertIn('[data-retail-summary="total"] strong', controller)
+        self.assertIn('.fizo-cashier-pay-cta span', controller)
+        self.assertIn('new Event("retail:balance-updated")', controller)
+        self.assertIn('Number(payment.value) === Number(oldDue)', controller)
+        self.assertIn('(!enteredCash || !enteredCash.value.trim())', controller)
+        self.assertIn('Number(localPayment.value) === Number(previousDue)', controller)
+        self.assertIn('remotePayment.value', controller)
+        self.assertIn('reconcileFromServer()', controller)
+        self.assertIn('cashPanel.addEventListener("retail:balance-updated"', template)
+        self.assertNotIn('function bindQuantityForms()', template)
 
     def test_retail_quantity_outlet_denial_returns_forbidden_json(self):
         source = (Path(__file__).resolve().parent /
@@ -351,7 +353,7 @@ class RetailSalesLandingTests(SimpleTestCase):
 
     def test_retail_stepper_reports_redirects_and_http_failures(self):
         source = (Path(__file__).resolve().parent /
-                  "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+                  "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn('redirect: "follow"', source)
         self.assertIn("response.redirected", source)
         self.assertIn('response.headers.get("Content-Type")', source)
@@ -359,7 +361,7 @@ class RetailSalesLandingTests(SimpleTestCase):
 
     def test_retail_stepper_uses_real_form_action_not_shadowed_input(self):
         source = (Path(__file__).resolve().parent /
-                  "templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
+                  "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         # The checkout form includes <input name="action">, which makes
         # form.action resolve to an HTMLInputElement rather than a URL.
         self.assertIn('name="action" value="adjust_line_qty"', (
@@ -673,7 +675,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("background:#e7f8ed;color:#007940;font-weight:800", css)
         self.assertIn("background:#e7f8ed;color:#087a43;font-weight:850", css)
         self.assertIn("retail-cashier.css' %}?v=20261025.8", supermarket)
-        self.assertIn("retail-counter-v2.js' %}?v=20261026.7", detail)
+        self.assertIn("retail-counter-v2.js' %}?v=20261026.8", detail)
 
     def test_dashboard_intro_is_business_and_workspace_specific(self):
         dashboard = (Path(__file__).resolve().parent / "templates/staff/dashboard.html").read_text(encoding="utf-8")
