@@ -44,7 +44,7 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         self.assertIn("{% csrf_token %}", page)
         self.assertIn("data-fizo-step", page)
         self.assertIn("function bindQuantityForms()", controller)
-        self.assertIn("form.requestSubmit()", controller)
+        self.assertIn("form._retailEnqueueQuantityTarget(String(next))", controller)
         self.assertIn('document.addEventListener("retail:basket-lines-replaced", bindQuantityForms)', controller)
         self.assertNotIn("function bindQuantityForms()", retail)
 
@@ -188,13 +188,13 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
         )
         self.assertIn('tile.dataset.retailDirectAdd=direct?"1":"0"', controller)
         self.assertNotIn('tile.addEventListener("click",function(){', controller)
-        self.assertIn("addForm.requestSubmit();", controller)
+        self.assertIn("window.retailEnqueueAddMutation(addForm,live", controller)
 
     def test_rapid_scans_and_direct_adds_are_queued_not_dropped(self):
         root = Path(__file__).resolve().parent
         controller = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn("var retailAddQueue=[];", controller)
-        self.assertIn("function enqueueRetailAdd(form,status,accepted)", controller)
+        self.assertIn("function enqueueRetailAdd(form,status,accepted,overrides)", controller)
         self.assertIn("var body=new FormData(form)", controller)
         self.assertIn("retailAddQueue.push({", controller)
         self.assertIn("drainRetailAddQueue()", controller)

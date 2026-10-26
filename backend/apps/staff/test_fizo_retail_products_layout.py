@@ -41,14 +41,12 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
     def test_basket_quantity_forms_block_duplicate_submits_and_recover_on_back_navigation(self):
         source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         self.assertIn('form.addEventListener("submit", function (event)', source)
-        self.assertIn('if (form.dataset.submitting === "1")', source)
         self.assertIn('event.preventDefault()', source)
-        self.assertIn('form.querySelectorAll("button")', source)
-        self.assertIn('delete form.dataset.submitting', source)
-        self.assertIn('form.requestSubmit();', source)
-        self.assertIn("if (save) save.click();", source)
-        self.assertNotIn("else form.submit();", source)
-        self.assertNotIn('form.dataset.submitting = "1";\\n    if (form.requestSubmit)', source)
+        self.assertIn("form._retailQtyQueue = []", source)
+        self.assertIn("function enqueueQuantityTarget(target)", source)
+        self.assertIn("form._retailEnqueueQuantityTarget(String(next))", source)
+        self.assertNotIn('if (form.dataset.submitting === "1")', source)
+        self.assertNotIn('form.requestSubmit();', source)
 
     def test_payment_button_restores_original_label_on_browser_navigation(self):
         source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
@@ -59,9 +57,10 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
     def test_scanner_stays_available_when_browser_form_validation_fails(self):
         source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         validation = source.index("if (!scanForm.checkValidity()) return;")
-        pending = source.index("scanPending = true;", validation)
-        self.assertLess(validation, pending)
-        self.assertIn('if (scanPending) { event.preventDefault(); return; }', source)
+        enqueue = source.index("window.retailEnqueueAddMutation(scanForm, scanStatus", validation)
+        self.assertLess(validation, enqueue)
+        self.assertNotIn("scanPending = true;", source)
+        self.assertNotIn('if (scanPending) { event.preventDefault(); return; }', source)
 
     def test_short_cash_tender_prefills_only_partial_payment(self):
         source = (Path(__file__).resolve().parent / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")

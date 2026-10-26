@@ -305,8 +305,8 @@ class RetailSalesLandingTests(SimpleTestCase):
         js = (root / "static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
         scan = js
         self.assertIn("window.retailShowCheckoutRecovery=showCheckoutRecovery", js)
-        self.assertIn("showCheckoutRecovery(live,error)", js)
-        self.assertIn("window.retailShowCheckoutRecovery(scanStatus, error)", scan)
+        self.assertIn("showCheckoutRecovery(job.status||live,error)", js)
+        self.assertIn("window.retailEnqueueAddMutation(scanForm, scanStatus", scan)
         self.assertIn("retry.type=\"button\"", js)
         self.assertIn("window.location.reload()", js)
 
@@ -330,7 +330,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn("function showCheckoutRecovery(node,error)", script)
         self.assertIn('retry.type="button"', script)
         self.assertIn('window.location.reload()', script)
-        self.assertIn("showCheckoutRecovery(live,error);", script)
+        self.assertIn("showCheckoutRecovery(job.status||live,error);", script)
 
     def test_retail_product_add_requires_explicit_server_confirmation(self):
         root = Path(__file__).resolve().parent
@@ -358,7 +358,7 @@ class RetailSalesLandingTests(SimpleTestCase):
         self.assertIn('redirect: "follow"', source)
         self.assertIn("response.redirected", source)
         self.assertIn('response.headers.get("Content-Type")', source)
-        self.assertIn("Quantity unchanged.", source)
+        self.assertIn("Could not verify quantity.", source)
 
     def test_retail_stepper_uses_real_form_action_not_shadowed_input(self):
         source = (Path(__file__).resolve().parent /

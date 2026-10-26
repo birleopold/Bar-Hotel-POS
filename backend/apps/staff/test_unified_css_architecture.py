@@ -23,10 +23,12 @@ class UnifiedCssArchitectureTests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, css)
         for route in ("staff-inventory-balances", "staff-purchasing-orders",
-                      "staff-lodging-reservations", "staff-lodging-housekeeping",
-                      "staff-workspace-branding"):
+                      "staff-lodging-reservations", "staff-lodging-housekeeping"):
             with self.subTest(route=route):
                 self.assertIn("u == '" + route + "'", sidebar)
+        self.assertIn("{% url 'console-org' %}", sidebar)
+        self.assertIn("Administration</a>", sidebar)
+        self.assertNotIn("u == 'staff-workspace-branding'", sidebar)
 
     def test_hotel_room_status_uses_shared_design_without_replacing_data(self):
         dashboard = (TEMPLATES / "dashboard.html").read_text(encoding="utf-8")
