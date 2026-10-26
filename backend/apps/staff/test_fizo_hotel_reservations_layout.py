@@ -6,6 +6,16 @@ from django.template.loader import get_template
 
 
 class FizoHotelReservationsLayoutTests(SimpleTestCase):
+    def test_closed_stays_cannot_open_new_folios_and_use_tenant_currency(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_lodging.py").read_text(encoding="utf-8")
+        page = (root / "templates/staff/lodging/reservation_detail.html").read_text(encoding="utf-8")
+        self.assertIn("from apps.pos.services import default_currency_for_tenant", view)
+        self.assertIn("currency=default_currency_for_tenant(res.tenant)", view)
+        self.assertIn("ReservationStatus.CHECKED_OUT", view)
+        self.assertIn("A folio cannot be opened after a stay is cancelled or checked out.", view)
+        self.assertIn("reservation.status != 'cancelled' and reservation.status != 'checked_out'", page)
+
     def test_hotel_pages_never_show_test_tenant_brand(self):
         root = Path(__file__).resolve().parent / "templates/staff/lodging"
         for page in root.glob("*.html"):

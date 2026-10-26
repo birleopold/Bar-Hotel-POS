@@ -32,6 +32,7 @@ from apps.lodging.models import (
     RoomType,
 )
 from apps.audit.services import log_audit
+from apps.pos.services import default_currency_for_tenant
 from .services.customers import visible_customers
 from apps.lodging.services import (
     cancel_reservation,
@@ -385,7 +386,9 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
             return redirect("staff-lodging-reservation-detail", reservation_id=res.id)
 
         if action == "open_folio":
-            if Folio.objects.filter(reservation=res, status=FolioStatus.OPEN).exists():
+            if res.status in {ReservationStatus.CANCELLED, ReservationStatus.CHECKED_OUT}:
+                messages.error(request, "A folio cannot be opened after a stay is cancelled or checked out.")
+            elif Folio.objects.filter(reservation=res, status=FolioStatus.OPEN).exists():
                 messages.error(request, "An open folio already exists for this stay.")
             else:
                 Folio.objects.create(
@@ -394,7 +397,7 @@ class StaffReservationDetailView(StaffTenantRequiredMixin, DetailView):
                     site_id=res.site_id,
                     reservation=res,
                     guest_name=res.guest_name,
-                    currency=getattr(getattr(res.tenant, "settings", None), "default_currency", "USD"),
+                    currency=default_currency_for_tenant(res.tenant),
                     status=FolioStatus.OPEN,
                 )
                 messages.success(request, "Folio opened.")

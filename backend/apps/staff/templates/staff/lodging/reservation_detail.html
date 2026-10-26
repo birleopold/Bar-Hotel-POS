@@ -61,7 +61,7 @@
       {% endif %}
       <form method="post" class="d-inline">
         {% csrf_token %}<input type="hidden" name="action" value="open_folio">
-        {% if reservation.status != 'cancelled' %}
+        {% if reservation.status != 'cancelled' and reservation.status != 'checked_out' %}
           <button type="submit" class="staff-btn staff-btn--ghost">Open folio</button>
         {% endif %}
       </form>
