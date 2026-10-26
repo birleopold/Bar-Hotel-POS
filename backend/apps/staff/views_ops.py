@@ -1067,6 +1067,23 @@ def _can_operate_retail_checkout(membership, order) -> bool:
     )
 
 
+def _can_operate_hospitality_order(membership, order) -> bool:
+    """Assigned front-of-house workers may operate their own hospitality check."""
+    return bool(
+        membership
+        and membership.is_active
+        and membership.role in {MembershipRole.SERVER, MembershipRole.BARTENDER}
+        and order.outlet.outlet_type in {
+            OutletType.RESTAURANT,
+            OutletType.BAR,
+            OutletType.LOUNGE,
+            OutletType.CAFETERIA,
+        }
+        and order.created_by_id == membership.user_id
+        and staff_outlet_allowed_for_membership(membership, order.outlet_id)
+    )
+
+
 class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
     staff_nav_capability = "orders"
     template_name = "staff/order_detail.html"
@@ -1178,7 +1195,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["amount_paid"] = p
         ctx["balance_due"] = b
         can_pay = (
-            (membership_can_modify_lodging(self.request.tenant_membership) or _can_operate_retail_checkout(self.request.tenant_membership, order))
+            (
+                membership_can_modify_lodging(self.request.tenant_membership)
+                or _can_operate_retail_checkout(self.request.tenant_membership, order)
+                or _can_operate_hospitality_order(self.request.tenant_membership, order)
+            )
             and staff_outlet_allowed_for_membership(self.request.tenant_membership, order.outlet_id)
             and order.status == OrderStatus.OPEN
             and not order.is_paid
@@ -1196,7 +1217,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["settlement_station"] = selected_workstation(self.request, outlets=staff_accessible_outlets(self.request.tenant_membership))
         m = self.request.tenant_membership
         can_modify_open = (
-            (membership_can_modify_lodging(m) or _can_operate_retail_checkout(m, order))
+            (
+                membership_can_modify_lodging(m)
+                or _can_operate_retail_checkout(m, order)
+                or _can_operate_hospitality_order(m, order)
+            )
             and staff_outlet_allowed_for_membership(m, order.outlet_id)
             and order.status == OrderStatus.OPEN
             and not order.is_paid
@@ -1629,9 +1654,23 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             "apply_promotion",
             "quick_create_product",
         }
-        if not (membership_can_modify_lodging(m) or (
-            action in cashier_actions and _can_operate_retail_checkout(m, order)
-        )):
+        hospitality_actions = {
+            "add_line",
+            "add_service_line",
+            "adjust_line_qty",
+            "record_payment",
+            "void_line",
+            "apply_promotion",
+            "set_customer",
+        }
+        if not (
+            membership_can_modify_lodging(m)
+            or (action in cashier_actions and _can_operate_retail_checkout(m, order))
+            or (
+                action in hospitality_actions
+                and _can_operate_hospitality_order(m, order)
+            )
+        ):
             if action == "adjust_line_qty" and request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return JsonResponse({"ok": False, "message": "Your role is not allowed to change quantities on this basket."}, status=403)
             messages.error(request, "Your role cannot modify orders or payments.")

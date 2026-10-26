@@ -3543,6 +3543,142 @@ class StaffTableStaffTests(TestCase):
         self.assertContains(floor, order.bill_reference)
         self.assertContains(floor, "Resume check")
 
+    def test_assigned_server_can_add_items_and_take_payment_on_table_check(self) -> None:
+        server = User.objects.create_user(
+            email="tbl-service@test.local",
+            password="TestPass9!",
+        )
+        membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet)
+        category = MenuCategory.objects.create(
+            tenant=self.tenant,
+            name="Restaurant dishes",
+        )
+        dish = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=category,
+            name="Chicken plate",
+            unit_price=Decimal("18000.00"),
+            is_active=True,
+        )
+        table = Table.objects.create(
+            outlet=self.outlet,
+            label="Dining 6",
+            capacity=4,
+        )
+        self._session_tenant_outlet(server)
+        opened = self.client.post(
+            reverse("staff-tables"),
+            {
+                "action": "open_table",
+                "table_id": str(table.pk),
+                "guest_count": "2",
+            },
+        )
+        self.assertEqual(opened.status_code, 302)
+        order = Order.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            table=table,
+            status=OrderStatus.OPEN,
+        )
+        detail_url = reverse(
+            "staff-order-detail",
+            kwargs={"order_id": order.pk},
+        )
+
+        page = self.client.get(detail_url)
+        self.assertEqual(page.status_code, 200)
+        self.assertTrue(page.context["can_modify_open_order"])
+
+        added = self.client.post(
+            detail_url,
+            {
+                "action": "add_line",
+                "menu_item": str(dish.pk),
+                "quantity": "1",
+            },
+        )
+        self.assertEqual(added.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.total, Decimal("18000.00"))
+        self.assertEqual(
+            order.lines.filter(menu_item=dish, is_voided=False).count(),
+            1,
+        )
+
+        paid = self.client.post(
+            detail_url,
+            {
+                "action": "record_payment",
+                "amount": "18000.00",
+                "method": PaymentMethod.CASH,
+            },
+        )
+        self.assertEqual(paid.status_code, 302)
+        order.refresh_from_db()
+        self.assertTrue(order.is_paid)
+        self.assertEqual(order.status, OrderStatus.CLOSED)
+
+    def test_server_cannot_operate_another_servers_hospitality_check(self) -> None:
+        assigned = User.objects.create_user(
+            email="tbl-assigned@test.local",
+            password="TestPass9!",
+        )
+        assigned_membership = Membership.objects.create(
+            user=assigned,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        assigned_membership.sites.add(self.site)
+        assigned_membership.outlets.add(self.outlet)
+        other = User.objects.create_user(
+            email="tbl-other@test.local",
+            password="TestPass9!",
+        )
+        other_membership = Membership.objects.create(
+            user=other,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        other_membership.sites.add(self.site)
+        other_membership.outlets.add(self.outlet)
+        table = Table.objects.create(
+            outlet=self.outlet,
+            label="Dining 7",
+            capacity=4,
+        )
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            table=table,
+            table_label=table.label,
+            created_by=assigned,
+        )
+
+        self._session_tenant_outlet(other)
+        page = self.client.get(
+            reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        )
+        self.assertEqual(page.status_code, 200)
+        self.assertFalse(page.context["can_modify_open_order"])
+        attempt = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": order.pk}),
+            {
+                "action": "record_payment",
+                "amount": "1.00",
+                "method": PaymentMethod.CASH,
+            },
+            follow=True,
+        )
+        self.assertContains(attempt, "Your role cannot modify orders or payments.")
+        self.assertFalse(order.payments.exists())
+
     def test_server_can_transfer_own_check_to_available_table(self) -> None:
         from apps.audit.models import AuditEvent
 
