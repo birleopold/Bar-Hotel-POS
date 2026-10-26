@@ -5,6 +5,16 @@ from django.template.loader import get_template
 from django.urls import reverse
 
 class FizoInventoryWorkflowTests(SimpleTestCase):
+    def test_stock_upload_template_never_suggests_manager_only_writeoff_rows(self):
+        root = Path(__file__).resolve().parent
+        view = (root / "views_inventory.py").read_text(encoding="utf-8")
+        page = (root / "templates/staff/inventory/movement_upload.html").read_text(encoding="utf-8")
+        template_block = view.split("class StaffStockMovementUploadTemplateCsvView", 1)[1].split("class StaffStockMovementUploadErrorCsvView", 1)[0]
+        self.assertNotIn('"waste", "2", "broken bottles"', template_block)
+        self.assertIn('"adjust_in", "6", "opening stock / manual top-up"', template_block)
+        self.assertIn("Download opening-stock template", page)
+        self.assertIn("Write-offs and waste require the individual manager-approved stock movement form.", page)
+
     def test_setup_wizard_uses_canonical_setup_stylesheet(self):
         root = Path(__file__).resolve().parents[1]
         page = (root / "console/templates/console/org/setup_wizard.html").read_text(encoding="utf-8")

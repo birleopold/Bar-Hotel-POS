@@ -7,11 +7,15 @@
 <div class="fizo-inventory fizo-inventory--movement-upload">
 
   {% include "staff/inventory/includes/subnav.html" %}
-  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Import stock movements</h1><p>Upload existing movement rows without changing inventory rules.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
+  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Import stock movements</h1><p>Use this for opening stock, supplier receipts, and other positive stock entries. Write-offs and waste require the individual manager-approved stock movement form.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></header>
   <p class="staff-lead mb-2">
-    <a href="{% url 'staff-inventory-movement-upload-template' %}">Download template</a>
+    <a href="{% url 'staff-inventory-movement-upload-template' %}">Download opening-stock template</a>
     {% if has_error_report %}· <a href="{% url 'staff-inventory-movement-upload-errors' %}">Download last error report</a>{% endif %}
   </p>
+  <div class="staff-card staff-card--soft mb-3">
+    <strong>Opening a new store?</strong>
+    <p class="staff-muted small mb-0">Download the template, identify products by SKU, barcode, item name or ID, enter each starting quantity, and use <code>adjust_in</code> (or choose it as the default reason). Existing sales and historical stock movements are not rewritten.</p>
+  </div>
   <h2 class="fizo-inventory__heading">Upload</h2>
   <form method="post" enctype="multipart/form-data" class="staff-card">
     {% csrf_token %}

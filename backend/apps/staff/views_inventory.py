@@ -490,8 +490,7 @@ class StaffStockMovementUploadTemplateCsvView(StaffTenantRequiredMixin, FormView
         writer = csv.writer(response)
         writer.writerow(["outlet", "outlet_id", "menu_item", "menu_item_id", "sku", "barcode", "reason", "quantity", "note"])
         writer.writerow(["Main Bar", "", "", "", "BEER-001", "", "receive", "24", "supplier delivery"])
-        writer.writerow(["Main Spa", "", "Massage oil", "", "", "", "adjust_in", "6", "manual top-up"])
-        writer.writerow(["Main Bar", "", "", "", "BEER-001", "", "waste", "2", "broken bottles"])
+        writer.writerow(["Main Spa", "", "Massage oil", "", "", "", "adjust_in", "6", "opening stock / manual top-up"])
         return response
 
 
