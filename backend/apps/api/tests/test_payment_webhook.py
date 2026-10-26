@@ -83,10 +83,13 @@ class PaymentProviderWebhookTests(TestCase):
             "apps.api.payment_webhook_views.log_audit",
             side_effect=RuntimeError("audit unavailable"),
         ):
-            with self.assertRaises(RuntimeError):
-                self.client.post(
-                    self.url, payload, content_type="application/json", **self.headers
-                )
+            failed = self.client.post(
+                self.url, payload, content_type="application/json", **self.headers
+            )
+        self.assertEqual(failed.status_code, 500)
+        failed_body = failed.json()
+        self.assertEqual(failed_body["error"]["code"], "server_error")
+        self.assertNotIn("audit unavailable", str(failed_body))
 
         retry = self.client.post(
             self.url, payload, content_type="application/json", **self.headers

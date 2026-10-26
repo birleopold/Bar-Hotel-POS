@@ -37,11 +37,12 @@ class TestCriticalWorkflowGuards:
     def test_jwt_resolves_tenant_context(self):
         token = str(RefreshToken.for_user(self.user).access_token)
         response = self.client.get(
-            "/api/v1/finance/categories/",
+            "/api/v1/tenant/settings/",
             HTTP_AUTHORIZATION="Bearer " + token,
             **self.headers,
         )
         assert response.status_code == 200
+        assert response.data["default_currency"] == "UGX"
 
     def test_server_cannot_read_integration_secrets_or_issue_refund(self):
         IntegrationLink.objects.create(

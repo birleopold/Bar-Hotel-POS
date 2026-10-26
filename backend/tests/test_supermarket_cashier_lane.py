@@ -1,5 +1,6 @@
 """Staff supermarket cashier flow: scan and POST-only next basket."""
 from decimal import Decimal
+from pathlib import Path
 
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext

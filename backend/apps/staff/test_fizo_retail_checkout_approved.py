@@ -72,7 +72,7 @@ class FizoRetailCheckoutApprovedTests(SimpleTestCase):
             self.assertIn('data-fizo-payment-method="' + value + '"', detail)
         retail = (root/"templates/staff/order_detail_supermarket.html").read_text(encoding="utf-8")
         controller = (root/"static/staff/retail-counter-v2.js").read_text(encoding="utf-8")
-        self.assertIn('select[name="method"]', retail)
+        self.assertIn('select[name="method"]', controller)
         self.assertIn("calculateChange()", controller)
         self.assertIn("paymentMethod.addEventListener", controller)
         self.assertNotIn("<script>", retail)
