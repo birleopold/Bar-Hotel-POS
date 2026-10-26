@@ -3497,6 +3497,89 @@ class StaffTableStaffTests(TestCase):
         self.assertContains(floor, order.bill_reference)
         self.assertContains(floor, "Resume check")
 
+    def test_server_can_transfer_own_check_to_available_table(self) -> None:
+        from apps.audit.models import AuditEvent
+
+        server = User.objects.create_user(email="tbl-move@test.local", password="TestPass9!")
+        membership = Membership.objects.create(
+            user=server, tenant=self.tenant, role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet)
+        source = Table.objects.create(outlet=self.outlet, label="Inside 1", capacity=2)
+        target = Table.objects.create(outlet=self.outlet, label="Patio 2", capacity=4)
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            table=source,
+            table_label=source.label,
+            created_by=server,
+        )
+        self._session_tenant_outlet(server)
+
+        floor = self.client.get(reverse("staff-tables"))
+        self.assertContains(floor, "Move check")
+        self.assertContains(floor, "Patio 2")
+
+        moved = self.client.post(
+            reverse("staff-tables"),
+            {
+                "action": "transfer_table",
+                "order_id": str(order.pk),
+                "target_table_id": str(target.pk),
+            },
+        )
+        self.assertEqual(moved.status_code, 302)
+        self.assertEqual(
+            moved.url,
+            reverse("staff-order-detail", kwargs={"order_id": order.pk}),
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.table_id, target.pk)
+        self.assertEqual(order.table_label, "Patio 2")
+        event = AuditEvent.objects.get(
+            tenant=self.tenant,
+            action="order.table_transferred",
+            entity_id=str(order.pk),
+        )
+        self.assertEqual(event.payload["from_table_id"], str(source.pk))
+        self.assertEqual(event.payload["to_table_id"], str(target.pk))
+
+    def test_table_transfer_refuses_occupied_destination(self) -> None:
+        server = User.objects.create_user(email="tbl-busy@test.local", password="TestPass9!")
+        membership = Membership.objects.create(
+            user=server, tenant=self.tenant, role=MembershipRole.SERVER,
+        )
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet)
+        source = Table.objects.create(outlet=self.outlet, label="Source", capacity=2)
+        target = Table.objects.create(outlet=self.outlet, label="Busy", capacity=4)
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, table=source,
+            table_label=source.label, created_by=server,
+        )
+        other = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, table=target,
+            table_label=target.label, created_by=server,
+        )
+        self._session_tenant_outlet(server)
+
+        response = self.client.post(
+            reverse("staff-tables"),
+            {
+                "action": "transfer_table",
+                "order_id": str(order.pk),
+                "target_table_id": str(target.pk),
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already has an open check")
+        order.refresh_from_db()
+        other.refresh_from_db()
+        self.assertEqual(order.table_id, source.pk)
+        self.assertEqual(other.table_id, target.pk)
+
     def test_server_cannot_take_over_another_servers_table(self) -> None:
         first_server = User.objects.create_user(email="table-a@test.local", password="TestPass9!")
         first_membership = Membership.objects.create(

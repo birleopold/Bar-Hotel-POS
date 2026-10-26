@@ -183,6 +183,117 @@ def open_or_resume_table_order(
     return order, False
 
 
+@transaction.atomic
+def transfer_table_order(
+    *,
+    tenant_id,
+    outlet: Outlet,
+    order_id,
+    target_table_id,
+    membership: Membership,
+    user,
+) -> Order:
+    """Move an open hospitality check to a vacant table in the same section."""
+    if (
+        membership is None
+        or not membership.is_active
+        or membership.tenant_id != tenant_id
+        or membership.user_id != user.pk
+        or membership.role not in HOSPITALITY_TABLE_OPERATOR_ROLES
+    ):
+        raise ValidationError({"table": "Your role cannot transfer table checks."})
+    if (
+        outlet.site.tenant_id != tenant_id
+        or not outlet.is_active
+        or outlet.outlet_type not in HOSPITALITY_OUTLET_TYPES
+        or not outlet_belongs_to_membership(membership, outlet.pk)
+    ):
+        raise ValidationError({"table": "This check is not in an accessible hospitality section."})
+
+    order = (
+        Order.objects.select_for_update()
+        .select_related("table", "created_by")
+        .filter(
+            pk=order_id,
+            tenant_id=tenant_id,
+            outlet_id=outlet.pk,
+            status=OrderStatus.OPEN,
+        )
+        .first()
+    )
+    if order is None or order.table_id is None:
+        raise ValidationError({"table": "Choose an open table check to transfer."})
+    if order.is_paid:
+        raise ValidationError({"table": "A paid check cannot be moved to another table."})
+    if (
+        membership.role not in HOSPITALITY_TABLE_MANAGER_ROLES
+        and order.created_by_id != user.pk
+    ):
+        raise ValidationError({
+            "table": "Only the assigned server or a manager can transfer this table."
+        })
+
+    source_id = order.table_id
+    if str(source_id) == str(target_table_id):
+        return order
+
+    # Lock both table rows in deterministic UUID order to avoid opposite
+    # transfers deadlocking each other.
+    lock_ids = sorted([source_id, target_table_id], key=str)
+    locked_tables = list(
+        Table.objects.select_for_update()
+        .select_related("outlet", "outlet__site")
+        .filter(
+            pk__in=lock_ids,
+            outlet_id=outlet.pk,
+            outlet__site__tenant_id=tenant_id,
+            is_active=True,
+        )
+    )
+    if len(locked_tables) != 2:
+        raise ValidationError({"table": "Choose another active table in this section."})
+    tables_by_id = {table.pk: table for table in locked_tables}
+    source = tables_by_id.get(source_id)
+    target = tables_by_id.get(target_table_id)
+    if source is None or target is None:
+        raise ValidationError({"table": "Source and destination must be in the same section."})
+
+    occupied = (
+        Order.objects.select_for_update()
+        .filter(
+            tenant_id=tenant_id,
+            outlet_id=outlet.pk,
+            table=target,
+            status=OrderStatus.OPEN,
+        )
+        .exclude(pk=order.pk)
+        .exists()
+    )
+    if occupied:
+        raise ValidationError({
+            "table": f"{target.label} already has an open check. Choose an available table."
+        })
+
+    order.table = target
+    order.table_label = target.label
+    order.save(update_fields=["table", "table_label", "updated_at"])
+    log_audit(
+        tenant_id=tenant_id,
+        user_id=user.pk,
+        action="order.table_transferred",
+        entity_type="order",
+        entity_id=str(order.pk),
+        payload={
+            "outlet_id": str(outlet.pk),
+            "from_table_id": str(source.pk),
+            "from_table_label": source.label,
+            "to_table_id": str(target.pk),
+            "to_table_label": target.label,
+        },
+    )
+    return order
+
+
 def resolve_order_create(
     tenant: Tenant,
     membership: Membership,

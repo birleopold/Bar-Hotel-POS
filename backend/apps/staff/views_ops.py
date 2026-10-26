@@ -47,6 +47,7 @@ from apps.pos.services import (
     menu_items_for_outlet_queryset,
     open_pos_shift,
     open_or_resume_table_order,
+    transfer_table_order,
     process_supermarket_line_return,
     shift_cash_snapshot,
     record_order_payment,
@@ -3210,6 +3211,9 @@ class StaffTablesListView(StaffTenantRequiredMixin, ListView):
                     or table.active_order.created_by_id == self.request.user.pk
                 )
             )
+        ctx["available_transfer_table_count"] = sum(
+            1 for table in tables if table.is_active and not table.active_order
+        )
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
@@ -3221,30 +3225,43 @@ class StaffTablesListView(StaffTenantRequiredMixin, ListView):
         if outlet is None:
             messages.error(request, "Select one hospitality section before opening a table.")
             return redirect("staff-tables")
-        if (request.POST.get("action") or "").strip() != "open_table":
-            messages.error(request, "Unknown table action.")
-            return redirect("staff-tables")
+        action = (request.POST.get("action") or "").strip()
         try:
-            table_id = uuid.UUID((request.POST.get("table_id") or "").strip())
+            if action == "open_table":
+                table_id = uuid.UUID((request.POST.get("table_id") or "").strip())
+                order, replay = open_or_resume_table_order(
+                    tenant_id=request.tenant.pk,
+                    outlet=outlet,
+                    table_id=table_id,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                )
+                if replay:
+                    messages.info(request, f"Resuming {order.table_label or 'table'} check.")
+                else:
+                    messages.success(request, f"{order.table_label or 'Table'} check opened.")
+            elif action == "transfer_table":
+                order_id = uuid.UUID((request.POST.get("order_id") or "").strip())
+                target_table_id = uuid.UUID((request.POST.get("target_table_id") or "").strip())
+                order = transfer_table_order(
+                    tenant_id=request.tenant.pk,
+                    outlet=outlet,
+                    order_id=order_id,
+                    target_table_id=target_table_id,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                )
+                messages.success(request, f"Check moved to {order.table_label}.")
+            else:
+                messages.error(request, "Unknown table action.")
+                return redirect("staff-tables")
         except (ValueError, AttributeError):
             messages.error(request, "Choose a valid table.")
             return redirect("staff-tables")
-        try:
-            order, replay = open_or_resume_table_order(
-                tenant_id=request.tenant.pk,
-                outlet=outlet,
-                table_id=table_id,
-                membership=request.tenant_membership,
-                user=request.user,
-            )
         except DRFValidationError as exc:
             for message in _drf_detail_messages(exc.detail):
                 messages.error(request, message)
             return redirect("staff-tables")
-        if replay:
-            messages.info(request, f"Resuming {order.table_label or 'table'} check.")
-        else:
-            messages.success(request, f"{order.table_label or 'Table'} check opened.")
         return redirect("staff-order-detail", order_id=order.pk)
 
 
