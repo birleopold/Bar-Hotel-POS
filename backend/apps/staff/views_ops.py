@@ -1624,8 +1624,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
 
         if not staff_outlet_allowed_for_membership(m, order.outlet_id):
             message = "You cannot modify this order for its outlet."
-            if (action == "adjust_line_qty"
-                    and request.headers.get("X-Requested-With") == "XMLHttpRequest"):
+            if (
+                action in {"adjust_line_qty", "assign_line_seat"}
+                and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            ):
                 return JsonResponse({"ok": False, "message": message}, status=403)
             messages.error(request, message)
             return redirect("staff-order-detail", order_id=order.id)
@@ -1688,8 +1690,16 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 and _can_operate_hospitality_order(m, order)
             )
         ):
-            if action == "adjust_line_qty" and request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return JsonResponse({"ok": False, "message": "Your role is not allowed to change quantities on this basket."}, status=403)
+            if (
+                action in {"adjust_line_qty", "assign_line_seat"}
+                and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            ):
+                message = (
+                    "Your role is not allowed to change item seats on this check."
+                    if action == "assign_line_seat"
+                    else "Your role is not allowed to change quantities on this basket."
+                )
+                return JsonResponse({"ok": False, "message": message}, status=403)
             messages.error(request, "Your role cannot modify orders or payments.")
             return redirect("staff-order-detail", order_id=order.id)
 
@@ -2400,44 +2410,67 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_assign_line_seat(self, request: HttpRequest, order: Order) -> HttpResponse:
+        hospitality_outlets = {
+            OutletType.RESTAURANT,
+            OutletType.BAR,
+            OutletType.LOUNGE,
+            OutletType.CAFETERIA,
+        }
+        async_seat = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            and order.outlet.outlet_type in hospitality_outlets
+        )
+
+        def reject(message: str, *, status: int = 422) -> HttpResponse:
+            if async_seat:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.pk)
+
         if (
-            order.outlet.outlet_type not in {
-                OutletType.RESTAURANT,
-                OutletType.BAR,
-                OutletType.LOUNGE,
-                OutletType.CAFETERIA,
-            }
+            order.outlet.outlet_type not in hospitality_outlets
             or order.service_mode != OrderServiceMode.DINE_IN
         ):
-            messages.error(request, "Seat assignment is available only on dine-in checks.")
-            return redirect("staff-order-detail", order_id=order.pk)
+            return reject(
+                "Seat assignment is available only on dine-in checks.",
+                status=409,
+            )
         try:
             line_id = uuid.UUID((request.POST.get("line_id") or "").strip())
         except (TypeError, ValueError):
-            messages.error(request, "Choose a valid order item.")
-            return redirect("staff-order-detail", order_id=order.pk)
+            return reject("Choose a valid order item.")
         line = OrderLine.objects.filter(
             pk=line_id,
             order=order,
             is_voided=False,
         ).first()
         if line is None:
-            messages.error(request, "That item is no longer on this check.")
-            return redirect("staff-order-detail", order_id=order.pk)
+            return reject("That item is no longer on this check.", status=404)
         try:
-            _, changed = assign_order_line_seat(
+            updated, changed = assign_order_line_seat(
                 order=order,
                 line=line,
                 seat_number=(request.POST.get("seat_number") or "").strip(),
                 user=request.user,
             )
         except DRFValidationError as exc:
-            _flash_drf_validation(request, exc)
-        else:
-            messages.success(
-                request,
-                "Seat updated." if changed else "Seat was already current.",
-            )
+            return reject(" ".join(_drf_detail_messages(exc.detail)))
+
+        message = "Seat updated." if changed else "Seat was already current."
+        if async_seat:
+            return JsonResponse({
+                "ok": True,
+                "message": message,
+                "changed": changed,
+                "line_id": str(updated.pk),
+                "seat_number": updated.seat_number,
+                "seat_label": (
+                    f"Seat {updated.seat_number}"
+                    if updated.seat_number
+                    else "Shared table item"
+                ),
+            })
+        messages.success(request, message)
         return redirect("staff-order-detail", order_id=order.pk)
 
     def _post_adjust_line_quantity(self, request: HttpRequest, order: Order) -> HttpResponse:

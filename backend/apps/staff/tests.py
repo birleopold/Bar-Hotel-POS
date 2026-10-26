@@ -3716,8 +3716,12 @@ class StaffTableStaffTests(TestCase):
                 "line_id": str(line.pk),
                 "seat_number": "3",
             },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
-        self.assertEqual(moved.status_code, 302)
+        self.assertEqual(moved.status_code, 200)
+        self.assertTrue(moved.json()["ok"])
+        self.assertEqual(moved.json()["seat_number"], 3)
+        self.assertEqual(moved.json()["seat_label"], "Seat 3")
         line.refresh_from_db()
         self.assertEqual(line.seat_number, 3)
         event = AuditEvent.objects.get(
@@ -3748,10 +3752,22 @@ class StaffTableStaffTests(TestCase):
                 "line_id": str(line.pk),
                 "seat_number": "",
             },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
-        self.assertEqual(cleared.status_code, 302)
+        self.assertEqual(cleared.status_code, 200)
+        self.assertEqual(cleared.json()["seat_label"], "Shared table item")
         line.refresh_from_db()
         self.assertIsNone(line.seat_number)
+
+        from pathlib import Path
+        staff_root = Path(__file__).resolve().parent
+        detail = (staff_root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        controller = (staff_root / "static/staff/hospitality-order.js").read_text(encoding="utf-8")
+        self.assertIn("data-hospitality-seat-form", detail)
+        self.assertIn("hospitality-order.js", detail)
+        self.assertIn("[data-hospitality-seat-form]", controller)
+        self.assertIn('X-Requested-With":"XMLHttpRequest"', controller)
+        self.assertNotIn("form.submit()", controller)
 
     def test_takeaway_check_rejects_seat_assignment(self) -> None:
         from apps.pos.services import assign_order_line_seat

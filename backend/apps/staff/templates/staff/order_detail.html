@@ -163,7 +163,7 @@
                     <td>
                       {{ line.label }}{% if line.line_discount_amount %} <span class="staff-muted">(disc.)</span>{% endif %}
                       {% if order.service_mode == "dine_in" and order.guest_count %}
-                        <div class="staff-muted small mt-1">{% if line.seat_number %}Seat {{ line.seat_number }}{% else %}Shared table item{% endif %}</div>
+                        <div class="staff-muted small mt-1" data-hospitality-seat-label="{{ line.id }}">{% if line.seat_number %}Seat {{ line.seat_number }}{% else %}Shared table item{% endif %}</div>
                       {% endif %}
                       {% if line.modifiers_snapshot %}
                         <div class="staff-muted small mt-1">
@@ -185,12 +185,13 @@
                       {% endif %}
                       {% if can_modify_open_order %}
                         {% if order.service_mode == "dine_in" and order.guest_count %}
-                        <form method="post" class="staff-pos-line-actions mb-1">
+                        <form method="post" class="staff-pos-line-actions mb-1" data-hospitality-seat-form>
                           {% csrf_token %}
                           <input type="hidden" name="action" value="assign_line_seat">
                           <input type="hidden" name="line_id" value="{{ line.id }}">
                           <input class="staff-input staff-input--pos-qty" type="number" name="seat_number" min="1" max="{{ order.guest_count }}" value="{{ line.seat_number|default_if_none:'' }}" placeholder="Shared" aria-label="Seat for {{ line.label }}">
                           <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Seat</button>
+                          <span class="staff-muted small" role="status" aria-live="polite" data-hospitality-seat-status></span>
                         </form>
                         {% endif %}
                         <form method="post" class="staff-pos-line-actions">
@@ -496,7 +497,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.1"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>
