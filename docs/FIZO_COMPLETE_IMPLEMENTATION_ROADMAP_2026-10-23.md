@@ -462,7 +462,7 @@ Each stylesheet below must be classified **keep as canonical / merge into shared
 | `backend/apps/staff/static/staff/retail-cashier.css` | Find every import/link/selector owner, overlap and cascade specificity; map referenced HTML/JS; consolidate or replace, then eliminate stale references | ☐ Pending |
 | `backend/apps/staff/static/staff/retail-workflows.css` | Find every import/link/selector owner, overlap and cascade specificity; map referenced HTML/JS; consolidate or replace, then eliminate stale references | ☐ Pending |
 | `backend/apps/staff/static/staff/staff-kds-operations.css` | Find every import/link/selector owner, overlap and cascade specificity; map referenced HTML/JS; consolidate or replace, then eliminate stale references | ☐ Pending |
-| `backend/apps/staff/static/staff/staff-workbench.css` | Find every import/link/selector owner, overlap and cascade specificity; map referenced HTML/JS; consolidate or replace, then eliminate stale references | ☐ Pending |
+| `backend/apps/staff/static/staff/staff-workbench.css` | Retired `wb-*` shell stylesheet; current staff/console bases use the unified Fizo shells and emit no `wb-*` structure | ✅ Deleted · no HTML/JS/CSS-import/workflow/test owner; core shell templates contain no `wb-*` markup |
 
 
 ## Exhaustive template audit register (156 tracked HTML files)
