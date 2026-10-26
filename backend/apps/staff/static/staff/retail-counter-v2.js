@@ -706,12 +706,101 @@
     window.addEventListener("pageshow",function(){delete quickForm.dataset.submitting;});
   }
 
+  // Cashiers and barcode scanners can generate mutations much faster than a
+  // network round-trip. Preserve every accepted scan/tap in FIFO order instead
+  // of dropping events behind a single-flight "submitting" flag. POSTs remain
+  // serialized because the server locks the order row, while expensive basket
+  // HTML reconciliation is coalesced until the queue drains.
+  var retailAddQueue=[];
+  var retailAddRunning=false;
+  var retailAddRefreshRunning=false;
+  var retailAddDirty=false;
+
+  function retailAddQueueStatus(node,message){
+    if(!node)return;
+    var waiting=retailAddQueue.length+(retailAddRunning?1:0);
+    node.textContent=message+(waiting>1?" · "+waiting+" items queued":"");
+  }
+
+  function drainRetailAddQueue(){
+    if(retailAddRunning||retailAddRefreshRunning)return;
+    if(!retailAddQueue.length){
+      if(!retailAddDirty)return;
+      retailAddRefreshRunning=true;
+      refreshCheckout().then(function(){
+        retailAddDirty=false;
+        if(live)live.textContent="Basket caught up with all queued items.";
+      }).catch(function(error){
+        showCheckoutRecovery(live,error);
+      }).then(function(){
+        retailAddRefreshRunning=false;
+        if(retailAddQueue.length)drainRetailAddQueue();
+      });
+      return;
+    }
+    var job=retailAddQueue.shift();
+    retailAddRunning=true;
+    retailAddQueueStatus(job.status,"Adding item…");
+    fetch(job.url,{
+      method:"POST",
+      body:job.body,
+      credentials:"same-origin",
+      redirect:"follow",
+      headers:{
+        "X-Requested-With":"XMLHttpRequest",
+        "X-CSRFToken":job.csrf||""
+      }
+    }).then(function(response){
+      if(response.redirected)throw new Error("Checkout session changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected checkout response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){
+          var rejected=new Error(data.message||"Product could not be added.");
+          rejected.serverRejected=true;
+          throw rejected;
+        }
+        return data;
+      });
+    }).then(function(data){
+      retailAddDirty=true;
+      if(job.accepted)job.accepted(data);
+      retailAddRunning=false;
+      drainRetailAddQueue();
+    }).catch(function(error){
+      retailAddRunning=false;
+      // A lost response may follow a committed POST. Stop later queued writes
+      // rather than replaying or reordering them behind an ambiguous mutation.
+      retailAddQueue.length=0;
+      if(error&&error.serverRejected){
+        if(job.status)job.status.textContent=error.message;
+      }else{
+        showCheckoutRecovery(job.status||live,error);
+      }
+    });
+  }
+
+  function enqueueRetailAdd(form,status,accepted){
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    var body=new FormData(form); // snapshot now; later scans may change inputs
+    retailAddQueue.push({
+      url:form.getAttribute("action")||window.location.pathname+window.location.search,
+      body:body,
+      csrf:csrf?csrf.value:"",
+      status:status||live,
+      accepted:accepted||null
+    });
+    retailAddQueueStatus(status||live,"Queued for basket");
+    drainRetailAddQueue();
+  }
+
+  window.retailEnqueueAddMutation=enqueueRetailAdd;
+
   // Django confirms each add and supplies payment controls when an empty
   // basket first becomes payable. Native submission remains a fallback only
   // for browsers without the supported asynchronous checkout APIs.
   if(addForm){
     addForm.addEventListener("submit",function(e){
-      if(addForm.dataset.submitting==="1"){e.preventDefault();return;}
       if(!product||!product.value){
         e.preventDefault();
         if(live)live.textContent="Choose a product before adding it.";
@@ -719,45 +808,14 @@
         return;
       }
       if(!addForm.checkValidity())return;
-      var submit=addForm.querySelector('button[type="submit"]');
-      var previous=submit&&submit.textContent;
       var asyncReady=!!(window.fetch&&window.FormData&&
         document.querySelector("#fizo-current-basket .fizo-retail-basket-items"));
-      addForm.dataset.submitting="1";
-      if(submit){submit.disabled=true;submit.textContent="Adding…";}
-      function unlock(){
-        delete addForm.dataset.submitting;
-        if(submit){submit.disabled=false;submit.textContent=previous||"Add to basket";}
-      }
-      if(!asyncReady){
-        window.addEventListener("pageshow",unlock,{once:true});
-        return;
-      }
+      if(!asyncReady)return;
       e.preventDefault();
-      if(live)live.textContent="Adding item…";
-      var csrf=addForm.querySelector('input[name="csrfmiddlewaretoken"]');
-      var url=addForm.getAttribute("action")||window.location.pathname+window.location.search;
-      fetch(url,{method:"POST",body:new FormData(addForm),credentials:"same-origin",
-        redirect:"follow",headers:{"X-Requested-With":"XMLHttpRequest",
-          "X-CSRFToken":csrf?csrf.value:""}})
-      .then(function(response){
-        if(response.redirected)throw new Error("Checkout session changed or access was redirected.");
-        var type=(response.headers.get("Content-Type")||"").toLowerCase();
-        if(!type.includes("application/json"))throw new Error("Unexpected checkout response.");
-        return response.json().then(function(data){
-          if(!response.ok||!data.ok)throw new Error(data.message||"Product could not be added.");
-          return data;
-        });
-      }).then(function(){
-        return refreshCheckout();
-      }).then(function(){
-        if(live)live.textContent="Item added to basket.";
-      }).catch(function(error){
-        // Never replay a POST whose response was lost: it may have committed.
-        showCheckoutRecovery(live,error);
-      }).then(unlock);
+      enqueueRetailAdd(addForm,live,function(){
+        if(live)retailAddQueueStatus(live,"Item accepted");
+      });
     });
-    window.addEventListener("pageshow",function(){delete addForm.dataset.submitting;});
   }
   document.addEventListener("submit",function(event){
     var form=event.target;
@@ -1415,7 +1473,6 @@
       var scanQuantity = scanForm.querySelector('input[name="quantity"]');
       var scanButton = scanForm.querySelector("[data-retail-scan-submit]");
       var scanStatus = document.querySelector("[data-retail-scan-status]");
-      var scanPending = false;
       if (scanInput) {
         scanInput.setAttribute("aria-label", "Barcode or product lookup code");
         scanInput.setAttribute("enterkeyhint", "done");
@@ -1430,7 +1487,6 @@
         } catch (ignored) { /* Private browsing may disable storage. */ }
       }
       scanForm.addEventListener("submit", function (event) {
-        if (scanPending) { event.preventDefault(); return; }
         if (!scanInput || !scanInput.value.trim()) {
           event.preventDefault();
           if (scanInput) scanInput.focus();
@@ -1450,49 +1506,23 @@
           document.querySelector("#fizo-current-basket .fizo-retail-basket-items") &&
           window.retailRefreshCheckout);
         if (inline) event.preventDefault();
-        scanPending = true;
         if (!inline) {
           try {
             if (scanInput) window.sessionStorage.setItem("retail-scan-focus:" + window.location.pathname, "1");
           } catch (ignored) { /* Scanning still works without storage. */ }
+          return;
         }
-        if (scanButton) scanButton.disabled = true;
-        if (scanStatus) scanStatus.textContent = "Adding item to basket…";
-        if (!inline) return;
-        var csrf = scanForm.querySelector('input[name="csrfmiddlewaretoken"]');
-        fetch(scanForm.getAttribute("action") || window.location.pathname + window.location.search, {
-          method: "POST", body: new FormData(scanForm), credentials: "same-origin",
-          redirect: "follow", headers: {
-            "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf ? csrf.value : ""
-          }
-        }).then(function(response) {
-          if (response.redirected || !(response.headers.get("Content-Type") || "").toLowerCase().includes("application/json"))
-            throw new Error("Checkout session expired or unexpected response.");
-          return response.json().then(function(data) {
-            if (!response.ok || !data.ok) throw new Error(data.message || "Could not add barcode.");
-            return data;
-          });
-        }).then(function() {
-          return window.retailRefreshCheckout();
-        }).then(function() {
-          if (scanStatus) scanStatus.textContent = "Item scanned and basket updated.";
-          if (scanInput) { scanInput.value = ""; scanInput.focus(); }
-        }).catch(function(error) {
-          // A committed scan must not be posted twice after a response failure.
-          if (window.retailShowCheckoutRecovery) {
-            window.retailShowCheckoutRecovery(scanStatus, error);
-          } else if (scanStatus) {
-            scanStatus.textContent = (error.message || "Scan unconfirmed.") +
-              " Reload this sale to verify before scanning again.";
-          }
-        }).then(function() {
-          scanPending = false;
-          if (scanButton) scanButton.disabled = false;
+        if (!window.retailEnqueueAddMutation) return;
+        // Snapshot the scan before clearing the field so the scanner can accept
+        // the next barcode immediately, even while prior writes are in flight.
+        window.retailEnqueueAddMutation(scanForm, scanStatus, function() {
+          if (scanStatus) scanStatus.textContent = "Scan accepted.";
         });
-      });
-      window.addEventListener("pageshow", function () {
-        scanPending = false;
-        if (scanButton) scanButton.disabled = false;
+        if (scanInput) {
+          scanInput.value = "";
+          scanInput.focus();
+        }
+        if (scanQuantity) scanQuantity.value = "1";
       });
     }
   
