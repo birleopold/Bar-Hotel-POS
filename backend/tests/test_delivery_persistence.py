@@ -22,7 +22,10 @@ class DeliveryPersistenceTests(TestCase):
     def setUp(self):
         self.tenant = Tenant.objects.create(name="Delivery Test Company", slug="delivery-company")
         TenantSettings.objects.create(
-            tenant=self.tenant, business_lines=["supermarket"], default_currency="UGX",
+            tenant=self.tenant,
+            business_lines=["supermarket"],
+            default_currency="UGX",
+            enabled_staff_modules=["pos", "workspace", "delivery"],
         )
         self.site = Site.objects.create(tenant=self.tenant, name="Main")
         self.outlet = Outlet.objects.create(

@@ -685,7 +685,10 @@ class ConsoleAccessTests(TestCase):
         page = self.client.get(url)
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Pause workspace")
-        paused = self.client.post(url, {"toggle_tenant_access": "1"})
+        paused = self.client.post(url, {
+            "toggle_tenant_access": "1",
+            "access_reason": "Customer requested temporary suspension",
+        })
         self.assertEqual(paused.status_code, 302)
         self.tenant.refresh_from_db()
         self.assertFalse(self.tenant.is_active)
@@ -693,6 +696,10 @@ class ConsoleAccessTests(TestCase):
         self.assertTrue(pause_event.metadata["previous_is_active"])
         self.assertFalse(pause_event.metadata["is_active"])
         self.assertEqual(pause_event.actor_id, user.id)
+        self.assertEqual(
+            pause_event.metadata["reason"],
+            "Customer requested temporary suspension",
+        )
 
         restored = self.client.post(url, {"toggle_tenant_access": "1"})
         self.assertEqual(restored.status_code, 302)

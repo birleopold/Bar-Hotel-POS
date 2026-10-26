@@ -4128,7 +4128,7 @@ class StaffTableStaffTests(TestCase):
         self.assertEqual(moved.status_code, 302)
         self.assertEqual(
             moved.url,
-            reverse("staff-order-detail", kwargs={"order_id": order.pk}),
+            reverse("staff-tables"),
         )
         order.refresh_from_db()
         self.assertEqual(order.table_id, target.pk)

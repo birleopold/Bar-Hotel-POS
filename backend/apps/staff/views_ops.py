@@ -2113,6 +2113,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         messages.success(request, message)
         return redirect("staff-order-detail", order_id=order.id)
 
+    @staticmethod
     def _payment_request_key(request: HttpRequest) -> str:
         # A rendered payment form carries one stable key. Retries of the same
         # form use the same domain idempotency identity, not a fresh UUID.
