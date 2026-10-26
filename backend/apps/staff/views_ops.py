@@ -24,7 +24,7 @@ from apps.customers.models import Customer
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, ServiceOffering, ServiceOfferingOption
-from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table, Workstation
+from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderServiceMode, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table, Workstation
 from apps.pos.services import (
     adjust_open_order_line_quantity,
     add_line_to_open_order,
@@ -283,6 +283,7 @@ class StaffOrdersListView(StaffTenantRequiredMixin, ListView):
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["quick_create_key"] = uuid.uuid4()
         ctx["quick_hold_key"] = uuid.uuid4()
+        ctx["quick_takeaway_key"] = uuid.uuid4()
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         orders = list(ctx.get("object_list", []))
         attach_order_payment_display(orders)
@@ -664,6 +665,17 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
             messages.error(request, "You cannot create orders for this outlet.")
             return redirect("staff-orders")
         label = ""
+        service_mode = ""
+        if mode == "takeaway":
+            if outlet.outlet_type not in {
+                OutletType.RESTAURANT,
+                OutletType.BAR,
+                OutletType.LOUNGE,
+                OutletType.CAFETERIA,
+            }:
+                messages.error(request, "Takeaway orders are available only in hospitality sections.")
+                return redirect("staff-orders")
+            service_mode = OrderServiceMode.TAKEAWAY
         if mode == "hold":
             label = " ".join((hold_label or "").split())
             if len(label) > Order._meta.get_field("table_label").max_length:
@@ -702,6 +714,7 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
                 created_by=request.user,
                 currency=default_currency_for_tenant(request.tenant),
                 table_label=label,
+                service_mode=service_mode,
                 lines=[],
             )
             if request_key:
@@ -720,8 +733,8 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
         # Preserve that supported alias while rejecting unknown operations.
         if mode == "walkin":
             mode = ""
-        if mode not in {"", "hold"}:
-            messages.error(request, "Invalid sale action. Start a new sale or hold a basket.")
+        if mode not in {"", "hold", "takeaway"}:
+            messages.error(request, "Invalid sale action. Start a new order, takeaway, or held tab.")
             return redirect("staff-orders")
         hold_label = (request.POST.get("hold_label") or "").strip()
         return self._quick_create(request, mode=mode, hold_label=hold_label)

@@ -34,6 +34,14 @@
               <input type="hidden" name="mode" value="hold">
               <button type="submit" class="staff-btn staff-btn--ghost"><i class="bi bi-pause-circle me-2" aria-hidden="true"></i>{% if show_supermarket_lane %}Hold basket{% else %}Held tab{% endif %}</button>
             </form>
+            {% if not show_supermarket_lane %}
+            <form method="post" action="{% url 'staff-order-quick-create' %}" class="d-inline" onsubmit="if (this.dataset.submitting === '1') return false; this.dataset.submitting = '1'; this.querySelector('button[type=submit]').disabled = true;">
+              {% csrf_token %}
+              <input type="hidden" name="quick_create_key" value="{{ quick_takeaway_key }}">
+              <input type="hidden" name="mode" value="takeaway">
+              <button type="submit" class="staff-btn staff-btn--ghost"><i class="bi bi-bag-check me-2" aria-hidden="true"></i>Takeaway</button>
+            </form>
+            {% endif %}
           {% endif %}
           {% if show_supermarket_lane %}
             <a class="staff-btn staff-btn--ghost" href="{% url 'staff-pos-shifts' %}">{% if supermarket_shift_open %}<i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Shift open{% else %}Open shift{% endif %}</a>

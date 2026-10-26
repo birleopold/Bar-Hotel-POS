@@ -2517,6 +2517,47 @@ class StaffOrdersLaneTests(TestCase):
         self.assertEqual(created.table_label, "")
         self.assertIn(str(created.id), r.url)
 
+    def test_quick_create_takeaway_records_service_mode(self) -> None:
+        from apps.pos.models import OrderServiceMode
+
+        before = Order.objects.filter(tenant=self.tenant).count()
+        response = self.client.post(
+            reverse("staff-order-quick-create"),
+            {
+                "mode": "takeaway",
+                "quick_create_key": "70ba9156-7c66-4f43-a809-24c67bd27135",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            Order.objects.filter(tenant=self.tenant).count(),
+            before + 1,
+        )
+        created = Order.objects.filter(tenant=self.tenant).order_by("-created_at").first()
+        self.assertIsNotNone(created)
+        self.assertEqual(created.service_mode, OrderServiceMode.TAKEAWAY)
+        self.assertIsNone(created.table_id)
+        self.assertEqual(created.table_label, "")
+        self.assertIn(str(created.pk), response.url)
+
+        # Same idempotency token resumes the same takeaway check.
+        replay = self.client.post(
+            reverse("staff-order-quick-create"),
+            {
+                "mode": "takeaway",
+                "quick_create_key": "70ba9156-7c66-4f43-a809-24c67bd27135",
+            },
+        )
+        self.assertEqual(replay.status_code, 302)
+        self.assertIn(str(created.pk), replay.url)
+        self.assertEqual(
+            Order.objects.filter(
+                tenant=self.tenant,
+                quick_create_key="70ba9156-7c66-4f43-a809-24c67bd27135",
+            ).count(),
+            1,
+        )
+
     def test_quick_create_new_held_tab_redirects_to_detail(self) -> None:
         before = Order.objects.filter(tenant=self.tenant).count()
         r = self.client.post(
