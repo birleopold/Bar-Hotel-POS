@@ -2407,25 +2407,31 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_add_service_line(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_service = (
+            request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            and order.outlet.outlet_type in {
+                OutletType.RESTAURANT, OutletType.BAR,
+                OutletType.LOUNGE, OutletType.CAFETERIA,
+            }
+        )
+
+        def reject(message, status=422):
+            if async_service:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
         if not _tenant_services_enabled(order.tenant):
-            messages.error(request, "Services are not enabled for this business.")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Services are not enabled for this business.", 409)
         if order.status != OrderStatus.OPEN or order.is_paid:
-            messages.error(
-                request,
-                "Services can only be added to open orders that are not yet paid.",
-            )
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("Services can only be added to open orders that are not yet paid.", 409)
         form = StaffOrderAddServiceForm(
             request.POST,
             tenant_id=order.tenant_id,
             outlet_id=order.outlet_id,
         )
         if not form.is_valid():
-            for fld, err_list in form.errors.items():
-                for err in err_list:
-                    messages.error(request, f"{fld}: {err}")
-            return redirect("staff-order-detail", order_id=order.id)
+            return reject("; ".join(f"{fld}: {err}" for fld, errors in form.errors.items() for err in errors))
         try:
             add_service_to_open_order(
                 order=order,
@@ -2435,8 +2441,12 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 user=request.user,
             )
         except DRFValidationError as exc:
+            if async_service:
+                return reject(" ".join(_drf_detail_messages(exc.detail)), 409)
             _flash_drf_validation(request, exc)
         else:
+            if async_service:
+                return JsonResponse({"ok": True, "message": "Service added."})
             messages.success(request, "Service added.")
         return redirect("staff-order-detail", order_id=order.id)
 

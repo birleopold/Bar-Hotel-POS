@@ -384,13 +384,14 @@
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Service</h2>
           {% include "staff/includes/form_errors_block.html" with form=add_service_form title="Fix service details" %}
-          <form method="post" class="row g-2 align-items-end">
+          <form method="post" class="row g-2 align-items-end" data-hospitality-service-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="add_service_line">
             <div class="col-12 col-md-6">{{ add_service_form.service_offering.label_tag }}{{ add_service_form.service_offering }}</div>
             <div class="col-12 col-md-4">{{ add_service_form.service_option.label_tag }}{{ add_service_form.service_option }}</div>
             <div class="col-6 col-md-2">{{ add_service_form.quantity.label_tag }}{{ add_service_form.quantity }}</div>
             <div class="col-6 col-md-12 col-lg-auto d-flex align-items-end"><button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Add</button></div>
+          <p class="staff-muted small" role="status" aria-live="polite" data-hospitality-service-status></p>
           </form>
         </div>
       {% endif %}
@@ -500,7 +501,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.5"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.6"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>

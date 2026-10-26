@@ -361,6 +361,48 @@
     });
   });
 
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||!form.matches("[data-hospitality-service-form]"))return;
+    if(!(window.fetch&&window.FormData&&window.DOMParser))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var previous=button&&button.textContent;
+    var status=form.querySelector("[data-hospitality-service-status]");
+    if(button){button.disabled=true;button.textContent="Adding…";}
+    if(status)status.textContent="Adding service…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.action||window.location.href,{
+      method:"POST",body:new FormData(form),credentials:"same-origin",redirect:"follow",
+      headers:{"X-Requested-With":"XMLHttpRequest","X-CSRFToken":csrf?csrf.value:""}
+    }).then(function(response){
+      if(response.redirected)throw new Error("Order redirected.");
+      if(!(response.headers.get("Content-Type")||"").includes("application/json"))throw new Error("Unexpected response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){var error=new Error(data.message||"Service rejected.");error.rejected=true;throw error;}
+        return data;
+      });
+    }).then(function(data){
+      return refreshHospitalityCheck().then(function(){return data;});
+    }).then(function(data){
+      form.reset();
+      if(status)status.textContent=data.message||"Service added.";
+    }).catch(function(error){
+      if(error.rejected){if(status)status.textContent=error.message;return;}
+      refreshHospitalityCheck().then(function(){
+        if(status)status.textContent="Check refreshed. Verify service before retrying.";
+      }).catch(function(){
+        if(status)status.textContent="Could not verify addition. Reload check before retrying.";
+      });
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(button){button.disabled=false;button.textContent=previous||"Add service";}
+    });
+  });
+
   window.addEventListener("pageshow",function(){
     document.querySelectorAll("[data-fizo-add-line-form],[data-hospitality-seat-form],[data-hospitality-qty-form],[data-hospitality-void-form],[data-pos-payment-form]").forEach(function(form){
       delete form.dataset.submitting;
