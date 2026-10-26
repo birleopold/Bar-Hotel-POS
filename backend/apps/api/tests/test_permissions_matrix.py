@@ -94,6 +94,54 @@ class ApiPermissionMatrixTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json().get("error", {}).get("code"), "tenant_forbidden")
 
+    def test_offline_sales_sync_uses_same_floor_operator_roles(self) -> None:
+        kitchen = User.objects.create_user(
+            email="kitchen-offline@test.local", password="TestPass9!"
+        )
+        kitchen_membership = Membership.objects.create(
+            user=kitchen,
+            tenant=self.tenant,
+            role=MembershipRole.KITCHEN,
+        )
+        kitchen_membership.sites.add(self.site_allowed)
+        kitchen_membership.outlets.add(self.outlet)
+        headers = self._auth(kitchen, tenant_id=self.tenant.id)
+
+        denied = self.client.post(
+            "/api/v1/pos/offline-sync/",
+            {},
+            format="json",
+            **headers,
+        )
+        self.assertEqual(denied.status_code, 403)
+        batch_denied = self.client.post(
+            "/api/v1/pos/offline-sync/batch/",
+            {"operations": []},
+            format="json",
+            **headers,
+        )
+        self.assertEqual(batch_denied.status_code, 403)
+
+        server = User.objects.create_user(
+            email="server-offline@test.local", password="TestPass9!"
+        )
+        server_membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        server_membership.sites.add(self.site_allowed)
+        server_membership.outlets.add(self.outlet)
+        headers = self._auth(server, tenant_id=self.tenant.id)
+
+        allowed_to_validate = self.client.post(
+            "/api/v1/pos/offline-sync/",
+            {},
+            format="json",
+            **headers,
+        )
+        self.assertEqual(allowed_to_validate.status_code, 400)
+
     def test_general_order_api_excludes_kitchen_but_keeps_server_floor_access(self) -> None:
         kitchen = User.objects.create_user(
             email="kitchen-order-api@test.local", password="TestPass9!"

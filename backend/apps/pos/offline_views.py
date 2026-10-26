@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.api.permissions import HasTenantContext, HasTenantModule, NotReadOnlyRole
+from apps.api.permissions import CanOperatePosSales, HasTenantContext, HasTenantModule, NotReadOnlyRole
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.tenants.models import Outlet
 
@@ -57,7 +57,13 @@ def _resolve_offline_outlet(request: Request, vd: dict) -> Outlet | None:
 
 
 class OfflineQueueSubmitView(APIView):
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [
+        IsAuthenticated,
+        HasTenantContext,
+        HasTenantModule,
+        NotReadOnlyRole,
+        CanOperatePosSales,
+    ]
     required_staff_module = "pos"
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "offline_sync"
@@ -129,7 +135,13 @@ class OfflineQueueBatchSubmitView(APIView):
     **``results[]``**; inspect each **``status_code``**.
     """
 
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, NotReadOnlyRole]
+    permission_classes = [
+        IsAuthenticated,
+        HasTenantContext,
+        HasTenantModule,
+        NotReadOnlyRole,
+        CanOperatePosSales,
+    ]
     required_staff_module = "pos"
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "offline_batch"

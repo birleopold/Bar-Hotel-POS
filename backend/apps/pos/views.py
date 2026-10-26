@@ -7,7 +7,17 @@ from rest_framework.decorators import action
 from rest_framework.permissions import BasePermission, IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
 
-from apps.api.permissions import CanApproveRefunds, CanUseKds, HasTenantContext, HasTenantModule, NotReadOnlyRole
+from apps.accounts.models import MembershipRole
+from apps.api.permissions import (
+    CanApproveRefunds,
+    CanUseKds,
+    HasTenantContext,
+    HasTenantModule,
+    NotReadOnlyRole,
+    POS_ORDER_READ_ROLES,
+    POS_SALES_OPERATOR_ROLES,
+    POS_TABLE_ADMIN_ROLES,
+)
 from apps.access.outlets import membership_outlet_ids
 from apps.audit.services import log_audit
 from .models import Order, OrderLine, Table
@@ -52,32 +62,6 @@ from .services import (
 )
 
 
-POS_ORDER_READ_ROLES = frozenset({
-    MembershipRole.OWNER,
-    MembershipRole.TENANT_ADMIN,
-    MembershipRole.SITE_MANAGER,
-    MembershipRole.OUTLET_MANAGER,
-    MembershipRole.SERVER,
-    MembershipRole.BARTENDER,
-    MembershipRole.ACCOUNTANT,
-    MembershipRole.FRONT_DESK,
-})
-POS_ORDER_WRITE_ROLES = frozenset({
-    MembershipRole.OWNER,
-    MembershipRole.TENANT_ADMIN,
-    MembershipRole.SITE_MANAGER,
-    MembershipRole.OUTLET_MANAGER,
-    MembershipRole.SERVER,
-    MembershipRole.BARTENDER,
-    MembershipRole.FRONT_DESK,
-})
-POS_TABLE_WRITE_ROLES = frozenset({
-    MembershipRole.OWNER,
-    MembershipRole.TENANT_ADMIN,
-    MembershipRole.SITE_MANAGER,
-    MembershipRole.OUTLET_MANAGER,
-})
-
 
 class CanAccessOrderApi(BasePermission):
     message = "Your role cannot use the general order API."
@@ -98,7 +82,7 @@ class CanAccessOrderApi(BasePermission):
             }
         if request.method in SAFE_METHODS:
             return membership.role in POS_ORDER_READ_ROLES
-        return membership.role in POS_ORDER_WRITE_ROLES
+        return membership.role in POS_SALES_OPERATOR_ROLES
 
 
 class CanAccessTableApi(BasePermission):
@@ -110,7 +94,7 @@ class CanAccessTableApi(BasePermission):
             return False
         if request.method in SAFE_METHODS:
             return membership.role in POS_ORDER_READ_ROLES
-        return membership.role in POS_TABLE_WRITE_ROLES
+        return membership.role in POS_TABLE_ADMIN_ROLES
 
 
 class TableViewSet(viewsets.ModelViewSet):
@@ -302,8 +286,6 @@ class OrderViewSet(viewsets.ModelViewSet):
         line, err = order_line_or_error(order, ser.validated_data["line_id"])
         if err:
             return err
-        from apps.accounts.models import MembershipRole
-
         role = request.tenant_membership.role
         bar_stations = {"bar", "drinks", "beverage", "bartender"}
         is_bar_line = (line.kds_station or "").strip().lower() in bar_stations

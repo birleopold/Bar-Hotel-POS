@@ -3,6 +3,47 @@ from rest_framework import permissions
 from apps.accounts.models import MembershipRole
 
 
+POS_ORDER_READ_ROLES = frozenset({
+    MembershipRole.OWNER,
+    MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER,
+    MembershipRole.OUTLET_MANAGER,
+    MembershipRole.SERVER,
+    MembershipRole.BARTENDER,
+    MembershipRole.ACCOUNTANT,
+    MembershipRole.FRONT_DESK,
+})
+POS_SALES_OPERATOR_ROLES = frozenset({
+    MembershipRole.OWNER,
+    MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER,
+    MembershipRole.OUTLET_MANAGER,
+    MembershipRole.SERVER,
+    MembershipRole.BARTENDER,
+    MembershipRole.FRONT_DESK,
+})
+POS_TABLE_ADMIN_ROLES = frozenset({
+    MembershipRole.OWNER,
+    MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER,
+    MembershipRole.OUTLET_MANAGER,
+})
+
+
+class CanOperatePosSales(permissions.BasePermission):
+    """Unsafe online/offline sale mutations require an actual sales operator."""
+
+    message = "Your role cannot operate sales transactions."
+
+    def has_permission(self, request, view) -> bool:
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in POS_SALES_OPERATOR_ROLES
+        )
+
+
 class HasTenantContext(permissions.BasePermission):
     """Requires authenticated user and valid ``X-Tenant-Id`` (middleware sets ``request.tenant``)."""
 
