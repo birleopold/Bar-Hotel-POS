@@ -472,6 +472,14 @@ class ConsoleMenuItemForm(forms.ModelForm):
         self.fields["description"].required = False
         self.fields["tax_rate_percent"].required = False
         self.fields["reorder_level"].required = False
+        if not self.instance.pk:
+            try:
+                from apps.tenants.business_lines import normalize_business_lines
+                lines = set(normalize_business_lines(tenant.settings.business_lines))
+            except Exception:
+                lines = set()
+            if lines & {"retail", "supermarket"}:
+                self.fields["track_inventory"].initial = True
         # Existing owners/API clients can omit this newly optional setting.
         self.fields["units_per_carton"].required = False
 

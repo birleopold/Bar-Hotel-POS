@@ -24,6 +24,17 @@
         <a href="?low_stock=1&amp;q={{ stock_q|urlencode }}"{% if low_stock %} aria-current="page"{% endif %}>Low stock</a>
       </nav>
     </div>
+    {% if untracked_items and not low_stock %}
+      <div class="staff-alert staff-alert--info mb-3">
+        <strong>{{ untracked_items|length }} sellable product{{ untracked_items|length|pluralize }} not tracked in inventory.</strong>
+        <span>They are excluded from stock quantities until stock tracking is enabled.</span>
+        <div class="mt-2">
+          {% for item in untracked_items|slice:":8" %}
+            <a class="staff-btn staff-btn--ghost staff-btn--sm" href="{% url 'console-org-menu-item-edit' item_id=item.id %}">{{ item.name }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
     {% if balances %}
       <div class="fizo-stock__tablewrap">
         <table class="fizo-stock__table">

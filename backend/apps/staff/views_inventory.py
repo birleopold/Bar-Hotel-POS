@@ -104,9 +104,40 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
             return bad
         return super().dispatch(request, *args, **kwargs)
 
+    def _ensure_zero_balances_for_tracked_items(self, outlets, ids):
+        if not ids:
+            return
+        outlet_map = {outlet.id: outlet for outlet in outlets if outlet.id in ids}
+        existing = set(
+            StockBalance.objects.filter(
+                tenant=self.request.tenant,
+                outlet_id__in=ids,
+            ).values_list("outlet_id", "menu_item_id")
+        )
+        missing = []
+        for outlet_id, outlet in outlet_map.items():
+            tracked_ids = menu_items_for_outlet_queryset(
+                self.request.tenant.id, outlet_id
+            ).filter(track_inventory=True).values_list("id", flat=True)
+            for item_id in tracked_ids:
+                key = (outlet_id, item_id)
+                if key not in existing:
+                    missing.append(
+                        StockBalance(
+                            tenant=self.request.tenant,
+                            outlet=outlet,
+                            menu_item_id=item_id,
+                            quantity=Decimal("0"),
+                        )
+                    )
+                    existing.add(key)
+        if missing:
+            StockBalance.objects.bulk_create(missing, ignore_conflicts=True)
+
     def get_queryset(self):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ids = _outlet_filter_ids(self.request, outlets)
+        self._ensure_zero_balances_for_tracked_items(outlets, ids)
         qs = (
             StockBalance.objects.filter(tenant=self.request.tenant, outlet_id__in=ids)
             .select_related("outlet", "outlet__site", "menu_item")
@@ -134,6 +165,16 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
         ctx["low_stock"] = self.request.GET.get("low_stock", "").lower() in ("1", "true", "yes")
         ctx["stock_q"] = self.request.GET.get("q", "").strip()[:80]
         ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
+        visible_untracked = {}
+        selected_ids = _outlet_filter_ids(self.request, ctx["outlets"])
+        for outlet in ctx["outlets"]:
+            if outlet.id not in (selected_ids or []):
+                continue
+            for item in menu_items_for_outlet_queryset(
+                self.request.tenant.id, outlet.id
+            ).filter(track_inventory=False):
+                visible_untracked[item.id] = item
+        ctx["untracked_items"] = sorted(visible_untracked.values(), key=lambda item: item.name.lower())
         return ctx
 
 
