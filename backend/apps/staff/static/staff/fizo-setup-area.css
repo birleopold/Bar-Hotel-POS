@@ -245,3 +245,39 @@
 .fizo-setup-page .setup-hub__shortcut-grid small{font-size:.72rem;color:#7a8b9c}
 @media(max-width:1000px){.fizo-setup-page .setup-hub__grid{grid-template-columns:1fr}.fizo-setup-page .setup-hub__cards--optional{grid-template-columns:repeat(2,minmax(0,1fr))}.fizo-setup-page .setup-hub__shortcuts{grid-template-columns:1fr}}
 @media(max-width:700px){.fizo-setup-page .setup-hub__cards,.fizo-setup-page .setup-hub__cards--optional,.fizo-setup-page .setup-hub__shortcut-grid{grid-template-columns:1fr}.fizo-setup-page .setup-card__checklist ul{grid-template-columns:1fr}.fizo-setup-page .setup-hub__hero-actions{width:100%}.fizo-setup-page .setup-hub__hero-actions .staff-btn{flex:1}.fizo-setup-page .setup-task-card{min-height:0}}
+
+
+/* Consolidated setup board — one card per setup concern, no repeated shortcut panel. */
+.fizo-setup-page .setup-board__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.fizo-setup-page .setup-board__card{padding:20px!important;min-width:0}
+.fizo-setup-page .setup-board__card-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.fizo-setup-page .setup-board__card-head>div{min-width:0;flex:1}
+.fizo-setup-page .setup-board__card-head h2{font-size:1.18rem;font-weight:820;letter-spacing:-.02em;color:#1b3145;margin:.2rem 0 0}
+.fizo-setup-page .setup-board__icon{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:#eaf7ef;color:#07834a;font-size:1.12rem;flex:0 0 42px}
+.fizo-setup-page .setup-board__intro{font-size:.84rem;line-height:1.5;color:#6b7d90;margin:0 0 15px}
+.fizo-setup-page .setup-board__rows{display:grid;gap:9px}
+.fizo-setup-page .setup-board__row{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 0;border-top:1px solid #edf2f5;min-width:0}
+.fizo-setup-page .setup-board__row:first-child{border-top:0}
+.fizo-setup-page .setup-board__row-status{display:grid;place-items:center;color:#8a99a8}
+.fizo-setup-page .setup-board__row.is-done .setup-board__row-status{color:#07864b}
+.fizo-setup-page .setup-board__row.is-blocked .setup-board__row-status{color:#ae4538}
+.fizo-setup-page .setup-board__row-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fizo-setup-page .setup-board__row-copy strong{font-size:.88rem;color:#20364a}
+.fizo-setup-page .setup-board__row-copy small{font-size:.76rem;line-height:1.4;color:#74869a}
+.fizo-setup-page .setup-board__row-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.fizo-setup-page .setup-board__row-actions .staff-btn{min-height:34px;padding:6px 10px;font-size:.75rem}
+.fizo-setup-page .setup-board__row-more{grid-column:2/-1;font-size:.72rem;margin-top:-3px}
+.fizo-setup-page .setup-board__row-more summary{cursor:pointer;color:#7d8d9c;width:max-content}
+.fizo-setup-page .setup-board__row-more form{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.fizo-setup-page .setup-board__row-more button{border:0;background:transparent;color:#087d48;text-decoration:underline;padding:0;font-size:.72rem}
+.fizo-setup-page .setup-board__footer-action{border-top:1px solid #edf2f5;margin-top:12px;padding-top:12px}
+.fizo-setup-page .setup-board__footer-action>a{display:flex;align-items:center;gap:10px;text-decoration:none;color:#20364b;padding:10px;border-radius:10px;background:#f6faf8}
+.fizo-setup-page .setup-board__footer-action>a>i:first-child{color:#07834a}
+.fizo-setup-page .setup-board__footer-action span{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.fizo-setup-page .setup-board__footer-action strong{font-size:.82rem}
+.fizo-setup-page .setup-board__footer-action small{font-size:.72rem;color:#788a9b}
+.fizo-setup-page .setup-board__checks{margin:6px 0 12px}
+.fizo-setup-page .setup-board__rows--compact .setup-board__row{padding:10px 0}
+.fizo-setup-page .setup-board__card--ready .setup-card__note{margin:13px 0 0;padding-top:12px;border-top:1px solid #edf2f5}
+@media(max-width:1000px){.fizo-setup-page .setup-board__grid{grid-template-columns:1fr}}
+@media(max-width:700px){.fizo-setup-page .setup-board__row{grid-template-columns:24px minmax(0,1fr)}.fizo-setup-page .setup-board__row-actions,.fizo-setup-page .setup-board__row-more{grid-column:2}.fizo-setup-page .setup-board__row-actions{justify-content:flex-start}.fizo-setup-page .setup-board__card{padding:15px!important}}

@@ -3,12 +3,12 @@
 {% block title %}Business setup{% endblock %}
 {% block main_class %}staff-main--wide fizo-setup-page{% endblock %}
 {% block content %}
-<section class="setup-hub" aria-labelledby="setup-hub-title">
+<section class="setup-hub setup-board" aria-labelledby="setup-hub-title">
   <header class="setup-hub__hero">
     <div>
       <p class="setup-hub__eyebrow">Business setup</p>
-      <h1 id="setup-hub-title">Get your workspace ready</h1>
-      <p>Configure the essentials once, then manage the details from their own pages. Only setup relevant to this business is shown.</p>
+      <h1 id="setup-hub-title">Set up your workspace</h1>
+      <p>Complete each area once. Settings are grouped by purpose so the same feature does not appear in several places.</p>
     </div>
     <div class="setup-hub__hero-actions">
       <a class="staff-btn staff-btn--ghost" href="{% url 'console-org' %}"><i class="bi bi-arrow-left"></i> Overview</a>
@@ -32,74 +32,41 @@
     <progress value="{{ setup_completion_percent }}" max="100" aria-label="Required setup progress">{{ setup_completion_percent }}%</progress>
   </section>
 
-  <div class="setup-hub__grid">
-    <section class="staff-card setup-card setup-card--profile" id="business-profile-heading" aria-labelledby="setup-profile-title">
-      <div class="setup-card__icon"><i class="bi bi-shop"></i></div>
-      <div class="setup-card__head">
-        <div>
-          <span class="setup-hub__label">1 · Business profile</span>
-          <h2 id="setup-profile-title">What does this business operate?</h2>
-        </div>
+  <div class="setup-board__grid">
+    <section class="staff-card setup-board__card" id="business-profile-heading" aria-labelledby="setup-business-title">
+      <div class="setup-board__card-head">
+        <span class="setup-board__icon"><i class="bi bi-shop"></i></span>
+        <div><span class="setup-hub__label">1 · Business</span><h2 id="setup-business-title">Business profile</h2></div>
       </div>
-      <p class="setup-card__copy">Choose only the business lines this workspace actually uses. This controls navigation, setup steps and staff capabilities.</p>
+      <p class="setup-board__intro">Choose only what this business actually operates. This controls the screens and capabilities staff see.</p>
       {% include "staff/includes/form_errors_block.html" with form=business_profile_form title="Fix the business profile" %}
       <form method="post" class="setup-card__form">
         {% csrf_token %}
         <div class="staff-checklist setup-card__checklist">{{ business_profile_form.business_lines }}</div>
         {% if business_profile_form.business_lines.help_text %}<p class="staff-muted small">{{ business_profile_form.business_lines.help_text }}</p>{% endif %}
-        <div class="setup-card__actions">
-          <button class="staff-btn staff-btn--primary" type="submit">Save business profile</button>
-        </div>
+        <div class="setup-card__actions"><button class="staff-btn staff-btn--primary" type="submit">Save business profile</button></div>
       </form>
     </section>
 
-    <section class="staff-card setup-card setup-card--go-live" aria-labelledby="setup-go-live-title">
-      <div class="setup-card__icon"><i class="bi bi-shield-check"></i></div>
-      <div class="setup-card__head">
-        <div>
-          <span class="setup-hub__label">Go-live</span>
-          <h2 id="setup-go-live-title">Before serving customers</h2>
-        </div>
-        {% if go_live_ready %}<span class="setup-hub__state setup-hub__state--done">Checks passed</span>{% endif %}
+    <section class="staff-card setup-board__card" aria-labelledby="setup-operations-title">
+      <div class="setup-board__card-head">
+        <span class="setup-board__icon"><i class="bi bi-building"></i></span>
+        <div><span class="setup-hub__label">2 · Operations</span><h2 id="setup-operations-title">Locations, products & stock</h2></div>
       </div>
-      <ul class="setup-hub__checks">
-        {% for check in go_live_checks %}
-          <li>
-            <i class="bi {% if check.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}" aria-hidden="true"></i>
-            <span>{{ check.label }}{% if not check.done %} <a href="{{ check.fix_url }}">Fix</a>{% endif %}</span>
-          </li>
-        {% endfor %}
-      </ul>
-      <p class="setup-card__note">Automatic checks cannot prove that a printer, payment provider or local network works. Test real devices before opening.</p>
-    </section>
-  </div>
-
-  <section class="setup-hub__section" aria-labelledby="setup-required-title">
-    <div class="setup-hub__section-head">
-      <div>
-        <span class="setup-hub__label">Core setup</span>
-        <h2 id="setup-required-title">Complete the essentials</h2>
-      </div>
-      <span>Each card has one primary job.</span>
-    </div>
-    <div class="setup-hub__cards">
-      {% for step in setup_steps %}
-        <article class="staff-card setup-task-card{% if step.done %} setup-task-card--done{% elif step.status == 'blocked' %} setup-task-card--blocked{% endif %}">
-          <div class="setup-task-card__top">
-            <span class="setup-task-card__number">{{ forloop.counter }}</span>
-            <span class="setup-hub__state{% if step.done %} setup-hub__state--done{% elif step.status == 'blocked' %} setup-hub__state--blocked{% endif %}">
-              {% if step.done %}<i class="bi bi-check-circle-fill"></i> Done{% elif step.status == 'blocked' %}<i class="bi bi-exclamation-circle"></i> Needs attention{% else %}Pending{% endif %}
-            </span>
-          </div>
-          <h3>{{ step.name }}</h3>
-          <p>{{ step.description }}</p>
-          <div class="setup-task-card__actions">
-            <a class="staff-btn {% if step.done %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}" href="{{ step.cta_url }}">{{ step.cta_label }} <i class="bi bi-arrow-right"></i></a>
-            {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
-          </div>
-          {% if step.required %}
-            <details class="setup-task-card__more">
-              <summary>Step status</summary>
+      <p class="setup-board__intro">Create the places you operate, then the items or services you sell. Inventory steps only appear when relevant.</p>
+      <div class="setup-board__rows">
+        {% for step in setup_steps %}
+          {% if step.key != 'business_profile' and step.key != 'first_workstation' %}
+          <article class="setup-board__row{% if step.done %} is-done{% elif step.status == 'blocked' %} is-blocked{% endif %}">
+            <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% elif step.status == 'blocked' %}bi-exclamation-circle-fill{% else %}bi-circle{% endif %}"></i></span>
+            <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
+            <div class="setup-board__row-actions">
+              <a class="staff-btn {% if step.done %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}" href="{{ step.cta_url }}">{{ step.cta_label }}</a>
+              {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
+            </div>
+            {% if step.required %}
+            <details class="setup-board__row-more">
+              <summary>Status</summary>
               <form method="post" action="{{ setup_action_url }}">
                 {% csrf_token %}
                 <input type="hidden" name="step_key" value="{{ step.key }}">
@@ -108,64 +75,87 @@
                 {% if step.manual_state %}<button name="state" value="" type="submit">Clear flag</button>{% endif %}
               </form>
             </details>
+            {% endif %}
+          </article>
           {% endif %}
-        </article>
-      {% endfor %}
-    </div>
-  </section>
-
-  {% if setup_optional_steps %}
-  <section class="setup-hub__section" aria-labelledby="setup-optional-title">
-    <div class="setup-hub__section-head">
-      <div>
-        <span class="setup-hub__label">Recommended</span>
-        <h2 id="setup-optional-title">Useful when you are ready</h2>
+        {% endfor %}
       </div>
-      <span>Optional — these do not block opening.</span>
-    </div>
-    <div class="setup-hub__cards setup-hub__cards--optional">
-      {% for step in setup_optional_steps %}
-        <article class="staff-card setup-task-card setup-task-card--optional{% if step.done %} setup-task-card--done{% endif %}">
-          <div class="setup-task-card__top">
-            <span class="setup-task-card__icon"><i class="bi {% if step.key == 'first_team_invite' %}bi-person-plus{% elif step.key == 'first_po_received' %}bi-truck{% elif step.key == 'device_test' %}bi-printer{% elif step.key == 'practice_sale' %}bi-calculator{% elif step.key == 'first_paid_order' %}bi-receipt{% elif step.key == 'lodging_basics' %}bi-door-open{% else %}bi-check2-square{% endif %}"></i></span>
-            <span class="setup-hub__state{% if step.done %} setup-hub__state--done{% endif %}">{% if step.done %}Done{% elif step.status == 'skipped' %}Skipped{% else %}Optional{% endif %}</span>
-          </div>
-          <h3>{{ step.name }}</h3>
-          <p>{{ step.description }}</p>
-          <div class="setup-task-card__actions">
-            <a class="staff-btn staff-btn--ghost" href="{{ step.cta_url }}">{{ step.cta_label }}</a>
-            {% if step.secondary_cta_url %}<a class="staff-btn staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}
-          </div>
-          <details class="setup-task-card__more">
-            <summary>Other options</summary>
-            <form method="post" action="{{ setup_action_url }}">
-              {% csrf_token %}
-              <input type="hidden" name="step_key" value="{{ step.key }}">
-              <input type="hidden" name="next" value="{% url 'console-org-setup' %}">
-              <button type="submit" name="state" value="skipped">Skip for now</button>
-              {% if step.manual_state %}<button type="submit" name="state" value="reset">Remove skip</button>{% endif %}
-            </form>
-          </details>
-        </article>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
+      {% if show_catalog_import %}
+      <div class="setup-board__footer-action">
+        <a href="{% url 'console-org-catalog-import' %}"><i class="bi bi-file-earmark-spreadsheet"></i><span><strong>Import products</strong><small>Upload an existing catalogue instead of creating products one by one.</small></span><i class="bi bi-arrow-right"></i></a>
+      </div>
+      {% endif %}
+    </section>
 
-  <section class="staff-card setup-hub__shortcuts" aria-labelledby="setup-shortcuts-title">
-    <div>
-      <span class="setup-hub__label">Manage directly</span>
-      <h2 id="setup-shortcuts-title">Common setup tools</h2>
-      <p>Use these after the guided cards above. They point to the same underlying settings, not duplicate setup features.</p>
-    </div>
-    <div class="setup-hub__shortcut-grid">
-      {% if show_catalog_import %}<a href="{% url 'console-org-catalog-import' %}"><i class="bi bi-file-earmark-spreadsheet"></i><span><strong>Import products</strong><small>CSV catalogue upload</small></span></a>{% endif %}
-      <a href="{% url 'console-org-sites' %}"><i class="bi bi-building"></i><span><strong>Locations & sections</strong><small>Branches and operating areas</small></span></a>
-      <a href="{% url 'staff-workspace-invite-create' %}"><i class="bi bi-people"></i><span><strong>Team & access</strong><small>Invite staff members</small></span></a>
-      <a href="{% url 'staff-workstations' %}"><i class="bi bi-pc-display"></i><span><strong>Devices</strong><small>Registers, printers and scanners</small></span></a>
-      {% if show_catalog_import %}<a href="{% url 'console-org-practice-sale' %}"><i class="bi bi-play-circle"></i><span><strong>Practice checkout</strong><small>Preview totals safely</small></span></a>{% endif %}
-      <a href="{% url 'staff-dashboard' %}"><i class="bi bi-grid"></i><span><strong>Staff workspace</strong><small>Return to operations</small></span></a>
-    </div>
-  </section>
+    <section class="staff-card setup-board__card" aria-labelledby="setup-team-title">
+      <div class="setup-board__card-head">
+        <span class="setup-board__icon"><i class="bi bi-people"></i></span>
+        <div><span class="setup-hub__label">3 · People & equipment</span><h2 id="setup-team-title">Staff, tills and devices</h2></div>
+      </div>
+      <p class="setup-board__intro">Set up who works here and the workstation they use. Hardware checks stay with the device they belong to.</p>
+      <div class="setup-board__rows">
+        {% for step in setup_steps %}
+          {% if step.key == 'first_workstation' %}
+          <article class="setup-board__row{% if step.done %} is-done{% endif %}">
+            <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
+            <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
+            <div class="setup-board__row-actions"><a class="staff-btn {% if step.done %}staff-btn--ghost{% else %}staff-btn--primary{% endif %}" href="{{ step.cta_url }}">{{ step.cta_label }}</a>{% if step.secondary_cta_url %}<a class="staff-btn staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}</div>
+          </article>
+          {% endif %}
+        {% endfor %}
+        {% for step in setup_optional_steps %}
+          {% if step.key == 'first_team_invite' or step.key == 'device_test' %}
+          <article class="setup-board__row{% if step.done %} is-done{% endif %}">
+            <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
+            <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
+            <div class="setup-board__row-actions"><a class="staff-btn staff-btn--ghost" href="{{ step.cta_url }}">{{ step.cta_label }}</a></div>
+            <details class="setup-board__row-more">
+              <summary>{% if step.status == 'skipped' %}Skipped{% else %}Optional{% endif %}</summary>
+              <form method="post" action="{{ setup_action_url }}">
+                {% csrf_token %}<input type="hidden" name="step_key" value="{{ step.key }}"><input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+                <button type="submit" name="state" value="skipped">Skip for now</button>
+                {% if step.manual_state %}<button type="submit" name="state" value="reset">Remove skip</button>{% endif %}
+              </form>
+            </details>
+          </article>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="staff-card setup-board__card setup-board__card--ready" aria-labelledby="setup-ready-title">
+      <div class="setup-board__card-head">
+        <span class="setup-board__icon"><i class="bi bi-shield-check"></i></span>
+        <div><span class="setup-hub__label">4 · Ready to open</span><h2 id="setup-ready-title">Final checks</h2></div>
+        {% if go_live_ready %}<span class="setup-hub__state setup-hub__state--done">Checks passed</span>{% endif %}
+      </div>
+      <p class="setup-board__intro">One final place to see what is still blocking opening. These checks reference the setup above rather than duplicating it.</p>
+      <ul class="setup-hub__checks setup-board__checks">
+        {% for check in go_live_checks %}
+          <li><i class="bi {% if check.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i><span>{{ check.label }}{% if not check.done %} <a href="{{ check.fix_url }}">Fix</a>{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+      <div class="setup-board__rows setup-board__rows--compact">
+        {% for step in setup_optional_steps %}
+          {% if step.key != 'first_team_invite' and step.key != 'device_test' %}
+          <article class="setup-board__row{% if step.done %} is-done{% endif %}">
+            <span class="setup-board__row-status"><i class="bi {% if step.done %}bi-check-circle-fill{% else %}bi-circle{% endif %}"></i></span>
+            <div class="setup-board__row-copy"><strong>{{ step.name }}</strong><small>{{ step.description }}</small></div>
+            <div class="setup-board__row-actions"><a class="staff-btn staff-btn--ghost" href="{{ step.cta_url }}">{{ step.cta_label }}</a>{% if step.secondary_cta_url %}<a class="staff-btn staff-btn--ghost" href="{{ step.secondary_cta_url }}">{{ step.secondary_cta_label }}</a>{% endif %}</div>
+            <details class="setup-board__row-more">
+              <summary>{% if step.status == 'skipped' %}Skipped{% else %}Optional{% endif %}</summary>
+              <form method="post" action="{{ setup_action_url }}">
+                {% csrf_token %}<input type="hidden" name="step_key" value="{{ step.key }}"><input type="hidden" name="next" value="{% url 'console-org-setup' %}">
+                <button type="submit" name="state" value="skipped">Skip for now</button>
+                {% if step.manual_state %}<button type="submit" name="state" value="reset">Remove skip</button>{% endif %}
+              </form>
+            </details>
+          </article>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <p class="setup-card__note"><i class="bi bi-info-circle"></i> Automatic checks cannot prove a printer, payment provider or local network works. Test real equipment before opening.</p>
+    </section>
+  </div>
 </section>
 {% endblock %}
