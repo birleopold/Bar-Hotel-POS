@@ -14,8 +14,7 @@ from rest_framework.views import APIView
 from apps.access.outlets import membership_outlet_ids
 from apps.pos.models import Payment, Refund
 
-from apps.access.outlets import membership_outlet_ids
-from .permissions import HasTenantContext, HasTenantModule
+from .permissions import CanViewSalesReports, HasTenantContext, HasTenantModule
 from .report_queries import parse_outlet_uuid_param, parse_report_dates_from_query
 
 
@@ -24,7 +23,7 @@ class SalesSummaryView(APIView):
     Aggregated payment and refund totals for a date range (UTC calendar dates on ``created_at``).
     """
 
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, CanViewSalesReports]
     required_staff_module = "pos"
 
     @extend_schema(
@@ -138,7 +137,7 @@ class OperationsRollupView(APIView):
     Same date filters as sales summary; adds **by_day** time series.
     """
 
-    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule]
+    permission_classes = [IsAuthenticated, HasTenantContext, HasTenantModule, CanViewSalesReports]
     required_staff_module = "pos"
 
     @extend_schema(

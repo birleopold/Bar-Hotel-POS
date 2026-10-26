@@ -112,6 +112,32 @@ class ApiPermissionMatrixTests(TestCase):
         response = self.client.post("/api/v1/stock/movements/", {"note": "test"}, format="json", **headers)
         self.assertEqual(response.status_code, 403)
 
+    def test_sales_reports_match_staff_role_boundary(self) -> None:
+        server = User.objects.create_user(
+            email="server-report@test.local", password="TestPass9!"
+        )
+        server_membership = Membership.objects.create(
+            user=server,
+            tenant=self.tenant,
+            role=MembershipRole.SERVER,
+        )
+        server_membership.sites.add(self.site_allowed)
+        server_membership.outlets.add(self.outlet)
+
+        headers = self._auth(server, tenant_id=self.tenant.id)
+        denied = self.client.get(
+            "/api/v1/reports/sales-summary/?date_from=2026-05-01&date_to=2026-05-31",
+            **headers,
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        headers = self._auth(self.accountant, tenant_id=self.tenant.id)
+        allowed = self.client.get(
+            "/api/v1/reports/sales-summary/?date_from=2026-05-01&date_to=2026-05-31",
+            **headers,
+        )
+        self.assertEqual(allowed.status_code, 200)
+
     def test_site_manager_entries_list_respects_site_scope(self) -> None:
         headers = self._auth(self.site_manager, tenant_id=self.tenant.id)
         response = self.client.get("/api/v1/finance/entries/", **headers)
