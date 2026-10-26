@@ -14,6 +14,48 @@ from .models import CashbookEntry, FinanceCategory
 from .serializers import CashbookEntrySerializer, FinanceCategorySerializer
 
 
+def _tenant_has_finance(tenant):
+    try:
+        return "finance" in get_tenant_staff_modules(tenant)
+    except Exception:
+        return False
+
+
+class FinanceModuleEnabled(BasePermission):
+    message = "Finance is not enabled for this workspace."
+
+    def has_permission(self, request, view):
+        return _tenant_has_finance(request.tenant)
+
+
+class CanViewFinance(BasePermission):
+    message = "Your role cannot view finance records."
+
+    def has_permission(self, request, view):
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in (
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+                MembershipRole.SITE_MANAGER,
+                MembershipRole.ACCOUNTANT,
+            )
+        )
+
+
+class CanManageFinance(BasePermission):
+    message = "Your role cannot modify finance records."
+
+    def has_permission(self, request, view):
+        return request.tenant_membership.role in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+        )
+
+
 class FinanceCategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, FinanceModuleEnabled, CanViewFinance]
     serializer_class = FinanceCategorySerializer
@@ -75,45 +117,3 @@ class CashbookEntryViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, views
         if kind:
             qs = qs.filter(category__kind=kind.strip())
         return qs.order_by("-transaction_date", "-created_at")
-
-
-def _tenant_has_finance(tenant):
-    try:
-        return "finance" in get_tenant_staff_modules(tenant)
-    except Exception:
-        return False
-
-
-class FinanceModuleEnabled(BasePermission):
-    message = "Finance is not enabled for this workspace."
-
-    def has_permission(self, request, view):
-        return _tenant_has_finance(request.tenant)
-
-
-class CanViewFinance(BasePermission):
-    message = "Your role cannot view finance records."
-
-    def has_permission(self, request, view):
-        membership = getattr(request, "tenant_membership", None)
-        return bool(
-            membership is not None
-            and membership.is_active
-            and membership.role in (
-                MembershipRole.OWNER,
-                MembershipRole.TENANT_ADMIN,
-                MembershipRole.SITE_MANAGER,
-                MembershipRole.ACCOUNTANT,
-            )
-        )
-
-
-class CanManageFinance(BasePermission):
-    message = "Your role cannot modify finance records."
-
-    def has_permission(self, request, view):
-        return request.tenant_membership.role in (
-            MembershipRole.OWNER,
-            MembershipRole.TENANT_ADMIN,
-            MembershipRole.SITE_MANAGER,
-        )
