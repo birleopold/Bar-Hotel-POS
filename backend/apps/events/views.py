@@ -18,6 +18,42 @@ from .serializers import (EventBookingSerializer, EventSpaceSerializer,
 from .services_journey import create_event_quote, change_event_quote_status, record_event_payment
 
 
+def _events_enabled(tenant) -> bool:
+    try:
+        return "events" in normalize_business_lines(tenant.settings.business_lines) and "events" in get_tenant_staff_modules(tenant)
+    except Exception:
+        return False
+
+
+class EventsModuleEnabled(BasePermission):
+    message = "Events are not enabled for this workspace."
+
+    def has_permission(self, request, view):
+        return _events_enabled(request.tenant)
+
+
+class CanViewEvents(BasePermission):
+    message = "Your role cannot view event records."
+
+    def has_permission(self, request, view):
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership is not None
+            and membership.is_active
+            and membership.role in (
+                MembershipRole.OWNER,
+                MembershipRole.TENANT_ADMIN,
+                MembershipRole.SITE_MANAGER,
+                MembershipRole.OUTLET_MANAGER,
+                MembershipRole.FRONT_DESK,
+                MembershipRole.ACCOUNTANT,
+            )
+        )
+
+
+class CanManageEvents(BasePermission):
+    message = "Your role cannot modify event records."
+
 class EventSpaceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, EventsModuleEnabled, CanViewEvents]
     serializer_class = EventSpaceSerializer
@@ -124,41 +160,7 @@ class EventBookingViewSet(viewsets.ModelViewSet):
         )
 
 
-def _events_enabled(tenant) -> bool:
-    try:
-        return "events" in normalize_business_lines(tenant.settings.business_lines) and "events" in get_tenant_staff_modules(tenant)
-    except Exception:
-        return False
 
-
-class EventsModuleEnabled(BasePermission):
-    message = "Events are not enabled for this workspace."
-
-    def has_permission(self, request, view):
-        return _events_enabled(request.tenant)
-
-
-class CanViewEvents(BasePermission):
-    message = "Your role cannot view event records."
-
-    def has_permission(self, request, view):
-        membership = getattr(request, "tenant_membership", None)
-        return bool(
-            membership is not None
-            and membership.is_active
-            and membership.role in (
-                MembershipRole.OWNER,
-                MembershipRole.TENANT_ADMIN,
-                MembershipRole.SITE_MANAGER,
-                MembershipRole.OUTLET_MANAGER,
-                MembershipRole.FRONT_DESK,
-                MembershipRole.ACCOUNTANT,
-            )
-        )
-
-
-class CanManageEvents(BasePermission):
-    message = "Your role cannot modify event records."
 
     def has_permission(self, request, view):
         return request.tenant_membership.role in (
