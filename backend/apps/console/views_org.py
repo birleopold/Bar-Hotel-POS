@@ -13,6 +13,7 @@ from django.views.generic import CreateView, FormView, ListView, TemplateView, U
 from apps.catalog.models import ServiceOffering
 from apps.lodging.models import Room, RoomType
 from apps.staff.forms import StaffTenantBrandingForm, StaffTenantModulesForm
+from apps.staff import views_invites as staff_invite_views
 from apps.staff.services.modules import STAFF_MODULE_CHOICES, initial_staff_modules_for_form
 from apps.tenants.business_lines import (
     modules_for_business_lines,
@@ -59,6 +60,33 @@ class OrgOverviewView(ConsoleOrgAdminRequiredMixin, TemplateView):
         ctx["setup_progress"] = progress
         ctx["setup_url"] = reverse("console-org-setup")
         ctx["setup_action_url"] = reverse("console-org-setup-step-state")
+        return ctx
+
+
+class OrgTeamListView(staff_invite_views.StaffMembershipListView):
+    """Console-native team directory reusing the established membership query rules."""
+
+    template_name = "console/org/team_list.html"
+
+
+class OrgWorkerCreateView(staff_invite_views.StaffWorkerCreateView):
+    template_name = "console/org/team_form.html"
+    success_url = reverse_lazy("console-org-team")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form_title"] = "New worker"
+        ctx["console_team_mode"] = True
+        return ctx
+
+
+class OrgMembershipUpdateView(staff_invite_views.StaffMembershipUpdateView):
+    template_name = "console/org/team_form.html"
+    success_url = reverse_lazy("console-org-team")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["console_team_mode"] = True
         return ctx
 
 
