@@ -54,6 +54,15 @@ class CanViewEvents(BasePermission):
 class CanManageEvents(BasePermission):
     message = "Your role cannot modify event records."
 
+    def has_permission(self, request, view):
+        return request.tenant_membership.role in (
+            MembershipRole.OWNER,
+            MembershipRole.TENANT_ADMIN,
+            MembershipRole.SITE_MANAGER,
+            MembershipRole.OUTLET_MANAGER,
+        )
+
+
 class EventSpaceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTenantContext, NotReadOnlyRole, EventsModuleEnabled, CanViewEvents]
     serializer_class = EventSpaceSerializer
@@ -157,15 +166,4 @@ class EventBookingViewSet(viewsets.ModelViewSet):
         return Response(
             EventPaymentSerializer(payment).data,
             status=status.HTTP_200_OK if repeated else status.HTTP_201_CREATED,
-        )
-
-
-
-
-    def has_permission(self, request, view):
-        return request.tenant_membership.role in (
-            MembershipRole.OWNER,
-            MembershipRole.TENANT_ADMIN,
-            MembershipRole.SITE_MANAGER,
-            MembershipRole.OUTLET_MANAGER,
         )
