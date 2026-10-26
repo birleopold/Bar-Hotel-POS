@@ -489,6 +489,92 @@
 
   window.retailShowCheckoutRecovery=showCheckoutRecovery;
 
+  function refreshRetailZone(selector){
+    return fetch(window.location.href,{
+      credentials:"same-origin",
+      cache:"no-store",
+      headers:{"Accept":"text/html"}
+    }).then(function(response){
+      if(!response.ok||response.redirected){
+        throw new Error("Cannot refresh sale details.");
+      }
+      return response.text();
+    }).then(function(html){
+      var remote=new DOMParser().parseFromString(html,"text/html");
+      var live=document.querySelector(selector);
+      var fresh=remote.querySelector(selector);
+      var liveBasket=document.querySelector(".fizo-checkout-basket");
+      var remoteBasket=remote.querySelector(".fizo-checkout-basket");
+      if(!live||!fresh||!liveBasket||!remoteBasket||
+         liveBasket.dataset.orderId!==remoteBasket.dataset.orderId){
+        throw new Error("Sale details changed; reload this sale safely.");
+      }
+      live.replaceWith(document.importNode(fresh,true));
+    });
+  }
+  window.retailRefreshZone=refreshRetailZone;
+
+
+  document.addEventListener("submit",function(event){
+    var form=event.target;
+    if(!(form instanceof HTMLFormElement)||
+       !form.matches("[data-retail-pickup-form]"))return;
+    if(!(window.fetch&&window.FormData&&window.retailRefreshZone))return;
+    event.preventDefault();
+    if(form.dataset.submitting==="1")return;
+    if(!form.checkValidity()){
+      form.reportValidity();
+      return;
+    }
+    form.dataset.submitting="1";
+    var button=form.querySelector('button[type="submit"]');
+    var previous=button&&button.textContent;
+    var status=form.querySelector("[data-retail-pickup-status]");
+    if(button){button.disabled=true;button.textContent="Saving…";}
+    if(status)status.textContent="Saving pickup status…";
+    var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
+    fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
+      method:"POST",
+      body:new FormData(form),
+      credentials:"same-origin",
+      redirect:"follow",
+      headers:{
+        "X-Requested-With":"XMLHttpRequest",
+        "X-CSRFToken":csrf?csrf.value:""
+      }
+    }).then(function(response){
+      if(response.redirected)throw new Error("Sale session changed or access was redirected.");
+      var type=(response.headers.get("Content-Type")||"").toLowerCase();
+      if(!type.includes("application/json"))throw new Error("Unexpected pickup response.");
+      return response.json().then(function(data){
+        if(!response.ok||!data.ok){
+          var rejected=new Error(data.message||"Pickup could not be updated.");
+          rejected.serverRejected=true;
+          throw rejected;
+        }
+        return data;
+      });
+    }).then(function(data){
+      return window.retailRefreshZone("[data-retail-pickup-zone]").then(function(){
+        return data;
+      });
+    }).then(function(data){
+      var live=document.querySelector("[data-retail-pickup-status]");
+      if(live)live.textContent=data.message||"Pickup updated.";
+    }).catch(function(error){
+      var live=document.querySelector("[data-retail-pickup-status]")||status;
+      if(error&&error.serverRejected){
+        if(live)live.textContent=error.message;
+      }else if(live){
+        // A lost response may follow a committed handover. Never replay it.
+        showCheckoutRecovery(live,error);
+      }
+    }).then(function(){
+      delete form.dataset.submitting;
+      if(button){button.disabled=false;button.textContent=previous||"Save";}
+    });
+  });
+
   // Quick-register a genuinely missing product without refreshing the till.
   // The server-side request key remains the idempotency boundary; an ambiguous
   // response is never automatically replayed.

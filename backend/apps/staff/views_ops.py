@@ -1663,28 +1663,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if action == "apply_wholesale":
             return self._post_apply_wholesale(request, order)
         if action in ("schedule_paid_pickup", "hand_over_paid_pickup"):
-            from django.utils.dateparse import parse_date
-            from apps.pos.services.pickups import register_paid_pickup, hand_over_paid_pickup
-            from apps.pos.models import RetailPickup
-            try:
-                if action == "schedule_paid_pickup":
-                    register_paid_pickup(
-                        order=order, expected_on=parse_date(request.POST.get("expected_on", "")),
-                        note=request.POST.get("note", ""), user=request.user, membership=m,
-                    )
-                    messages.success(request, "Paid order scheduled for collection; stock was not deducted again.")
-                else:
-                    pickup = RetailPickup.objects.filter(tenant_id=order.tenant_id, order=order).first()
-                    if pickup is None:
-                        raise DRFValidationError({"pickup": "This order has no registered pickup."})
-                    hand_over_paid_pickup(
-                        pickup=pickup, note=request.POST.get("note", ""),
-                        membership=m, user=request.user,
-                    )
-                    messages.success(request, "Customer pickup recorded; sale and inventory are unchanged.")
-            except (DRFValidationError, ValueError, TypeError) as exc:
-                messages.error(request, str(getattr(exc, "detail", exc)))
-            return redirect("staff-order-detail", order_id=order.id)
+            return self._post_paid_pickup(request, order, action=action)
         if action == "record_payment":
             return self._post_record_payment(request, order)
         if action == "set_folio":
@@ -1724,6 +1703,82 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if action == "void_line":
             return self._post_void_line(request, order)
         messages.error(request, "Unknown action.")
+        return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_paid_pickup(
+        self,
+        request: HttpRequest,
+        order: Order,
+        *,
+        action: str,
+    ) -> HttpResponse:
+        from apps.pos.models import RetailPickup
+        from apps.pos.services.pickups import (
+            hand_over_paid_pickup,
+            register_paid_pickup,
+        )
+
+        async_retail = (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+
+        def reject(message: str, *, status: int = 422) -> HttpResponse:
+            if async_retail:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
+        try:
+            if action == "schedule_paid_pickup":
+                pickup, replay = register_paid_pickup(
+                    order=order,
+                    expected_on=parse_date(request.POST.get("expected_on", "")),
+                    note=request.POST.get("note", ""),
+                    user=request.user,
+                    membership=request.tenant_membership,
+                )
+                message = (
+                    "Pickup was already scheduled with these details."
+                    if replay
+                    else "Paid order scheduled for collection; stock was not deducted again."
+                )
+            else:
+                pickup = RetailPickup.objects.filter(
+                    tenant_id=order.tenant_id,
+                    order=order,
+                ).first()
+                if pickup is None:
+                    return reject("This order has no registered pickup.", status=409)
+                pickup, replay = hand_over_paid_pickup(
+                    pickup=pickup,
+                    note=request.POST.get("note", ""),
+                    membership=request.tenant_membership,
+                    user=request.user,
+                )
+                message = (
+                    "This pickup was already recorded as collected."
+                    if replay
+                    else "Customer pickup recorded; sale and inventory are unchanged."
+                )
+        except DRFValidationError as exc:
+            return reject(" ".join(_drf_detail_messages(exc.detail)))
+        except (ValueError, TypeError) as exc:
+            return reject(str(exc))
+
+        if async_retail:
+            return JsonResponse({
+                "ok": True,
+                "message": message,
+                "replay": replay,
+                "pickup_id": str(pickup.pk),
+                "pickup_status": pickup.status,
+                "expected_on": pickup.expected_on.isoformat(),
+            })
+        if replay:
+            messages.info(request, message)
+        else:
+            messages.success(request, message)
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_apply_wholesale(self, request: HttpRequest, order: Order) -> HttpResponse:
