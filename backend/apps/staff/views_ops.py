@@ -2476,7 +2476,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
     def _post_adjust_line_quantity(self, request: HttpRequest, order: Order) -> HttpResponse:
         async_qty = (
             request.headers.get("X-Requested-With") == "XMLHttpRequest"
-            and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and order.outlet.outlet_type in {
+                OutletType.SUPERMARKET,
+                OutletType.RETAIL,
+                OutletType.RESTAURANT,
+                OutletType.BAR,
+                OutletType.LOUNGE,
+                OutletType.CAFETERIA,
+            }
         )
         if order.status != OrderStatus.OPEN or order.is_paid:
             if async_qty:

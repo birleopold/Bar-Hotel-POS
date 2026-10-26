@@ -79,8 +79,8 @@
   {% endif %}
   <h1 class="visually-hidden">{% if is_supermarket_outlet %}Sale{% else %}Order{% endif %} {{ order.bill_reference }}</h1>
   <div class="staff-pos-totals-row">
-    <span class="staff-pos-totals-row__total">{{ order.currency }} <strong>{{ order.total }}</strong></span>
-    <span class="staff-pos-totals-row__meta">Sub {{ order.subtotal }} · Tax {{ order.tax_total }}</span>
+    <span class="staff-pos-totals-row__total">{{ order.currency }} <strong data-hospitality-order-total>{{ order.total }}</strong></span>
+    <span class="staff-pos-totals-row__meta" data-hospitality-order-meta>Sub {{ order.subtotal }} · Tax {{ order.tax_total }}</span>
     {% if order.applied_promotion %}<span class="staff-pos-totals-row__meta">Offer: {{ order.applied_promotion.name }}</span>{% endif %}
     {% if order.folio %}<span class="staff-pos-totals-row__meta">Folio: {{ order.folio.guest_name }}</span>{% endif %}
     {% if order.customer %}<span class="staff-pos-totals-row__meta" data-retail-customer-summary>Customer: {{ order.customer.name }}</span>{% endif %}
@@ -171,9 +171,9 @@
                         </div>
                       {% endif %}
                     </td>
-                    <td>{{ line.quantity }}</td>
+                    <td data-hospitality-line-quantity="{{ line.id }}">{{ line.quantity }}</td>
                     <td><span class="staff-tag staff-tag--citrus">{{ line.get_kds_status_display }}</span>{% if line.kds_station %} <span class="staff-muted">{{ line.kds_station }}</span>{% endif %}</td>
-                    <td>{{ line.line_total }}</td>
+                    <td data-hospitality-line-total="{{ line.id }}">{{ line.line_total }}</td>
                     <td class="staff-table--pos-actions staff-table__actions-cell">
                       {% if line.id|stringformat:"s" in ready_line_ids and can_ack_ready_handoff %}
                         <form method="post" class="d-inline">
@@ -194,12 +194,13 @@
                           <span class="staff-muted small" role="status" aria-live="polite" data-hospitality-seat-status></span>
                         </form>
                         {% endif %}
-                        <form method="post" class="staff-pos-line-actions">
+                        <form method="post" class="staff-pos-line-actions" data-hospitality-qty-form>
                           {% csrf_token %}
                           <input type="hidden" name="action" value="adjust_line_qty">
                           <input type="hidden" name="line_id" value="{{ line.id }}">
                           <input class="staff-input staff-input--pos-qty" type="number" name="quantity" step="0.001" min="0.001" value="{{ line.quantity }}" aria-label="Quantity">
                           <button type="submit" class="staff-btn staff-btn--sm staff-btn--ghost">Set</button>
+                          <span class="staff-muted small" role="status" aria-live="polite" data-hospitality-qty-status></span>
                         </form>
                         <form method="post" class="staff-pos-line-actions mt-1">
                           {% csrf_token %}
@@ -497,7 +498,7 @@
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
-  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.1"></script>{% endif %}
+  {% if is_supermarket_outlet %}<script defer src="{% static 'staff/retail-counter-v2.js' %}?v=20261026.11"></script>{% else %}<script defer src="{% static 'staff/hospitality-order.js' %}?v=20261026.2"></script>{% endif %}
   {% if add_line_form %}
     {{ pos_menu_item_modifiers|json_script:"staff-pos-menu-modifiers" }}
     <script>

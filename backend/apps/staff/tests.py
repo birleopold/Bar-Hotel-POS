@@ -1826,10 +1826,23 @@ class StaffOrderAddLineTests(TestCase):
                 "line_id": str(line.id),
                 "quantity": "3",
             },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
-        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["ok"])
+        self.assertEqual(Decimal(r.json()["quantity"]), Decimal("3"))
+        self.assertEqual(Decimal(r.json()["line_total"]), Decimal("13.50"))
+        self.assertEqual(Decimal(r.json()["total"]), Decimal("13.50"))
         line.refresh_from_db()
         self.assertEqual(line.quantity, Decimal("3"))
+
+        from pathlib import Path
+        staff_root = Path(__file__).resolve().parent
+        detail = (staff_root / "templates/staff/order_detail.html").read_text(encoding="utf-8")
+        controller = (staff_root / "static/staff/hospitality-order.js").read_text(encoding="utf-8")
+        self.assertIn("data-hospitality-qty-form", detail)
+        self.assertIn("[data-hospitality-qty-form]", controller)
+        self.assertIn("[data-hospitality-order-total]", controller)
 
 
 class StaffSupermarketFlowTests(TestCase):
