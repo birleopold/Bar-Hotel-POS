@@ -62,8 +62,11 @@ class SetupWizardStructureTests(SimpleTestCase):
         self.assertNotIn("Before serving customers", template)
         self.assertIn("setup-board__grid", template)
         self.assertIn("setup-board__row", template)
-        self.assertIn("step.key == 'first_po_received' or step.key == 'lodging_basics'", template)
-        self.assertIn("step.key == 'practice_sale' or step.key == 'first_paid_order'", template)
+        self.assertIn("setup_operations_steps", template)
+        self.assertIn("setup_people_steps", template)
+        self.assertIn("setup_verify_steps", template)
+        self.assertNotIn("step.key == 'first_po_received'", template)
+        self.assertNotIn("step.key == 'practice_sale'", template)
 
 class MenuOutletSyncTests(TestCase):
     @classmethod
