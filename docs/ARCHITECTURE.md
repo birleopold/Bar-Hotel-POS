@@ -116,6 +116,21 @@ Cross-tenant reporting for **platform billing** uses a **separate read model** o
 
 ---
 
+## 5.1 High-frequency operational interaction model
+
+All operational UIs must assume a human, barcode scanner, touch screen or hardware device can generate valid mutations faster than HTTP responses return.
+
+- Use a **FIFO client mutation queue** for ordinary repeatable actions.
+- Snapshot the resource identity and mutation payload at enqueue time.
+- Use per-resource projected state for fast repeated quantity changes.
+- Serialize writes where server row locks/domain rules require ordering.
+- Coalesce expensive HTML/page reconciliation until queued writes drain.
+- Never use a generic `submitting`/busy flag that silently discards later valid input.
+- Preserve server-side validation, authorization, tenant/outlet scoping and database locking.
+- For ambiguous network outcomes, reconcile before issuing dependent mutations.
+- Payments, refunds, voids, cancellations and other irreversible/financial commands remain idempotent and may intentionally stay single-flight.
+- This model is **shared platform behavior** and must be reused by retail, hospitality, lodging, inventory and future modules instead of being reimplemented tenant-by-tenant.
+
 ## 6. Async work and integrations
 
 | Concern | Pattern |

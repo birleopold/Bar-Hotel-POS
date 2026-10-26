@@ -12,6 +12,31 @@ Source: owner feedback and reported production symptoms during October 2026 impl
 - Maintain shared core CSS with only necessary industry-specific styling; legacy `fizo-` filenames/classes do not confer tenant identity. Never rename them without coordinated references, tests and verification.
 - Use owner-approved UI images in `docs/design/references/` as layout targets, but functionality and data correctness take priority during this stage.
 
+## Platform-wide high-frequency interaction contract — 26 October 2026
+
+This contract applies to **all present and future tenants and business lines**, not only supermarket/grocery. It governs any interface where staff may act faster than a network round-trip: product taps, barcode scans, quantity +/−, restaurant/bar item entry, rounds, table orders, hotel/front-desk line items, housekeeping updates, stock counting, receiving, and similar operational controls.
+
+1. **Never drop valid rapid input.** A second, third or tenth valid tap/scan must not be ignored merely because an earlier request is still processing.
+2. **Preserve event order.** If the operator performs A → B → A → C, the system must process A → B → A → C in that order unless a server-authoritative business rule rejects one event.
+3. **Snapshot intent at interaction time.** Each queued mutation must carry immutable identity and values for the object/action that triggered it. Do not depend on a shared select/input that may change before the queued request is sent.
+4. **Repeated item selection has additive semantics where appropriate.** In sales/order-entry surfaces, first selection creates the line; later selections of the same eligible item increment/merge quantity according to business-line rules. Items with modifiers, weighted quantity, seat assignment, preparation state or other distinct attributes remain separate where domain rules require it.
+5. **Fast +/− controls must be lossless.** Quantity controls use a projected client quantity and a per-line ordered queue; `+ + − +` must result in exactly those four accepted changes, not whichever request finishes last.
+6. **Serialize mutations, not the operator.** The browser may accept new input immediately while writes are processed in order. UI controls should not become globally disabled solely to protect an in-flight ordinary mutation.
+7. **Coalesce expensive refreshes.** Do not fetch/re-render the whole screen after every queued tap when one authoritative reconciliation after the queue drains is sufficient. Prefer targeted response updates or one final reconciliation.
+8. **Server remains authoritative.** Client-side projected state is temporary. Tenant/outlet scope, permissions, stock, pricing, modifiers, room/table state, payments and final quantities remain validated server-side.
+9. **Ambiguous failures fail safe.** If a mutation may have committed but its response is lost, do not automatically replay it. Stop or reconcile the queue before continuing to avoid duplicates or reordering.
+10. **Financial and irreversible actions are stricter.** Payment, refund, void, cancellation, stock posting, checkout and similar actions retain idempotency and approval rules. High-frequency queuing must never weaken those safeguards.
+11. **Tenant-neutral implementation.** This behavior belongs to shared platform interaction infrastructure. No tenant name, Fizo-specific assumption, currency, outlet or business identity may be embedded in queue semantics.
+12. **New business lines inherit this contract by default.** A new line may opt out only where its domain semantics require single-flight confirmation, and that exception must be documented and tested.
+
+### Examples across business lines
+
+- **Supermarket/retail:** rapid product taps or scans add/increment every accepted item; fast basket +/− preserves all clicks.
+- **Restaurant/bar/lounge:** rapid item/round entry preserves order; identical lines merge only where modifiers, seat, preparation routing and pricing permit.
+- **Hotel/front desk:** rapid charge/service line entry preserves every accepted charge; reservation/check-in/out actions remain guarded and are not blindly queued.
+- **Inventory/purchasing:** rapid stock-count increments or receiving-line quantity edits preserve every accepted change; stock posting remains server-authoritative.
+- **Future tenants/business lines:** inherit the same lossless ordered-input rule without tenant-specific code.
+
 ## Retail: current basket vs parked basket
 
 1. Scanning/selecting a product updates the active cashier basket (quantity, unit price, line value, total); ordinary items increment in **whole units**, measured products may permit fractional values as configured.

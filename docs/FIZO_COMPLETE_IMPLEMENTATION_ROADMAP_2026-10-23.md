@@ -15,6 +15,7 @@
 9. Preserve data, migrations, production integration behavior and existing working business flows; changes must be reversible through a safe deploy/rollback.
 10. Run browser acceptance at desktop 1536×1024, laptop 1366×768, tablet 1024×768, mobile 390×844 and wide 1920×1080; both mouse/keyboard and touch; inspect reference pixel differences, text overflow, controls, focus, empty/loading/error states.
 11. Every phase completion needs source-level tests, rendered checks, full navigation, permission/currency test and owner signoff against screenshot before marking complete.
+12. High-frequency operational input is platform behavior: rapid taps, scans and quantity changes must be lossless and ordered across all current and future business lines. Shared busy/submitting guards must never silently discard valid events; use immutable queued mutations, projected per-resource state and server-authoritative reconciliation. Financial/irreversible commands remain idempotent and may be intentionally single-flight.
 
 ## Cross-phase feature completion rule (24 October 2026)
 
