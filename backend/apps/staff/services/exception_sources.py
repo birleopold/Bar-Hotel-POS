@@ -254,9 +254,50 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
         for obj in limited(queue, "offline_conflict"):
             result.append(row("offline_conflict", obj, "Offline operation needs attention", f"{obj.operation_type} · {obj.status} · queued {obj.created_at:%Y-%m-%d %H:%M}", source_url("offline_conflict",obj), (obj.status, obj.updated_at)))
     if "inventory" in modules and vis.inventory:
-        movements = StockMovement.objects.filter(tenant=request.tenant, outlet_id__in=ids, menu_item__tenant=request.tenant, created_at__gte=cutoff, reason__in=[StockReason.ADJUST_IN, StockReason.ADJUST_OUT, StockReason.WASTE, StockReason.PHYSICAL_COUNT]).filter(Q(quantity_change__gt=policy.stock_adjustment_threshold) | Q(quantity_change__lt=-policy.stock_adjustment_threshold)).select_related("menu_item").order_by("-created_at")
-        for obj in limited(movements,"stock_adjustment"):
-            result.append(row("stock_adjustment",obj,"Stock adjustment",f"{obj.menu_item.name} · {obj.quantity_change:+} · {obj.get_reason_display()}",source_url("stock_adjustment",obj),(obj.quantity_change,obj.created_at)))
+        movements = (
+            StockMovement.objects.filter(
+                tenant=request.tenant,
+                outlet_id__in=ids,
+                menu_item__tenant=request.tenant,
+                created_at__gte=cutoff,
+                reason__in=[
+                    StockReason.ADJUST_IN,
+                    StockReason.ADJUST_OUT,
+                    StockReason.WASTE,
+                    StockReason.PHYSICAL_COUNT,
+                ],
+            )
+            .filter(
+                Q(quantity_change__gt=policy.stock_adjustment_threshold)
+                | Q(quantity_change__lt=-policy.stock_adjustment_threshold)
+            )
+            .select_related("menu_item", "created_by")
+            .order_by("-created_at")
+        )
+        for obj in limited(movements, "stock_adjustment"):
+            actor = actor_label(
+                obj.created_by,
+                fallback="Operator not recorded",
+            )
+            detail = (
+                f"{obj.menu_item.name} · {obj.quantity_change:+}"
+                f" · {obj.get_reason_display()} · recorded by {actor}"
+            )
+            if obj.note:
+                detail += f" · {obj.note}"
+            result.append(row(
+                "stock_adjustment",
+                obj,
+                "Stock adjustment",
+                detail,
+                source_url("stock_adjustment", obj),
+                (
+                    obj.quantity_change,
+                    obj.created_at,
+                    obj.created_by_id,
+                    obj.note,
+                ),
+            ))
     if "purchasing" in modules and vis.purchasing:
         # A supplier payment is blocked until a delivery discrepancy is resolved,
         # regardless of age. Do not let the management lookback hide the action

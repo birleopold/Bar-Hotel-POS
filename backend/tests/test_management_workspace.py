@@ -489,6 +489,35 @@ class ManagementWorkspaceTests(TestCase):
         self.assertContains(response, "Loss-prevention snapshot")
         self.assertContains(response, "They are not a second reporting ledger.")
 
+    def test_stock_adjustment_exception_shows_recorded_operator_and_note(self):
+        from apps.inventory.models import StockMovement, StockReason
+
+        self.login()
+        movement = StockMovement.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.balance.menu_item,
+            quantity_change=Decimal("-9"),
+            reason=StockReason.WASTE,
+            created_by=self.worker,
+            note="Damaged carton verified at count",
+        )
+
+        row = next(
+            item
+            for item in self.rows()
+            if item.kind == "stock_adjustment"
+            and item.entity_id == str(movement.pk)
+        )
+        self.assertIn(self.worker.email, row.detail)
+        self.assertIn("Damaged carton verified at count", row.detail)
+        self.assertIn("recorded by", row.detail)
+
+        source = self.client.get(row.url)
+        self.assertEqual(source.status_code, 200)
+        self.assertContains(source, self.worker.email)
+        self.assertContains(source, "Damaged carton verified at count")
+
     def test_shrink_watch_groups_negative_adjustments_without_cross_tenant_leakage(self):
         from apps.inventory.models import StockMovement, StockReason
         self.login()
