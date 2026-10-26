@@ -1638,7 +1638,7 @@ class StaffOrderPaymentTests(TestCase):
                 "action": "record_payment",
                 "amount": "10.00",
                 "method": PaymentMethod.CASH,
-                "payment_request_key": "hospitality-partial-payment-1",
+                "payment_request_key": "1bc1745c-ff4a-4c7d-9d43-b89c0b4d35d2",
             },
             HTTP_X_REQUESTED_WITH="XMLHttpRequest",
         )
