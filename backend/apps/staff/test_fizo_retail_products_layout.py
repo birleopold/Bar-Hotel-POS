@@ -126,6 +126,11 @@ class FizoRetailProductsLayoutTests(SimpleTestCase):
         self.assertIn("staff_nav.workspace", s)
         self.assertEqual(s.count("{% block "), s.count("{% endblock %}"))
 
+    def test_product_list_links_catalogue_to_existing_opening_stock_import(self):
+        page = (Path(__file__).resolve().parents[1] / "console/templates/console/org/menu_item_list.html").read_text(encoding="utf-8")
+        self.assertIn("staff-inventory-movement-upload", page)
+        self.assertIn("Import opening stock", page)
+
     def test_catalog_import_routes_missing_photos_into_follow_up_queue(self):
         source = (Path(__file__).resolve().parents[1] / "console/views_catalog_import.py").read_text(encoding="utf-8")
         self.assertIn('missing_photo_count = MenuItem.objects.filter(', source)
