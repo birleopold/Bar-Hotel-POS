@@ -1679,6 +1679,31 @@ class StaffOrderPaymentTests(TestCase):
         self.assertIn('"charge_to_folio"', views)
         self.assertIn("async_charge", views)
 
+    def test_partially_paid_hospitality_order_cannot_be_voided_without_refund(self) -> None:
+        """A partial tender must never disappear when an order is cancelled."""
+        payment = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": self.order.id}),
+            {
+                "action": "record_payment",
+                "amount": "10.00",
+                "method": PaymentMethod.CASH,
+                "payment_request_key": str(uuid.uuid4()),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(payment.status_code, 200, payment.content)
+        attempt = self.client.post(
+            reverse("staff-order-detail", kwargs={"order_id": self.order.id}),
+            {"action": "void_order", "reason": "Guest cancelled"},
+            follow=True,
+        )
+        self.assertEqual(attempt.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, OrderStatus.OPEN)
+        self.assertFalse(self.order.is_paid)
+        self.assertEqual(Payment.objects.filter(order=self.order).count(), 1)
+        self.assertContains(attempt, "Refund all recorded payments")
+
     def test_mobile_money_is_available_as_a_pos_tender(self) -> None:
         response = self.client.get(
             reverse("staff-order-detail", kwargs={"order_id": self.order.id})
