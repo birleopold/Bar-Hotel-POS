@@ -14,6 +14,22 @@
     </div>
   </header>
   {% include "staff/inventory/includes/subnav.html" %}
+  <section class="fizo-stock__panel mb-3" aria-label="Inventory valuation coverage">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div>
+        <h2>Inventory cost coverage</h2>
+        <p class="staff-muted small mb-2">Based on current stock filters and authorized sections. This is a partial valuation whenever any on-hand stock has incomplete cost evidence.</p>
+      </div>
+      <a class="staff-btn staff-btn--ghost" href="?export=csv&amp;q={{ stock_q|urlencode }}{% if low_stock %}&amp;low_stock=1{% endif %}">Export valuation CSV</a>
+    </div>
+    <div class="d-flex flex-wrap gap-3">
+      <div><strong>{{ request.tenant.settings.default_currency }} {{ valuation_summary.trusted_value }}</strong><div class="staff-muted small">Trusted inventory value</div></div>
+      <div><strong>{{ valuation_summary.trusted_rows }}</strong><div class="staff-muted small">Costed stock rows</div></div>
+      <div><strong>{{ valuation_summary.incomplete_rows }}</strong><div class="staff-muted small">Uncosted stock rows</div></div>
+      <div><strong>{{ valuation_summary.incomplete_units }}</strong><div class="staff-muted small">Uncosted units (mixed products)</div></div>
+    </div>
+    {% if valuation_summary.incomplete_rows %}<p class="staff-muted small mt-2 mb-0">Total inventory value is unknown until all incomplete cost rows have been reconciled. The trusted subtotal must not be presented as total stock value.</p>{% endif %}
+  </section>
   <section class="fizo-stock__panel" aria-label="Stock register">
     <div class="fizo-stock__toolbar">
       <form method="get" class="fizo-stock__search" role="search">
