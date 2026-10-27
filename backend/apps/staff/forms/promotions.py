@@ -8,6 +8,25 @@ from apps.tenants.models import Outlet
 class StaffPromotionForm(forms.ModelForm):
     """Exactly one of ``discount_percent`` or ``discount_amount`` (matches API serializer)."""
 
+    WEEKDAY_CHOICES = [
+        ("1", "Monday"), ("2", "Tuesday"), ("3", "Wednesday"),
+        ("4", "Thursday"), ("5", "Friday"), ("6", "Saturday"), ("7", "Sunday"),
+    ]
+    schedule_weekdays = forms.MultipleChoiceField(
+        required=False,
+        choices=WEEKDAY_CHOICES,
+        widget=forms.SelectMultiple(attrs={"class": "staff-input", "size": 7}),
+        help_text="Optional recurring days. Leave empty for every day.",
+    )
+    schedule_start_time = forms.TimeField(
+        required=False,
+        widget=forms.TimeInput(attrs={"class": "staff-input", "type": "time"}),
+    )
+    schedule_end_time = forms.TimeField(
+        required=False,
+        widget=forms.TimeInput(attrs={"class": "staff-input", "type": "time"}),
+    )
+
     class Meta:
         model = Promotion
         fields = [
@@ -35,6 +54,9 @@ class StaffPromotionForm(forms.ModelForm):
             "max_uses_per_order",
             "starts_at",
             "ends_at",
+            "schedule_weekdays",
+            "schedule_start_time",
+            "schedule_end_time",
             "is_active",
             "outlets",
         ]
@@ -112,6 +134,9 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["fixed_bundle_amount"].required = False
         self.fields["max_uses_per_order"].required = False
         self.fields["ends_at"].required = False
+        self.fields["schedule_weekdays"].required = False
+        self.fields["schedule_start_time"].required = False
+        self.fields["schedule_end_time"].required = False
         self.fields["outlets"].required = False
         self.fields["outlets"].label = "Limit to sections"
         self.fields["outlets"].help_text = "Leave empty to apply in every section."
@@ -168,7 +193,12 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["fixed_quantity"].help_text = "X for fixed amount only: whole qualifying units in each deal set."
         self.fields["fixed_bundle_amount"].help_text = "X for fixed amount only: total price charged for each complete deal set."
         self.fields["max_uses_per_order"].help_text = "Quantity deals only: optional cap on qualifying sets per order."
+        self.fields["schedule_start_time"].help_text = "Optional business-local start time. Set both start and end."
+        self.fields["schedule_end_time"].help_text = "Optional business-local end time. Overnight windows are not supported; split them into two offers."
         if self.instance.pk:
+            self.initial["schedule_weekdays"] = [
+                str(value) for value in (self.instance.schedule_weekdays or [])
+            ]
             if self.instance.starts_at:
                 st = self.instance.starts_at
                 if timezone.is_aware(st):
@@ -282,4 +312,21 @@ class StaffPromotionForm(forms.ModelForm):
         raw_end = self.data.get("ends_at")
         if raw_end is not None and str(raw_end).strip() == "":
             data["ends_at"] = None
+        data["schedule_weekdays"] = sorted(
+            {int(value) for value in (data.get("schedule_weekdays") or [])}
+        )
+        schedule_start = data.get("schedule_start_time")
+        schedule_end = data.get("schedule_end_time")
+        if (schedule_start is None) != (schedule_end is None):
+            raise forms.ValidationError(
+                "Set both recurring start and end times, or leave both blank.",
+            )
+        if schedule_start is not None and schedule_end <= schedule_start:
+            self.add_error(
+                "schedule_end_time",
+                "Recurring end time must be later than start time. Split overnight offers into two schedules.",
+            )
+        if data.get("ends_at") is not None and data.get("starts_at") is not None:
+            if data["ends_at"] <= data["starts_at"]:
+                self.add_error("ends_at", "Offer end must be later than its start.")
         return data
