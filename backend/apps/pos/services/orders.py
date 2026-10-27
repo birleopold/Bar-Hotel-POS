@@ -652,7 +652,44 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
             Decimal("0"),
         ).quantize(Decimal("0.01"))
 
-    if promotion.discount_percent is not None:
+    if promotion.offer_type == Promotion.OfferType.BUY_X_GET_Y:
+        if not target_is_scoped:
+            raise ValidationError({"promotion": "Buy X Get Y requires a specific promotion target."})
+        if not eligible_lines:
+            raise ValidationError({"promotion": "This Buy X Get Y offer has no qualifying basket items."})
+        if any(line.quantity != line.quantity.to_integral_value() for line in eligible_lines):
+            raise ValidationError({"promotion": "Buy X Get Y supports whole qualifying units only."})
+        buy_qty = int(promotion.buy_quantity or 0)
+        get_qty = int(promotion.get_quantity or 0)
+        set_size = buy_qty + get_qty
+        if buy_qty <= 0 or get_qty <= 0 or set_size <= 1:
+            raise ValidationError({"promotion": "Buy X Get Y quantities are not configured correctly."})
+        total_units = sum(int(line.quantity) for line in eligible_lines)
+        uses = total_units // set_size
+        if promotion.max_uses_per_order is not None:
+            uses = min(uses, promotion.max_uses_per_order)
+        if uses <= 0:
+            raise ValidationError({"promotion": "Add more qualifying units for this Buy X Get Y offer."})
+        free_units = uses * get_qty
+        priced = []
+        for line in eligible_lines:
+            if line.quantity <= 0:
+                continue
+            per_unit = (line.line_total / line.quantity).quantize(Decimal("0.01"))
+            priced.append((per_unit, int(line.quantity)))
+        priced.sort(key=lambda row: row[0])
+        remaining_free = free_units
+        disc = Decimal("0.00")
+        for per_unit, available_units in priced:
+            if remaining_free <= 0:
+                break
+            take = min(remaining_free, available_units)
+            disc += per_unit * take
+            remaining_free -= take
+        disc = disc.quantize(Decimal("0.01"))
+        if remaining_free:
+            raise ValidationError({"promotion": "Could not resolve the free qualifying units safely."})
+    elif promotion.discount_percent is not None:
         disc = (discount_basis * promotion.discount_percent / Decimal("100")).quantize(Decimal("0.01"))
     elif promotion.discount_amount is not None:
         disc = promotion.discount_amount
@@ -678,6 +715,10 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
             "discount_amount": str(disc),
             "coupon_used": bool(expected_coupon),
             "min_target_quantity": str(promotion.min_target_quantity) if promotion.min_target_quantity is not None else None,
+            "offer_type": promotion.offer_type,
+            "buy_quantity": promotion.buy_quantity,
+            "get_quantity": promotion.get_quantity,
+            "max_uses_per_order": promotion.max_uses_per_order,
         },
     )
     return locked
