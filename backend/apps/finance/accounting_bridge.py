@@ -14,6 +14,8 @@ from apps.finance.models import (
     AccountingExportBatch,
     AccountingMapping,
     AccountingMappingKind,
+    FinancePostingLink,
+    FinancePostingSource,
 )
 from apps.lodging.models import FolioLine, FolioPayment
 from apps.pos.models import Order, OrderLine, Payment, Refund
@@ -90,7 +92,10 @@ def _line(*, account, debit=ZERO, credit=ZERO, memo="", dimensions=None, source_
     }
 
 
-def _append_aggregate(bucket, *, account, debit=ZERO, credit=ZERO, memo, dimensions, source_ref):
+def _append_aggregate(
+    bucket, *, account, debit=ZERO, credit=ZERO, memo, dimensions,
+    source_ref=None, source_refs=None,
+):
     key = (
         account.account_code,
         account.account_name,
@@ -107,8 +112,12 @@ def _append_aggregate(bucket, *, account, debit=ZERO, credit=ZERO, memo, dimensi
     })
     row["debit"] += _money(debit)
     row["credit"] += _money(credit)
-    if source_ref and source_ref not in row["source_refs"]:
-        row["source_refs"].append(source_ref)
+    refs = list(source_refs or [])
+    if source_ref:
+        refs.append(source_ref)
+    for ref in refs:
+        if ref and ref not in row["source_refs"]:
+            row["source_refs"].append(ref)
 
 
 def build_accounting_preview(
@@ -257,6 +266,7 @@ def build_accounting_preview(
             .order_by("created_at", "pk")
         )
         retained_by_method = defaultdict(Decimal)
+        retained_refs_by_method = defaultdict(list)
         for payment in payments:
             refunded_before_settlement = (
                 Refund.objects.filter(
@@ -268,6 +278,7 @@ def build_accounting_preview(
             retained = _money(payment.amount - refunded_before_settlement)
             if retained > 0:
                 retained_by_method[payment.method] += retained
+                retained_refs_by_method[payment.method].append(f"payment:{payment.pk}")
                 if payment.shift_id and payment.shift.workstation_id:
                     dimensions["register"] = payment.shift.workstation.code
 
@@ -288,7 +299,7 @@ def build_accounting_preview(
                     debit=amount,
                     memo=f"Tender clearing · {method}",
                     dimensions={**dimensions, "tender": method},
-                    source_ref=order_ref,
+                    source_refs=[order_ref, *retained_refs_by_method[method]],
                 )
 
         # Trusted COGS/inventory only. Unknown cost never becomes zero-cost.
@@ -529,6 +540,7 @@ def build_accounting_preview(
                 )
 
         retained_by_method = defaultdict(Decimal)
+        retained_refs_by_method = defaultdict(list)
         retained_total = ZERO
         for payment in (
             Payment.objects.filter(order=order, created_at__lte=charge.created_at)
@@ -545,6 +557,7 @@ def build_accounting_preview(
             retained = _money(payment.amount - refunded)
             if retained > 0:
                 retained_by_method[payment.method] += retained
+                retained_refs_by_method[payment.method].append(f"payment:{payment.pk}")
                 retained_total += retained
                 if payment.shift_id and payment.shift.workstation_id:
                     dimensions["register"] = payment.shift.workstation.code
@@ -561,7 +574,7 @@ def build_accounting_preview(
                     debit=amount,
                     memo=f"Folio sale POS tender · {method}",
                     dimensions={**dimensions, "tender": method},
-                    source_ref=charge_ref,
+                    source_refs=[charge_ref, *retained_refs_by_method[method]],
                 )
 
         receivable = _money(order.total - retained_total)
@@ -825,6 +838,49 @@ def build_accounting_preview(
         warnings.append(
             f"{source_counts['unknown_cost_lines']} inventory-tracked sale line(s) have incomplete sale-time cost; no COGS/inventory journal was guessed for them."
         )
+
+    posting_type_for_prefix = {
+        "payment": FinancePostingSource.POS_PAYMENT,
+        "refund": FinancePostingSource.POS_REFUND,
+        "folio_payment": FinancePostingSource.FOLIO_PAYMENT,
+        "supplier_payment": FinancePostingSource.SUPPLIER_PAYMENT,
+    }
+    posting_keys = []
+    for row in aggregate.values():
+        for ref in row["source_refs"]:
+            if ":" not in ref:
+                continue
+            prefix, source_id = ref.split(":", 1)
+            source_type = posting_type_for_prefix.get(prefix)
+            if source_type:
+                posting_keys.append((source_type, source_id))
+    linked_cashbook = {}
+    if posting_keys:
+        source_types = {item[0] for item in posting_keys}
+        source_ids = {item[1] for item in posting_keys}
+        for link in FinancePostingLink.objects.filter(
+            tenant_id=tenant_id,
+            source_type__in=source_types,
+            source_id__in=source_ids,
+        ).only("source_type", "source_id", "cashbook_entry_id"):
+            linked_cashbook[(link.source_type, link.source_id)] = str(
+                link.cashbook_entry_id
+            )
+        for row in aggregate.values():
+            additions = []
+            for ref in row["source_refs"]:
+                if ":" not in ref:
+                    continue
+                prefix, source_id = ref.split(":", 1)
+                source_type = posting_type_for_prefix.get(prefix)
+                cashbook_id = linked_cashbook.get((source_type, source_id))
+                if cashbook_id:
+                    additions.append(f"cashbook:{cashbook_id}")
+            for ref in additions:
+                if ref not in row["source_refs"]:
+                    row["source_refs"].append(ref)
+
+    source_counts["linked_cashbook_entries"] = len(set(linked_cashbook.values()))
 
     journal_lines = []
     for row in aggregate.values():
