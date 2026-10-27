@@ -519,11 +519,15 @@ class ConsoleMenuItemForm(forms.ModelForm):
         if family and category and family.category_id != category.id:
             self.add_error("product_family", "Choose a product family in the same category as this sellable variant.")
         barcode = (values.get("barcode") or "").strip()
-        if barcode and ProductPackage.objects.filter(tenant=self.tenant, barcode=barcode).exists():
-            self.add_error("barcode", "This barcode is already assigned to a product package.")
+        if barcode and ProductPackage.objects.filter(tenant=self.tenant).filter(
+            Q(barcode__iexact=barcode) | Q(sku_alias__iexact=barcode)
+        ).exists():
+            self.add_error("barcode", "This code is already assigned to a product package.")
         sku = (values.get("sku") or "").strip()
-        if sku and ProductPackage.objects.filter(tenant=self.tenant, sku_alias__iexact=sku).exists():
-            self.add_error("sku", "This SKU is already assigned as a product package code.")
+        if sku and ProductPackage.objects.filter(tenant=self.tenant).filter(
+            Q(sku_alias__iexact=sku) | Q(barcode__iexact=sku)
+        ).exists():
+            self.add_error("sku", "This code is already assigned to a product package.")
         return values
 
 
