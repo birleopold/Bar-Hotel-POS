@@ -1231,7 +1231,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             can_modify_open = False
         ctx["can_modify_open_order"] = can_modify_open
         ctx["serialized_sale_lines"] = []
-        if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+        if (
+            order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+            and order.status == OrderStatus.OPEN
+            and not order.is_paid
+        ):
             from apps.inventory.models import SerializedUnitStatus
             for serial_line in order.lines.filter(
                 is_voided=False,
