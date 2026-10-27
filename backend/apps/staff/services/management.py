@@ -277,7 +277,7 @@ def management_loss_patterns(request, *, policy, limit=10):
     def worker_row(user):
         if user is None:
             key = "__unknown__"
-            label = "Unknown worker"
+            label = "Unknown / shared attribution"
         else:
             key = str(user.pk)
             label = user.get_full_name() or user.email
