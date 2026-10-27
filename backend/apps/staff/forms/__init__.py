@@ -35,7 +35,14 @@ from .pos_orders import (
     StaffTableForm,
 )
 from .promotions import StaffPromotionForm
-from .purchasing import StaffPOHeaderForm, StaffSupplierForm, StaffSupplierProductCodeForm
+from .purchasing import (
+    StaffPOHeaderForm,
+    StaffRfqForm,
+    StaffRfqInviteForm,
+    StaffSupplierForm,
+    StaffSupplierProductCodeForm,
+    StaffSupplierQuoteForm,
+)
 from .workspace_forms import (
     StaffEfrisSettingsForm,
     StaffIntegrationLinkForm,
@@ -85,6 +92,8 @@ __all__ = [
     "StaffOrderVoidOrderForm",
     "StaffOrderVoidLineForm",
     "StaffPOHeaderForm",
+    "StaffRfqForm",
+    "StaffRfqInviteForm",
     "StaffPromotionForm",
     "StaffQuickTrackedMenuItemForm",
     "StaffReservationForm",
@@ -94,6 +103,7 @@ __all__ = [
     "StaffStockTransferForm",
     "StaffSupplierForm",
     "StaffSupplierProductCodeForm",
+    "StaffSupplierQuoteForm",
     "StaffTableForm",
     "StaffTeamInviteForm",
     "StaffTenantBrandingForm",
