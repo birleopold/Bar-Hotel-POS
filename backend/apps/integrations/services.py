@@ -34,7 +34,14 @@ def _build_cashbook_payload(entry: CashbookEntry) -> dict:
 def _tenant_efris_enabled(tenant_id) -> bool:
     if not getattr(settings, "EFRIS_INTEGRATION_ENABLED", False):
         return False
-    ts = TenantSettings.objects.filter(tenant_id=tenant_id).only("efris_enabled").first()
+    ts = (
+        TenantSettings.objects.filter(
+            tenant_id=tenant_id,
+            tenant__is_training=False,
+        )
+        .only("efris_enabled")
+        .first()
+    )
     return bool(ts and ts.efris_enabled)
 
 
