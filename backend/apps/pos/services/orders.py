@@ -16,7 +16,6 @@ from apps.catalog.promotion_rules import (
 from apps.catalog.models import (
     MenuItem,
     ProductAlternateCode,
-    ProductAlternateCode,
     ProductPackage,
     RetailProductGroup,
     Promotion,
@@ -47,7 +46,7 @@ from apps.pos.models import (
 from apps.tenants.models import Outlet, OutletType, Tenant, TenantSettings
 
 from .menu import menu_item_available_at_outlet
-from .pricing import line_tax, line_total, recalculate_order_totals
+from .pricing import line_tax, line_total, promotion_discount_for_order, recalculate_order_totals
 from .price_books import qualifying_customer_price_rule
 
 
@@ -664,39 +663,20 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
         set_size = buy_qty + get_qty
         if buy_qty <= 0 or get_qty <= 0 or set_size <= 1:
             raise ValidationError({"promotion": "Buy X Get Y quantities are not configured correctly."})
-        total_units = sum(int(line.quantity) for line in eligible_lines)
-        uses = total_units // set_size
+        uses = sum(int(line.quantity) for line in eligible_lines) // set_size
         if promotion.max_uses_per_order is not None:
             uses = min(uses, promotion.max_uses_per_order)
         if uses <= 0:
             raise ValidationError({"promotion": "Add more qualifying units for this Buy X Get Y offer."})
-        free_units = uses * get_qty
-        priced = []
-        for line in eligible_lines:
-            if line.quantity <= 0:
-                continue
-            per_unit = (line.line_total / line.quantity).quantize(Decimal("0.01"))
-            priced.append((per_unit, int(line.quantity)))
-        priced.sort(key=lambda row: row[0])
-        remaining_free = free_units
-        disc = Decimal("0.00")
-        for per_unit, available_units in priced:
-            if remaining_free <= 0:
-                break
-            take = min(remaining_free, available_units)
-            disc += per_unit * take
-            remaining_free -= take
-        disc = disc.quantize(Decimal("0.01"))
-        if remaining_free:
-            raise ValidationError({"promotion": "Could not resolve the free qualifying units safely."})
-    elif promotion.discount_percent is not None:
-        disc = (discount_basis * promotion.discount_percent / Decimal("100")).quantize(Decimal("0.01"))
-    elif promotion.discount_amount is not None:
-        disc = promotion.discount_amount
-    else:
+    elif promotion.discount_percent is None and promotion.discount_amount is None:
         raise ValidationError("Promotion is missing discount fields.")
-    max_disc = discount_basis if target_is_scoped else locked.subtotal + locked.tax_total
-    disc = min(disc, max_disc)
+
+    disc = promotion_discount_for_order(
+        locked,
+        subtotal=locked.subtotal,
+        tax_total=locked.tax_total,
+        promotion_override=promotion,
+    )
     locked.discount_amount = disc
     locked.applied_promotion = promotion
     locked.save(update_fields=["discount_amount", "applied_promotion", "updated_at"])
