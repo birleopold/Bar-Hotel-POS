@@ -19,6 +19,10 @@ class StaffPromotionForm(forms.ModelForm):
             "discount_percent",
             "discount_amount",
             "min_order_subtotal",
+            "min_target_quantity",
+            "coupon_code",
+            "max_redemptions",
+            "max_redemptions_per_customer",
             "starts_at",
             "ends_at",
             "is_active",
@@ -37,6 +41,18 @@ class StaffPromotionForm(forms.ModelForm):
             "min_order_subtotal": forms.NumberInput(
                 attrs={"class": "staff-input", "step": "0.01", "min": 0},
             ),
+            "min_target_quantity": forms.NumberInput(
+                attrs={"class": "staff-input", "step": "0.001", "min": "0.001"},
+            ),
+            "coupon_code": forms.TextInput(
+                attrs={"class": "staff-input", "maxlength": 64, "placeholder": "Optional coupon code"},
+            ),
+            "max_redemptions": forms.NumberInput(
+                attrs={"class": "staff-input", "min": 1, "step": 1},
+            ),
+            "max_redemptions_per_customer": forms.NumberInput(
+                attrs={"class": "staff-input", "min": 1, "step": 1},
+            ),
             "is_active": forms.CheckboxInput(),
             "outlets": forms.SelectMultiple(attrs={"class": "staff-input", "size": 6}),
         }
@@ -50,6 +66,10 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["discount_percent"].required = False
         self.fields["discount_amount"].required = False
         self.fields["min_order_subtotal"].required = False
+        self.fields["min_target_quantity"].required = False
+        self.fields["coupon_code"].required = False
+        self.fields["max_redemptions"].required = False
+        self.fields["max_redemptions_per_customer"].required = False
         self.fields["ends_at"].required = False
         self.fields["outlets"].required = False
         self.fields["outlets"].label = "Limit to sections"
@@ -91,6 +111,10 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["product_family"].help_text = "Optional. Applies to all matching variants."
         self.fields["category"].help_text = "Optional. Applies to all products in this category."
         self.fields["brand"].help_text = "Optional case-insensitive brand target. Leave all targets blank for the whole basket."
+        self.fields["min_target_quantity"].help_text = "Optional qualifying quantity. For targeted offers this counts matching units; for whole-basket offers it counts all sellable basket units."
+        self.fields["coupon_code"].help_text = "Optional. Coupon offers are not shown in the normal checkout offer list; the cashier must enter the code."
+        self.fields["max_redemptions"].help_text = "Optional global limit counted only after orders are fully paid."
+        self.fields["max_redemptions_per_customer"].help_text = "Optional limit for identified customers; anonymous sales do not consume a customer-specific allowance."
         if self.instance.pk:
             if self.instance.starts_at:
                 st = self.instance.starts_at
@@ -129,6 +153,17 @@ class StaffPromotionForm(forms.ModelForm):
             )
         if data.get("brand") is not None:
             data["brand"] = (data.get("brand") or "").strip()
+        if data.get("coupon_code") is not None:
+            data["coupon_code"] = (data.get("coupon_code") or "").strip()
+        if (
+            data.get("max_redemptions") is not None
+            and data.get("max_redemptions_per_customer") is not None
+            and data["max_redemptions_per_customer"] > data["max_redemptions"]
+        ):
+            self.add_error(
+                "max_redemptions_per_customer",
+                "Per-customer limit cannot exceed the total redemption limit.",
+            )
         raw_end = self.data.get("ends_at")
         if raw_end is not None and str(raw_end).strip() == "":
             data["ends_at"] = None
