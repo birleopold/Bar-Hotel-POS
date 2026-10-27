@@ -16,6 +16,7 @@ from apps.purchasing.models import (
     Supplier,
     SupplierProductCode,
 )
+from apps.purchasing.serializers import ReceivePurchaseOrderSerializer
 from apps.purchasing.services import receive_purchase_order_goods
 from apps.pos.models import Order
 from apps.pos.services.orders import add_line_to_open_order
@@ -554,3 +555,29 @@ class PackageAwarePurchasingTests(TestCase):
         self.assertContains(response, "PREF-WATER")
         self.assertContains(response, "default UGX 810.00")
 
+    def test_receiving_api_serializer_accepts_cost_allocation_and_rejects_bad_amounts(self):
+        valid = ReceivePurchaseOrderSerializer(data={
+            "lines": [{"line_id": str(self.item.pk), "quantity": "10"}],
+            "shipping_cost": "120.00",
+            "duty_cost": "80.00",
+            "landed_cost_allocation": "by_cost",
+        })
+        self.assertTrue(valid.is_valid(), valid.errors)
+        self.assertEqual(valid.validated_data["shipping_cost"], Decimal("120.00"))
+        self.assertEqual(valid.validated_data["duty_cost"], Decimal("80.00"))
+        self.assertEqual(valid.validated_data["landed_cost_allocation"], "by_cost")
+
+        negative = ReceivePurchaseOrderSerializer(data={
+            "lines": [{"line_id": str(self.item.pk), "quantity": "10"}],
+            "shipping_cost": "-1",
+            "landed_cost_allocation": "by_cost",
+        })
+        self.assertFalse(negative.is_valid())
+        self.assertIn("shipping_cost", negative.errors)
+
+        invalid_method = ReceivePurchaseOrderSerializer(data={
+            "lines": [{"line_id": str(self.item.pk), "quantity": "10"}],
+            "landed_cost_allocation": "guess",
+        })
+        self.assertFalse(invalid_method.is_valid())
+        self.assertIn("landed_cost_allocation", invalid_method.errors)
