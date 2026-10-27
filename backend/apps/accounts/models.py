@@ -77,6 +77,14 @@ class Membership(TimeStampedModel):
         related_name="memberships",
     )
     role = models.CharField(max_length=32, choices=MembershipRole.choices)
+    role_template = models.ForeignKey(
+        "accounts.RoleTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="memberships",
+        help_text="Template last applied to this membership; role/scope are copied, not live-linked.",
+    )
     is_active = models.BooleanField(default=True)
     staff_pin_hash = models.CharField(max_length=255, blank=True, editable=False)
     staff_pin_failures = models.PositiveSmallIntegerField(default=0, editable=False)
