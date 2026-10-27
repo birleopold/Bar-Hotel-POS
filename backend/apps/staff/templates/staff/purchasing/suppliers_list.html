@@ -8,23 +8,36 @@
   <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Suppliers</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-supplier-create' %}">New supplier</a></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   <form method="get" class="fizo-purchasing__panel mb-3" role="search">
-    <label class="staff-label" for="supplier-directory-search">Find a supplier</label>
-    <div class="d-flex flex-wrap gap-2">
-      <input id="supplier-directory-search" class="staff-input flex-grow-1" name="q"
-        value="{{ supplier_search_q }}" maxlength="80" placeholder="Supplier name, email or phone"
-        style="min-width:12rem">
-      <button type="submit" class="staff-btn staff-btn--primary">Find supplier</button>
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-md-7">
+        <label class="staff-label" for="supplier-directory-search">Find a supplier</label>
+        <input id="supplier-directory-search" class="staff-input" name="q"
+          value="{{ supplier_search_q }}" maxlength="80" placeholder="Supplier name, email or phone">
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="staff-label" for="supplier-performance-days">Performance window</label>
+        <select id="supplier-performance-days" class="staff-input" name="days">
+          <option value="90"{% if supplier_performance_days == 90 %} selected{% endif %}>90 days</option>
+          <option value="365"{% if supplier_performance_days == 365 %} selected{% endif %}>1 year</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2"><button type="submit" class="staff-btn staff-btn--primary w-100">Apply</button></div>
     </div>
+    <p class="staff-muted small mb-0 mt-2">Performance uses recorded purchase orders, physical receipts, supplier returns and received unit costs only. No subjective overall score is assigned.</p>
   </form>
   <h2 class="fizo-purchasing__section-heading">Directory</h2>
   <div class="fizo-purchasing__tablewrap">
     <table class="fizo-purchasing__table">
-      <thead><tr><th>Name</th><th>Contact</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <thead><tr><th>Name</th><th>Products</th><th>Orders / deliveries</th><th>Delivery performance</th><th>Quantity / returns</th><th>Cost direction</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for s in suppliers %}
           <tr>
-            <td>{{ s.name }}</td>
-            <td>{% if s.email %}{{ s.email }}{% elif s.phone %}{{ s.phone }}{% else %}—{% endif %}</td>
+            <td><strong>{{ s.name }}</strong><div class="staff-muted small">{% if s.email %}{{ s.email }}{% elif s.phone %}{{ s.phone }}{% else %}No contact details{% endif %}</div></td>
+            <td>{{ s.performance.mapped_products|default:0 }} mapped{% if s.performance.preferred_products %}<div class="staff-muted small">{{ s.performance.preferred_products }} preferred</div>{% endif %}</td>
+            <td>{{ s.performance.purchase_orders|default:0 }} PO{% if s.performance.purchase_orders != 1 %}s{% endif %}<div class="staff-muted small">{{ s.performance.delivery_count|default:0 }} deliveries</div></td>
+            <td>{% if s.performance.average_lead_days != None %}{{ s.performance.average_lead_days }} day avg lead{% else %}Lead time unknown{% endif %}<div class="staff-muted small">{% if s.performance.on_time_percent != None %}{{ s.performance.on_time_percent }}% on time · {{ s.performance.on_time_samples }} due samples{% else %}No due-date sample{% endif %}</div></td>
+            <td>{% if s.performance.quantity_fulfilled_percent != None %}{{ s.performance.quantity_fulfilled_percent }}% fulfilled{% else %}No due quantity sample{% endif %}<div class="staff-muted small">{% if s.performance.return_rate_percent != None %}{{ s.performance.return_rate_percent }}% returned{% else %}No return ratio{% endif %}</div></td>
+            <td><span class="staff-muted small">↑ {{ s.performance.cost_increases|default:0 }} · ↓ {{ s.performance.cost_decreases|default:0 }} · = {{ s.performance.cost_unchanged|default:0 }}</span></td>
             <td class="staff-table__actions-cell">
               {% if can_modify_purchasing %}
                 <a class="staff-table__action-link" href="{% url 'staff-purchasing-order-create' %}?supplier={{ s.id }}">New PO</a> · <a class="staff-table__action-link" href="{% url 'staff-purchasing-supplier-edit' supplier_id=s.id %}">Edit</a> · <a class="staff-table__action-link" href="{% url 'staff-purchasing-supplier-codes' supplier_id=s.id %}">Product catalog</a>
@@ -34,16 +47,16 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="3" class="staff-muted">No suppliers.</td></tr>
+          <tr><td colspan="7" class="staff-muted">No suppliers.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% if is_paginated %}
     <nav class="staff-pager">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;q={{ supplier_search_q|urlencode }}">Previous</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;q={{ supplier_search_q|urlencode }}&amp;days={{ supplier_performance_days }}">Previous</a>{% endif %}
       <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ supplier_search_q|urlencode }}">Next</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ supplier_search_q|urlencode }}&amp;days={{ supplier_performance_days }}">Next</a>{% endif %}
     </nav>
   {% endif %}
 </div>
