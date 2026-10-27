@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from apps.tenants.models import Outlet
 
-from .models import MenuItem, MenuItemRecipeLine, Promotion
+from .models import MenuCategory, MenuItem, MenuItemRecipeLine, ProductFamily, Promotion
 
 
 class MenuItemRecipeLineReadSerializer(serializers.ModelSerializer):
@@ -78,9 +78,17 @@ class PromotionSerializer(serializers.ModelSerializer):
             "id",
             "tenant",
             "name",
+            "menu_item",
+            "product_family",
+            "category",
+            "brand",
             "discount_percent",
             "discount_amount",
             "min_order_subtotal",
+            "min_target_quantity",
+            "coupon_code",
+            "max_redemptions",
+            "max_redemptions_per_customer",
             "starts_at",
             "ends_at",
             "is_active",
@@ -105,6 +113,45 @@ class PromotionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Set exactly one of discount_percent or discount_amount."
             )
+
+        tenant = self.context["request"].tenant
+        menu_item = attrs.get("menu_item", inst.menu_item if inst else None)
+        product_family = attrs.get("product_family", inst.product_family if inst else None)
+        category = attrs.get("category", inst.category if inst else None)
+        brand = (attrs.get("brand", inst.brand if inst else "") or "").strip()
+        if sum(bool(value) for value in (menu_item, product_family, category, brand)) > 1:
+            raise serializers.ValidationError(
+                "Choose only one promotion target: product, product family, category, or brand."
+            )
+        if menu_item is not None and menu_item.tenant_id != tenant.pk:
+            raise serializers.ValidationError({"menu_item": "Choose a product from this business."})
+        if product_family is not None and product_family.tenant_id != tenant.pk:
+            raise serializers.ValidationError({"product_family": "Choose a product family from this business."})
+        if category is not None and category.tenant_id != tenant.pk:
+            raise serializers.ValidationError({"category": "Choose a category from this business."})
+        attrs["brand"] = brand
+
+        coupon_code = (attrs.get("coupon_code", inst.coupon_code if inst else "") or "").strip()
+        if coupon_code:
+            qs = Promotion.objects.filter(
+                tenant=tenant,
+                coupon_code__iexact=coupon_code,
+            )
+            if inst is not None:
+                qs = qs.exclude(pk=inst.pk)
+            if qs.exists():
+                raise serializers.ValidationError({"coupon_code": "This coupon code is already in use."})
+        attrs["coupon_code"] = coupon_code
+
+        total_limit = attrs.get("max_redemptions", inst.max_redemptions if inst else None)
+        customer_limit = attrs.get(
+            "max_redemptions_per_customer",
+            inst.max_redemptions_per_customer if inst else None,
+        )
+        if total_limit is not None and customer_limit is not None and customer_limit > total_limit:
+            raise serializers.ValidationError({
+                "max_redemptions_per_customer": "Per-customer limit cannot exceed the total redemption limit."
+            })
         return attrs
 
     def create(self, validated_data):
