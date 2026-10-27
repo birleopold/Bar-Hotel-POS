@@ -16,6 +16,7 @@ from apps.pos.services.orders import (
     apply_supermarket_line_discount,
     remove_promotion_from_order,
 )
+from apps.pos.services.payments import record_order_payment
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.staff.services import promotions_selectable_for_order
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
@@ -705,3 +706,43 @@ class TargetedPromotionTests(TestCase):
         self.assertFalse(
             Promotion.objects.filter(tenant=self.tenant, name="Bad BOGO").exists()
         )
+
+
+    def test_final_tender_rechecks_redemption_limit_after_offer_was_applied(self):
+        promo = self._promotion(
+            name="Last redemption",
+            max_redemptions=1,
+        )
+        pending = self._order()
+        add_line_to_open_order(
+            order=pending,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        apply_promotion_to_order(order=pending, promotion=promo, user=self.user)
+        pending.refresh_from_db()
+        self.assertEqual(pending.total, Decimal("9000.00"))
+
+        consumed = self._order()
+        consumed.applied_promotion = promo
+        consumed.is_paid = True
+        consumed.status = "closed"
+        consumed.save(update_fields=["applied_promotion", "is_paid", "status", "updated_at"])
+
+        with self.assertRaises(ValidationError):
+            record_order_payment(
+                order=pending,
+                user=self.user,
+                amount=Decimal("9000.00"),
+                method=PaymentMethod.CASH,
+                idempotency_key="last-redemption-race",
+            )
+        self.assertFalse(
+            Payment.objects.filter(
+                order=pending,
+                idempotency_key="last-redemption-race",
+            ).exists()
+        )
+        pending.refresh_from_db()
+        self.assertFalse(pending.is_paid)
