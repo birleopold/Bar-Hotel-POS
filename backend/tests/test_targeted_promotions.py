@@ -858,3 +858,175 @@ class TargetedPromotionTests(TestCase):
         )
         self.assertFalse(serializer.is_valid())
         self.assertIn("menu_item", serializer.errors)
+
+    def test_x_for_fixed_amount_discounts_complete_same_target_sets(self):
+        cheaper = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=self.food,
+            name="Small Oil Fixed",
+            brand="Acme",
+            sku="OIL-FIXED-SMALL",
+            unit_price=Decimal("5000"),
+            track_inventory=False,
+        )
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        add_line_to_open_order(
+            order=order,
+            menu_item=cheaper,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Any three oils for 18000",
+            offer_type=Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+            category=self.food,
+            discount_percent=None,
+            discount_amount=None,
+            fixed_quantity=3,
+            fixed_bundle_amount=Decimal("18000"),
+        )
+
+        self.assertTrue(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+
+        self.assertEqual(order.subtotal, Decimal("25000.00"))
+        self.assertEqual(order.discount_amount, Decimal("7000.00"))
+        self.assertEqual(order.total, Decimal("18000.00"))
+
+    def test_x_for_fixed_amount_respects_complete_sets_cap_and_leftovers(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("7"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Three oils for 25000 once",
+            offer_type=Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+            menu_item=self.oil,
+            discount_percent=None,
+            discount_amount=None,
+            fixed_quantity=3,
+            fixed_bundle_amount=Decimal("25000"),
+            max_uses_per_order=1,
+        )
+
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.subtotal, Decimal("70000.00"))
+        self.assertEqual(order.discount_amount, Decimal("5000.00"))
+        self.assertEqual(order.total, Decimal("65000.00"))
+
+    def test_x_for_fixed_amount_recalculates_with_fast_basket_quantity_changes(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("3"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Three for 25000 live",
+            offer_type=Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+            menu_item=self.oil,
+            discount_percent=None,
+            discount_amount=None,
+            fixed_quantity=3,
+            fixed_bundle_amount=Decimal("25000"),
+        )
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("5000.00"))
+
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("3"),
+            user=self.user,
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("10000.00"))
+
+        from apps.pos.services.orders import adjust_open_order_line_quantity
+        line.refresh_from_db()
+        adjust_open_order_line_quantity(
+            order=order,
+            line=line,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("5000.00"))
+
+    def test_promotion_api_serializer_accepts_x_for_fixed_amount_contract(self):
+        payload = {
+            "name": "API three for fixed",
+            "offer_type": Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+            "menu_item": str(self.oil.pk),
+            "product_family": None,
+            "category": None,
+            "brand": "",
+            "discount_percent": None,
+            "discount_amount": None,
+            "fixed_quantity": 3,
+            "fixed_bundle_amount": "25000.00",
+            "max_uses_per_order": 2,
+            "starts_at": (timezone.now() - timedelta(minutes=1)).isoformat(),
+            "ends_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            "is_active": True,
+            "outlet_ids": [str(self.outlet.pk)],
+        }
+        serializer = PromotionSerializer(
+            data=payload,
+            context={"request": SimpleNamespace(tenant=self.tenant)},
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        promo = serializer.save()
+        self.assertEqual(promo.offer_type, Promotion.OfferType.X_FOR_FIXED_AMOUNT)
+        self.assertEqual(promo.fixed_quantity, 3)
+        self.assertEqual(promo.fixed_bundle_amount, Decimal("25000.00"))
+        self.assertEqual(promo.max_uses_per_order, 2)
+
+    def test_x_for_fixed_amount_rejects_whole_basket_and_non_saving_configuration(self):
+        invalid = Promotion(
+            tenant=self.tenant,
+            name="Invalid whole basket fixed",
+            offer_type=Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+            discount_percent=None,
+            discount_amount=None,
+            fixed_quantity=3,
+            fixed_bundle_amount=Decimal("25000"),
+            starts_at=timezone.now() - timedelta(minutes=1),
+        )
+        with self.assertRaises(Exception):
+            invalid.full_clean()
+
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("3"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="No fake saving",
+            offer_type=Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+            menu_item=self.oil,
+            discount_percent=None,
+            discount_amount=None,
+            fixed_quantity=3,
+            fixed_bundle_amount=Decimal("35000"),
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
