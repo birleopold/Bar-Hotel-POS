@@ -129,6 +129,13 @@ def receive_purchase_order_goods(
                 )
             })
         batch_code = str(row.get("batch_code") or "").strip()
+        if line.menu_item.serial_tracking and (batch_code or row.get("expiry_date")):
+            raise ValidationError({
+                "batch_code": (
+                    f"{line.menu_item.name} is serial / IMEI tracked. "
+                    "Do not combine batch/expiry tracking with serialized receipt in this workflow."
+                )
+            })
         if row.get("expiry_date") and not batch_code:
             raise ValidationError({"batch_code": "Enter a batch code when setting an expiry date."})
         if not batch_code and InventoryBatch.objects.filter(
