@@ -1307,6 +1307,21 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if can_modify_open and item_catalog_enabled
             else None
         )
+        ctx["retail_product_groups"] = []
+        if (
+            can_modify_open
+            and order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+        ):
+            ctx["retail_product_groups"] = list(
+                RetailProductGroup.objects.filter(
+                    tenant_id=order.tenant_id,
+                    is_active=True,
+                    lines__isnull=False,
+                )
+                .prefetch_related("lines__menu_item")
+                .distinct()
+                .order_by("name")[:40]
+            )
         ctx["add_service_form"] = (
             StaffOrderAddServiceForm(tenant_id=order.tenant_id, outlet_id=order.outlet_id)
             if can_modify_open and services_enabled
@@ -2801,13 +2816,27 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 for err in err_list:
                     messages.error(request, f"{fld}: {err}")
             return redirect("staff-order-detail", order_id=order.id)
+        group_code = (form.cleaned_data["code"] or "").strip()
+        retail_group = RetailProductGroup.objects.filter(
+            tenant_id=order.tenant_id,
+            is_active=True,
+            code__iexact=group_code,
+        ).first()
         try:
-            add_supermarket_line_by_code(
-                order=order,
-                code=form.cleaned_data["code"],
-                quantity=form.cleaned_data["quantity"],
-                user=request.user,
-            )
+            if retail_group is not None:
+                add_retail_group_to_open_order(
+                    order=order,
+                    retail_group=retail_group,
+                    quantity=form.cleaned_data["quantity"],
+                    user=request.user,
+                )
+            else:
+                add_supermarket_line_by_code(
+                    order=order,
+                    code=group_code,
+                    quantity=form.cleaned_data["quantity"],
+                    user=request.user,
+                )
         except DRFValidationError as exc:
             if async_scan:
                 return reject(exc.detail)
@@ -2817,7 +2846,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
                 return JsonResponse({"ok": True, "order_id": str(order.pk),
                     "currency": order.currency, "total": str(order.total)})
-            messages.success(request, "SKU added.")
+            messages.success(
+                request,
+                f"{retail_group.name} added." if retail_group is not None else "SKU added.",
+            )
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_line_discount(self, request: HttpRequest, order: Order) -> HttpResponse:
