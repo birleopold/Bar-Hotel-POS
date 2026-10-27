@@ -412,6 +412,11 @@
             <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-hospitality-promotion-status></p></div>
           </form>
         </div>
+      {% elif can_modify_open_order and promotion_block_reason %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Offer</h2>
+          <p class="staff-muted small mb-0">{{ promotion_block_reason }}</p>
+        </div>
       {% elif can_modify_open_order and apply_promotion_form %}
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Offer</h2>
