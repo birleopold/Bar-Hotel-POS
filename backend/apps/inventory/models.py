@@ -61,6 +61,145 @@ class RetailAssemblyRun(TimeStampedModel):
         ordering = ["-created_at"]
 
 
+class SerializedUnitStatus(models.TextChoices):
+    AVAILABLE = "available", "Available"
+    RESERVED = "reserved", "Reserved for basket"
+    SOLD = "sold", "Sold"
+    RETURNED = "returned", "Returned to stock"
+    QUARANTINED = "quarantined", "Quarantined"
+    RETIRED = "retired", "Retired / written off"
+
+
+class SerializedUnitEventType(models.TextChoices):
+    RECEIVED = "received", "Received"
+    RESERVED = "reserved", "Reserved"
+    RELEASED = "released", "Released"
+    SOLD = "sold", "Sold"
+    RETURNED = "returned", "Returned"
+    TRANSFERRED = "transferred", "Transferred"
+    QUARANTINED = "quarantined", "Quarantined"
+    RETIRED = "retired", "Retired"
+
+
+class InventorySerialUnit(TimeStampedModel):
+    """One physical serialized/IMEI-tracked retail unit."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="serialized_units",
+    )
+    outlet = models.ForeignKey(
+        "tenants.Outlet",
+        on_delete=models.PROTECT,
+        related_name="serialized_units",
+    )
+    menu_item = models.ForeignKey(
+        "catalog.MenuItem",
+        on_delete=models.PROTECT,
+        related_name="serialized_units",
+    )
+    serial_number = models.CharField(max_length=128)
+    secondary_identifier = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Optional secondary identifier such as IMEI2 or manufacturer serial.",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=SerializedUnitStatus.choices,
+        default=SerializedUnitStatus.AVAILABLE,
+    )
+    purchase_receipt_line = models.ForeignKey(
+        "purchasing.PurchaseReceiptLine",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="serialized_units",
+    )
+    reserved_order_line = models.ForeignKey(
+        "pos.OrderLine",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reserved_serial_units",
+    )
+    sold_order_line = models.ForeignKey(
+        "pos.OrderLine",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sold_serial_units",
+    )
+    received_at = models.DateField()
+    sold_at = models.DateTimeField(null=True, blank=True)
+    warranty_expires_at = models.DateField(null=True, blank=True)
+    note = models.CharField(max_length=512, blank=True)
+
+    class Meta:
+        ordering = ["menu_item__name", "serial_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "serial_number"],
+                name="uniq_tenant_serial_number",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant", "outlet", "status"],
+                name="serial_outlet_status_idx",
+            ),
+            models.Index(
+                fields=["tenant", "menu_item", "status"],
+                name="serial_item_status_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.menu_item.name} · {self.serial_number}"
+
+
+class InventorySerialEvent(TimeStampedModel):
+    """Immutable trace event for serialized stock custody and sale lifecycle."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="serialized_unit_events",
+    )
+    serial_unit = models.ForeignKey(
+        InventorySerialUnit,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+    event_type = models.CharField(max_length=16, choices=SerializedUnitEventType.choices)
+    outlet = models.ForeignKey(
+        "tenants.Outlet",
+        on_delete=models.PROTECT,
+        related_name="serialized_unit_events",
+    )
+    order_line = models.ForeignKey(
+        "pos.OrderLine",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="serialized_unit_events",
+    )
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="serialized_unit_events_created",
+    )
+    note = models.CharField(max_length=512, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class StockBalance(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
