@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.db.models import Q
 from django.utils import timezone
@@ -195,7 +195,7 @@ def supplier_purchase_options(
     day = as_of or timezone.localdate()
     try:
         qty = Decimal(str(ordered_quantity))
-    except Exception:
+    except (InvalidOperation, TypeError, ValueError):
         qty = Decimal("0")
     if not qty.is_finite() or qty <= 0:
         return []
@@ -232,19 +232,17 @@ def supplier_purchase_options(
             "-created_at",
         )
     )
-    receipt_rows = list(
-        PurchaseReceiptLine.objects.filter(
-            receipt__tenant_id=tenant_id,
-            purchase_order_line__menu_item_id=menu_item_id,
-            receipt__purchase_order__supplier__is_active=True,
-            unit_cost_snapshot__isnull=False,
-        )
-        .select_related("receipt__purchase_order__supplier")
-        .order_by(
+    receipt_base = PurchaseReceiptLine.objects.filter(
+        receipt__tenant_id=tenant_id,
+        purchase_order_line__menu_item_id=menu_item_id,
+        receipt__purchase_order__supplier__is_active=True,
+        unit_cost_snapshot__isnull=False,
+    )
+    receipt_supplier_ids = set(
+        receipt_base.values_list(
             "receipt__purchase_order__supplier_id",
-            "-receipt__created_at",
-            "-created_at",
-        )
+            flat=True,
+        ).distinct()
     )
 
     reference_by_supplier = {}
@@ -254,11 +252,21 @@ def supplier_purchase_options(
     for row in prices:
         price_by_supplier.setdefault(row.supplier_id, row)
     receipt_by_supplier = {}
-    for row in receipt_rows:
-        receipt_by_supplier.setdefault(
-            row.receipt.purchase_order.supplier_id,
-            row,
+    if receipt_supplier_ids:
+        receipt_rows = (
+            receipt_base
+            .select_related("receipt__purchase_order__supplier")
+            .order_by(
+                "receipt__purchase_order__supplier_id",
+                "-receipt__created_at",
+                "-created_at",
+            )
         )
+        for row in receipt_rows.iterator(chunk_size=200):
+            supplier_id = row.receipt.purchase_order.supplier_id
+            receipt_by_supplier.setdefault(supplier_id, row)
+            if len(receipt_by_supplier) >= len(receipt_supplier_ids):
+                break
 
     supplier_ids = (
         set(reference_by_supplier)
