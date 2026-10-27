@@ -811,6 +811,16 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
                 relation.default_unit_cost if relation and relation.default_unit_cost is not None else None
             )
             item.supplier_preferred_display = bool(relation and relation.is_preferred)
+            item.supplier_minimum_order_display = (
+                relation.minimum_order_quantity
+                if relation and relation.minimum_order_quantity is not None
+                else None
+            )
+            item.supplier_lead_days_display = (
+                relation.expected_lead_days
+                if relation and relation.expected_lead_days is not None
+                else None
+            )
             history = menu_histories.get(item.pk)
             item.supplier_latest_cost_display = history.latest_unit_cost if history else None
             item.supplier_previous_cost_display = history.previous_unit_cost if history else None
