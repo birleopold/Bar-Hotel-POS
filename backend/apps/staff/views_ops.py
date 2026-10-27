@@ -107,6 +107,7 @@ from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .workstations import active_pairing, select_workstation, selected_workstation, settlement_workstation_id, require_staff_register_selection
 from .report_csv import format_sales_summary_csv
+from .profitability import build_merchandise_profitability
 from .sales_summary import build_sales_summary
 from .services import (
     attach_order_payment_display,
@@ -4093,9 +4094,18 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
             return ctx
 
         oid = None if ctx["all_outlets_mode"] else (outlet.id if outlet else None)
+        allowed_outlet_ids = [o.pk for o in outlets]
         ctx["summary"] = build_sales_summary(
             self.request.tenant.id, d0, d1, oid,
-            allowed_outlet_ids=[o.pk for o in outlets],
+            allowed_outlet_ids=allowed_outlet_ids,
+            business_date_site=business_site,
+        )
+        ctx["summary"]["merchandise_profitability"] = build_merchandise_profitability(
+            tenant_id=self.request.tenant.id,
+            date_from=d0,
+            date_to=d1,
+            allowed_outlet_ids=allowed_outlet_ids,
+            currency=self.request.tenant.settings.default_currency,
             business_date_site=business_site,
         )
         return ctx
