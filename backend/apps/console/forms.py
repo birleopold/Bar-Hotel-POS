@@ -511,6 +511,9 @@ class ConsoleMenuItemForm(forms.ModelForm):
         self.fields["tax_rate_percent"].required = False
         self.fields["reorder_level"].required = False
         self.fields["warranty_months"].required = False
+        # Ordinary products must not be forced to choose a serial/IMEI label.
+        # The model default is used whenever serial tracking is disabled.
+        self.fields["serial_identifier_type"].required = False
         if self.instance._state.adding:
             try:
                 from apps.tenants.business_lines import normalize_business_lines
@@ -532,6 +535,9 @@ class ConsoleMenuItemForm(forms.ModelForm):
 
     def clean_units_per_carton(self):
         return self.cleaned_data.get("units_per_carton") or 1
+
+    def clean_serial_identifier_type(self):
+        return self.cleaned_data.get("serial_identifier_type") or "serial"
 
     def clean(self):
         values = super().clean()
