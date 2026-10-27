@@ -10,6 +10,7 @@ from apps.accounts.models import Membership, MembershipRole
 from apps.audit.services import log_audit
 from apps.catalog.models import (
     MenuItem,
+    ProductPackage,
     Promotion,
     ServiceOffering,
     ServiceOfferingOption,
@@ -402,25 +403,43 @@ def default_currency_for_tenant(tenant: Tenant) -> str:
         return "USD"
 
 
-def lookup_supermarket_item_for_code(
+def lookup_supermarket_sellable_for_code(
     *,
     tenant_id,
     outlet_id,
     code: str,
-) -> tuple[MenuItem | None, str]:
+) -> tuple[MenuItem | None, str, ProductPackage | None]:
     token = (code or "").strip()
     if not token:
-        return None, ""
-    outlet = Outlet.objects.filter(id=outlet_id, site__tenant_id=tenant_id, is_active=True).first()
-    if outlet is None:
-        return None, ""
-    if outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
-        return None, ""
-    # Primary path: direct barcode.
-    for item in MenuItem.objects.filter(tenant_id=tenant_id, is_active=True, barcode__iexact=token):
+        return None, "", None
+    outlet = Outlet.objects.filter(
+        id=outlet_id, site__tenant_id=tenant_id, is_active=True,
+    ).first()
+    if outlet is None or outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+        return None, "", None
+
+    # A base-product barcode keeps priority for backward compatibility.
+    for item in MenuItem.objects.filter(
+        tenant_id=tenant_id, is_active=True, barcode__iexact=token,
+    ):
         if menu_item_available_at_outlet(item, outlet_id):
-            return item, "barcode"
-    # Fallback: supermarket PLU profile.
+            return item, "barcode", None
+
+    package = (
+        ProductPackage.objects.select_related("menu_item")
+        .filter(
+            tenant_id=tenant_id,
+            is_active=True,
+            is_sellable=True,
+            menu_item__is_active=True,
+        )
+        .filter(Q(barcode__iexact=token) | Q(sku_alias__iexact=token))
+        .order_by("pk")
+        .first()
+    )
+    if package and menu_item_available_at_outlet(package.menu_item, outlet_id):
+        return package.menu_item, "package", package
+
     profile = (
         SupermarketSkuProfile.objects.select_related("menu_item")
         .filter(
@@ -432,9 +451,23 @@ def lookup_supermarket_item_for_code(
         .first()
     )
     if profile and menu_item_available_at_outlet(profile.menu_item, outlet_id):
-        return profile.menu_item, "plu"
-    return None, ""
+        return profile.menu_item, "plu", None
+    return None, "", None
 
+
+def lookup_supermarket_item_for_code(
+    *,
+    tenant_id,
+    outlet_id,
+    code: str,
+) -> tuple[MenuItem | None, str]:
+    """Backward-compatible item lookup for callers that do not need package metadata."""
+    item, source, _package = lookup_supermarket_sellable_for_code(
+        tenant_id=tenant_id,
+        outlet_id=outlet_id,
+        code=code,
+    )
+    return item, source
 
 def normalize_supermarket_quantity(*, menu_item: MenuItem, quantity: Decimal) -> Decimal:
     if quantity <= Decimal("0"):
@@ -652,10 +685,11 @@ def add_line_to_open_order(
     modifier_option_ids: list | None = None,
     pricing_source: str = "menu",
     seat_number: int | None = None,
+    unit_price_override: Decimal | None = None,
 ) -> OrderLine:
     from apps.catalog.modifiers_service import resolve_modifier_selection_drfsafe
 
-    if pricing_source not in {"menu", "barcode", "plu", "weighted"}:
+    if pricing_source not in {"menu", "barcode", "plu", "weighted", "package"}:
         raise ValidationError({"pricing_source": "Invalid retail scan source."})
 
     locked = Order.objects.select_for_update().get(pk=order.pk)
@@ -672,6 +706,15 @@ def add_line_to_open_order(
         quantity = normalize_supermarket_quantity(menu_item=menu_item, quantity=quantity)
     seat = _normalize_dine_in_seat(locked, seat_number)
     unit_price = menu_item.unit_price_for_outlet(locked.outlet_id)
+    if unit_price_override is not None:
+        override = Decimal(str(unit_price_override))
+        if (
+            not override.is_finite()
+            or override < 0
+            or override != override.quantize(Decimal("0.01"))
+        ):
+            raise ValidationError({"unit_price": "Retail unit price must use two decimal places."})
+        unit_price = override
     eff_unit = unit_price + per_unit_mod
     sub = line_total(quantity, eff_unit)
     tax = line_tax(sub, menu_item.tax_rate_percent)
@@ -683,7 +726,7 @@ def add_line_to_open_order(
             locked.lines.select_for_update().filter(
                 menu_item_id=menu_item.pk,
                 is_voided=False,
-                pricing_source__in=("menu", "barcode", "plu"),
+                pricing_source__in=("menu", "barcode", "plu", "package"),
                 unit_price=unit_price,
                 label=menu_item.name,
                 line_discount_amount=Decimal("0"),
@@ -828,12 +871,25 @@ def add_supermarket_line_by_code(
         item, qty = decoded
         source = "weighted"
     else:
-        item, source = lookup_supermarket_item_for_code(
+        item, source, package = lookup_supermarket_sellable_for_code(
             tenant_id=order.tenant_id, outlet_id=order.outlet_id, code=code,
         )
         if item is None:
-            raise ValidationError({"code": "No active SKU found for this barcode/PLU at this outlet."})
-        qty = quantity
+            raise ValidationError({"code": "No active SKU found for this barcode/PLU/package at this outlet."})
+        if package is not None:
+            try:
+                package_count = Decimal(str(quantity))
+            except Exception as exc:
+                raise ValidationError({"quantity": "Enter a valid whole package quantity."}) from exc
+            if (
+                not package_count.is_finite()
+                or package_count <= 0
+                or package_count != package_count.to_integral_value()
+            ):
+                raise ValidationError({"quantity": "Package scans use whole package quantities."})
+            qty = (package_count * package.units_per_package).quantize(Decimal("0.001"))
+        else:
+            qty = quantity
     qty = normalize_supermarket_quantity(menu_item=item, quantity=qty)
     profile = getattr(item, "supermarket_profile", None)
     pricing_source = (
@@ -841,11 +897,25 @@ def add_supermarket_line_by_code(
         if profile is not None and profile.weighted_pricing_mode == WeightedPricingMode.WEIGHTED
         else source or "menu"
     )
+    unit_price_override = None
+    if source == "package" and package is not None and package.sell_price is not None:
+        raw_unit_price = package.sell_price / package.units_per_package
+        represented = raw_unit_price.quantize(Decimal("0.01"))
+        if represented != raw_unit_price:
+            raise ValidationError({
+                "code": (
+                    f'{package.name} has a package price that cannot be represented exactly '
+                    "by the current two-decimal line price. Leave its package price blank for "
+                    "base-unit pricing until advanced pack pricing is enabled."
+                )
+            })
+        unit_price_override = represented
     # Source assignment and line creation/merge share the same order lock and
-    # transaction. A grouped line retains its original scan provenance.
+    # transaction. Stock quantity is always expressed in the product's base unit.
     return add_line_to_open_order(
         order=order, menu_item=item, quantity=qty, user=user,
         pricing_source=pricing_source,
+        unit_price_override=unit_price_override,
     )
 
 
