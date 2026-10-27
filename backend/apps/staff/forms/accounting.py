@@ -14,6 +14,8 @@ DEFAULT_KINDS = {
     AccountingMappingKind.REVENUE_DEFAULT,
     AccountingMappingKind.RETURNS,
     AccountingMappingKind.TAX_LIABILITY,
+    AccountingMappingKind.ACCOUNTS_RECEIVABLE,
+    AccountingMappingKind.ACCOUNTS_PAYABLE,
     AccountingMappingKind.INVENTORY_DEFAULT,
     AccountingMappingKind.COGS_DEFAULT,
 }
