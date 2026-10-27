@@ -397,6 +397,12 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
         ctx["low_stock"] = self.request.GET.get("low_stock", "").lower() in ("1", "true", "yes")
         ctx["stock_q"] = self.request.GET.get("q", "").strip()[:80]
         ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
+        for balance in ctx["balances"]:
+            balance.inventory_cost_value = (
+                (balance.quantity * balance.average_unit_cost).quantize(Decimal("0.01"))
+                if balance.cost_basis_complete and balance.average_unit_cost is not None
+                else None
+            )
         visible_untracked = {}
         selected_ids = _outlet_filter_ids(self.request, ctx["outlets"])
         for outlet in ctx["outlets"]:
