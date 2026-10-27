@@ -235,23 +235,30 @@ def build_pdf_summary(*, schedule, period, summary):
                 Paragraph("Retail margin breaches", styles["Heading3"]),
             ])
             breach_rows = [[
-                "Sale", "Section", "Product", "Revenue", "Margin", "Shortfall",
+                "Sale", "Product", "Cashier", "Approver", "Revenue", "Shortfall",
             ]]
             for row in breach_sales[:8]:
                 breach_rows.append([
                     Paragraph(pdf_text(row["bill_reference"]), styles["Normal"]),
-                    Paragraph(pdf_text(row["outlet_name"]), styles["Normal"]),
                     Paragraph(pdf_text(row["item_name"]), styles["Normal"]),
-                    pdf_text(row["net_revenue"]),
-                    (
-                        f"{row['known_margin_percent']}%"
-                        if row["known_margin_percent"] is not None else "No revenue"
+                    Paragraph(
+                        pdf_text(row.get("cashier_email") or "Unknown"),
+                        styles["Normal"],
                     ),
+                    Paragraph(
+                        pdf_text(
+                            row.get("override_approver_email")
+                            if row.get("has_linked_margin_override")
+                            else "No linked override"
+                        ),
+                        styles["Normal"],
+                    ),
+                    pdf_text(row["net_revenue"]),
                     pdf_text(row["margin_shortfall"]),
                 ])
             breach_table = Table(
                 breach_rows,
-                colWidths=[75, 80, 120, 65, 55, 65],
+                colWidths=[70, 110, 95, 95, 45, 45],
                 repeatRows=1,
             )
             breach_table.setStyle(TableStyle([
