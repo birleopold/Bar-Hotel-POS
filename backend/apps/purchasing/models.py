@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models.functions import Lower
 
 from apps.common.models import TimeStampedModel
 
@@ -27,6 +28,63 @@ class Supplier(TimeStampedModel):
 
     def __str__(self) -> str:
         return self.name
+
+
+class SupplierProductCode(TimeStampedModel):
+    """Supplier-specific lookup code for an existing product or purchase package."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="supplier_product_codes",
+    )
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.CASCADE,
+        related_name="product_codes",
+    )
+    menu_item = models.ForeignKey(
+        "catalog.MenuItem",
+        on_delete=models.CASCADE,
+        related_name="supplier_codes",
+    )
+    product_package = models.ForeignKey(
+        "catalog.ProductPackage",
+        on_delete=models.CASCADE,
+        related_name="supplier_codes",
+        null=True,
+        blank=True,
+        help_text="Optional package this supplier code identifies.",
+    )
+    code = models.CharField(max_length=128)
+    description = models.CharField(max_length=160, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["supplier__name", "menu_item__name", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("code"),
+                "supplier",
+                name="uniq_supplier_product_code_ci",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.supplier_id and self.tenant_id and self.supplier.tenant_id != self.tenant_id:
+            raise ValidationError({"supplier": "Supplier must belong to this business."})
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Product must belong to this business."})
+        if self.product_package_id:
+            if self.product_package.tenant_id != self.tenant_id:
+                raise ValidationError({"product_package": "Package must belong to this business."})
+            if self.product_package.menu_item_id != self.menu_item_id:
+                raise ValidationError({"product_package": "Package must belong to the selected product."})
+
+    def __str__(self) -> str:
+        return f"{self.supplier.name} · {self.code} · {self.menu_item.name}"
 
 
 class PurchaseOrderStatus(models.TextChoices):
