@@ -1,0 +1,35 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}{% if device %}Edit device{% else %}Add device{% endif %} · {{ station.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261027.1">{% endblock %}
+{% block content %}
+<div class="fizo-register fizo-register--workstation-form">
+<header class="fizo-register__header">
+  <div>
+    <p class="fizo-register__eyebrow">{{ request.tenant.name|default:"Business" }} / Workstations / {{ station.name }}</p>
+    <h1>{% if device %}Edit device{% else %}Add device{% endif %}</h1>
+    <p>{{ station.outlet.name }} · {{ station.code }} · Hardware configuration and adapter policy</p>
+  </div>
+  <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-test' station.id %}">Back to equipment check</a>
+</header>
+
+<section class="staff-card mb-3">
+  <h2 class="staff-section-head">What this configuration means</h2>
+  <p class="staff-muted mb-0">A saved device describes the physical equipment and how this POS is allowed to interact with it. Browser printing and keyboard-wedge scanning are supervised browser capabilities; they do not prove a physical device is online. Direct printer, drawer or scale control requires an authenticated local hardware bridge.</p>
+</section>
+
+<form method="post" class="staff-card">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="staff-alert staff-alert--warning">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}
+    <div class="mb-3">
+      {{ field.label_tag }}{{ field }}
+      {% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}
+      {% for error in field.errors %}<span class="staff-field-error" role="alert">{{ error }}</span>{% endfor %}
+    </div>
+  {% endfor %}
+  <button class="staff-btn staff-btn--primary" type="submit">Save device</button>
+  <a class="staff-btn staff-btn--secondary" href="{% url 'staff-workstation-test' station.id %}">Cancel</a>
+</form>
+</div>
+{% endblock %}
