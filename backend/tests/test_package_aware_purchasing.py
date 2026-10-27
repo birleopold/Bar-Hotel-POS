@@ -326,6 +326,8 @@ class PackageAwarePurchasingTests(TestCase):
             line.merchandise_category_snapshot,
             "Beverages at payment",
         )
+        self.assertEqual(line.merchandise_sku_snapshot, "WATER-500")
+        self.assertTrue(line.inventory_tracked_snapshot)
         self.assertEqual(balance.quantity, Decimal("8"))
         self.assertEqual(balance.average_unit_cost, Decimal("750.0000"))
         self.assertTrue(balance.cost_basis_complete)
