@@ -251,6 +251,7 @@ class OutletType(models.TextChoices):
     LODGING_FRONT_DESK = "lodging_front_desk", "Lodging / front desk"
     RETAIL = "retail", "Retail / shop"
     SUPERMARKET = "supermarket", "Supermarket / grocery"
+    WAREHOUSE = "warehouse", "Warehouse / storage"
     EVENT_SPACE = "event_space", "Event space"
     SERVICE = "service", "Services / appointments"
 
