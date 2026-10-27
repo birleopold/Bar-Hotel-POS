@@ -887,6 +887,7 @@ class Promotion(TimeStampedModel):
     class OfferType(models.TextChoices):
         STANDARD = "standard", "Amount / percent off"
         BUY_X_GET_Y = "buy_x_get_y", "Buy X get Y free"
+        X_FOR_FIXED_AMOUNT = "x_for_fixed_amount", "X for fixed amount"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
@@ -984,11 +985,25 @@ class Promotion(TimeStampedModel):
         validators=[MinValueValidator(1)],
         help_text="For Buy X Get Y, number of additional qualifying units discounted to free.",
     )
+    fixed_quantity = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="For X for fixed amount, number of qualifying whole units in each deal set.",
+    )
+    fixed_bundle_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.01"))],
+        help_text="For X for fixed amount, total selling price for each qualifying set.",
+    )
     max_uses_per_order = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
         validators=[MinValueValidator(1)],
-        help_text="Optional maximum number of Buy X Get Y sets discounted on one order.",
+        help_text="Optional maximum number of quantity-deal sets discounted on one order.",
     )
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField(null=True, blank=True)
@@ -1018,6 +1033,8 @@ class Promotion(TimeStampedModel):
                             discount_amount__isnull=True,
                             buy_quantity__isnull=True,
                             get_quantity__isnull=True,
+                            fixed_quantity__isnull=True,
+                            fixed_bundle_amount__isnull=True,
                             max_uses_per_order__isnull=True,
                         )
                         | models.Q(
@@ -1026,6 +1043,8 @@ class Promotion(TimeStampedModel):
                             discount_amount__isnull=False,
                             buy_quantity__isnull=True,
                             get_quantity__isnull=True,
+                            fixed_quantity__isnull=True,
+                            fixed_bundle_amount__isnull=True,
                             max_uses_per_order__isnull=True,
                         )
                         | models.Q(
@@ -1034,6 +1053,17 @@ class Promotion(TimeStampedModel):
                             discount_amount__isnull=True,
                             buy_quantity__isnull=False,
                             get_quantity__isnull=False,
+                            fixed_quantity__isnull=True,
+                            fixed_bundle_amount__isnull=True,
+                        )
+                        | models.Q(
+                            offer_type="x_for_fixed_amount",
+                            discount_percent__isnull=True,
+                            discount_amount__isnull=True,
+                            buy_quantity__isnull=True,
+                            get_quantity__isnull=True,
+                            fixed_quantity__isnull=False,
+                            fixed_bundle_amount__isnull=False,
                         )
                     )
                 ),
@@ -1047,7 +1077,7 @@ class Promotion(TimeStampedModel):
                     | models.Q(category__isnull=False)
                     | ~models.Q(brand="")
                 ),
-                name="promotion_bogo_requires_target",
+                name="promotion_quantity_deal_requires_target",
             ),
             models.CheckConstraint(
                 condition=(
@@ -1093,15 +1123,28 @@ class Promotion(TimeStampedModel):
                 raise ValidationError("Buy X Get Y uses buy/get quantities instead of amount or percent discount.")
             if not self.buy_quantity or not self.get_quantity:
                 raise ValidationError("Buy X Get Y requires both buy quantity and get quantity.")
+            if self.fixed_quantity is not None or self.fixed_bundle_amount is not None:
+                raise ValidationError("Fixed-set quantity and amount are only valid for X for fixed amount offers.")
+        elif self.offer_type == self.OfferType.X_FOR_FIXED_AMOUNT:
+            if targets == 0:
+                raise ValidationError("X for fixed amount requires one product, family, category, or brand target.")
+            if self.discount_percent is not None or self.discount_amount is not None:
+                raise ValidationError("X for fixed amount uses set quantity and set price instead of amount or percent discount.")
+            if not self.fixed_quantity or self.fixed_bundle_amount is None:
+                raise ValidationError("X for fixed amount requires both a set quantity and set price.")
+            if self.buy_quantity is not None or self.get_quantity is not None:
+                raise ValidationError("Buy/get quantities are only valid for Buy X Get Y offers.")
         else:
             if (self.discount_percent is None) == (self.discount_amount is None):
                 raise ValidationError("Standard offers require exactly one amount or percent discount.")
             if (
                 self.buy_quantity is not None
                 or self.get_quantity is not None
+                or self.fixed_quantity is not None
+                or self.fixed_bundle_amount is not None
                 or self.max_uses_per_order is not None
             ):
-                raise ValidationError("Buy/get quantities and uses-per-order are only valid for Buy X Get Y offers.")
+                raise ValidationError("Quantity-deal fields are only valid for Buy X Get Y or X for fixed amount offers.")
         if (
             self.max_redemptions is not None
             and self.max_redemptions_per_customer is not None
