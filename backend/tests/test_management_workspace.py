@@ -512,6 +512,22 @@ class ManagementWorkspaceTests(TestCase):
         self.assertContains(page, "Repeated loss-prevention patterns")
         self.assertContains(page, self.worker.email)
         self.assertContains(page, "Manager discount")
+        self.assertContains(page, "Export pattern CSV")
+
+        exported = self.client.get(
+            reverse("staff-management"),
+            {"view": "exceptions", "loss_export": "csv"},
+        )
+        self.assertEqual(exported.status_code, 200)
+        self.assertEqual(exported["Content-Type"], "text/csv; charset=utf-8")
+        body = exported.content.decode()
+        self.assertIn(
+            "worker,refunds,voids,line_discounts,margin_overrides,cash_variances,stock_removals,total_signals,last_activity",
+            body,
+        )
+        self.assertIn(self.worker.email, body)
+        self.assertIn(self.outlet.name, body)
+        self.assertIn("Manager discount", body)
 
     def test_approved_discount_is_not_duplicated_as_manual_price_exception(self):
         from apps.pos.models import OrderLine
