@@ -7,8 +7,8 @@
   <header class="fizo-purchasing__header">
     <div>
       <p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p>
-      <h1>{{ supplier.name }} · product codes</h1>
-      <p>Map this supplier's own product or package references to existing stock items. These codes are for purchasing only and do not become cashier barcodes.</p>
+      <h1>{{ supplier.name }} · product catalog</h1>
+      <p>Map supplier references, planning cost, minimum order quantity and expected lead time to existing stock items. Supplier codes remain purchasing-only and do not become cashier barcodes.</p>
     </div>
     <div class="fizo-purchasing__head-actions">
       <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-supplier-edit' supplier.id %}">Supplier details</a>
@@ -42,7 +42,7 @@
     {% if supplier_codes %}
     <div class="staff-table-wrap">
       <table class="fizo-purchasing__table">
-        <thead><tr><th>Supplier code</th><th>Product</th><th>Package</th><th>Planning cost</th><th>Last received cost</th><th>Cost movement</th><th>Preferred</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Supplier code</th><th>Product</th><th>Package</th><th>Planning cost</th><th>Minimum</th><th>Lead time</th><th>Last received cost</th><th>Cost movement</th><th>Preferred</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
         {% for row in supplier_codes %}
           <tr>
@@ -50,6 +50,8 @@
             <td>{{ row.menu_item.name }}</td>
             <td>{% if row.product_package %}{{ row.product_package.name }} · {{ row.product_package.units_per_package }} base units{% else %}Base product{% endif %}</td>
             <td>{% if row.default_unit_cost != None %}{{ request.tenant.settings.default_currency }} {{ row.default_unit_cost }}{% else %}—{% endif %}</td>
+            <td>{% if row.minimum_order_quantity != None %}{{ row.minimum_order_quantity }} base units{% else %}—{% endif %}</td>
+            <td>{% if row.expected_lead_days != None %}{{ row.expected_lead_days }} day{{ row.expected_lead_days|pluralize }}{% else %}—{% endif %}</td>
             <td>{% if row.latest_received_unit_cost != None %}{{ request.tenant.settings.default_currency }} {{ row.latest_received_unit_cost }}{% if row.latest_cost_received_at %}<div class="staff-muted small">{{ row.latest_cost_received_at }}</div>{% endif %}{% else %}—{% endif %}</td>
             <td>{% if row.cost_change_percent != None %}{{ row.cost_change_percent }}%{% if row.cost_change_amount != None %}<div class="staff-muted small">{{ request.tenant.settings.default_currency }} {{ row.cost_change_amount }}</div>{% endif %}{% else %}—{% endif %}</td>
             <td>{% if row.is_preferred %}<strong>Preferred</strong>{% else %}—{% endif %}</td>
