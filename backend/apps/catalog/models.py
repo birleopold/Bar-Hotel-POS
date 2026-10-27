@@ -402,6 +402,54 @@ class MenuItemRecipeLine(TimeStampedModel):
         return f"{self.parent_item.name}: {self.ingredient_item.name} x {self.quantity_per_unit}"
 
 
+class RetailAssemblyComponent(TimeStampedModel):
+    """Retail build/unbuild BOM component for a tracked finished product."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="retail_assembly_components",
+    )
+    parent_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name="assembly_components",
+    )
+    component_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.PROTECT,
+        related_name="used_in_retail_assemblies",
+    )
+    quantity_per_unit = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+        help_text="Base stock units of this component required to build one finished unit.",
+    )
+
+    class Meta:
+        ordering = ["parent_item", "component_item__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent_item", "component_item"],
+                name="uniq_retail_assembly_component",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.parent_item_id == self.component_item_id:
+            raise ValidationError({"component_item": "A product cannot be a component of itself."})
+        if self.parent_item_id and self.parent_item.tenant_id != self.tenant_id:
+            raise ValidationError({"parent_item": "Finished product must belong to this business."})
+        if self.component_item_id and self.component_item.tenant_id != self.tenant_id:
+            raise ValidationError({"component_item": "Component must belong to this business."})
+
+    def __str__(self) -> str:
+        return f"{self.parent_item.name}: {self.component_item.name} x {self.quantity_per_unit}"
+
+
 class ServiceOffering(TimeStampedModel):
     """Tenant-defined non-menu services sellable on orders (spa, rides, activities, etc.)."""
 
