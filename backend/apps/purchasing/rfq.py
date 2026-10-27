@@ -288,6 +288,7 @@ def quote_comparison_rows(rfq: PurchaseRfq) -> list[dict]:
                 fully_quoted = False
                 fully_available = False
                 quoted_lines.append({
+                    "rfq_line_id": requested.pk,
                     "item": requested.menu_item,
                     "quantity_requested": requested.quantity_requested,
                     "unit_cost": None,
@@ -306,6 +307,7 @@ def quote_comparison_rows(rfq: PurchaseRfq) -> list[dict]:
             )
             fully_available = fully_available and available
             quoted_lines.append({
+                "rfq_line_id": requested.pk,
                 "item": requested.menu_item,
                 "quantity_requested": requested.quantity_requested,
                 "unit_cost": response.unit_cost,
@@ -313,6 +315,7 @@ def quote_comparison_rows(rfq: PurchaseRfq) -> list[dict]:
                 "line_total": line_total,
                 "available": available,
                 "promised_date": response.promised_date,
+                "note": response.note,
             })
         total = (subtotal + quote.shipping_cost + quote.other_cost).quantize(
             Decimal("0.01")
