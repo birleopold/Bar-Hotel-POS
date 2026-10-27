@@ -49,6 +49,10 @@ from apps.tenants.models import Outlet, OutletType, Tenant, TenantSettings
 from .menu import menu_item_available_at_outlet
 from .pricing import line_tax, line_total, promotion_discount_for_order, recalculate_order_totals
 from .price_books import qualifying_customer_price_rule
+from .pricing_policy import (
+    manual_discount_combination_block_reason,
+    promotion_combination_block_reason,
+)
 
 
 def require_active_retail_basket(order: Order) -> None:
@@ -595,10 +599,9 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
         raise ValidationError("Promotion can only be applied to open, unpaid orders.")
     if locked.payments.exists():
         raise ValidationError({"promotion": "Promotion cannot be changed after payment has started."})
-    if locked.lines.filter(pricing_source="wholesale", is_voided=False).exists():
-        raise ValidationError({"promotion": "Wholesale price tiers cannot be combined with order promotions."})
-    if locked.lines.filter(price_book_rule__isnull=False, is_voided=False).exists():
-        raise ValidationError({"promotion": "Customer price-book rates cannot be combined with order promotions yet."})
+    combination_reason = promotion_combination_block_reason(locked)
+    if combination_reason:
+        raise ValidationError({"promotion": combination_reason})
     if promotion.tenant_id != locked.tenant_id or not promotion.is_active:
         raise ValidationError("Invalid promotion.")
     expected_coupon = (promotion.coupon_code or "").strip()
@@ -622,11 +625,6 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
     redemption_reason = promotion_redemption_block_reason(promotion, locked)
     if redemption_reason:
         raise ValidationError({"promotion": redemption_reason})
-    if locked.lines.filter(is_voided=False).filter(
-        Q(line_discount_amount__gt=0) | Q(line_discount_percent__isnull=False)
-    ).exists():
-        raise ValidationError({"promotion": "Order promotions cannot be stacked with manual line discounts."})
-
     target_is_scoped = bool(
         promotion.menu_item_id
         or promotion.product_family_id
@@ -1323,12 +1321,9 @@ def apply_supermarket_line_discount(
     )
     if locked_ln.is_voided:
         raise ValidationError("Cannot discount a voided line.")
-    if locked_o.applied_promotion_id:
-        raise ValidationError({"discount": "Manual line discounts cannot be stacked with an order promotion."})
-    if locked_ln.pricing_source == "wholesale":
-        raise ValidationError({"discount": "Wholesale price tiers cannot be stacked with manual discounts."})
-    if locked_ln.price_book_rule_id:
-        raise ValidationError({"discount": "Customer price-book rates cannot be stacked with manual discounts yet."})
+    combination_reason = manual_discount_combination_block_reason(locked_o, locked_ln)
+    if combination_reason:
+        raise ValidationError({"discount": combination_reason})
     if discount_amount is not None and discount_percent is not None:
         raise ValidationError({"discount": "Use either discount amount or discount percent."})
     gross = line_total(locked_ln.quantity, locked_ln.unit_price)
