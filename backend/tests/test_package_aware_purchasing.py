@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem, ProductPackage
 from apps.inventory.models import StockBalance
+from apps.inventory.services import validate_and_consume_stock_for_paid_order
 from apps.purchasing.models import (
     PurchaseOrder,
     PurchaseOrderLine,
@@ -15,6 +16,8 @@ from apps.purchasing.models import (
     Supplier,
 )
 from apps.purchasing.services import receive_purchase_order_goods
+from apps.pos.models import Order
+from apps.pos.services.orders import add_line_to_open_order
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
@@ -218,3 +221,98 @@ class PackageAwarePurchasingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Choose an active purchasable package")
         self.assertFalse(PurchaseOrder.objects.filter(reference="PO-BAD-PACK").exists())
+
+    def _receive_costed_po(self, *, reference, quantity, unit_cost):
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT,
+            reference=reference,
+            created_by=self.user,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po,
+            menu_item=self.item,
+            quantity_ordered=Decimal(str(quantity)),
+            unit_cost=Decimal(str(unit_cost)) if unit_cost is not None else None,
+        )
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        receive_purchase_order_goods(
+            po=po,
+            lines_payload=[{"line_id": line.pk, "quantity": str(quantity)}],
+            user=self.user,
+            membership=membership,
+            delivery_reference="DN-" + reference,
+        )
+        return po, line
+
+    def test_receipts_build_outlet_weighted_average_cost_and_snapshot_evidence(self):
+        first_po, first_line = self._receive_costed_po(
+            reference="COST-001", quantity="10", unit_cost="800",
+        )
+        balance = StockBalance.objects.get(outlet=self.outlet, menu_item=self.item)
+        self.assertEqual(balance.quantity, Decimal("10"))
+        self.assertEqual(balance.average_unit_cost, Decimal("800.0000"))
+        self.assertTrue(balance.cost_basis_complete)
+        first_receipt = PurchaseReceiptLine.objects.get(
+            purchase_order_line=first_line,
+        )
+        self.assertEqual(first_receipt.unit_cost_snapshot, Decimal("800.00"))
+
+        second_po, second_line = self._receive_costed_po(
+            reference="COST-002", quantity="10", unit_cost="1000",
+        )
+        balance.refresh_from_db()
+        self.assertEqual(balance.quantity, Decimal("20"))
+        self.assertEqual(balance.average_unit_cost, Decimal("900.0000"))
+        self.assertTrue(balance.cost_basis_complete)
+        self.assertEqual(
+            PurchaseReceiptLine.objects.get(
+                purchase_order_line=second_line,
+            ).unit_cost_snapshot,
+            Decimal("1000.00"),
+        )
+
+    def test_new_receipt_does_not_fake_cost_for_legacy_uncosted_stock(self):
+        StockBalance.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.item,
+            quantity=Decimal("5"),
+            average_unit_cost=None,
+            cost_basis_complete=False,
+        )
+        self._receive_costed_po(
+            reference="COST-LEGACY", quantity="5", unit_cost="1000",
+        )
+        balance = StockBalance.objects.get(outlet=self.outlet, menu_item=self.item)
+        self.assertEqual(balance.quantity, Decimal("10"))
+        self.assertIsNone(balance.average_unit_cost)
+        self.assertFalse(balance.cost_basis_complete)
+
+    def test_sale_freezes_authoritative_cost_snapshot_before_stock_moves(self):
+        self._receive_costed_po(
+            reference="COST-SALE", quantity="10", unit_cost="750",
+        )
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.user,
+            currency="UGX",
+        )
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.item,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        validate_and_consume_stock_for_paid_order(order, self.user)
+        line.refresh_from_db()
+        balance = StockBalance.objects.get(outlet=self.outlet, menu_item=self.item)
+        self.assertEqual(line.cost_unit_snapshot, Decimal("750.0000"))
+        self.assertTrue(line.cost_basis_complete_snapshot)
+        self.assertEqual(balance.quantity, Decimal("8"))
+        self.assertEqual(balance.average_unit_cost, Decimal("750.0000"))
+        self.assertTrue(balance.cost_basis_complete)
+
