@@ -13,6 +13,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Max, Q
 from apps.common.datetime_bounds import utc_day_range_inclusive
 from apps.pos.models import Order, OrderLine, Refund, SupermarketLineReturn
+from apps.tenants.models import OutletType, TenantSettings
 
 
 MONEY = Decimal("0.01")
@@ -145,8 +146,19 @@ def build_merchandise_profitability(
         .order_by("order_id", "sort_order", "created_at")
     )
 
+    configured_margin_floor = (
+        TenantSettings.objects.filter(tenant_id=tenant_id)
+        .values_list("retail_min_margin_percent", flat=True)
+        .first()
+    )
+    configured_margin_floor = (
+        Decimal(str(configured_margin_floor))
+        if configured_margin_floor is not None else None
+    )
+
     totals = {
         "currency": currency,
+        "configured_margin_floor_percent": configured_margin_floor,
         "sale_revenue": Decimal("0.00"),
         "sale_units": Decimal("0"),
         "covered_sale_revenue": Decimal("0.00"),
@@ -191,6 +203,13 @@ def build_merchandise_profitability(
         "outlet_name": "",
         **_blank_profit_row(),
     })
+    retail_product_outlets = defaultdict(lambda: {
+        "outlet_id": "",
+        "outlet_name": "",
+        "item_name": "",
+        "sku": "",
+        **_blank_profit_row(),
+    })
 
     for line in line_qs.iterator(chunk_size=500):
         revenue = _line_net_revenue(line)
@@ -210,12 +229,26 @@ def build_merchandise_profitability(
         outlet_row = outlets[outlet_key]
         outlet_row["outlet_id"] = outlet_key
         outlet_row["outlet_name"] = line.order.outlet.name
+        retail_product_row = None
+        if line.order.outlet.outlet_type in {
+            OutletType.RETAIL, OutletType.SUPERMARKET,
+        }:
+            retail_product_key = (product_key, outlet_key)
+            retail_product_row = retail_product_outlets[retail_product_key]
+            retail_product_row["outlet_id"] = outlet_key
+            retail_product_row["outlet_name"] = line.order.outlet.name
+            retail_product_row["item_name"] = _historical_item_name(line)
+            retail_product_row["sku"] = _historical_sku(line)
         row["sale_revenue"] += revenue
         category_row["sale_revenue"] += revenue
         outlet_row["sale_revenue"] += revenue
+        if retail_product_row is not None:
+            retail_product_row["sale_revenue"] += revenue
         row["sale_units"] += line.quantity
         category_row["sale_units"] += line.quantity
         outlet_row["sale_units"] += line.quantity
+        if retail_product_row is not None:
+            retail_product_row["sale_units"] += line.quantity
         totals["sale_revenue"] += revenue
         totals["sale_units"] += line.quantity
         if trusted:
@@ -231,6 +264,10 @@ def build_merchandise_profitability(
             outlet_row["covered_revenue"] += revenue
             outlet_row["covered_units"] += line.quantity
             outlet_row["known_cogs"] += cogs
+            if retail_product_row is not None:
+                retail_product_row["covered_revenue"] += revenue
+                retail_product_row["covered_units"] += line.quantity
+                retail_product_row["known_cogs"] += cogs
             totals["covered_sale_revenue"] += revenue
             totals["covered_sale_units"] += line.quantity
             totals["known_sale_cogs"] += cogs
@@ -238,6 +275,8 @@ def build_merchandise_profitability(
             row["incomplete_lines"] += 1
             category_row["incomplete_lines"] += 1
             outlet_row["incomplete_lines"] += 1
+            if retail_product_row is not None:
+                retail_product_row["incomplete_lines"] += 1
             totals["incomplete_sale_lines"] += 1
 
     returns_qs = (
@@ -286,18 +325,34 @@ def build_merchandise_profitability(
         outlet_row = outlets[outlet_key]
         outlet_row["outlet_id"] = outlet_key
         outlet_row["outlet_name"] = line.order.outlet.name
+        retail_product_row = None
+        if line.order.outlet.outlet_type in {
+            OutletType.RETAIL, OutletType.SUPERMARKET,
+        }:
+            retail_product_key = (product_key, outlet_key)
+            retail_product_row = retail_product_outlets[retail_product_key]
+            retail_product_row["outlet_id"] = outlet_key
+            retail_product_row["outlet_name"] = line.order.outlet.name
+            retail_product_row["item_name"] = _historical_item_name(line)
+            retail_product_row["sku"] = _historical_sku(line)
         row["return_revenue"] += revenue_reversal
         category_row["return_revenue"] += revenue_reversal
         outlet_row["return_revenue"] += revenue_reversal
+        if retail_product_row is not None:
+            retail_product_row["return_revenue"] += revenue_reversal
         row["return_units"] += returned.quantity
         category_row["return_units"] += returned.quantity
         outlet_row["return_units"] += returned.quantity
+        if retail_product_row is not None:
+            retail_product_row["return_units"] += returned.quantity
         totals["return_revenue"] += revenue_reversal
         totals["return_units"] += returned.quantity
         if trusted:
             row["covered_return_revenue"] += revenue_reversal
             category_row["covered_return_revenue"] += revenue_reversal
             outlet_row["covered_return_revenue"] += revenue_reversal
+            if retail_product_row is not None:
+                retail_product_row["covered_return_revenue"] += revenue_reversal
             totals["covered_return_revenue"] += revenue_reversal
         if returned.restocked:
             if trusted:
@@ -307,11 +362,15 @@ def build_merchandise_profitability(
                 row["known_cogs_reversal"] += cogs_reversal
                 category_row["known_cogs_reversal"] += cogs_reversal
                 outlet_row["known_cogs_reversal"] += cogs_reversal
+                if retail_product_row is not None:
+                    retail_product_row["known_cogs_reversal"] += cogs_reversal
                 totals["known_restock_cogs_reversal"] += cogs_reversal
             else:
                 row["incomplete_return_lines"] += 1
                 category_row["incomplete_return_lines"] += 1
                 outlet_row["incomplete_return_lines"] += 1
+                if retail_product_row is not None:
+                    retail_product_row["incomplete_return_lines"] += 1
                 totals["incomplete_restock_return_lines"] += 1
 
     refund_qs = Refund.objects.filter(
@@ -399,6 +458,9 @@ def build_merchandise_profitability(
     product_rows = [_finalize_row(row) for row in products.values()]
     category_rows = [_finalize_row(row) for row in categories.values()]
     outlet_rows = [_finalize_row(row) for row in outlets.values()]
+    retail_product_rows = [
+        _finalize_row(row) for row in retail_product_outlets.values()
+    ]
     for row in outlet_rows:
         row["cost_coverage_percent"] = (
             (
@@ -483,8 +545,39 @@ def build_merchandise_profitability(
             row["item_name"].lower(),
         )
     )
+    margin_exceptions = []
+    if configured_margin_floor is not None:
+        margin_exceptions = [
+            {
+                "outlet_id": row["outlet_id"],
+                "outlet_name": row["outlet_name"],
+                "item_name": row["item_name"],
+                "sku": row["sku"],
+                "covered_net_revenue": row["covered_net_revenue"],
+                "known_net_cogs": row["known_net_cogs"],
+                "known_gross_profit": row["known_gross_profit"],
+                "known_margin_percent": row["known_margin_percent"],
+                "margin_floor_percent": configured_margin_floor,
+                "incomplete_cost_lines": (
+                    row["incomplete_lines"] + row["incomplete_return_lines"]
+                ),
+            }
+            for row in retail_product_rows
+            if row["covered_net_revenue"] > 0
+            and row["known_margin_percent"] is not None
+            and row["known_margin_percent"] < configured_margin_floor
+        ]
+        margin_exceptions.sort(
+            key=lambda row: (
+                row["known_margin_percent"],
+                -row["covered_net_revenue"],
+                row["outlet_name"].lower(),
+                row["item_name"].lower(),
+            )
+        )
     totals["products"] = product_rows[:25]
     totals["categories"] = category_rows[:25]
     totals["outlets"] = outlet_rows
     totals["unknown_cost_exposure"] = unknown_cost_exposure[:25]
+    totals["margin_exceptions"] = margin_exceptions[:25]
     return totals
