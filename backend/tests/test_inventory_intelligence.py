@@ -117,7 +117,7 @@ class InventoryIntelligenceExportTests(TestCase):
         )
         site = Site.objects.create(tenant=self.tenant, name="Main")
         self.outlet = Outlet.objects.create(
-            site=site, name="Retail", outlet_type=OutletType.RETAIL,
+            site=site, name="Retail", outlet_type=OutletType.SUPERMARKET,
         )
         category = MenuCategory.objects.create(tenant=self.tenant, name="General")
         self.item = MenuItem.objects.create(
