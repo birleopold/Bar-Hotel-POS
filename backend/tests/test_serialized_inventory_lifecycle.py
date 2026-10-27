@@ -18,7 +18,7 @@ from apps.inventory.models import (
 from apps.inventory.services import execute_stock_transfer
 from apps.inventory.services_serials import assign_serial_to_order_line
 from apps.pos.models import Order, OrderLine, Payment
-from apps.pos.services import process_supermarket_line_return, record_order_payment
+from apps.pos.services import add_supermarket_line_by_code, process_supermarket_line_return, record_order_payment
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, Supplier
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
@@ -193,6 +193,58 @@ class SerializedInventoryLifecycleTests(TestCase):
         self.assertEqual(
             StockMovement.objects.get(order=order, menu_item=self.item, reason=StockReason.SALE).quantity_change,
             Decimal("-1"),
+        )
+
+    def test_scanning_imeis_adds_and_reserves_exact_units_through_fast_basket_path(self):
+        self._receive_two()
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.user,
+            currency="UGX",
+        )
+        first = add_supermarket_line_by_code(
+            order=order,
+            code="356000000000001",
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertEqual(first.quantity, Decimal("1"))
+        first_unit = InventorySerialUnit.objects.get(serial_number="356000000000001")
+        self.assertEqual(first_unit.status, SerializedUnitStatus.RESERVED)
+        self.assertEqual(first_unit.reserved_order_line, first)
+
+        second = add_supermarket_line_by_code(
+            order=order,
+            code="356000000000002",
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertEqual(second.pk, first.pk)
+        second.refresh_from_db()
+        self.assertEqual(second.quantity, Decimal("2"))
+        self.assertEqual(second.reserved_serial_units.filter(status=SerializedUnitStatus.RESERVED).count(), 2)
+        order.refresh_from_db()
+        self.assertEqual(order.total, Decimal("1000000.00"))
+
+        payment, replay = record_order_payment(
+            order=order,
+            user=self.user,
+            amount=Decimal("1000000"),
+            method="cash",
+            idempotency_key="serial-fast-scan-sale",
+        )
+        self.assertFalse(replay)
+        self.assertEqual(payment.amount, Decimal("1000000"))
+        self.assertEqual(
+            StockBalance.objects.get(outlet=self.outlet, menu_item=self.item).quantity,
+            Decimal("0"),
+        )
+        self.assertEqual(
+            InventorySerialUnit.objects.filter(
+                menu_item=self.item, status=SerializedUnitStatus.SOLD,
+            ).count(),
+            2,
         )
 
     def test_exact_serial_return_restocks_and_replay_cannot_swap_imei(self):
