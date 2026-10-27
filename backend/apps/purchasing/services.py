@@ -183,7 +183,7 @@ def receive_purchase_order_goods(
 
     if (
         total_extra_cost > 0
-        and landed_cost_allocation == PurchaseReceipt.LandedCostAllocation.BY_COST
+        and landed_cost_allocation != PurchaseReceipt.LandedCostAllocation.EXCLUDE
     ):
         if any(row["_line"].unit_cost is None for row in positive_rows):
             raise ValidationError({
@@ -192,24 +192,88 @@ def receive_purchase_order_goods(
                     "can be distributed into inventory cost."
                 )
             })
-        base_values = [
-            (row["quantity"] * row["_line"].unit_cost).quantize(Decimal("0.01"))
-            for row in positive_rows
-        ]
-        total_base_value = sum(base_values, Decimal("0.00"))
-        if total_base_value <= 0:
-            raise ValidationError({
-                "landed_cost": "Received supplier-cost value must be greater than zero to distribute landed costs."
-            })
-        allocated_so_far = Decimal("0.00")
-        for index, (row, base_value) in enumerate(zip(positive_rows, base_values)):
-            if index == len(positive_rows) - 1:
-                allocated = total_extra_cost - allocated_so_far
-            else:
-                allocated = (
-                    total_extra_cost * base_value / total_base_value
-                ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
-                allocated_so_far += allocated
+
+        allocations = []
+        if landed_cost_allocation == PurchaseReceipt.LandedCostAllocation.BY_COST:
+            base_values = [
+                (row["quantity"] * row["_line"].unit_cost).quantize(Decimal("0.01"))
+                for row in positive_rows
+            ]
+            total_base_value = sum(base_values, Decimal("0.00"))
+            if total_base_value <= 0:
+                raise ValidationError({
+                    "landed_cost": (
+                        "Received supplier-cost value must be greater than zero "
+                        "to distribute landed costs."
+                    )
+                })
+            allocated_so_far = Decimal("0.00")
+            for index, base_value in enumerate(base_values):
+                if index == len(base_values) - 1:
+                    allocated = total_extra_cost - allocated_so_far
+                else:
+                    allocated = (
+                        total_extra_cost * base_value / total_base_value
+                    ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+                    allocated_so_far += allocated
+                allocations.append(allocated)
+
+        elif landed_cost_allocation == PurchaseReceipt.LandedCostAllocation.BY_QUANTITY:
+            total_quantity = sum(
+                (row["quantity"] for row in positive_rows),
+                Decimal("0.000"),
+            )
+            if total_quantity <= 0:
+                raise ValidationError({
+                    "landed_cost": (
+                        "Received quantity must be greater than zero "
+                        "to distribute landed costs."
+                    )
+                })
+            allocated_so_far = Decimal("0.00")
+            for index, row in enumerate(positive_rows):
+                if index == len(positive_rows) - 1:
+                    allocated = total_extra_cost - allocated_so_far
+                else:
+                    allocated = (
+                        total_extra_cost * row["quantity"] / total_quantity
+                    ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+                    allocated_so_far += allocated
+                allocations.append(allocated)
+
+        elif landed_cost_allocation == PurchaseReceipt.LandedCostAllocation.MANUAL:
+            for row in positive_rows:
+                try:
+                    allocated = Decimal(
+                        str(row.get("landed_cost_amount") or 0)
+                    ).quantize(Decimal("0.01"))
+                except (InvalidOperation, TypeError, ValueError) as exc:
+                    raise ValidationError({
+                        "landed_cost": (
+                            f"Enter a valid landed-cost amount for "
+                            f"{row['_line'].menu_item.name}."
+                        )
+                    }) from exc
+                if not allocated.is_finite() or allocated < 0:
+                    raise ValidationError({
+                        "landed_cost": (
+                            f"Landed-cost amount for {row['_line'].menu_item.name} "
+                            "must be non-negative."
+                        )
+                    })
+                allocations.append(allocated)
+            allocated_total = sum(allocations, Decimal("0.00")).quantize(
+                Decimal("0.01")
+            )
+            if allocated_total != total_extra_cost:
+                raise ValidationError({
+                    "landed_cost": (
+                        f"Manual landed-cost allocations must total "
+                        f"{total_extra_cost:.2f}; entered {allocated_total:.2f}."
+                    )
+                })
+
+        for row, allocated in zip(positive_rows, allocations):
             row["_allocated_landed_cost"] = allocated
             row["_landed_unit_cost"] = (
                 row["_line"].unit_cost + (allocated / row["quantity"])
