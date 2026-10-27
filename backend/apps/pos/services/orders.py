@@ -12,6 +12,7 @@ from apps.catalog.promotion_rules import (
     promotion_matches_item,
     promotion_qualifying_quantity,
     promotion_redemption_block_reason,
+    promotion_reward_matches_item,
 )
 from apps.catalog.models import (
     MenuItem,
@@ -656,18 +657,41 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
             raise ValidationError({"promotion": "Buy X Get Y requires a specific promotion target."})
         if not eligible_lines:
             raise ValidationError({"promotion": "This Buy X Get Y offer has no qualifying basket items."})
-        if any(line.quantity != line.quantity.to_integral_value() for line in eligible_lines):
-            raise ValidationError({"promotion": "Buy X Get Y supports whole qualifying units only."})
+        reward_is_separate = bool(
+            promotion.reward_menu_item_id
+            or promotion.reward_product_family_id
+            or promotion.reward_category_id
+            or (promotion.reward_brand or "").strip()
+        )
+        reward_lines = [
+            line
+            for line in active_lines
+            if promotion_reward_matches_item(promotion, line.menu_item)
+        ]
+        if not reward_lines:
+            raise ValidationError({"promotion": "Add the configured reward item before applying this Buy X Get Y offer."})
+        if any(
+            line.quantity != line.quantity.to_integral_value()
+            for line in eligible_lines + reward_lines
+        ):
+            raise ValidationError({"promotion": "Buy X Get Y supports whole qualifying and reward units only."})
         buy_qty = int(promotion.buy_quantity or 0)
         get_qty = int(promotion.get_quantity or 0)
-        set_size = buy_qty + get_qty
-        if buy_qty <= 0 or get_qty <= 0 or set_size <= 1:
+        if buy_qty <= 0 or get_qty <= 0:
             raise ValidationError({"promotion": "Buy X Get Y quantities are not configured correctly."})
-        uses = sum(int(line.quantity) for line in eligible_lines) // set_size
+        buy_units = sum(int(line.quantity) for line in eligible_lines)
+        reward_units = sum(int(line.quantity) for line in reward_lines)
+        if reward_is_separate:
+            uses = min(buy_units // buy_qty, reward_units // get_qty)
+        else:
+            set_size = buy_qty + get_qty
+            if set_size <= 1:
+                raise ValidationError({"promotion": "Buy X Get Y quantities are not configured correctly."})
+            uses = buy_units // set_size
         if promotion.max_uses_per_order is not None:
             uses = min(uses, promotion.max_uses_per_order)
         if uses <= 0:
-            raise ValidationError({"promotion": "Add more qualifying units for this Buy X Get Y offer."})
+            raise ValidationError({"promotion": "Add enough qualifying and reward units for this Buy X Get Y offer."})
     elif promotion.offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT:
         if not target_is_scoped:
             raise ValidationError({"promotion": "X for fixed amount requires a specific promotion target."})
@@ -716,6 +740,13 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
             "offer_type": promotion.offer_type,
             "buy_quantity": promotion.buy_quantity,
             "get_quantity": promotion.get_quantity,
+            "reward_target": (
+                promotion.reward_menu_item.name if promotion.reward_menu_item_id
+                else f"Family · {promotion.reward_product_family.name}" if promotion.reward_product_family_id
+                else f"Category · {promotion.reward_category.name}" if promotion.reward_category_id
+                else f"Brand · {promotion.reward_brand}" if promotion.reward_brand
+                else promotion.target_label
+            ),
             "fixed_quantity": promotion.fixed_quantity,
             "fixed_bundle_amount": str(promotion.fixed_bundle_amount) if promotion.fixed_bundle_amount is not None else None,
             "max_uses_per_order": promotion.max_uses_per_order,
