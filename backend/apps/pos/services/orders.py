@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.accounts.models import Membership, MembershipRole
 from apps.audit.services import log_audit
+from apps.catalog.promotion_rules import promotion_matches_item
 from apps.catalog.models import (
     MenuItem,
     ProductAlternateCode,
@@ -601,13 +602,43 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
         raise ValidationError("Promotion does not apply to this outlet.")
     if promotion.min_order_subtotal is not None and locked.subtotal < promotion.min_order_subtotal:
         raise ValidationError({"promotion": "Order subtotal is below the minimum for this promotion."})
+    if locked.lines.filter(is_voided=False).filter(
+        Q(line_discount_amount__gt=0) | Q(line_discount_percent__isnull=False)
+    ).exists():
+        raise ValidationError({"promotion": "Order promotions cannot be stacked with manual line discounts."})
+
+    target_is_scoped = bool(
+        promotion.menu_item_id
+        or promotion.product_family_id
+        or promotion.category_id
+        or (promotion.brand or "").strip()
+    )
+    discount_basis = locked.subtotal
+    if target_is_scoped:
+        active_lines = list(
+            locked.lines.select_related("menu_item")
+            .filter(is_voided=False, menu_item__isnull=False)
+            .order_by("sort_order")
+        )
+        eligible_lines = [
+            line
+            for line in active_lines
+            if promotion_matches_item(promotion, line.menu_item)
+        ]
+        if not eligible_lines:
+            raise ValidationError({"promotion": "This promotion does not match any item in the basket."})
+        discount_basis = sum(
+            (line.line_total for line in eligible_lines),
+            Decimal("0"),
+        ).quantize(Decimal("0.01"))
+
     if promotion.discount_percent is not None:
-        disc = (locked.subtotal * promotion.discount_percent / Decimal("100")).quantize(Decimal("0.01"))
+        disc = (discount_basis * promotion.discount_percent / Decimal("100")).quantize(Decimal("0.01"))
     elif promotion.discount_amount is not None:
         disc = promotion.discount_amount
     else:
         raise ValidationError("Promotion is missing discount fields.")
-    max_disc = locked.subtotal + locked.tax_total
+    max_disc = discount_basis if target_is_scoped else locked.subtotal + locked.tax_total
     disc = min(disc, max_disc)
     locked.discount_amount = disc
     locked.applied_promotion = promotion
@@ -620,7 +651,12 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
         action="order.promotion_applied",
         entity_type="order",
         entity_id=str(locked.id),
-        payload={"promotion_id": str(promotion.id), "discount_amount": str(disc)},
+        payload={
+            "promotion_id": str(promotion.id),
+            "promotion_target": promotion.target_label,
+            "discount_basis": str(discount_basis),
+            "discount_amount": str(disc),
+        },
     )
     return locked
 
