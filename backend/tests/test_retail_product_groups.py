@@ -60,10 +60,10 @@ class RetailProductGroupTests(TestCase):
             tenant=self.tenant, name="Gift set", code="GIFTSET",
         )
         RetailProductGroupLine.objects.create(
-            group=group, menu_item=self.soap, quantity=Decimal("2"), sort_order=1,
+            tenant=self.tenant, group=group, menu_item=self.soap, quantity=Decimal("2"), sort_order=1,
         )
         RetailProductGroupLine.objects.create(
-            group=group, menu_item=self.lotion, quantity=Decimal("1"), sort_order=2,
+            tenant=self.tenant, group=group, menu_item=self.lotion, quantity=Decimal("1"), sort_order=2,
         )
         return group
 
