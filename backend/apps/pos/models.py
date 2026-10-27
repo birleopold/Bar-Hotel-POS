@@ -250,6 +250,12 @@ class OrderLine(TimeStampedModel):
         default=False,
         help_text="Whether the captured cost represented the full outlet stock basis at sale time.",
     )
+    merchandise_category_snapshot = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="Merchandise category name captured when the sale line was created for historical reporting.",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     seat_number = models.PositiveSmallIntegerField(
         null=True,
