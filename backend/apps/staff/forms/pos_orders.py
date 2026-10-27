@@ -324,6 +324,16 @@ class StaffOrderLineReturnForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "staff-input", "maxlength": 255}),
     )
     restock = forms.BooleanField(required=False, initial=False, widget=forms.CheckboxInput())
+    serial_numbers = forms.CharField(
+        required=False,
+        label="Returned serials / IMEIs",
+        widget=forms.Textarea(attrs={
+            "class": "staff-input",
+            "rows": 3,
+            "placeholder": "Serialized items only · one identifier per line",
+        }),
+        help_text="Required for serialized products. Enter the exact returned physical units.",
+    )
 
 
 class StaffOrderReadyHandoffForm(forms.Form):
@@ -473,6 +483,16 @@ class StaffRetailLineRefundForm(StaffOrderRefundForm):
     quantity = forms.DecimalField(
         min_value=Decimal("0.001"), max_digits=10, decimal_places=3,
         widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.001", "min": "0.001"}),
+    )
+    serial_numbers = forms.CharField(
+        required=False,
+        label="Returned serials / IMEIs",
+        widget=forms.Textarea(attrs={
+            "class": "staff-input",
+            "rows": 3,
+            "placeholder": "Serialized items only · one identifier per line",
+        }),
+        help_text="Required for serialized products. Enter one exact returned identifier per unit.",
     )
 
     def __init__(self, *args, lines=None, **kwargs):
