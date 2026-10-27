@@ -57,29 +57,6 @@ class ProductFamily(TimeStampedModel):
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    brand = models.CharField(
-        max_length=128,
-        blank=True,
-        help_text="Optional brand or manufacturer name.",
-    )
-    model_number = models.CharField(
-        max_length=128,
-        blank=True,
-        help_text="Optional model, style, or manufacturer model number.",
-    )
-    reference_code = models.CharField(
-        max_length=128,
-        blank=True,
-        help_text="Optional internal or manufacturer reference code.",
-    )
-    msrp = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(Decimal("0"))],
-        help_text="Optional manufacturer suggested retail price; does not override the selling price.",
-    )
     variant_schema = models.JSONField(
         default=list,
         blank=True,
