@@ -181,6 +181,7 @@ class ConsoleOutletModulePolicyForm(forms.Form):
         ("bar", "Bar template"),
         ("lodging", "Lodging front desk template"),
         ("events", "Event space template"),
+        ("warehouse", "Warehouse / storage template"),
     )
     PRESET_MAP = {
         "supermarket": ("supermarket", ["pos", "inventory", "purchasing", "promotions", "workspace"]),
@@ -189,6 +190,7 @@ class ConsoleOutletModulePolicyForm(forms.Form):
         "bar": ("bar", ["pos", "kitchen", "inventory", "purchasing", "promotions", "workspace"]),
         "lodging": ("lodging_front_desk", ["lodging", "workspace", "pos"]),
         "events": ("event_space", ["events", "workspace", "pos"]),
+        "warehouse": ("warehouse", ["inventory", "purchasing", "workspace"]),
     }
 
     policy_preset = forms.ChoiceField(
@@ -360,6 +362,10 @@ class ConsoleOutletForm(forms.ModelForm):
             for choice in self.fields["outlet_type"].choices
             if str(choice[0]) in allowed
         ]
+        self.fields["outlet_type"].help_text = (
+            "Retail/Supermarket workspaces may use Warehouse / storage for "
+            "inventory-only locations. Warehouse locations cannot run checkout."
+        )
 
 
 class ConsoleRoomTypeForm(forms.ModelForm):
