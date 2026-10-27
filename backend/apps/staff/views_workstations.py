@@ -210,6 +210,20 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
     def workstation_outlets(self, request):
         return staff_accessible_outlets(request.tenant_membership)
 
+    def can_manage_device_config(self, request):
+        membership = getattr(request, "tenant_membership", None)
+        return bool(
+            membership
+            and membership_can_manage_workspace_settings(membership)
+        )
+
+    def can_record_hardware_check(self, request):
+        return bool(
+            getattr(request, "tenant_membership", None)
+            and self.can_manage_device_config(request)
+            and not request.session.get("staff_pin_authenticated")
+        )
+
     def _station(self, request, workstation_id):
         outlets = self.workstation_outlets(request)
         station = get_object_or_404(
@@ -225,12 +239,8 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
 
         station, outlets = self._station(request, workstation_id)
         selected = selected_workstation(request, outlets=outlets)
-        allowed_manager = membership_can_manage_workspace_settings(
-            request.tenant_membership,
-        )
-        can_record = allowed_manager and not request.session.get(
-            "staff_pin_authenticated",
-        )
+        allowed_manager = self.can_manage_device_config(request)
+        can_record = self.can_record_hardware_check(request)
         history = WorkstationHardwareCheck.objects.filter(
             tenant=request.tenant, workstation=station,
         ).select_related("checked_by").order_by("-created_at")[:15]
@@ -240,6 +250,9 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
             "is_current_station": bool(selected and selected.pk == station.pk),
             "can_manage": allowed_manager,
             "can_record_check": can_record,
+            "hardware_check_membership_required": bool(
+                allowed_manager and getattr(request, "tenant_membership", None) is None
+            ),
             "has_kitchen": "kitchen" in get_tenant_staff_modules(
                 request.tenant, outlet=station.outlet,
             ),
@@ -256,8 +269,7 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
         from rest_framework.exceptions import ValidationError as DRFValidationError
         from apps.pos.services.hardware import record_hardware_check
         station, _outlets = self._station(request, workstation_id)
-        if (not membership_can_manage_workspace_settings(request.tenant_membership)
-                or request.session.get("staff_pin_authenticated")):
+        if not self.can_record_hardware_check(request):
             return HttpResponseForbidden(
                 "Sign in as a workspace administrator with your account password to record checks."
             )
