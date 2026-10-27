@@ -63,6 +63,10 @@ Status: `[ ]` pending, `[-]` implementation underway, `[x]` implemented and loca
 - [-] **25 Global search:** one scoped search for order/receipt/guest/reservation/room/customer/item/barcode/supplier/PO/employee; pagination, useful result labels, permission checks and query limits. Reuse the command palette search backend.
 - [-] **26 Notifications:** read/unread, priority and links for stock, approvals, maintenance, deliveries, cancellations, variances, offline conflicts, fiscal failures and subscription issues; per-user/outlet scope and deduplication.
 
+## Cross-cutting interoperability priority
+
+- [-] **Platform migration compatibility (parallel):** maintain a canonical tenant-safe migration schema plus versioned adapters for common external platforms. Start with product/catalogue migration from Shopify, Square, QuickBooks Online and WooCommerce; include a generic CSV column mapper for other systems. Support neutral outbound exports and platform-oriented exports only where current target schemas are verified. Every adapter must preview mappings, report ignored/unmapped fields, reuse canonical validation/import services, avoid direct stock/payment writes, protect SKU/barcode/serial namespaces and carry tests/audit. Extend the same adapter boundary in parallel as customers, suppliers, price books, stock-opening and accounting exports are implemented.
+
 ## Commercial readiness and engineering evidence
 
 - [-] **27 Onboarding:** business type → details → branch/outlets → catalog add/import → invite staff → configure/test device → test sale → go live, resumable checklist without Django admin.
