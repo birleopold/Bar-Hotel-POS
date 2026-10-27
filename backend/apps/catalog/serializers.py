@@ -65,6 +65,9 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "unit_of_measure",
             "units_per_carton",
             "track_inventory",
+            "serial_tracking",
+            "serial_identifier_type",
+            "warranty_months",
             "reorder_level",
             "kds_station",
             "consume_recipe_on_sale",
@@ -93,9 +96,18 @@ class MenuItemSerializer(serializers.ModelSerializer):
         size = attrs.get("units_per_carton", getattr(self.instance, "units_per_carton", 1))
         uom = attrs.get("unit_of_measure", getattr(self.instance, "unit_of_measure", "each"))
         tracked = attrs.get("track_inventory", getattr(self.instance, "track_inventory", False))
+        serialized = attrs.get("serial_tracking", getattr(self.instance, "serial_tracking", False))
         if size > 1 and (uom != "each" or not tracked):
             raise serializers.ValidationError({
                 "units_per_carton": "Cartons require a tracked product counted in pieces.",
+            })
+        if serialized and not tracked:
+            raise serializers.ValidationError({
+                "serial_tracking": "Serial / IMEI tracking requires inventory tracking.",
+            })
+        if serialized and uom != "each":
+            raise serializers.ValidationError({
+                "serial_tracking": "Serial / IMEI tracking is only available for piece-based products.",
             })
         return attrs
 
@@ -259,6 +271,9 @@ class MenuItemListSerializer(serializers.ModelSerializer):
             "unit_of_measure",
             "units_per_carton",
             "track_inventory",
+            "serial_tracking",
+            "serial_identifier_type",
+            "warranty_months",
             "kds_station",
             "consume_recipe_on_sale",
             "tax_rate_percent",
