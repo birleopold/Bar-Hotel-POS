@@ -9,8 +9,10 @@ from django.utils import timezone
 
 from apps.catalog.models import Promotion
 from apps.catalog.promotion_rules import (
+    promotion_matches_item,
     promotion_qualifying_quantity,
     promotion_redemption_block_reason,
+    promotion_reward_matches_item,
     promotion_reward_quantity,
     promotion_target_q_for_items,
 )
@@ -97,6 +99,19 @@ def promotions_selectable_for_order(order: Order):
             if qualifying_quantity != qualifying_quantity.to_integral_value():
                 continue
             if reward_is_separate:
+                active_items = [
+                    line.menu_item
+                    for line in order.lines.select_related("menu_item").filter(
+                        is_voided=False,
+                        menu_item__isnull=False,
+                    )
+                ]
+                if any(
+                    promotion_matches_item(promotion, item)
+                    and promotion_reward_matches_item(promotion, item)
+                    for item in active_items
+                ):
+                    continue
                 reward_quantity = promotion_reward_quantity(promotion, order)
                 if reward_quantity != reward_quantity.to_integral_value():
                     continue
