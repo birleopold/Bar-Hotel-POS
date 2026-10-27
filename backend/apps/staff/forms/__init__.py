@@ -40,6 +40,7 @@ from .purchasing import (
     StaffRfqForm,
     StaffRfqInviteForm,
     StaffSupplierForm,
+    StaffSupplierPriceRecordForm,
     StaffSupplierProductCodeForm,
     StaffSupplierQuoteForm,
 )
@@ -102,6 +103,7 @@ __all__ = [
     "StaffStockMovementUploadForm",
     "StaffStockTransferForm",
     "StaffSupplierForm",
+    "StaffSupplierPriceRecordForm",
     "StaffSupplierProductCodeForm",
     "StaffSupplierQuoteForm",
     "StaffTableForm",
