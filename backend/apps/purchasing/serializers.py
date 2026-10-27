@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.access.outlets import outlet_belongs_to_membership
-from apps.catalog.models import MenuItem
+from apps.catalog.models import MenuItem, ProductPackage
 from apps.catalog.packaging import to_stock_units
 from apps.tenants.models import Outlet
 
@@ -47,6 +47,10 @@ class PurchaseOrderLineReadSerializer(serializers.ModelSerializer):
             "quantity_received",
             "quantity_remaining",
             "units_per_carton_snapshot",
+            "product_package",
+            "package_name_snapshot",
+            "package_units_snapshot",
+            "package_quantity_ordered",
             "unit_cost",
             "created_at",
             "updated_at",
@@ -220,8 +224,14 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 class PurchaseOrderLineInputSerializer(serializers.Serializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        if not attrs.get("quantity_ordered") and not attrs.get("cartons"):
-            raise serializers.ValidationError("Enter units, cartons or both.")
+        if not attrs.get("quantity_ordered") and not attrs.get("cartons") and not attrs.get("package_count"):
+            raise serializers.ValidationError("Enter loose units, cartons or packages.")
+        if attrs.get("cartons") and attrs.get("package_count"):
+            raise serializers.ValidationError("Use either the selected package or legacy cartons on one line, not both.")
+        if attrs.get("package_count") and not attrs.get("product_package"):
+            raise serializers.ValidationError({"product_package": "Choose the package being ordered."})
+        if attrs.get("product_package") and not attrs.get("package_count"):
+            raise serializers.ValidationError({"package_count": "Enter how many selected packages to order."})
         return attrs
 
     menu_item = serializers.UUIDField()
@@ -229,6 +239,8 @@ class PurchaseOrderLineInputSerializer(serializers.Serializer):
         max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, default=Decimal("0"),
     )
     cartons = serializers.IntegerField(required=False, min_value=1)
+    product_package = serializers.UUIDField(required=False, allow_null=True)
+    package_count = serializers.IntegerField(required=False, min_value=1)
     unit_cost = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -279,10 +291,27 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"lines": "Choose an active tracked product."})
             if item.units_per_carton > 1 and item.unit_of_measure != "each":
                 raise serializers.ValidationError({"lines": "Cartons must be configured for a piece-based item."})
-            to_stock_units(
+            package = None
+            if row.get("product_package"):
+                package = ProductPackage.objects.filter(
+                    pk=row["product_package"],
+                    tenant_id=tenant.pk,
+                    menu_item=item,
+                    is_active=True,
+                    is_purchasable=True,
+                ).first()
+                if package is None:
+                    raise serializers.ValidationError({"lines": f"Choose an active purchasable package for {item.name}."})
+            legacy_units = to_stock_units(
                 units=row["quantity_ordered"], cartons=row.get("cartons", 0),
                 units_per_carton=item.units_per_carton,
+                allow_zero=bool(package),
             )
+            if package:
+                package_units = (Decimal(row["package_count"]) * package.units_per_package).quantize(Decimal("0.001"))
+                total = legacy_units + package_units
+                if total <= 0 or total > Decimal("99999999999.999"):
+                    raise serializers.ValidationError({"lines": f"Ordered quantity for {item.name} is outside stock limits."})
         attrs["_supplier"] = supplier
         attrs["_outlet"] = outlet
         return attrs
@@ -312,14 +341,34 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 )
             if item.units_per_carton > 1 and item.unit_of_measure != "each":
                 raise serializers.ValidationError({"lines": f"Cartons for {item.name} require piece units."})
+            package = None
+            if row.get("product_package"):
+                package = ProductPackage.objects.filter(
+                    pk=row["product_package"],
+                    tenant_id=tenant.id,
+                    menu_item=item,
+                    is_active=True,
+                    is_purchasable=True,
+                ).first()
+                if package is None:
+                    raise serializers.ValidationError({"lines": f"Invalid package for {item.name}."})
             ordered_units = to_stock_units(
                 units=row["quantity_ordered"], cartons=row.get("cartons", 0),
                 units_per_carton=item.units_per_carton,
+                allow_zero=bool(package),
             )
+            if package:
+                ordered_units += (Decimal(row["package_count"]) * package.units_per_package).quantize(Decimal("0.001"))
+                if ordered_units > Decimal("99999999999.999"):
+                    raise serializers.ValidationError({"lines": f"Ordered quantity for {item.name} exceeds stock limits."})
             line_objects.append({
                 "menu_item": item, "quantity_ordered": ordered_units,
                 "unit_cost": row.get("unit_cost"),
                 "units_per_carton_snapshot": item.units_per_carton,
+                "product_package": package,
+                "package_name_snapshot": package.name if package else "",
+                "package_units_snapshot": package.units_per_package if package else None,
+                "package_quantity_ordered": row.get("package_count", 0) if package else 0,
             })
 
         po = PurchaseOrder.objects.create(
@@ -339,6 +388,10 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 quantity_ordered=lo["quantity_ordered"],
                 unit_cost=lo["unit_cost"],
                 units_per_carton_snapshot=lo["units_per_carton_snapshot"],
+                product_package=lo["product_package"],
+                package_name_snapshot=lo["package_name_snapshot"],
+                package_units_snapshot=lo["package_units_snapshot"],
+                package_quantity_ordered=lo["package_quantity_ordered"],
             )
         return po
 
@@ -379,6 +432,7 @@ class ReceiveLineSerializer(serializers.Serializer):
         max_digits=14, decimal_places=3, min_value=Decimal("0"), required=False, default=Decimal("0"),
     )
     cartons = serializers.IntegerField(required=False, min_value=1)
+    packages = serializers.IntegerField(required=False, min_value=1)
     batch_code = serializers.CharField(required=False, allow_blank=True, max_length=128)
     expiry_date = serializers.DateField(required=False, allow_null=True)
     received_at = serializers.DateField(required=False)
