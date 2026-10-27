@@ -207,3 +207,52 @@ def test_management_profitability_respects_scope_and_csv_export():
     body = exported.content.decode("utf-8")
     assert "Known gross profit,30.00,UGX" in body
     assert env["item"].name in body
+
+@pytest.mark.django_db
+def test_unknown_cost_return_does_not_reduce_covered_profit_pool():
+    env = _seed_tenant_bundle(
+        name="Profit Unknown Return",
+        slug="profit-unknown-return",
+        user_email="profit-unknown-return@test.local",
+    )
+    _sale(env, reference="PROFIT-KNOWN")
+    order, line, payment = _sale(
+        env,
+        cost=None,
+        cost_complete=False,
+        reference="PROFIT-UNKNOWN-RETURN",
+    )
+    refund = Refund.objects.create(
+        tenant=env["tenant"],
+        order=order,
+        payment=payment,
+        amount=Decimal("45.00"),
+        reason="Unknown-cost return",
+        idempotency_key="refund-profit-unknown-return",
+        recorded_by=env["user"],
+        restocked=True,
+    )
+    SupermarketLineReturn.objects.create(
+        refund=refund,
+        tenant=env["tenant"],
+        order=order,
+        order_line=line,
+        quantity=Decimal("0.500"),
+        reason="Unknown-cost return",
+        restocked=True,
+        created_by=env["user"],
+        idempotency_key="line-return-profit-unknown",
+    )
+
+    result = _report(env)
+    assert result["sale_revenue"] == Decimal("180.00")
+    assert result["covered_sale_revenue"] == Decimal("90.00")
+    assert result["return_revenue"] == Decimal("45.00")
+    assert result["covered_return_revenue"] == Decimal("0.00")
+    assert result["covered_net_revenue"] == Decimal("90.00")
+    assert result["known_net_cogs"] == Decimal("60.00")
+    assert result["known_gross_profit"] == Decimal("30.00")
+    assert result["known_margin_percent"] == Decimal("33.3")
+    assert result["incomplete_restock_return_lines"] == 1
+    assert result["profitability_complete"] is False
+
