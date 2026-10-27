@@ -1462,14 +1462,6 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         | Q(supermarket_profile__plu_code__icontains=catalogue_search,
                             supermarket_profile__tenant_id=order.tenant_id,
                             supermarket_profile__is_active=True)
-                        | Q(
-                            alternate_codes__code__icontains=catalogue_search,
-                            alternate_codes__tenant_id=order.tenant_id,
-                            alternate_codes__is_active=True,
-                        )
-                        | Q(brand__icontains=catalogue_search)
-                        | Q(model_number__icontains=catalogue_search)
-                        | Q(reference_code__icontains=catalogue_search)
                     ).distinct()
                 menu_qs = list(menu_qs[:81])
                 ctx["retail_catalogue_has_more"] = len(menu_qs) > 80
