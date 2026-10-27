@@ -296,6 +296,16 @@ class StaffOrderLineDiscountForm(forms.Form):
         decimal_places=2,
         widget=forms.NumberInput(attrs={"class": "staff-input", "step": "0.01", "min": "0", "max": "100"}),
     )
+    margin_override_reason = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Margin override reason",
+        widget=forms.TextInput(attrs={
+            "class": "staff-input",
+            "maxlength": 255,
+            "placeholder": "Required only when discount goes below minimum margin",
+        }),
+    )
 
     def __init__(self, *args, approvers=None, **kwargs):
         super().__init__(*args, **kwargs)
