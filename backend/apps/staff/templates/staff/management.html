@@ -205,13 +205,17 @@
         {% endif %}
 
         {% if executive_profitability.margin_breach_sales %}
+        <div class="staff-alert staff-alert--warning mt-3">
+          <strong>{{ executive_profitability.margin_breach_sale_count }} individual sale line{{ executive_profitability.margin_breach_sale_count|pluralize }} missed the configured retail margin floor.</strong>
+          <span>Revenue exposed: {{ executive_profitability.currency }} {{ executive_profitability.margin_breach_revenue }}. Known gross profit: {{ executive_profitability.currency }} {{ executive_profitability.margin_breach_gross_profit }}. Additional gross profit required to reach the configured floor: {{ executive_profitability.currency }} {{ executive_profitability.margin_breach_shortfall }}.</span>
+        </div>
         <div class="staff-table-wrap mt-3"><table class="staff-table">
           <caption>Individual trusted-cost sales below the retail margin floor</caption>
-          <thead><tr><th>Sale</th><th>Section</th><th>Product</th><th>Quantity</th><th>Net revenue</th><th>Known COGS</th><th>Known gross profit</th><th>Known margin</th><th>Configured floor</th></tr></thead>
+          <thead><tr><th>Sale</th><th>Section</th><th>Product</th><th>Quantity</th><th>Net revenue</th><th>Known COGS</th><th>Known gross profit</th><th>Known margin</th><th>Configured floor</th><th>Shortfall</th></tr></thead>
           <tbody>
           {% for row in executive_profitability.margin_breach_sales %}
             <tr>
-              <td>{{ row.bill_reference }}</td>
+              <td><a href="{% url 'staff-order-detail' row.order_id %}">{{ row.bill_reference }}</a></td>
               <td>{{ row.outlet_name }}</td>
               <td><strong>{{ row.item_name }}</strong>{% if row.sku %}<div class="staff-muted small">{{ row.sku }}</div>{% endif %}</td>
               <td>{{ row.quantity }}</td>
@@ -220,6 +224,7 @@
               <td>{{ executive_profitability.currency }} {{ row.known_gross_profit }}</td>
               <td>{% if row.known_margin_percent != None %}{{ row.known_margin_percent }}%{% else %}No revenue{% endif %}</td>
               <td>{{ row.margin_floor_percent }}%</td>
+              <td><strong>{{ executive_profitability.currency }} {{ row.margin_shortfall }}</strong></td>
             </tr>
           {% endfor %}
           </tbody>
