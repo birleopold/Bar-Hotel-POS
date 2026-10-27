@@ -15,7 +15,16 @@ from apps.finance.models import (
     AccountingMapping,
     AccountingMappingKind,
 )
+from apps.lodging.models import Folio, FolioLine, FolioPayment
 from apps.pos.models import Order, OrderLine, OrderStatus, Payment, Refund
+from apps.purchasing.models import (
+    PurchaseOrder,
+    PurchaseOrderLine,
+    Supplier,
+    SupplierInvoice,
+    SupplierInvoiceLine,
+    SupplierPayment,
+)
 from apps.staff.middleware import (
     STAFF_SESSION_OUTLET_KEY,
     STAFF_SESSION_SITE_KEY,
@@ -291,6 +300,255 @@ class AccountingBridgeTests(TestCase):
             any("no COGS/inventory journal was guessed" in item for item in preview["warnings"])
         )
         self.assertFalse(any(row["account_code"] in {"5000", "1200"} for row in preview["journal_lines"]))
+
+    def test_folio_receivable_and_payment_journal_balance(self):
+        self._complete_mappings()
+        self._mapping(
+            AccountingMappingKind.ACCOUNTS_RECEIVABLE,
+            "1300",
+            "Guest receivables",
+        )
+        folio = Folio.objects.create(
+            tenant=self.tenant,
+            site=self.site,
+            guest_name="Guest A",
+            currency="UGX",
+        )
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            folio=folio,
+            status=OrderStatus.CLOSED,
+            is_paid=False,
+            subtotal=Decimal("100.00"),
+            tax_total=Decimal("10.00"),
+            total=Decimal("110.00"),
+            created_by=self.owner,
+        )
+        OrderLine.objects.create(
+            order=order,
+            menu_item=self.item,
+            label=self.item.name,
+            quantity=Decimal("1"),
+            unit_price=Decimal("100.00"),
+            line_total=Decimal("100.00"),
+            tax_amount=Decimal("10.00"),
+            inventory_tracked_snapshot=True,
+            cost_unit_snapshot=Decimal("60.00"),
+            cost_basis_complete_snapshot=True,
+            merchandise_category_snapshot=self.category.name,
+        )
+        Payment.objects.create(
+            tenant=self.tenant,
+            order=order,
+            amount=Decimal("30.00"),
+            method="cash",
+            idempotency_key="folio-pos-partial",
+            recorded_by=self.owner,
+        )
+        FolioLine.objects.create(
+            tenant=self.tenant,
+            folio=folio,
+            description=f"POS {order.bill_reference}",
+            amount=Decimal("100.00"),
+            tax_amount=Decimal("10.00"),
+            source_order=order,
+        )
+        FolioLine.objects.create(
+            tenant=self.tenant,
+            folio=folio,
+            description=f"Paid at POS {order.bill_reference}",
+            amount=Decimal("-30.00"),
+            source_order=order,
+        )
+        FolioPayment.objects.create(
+            tenant=self.tenant,
+            folio=folio,
+            amount=Decimal("80.00"),
+            method="card",
+            idempotency_key="folio-balance-payment",
+            recorded_by=self.owner,
+        )
+
+        today = timezone.localdate()
+        preview = build_accounting_preview(
+            tenant_id=self.tenant.pk,
+            date_from=today,
+            date_to=today,
+            allowed_outlet_ids=[self.outlet.pk],
+            currency="UGX",
+        )
+        self.assertTrue(preview["ready"])
+        self.assertTrue(preview["balanced"])
+        self.assertEqual(preview["source_summary"]["folio_charges"], 1)
+        self.assertEqual(preview["source_summary"]["folio_payments"], 1)
+        self.assertEqual(preview["total_debit"], Decimal("250.00"))
+        self.assertEqual(preview["total_credit"], Decimal("250.00"))
+        ar_rows = [
+            row for row in preview["journal_lines"]
+            if row["account_code"] == "1300"
+        ]
+        self.assertEqual(
+            sum(Decimal(row["debit"]) for row in ar_rows),
+            Decimal("80.00"),
+        )
+        self.assertEqual(
+            sum(Decimal(row["credit"]) for row in ar_rows),
+            Decimal("80.00"),
+        )
+
+    def test_supplier_payable_invoice_and_payment_are_balanced(self):
+        self._mapping(
+            AccountingMappingKind.INVENTORY_DEFAULT,
+            "1200",
+            "Inventory asset",
+        )
+        self._mapping(
+            AccountingMappingKind.ACCOUNTS_PAYABLE,
+            "2200",
+            "Supplier payables",
+        )
+        self._mapping(
+            AccountingMappingKind.TENDER,
+            "1030",
+            "Bank clearing",
+            source_key="bank",
+            source_label="Bank transfer",
+        )
+        supplier = Supplier.objects.create(
+            tenant=self.tenant,
+            name="Soap Supplier",
+        )
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=supplier,
+            outlet=self.outlet,
+            status="received",
+            reference="PO-AP-1",
+            created_by=self.owner,
+        )
+        po_line = PurchaseOrderLine.objects.create(
+            purchase_order=po,
+            menu_item=self.item,
+            quantity_ordered=Decimal("1"),
+            quantity_received=Decimal("1"),
+            unit_cost=Decimal("60.00"),
+        )
+        today = timezone.localdate()
+        invoice = SupplierInvoice.objects.create(
+            tenant=self.tenant,
+            purchase_order=po,
+            reference="INV-AP-1",
+            invoice_date=today,
+            due_date=today,
+            amount=Decimal("60.00"),
+            recorded_by=self.owner,
+        )
+        SupplierInvoiceLine.objects.create(
+            invoice=invoice,
+            purchase_order_line=po_line,
+            quantity=Decimal("1"),
+            unit_cost=Decimal("60.00"),
+            amount=Decimal("60.00"),
+        )
+        SupplierPayment.objects.create(
+            tenant=self.tenant,
+            purchase_order=po,
+            invoice=invoice,
+            amount=Decimal("60.00"),
+            method="bank",
+            reference="BANK-1",
+            idempotency_key="supplier-ap-payment",
+            recorded_by=self.owner,
+        )
+
+        preview = build_accounting_preview(
+            tenant_id=self.tenant.pk,
+            date_from=today,
+            date_to=today,
+            allowed_outlet_ids=[self.outlet.pk],
+            currency="UGX",
+        )
+        self.assertTrue(preview["ready"])
+        self.assertEqual(preview["source_summary"]["supplier_invoices"], 1)
+        self.assertEqual(preview["source_summary"]["supplier_payments"], 1)
+        self.assertEqual(preview["total_debit"], Decimal("120.00"))
+        self.assertEqual(preview["total_credit"], Decimal("120.00"))
+        ap_rows = [
+            row for row in preview["journal_lines"]
+            if row["account_code"] == "2200"
+        ]
+        self.assertEqual(
+            sum(Decimal(row["credit"]) for row in ap_rows),
+            Decimal("60.00"),
+        )
+        self.assertEqual(
+            sum(Decimal(row["debit"]) for row in ap_rows),
+            Decimal("60.00"),
+        )
+
+    def test_unmatched_supplier_invoice_blocks_export(self):
+        self._mapping(
+            AccountingMappingKind.INVENTORY_DEFAULT,
+            "1200",
+            "Inventory asset",
+        )
+        self._mapping(
+            AccountingMappingKind.ACCOUNTS_PAYABLE,
+            "2200",
+            "Supplier payables",
+        )
+        supplier = Supplier.objects.create(
+            tenant=self.tenant,
+            name="Mismatch Supplier",
+        )
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=supplier,
+            outlet=self.outlet,
+            status="received",
+            reference="PO-MISMATCH",
+            created_by=self.owner,
+        )
+        po_line = PurchaseOrderLine.objects.create(
+            purchase_order=po,
+            menu_item=self.item,
+            quantity_ordered=Decimal("1"),
+            quantity_received=Decimal("1"),
+            unit_cost=Decimal("60.00"),
+        )
+        today = timezone.localdate()
+        invoice = SupplierInvoice.objects.create(
+            tenant=self.tenant,
+            purchase_order=po,
+            reference="INV-MISMATCH",
+            invoice_date=today,
+            due_date=today,
+            amount=Decimal("70.00"),
+            recorded_by=self.owner,
+        )
+        SupplierInvoiceLine.objects.create(
+            invoice=invoice,
+            purchase_order_line=po_line,
+            quantity=Decimal("1"),
+            unit_cost=Decimal("60.00"),
+            amount=Decimal("60.00"),
+        )
+        preview = build_accounting_preview(
+            tenant_id=self.tenant.pk,
+            date_from=today,
+            date_to=today,
+            allowed_outlet_ids=[self.outlet.pk],
+            currency="UGX",
+        )
+        self.assertFalse(preview["ready"])
+        self.assertEqual(
+            preview["source_summary"]["unmatched_supplier_invoices"],
+            1,
+        )
+        self.assertTrue(
+            any("INV-MISMATCH" in item for item in preview["validation_errors"])
+        )
 
     def test_export_is_idempotent_and_mapping_change_does_not_mutate_history(self):
         self._complete_mappings()
