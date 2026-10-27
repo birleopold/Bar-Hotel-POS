@@ -702,11 +702,9 @@ class ConsoleProductCustomValuesForm(forms.Form):
                 )
 
     def save(self):
-        definition_ids = {definition.pk for definition in self.definitions}
-        ProductCustomFieldValue.objects.filter(
-            tenant=self.tenant,
-            menu_item=self.menu_item,
-        ).exclude(definition_id__in=definition_ids).delete()
+        # Only mutate currently active definitions. Values belonging to an
+        # inactive definition are preserved so temporarily hiding a custom
+        # field never destroys product metadata history.
         for definition in self.definitions:
             key = f"custom_{definition.pk}"
             value = self.cleaned_data.get(key)
