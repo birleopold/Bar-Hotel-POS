@@ -786,6 +786,105 @@ class Workstation(TimeStampedModel):
         return f"{self.name} ({self.code})"
 
 
+class WorkstationDeviceType(models.TextChoices):
+    RECEIPT_PRINTER = "receipt_printer", "Receipt printer"
+    KITCHEN_PRINTER = "kitchen_printer", "Kitchen printer"
+    CASH_DRAWER = "cash_drawer", "Cash drawer"
+    BARCODE_SCANNER = "barcode_scanner", "Barcode scanner"
+    WEIGHING_SCALE = "weighing_scale", "Weighing scale"
+    CUSTOMER_DISPLAY = "customer_display", "Customer display"
+
+
+class WorkstationDeviceAdapter(models.TextChoices):
+    BROWSER_PRINT = "browser_print", "Browser print dialog"
+    KEYBOARD_WEDGE = "keyboard_wedge", "Keyboard-wedge input"
+    PAIRED_BROWSER = "paired_browser", "Paired browser display"
+    LOCAL_BRIDGE = "local_bridge", "Local hardware bridge"
+    MANUAL = "manual", "Manual / external device"
+
+
+class WorkstationDeviceHealth(models.TextChoices):
+    UNKNOWN = "unknown", "Unknown"
+    ONLINE = "online", "Online"
+    DEGRADED = "degraded", "Degraded"
+    OFFLINE = "offline", "Offline"
+
+
+class WorkstationDevice(TimeStampedModel):
+    """Configured device endpoint for one workstation.
+
+    Django stores configuration and health evidence only. Direct USB/Bluetooth
+    commands must be performed by a browser capability or a separately
+    installed local bridge; the server never treats a label as proof of
+    physical connectivity.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="workstation_devices",
+    )
+    workstation = models.ForeignKey(
+        Workstation,
+        on_delete=models.CASCADE,
+        related_name="devices",
+    )
+    device_type = models.CharField(
+        max_length=24,
+        choices=WorkstationDeviceType.choices,
+    )
+    adapter = models.CharField(
+        max_length=24,
+        choices=WorkstationDeviceAdapter.choices,
+    )
+    label = models.CharField(max_length=120)
+    config = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    health_status = models.CharField(
+        max_length=16,
+        choices=WorkstationDeviceHealth.choices,
+        default=WorkstationDeviceHealth.UNKNOWN,
+    )
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_error_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=500, blank=True)
+    consecutive_failures = models.PositiveSmallIntegerField(default=0)
+    last_latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workstation_devices_created",
+    )
+
+    class Meta:
+        ordering = ["workstation", "device_type", "label"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workstation", "device_type", "label"],
+                name="uniq_workstation_device_label_type",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        super().clean()
+        if (
+            self.workstation_id
+            and self.tenant_id
+            and self.workstation.tenant_id != self.tenant_id
+        ):
+            raise ValidationError(
+                {"workstation": "Choose a workstation in this workspace."}
+            )
+
+    def __str__(self):
+        return f"{self.workstation.code} · {self.get_device_type_display()} · {self.label}"
+
+
 class WorkstationPairing(TimeStampedModel):
     """Revocable browser credential. Never stores the raw 256-bit secret."""
 
