@@ -70,7 +70,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         oids = membership_outlet_ids(self.request.tenant_membership)
         qs = (
             PurchaseOrder.objects.filter(tenant=self.request.tenant, outlet_id__in=oids)
-            .select_related("supplier", "outlet", "created_by")
+            .select_related("supplier", "outlet", "created_by", "reviewed_by")
             .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments", "invoices__credits", "invoices__allocated_payments", "invoices__matched_lines")
             .order_by("-created_at")
         )
@@ -99,7 +99,10 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         return PurchaseOrderSerializer
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(
+            data=request.data,
+            context={**self.get_serializer_context(), "auto_approve": True},
+        )
         serializer.is_valid(raise_exception=True)
         po = serializer.save()
         po = (
