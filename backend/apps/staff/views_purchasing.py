@@ -296,8 +296,19 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         oids = _po_outlet_ids(self.request, outlets)
         qs = _po_base_queryset(self.request).filter(outlet_id__in=oids).order_by("-created_at")
-        if self.request.GET.get("lane") == "receiving":
-            qs = qs.filter(status__in=[PurchaseOrderStatus.SENT, PurchaseOrderStatus.PARTIALLY_RECEIVED]).order_by("expected_date", "created_at")
+        lane = self.request.GET.get("lane")
+        if lane == "receiving":
+            qs = qs.filter(
+                status__in=[
+                    PurchaseOrderStatus.SENT,
+                    PurchaseOrderStatus.PARTIALLY_RECEIVED,
+                ]
+            ).order_by("expected_date", "created_at")
+        elif lane == "approval":
+            qs = qs.filter(
+                status=PurchaseOrderStatus.DRAFT,
+                approval_status=PurchaseApprovalStatus.PENDING,
+            ).order_by("created_at")
         st = self.request.GET.get("status")
         if st and st in {c[0] for c in PurchaseOrderStatus.choices}:
             qs = qs.filter(status=st)
@@ -311,6 +322,7 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["status_filter"] = self.request.GET.get("status") or ""
         ctx["receiving_lane"] = self.request.GET.get("lane") == "receiving"
+        ctx["approval_lane"] = self.request.GET.get("lane") == "approval"
         ctx["can_receive_stock"] = membership_has_purchasing_capability(self.request.tenant_membership, "receive")
         ctx["can_request_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "request")
         ctx["can_modify_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "manage")
