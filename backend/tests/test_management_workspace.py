@@ -596,6 +596,30 @@ class ManagementWorkspaceTests(TestCase):
         )
         self.assertEqual(hidden.status_code, 404)
 
+    def test_cash_variance_pattern_requires_unique_shift_operator(self):
+        self.login()
+        self.shift.opened_by = self.worker
+        self.shift.closed_by = self.manager
+        self.shift.save(update_fields=["opened_by", "closed_by", "updated_at"])
+
+        page = self.client.get(reverse("staff-management"), {"view": "exceptions"})
+        patterns = page.context["loss_patterns"]
+        shared = next(
+            row for row in patterns["workers"]
+            if row["worker"] == "Unknown / shared attribution"
+        )
+        self.assertGreaterEqual(shared["cash_variances"], 1)
+
+        detail = self.client.get(
+            reverse(
+                "staff-management-loss-pattern",
+                args=["worker", shared["pattern_key"]],
+            )
+        )
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Shared or historically unattributed shift")
+        self.assertContains(detail, "Cash variance")
+
     def test_approved_discount_is_not_duplicated_as_manual_price_exception(self):
         from apps.pos.models import OrderLine
         self.login()
