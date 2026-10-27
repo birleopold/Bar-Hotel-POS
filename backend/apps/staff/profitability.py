@@ -141,7 +141,7 @@ def build_merchandise_profitability(
                 menu_item__track_inventory=True,
             )
         )
-        .select_related("order", "menu_item", "menu_item__category")
+        .select_related("order", "order__outlet", "menu_item", "menu_item__category")
         .order_by("order_id", "sort_order", "created_at")
     )
 
@@ -186,6 +186,11 @@ def build_merchandise_profitability(
         "category_name": "",
         **_blank_profit_row(),
     })
+    outlets = defaultdict(lambda: {
+        "outlet_id": "",
+        "outlet_name": "",
+        **_blank_profit_row(),
+    })
 
     for line in line_qs.iterator(chunk_size=500):
         revenue = _line_net_revenue(line)
@@ -201,10 +206,16 @@ def build_merchandise_profitability(
         category_key = category_name.casefold()
         category_row = categories[category_key]
         category_row["category_name"] = category_name
+        outlet_key = str(line.order.outlet_id)
+        outlet_row = outlets[outlet_key]
+        outlet_row["outlet_id"] = outlet_key
+        outlet_row["outlet_name"] = line.order.outlet.name
         row["sale_revenue"] += revenue
         category_row["sale_revenue"] += revenue
+        outlet_row["sale_revenue"] += revenue
         row["sale_units"] += line.quantity
         category_row["sale_units"] += line.quantity
+        outlet_row["sale_units"] += line.quantity
         totals["sale_revenue"] += revenue
         totals["sale_units"] += line.quantity
         if trusted:
@@ -217,12 +228,16 @@ def build_merchandise_profitability(
             category_row["covered_revenue"] += revenue
             category_row["covered_units"] += line.quantity
             category_row["known_cogs"] += cogs
+            outlet_row["covered_revenue"] += revenue
+            outlet_row["covered_units"] += line.quantity
+            outlet_row["known_cogs"] += cogs
             totals["covered_sale_revenue"] += revenue
             totals["covered_sale_units"] += line.quantity
             totals["known_sale_cogs"] += cogs
         else:
             row["incomplete_lines"] += 1
             category_row["incomplete_lines"] += 1
+            outlet_row["incomplete_lines"] += 1
             totals["incomplete_sale_lines"] += 1
 
     returns_qs = (
@@ -236,6 +251,7 @@ def build_merchandise_profitability(
         .select_related(
             "order_line",
             "order_line__order",
+            "order_line__order__outlet",
             "order_line__menu_item",
             "order_line__menu_item__category",
         )
@@ -266,15 +282,22 @@ def build_merchandise_profitability(
         category_key = category_name.casefold()
         category_row = categories[category_key]
         category_row["category_name"] = category_name
+        outlet_key = str(line.order.outlet_id)
+        outlet_row = outlets[outlet_key]
+        outlet_row["outlet_id"] = outlet_key
+        outlet_row["outlet_name"] = line.order.outlet.name
         row["return_revenue"] += revenue_reversal
         category_row["return_revenue"] += revenue_reversal
+        outlet_row["return_revenue"] += revenue_reversal
         row["return_units"] += returned.quantity
         category_row["return_units"] += returned.quantity
+        outlet_row["return_units"] += returned.quantity
         totals["return_revenue"] += revenue_reversal
         totals["return_units"] += returned.quantity
         if trusted:
             row["covered_return_revenue"] += revenue_reversal
             category_row["covered_return_revenue"] += revenue_reversal
+            outlet_row["covered_return_revenue"] += revenue_reversal
             totals["covered_return_revenue"] += revenue_reversal
         if returned.restocked:
             if trusted:
@@ -283,10 +306,12 @@ def build_merchandise_profitability(
                 ).quantize(MONEY, rounding=ROUND_HALF_UP)
                 row["known_cogs_reversal"] += cogs_reversal
                 category_row["known_cogs_reversal"] += cogs_reversal
+                outlet_row["known_cogs_reversal"] += cogs_reversal
                 totals["known_restock_cogs_reversal"] += cogs_reversal
             else:
                 row["incomplete_return_lines"] += 1
                 category_row["incomplete_return_lines"] += 1
+                outlet_row["incomplete_return_lines"] += 1
                 totals["incomplete_restock_return_lines"] += 1
 
     refund_qs = Refund.objects.filter(
@@ -373,6 +398,18 @@ def build_merchandise_profitability(
 
     product_rows = [_finalize_row(row) for row in products.values()]
     category_rows = [_finalize_row(row) for row in categories.values()]
+    outlet_rows = [_finalize_row(row) for row in outlets.values()]
+    for row in outlet_rows:
+        row["cost_coverage_percent"] = (
+            (
+                row["covered_revenue"] / row["sale_revenue"] * Decimal("100")
+            ).quantize(PERCENT, rounding=ROUND_HALF_UP)
+            if row["sale_revenue"] > 0 else Decimal("100.0")
+        )
+        row["profitability_complete"] = bool(
+            row["incomplete_lines"] == 0
+            and row["incomplete_return_lines"] == 0
+        )
     covered_net_revenue = sum(
         (row["covered_net_revenue"] for row in product_rows),
         Decimal("0.00"),
@@ -419,6 +456,35 @@ def build_merchandise_profitability(
             row["category_name"].lower(),
         )
     )
+    outlet_rows.sort(
+        key=lambda row: (
+            -row["net_revenue"],
+            row["outlet_name"].lower(),
+        )
+    )
+    unknown_cost_exposure = [
+        {
+            "item_name": row["item_name"],
+            "sku": row["sku"],
+            "uncovered_net_revenue": row["uncovered_net_revenue"],
+            "incomplete_lines": (
+                row["incomplete_lines"] + row["incomplete_return_lines"]
+            ),
+        }
+        for row in product_rows
+        if row["uncovered_net_revenue"] > 0
+        or row["incomplete_lines"] > 0
+        or row["incomplete_return_lines"] > 0
+    ]
+    unknown_cost_exposure.sort(
+        key=lambda row: (
+            -row["uncovered_net_revenue"],
+            -row["incomplete_lines"],
+            row["item_name"].lower(),
+        )
+    )
     totals["products"] = product_rows[:25]
     totals["categories"] = category_rows[:25]
+    totals["outlets"] = outlet_rows
+    totals["unknown_cost_exposure"] = unknown_cost_exposure[:25]
     return totals
