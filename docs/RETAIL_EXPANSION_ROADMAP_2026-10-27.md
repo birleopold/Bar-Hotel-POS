@@ -73,11 +73,14 @@ Implemented in source, pending exact-head CI/browser certification:
 - Staff PO creation and receiving UI for package counts; partial receipt converts packages to base stock and records packages received.
 - Service-level rejection of fractional package receipt counts.
 - Retail-only UI isolation for family/package tools.
+- Retail assembly BOM configuration under each tracked product, separate from hospitality recipes.
+- Staff Inventory Build/Unbuild operation with outlet scope, atomic component/finished-stock posting, run history and linked stock movements.
+- Assembly operations block any involved item with batch/expiry history until lot-aware assembly output allocation is implemented.
 
 Still R1 work:
 - richer variant option editing after generation;
 - package-aware catalog import/export and supplier-specific package codes;
-- retail assembly/build/unbuild and groups/bundles;
+- non-stock retail groups/bundles;
 - serialized/IMEI stock lifecycle;
 - product custom fields and richer label queues;
 - exact-head CI, PostgreSQL/RLS evidence and browser acceptance.
