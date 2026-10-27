@@ -435,6 +435,9 @@ class ConsoleMenuItemForm(forms.ModelForm):
             "unit_of_measure",
             "units_per_carton",
             "track_inventory",
+            "serial_tracking",
+            "serial_identifier_type",
+            "warranty_months",
             "reorder_level",
             "unit_price",
             "tax_rate_percent",
@@ -452,6 +455,9 @@ class ConsoleMenuItemForm(forms.ModelForm):
             "unit_of_measure": forms.Select(attrs={"class": "staff-input"}),
             "units_per_carton": forms.NumberInput(attrs={"class": "staff-input", "min": "1", "max": "10000", "step": "1"}),
             "track_inventory": forms.CheckboxInput(),
+            "serial_tracking": forms.CheckboxInput(),
+            "serial_identifier_type": forms.Select(attrs={"class": "staff-input"}),
+            "warranty_months": forms.NumberInput(attrs={"class": "staff-input", "min": "1", "max": "240", "step": "1"}),
             "reorder_level": forms.NumberInput(attrs={"class": "staff-input", "step": "any"}),
             "unit_price": forms.NumberInput(attrs={"class": "staff-input", "step": "0.01"}),
             "tax_rate_percent": forms.NumberInput(attrs={"class": "staff-input", "step": "0.01"}),
@@ -486,6 +492,7 @@ class ConsoleMenuItemForm(forms.ModelForm):
         self.fields["description"].required = False
         self.fields["tax_rate_percent"].required = False
         self.fields["reorder_level"].required = False
+        self.fields["warranty_months"].required = False
         if self.instance._state.adding:
             try:
                 from apps.tenants.business_lines import normalize_business_lines
@@ -515,6 +522,11 @@ class ConsoleMenuItemForm(forms.ModelForm):
                 self.add_error("units_per_carton", "Carton quantities require an item stocked by the piece.")
             if not values.get("track_inventory"):
                 self.add_error("units_per_carton", "Turn on stock tracking before configuring cartons.")
+        if values.get("serial_tracking"):
+            if not values.get("track_inventory"):
+                self.add_error("serial_tracking", "Turn on stock tracking before enabling serial / IMEI tracking.")
+            if values.get("unit_of_measure") != "each":
+                self.add_error("serial_tracking", "Serial / IMEI tracking is only available for piece-based products.")
         family = values.get("product_family")
         category = values.get("category")
         if family and category and family.category_id != category.id:
