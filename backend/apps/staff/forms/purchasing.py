@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import QuerySet
 
 from apps.catalog.models import MenuItem, ProductPackage
-from apps.purchasing.models import Supplier, SupplierProductCode
+from apps.purchasing.models import Supplier, SupplierPriceRecord, SupplierProductCode
 from apps.tenants.models import Outlet
 
 
@@ -225,4 +225,64 @@ class StaffSupplierQuoteForm(forms.Form):
         max_length=255,
         widget=forms.TextInput(attrs={"class": "staff-input"}),
     )
+
+class StaffSupplierPriceRecordForm(forms.ModelForm):
+    class Meta:
+        model = SupplierPriceRecord
+        fields = [
+            "menu_item", "product_package", "unit_cost", "minimum_quantity",
+            "valid_from", "valid_until", "source_reference", "note", "is_active",
+        ]
+        widgets = {
+            "menu_item": forms.Select(attrs={"class": "staff-input"}),
+            "product_package": forms.Select(attrs={"class": "staff-input"}),
+            "unit_cost": forms.NumberInput(attrs={
+                "class": "staff-input", "min": "0", "step": "0.01",
+            }),
+            "minimum_quantity": forms.NumberInput(attrs={
+                "class": "staff-input", "min": "0.001", "step": "0.001",
+            }),
+            "valid_from": forms.DateInput(attrs={"class": "staff-input", "type": "date"}),
+            "valid_until": forms.DateInput(attrs={"class": "staff-input", "type": "date"}),
+            "source_reference": forms.TextInput(attrs={
+                "class": "staff-input", "placeholder": "Contract / supplier price-list reference",
+            }),
+            "note": forms.TextInput(attrs={"class": "staff-input"}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant, supplier, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        self.supplier = supplier
+        self.fields["menu_item"].queryset = MenuItem.objects.filter(
+            tenant=tenant, is_active=True, track_inventory=True
+        ).order_by("name")
+        self.fields["product_package"].queryset = ProductPackage.objects.filter(
+            tenant=tenant, is_active=True, is_purchasable=True
+        ).select_related("menu_item").order_by("menu_item__name", "name")
+        self.fields["product_package"].required = False
+        self.fields["minimum_quantity"].help_text = (
+            "Base-stock quantity threshold for this price."
+        )
+
+    def clean(self):
+        data = super().clean()
+        item = data.get("menu_item")
+        package = data.get("product_package")
+        valid_from = data.get("valid_from")
+        valid_until = data.get("valid_until")
+        if item and item.tenant_id != self.tenant.pk:
+            self.add_error("menu_item", "Choose a product from this business.")
+        if package:
+            if package.tenant_id != self.tenant.pk:
+                self.add_error("product_package", "Choose a package from this business.")
+            elif item and package.menu_item_id != item.pk:
+                self.add_error(
+                    "product_package",
+                    "Choose a package that belongs to the selected product.",
+                )
+        if valid_from and valid_until and valid_until < valid_from:
+            self.add_error("valid_until", "End date cannot be earlier than start date.")
+        return data
 
