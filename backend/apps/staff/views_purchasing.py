@@ -399,7 +399,10 @@ def _po_base_queryset(request) -> QuerySet:
     oids = [o.id for o in staff_accessible_outlets(request.tenant_membership)]
     return (
         PurchaseOrder.objects.filter(tenant=request.tenant, outlet_id__in=oids)
-        .select_related("supplier", "outlet", "created_by")
+        .select_related(
+            "supplier", "outlet", "created_by", "reviewed_by",
+            "source_supplier_quote__rfq",
+        )
         .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments")
     )
 
