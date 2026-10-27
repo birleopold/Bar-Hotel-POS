@@ -204,6 +204,15 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                         "Net merchandise revenue", p["net_merchandise_revenue"], p["currency"],
                     ])
                     writer.writerow([
+                        "Covered net revenue", p["covered_net_revenue"], p["currency"],
+                    ])
+                    writer.writerow([
+                        "Revenue without trusted cost", p["uncovered_net_revenue"], p["currency"],
+                    ])
+                    writer.writerow([
+                        "Return revenue with trusted original cost", p["covered_return_revenue"], p["currency"],
+                    ])
+                    writer.writerow([
                         "Known net COGS", p["known_net_cogs"], p["currency"],
                     ])
                     writer.writerow([
@@ -226,14 +235,16 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                     writer.writerow([])
                     writer.writerow([
                         "Product", "SKU", "Sale revenue", "Return revenue",
-                        "Net revenue", "Known net COGS", "Known gross profit",
-                        "Known margin %", "Incomplete cost lines",
+                        "Net revenue", "Covered net revenue", "Revenue without trusted cost",
+                        "Known net COGS", "Known gross profit", "Known margin %",
+                        "Incomplete cost lines",
                     ])
                     for row in p["products"]:
                         writer.writerow([
                             csv_safe(row["item_name"]), csv_safe(row["sku"]),
                             row["sale_revenue"], row["return_revenue"],
-                            row["net_revenue"], row["known_net_cogs"],
+                            row["net_revenue"], row["covered_net_revenue"],
+                            row["uncovered_net_revenue"], row["known_net_cogs"],
                             row["known_gross_profit"],
                             row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
                             row["incomplete_lines"] + row["incomplete_return_lines"],
