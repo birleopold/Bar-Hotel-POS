@@ -10,6 +10,7 @@ from apps.accounts.models import MembershipRole
 from apps.catalog.models import MenuItem
 from apps.pos.models import Order, OrderLine, OrderStatus, WholesalePriceRule
 from apps.pos.services.pricing import line_total, line_tax, recalculate_order_totals
+from apps.pos.services.pricing_policy import wholesale_combination_block_reason
 from apps.tenants.models import OutletType
 
 MANAGERS = frozenset({
@@ -83,17 +84,21 @@ def apply_wholesale_tier(*, order, line_id, membership, user):
             or membership.user_id != user.pk):
         raise ValidationError({"detail": "A manager of this retail section must approve wholesale pricing."})
     if (locked.status != OrderStatus.OPEN or locked.is_paid or locked.customer_id is None
-            or locked.customer.merged_into_id or locked.applied_promotion_id
-            or locked.discount_amount):
-        raise ValidationError({"order": "Wholesale prices require an identified customer and an open, unpromoted sale."})
+            or locked.customer.merged_into_id):
+        raise ValidationError({"order": "Wholesale prices require an identified customer and an open unpaid sale."})
+    combination_reason = wholesale_combination_block_reason(locked)
+    if combination_reason:
+        raise ValidationError({"order": combination_reason})
     if locked.payments.exists():
         raise ValidationError({"order": "Apply price rules before taking any deposit or payment."})
     line = OrderLine.objects.select_for_update().select_related("menu_item").filter(
         order=locked, pk=line_id, is_voided=False, menu_item__isnull=False,
     ).first()
-    if (line is None or line.modifiers_snapshot or line.line_discount_amount
-            or line.line_discount_percent):
-        raise ValidationError({"line": "Choose a normal product line without discounts or modifiers."})
+    if line is None or line.modifiers_snapshot:
+        raise ValidationError({"line": "Choose a normal product line without modifiers."})
+    combination_reason = wholesale_combination_block_reason(locked, line)
+    if combination_reason:
+        raise ValidationError({"line": combination_reason})
     rule = qualifying_rule(tenant_id=locked.tenant_id, outlet_id=locked.outlet_id,
                            menu_item_id=line.menu_item_id, quantity=line.quantity)
     if rule is None:
