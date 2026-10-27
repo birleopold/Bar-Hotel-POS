@@ -912,6 +912,15 @@ class ConsoleProductPackageForm(forms.ModelForm):
             raise forms.ValidationError("This code is already used by a retail product group.")
         if ProductAlternateCode.objects.filter(tenant=self.tenant, code__iexact=barcode).exists():
             raise forms.ValidationError("This code is already used as an alternate product code.")
+        if SupermarketSkuProfile.objects.filter(
+            tenant=self.tenant, plu_code__iexact=barcode, is_active=True,
+        ).exists():
+            raise forms.ValidationError("This code is already used by an active product PLU.")
+        from apps.inventory.models import InventorySerialUnit
+        if InventorySerialUnit.objects.filter(
+            tenant=self.tenant, serial_number__iexact=barcode,
+        ).exists():
+            raise forms.ValidationError("This code is already used by a serial / IMEI unit.")
         qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
             Q(barcode__iexact=barcode) | Q(sku_alias__iexact=barcode)
         )
@@ -933,6 +942,15 @@ class ConsoleProductPackageForm(forms.ModelForm):
             raise forms.ValidationError("This package code is already used by a retail product group.")
         if ProductAlternateCode.objects.filter(tenant=self.tenant, code__iexact=code).exists():
             raise forms.ValidationError("This package code is already used as an alternate product code.")
+        if SupermarketSkuProfile.objects.filter(
+            tenant=self.tenant, plu_code__iexact=code, is_active=True,
+        ).exists():
+            raise forms.ValidationError("This package code is already used by an active product PLU.")
+        from apps.inventory.models import InventorySerialUnit
+        if InventorySerialUnit.objects.filter(
+            tenant=self.tenant, serial_number__iexact=code,
+        ).exists():
+            raise forms.ValidationError("This package code is already used by a serial / IMEI unit.")
         qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
             Q(sku_alias__iexact=code) | Q(barcode__iexact=code)
         )
@@ -944,6 +962,10 @@ class ConsoleProductPackageForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        barcode = (data.get("barcode") or "").strip()
+        alias = (data.get("sku_alias") or "").strip()
+        if barcode and alias and barcode.casefold() == alias.casefold():
+            self.add_error("sku_alias", "Package barcode and SKU alias must be different.")
         units = data.get("units_per_package")
         price = data.get("sell_price")
         if units and price is not None:
