@@ -31,7 +31,8 @@
 
   <h2 class="staff-section-head">Details</h2>
   <div class="staff-card">
-    <p><strong>Schedule</strong> {{ promotion.starts_at }} → {{ promotion.ends_at|default:"open" }}</p>
+    <p><strong>Date range</strong> {{ promotion.starts_at }} → {{ promotion.ends_at|default:"open" }}</p>
+    <p><strong>Recurring schedule</strong> {{ promotion.schedule_label }} · {{ request.tenant.settings.default_timezone }}</p>
     <p><strong>Target</strong> {{ promotion.target_label }}</p>
     <p><strong>Offer type</strong> {{ promotion.get_offer_type_display }}</p>
     <p><strong>Discount</strong>
