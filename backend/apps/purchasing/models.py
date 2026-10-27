@@ -108,6 +108,191 @@ class SupplierProductCode(TimeStampedModel):
         return f"{self.supplier.name} · {self.code} · {self.menu_item.name}"
 
 
+class PurchaseRfqStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    OPEN = "open", "Open for quotations"
+    AWARDED = "awarded", "Awarded"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class SupplierQuoteStatus(models.TextChoices):
+    INVITED = "invited", "Invited / awaiting quote"
+    SUBMITTED = "submitted", "Quote received"
+    ACCEPTED = "accepted", "Accepted"
+    REJECTED = "rejected", "Not selected"
+
+
+class PurchaseRfq(TimeStampedModel):
+    """Simple competitive sourcing request that converts into the normal PO flow."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="purchase_rfqs",
+    )
+    outlet = models.ForeignKey(
+        "tenants.Outlet", on_delete=models.PROTECT, related_name="purchase_rfqs",
+        help_text="Outlet/warehouse that will receive the awarded purchase order.",
+    )
+    reference = models.CharField(max_length=128)
+    status = models.CharField(
+        max_length=16, choices=PurchaseRfqStatus.choices,
+        default=PurchaseRfqStatus.DRAFT,
+    )
+    needed_by = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="purchase_rfqs_created",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("reference"), "tenant", name="uniq_purchase_rfq_reference_ci",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"RFQ {self.reference} ({self.status})"
+
+
+class PurchaseRfqLine(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="purchase_rfq_lines",
+    )
+    rfq = models.ForeignKey(
+        PurchaseRfq, on_delete=models.CASCADE, related_name="lines",
+    )
+    menu_item = models.ForeignKey(
+        "catalog.MenuItem", on_delete=models.PROTECT, related_name="purchase_rfq_lines",
+    )
+    quantity_requested = models.DecimalField(
+        max_digits=14, decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["rfq", "menu_item__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["rfq", "menu_item"], name="uniq_purchase_rfq_item",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.rfq_id and self.tenant_id and self.rfq.tenant_id != self.tenant_id:
+            raise ValidationError({"rfq": "RFQ must belong to this business."})
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Product must belong to this business."})
+
+
+class SupplierQuote(TimeStampedModel):
+    """One supplier response/invitation against an RFQ."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="supplier_quotes",
+    )
+    rfq = models.ForeignKey(
+        PurchaseRfq, on_delete=models.CASCADE, related_name="quotes",
+    )
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.PROTECT, related_name="quotes",
+    )
+    status = models.CharField(
+        max_length=16, choices=SupplierQuoteStatus.choices,
+        default=SupplierQuoteStatus.INVITED,
+    )
+    reference = models.CharField(
+        max_length=128, blank=True,
+        help_text="Supplier quotation/reference number.",
+    )
+    shipping_cost = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    other_cost = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Other quoted charges not included in item unit prices.",
+    )
+    lead_time_days = models.PositiveIntegerField(null=True, blank=True)
+    availability_note = models.CharField(max_length=255, blank=True)
+    payment_terms = models.CharField(max_length=255, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    converted_purchase_order = models.OneToOneField(
+        "purchasing.PurchaseOrder", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="source_supplier_quote",
+    )
+    created_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="supplier_quotes_recorded",
+    )
+
+    class Meta:
+        ordering = ["rfq", "supplier__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["rfq", "supplier"], name="uniq_supplier_quote_per_rfq",
+            ),
+            models.UniqueConstraint(
+                fields=["rfq"],
+                condition=models.Q(status=SupplierQuoteStatus.ACCEPTED),
+                name="uniq_accepted_quote_per_rfq",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.rfq_id and self.tenant_id and self.rfq.tenant_id != self.tenant_id:
+            raise ValidationError({"rfq": "RFQ must belong to this business."})
+        if self.supplier_id and self.tenant_id and self.supplier.tenant_id != self.tenant_id:
+            raise ValidationError({"supplier": "Supplier must belong to this business."})
+
+
+class SupplierQuoteLine(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant", on_delete=models.CASCADE, related_name="supplier_quote_lines",
+    )
+    quote = models.ForeignKey(
+        SupplierQuote, on_delete=models.CASCADE, related_name="lines",
+    )
+    rfq_line = models.ForeignKey(
+        PurchaseRfqLine, on_delete=models.PROTECT, related_name="quote_lines",
+    )
+    unit_cost = models.DecimalField(
+        max_digits=12, decimal_places=2,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    quantity_available = models.DecimalField(
+        max_digits=14, decimal_places=3, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Blank means supplier did not state an availability limit.",
+    )
+    promised_date = models.DateField(null=True, blank=True)
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["quote", "rfq_line__menu_item__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["quote", "rfq_line"], name="uniq_supplier_quote_rfq_line",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.quote_id and self.tenant_id and self.quote.tenant_id != self.tenant_id:
+            raise ValidationError({"quote": "Quote must belong to this business."})
+        if self.rfq_line_id and self.quote_id and self.rfq_line.rfq_id != self.quote.rfq_id:
+            raise ValidationError({"rfq_line": "Quoted product must belong to this RFQ."})
+
+
 class PurchaseOrderStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     SENT = "sent", "Sent"
