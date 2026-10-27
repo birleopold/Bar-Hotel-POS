@@ -1,0 +1,12 @@
+{% extends "console/base.html" %}
+{% block title %}{{ form_title }} · {{ price_book.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header"><div><p class="grocery-setup__eyebrow">Pricing / {{ price_book.name }}</p><h1>{{ form_title }}</h1><p class="staff-muted">Set the exact unit rate that applies from this quantity upward. Additional tiers for the same product may be added at higher quantities.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-price-book-detail' price_book.id %}">Back to price book</a></header>
+  <form method="post" class="staff-card grocery-guided-form">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grocery-form-fields">{% for field in form %}<div class="grocery-form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<div class="grocery-form-errors">{{ field.errors }}</div>{% endif %}</div>{% endfor %}</div>
+    <div class="grocery-form-footer"><span>Customer price books do not stack with promotions or manual line discounts in this R2 slice.</span><div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-price-book-detail' price_book.id %}">Cancel</a><button class="staff-btn staff-btn--primary" type="submit">Save tier</button></div></div>
+  </form>
+</section>
+{% endblock %}
