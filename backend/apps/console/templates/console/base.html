@@ -23,12 +23,17 @@
   {% if fizo_setup_area %}<link rel="stylesheet" href="{% static 'staff/fizo-setup-area.css' %}?v=20261026.1">{% endif %}
   {% block extra_css %}{% endblock %}
 </head>
-<body class="staff-body console-body{% if fizo_setup_area %} fizo-console-body{% endif %}{% if grocery_console_shell %} grocery-console-body{% elif hospitality_console_shell %} hospitality-console-body{% endif %}">
+<body class="staff-body console-body{% if fizo_setup_area %} fizo-console-body{% endif %}{% if grocery_console_shell %} grocery-console-body{% elif hospitality_console_shell %} hospitality-console-body{% endif %}{% if request.tenant.is_training %} staff-body--training{% endif %}">
   <div class="staff-app-shell console-app-shell">
     {% if fizo_setup_area %}{% include "console/includes/fizo_sidebar.html" %}{% else %}{% include "console/includes/sidebar.html" %}{% endif %}
     <div class="staff-app-shell__body">
       {% if fizo_setup_area %}{% include "console/includes/fizo_nav.html" %}{% else %}{% include "console/includes/nav.html" %}{% endif %}
       <main class="staff-main staff-main--wide console-main{% if fizo_setup_area %} fizo-setup-area{% endif %} {% block main_class %}{% endblock %}">
+        {% if request.tenant.is_training %}
+        <div class="staff-alert staff-alert--warning mb-3" role="status" data-training-banner>
+          <strong>TRAINING WORKSPACE</strong> · Practice data only. Live fiscal/provider/hardware side effects are blocked. Resettable exercises belong here, never in a live tenant.
+        </div>
+        {% endif %}
         {% include "staff/includes/messages.html" %}
         {% block content %}{% endblock %}
       </main>
