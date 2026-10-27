@@ -2941,6 +2941,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         "quantity": str(locked_line.quantity),
                         "unit_price": str(locked_line.unit_price),
                         "line_total_before": str(locked_line.line_total),
+                        "margin_override_reason": (
+                            form.cleaned_data.get("margin_override_reason") or ""
+                        ).strip(),
                     },
                 )
                 if not getattr(approval, "idempotent_replay", False):
@@ -2950,6 +2953,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         user=request.user,
                         discount_amount=form.cleaned_data.get("discount_amount"),
                         discount_percent=form.cleaned_data.get("discount_percent"),
+                        allow_margin_override=True,
+                        margin_override_reason=(
+                            form.cleaned_data.get("margin_override_reason") or ""
+                        ),
                     )
         except SensitiveApprovalError as exc:
             return reject(exc)
