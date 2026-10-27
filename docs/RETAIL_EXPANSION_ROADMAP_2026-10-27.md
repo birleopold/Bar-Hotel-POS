@@ -362,7 +362,8 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Storekeepers can prepare a pending request for an authorized outlet; manager-created drafts are immediately approved.
 - Pending requests require a different authorized manager to approve or reject before supplier send; rejection requires a note and requester withdrawal is supported.
 - A dedicated Needs approval lane surfaces pending requests to managers; approval state is also exposed through the API and audited.
-- Remaining enhancement: optional needed-by/reason fields and consolidation of multiple approved requests when a business genuinely needs centralized procurement.
+- Optional requester context is now implemented on the existing draft-PO request: Needed by is stored separately from supplier expected delivery, Request reason is visible to approvers and captured in approval audit evidence, and the Needs approval lane prioritizes the earliest stated need date with undated requests last.
+- Remaining enhancement: consolidation of multiple approved requests when a business genuinely needs centralized procurement; do not add that complexity until there is a real multi-request buying workflow to justify it.
 
 ### R4.2 RFQ and quotation comparison
 - Implemented as a manager-only, tenant/outlet-scoped sourcing workflow under Purchasing → Supplier quotes.
