@@ -113,7 +113,11 @@
 </section>
 {% elif can_manage %}
 <section class="staff-card my-4">
+  {% if hardware_check_membership_required %}
+  <p class="staff-muted mb-0">Device configuration is available here, but staff-observed equipment evidence must be recorded by a tenant owner or administrator account assigned to this workspace.</p>
+  {% else %}
   <p class="staff-muted mb-0">To record equipment checks, sign in with your administrator account password rather than a shared terminal PIN.</p>
+  {% endif %}
 </section>
 {% endif %}
 <section class="staff-card my-4">
