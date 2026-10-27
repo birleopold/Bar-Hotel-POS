@@ -32,7 +32,7 @@ from apps.inventory.services import (
     execute_retail_assembly,
 )
 from apps.pos.services import menu_items_for_outlet_queryset
-from apps.tenants.models import Outlet
+from apps.tenants.models import Outlet, OutletType
 from apps.tenants.business_lines import normalize_business_lines
 
 from .forms import (
@@ -1546,7 +1546,10 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         from django.core.paginator import Paginator
-        from apps.inventory.insights import build_stock_intelligence
+        from apps.inventory.insights import (
+            build_stock_intelligence,
+            build_warehouse_replenishment_proposals,
+        )
         from .services.modules import get_tenant_staff_modules
 
         ctx = super().get_context_data(**kwargs)
@@ -1557,6 +1560,30 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
             balances=page.object_list,
             safety_days=safety_days,
         )
+        warehouse_balances = list(
+            StockBalance.objects.filter(
+                tenant=self.request.tenant,
+                outlet__outlet_type=OutletType.WAREHOUSE,
+                outlet__is_active=True,
+                quantity__gt=0,
+                menu_item__track_inventory=True,
+            )
+            .select_related("menu_item", "outlet__site")
+            .order_by("outlet__name", "menu_item__name", "pk")
+        )
+        proposals = build_warehouse_replenishment_proposals(
+            tenant=self.request.tenant,
+            planning_rows=summaries,
+            warehouse_balances=warehouse_balances,
+        )
+        proposal_by_destination_product = {
+            (row["to_outlet_id"], row["menu_item_id"]): row
+            for row in proposals
+        }
+        for row in summaries:
+            row["warehouse_proposal"] = proposal_by_destination_product.get(
+                (row["outlet_id"], row["menu_item_id"])
+            )
         ctx.update({
             "stock_rows": summaries, "page_obj": page,
             "safety_days": safety_days, "low_only": low_only,
@@ -1567,11 +1594,146 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
                 membership_can_modify_lodging(self.request.tenant_membership)
                 and "purchasing" in get_tenant_staff_modules(self.request.tenant)
             ),
+            "can_request_transfer": membership_has_inventory_capability(
+                self.request.tenant_membership, "request_transfer"
+            ),
+            "warehouse_proposal_count": len(proposals),
             "low_stock_page_count": sum(int(row["low_stock"]) for row in summaries),
             "inactive_page_count": sum(int(row["inactive"]) for row in summaries),
             "unknown_age_page_count": sum(int(row["unbatched_qty"] > 0) for row in summaries),
         })
         return ctx
+
+    def post(self, request, *args, **kwargs):
+        from apps.inventory.insights import (
+            build_stock_intelligence,
+            build_warehouse_replenishment_proposals,
+        )
+
+        if not membership_has_inventory_capability(
+            request.tenant_membership, "request_transfer"
+        ):
+            messages.error(request, "Your role cannot request stock transfers.")
+            return redirect("staff-inventory-intelligence")
+
+        try:
+            source_id = uuid.UUID((request.POST.get("from_outlet") or "").strip())
+            destination_id = uuid.UUID((request.POST.get("to_outlet") or "").strip())
+            item_id = uuid.UUID((request.POST.get("menu_item") or "").strip())
+            safety_days = int((request.POST.get("safety_days") or "3").strip())
+        except (TypeError, ValueError):
+            messages.error(request, "Invalid replenishment proposal.")
+            return redirect("staff-inventory-intelligence")
+        if not 0 <= safety_days <= 30:
+            messages.error(request, "Stock buffer must be between 0 and 30 days.")
+            return redirect("staff-inventory-intelligence")
+
+        destination = (
+            Outlet.objects.filter(
+                pk=destination_id,
+                site__tenant=request.tenant,
+                is_active=True,
+                outlet_type__in=[OutletType.RETAIL, OutletType.SUPERMARKET],
+            )
+            .select_related("site")
+            .first()
+        )
+        source = (
+            Outlet.objects.filter(
+                pk=source_id,
+                site__tenant=request.tenant,
+                is_active=True,
+                outlet_type=OutletType.WAREHOUSE,
+            )
+            .select_related("site")
+            .first()
+        )
+        if destination is None or source is None:
+            messages.error(request, "Warehouse replenishment source or destination is no longer available.")
+            return redirect("staff-inventory-intelligence")
+        if not outlet_belongs_to_membership(
+            request.tenant_membership, destination.pk
+        ):
+            messages.error(request, "You can only request replenishment for an assigned selling section.")
+            return redirect("staff-inventory-intelligence")
+
+        destination_balance = (
+            StockBalance.objects.filter(
+                tenant=request.tenant,
+                outlet=destination,
+                menu_item_id=item_id,
+                menu_item__track_inventory=True,
+            )
+            .select_related("menu_item", "outlet__site")
+            .first()
+        )
+        if destination_balance is None:
+            messages.error(request, "The destination stock record is no longer available.")
+            return redirect("staff-inventory-intelligence")
+
+        planning_rows = build_stock_intelligence(
+            tenant=request.tenant,
+            balances=[destination_balance],
+            safety_days=safety_days,
+        )
+        warehouse_balances = list(
+            StockBalance.objects.filter(
+                tenant=request.tenant,
+                outlet__outlet_type=OutletType.WAREHOUSE,
+                outlet__is_active=True,
+                menu_item_id=item_id,
+                quantity__gt=0,
+            )
+            .select_related("menu_item", "outlet__site")
+            .order_by("outlet__name", "pk")
+        )
+        proposals = build_warehouse_replenishment_proposals(
+            tenant=request.tenant,
+            planning_rows=planning_rows,
+            warehouse_balances=warehouse_balances,
+        )
+        proposal = next(
+            (
+                row for row in proposals
+                if row["from_outlet_id"] == source.pk
+                and row["to_outlet_id"] == destination.pk
+                and row["menu_item_id"] == item_id
+            ),
+            None,
+        )
+        if proposal is None or proposal["proposed_quantity"] <= 0:
+            messages.info(
+                request,
+                "That warehouse proposal is no longer current. Refresh stock planning to recalculate it.",
+            )
+            return redirect("staff-inventory-intelligence")
+
+        try:
+            request_row = create_stock_transfer_request(
+                tenant_id=request.tenant.pk,
+                membership=request.tenant_membership,
+                from_outlet=source,
+                to_outlet=destination,
+                menu_item=destination_balance.menu_item,
+                quantity=proposal["proposed_quantity"],
+                user=request.user,
+                note=(
+                    "Warehouse replenishment proposal from Stock planning. "
+                    f"Suggested branch need {proposal['suggested_need']}; "
+                    f"open inbound {proposal['open_inbound']}."
+                ),
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(
+                request,
+                f"Transfer request created for {request_row.requested_quantity} "
+                f"{destination_balance.menu_item.get_unit_of_measure_display()} "
+                f"from {source.name} to {destination.name}. Stock has not moved; "
+                "source approval and dispatch are still required.",
+            )
+        return redirect("staff-inventory-transfer-requests")
 
 
 class StaffStockTransferRequestListView(StaffTenantRequiredMixin, ListView):
