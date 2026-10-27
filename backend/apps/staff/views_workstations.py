@@ -1,4 +1,5 @@
 from django import forms
+import uuid
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.http import HttpResponseForbidden, HttpResponseBadRequest
@@ -12,6 +13,8 @@ from apps.pos.models import (
     WorkstationBridgeCredential,
     WorkstationDevice,
     WorkstationDeviceAdapter,
+    WorkstationDeviceCommand,
+    WorkstationDeviceCommandType,
     WorkstationDeviceType,
 )
 from apps.pos.services.device_adapters import (
@@ -20,6 +23,7 @@ from apps.pos.services.device_adapters import (
     validate_device_adapter,
 )
 from apps.pos.services.hardware_bridge import (
+    enqueue_device_command,
     provision_bridge_credential,
     revoke_bridge_credential,
 )
@@ -663,6 +667,10 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
                     "device_type", "label"
                 )
             ],
+            "device_commands": WorkstationDeviceCommand.objects.filter(
+                tenant=request.tenant,
+                workstation=station,
+            ).select_related("device", "created_by").order_by("-created_at")[:20],
             "check_history": history,
             "workstation_shell_template": self.shell_template_name,
             "workstation_list_url_name": self.list_url_name,
@@ -679,7 +687,84 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
             return HttpResponseForbidden(
                 "Sign in as a workspace administrator with your account password to record checks."
             )
-        if request.POST.get("action") != "record_hardware_check":
+        action = request.POST.get("action")
+        if action == "queue_device_command":
+            try:
+                device_id = forms.UUIDField().clean(
+                    request.POST.get("device_id")
+                )
+            except forms.ValidationError:
+                return HttpResponseBadRequest("Choose a valid device.")
+            device = get_object_or_404(
+                WorkstationDevice,
+                pk=device_id,
+                tenant=request.tenant,
+                workstation=station,
+                is_active=True,
+            )
+            command_type = (request.POST.get("command_type") or "").strip()
+            allowed_diagnostics = {
+                WorkstationDeviceCommandType.PING,
+            }
+            payload = {"diagnostic": True}
+            if device.device_type == WorkstationDeviceType.RECEIPT_PRINTER:
+                allowed_diagnostics.add(
+                    WorkstationDeviceCommandType.PRINT_RECEIPT
+                )
+                payload.update({
+                    "document_type": "device_test",
+                    "text": (
+                        "DEVICE TEST ONLY\n"
+                        "Not a receipt · No payment\n"
+                        f"Workstation: {station.code}\n"
+                        "CHECK PRINT ALIGNMENT"
+                    ),
+                })
+            elif device.device_type == WorkstationDeviceType.KITCHEN_PRINTER:
+                allowed_diagnostics.add(
+                    WorkstationDeviceCommandType.PRINT_KITCHEN
+                )
+                payload.update({
+                    "document_type": "kitchen_device_test",
+                    "text": (
+                        "KITCHEN DEVICE TEST ONLY\n"
+                        f"Workstation: {station.code}\n"
+                        "No order · No payment"
+                    ),
+                })
+            elif device.device_type == WorkstationDeviceType.WEIGHING_SCALE:
+                allowed_diagnostics.add(
+                    WorkstationDeviceCommandType.READ_SCALE
+                )
+            if command_type not in allowed_diagnostics:
+                return HttpResponseBadRequest(
+                    "That device command is not available on the diagnostics page."
+                )
+            try:
+                command, replay = enqueue_device_command(
+                    tenant=request.tenant,
+                    device=device,
+                    user=request.user,
+                    command_type=command_type,
+                    idempotency_key=(
+                        f"diagnostic:{device.pk}:{command_type}:{uuid.uuid4()}"
+                    ),
+                    payload=payload,
+                )
+            except DRFValidationError as exc:
+                messages.error(request, str(exc.detail))
+            else:
+                messages.success(
+                    request,
+                    "Diagnostic command queued for the local bridge."
+                    if not replay
+                    else "Existing diagnostic command reused.",
+                )
+            return redirect(
+                self.success_url_name,
+                workstation_id=station.pk,
+            )
+        if action != "record_hardware_check":
             return HttpResponseBadRequest("Choose a device check action.")
         try:
             record_hardware_check(
