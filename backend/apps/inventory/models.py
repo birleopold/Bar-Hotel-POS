@@ -429,6 +429,18 @@ class StockTransferReceipt(TimeStampedModel):
     to_outlet = models.ForeignKey("tenants.Outlet", on_delete=models.PROTECT, related_name="received_transfer_receipts")
     menu_item = models.ForeignKey("catalog.MenuItem", on_delete=models.PROTECT, related_name="transfer_receipts")
     dispatched_quantity = models.DecimalField(max_digits=14, decimal_places=3)
+    unit_cost_snapshot = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Source outlet weighted-average cost captured when stock was dispatched.",
+    )
+    cost_basis_complete_snapshot = models.BooleanField(
+        default=False,
+        help_text="Whether the transferred units had a complete authoritative source cost basis.",
+    )
     mode = models.CharField(max_length=12, default="instant", choices=[
         ("instant", "Legacy immediate"), ("staged", "Dispatch then receive"),
     ])
