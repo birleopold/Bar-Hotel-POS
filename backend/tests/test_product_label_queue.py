@@ -233,6 +233,129 @@ class ProductLabelQueueTests(TestCase):
         self.assertEqual(entry.completed_by, self.user)
         self.assertIsNotNone(entry.completed_at)
 
+    def test_manual_label_request_and_dismiss_are_audited_queue_states(self):
+        item = self._item(name="Manual label item", price="6200")
+        url = reverse("staff-inventory-shelf-labels")
+
+        queued = self.client.post(
+            url,
+            {
+                "action": "manual_queue",
+                "outlet": str(self.outlet.pk),
+                "manual_item_id": str(item.pk),
+                "queue_note": "Shelf label was damaged",
+                "return_queue": "1",
+            },
+        )
+        self.assertEqual(queued.status_code, 302)
+        entry = ProductLabelQueueEntry.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=item,
+            reason=ProductLabelQueueEntry.Reason.MANUAL,
+        )
+        self.assertEqual(entry.status, ProductLabelQueueEntry.Status.PENDING)
+        self.assertEqual(entry.price_snapshot, Decimal("6200.00"))
+        self.assertEqual(entry.note, "Shelf label was damaged")
+        self.assertEqual(entry.requested_by, self.user)
+
+        page = self.client.get(
+            url,
+            {"outlet": str(self.outlet.pk), "queue": "1"},
+        )
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Pending label work")
+        self.assertContains(page, "Manual request")
+        self.assertContains(page, "Shelf label was damaged")
+        self.assertContains(page, item.name)
+
+        dismissed = self.client.post(
+            url,
+            {
+                "action": "dismiss_queue",
+                "outlet": str(self.outlet.pk),
+                "queue_entry_ids": [str(entry.pk)],
+                "dismiss_note": "Display removed",
+                "return_queue": "1",
+            },
+        )
+        self.assertEqual(dismissed.status_code, 302)
+        entry.refresh_from_db()
+        self.assertEqual(entry.status, ProductLabelQueueEntry.Status.DISMISSED)
+        self.assertEqual(entry.completed_by, self.user)
+        self.assertIsNotNone(entry.completed_at)
+        self.assertEqual(entry.note, "Display removed")
+
+        history = self.client.get(
+            url,
+            {"outlet": str(self.outlet.pk), "queue": "1"},
+        )
+        self.assertEqual(history.status_code, 200)
+        self.assertContains(history, "Recent completed label work")
+        self.assertContains(history, "Dismissed")
+
+    def test_label_queue_management_requires_inventory_adjust_capability(self):
+        item = self._item(name="Restricted label item")
+        accountant = User.objects.create_user(
+            email="label-accountant@test.local",
+            password="Password9!",
+        )
+        membership = Membership.objects.create(
+            user=accountant,
+            tenant=self.tenant,
+            role=MembershipRole.ACCOUNTANT,
+        )
+        membership.sites.add(self.site)
+        membership.outlets.add(self.outlet)
+        self.client.force_login(accountant)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
+        session.save()
+
+        response = self.client.post(
+            reverse("staff-inventory-shelf-labels"),
+            {
+                "action": "manual_queue",
+                "outlet": str(self.outlet.pk),
+                "manual_item_id": str(item.pk),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            ProductLabelQueueEntry.objects.filter(
+                tenant=self.tenant,
+                outlet=self.outlet,
+                menu_item=item,
+                reason=ProductLabelQueueEntry.Reason.MANUAL,
+            ).exists()
+        )
+
+    def test_malformed_label_queue_ids_fail_closed(self):
+        item = self._item(name="Malformed queue target")
+        url = reverse("staff-inventory-shelf-labels")
+        response = self.client.post(
+            url,
+            {
+                "action": "manual_queue",
+                "outlet": str(self.outlet.pk),
+                "manual_item_id": "not-a-uuid",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            ProductLabelQueueEntry.objects.filter(menu_item=item).exists()
+        )
+        response = self.client.post(
+            url,
+            {
+                "action": "dismiss_queue",
+                "outlet": str(self.outlet.pk),
+                "queue_entry_ids": ["not-a-uuid"],
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
     def test_hospitality_outlet_does_not_receive_retail_label_queue_entry(self):
         hotel_outlet = Outlet.objects.create(
             site=self.site, name="Hotel desk", outlet_type=OutletType.LODGING_FRONT_DESK,
