@@ -288,3 +288,158 @@ def parse_compatible_catalog_csv(*, tenant, uploaded, source):
         warnings=tuple(warnings),
     )
     return rows, report
+
+
+EXPORT_PROFILES = {
+    "neutral": {
+        "label": "Neutral migration CSV",
+        "headers": HEADERS,
+    },
+    "shopify": {
+        "label": "Shopify product CSV",
+        "headers": (
+            "Handle", "Title", "Body (HTML)", "Vendor", "Type",
+            "Option1 Name", "Option1 Value", "Option2 Name", "Option2 Value",
+            "Option3 Name", "Option3 Value", "Variant SKU", "Variant Barcode",
+            "Variant Price", "Variant Inventory Tracker", "Status",
+        ),
+    },
+    "square": {
+        "label": "Square item library CSV",
+        "headers": (
+            "Item Name", "Variation Name", "Description", "SKU", "GTIN",
+            "Price", "Reporting Category", "Track Inventory",
+        ),
+    },
+    "quickbooks_online": {
+        "label": "QuickBooks Online products/services CSV",
+        "headers": (
+            "Product/Service Name", "SKU", "Sales Price/Rate", "Type",
+            "Sales Description", "Category",
+        ),
+    },
+    "woocommerce": {
+        "label": "WooCommerce product CSV",
+        "headers": (
+            "Type", "SKU", "Name", "Published", "Regular price",
+            "Categories", "Description", "GTIN, UPC, EAN, or ISBN",
+        ),
+    },
+}
+
+
+def _slug(value):
+    import re
+    text = re.sub(r"[^a-z0-9]+", "-", str(value or "").casefold()).strip("-")
+    return text[:80] or "product"
+
+
+def compatibility_export_headers(target):
+    try:
+        return EXPORT_PROFILES[target]["headers"]
+    except KeyError as exc:
+        raise CatalogImportProblem(["Choose a supported export target."]) from exc
+
+
+def compatibility_export_rows(*, tenant, target):
+    """Yield platform-oriented product rows without exporting live stock balances.
+
+    Target exports intentionally use concrete sellable SKUs as the source of truth.
+    Where a target cannot represent our richer model safely, the export degrades to
+    standalone products instead of fabricating unsupported relationships.
+    """
+    if target not in EXPORT_PROFILES:
+        raise CatalogImportProblem(["Choose a supported export target."])
+    items = (
+        MenuItem.objects.filter(tenant=tenant)
+        .select_related("category", "product_family")
+        .order_by("product_family__name", "name", "pk")
+    )
+    for item in items.iterator(chunk_size=500):
+        category = item.category.name if item.category_id else "Imported"
+        if target == "neutral":
+            yield {
+                "category": category,
+                "name": item.name,
+                "unit_price": item.unit_price,
+                "sku": item.sku,
+                "barcode": item.barcode,
+                "track_inventory": "yes" if item.track_inventory else "no",
+                "reorder_level": item.reorder_level if item.reorder_level is not None else "",
+                "unit_of_measure": item.unit_of_measure,
+                "tax_rate_percent": (
+                    item.tax_rate_percent if item.tax_rate_percent is not None else ""
+                ),
+                "description": item.description,
+            }
+            continue
+
+        if target == "shopify":
+            family = item.product_family
+            handle = _slug(family.name if family else item.name)
+            variant_values = item.variant_values or {}
+            options = list(variant_values.items())[:3]
+            option_cells = {}
+            for index in range(1, 4):
+                if index <= len(options):
+                    option_cells[f"Option{index} Name"] = options[index - 1][0]
+                    option_cells[f"Option{index} Value"] = options[index - 1][1]
+                else:
+                    option_cells[f"Option{index} Name"] = ""
+                    option_cells[f"Option{index} Value"] = ""
+            yield {
+                "Handle": handle,
+                "Title": family.name if family else item.name,
+                "Body (HTML)": item.description,
+                "Vendor": item.brand,
+                "Type": category,
+                **option_cells,
+                "Variant SKU": item.sku,
+                "Variant Barcode": item.barcode,
+                "Variant Price": item.unit_price,
+                "Variant Inventory Tracker": "shopify" if item.track_inventory else "",
+                "Status": "active" if item.is_active else "draft",
+            }
+            continue
+
+        if target == "square":
+            family = item.product_family
+            variation = "Regular"
+            if item.variant_values:
+                variation = " / ".join(str(v) for v in item.variant_values.values())
+            yield {
+                "Item Name": family.name if family else item.name,
+                "Variation Name": variation,
+                "Description": item.description,
+                "SKU": item.sku,
+                "GTIN": item.barcode,
+                "Price": item.unit_price,
+                "Reporting Category": category,
+                "Track Inventory": "Y" if item.track_inventory else "N",
+            }
+            continue
+
+        if target == "quickbooks_online":
+            # QBO's current 2026 importer no longer supports variants. Export
+            # every concrete SKU as a standard product/service row.
+            yield {
+                "Product/Service Name": item.name,
+                "SKU": item.sku,
+                "Sales Price/Rate": item.unit_price,
+                "Type": "Inventory" if item.track_inventory else "Non-inventory",
+                "Sales Description": item.description,
+                "Category": category,
+            }
+            continue
+
+        if target == "woocommerce":
+            yield {
+                "Type": "simple",
+                "SKU": item.sku,
+                "Name": item.name,
+                "Published": "1" if item.is_active else "0",
+                "Regular price": item.unit_price,
+                "Categories": category,
+                "Description": item.description,
+                "GTIN, UPC, EAN, or ISBN": item.barcode,
+            }
