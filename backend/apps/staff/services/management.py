@@ -1,5 +1,6 @@
 """Scoped management destinations and live exceptions; no financial posting here."""
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -14,7 +15,7 @@ from apps.audit.models import AuditEvent, ExceptionPolicy, ExceptionReview, Sens
 from apps.audit.services import exception_fingerprint, log_audit
 from apps.inventory.models import StockBalance, StockMovement, StockReason
 from apps.lodging.models import Reservation, ReservationStatus
-from apps.pos.models import Order, PosShift, PosShiftStatus, Refund
+from apps.pos.models import Order, OrderLine, PosShift, PosShiftStatus, Refund
 from ..middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .membership import LINE_ROLE_OUTLET_TYPES, staff_accessible_outlets
 from .workspace import resolve_staff_outlet
@@ -218,6 +219,216 @@ def update_exception_case(request, *, case_id, status, note, assigned_to=None, d
     if review is None:
         raise ValidationError("This review is not in your scope.")
     return _save_assessment(request, review, status=status, note=note, assigned_to=assigned_to, due_date=due_date)
+
+
+def management_loss_patterns(request, *, policy, limit=10):
+    """Explainable loss-prevention patterns by worker, outlet and product.
+
+    This intentionally reports separate event counts instead of inventing a
+    composite fraud/risk score. Monetary values are not aggregated across
+    currencies. It reuses authoritative POS, audit and inventory evidence.
+    """
+    outlets, modules, vis = management_scope(request)
+    if not outlets:
+        return {"workers": [], "outlets": [], "products": []}
+    cutoff = timezone.now() - timedelta(days=policy.lookback_days)
+    outlet_ids = [outlet.pk for outlet in outlets]
+    outlet_names = {str(outlet.pk): outlet.name for outlet in outlets}
+
+    workers = defaultdict(lambda: {
+        "worker_id": "",
+        "worker": "",
+        "refunds": 0,
+        "voids": 0,
+        "line_discounts": 0,
+        "margin_overrides": 0,
+        "cash_variances": 0,
+        "stock_removals": 0,
+        "last_seen": None,
+    })
+    outlet_rows = defaultdict(lambda: {
+        "outlet_id": "",
+        "outlet": "",
+        "refunds": 0,
+        "voids": 0,
+        "line_discounts": 0,
+        "margin_overrides": 0,
+        "cash_variances": 0,
+        "stock_removals": 0,
+        "last_seen": None,
+    })
+    products = defaultdict(lambda: {
+        "product_id": "",
+        "product": "",
+        "voids": 0,
+        "line_discounts": 0,
+        "margin_overrides": 0,
+        "stock_removals": 0,
+        "last_seen": None,
+    })
+
+    def stamp(row, when):
+        if when is not None and (row["last_seen"] is None or when > row["last_seen"]):
+            row["last_seen"] = when
+
+    def worker_row(user):
+        if user is None:
+            key = "__unknown__"
+            label = "Unknown worker"
+        else:
+            key = str(user.pk)
+            label = user.get_full_name() or user.email
+        row = workers[key]
+        row["worker_id"] = "" if key == "__unknown__" else key
+        row["worker"] = label
+        return row
+
+    def outlet_row(outlet_id):
+        key = str(outlet_id)
+        row = outlet_rows[key]
+        row["outlet_id"] = key
+        row["outlet"] = outlet_names.get(key, "Section")
+        return row
+
+    if "pos" in modules and vis.orders:
+        refunds = Refund.objects.filter(
+            tenant=request.tenant,
+            order__outlet_id__in=outlet_ids,
+            created_at__gte=cutoff,
+        ).select_related("recorded_by", "order")
+        for refund in refunds.iterator(chunk_size=500):
+            wr = worker_row(refund.recorded_by)
+            wr["refunds"] += 1
+            stamp(wr, refund.created_at)
+            orow = outlet_row(refund.order.outlet_id)
+            orow["refunds"] += 1
+            stamp(orow, refund.created_at)
+
+        voids = OrderLine.objects.filter(
+            order__tenant=request.tenant,
+            order__outlet_id__in=outlet_ids,
+            is_voided=True,
+            voided_at__gte=cutoff,
+        ).select_related("voided_by", "order", "menu_item")
+        for line in voids.iterator(chunk_size=500):
+            wr = worker_row(line.voided_by)
+            wr["voids"] += 1
+            stamp(wr, line.voided_at)
+            orow = outlet_row(line.order.outlet_id)
+            orow["voids"] += 1
+            stamp(orow, line.voided_at)
+            pkey = str(line.menu_item_id or line.pk)
+            prow = products[pkey]
+            prow["product_id"] = str(line.menu_item_id or "")
+            prow["product"] = line.label or (
+                line.menu_item.name if line.menu_item_id else "Deleted merchandise"
+            )
+            prow["voids"] += 1
+            stamp(prow, line.voided_at)
+
+        discount_events = AuditEvent.objects.filter(
+            tenant=request.tenant,
+            action="order.line_discount_applied",
+            created_at__gte=cutoff,
+        ).select_related("user")
+        discount_events = list(discount_events)
+        line_map = {
+            str(line.pk): line
+            for line in OrderLine.objects.filter(
+                pk__in=[event.entity_id for event in discount_events],
+                order__tenant=request.tenant,
+                order__outlet_id__in=outlet_ids,
+            ).select_related("order", "menu_item")
+        }
+        for event in discount_events:
+            line = line_map.get(str(event.entity_id))
+            if line is None:
+                continue
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            wr = worker_row(event.user or line.order.created_by)
+            wr["line_discounts"] += 1
+            if payload.get("margin_floor_overridden"):
+                wr["margin_overrides"] += 1
+            stamp(wr, event.created_at)
+            orow = outlet_row(line.order.outlet_id)
+            orow["line_discounts"] += 1
+            if payload.get("margin_floor_overridden"):
+                orow["margin_overrides"] += 1
+            stamp(orow, event.created_at)
+            pkey = str(line.menu_item_id or line.pk)
+            prow = products[pkey]
+            prow["product_id"] = str(line.menu_item_id or "")
+            prow["product"] = line.label or (
+                line.menu_item.name if line.menu_item_id else "Deleted merchandise"
+            )
+            prow["line_discounts"] += 1
+            if payload.get("margin_floor_overridden"):
+                prow["margin_overrides"] += 1
+            stamp(prow, event.created_at)
+
+        shifts = PosShift.objects.filter(
+            tenant=request.tenant,
+            outlet_id__in=outlet_ids,
+            status=PosShiftStatus.CLOSED,
+            closed_at__gte=cutoff,
+            counted_cash__isnull=False,
+        ).exclude(counted_cash=F("expected_cash")).select_related("closed_by")
+        for shift in shifts.iterator(chunk_size=500):
+            wr = worker_row(shift.closed_by)
+            wr["cash_variances"] += 1
+            stamp(wr, shift.closed_at)
+            orow = outlet_row(shift.outlet_id)
+            orow["cash_variances"] += 1
+            stamp(orow, shift.closed_at)
+
+    if "inventory" in modules and vis.inventory:
+        movements = StockMovement.objects.filter(
+            tenant=request.tenant,
+            outlet_id__in=outlet_ids,
+            created_at__gte=cutoff,
+            quantity_change__lt=0,
+            reason__in=[
+                StockReason.WASTE,
+                StockReason.ADJUST_OUT,
+                StockReason.PHYSICAL_COUNT,
+            ],
+        ).select_related("created_by", "menu_item")
+        for movement in movements.iterator(chunk_size=500):
+            wr = worker_row(movement.created_by)
+            wr["stock_removals"] += 1
+            stamp(wr, movement.created_at)
+            orow = outlet_row(movement.outlet_id)
+            orow["stock_removals"] += 1
+            stamp(orow, movement.created_at)
+            pkey = str(movement.menu_item_id)
+            prow = products[pkey]
+            prow["product_id"] = pkey
+            prow["product"] = movement.menu_item.name
+            prow["stock_removals"] += 1
+            stamp(prow, movement.created_at)
+
+    def signal_count(row):
+        return sum(
+            row.get(key, 0)
+            for key in (
+                "refunds", "voids", "line_discounts", "margin_overrides",
+                "cash_variances", "stock_removals",
+            )
+        )
+
+    worker_list = [row for row in workers.values() if signal_count(row)]
+    outlet_list = [row for row in outlet_rows.values() if signal_count(row)]
+    product_list = [row for row in products.values() if signal_count(row)]
+    worker_list.sort(key=lambda row: (-signal_count(row), -(row["margin_overrides"]), row["worker"].lower()))
+    outlet_list.sort(key=lambda row: (-signal_count(row), -(row["margin_overrides"]), row["outlet"].lower()))
+    product_list.sort(key=lambda row: (-signal_count(row), -(row["margin_overrides"]), row["product"].lower()))
+    for row in (*worker_list, *outlet_list, *product_list):
+        row["signal_count"] = signal_count(row)
+    return {
+        "workers": worker_list[:limit],
+        "outlets": outlet_list[:limit],
+        "products": product_list[:limit],
+    }
 
 
 def management_shrink_watch(request, *, policy, limit=10):
