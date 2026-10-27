@@ -243,6 +243,57 @@ class RetailMerchandiseFoundationTests(TestCase):
         self.assertEqual(self.item.barcode, "100000000001")
         self.assertEqual(self.item.sku, "WATER-500")
 
+    def test_package_alias_cannot_reuse_existing_package_barcode(self):
+        ProductPackage.objects.create(
+            tenant=self.tenant,
+            menu_item=self.item,
+            name="Case",
+            units_per_package=Decimal("12"),
+            barcode="CASE-CODE",
+        )
+        response = self.client.post(
+            reverse("console-org-menu-item-package-create", args=[self.item.pk]),
+            {
+                "name": "Shrink",
+                "units_per_package": "6",
+                "barcode": "",
+                "sku_alias": "CASE-CODE",
+                "sell_price": "",
+                "is_sellable": "on",
+                "is_purchasable": "on",
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already in use")
+        self.assertEqual(ProductPackage.objects.filter(menu_item=self.item).count(), 1)
+
+    def test_hospitality_only_workspace_cannot_open_retail_merchandise_tools(self):
+        other = Tenant.objects.create(name="Restaurant only", slug="restaurant-only-merch")
+        TenantSettings.objects.create(
+            tenant=other,
+            business_lines=["restaurant"],
+            enabled_staff_modules=["pos", "workspace"],
+        )
+        other_category = MenuCategory.objects.create(tenant=other, name="Food")
+        family = ProductFamily.objects.create(
+            tenant=other, category=other_category, name="Burger sizes",
+        )
+        user = User.objects.create_user(
+            email="restaurant-merch@test.local", password="Password9!",
+        )
+        Membership.objects.create(
+            tenant=other, user=user, role=MembershipRole.OWNER,
+        )
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(other.pk)
+        session.save()
+
+        response = self.client.get(reverse("console-org-product-family-matrix", args=[family.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("console-org-menu-items"))
+
     def test_other_tenant_product_is_not_available_through_package_routes(self):
         other_tenant = Tenant.objects.create(name="Other shop", slug="other-shop-merch")
         TenantSettings.objects.create(tenant=other_tenant, business_lines=["supermarket"])
