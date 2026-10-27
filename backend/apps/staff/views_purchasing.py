@@ -14,12 +14,12 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem, ProductPackage
 from apps.pos.services import default_currency_for_tenant
-from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
+from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod, SupplierProductCode
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
 from apps.tenants.models import Outlet, TenantSettings
 
-from .forms import StaffPOHeaderForm, StaffSupplierForm
+from .forms import StaffPOHeaderForm, StaffSupplierForm, StaffSupplierProductCodeForm
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets, membership_can_modify_lodging, resolve_staff_outlet
@@ -155,6 +155,105 @@ class StaffSupplierUpdateView(StaffTenantRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
+class StaffSupplierProductCodeView(StaffTenantRequiredMixin, TemplateView):
+    staff_nav_capability = "purchasing"
+    template_name = "staff/purchasing/supplier_codes.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not membership_has_purchasing_capability(request.tenant_membership, "manage"):
+            messages.error(request, "Your role cannot manage supplier product codes.")
+            return redirect("staff-purchasing-suppliers")
+        self.supplier = Supplier.objects.filter(
+            tenant=request.tenant, pk=kwargs["supplier_id"]
+        ).first()
+        if self.supplier is None:
+            messages.error(request, "Supplier was not found.")
+            return redirect("staff-purchasing-suppliers")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        edit_id = (self.request.GET.get("edit") or "").strip()
+        instance = None
+        if edit_id:
+            try:
+                code_id = uuid.UUID(edit_id)
+            except ValueError:
+                code_id = None
+            if code_id is not None:
+                instance = SupplierProductCode.objects.filter(
+                    tenant=self.request.tenant,
+                    supplier=self.supplier,
+                    pk=code_id,
+                ).first()
+        ctx["supplier"] = self.supplier
+        ctx["supplier_codes"] = (
+            SupplierProductCode.objects.filter(
+                tenant=self.request.tenant,
+                supplier=self.supplier,
+            )
+            .select_related("menu_item", "product_package")
+            .order_by("menu_item__name", "code")
+        )
+        ctx["code_form"] = StaffSupplierProductCodeForm(
+            tenant=self.request.tenant,
+            supplier=self.supplier,
+            instance=instance,
+        )
+        ctx["editing_code"] = instance
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        action = (request.POST.get("action") or "save").strip()
+        if action == "delete":
+            try:
+                code_id = uuid.UUID((request.POST.get("code_id") or "").strip())
+            except ValueError:
+                code_id = None
+            obj = SupplierProductCode.objects.filter(
+                tenant=request.tenant,
+                supplier=self.supplier,
+                pk=code_id,
+            ).first()
+            if obj is None:
+                messages.error(request, "Supplier code was not found.")
+            else:
+                obj.delete()
+                messages.success(request, "Supplier product code removed.")
+            return redirect("staff-purchasing-supplier-codes", supplier_id=self.supplier.pk)
+
+        instance = None
+        raw_id = (request.POST.get("code_id") or "").strip()
+        if raw_id:
+            try:
+                code_id = uuid.UUID(raw_id)
+            except ValueError:
+                code_id = None
+            instance = SupplierProductCode.objects.filter(
+                tenant=request.tenant,
+                supplier=self.supplier,
+                pk=code_id,
+            ).first()
+        form = StaffSupplierProductCodeForm(
+            request.POST,
+            tenant=request.tenant,
+            supplier=self.supplier,
+            instance=instance,
+        )
+        if not form.is_valid():
+            ctx = self.get_context_data()
+            ctx["code_form"] = form
+            ctx["editing_code"] = instance
+            return render(request, self.template_name, ctx, status=400)
+        obj = form.save(commit=False)
+        obj.tenant = request.tenant
+        obj.supplier = self.supplier
+        obj.full_clean()
+        obj.save()
+        messages.success(request, "Supplier product code saved.")
+        return redirect("staff-purchasing-supplier-codes", supplier_id=self.supplier.pk)
+
+
 class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
     staff_nav_capability = "purchasing"
     template_name = "staff/purchasing/purchase_orders_list.html"
@@ -252,6 +351,31 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
             menu_item__is_active=True,
             menu_item__track_inventory=True,
         ).select_related("menu_item").order_by("menu_item__name", "units_per_package", "name")
+        selected_supplier = None
+        supplier_raw = self.request.POST.get("supplier") if self.request.method == "POST" else self.request.GET.get("supplier")
+        if supplier_raw:
+            try:
+                supplier_id = uuid.UUID(str(supplier_raw))
+            except (ValueError, TypeError):
+                supplier_id = None
+            if supplier_id is not None:
+                selected_supplier = Supplier.objects.filter(
+                    tenant=self.request.tenant, pk=supplier_id, is_active=True
+                ).first()
+        if selected_supplier is None and self.request.method == "POST" and self.get_form().is_valid():
+            selected_supplier = self.get_form().cleaned_data.get("supplier")
+        ctx["selected_supplier"] = selected_supplier
+        ctx["supplier_product_codes"] = (
+            SupplierProductCode.objects.filter(
+                tenant=self.request.tenant,
+                supplier=selected_supplier,
+                is_active=True,
+            )
+            .select_related("menu_item", "product_package")
+            .order_by("menu_item__name", "code")
+            if selected_supplier is not None
+            else SupplierProductCode.objects.none()
+        )
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
