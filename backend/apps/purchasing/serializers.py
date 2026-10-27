@@ -64,7 +64,11 @@ class PurchaseReceiptLineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseReceiptLine
-        fields = ("id", "purchase_order_line", "item_name", "quantity_received", "cartons_received", "packages_received")
+        fields = (
+            "id", "purchase_order_line", "item_name", "quantity_received",
+            "cartons_received", "packages_received", "unit_cost_snapshot",
+            "landed_unit_cost_snapshot", "landed_cost_allocated",
+        )
         read_only_fields = fields
 
 
@@ -74,7 +78,11 @@ class PurchaseReceiptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseReceipt
-        fields = ("id", "delivery_reference", "note", "discrepancy_note", "received_by", "received_by_email", "created_at", "lines")
+        fields = (
+            "id", "delivery_reference", "note", "discrepancy_note",
+            "shipping_cost", "duty_cost", "landed_cost_allocation",
+            "received_by", "received_by_email", "created_at", "lines",
+        )
         read_only_fields = fields
 
 
@@ -208,6 +216,10 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             "outlet",
             "outlet_name",
             "status",
+            "approval_status",
+            "reviewed_by",
+            "reviewed_at",
+            "review_note",
             "reference",
             "expected_date",
             "notes",
