@@ -4100,11 +4100,15 @@ class StaffSalesSummaryView(StaffTenantRequiredMixin, TemplateView):
             allowed_outlet_ids=allowed_outlet_ids,
             business_date_site=business_site,
         )
+        profitability_outlet_ids = (
+            allowed_outlet_ids if ctx["all_outlets_mode"]
+            else ([outlet.pk] if outlet is not None else [])
+        )
         ctx["summary"]["merchandise_profitability"] = build_merchandise_profitability(
             tenant_id=self.request.tenant.id,
             date_from=d0,
             date_to=d1,
-            allowed_outlet_ids=allowed_outlet_ids,
+            allowed_outlet_ids=profitability_outlet_ids,
             currency=self.request.tenant.settings.default_currency,
             business_date_site=business_site,
         )
