@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.functions import Lower
 from django.urls import reverse
 
 from apps.common.models import TimeStampedModel
@@ -507,6 +508,17 @@ class RetailProductGroup(TimeStampedModel):
                 fields=["tenant", "code"],
                 condition=~models.Q(code=""),
                 name="uniq_retail_group_code_tenant",
+            ),
+            models.UniqueConstraint(
+                Lower("name"),
+                "tenant",
+                name="uniq_retail_group_name_tenant_ci",
+            ),
+            models.UniqueConstraint(
+                Lower("code"),
+                "tenant",
+                condition=~models.Q(code=""),
+                name="uniq_retail_group_code_tenant_ci",
             ),
         ]
 
