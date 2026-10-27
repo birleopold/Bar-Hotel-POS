@@ -3,7 +3,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from apps.catalog.label_queue import queue_product_label, retail_label_outlets_for_item
+from apps.catalog.label_queue import (
+    dismiss_product_label_entries,
+    queue_product_label,
+    retail_label_outlets_for_item,
+)
 from apps.catalog.models import MenuItem, ProductLabelQueueEntry, Promotion
 
 
@@ -23,12 +27,32 @@ def promotion_markdown_items(promotion: Promotion):
 
 
 def queue_markdown_labels_for_promotion(*, promotion: Promotion, user=None) -> int:
-    """Queue only promotions that have an honest per-item shelf price.
+    """Synchronize safe physical markdown tasks for one promotion.
 
-    Basket/coupon/quantity-conditioned offers and multi-item fixed-amount
-    discounts are deliberately excluded because a single shelf 'Now' price
-    would misrepresent the checkout rule.
+    Any older pending tasks owned by this promotion are dismissed first so
+    edits, target changes, and deactivation cannot leave stale shelf prices.
     """
+    owner_prefix = f"[promotion:{promotion.pk}]"
+    stale = list(
+        ProductLabelQueueEntry.objects.filter(
+            tenant_id=promotion.tenant_id,
+            reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+            status=ProductLabelQueueEntry.Status.PENDING,
+            note__startswith=owner_prefix,
+        ).select_related("outlet")
+    )
+    by_outlet = {}
+    for entry in stale:
+        by_outlet.setdefault(entry.outlet, []).append(entry.pk)
+    for outlet, entry_ids in by_outlet.items():
+        dismiss_product_label_entries(
+            tenant_id=promotion.tenant_id,
+            outlet=outlet,
+            entry_ids=entry_ids,
+            user=user,
+            note=f"{owner_prefix} superseded by promotion update.",
+        )
+
     if (
         not promotion.is_active
         or promotion.offer_type != Promotion.OfferType.STANDARD
@@ -63,7 +87,7 @@ def queue_markdown_labels_for_promotion(*, promotion: Promotion, user=None) -> i
             if markdown >= regular:
                 continue
             note = (
-                f"{promotion.name}: {regular} → {markdown}; "
+                f"{owner_prefix} {promotion.name}: {regular} → {markdown}; "
                 f"starts {promotion.starts_at}"
             )
             if promotion.ends_at:
