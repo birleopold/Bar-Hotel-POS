@@ -139,6 +139,42 @@ class RetailMerchandiseFoundationTests(TestCase):
         self.assertContains(response, "already registered to another product")
         self.assertFalse(ProductPackage.objects.filter(menu_item=self.item).exists())
 
+    def test_base_product_code_cannot_reuse_package_code(self):
+        ProductPackage.objects.create(
+            tenant=self.tenant,
+            menu_item=self.item,
+            name="Case",
+            units_per_package=Decimal("12"),
+            barcode="PACKAGE-BARCODE",
+            sku_alias="PACKAGE-SKU",
+        )
+        response = self.client.post(
+            reverse("console-org-menu-item-edit", args=[self.item.pk]),
+            {
+                "category": str(self.category.pk),
+                "product_family": "",
+                "name": self.item.name,
+                "description": "",
+                "display_image_url": "",
+                "sku": "PACKAGE-SKU",
+                "barcode": "PACKAGE-BARCODE",
+                "unit_of_measure": "each",
+                "units_per_carton": "1",
+                "track_inventory": "on",
+                "reorder_level": "",
+                "unit_price": "1000",
+                "tax_rate_percent": "",
+                "is_active": "on",
+                "kds_station": "",
+                "consume_recipe_on_sale": "",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already assigned to a product package")
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.barcode, "100000000001")
+        self.assertEqual(self.item.sku, "WATER-500")
+
     def test_other_tenant_product_is_not_available_through_package_routes(self):
         other_tenant = Tenant.objects.create(name="Other shop", slug="other-shop-merch")
         TenantSettings.objects.create(tenant=other_tenant, business_lines=["supermarket"])
