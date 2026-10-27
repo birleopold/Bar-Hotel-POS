@@ -23,6 +23,7 @@ from apps.catalog.models import (
     MenuItemRecipeLine,
     ProductFamily,
     ProductPackage,
+    RetailAssemblyComponent,
     ModifierGroup,
     ModifierOption,
     ServiceOffering,
@@ -37,6 +38,7 @@ from .forms import (
     ConsoleMenuItemRecipeLineForm,
     ConsoleProductFamilyForm,
     ConsoleProductPackageForm,
+    ConsoleRetailAssemblyComponentForm,
     ConsoleVariantMatrixForm,
     ConsoleModifierGroupForm,
     ConsoleModifierOptionForm,
@@ -825,6 +827,125 @@ class OrgMenuItemOutletDeleteView(MenuItemScopedMixin, DeleteView):
                 },
             )
         messages.success(self.request, f"Removed outlet link for “{name}”.")
+        return response
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        return ctx
+
+
+class OrgRetailAssemblyListView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, ListView):
+    template_name = "console/org/retail_assembly_list.html"
+    context_object_name = "components"
+
+    def get_queryset(self):
+        return RetailAssemblyComponent.objects.filter(
+            tenant=self.request.tenant,
+            parent_item=self.menu_item,
+        ).select_related("component_item").order_by("component_item__name")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        return ctx
+
+
+class OrgRetailAssemblyCreateView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, CreateView):
+    model = RetailAssemblyComponent
+    form_class = ConsoleRetailAssemblyComponentForm
+    template_name = "console/org/retail_assembly_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.menu_item.track_inventory:
+            messages.error(request, "Enable stock tracking on the finished product before configuring an assembly.")
+            return redirect("console-org-menu-item-edit", item_id=self.menu_item.pk)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["parent_item"] = self.menu_item
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def get_success_url(self):
+        return reverse("console-org-menu-item-assembly", kwargs={"item_id": self.menu_item.pk})
+
+    def form_valid(self, form):
+        obj = form.save(commit=False)
+        obj.tenant = self.request.tenant
+        obj.parent_item = self.menu_item
+        try:
+            obj.full_clean()
+            obj.save()
+        except IntegrityError:
+            form.add_error("component_item", "That component is already in this assembly.")
+            return self.form_invalid(form)
+        messages.success(self.request, f"Component “{obj.component_item.name}” added.")
+        return redirect(self.get_success_url())
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        ctx["form_title"] = "Add assembly component"
+        return ctx
+
+
+class OrgRetailAssemblyUpdateView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, UpdateView):
+    model = RetailAssemblyComponent
+    form_class = ConsoleRetailAssemblyComponentForm
+    template_name = "console/org/retail_assembly_form.html"
+    pk_url_kwarg = "component_id"
+
+    def get_queryset(self):
+        return RetailAssemblyComponent.objects.filter(
+            tenant=self.request.tenant,
+            parent_item=self.menu_item,
+        )
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["parent_item"] = self.menu_item
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def get_success_url(self):
+        return reverse("console-org-menu-item-assembly", kwargs={"item_id": self.menu_item.pk})
+
+    def form_valid(self, form):
+        obj = form.save(commit=False)
+        obj.tenant = self.request.tenant
+        obj.parent_item = self.menu_item
+        obj.full_clean()
+        obj.save()
+        messages.success(self.request, "Assembly component updated.")
+        return redirect(self.get_success_url())
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        ctx["form_title"] = f"Edit · {self.object.component_item.name}"
+        return ctx
+
+
+class OrgRetailAssemblyDeleteView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, DeleteView):
+    model = RetailAssemblyComponent
+    template_name = "console/org/retail_assembly_confirm_delete.html"
+    pk_url_kwarg = "component_id"
+
+    def get_queryset(self):
+        return RetailAssemblyComponent.objects.filter(
+            tenant=self.request.tenant,
+            parent_item=self.menu_item,
+        )
+
+    def get_success_url(self):
+        return reverse("console-org-menu-item-assembly", kwargs={"item_id": self.menu_item.pk})
+
+    def form_valid(self, form):
+        name = self.object.component_item.name
+        response = super().form_valid(form)
+        messages.success(self.request, f"Removed “{name}” from the assembly.")
         return response
 
     def get_context_data(self, **kwargs):
