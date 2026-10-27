@@ -938,6 +938,31 @@ class Promotion(TimeStampedModel):
         blank=True,
         validators=[MinValueValidator(0)],
     )
+    min_target_quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.001"))],
+        help_text="Optional minimum qualifying quantity for the targeted product/family/category/brand, or total basket quantity for whole-basket offers.",
+    )
+    coupon_code = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="Optional coupon code. Coded offers are entered explicitly at checkout and are hidden from the normal offer list.",
+    )
+    max_redemptions = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Optional total number of fully paid orders that may use this offer.",
+    )
+    max_redemptions_per_customer = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Optional paid-order limit per identified customer. Anonymous sales are not counted against this customer-specific limit.",
+    )
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -951,6 +976,12 @@ class Promotion(TimeStampedModel):
     class Meta:
         ordering = ["-starts_at", "name"]
         constraints = [
+            models.UniqueConstraint(
+                Lower("coupon_code"),
+                "tenant",
+                condition=~models.Q(coupon_code=""),
+                name="uniq_promotion_coupon_code_ci_tenant",
+            ),
             models.CheckConstraint(
                 condition=(
                     models.Q(menu_item__isnull=True, product_family__isnull=True, category__isnull=True)
@@ -979,6 +1010,10 @@ class Promotion(TimeStampedModel):
         if targets > 1:
             raise ValidationError("Choose only one promotion target: product, family, brand, or category.")
         self.brand = (self.brand or "").strip()
+        self.coupon_code = (self.coupon_code or "").strip()
+        if self.max_redemptions_per_customer and not self.max_redemptions:
+            # Per-customer limits can stand alone; no global cap is required.
+            pass
 
     @property
     def target_label(self):
