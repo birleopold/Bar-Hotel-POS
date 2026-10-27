@@ -28,6 +28,7 @@ class PostgresRlsPolicyPresenceTests(TestCase):
             "pos_workstationdevice",
             "pos_workstationbridgecredential",
             "pos_workstationdevicecommand",
+            "tenants_trainingworkspacestate",
             "tenants_site",
         )
         with connection.cursor() as cursor:
