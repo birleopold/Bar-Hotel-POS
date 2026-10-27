@@ -121,6 +121,28 @@
           </table>
         </div>
       {% endif %}
+
+      {% if p.categories %}
+        <div class="staff-table-wrap staff-table-wrap--pos mt-3">
+          <table class="staff-table staff-table--pos">
+            <caption>Profitability by merchandise category</caption>
+            <thead><tr><th>Category</th><th class="text-end">Net revenue</th><th class="text-end">Covered revenue</th><th class="text-end">Known COGS</th><th class="text-end">Known profit</th><th class="text-end">Margin</th><th class="text-end">Cost gaps</th></tr></thead>
+            <tbody>
+              {% for row in p.categories|slice:":10" %}
+                <tr>
+                  <td class="fw-bold">{{ row.category_name }}</td>
+                  <td class="text-end">{{ p.currency }} {{ row.net_revenue }}</td>
+                  <td class="text-end">{{ p.currency }} {{ row.covered_net_revenue }}</td>
+                  <td class="text-end">{{ p.currency }} {{ row.known_net_cogs }}</td>
+                  <td class="text-end">{{ p.currency }} {{ row.known_gross_profit }}</td>
+                  <td class="text-end">{% if row.known_margin_percent != None %}{{ row.known_margin_percent }}%{% else %}—{% endif %}</td>
+                  <td class="text-end">{{ row.incomplete_lines|add:row.incomplete_return_lines }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
       <p class="staff-muted small mt-2 mb-0">Known gross profit is calculated only from revenue movements whose sale-time cost is trusted. A restocked line-level return reverses the original sale’s cost on the return date. Any refund that cannot be tied to a returned merchandise line is surfaced as an attribution gap rather than guessed.</p>
     </div>
     {% endwith %}
