@@ -88,6 +88,12 @@ def promotion_discount_for_order(
         ]
         if not reward_lines:
             return Decimal("0.00")
+        if reward_is_separate and any(
+            promotion_matches_item(promotion, line.menu_item)
+            and promotion_reward_matches_item(promotion, line.menu_item)
+            for line in active_lines
+        ):
+            return Decimal("0.00")
         if any(
             line.quantity != line.quantity.to_integral_value()
             for line in eligible_lines + reward_lines
