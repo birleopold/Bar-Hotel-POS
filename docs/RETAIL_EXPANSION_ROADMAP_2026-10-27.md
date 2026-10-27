@@ -289,6 +289,7 @@ Implemented in source, pending exact-head certification:
 - This is weighted-average cost by outlet. Assembly cost roll-up remains R4 work.
 - Receipt-level landed-cost allocation is implemented for shipping/freight and duty/clearing. The receiver can record those charges as evidence without affecting inventory cost, or explicitly distribute them by received supplier-cost value.
 - The purchasing receive API now accepts and validates the same shipping/duty and allocation fields as the staff receiving UI; API receipt/line responses expose landed-cost treatment and cost snapshots.
+- API purchase receiving also forwards package counts, cartons and serial/IMEI identifiers to the authoritative stock-receipt service instead of discarding fields validated by the serializer.
 - Supplier unit cost and landed unit cost remain separate immutable receipt-line snapshots. Weighted-average outlet cost uses the landed unit cost only when distribution was explicitly selected.
 - Landed-cost distribution fails closed if any received line lacks supplier unit cost or if the received supplier-cost value is zero; it never invents a basis.
 - Delivery history shows freight, duty/clearing, allocation treatment and landed unit cost per received line.
