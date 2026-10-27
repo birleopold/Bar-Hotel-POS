@@ -21,6 +21,7 @@
     {% if grocery_owner_shell %}</div>{% endif %}
     <h2 class="fizo-purchasing__section-heading">{% if grocery_owner_shell %}Step 2: Products to order{% else %}Lines (tracked items){% endif %}</h2>
     <p class="staff-muted">Enter loose units plus either a configured package count or the legacy carton count. The purchase order always stores the actual base stock quantity; cost remains per base unit.</p>
+    {% if selected_supplier %}<p class="staff-muted small">Supplier-specific product/package codes for <strong>{{ selected_supplier.name }}</strong> are shown in package choices where configured. These codes are purchasing references only.</p>{% endif %}
     <div class="staff-table-wrap mb-3">
       <table class="fizo-purchasing__table">
         <thead><tr><th>Product</th><th>Loose units</th><th>Configured package</th><th>Package count</th><th>Legacy cartons</th><th>Cost per base unit (optional)</th></tr></thead>
@@ -40,7 +41,7 @@
                 <select class="staff-input" aria-label="Configured package for row {{ forloop.counter }}" name="line_{{ i }}_product_package">
                   <option value="">Base units / no package</option>
                   {% for package in product_packages %}
-                    <option value="{{ package.id }}">{{ package.menu_item.name }} · {{ package.name }} · {{ package.units_per_package }} base units{% if package.sku_alias %} · {{ package.sku_alias }}{% endif %}</option>
+                    <option value="{{ package.id }}">{{ package.menu_item.name }} · {{ package.name }} · {{ package.units_per_package }} base units{% if package.supplier_code_display %} · supplier code {{ package.supplier_code_display }}{% elif package.sku_alias %} · {{ package.sku_alias }}{% endif %}</option>
                   {% endfor %}
                 </select>
               </td>
