@@ -273,10 +273,16 @@ def build_merchandise_profitability(
         row["net_revenue"] = _money(
             row["sale_revenue"] - row["return_revenue"]
         )
+        row["uncovered_net_revenue"] = _money(
+            row["net_revenue"] - row["covered_net_revenue"]
+        )
         covered_net_revenue += row["covered_net_revenue"]
         product_rows.append(row)
 
     totals["covered_net_revenue"] = _money(covered_net_revenue)
+    totals["uncovered_net_revenue"] = _money(
+        totals["net_merchandise_revenue"] - totals["covered_net_revenue"]
+    )
     totals["known_gross_profit"] = _money(
         totals["covered_net_revenue"] - totals["known_net_cogs"]
     )
