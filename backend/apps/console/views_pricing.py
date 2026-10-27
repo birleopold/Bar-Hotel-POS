@@ -129,8 +129,8 @@ class OrgPriceBookDetailView(RetailPricingRequiredMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         ctx["rules"] = (
             self.object.rules.filter(tenant=self.request.tenant)
-            .select_related("menu_item")
-            .order_by("menu_item__name", "-minimum_quantity")
+            .select_related("menu_item", "product_family", "category")
+            .order_by("-minimum_quantity", "pk")
         )
         ctx["assignments"] = (
             self.object.customer_assignments.filter(tenant=self.request.tenant)
@@ -181,7 +181,11 @@ class OrgPriceBookRuleCreateView(PriceBookScopedMixin, CreateView):
                 entity_id=str(self.object.pk),
                 payload={
                     "price_book_id": str(self.price_book.pk),
-                    "menu_item_id": str(self.object.menu_item_id),
+                    "menu_item_id": str(self.object.menu_item_id) if self.object.menu_item_id else None,
+                    "product_family_id": str(self.object.product_family_id) if self.object.product_family_id else None,
+                    "category_id": str(self.object.category_id) if self.object.category_id else None,
+                    "brand": self.object.brand or "",
+                    "target": self.object.target_label,
                     "minimum_quantity": str(self.object.minimum_quantity),
                     "unit_price": str(self.object.unit_price),
                     "is_active": self.object.is_active,
@@ -262,7 +266,11 @@ class OrgPriceBookRuleDeleteView(PriceBookScopedMixin, DeleteView):
         rule = self.object
         payload = {
             "price_book_id": str(self.price_book.pk),
-            "menu_item_id": str(rule.menu_item_id),
+            "menu_item_id": str(rule.menu_item_id) if rule.menu_item_id else None,
+            "product_family_id": str(rule.product_family_id) if rule.product_family_id else None,
+            "category_id": str(rule.category_id) if rule.category_id else None,
+            "brand": rule.brand or "",
+            "target": rule.target_label,
             "minimum_quantity": str(rule.minimum_quantity),
             "unit_price": str(rule.unit_price),
         }
