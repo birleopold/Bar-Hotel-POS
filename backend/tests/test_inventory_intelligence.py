@@ -3,9 +3,12 @@ from datetime import timedelta
 from types import SimpleNamespace
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
+from apps.accounts.models import Membership, MembershipRole
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.console.forms import ConsoleMenuItemForm
 from apps.inventory.batches import InventoryBatch
@@ -15,6 +18,7 @@ from apps.purchasing.models import (
     Supplier, PurchaseOrder, PurchaseOrderLine, PurchaseReceipt, PurchaseReceiptLine,
 )
 from apps.tenants.models import Tenant, TenantSettings, Site, Outlet, OutletType
+from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
 from apps.staff.views_inventory import StaffStockBalanceListView
 
 
@@ -101,6 +105,65 @@ class InventoryIntelligenceTests(TestCase):
             build_stock_intelligence(tenant=other, balances=[self.balance])
         with self.assertRaises(ValueError):
             self.insight(safety_days=40)
+
+
+class InventoryIntelligenceExportTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Planning Export", slug="planning-export")
+        TenantSettings.objects.create(
+            tenant=self.tenant,
+            business_lines=["supermarket"],
+            enabled_staff_modules=["inventory", "purchasing"],
+        )
+        site = Site.objects.create(tenant=self.tenant, name="Main")
+        self.outlet = Outlet.objects.create(
+            site=site, name="Retail", outlet_type=OutletType.RETAIL,
+        )
+        category = MenuCategory.objects.create(tenant=self.tenant, name="General")
+        self.item = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="=Unsafe product",
+            unit_price=Decimal("1000"), track_inventory=True,
+            reorder_level=Decimal("10"),
+        )
+        StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.outlet, menu_item=self.item,
+            quantity=Decimal("5"),
+        )
+        self.user = get_user_model().objects.create_user(
+            email="planning-export@test.local", password="Password9!",
+        )
+        Membership.objects.create(
+            tenant=self.tenant, user=self.user, role=MembershipRole.OWNER,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session.save()
+
+    def test_filtered_csv_uses_same_planning_scope_and_escapes_text(self):
+        response = self.client.get(
+            reverse("staff-inventory-intelligence"),
+            {"format": "csv", "low": "1", "safety_days": "4"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertIn("text/csv", response["Content-Type"])
+        body = response.content.decode("utf-8")
+        self.assertIn("Suggested order", body)
+        self.assertIn("'=Unsafe product", body)
+        self.assertIn(",4\r\n", body)
+
+    def test_low_stock_csv_filter_excludes_above_threshold_rows(self):
+        StockBalance.objects.filter(
+            tenant=self.tenant, outlet=self.outlet, menu_item=self.item,
+        ).update(quantity=Decimal("12"))
+        response = self.client.get(
+            reverse("staff-inventory-intelligence"),
+            {"format": "csv", "low": "1"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Unsafe product", response.content.decode("utf-8"))
+
 
 
 class InventoryCatalogueVisibilityTests(TestCase):
