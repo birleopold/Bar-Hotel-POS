@@ -68,12 +68,12 @@ def line_margin_floor_result(*, order, line, proposed_unit_price) -> MarginFloor
     )
 
 
-def promotion_margin_floor_result(*, order, discount_amount) -> tuple[bool, str]:
-    """Conservative basket-level guard for automatic promotions.
+def promotion_margin_floor_result(*, order, discount_amount, promotion=None) -> tuple[bool, str]:
+    """Conservative affected-merchandise guard for automatic promotions.
 
-    Enforce only when every inventory-tracked merchandise line affected by the
-    basket has a complete outlet cost basis. Incomplete cost never creates a
-    fake approval/block.
+    Enforce only when every merchandise line affected by the promotion tracks
+    inventory and has a complete outlet cost basis. Incomplete cost never
+    creates a fake approval/block.
     """
     floor = configured_margin_floor(order)
     if floor is None:
@@ -84,8 +84,37 @@ def promotion_margin_floor_result(*, order, discount_amount) -> tuple[bool, str]
             menu_item__isnull=False,
         )
     )
-    tracked = [line for line in lines if line.menu_item.track_inventory]
-    if not tracked:
+    affected = lines
+    if promotion is not None:
+        from apps.catalog.promotion_rules import (
+            promotion_matches_item,
+            promotion_reward_matches_item,
+        )
+        scoped = bool(
+            promotion.menu_item_id
+            or promotion.product_family_id
+            or promotion.category_id
+            or (promotion.brand or "").strip()
+        )
+        if scoped:
+            affected = [
+                line for line in lines
+                if promotion_matches_item(promotion, line.menu_item)
+            ]
+            reward_is_separate = bool(
+                promotion.reward_menu_item_id
+                or promotion.reward_product_family_id
+                or promotion.reward_category_id
+                or (promotion.reward_brand or "").strip()
+            )
+            if reward_is_separate:
+                seen = {line.pk for line in affected}
+                affected.extend(
+                    line for line in lines
+                    if line.pk not in seen
+                    and promotion_reward_matches_item(promotion, line.menu_item)
+                )
+    if not affected or any(not line.menu_item.track_inventory for line in affected):
         return False, ""
 
     balances = {
@@ -93,24 +122,24 @@ def promotion_margin_floor_result(*, order, discount_amount) -> tuple[bool, str]
         for row in StockBalance.objects.filter(
             tenant_id=order.tenant_id,
             outlet_id=order.outlet_id,
-            menu_item_id__in=[line.menu_item_id for line in tracked],
+            menu_item_id__in=[line.menu_item_id for line in affected],
         ).only("menu_item_id", "average_unit_cost", "cost_basis_complete")
     }
     if any(
         line.menu_item_id not in balances
         or not balances[line.menu_item_id].cost_basis_complete
         or balances[line.menu_item_id].average_unit_cost is None
-        for line in tracked
+        for line in affected
     ):
         return False, ""
 
     merchandise_revenue = sum(
-        (line.line_total for line in lines), Decimal("0.00")
+        (line.line_total for line in affected), Decimal("0.00")
     ) - Decimal(str(discount_amount))
     merchandise_cost = sum(
         (
             line.quantity * balances[line.menu_item_id].average_unit_cost
-            for line in tracked
+            for line in affected
         ),
         Decimal("0.00"),
     )
