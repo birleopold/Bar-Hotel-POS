@@ -438,6 +438,12 @@ def management_loss_patterns(request, *, policy, limit=10):
     product_list.sort(key=lambda row: (-signal_count(row), -(row["margin_overrides"]), row["product"].lower()))
     for row in (*worker_list, *outlet_list, *product_list):
         row["signal_count"] = signal_count(row)
+    if limit is None:
+        return {
+            "workers": worker_list,
+            "outlets": outlet_list,
+            "products": product_list,
+        }
     return {
         "workers": worker_list[:limit],
         "outlets": outlet_list[:limit],
@@ -451,7 +457,7 @@ def management_loss_pattern_detail(
     """Return source evidence behind one visible loss-prevention pattern."""
     if dimension not in {"worker", "outlet", "product"}:
         return None
-    patterns = management_loss_patterns(request, policy=policy, limit=500)
+    patterns = management_loss_patterns(request, policy=policy, limit=None)
     collection = {
         "worker": patterns["workers"],
         "outlet": patterns["outlets"],
