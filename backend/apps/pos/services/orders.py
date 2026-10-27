@@ -668,6 +668,22 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
             uses = min(uses, promotion.max_uses_per_order)
         if uses <= 0:
             raise ValidationError({"promotion": "Add more qualifying units for this Buy X Get Y offer."})
+    elif promotion.offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT:
+        if not target_is_scoped:
+            raise ValidationError({"promotion": "X for fixed amount requires a specific promotion target."})
+        if not eligible_lines:
+            raise ValidationError({"promotion": "This quantity deal has no qualifying basket items."})
+        if any(line.quantity != line.quantity.to_integral_value() for line in eligible_lines):
+            raise ValidationError({"promotion": "X for fixed amount supports whole qualifying units only."})
+        fixed_quantity = int(promotion.fixed_quantity or 0)
+        fixed_amount = promotion.fixed_bundle_amount
+        if fixed_quantity <= 0 or fixed_amount is None or fixed_amount <= 0:
+            raise ValidationError({"promotion": "X for fixed amount is not configured correctly."})
+        uses = sum(int(line.quantity) for line in eligible_lines) // fixed_quantity
+        if promotion.max_uses_per_order is not None:
+            uses = min(uses, promotion.max_uses_per_order)
+        if uses <= 0:
+            raise ValidationError({"promotion": "Add more qualifying units for this quantity deal."})
     elif promotion.discount_percent is None and promotion.discount_amount is None:
         raise ValidationError("Promotion is missing discount fields.")
 
@@ -698,6 +714,8 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
             "offer_type": promotion.offer_type,
             "buy_quantity": promotion.buy_quantity,
             "get_quantity": promotion.get_quantity,
+            "fixed_quantity": promotion.fixed_quantity,
+            "fixed_bundle_amount": str(promotion.fixed_bundle_amount) if promotion.fixed_bundle_amount is not None else None,
             "max_uses_per_order": promotion.max_uses_per_order,
         },
     )
