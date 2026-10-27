@@ -16,6 +16,7 @@ from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, ProductLa
 from apps.catalog.recipe_promo_serializers import PromotionSerializer
 from apps.catalog.promotion_rules import promotion_schedule_active
 from apps.customers.models import Customer
+from apps.inventory.models import StockBalance
 from apps.pos.models import Order, Payment, PaymentMethod
 from apps.pos.services.orders import (
     add_line_to_open_order,
@@ -1706,4 +1707,120 @@ class TargetedPromotionTests(TestCase):
                 status=ProductLabelQueueEntry.Status.PENDING,
             ).exists()
         )
+
+    def _enable_margin_floor_for_oil(self, *, cost="8000", floor="20"):
+        settings_obj = self.tenant.settings
+        settings_obj.retail_min_margin_percent = Decimal(floor)
+        settings_obj.save(update_fields=["retail_min_margin_percent", "updated_at"])
+        self.oil.track_inventory = True
+        self.oil.save(update_fields=["track_inventory", "updated_at"])
+        StockBalance.objects.update_or_create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.oil,
+            defaults={
+                "quantity": Decimal("20"),
+                "average_unit_cost": Decimal(cost),
+                "cost_basis_complete": True,
+            },
+        )
+
+    def test_promotion_below_trusted_margin_floor_is_hidden_and_rejected(self):
+        self._enable_margin_floor_for_oil()
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Unsafe margin promo",
+            menu_item=self.oil,
+            discount_percent=Decimal("10"),
+        )
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError) as exc:
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        self.assertIn("gross margin", str(exc.exception.detail))
+
+    def test_manual_discount_requires_explicit_margin_override_reason_below_floor(self):
+        self._enable_margin_floor_for_oil()
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        with self.assertRaises(ValidationError) as exc:
+            apply_supermarket_line_discount(
+                order=order,
+                line=line,
+                user=self.user,
+                discount_percent=Decimal("10"),
+            )
+        self.assertIn("minimum gross margin", str(exc.exception.detail))
+
+        with self.assertRaises(ValidationError) as exc:
+            apply_supermarket_line_discount(
+                order=order,
+                line=line,
+                user=self.user,
+                discount_percent=Decimal("10"),
+                allow_margin_override=True,
+                margin_override_reason="short",
+            )
+        self.assertIn("at least 8 characters", str(exc.exception.detail))
+
+        changed = apply_supermarket_line_discount(
+            order=order,
+            line=line,
+            user=self.user,
+            discount_percent=Decimal("10"),
+            allow_margin_override=True,
+            margin_override_reason="Damaged outer packaging approved for clearance",
+        )
+        self.assertEqual(changed.line_total, Decimal("9000.00"))
+        event = AuditEvent.objects.filter(
+            tenant=self.tenant,
+            action="order.line_discount_applied",
+            entity_id=str(line.pk),
+        ).latest("created_at")
+        self.assertTrue(event.payload["margin_floor_overridden"])
+        self.assertEqual(
+            event.payload["margin_override_reason"],
+            "Damaged outer packaging approved for clearance",
+        )
+
+    def test_incomplete_cost_basis_does_not_fake_margin_floor_block(self):
+        settings_obj = self.tenant.settings
+        settings_obj.retail_min_margin_percent = Decimal("20")
+        settings_obj.save(update_fields=["retail_min_margin_percent", "updated_at"])
+        self.oil.track_inventory = True
+        self.oil.save(update_fields=["track_inventory", "updated_at"])
+        StockBalance.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.oil,
+            quantity=Decimal("20"),
+            average_unit_cost=None,
+            cost_basis_complete=False,
+        )
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        changed = apply_supermarket_line_discount(
+            order=order,
+            line=line,
+            user=self.user,
+            discount_percent=Decimal("10"),
+        )
+        self.assertEqual(changed.line_total, Decimal("9000.00"))
 
