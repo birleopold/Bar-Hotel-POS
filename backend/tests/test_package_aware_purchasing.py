@@ -1,7 +1,9 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
@@ -16,7 +18,10 @@ from apps.purchasing.models import (
     Supplier,
     SupplierProductCode,
 )
-from apps.purchasing.serializers import ReceivePurchaseOrderSerializer
+from apps.purchasing.serializers import (
+    PurchaseOrderStatusUpdateSerializer,
+    ReceivePurchaseOrderSerializer,
+)
 from apps.purchasing.services import receive_purchase_order_goods
 from apps.pos.models import Order
 from apps.pos.services.orders import add_line_to_open_order
@@ -650,3 +655,130 @@ class PackageAwarePurchasingTests(TestCase):
         self.assertEqual(sorted(allocated), [
             Decimal("0.00"), Decimal("0.00"), Decimal("0.01"),
         ])
+
+    def test_supplier_minimum_order_blocks_undersized_po_and_send(self):
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="MOQ-WATER",
+            default_unit_cost=Decimal("800"),
+            minimum_order_quantity=Decimal("12"),
+            expected_lead_days=5,
+            is_preferred=True,
+        )
+        response = self.client.post(
+            reverse("staff-purchasing-order-create"),
+            {
+                "supplier": str(self.supplier.pk),
+                "outlet": str(self.outlet.pk),
+                "reference": "MOQ-TOO-SMALL",
+                "expected_date": "",
+                "notes": "",
+                "line_0_menu_item": str(self.item.pk),
+                "line_0_quantity_ordered": "10",
+                "line_0_product_package": "",
+                "line_0_package_count": "",
+                "line_0_cartons": "",
+                "line_0_unit_cost": "",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            PurchaseOrder.objects.filter(reference="MOQ-TOO-SMALL").exists()
+        )
+        self.assertContains(response, "requires at least 12.000 base units")
+
+        legacy_draft = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            outlet=self.outlet,
+            status=PurchaseOrderStatus.DRAFT,
+            reference="MOQ-SEND-GUARD",
+            created_by=self.user,
+        )
+        PurchaseOrderLine.objects.create(
+            purchase_order=legacy_draft,
+            menu_item=self.item,
+            quantity_ordered=Decimal("8"),
+            unit_cost=Decimal("800"),
+        )
+        serializer = PurchaseOrderStatusUpdateSerializer(
+            legacy_draft,
+            data={"status": PurchaseOrderStatus.SENT},
+            partial=True,
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("requires at least 12.000", str(serializer.errors))
+
+    def test_supplier_lead_time_suggests_expected_date_but_never_overrides_manual_date(self):
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="LEAD-WATER",
+            default_unit_cost=Decimal("800"),
+            minimum_order_quantity=Decimal("6"),
+            expected_lead_days=7,
+            is_preferred=True,
+        )
+        today = timezone.localdate()
+        response = self.client.post(
+            reverse("staff-purchasing-order-create"),
+            {
+                "supplier": str(self.supplier.pk),
+                "outlet": str(self.outlet.pk),
+                "reference": "LEAD-AUTO",
+                "expected_date": "",
+                "notes": "",
+                "line_0_menu_item": str(self.item.pk),
+                "line_0_quantity_ordered": "6",
+                "line_0_product_package": "",
+                "line_0_package_count": "",
+                "line_0_cartons": "",
+                "line_0_unit_cost": "",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        auto_po = PurchaseOrder.objects.get(reference="LEAD-AUTO")
+        self.assertEqual(auto_po.expected_date, today + timedelta(days=7))
+
+        manual_date = today + timedelta(days=2)
+        response = self.client.post(
+            reverse("staff-purchasing-order-create"),
+            {
+                "supplier": str(self.supplier.pk),
+                "outlet": str(self.outlet.pk),
+                "reference": "LEAD-MANUAL",
+                "expected_date": manual_date.isoformat(),
+                "notes": "",
+                "line_0_menu_item": str(self.item.pk),
+                "line_0_quantity_ordered": "6",
+                "line_0_product_package": "",
+                "line_0_package_count": "",
+                "line_0_cartons": "",
+                "line_0_unit_cost": "",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        manual_po = PurchaseOrder.objects.get(reference="LEAD-MANUAL")
+        self.assertEqual(manual_po.expected_date, manual_date)
+
+    def test_supplier_catalog_displays_minimum_order_and_lead_time(self):
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="TERMS-WATER",
+            default_unit_cost=Decimal("800"),
+            minimum_order_quantity=Decimal("24"),
+            expected_lead_days=4,
+            is_preferred=True,
+        )
+        response = self.client.get(
+            reverse("staff-purchasing-supplier-codes", args=[self.supplier.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "24.000 base units")
+        self.assertContains(response, "4 days")
+
