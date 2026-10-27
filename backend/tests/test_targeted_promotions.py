@@ -746,3 +746,48 @@ class TargetedPromotionTests(TestCase):
         )
         pending.refresh_from_db()
         self.assertFalse(pending.is_paid)
+
+
+    def test_buy_x_get_y_recalculates_when_basket_quantity_changes(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Live BOGO",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            menu_item=self.oil,
+            discount_percent=None,
+            discount_amount=None,
+            buy_quantity=1,
+            get_quantity=1,
+        )
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("10000.00"))
+        self.assertEqual(order.total, Decimal("10000.00"))
+
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("20000.00"))
+        self.assertEqual(order.total, Decimal("20000.00"))
+
+        from apps.pos.services.orders import adjust_open_order_line_quantity
+        line.refresh_from_db()
+        adjust_open_order_line_quantity(
+            order=order,
+            line=line,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("0.00"))
+        self.assertEqual(order.total, Decimal("10000.00"))
