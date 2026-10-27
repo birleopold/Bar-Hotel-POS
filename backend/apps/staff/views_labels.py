@@ -30,6 +30,12 @@ from .services.permissions import membership_has_inventory_capability
 
 
 MAX_LABELS_PER_PDF = 120
+LABEL_TEMPLATES = {
+    "shelf": "Shelf / price",
+    "product": "Product identity",
+    "markdown": "Markdown",
+    "receiving": "Receiving",
+}
 
 
 class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
@@ -98,6 +104,13 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
         ctx["label_outlet"] = outlet
         ctx["label_q"] = (self.request.GET.get("q") or "").strip()[:80]
         ctx["label_queue_only"] = (self.request.GET.get("queue") or "").strip() in {"1", "true", "yes"}
+        requested_template = (
+            self.request.GET.get("template")
+            or self.request.POST.get("template")
+            or "shelf"
+        ).strip()
+        ctx["label_template"] = requested_template if requested_template in LABEL_TEMPLATES else "shelf"
+        ctx["label_templates"] = LABEL_TEMPLATES
         ctx["pending_label_count"] = 0
         ctx["pending_label_entries"] = []
         ctx["recent_label_history"] = []
@@ -224,7 +237,11 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             messages.error(request, "Select at least one product to print.")
             return self._return_to_list(request, outlet)
 
-        pdf = self._build_pdf(labels, outlet)
+        template_key = (request.POST.get("template") or "shelf").strip()
+        if template_key not in LABEL_TEMPLATES:
+            messages.error(request, "Choose a supported label template.")
+            return self._return_to_list(request, outlet)
+        pdf = self._build_pdf(labels, outlet, template_key)
         mark_product_labels_printed(
             tenant_id=request.tenant.pk,
             outlet=outlet,
@@ -232,7 +249,7 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             user=request.user,
         )
         response = HttpResponse(pdf, content_type="application/pdf")
-        response["Content-Disposition"] = 'attachment; filename="shelf-labels.pdf"'
+        response["Content-Disposition"] = f'attachment; filename="{template_key}-labels.pdf"'
         response["Cache-Control"] = "private, no-store"
         return response
 
@@ -243,9 +260,12 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             query["q"] = q
         if (request.POST.get("return_queue") or "").strip() in {"1", "true", "yes"}:
             query["queue"] = "1"
+        template_key = (request.POST.get("template") or "").strip()
+        if template_key in LABEL_TEMPLATES and template_key != "shelf":
+            query["template"] = template_key
         return redirect(reverse("staff-inventory-shelf-labels") + "?" + urlencode(query))
 
-    def _build_pdf(self, labels, outlet):
+    def _build_pdf(self, labels, outlet, template_key="shelf"):
         output = BytesIO()
         canvas = Canvas(output, pagesize=A4)
         page_w, page_h = A4
@@ -264,36 +284,78 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             x = margin_x + col * (cell_w + gap_x)
             y = page_h - margin_y - (row + 1) * cell_h - row * gap_y
             price = item.unit_price_for_outlet(outlet.pk)
-            self._draw_label(canvas, x, y, cell_w, cell_h, item, price, currency, outlet.name)
+            self._draw_label(
+                canvas, x, y, cell_w, cell_h, item, price, currency, outlet.name,
+                template_key=template_key,
+            )
 
         canvas.save()
         return output.getvalue()
 
     @staticmethod
-    def _draw_label(canvas, x, y, width, height, item, price, currency, outlet_name):
+    def _draw_label(
+        canvas, x, y, width, height, item, price, currency, outlet_name,
+        *, template_key="shelf",
+    ):
         canvas.setLineWidth(0.25)
         canvas.roundRect(x, y, width, height, 2 * mm)
         pad = 3 * mm
-        canvas.setFont("Helvetica-Bold", 8)
-        canvas.drawString(x + pad, y + height - 5 * mm, str(item.name)[:34])
-        canvas.setFont("Helvetica-Bold", 15)
-        canvas.drawString(x + pad, y + height - 12 * mm, f"{currency} {price}")
-        canvas.setFont("Helvetica", 6)
+        code = (item.barcode or item.sku or "").strip()
+        brand_model = " · ".join(
+            part for part in ((item.brand or "").strip(), (item.model_number or "").strip())
+            if part
+        )
+        reference = (item.reference_code or "").strip()
         uom = getattr(item, "get_unit_of_measure_display", lambda: item.unit_of_measure)()
-        canvas.drawString(x + pad, y + height - 16 * mm, f"{uom} · {outlet_name}"[:52])
 
-        code = (item.barcode or "").strip()
+        if template_key == "receiving":
+            canvas.setFont("Helvetica-Bold", 6)
+            canvas.drawString(x + pad, y + height - 4 * mm, "RECEIVED STOCK")
+            canvas.setFont("Helvetica-Bold", 9)
+            canvas.drawString(x + pad, y + height - 9 * mm, str(item.name)[:34])
+            canvas.setFont("Helvetica", 6)
+            if brand_model:
+                canvas.drawString(x + pad, y + height - 13 * mm, brand_model[:50])
+            canvas.drawString(
+                x + pad, y + height - 17 * mm,
+                f"SKU: {(item.sku or '—')} · {outlet_name}"[:55],
+            )
+        elif template_key == "product":
+            canvas.setFont("Helvetica-Bold", 9)
+            canvas.drawString(x + pad, y + height - 5 * mm, str(item.name)[:34])
+            canvas.setFont("Helvetica", 6)
+            if brand_model:
+                canvas.drawString(x + pad, y + height - 9 * mm, brand_model[:50])
+            if reference:
+                canvas.drawString(x + pad, y + height - 13 * mm, f"Ref: {reference}"[:52])
+            canvas.setFont("Helvetica-Bold", 10)
+            canvas.drawString(x + pad, y + height - 18 * mm, f"{currency} {price}")
+        elif template_key == "markdown":
+            canvas.setFont("Helvetica-Bold", 6)
+            canvas.drawString(x + pad, y + height - 4 * mm, "MARKDOWN")
+            canvas.setFont("Helvetica-Bold", 8)
+            canvas.drawString(x + pad, y + height - 8 * mm, str(item.name)[:34])
+            if item.msrp is not None and item.msrp > price:
+                canvas.setFont("Helvetica", 7)
+                canvas.drawString(x + pad, y + height - 13 * mm, f"Was {currency} {item.msrp}")
+            canvas.setFont("Helvetica-Bold", 16)
+            canvas.drawString(x + pad, y + height - 19 * mm, f"Now {currency} {price}")
+        else:
+            canvas.setFont("Helvetica-Bold", 8)
+            canvas.drawString(x + pad, y + height - 5 * mm, str(item.name)[:34])
+            canvas.setFont("Helvetica-Bold", 15)
+            canvas.drawString(x + pad, y + height - 12 * mm, f"{currency} {price}")
+            canvas.setFont("Helvetica", 6)
+            canvas.drawString(x + pad, y + height - 16 * mm, f"{uom} · {outlet_name}"[:52])
+
         if code:
             available = width - 2 * pad
-            bar = Code128(code, barHeight=8 * mm, barWidth=0.23 * mm, humanReadable=False)
+            bar = Code128(code, barHeight=7 * mm, barWidth=0.23 * mm, humanReadable=False)
             if bar.width > available:
                 bar.barWidth *= available / bar.width
             bar.drawOn(canvas, x + pad, y + 6 * mm)
             canvas.setFont("Helvetica", 6)
             canvas.drawCentredString(x + width / 2, y + 3.4 * mm, code[:45])
         else:
-            ref = (item.sku or "No barcode").strip()
-            canvas.setFont("Helvetica", 7)
-            canvas.drawString(x + pad, y + 7 * mm, f"SKU: {ref}"[:48])
             canvas.setFont("Helvetica-Oblique", 6)
-            canvas.drawString(x + pad, y + 3.5 * mm, "No scannable barcode stored")
+            canvas.drawString(x + pad, y + 5 * mm, "No barcode or SKU stored")
