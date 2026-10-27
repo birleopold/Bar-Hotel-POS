@@ -13,7 +13,15 @@ from django.core.exceptions import ValidationError as ModelValidationError
 from django.db import transaction
 
 from apps.catalog.label_queue import queue_product_labels
-from apps.catalog.models import MenuCategory, MenuItem, UnitOfMeasure
+from apps.catalog.models import (
+    MenuCategory,
+    MenuItem,
+    ProductAlternateCode,
+    ProductPackage,
+    RetailProductGroup,
+    SupermarketSkuProfile,
+    UnitOfMeasure,
+)
 from apps.tenants.models import Tenant
 
 MAX_FILE_BYTES = 1024 * 1024
@@ -47,13 +55,13 @@ def _decimal(raw: str, *, name: str, digits: int, places: int, maximum=None):
     return value
 
 
-def _parse_bool(value: str):
+def _parse_bool(value: str, *, field_name="track_inventory"):
     value = value.strip().casefold()
     if value in ("", "no", "false", "0"):
         return False
     if value in ("yes", "true", "1"):
         return True
-    raise ValueError("track_inventory must be yes or no.")
+    raise ValueError(f"{field_name} must be yes or no.")
 
 
 def parse_catalog_csv(*, tenant, uploaded):
@@ -301,6 +309,253 @@ def parse_price_update_csv(*, tenant, uploaded):
     if issues:
         raise CatalogImportProblem(issues)
     return prepared
+
+
+PACKAGE_HEADERS = (
+    "product_sku", "product_name", "package_name", "units_per_package",
+    "barcode", "sku_alias", "sell_price", "is_sellable", "is_purchasable",
+    "is_active",
+)
+PACKAGE_REQUIRED = ("product_sku", "package_name", "units_per_package")
+
+
+def _package_reserved_codes(*, tenant):
+    """All existing scanner identities that a new package code must not reuse."""
+    from apps.inventory.models import InventorySerialUnit
+
+    reserved = set()
+    for sku, barcode in MenuItem.objects.filter(tenant=tenant).values_list("sku", "barcode"):
+        if sku:
+            reserved.add(str(sku).casefold())
+        if barcode:
+            reserved.add(str(barcode).casefold())
+    for barcode, alias in ProductPackage.objects.filter(tenant=tenant).values_list("barcode", "sku_alias"):
+        if barcode:
+            reserved.add(str(barcode).casefold())
+        if alias:
+            reserved.add(str(alias).casefold())
+    reserved.update(
+        str(value).casefold()
+        for value in RetailProductGroup.objects.filter(tenant=tenant)
+        .exclude(code="")
+        .values_list("code", flat=True)
+    )
+    reserved.update(
+        str(value).casefold()
+        for value in ProductAlternateCode.objects.filter(tenant=tenant)
+        .exclude(code="")
+        .values_list("code", flat=True)
+    )
+    reserved.update(
+        str(value).casefold()
+        for value in SupermarketSkuProfile.objects.filter(
+            tenant=tenant, is_active=True,
+        ).exclude(plu_code="").values_list("plu_code", flat=True)
+    )
+    reserved.update(
+        str(value).casefold()
+        for value in InventorySerialUnit.objects.filter(tenant=tenant)
+        .exclude(serial_number="")
+        .values_list("serial_number", flat=True)
+    )
+    return reserved
+
+
+def parse_package_csv(*, tenant, uploaded):
+    """Validate create-only package rows against existing concrete product SKUs."""
+    if getattr(uploaded, "size", 0) > MAX_FILE_BYTES:
+        raise CatalogImportProblem(["Upload a package CSV smaller than 1 MB."])
+    raw = uploaded.read(MAX_FILE_BYTES + 1)
+    if len(raw) > MAX_FILE_BYTES:
+        raise CatalogImportProblem(["Upload a package CSV smaller than 1 MB."])
+    try:
+        data = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise CatalogImportProblem(["Save the package CSV as UTF-8."]) from exc
+    try:
+        reader = csv.DictReader(io.StringIO(data, newline=""), strict=True)
+        headers = [h.strip().casefold() for h in (reader.fieldnames or []) if isinstance(h, str)]
+        if len(headers) != len(set(headers)):
+            raise CatalogImportProblem(["Package CSV column names must not repeat."])
+        missing = [name for name in PACKAGE_REQUIRED if name not in headers]
+        unknown = [name for name in headers if name not in PACKAGE_HEADERS]
+        if missing or unknown:
+            raise CatalogImportProblem([
+                "Package CSV must include product_sku, package_name and units_per_package. "
+                + (("Missing: " + ", ".join(missing) + ". ") if missing else "")
+                + (("Unknown: " + ", ".join(unknown) + ".") if unknown else "")
+            ])
+        reader.fieldnames = headers
+        records = list(reader)
+    except csv.Error as exc:
+        raise CatalogImportProblem(["The package CSV contains broken quoting or separators."]) from exc
+    if not records or len(records) > MAX_ITEMS:
+        raise CatalogImportProblem(["Import between 1 and 1,000 package rows per CSV."])
+
+    products, ambiguous = {}, set()
+    for item in MenuItem.objects.filter(tenant=tenant).exclude(sku=""):
+        key = item.sku.casefold()
+        if key in products:
+            ambiguous.add(key)
+        products[key] = item
+
+    existing_names = {
+        (package.menu_item_id, package.name.casefold())
+        for package in ProductPackage.objects.filter(tenant=tenant).only(
+            "menu_item_id", "name"
+        )
+    }
+    reserved_codes = _package_reserved_codes(tenant=tenant)
+    seen_names = set()
+    seen_codes = set()
+    prepared, errors = [], []
+
+    for number, values in enumerate(records, 2):
+        try:
+            if not isinstance(values, dict) or None in values:
+                raise ValueError("Use the supplied package CSV columns; too many values were found.")
+            if any(values.get(key) is None for key in PACKAGE_REQUIRED):
+                raise ValueError("Package row is missing a required column value.")
+            row = {str(key): str(value or "").strip() for key, value in values.items()}
+            if any("\x00" in value or "\r" in value or "\n" in value for value in row.values()):
+                raise ValueError("Package fields may not contain embedded control characters or line breaks.")
+
+            product_sku = row.get("product_sku", "")
+            product_key = product_sku.casefold()
+            if not product_sku or len(product_sku) > 64:
+                raise ValueError("product_sku is required and must be 64 characters or fewer.")
+            if product_key in ambiguous:
+                raise ValueError("product_sku matches multiple products; resolve duplicate SKUs first.")
+            item = products.get(product_key)
+            if item is None:
+                raise ValueError("product_sku was not found in this business.")
+
+            package_name = row.get("package_name", "")
+            if not package_name or len(package_name) > 96:
+                raise ValueError("package_name is required and must be 96 characters or fewer.")
+            name_key = (item.pk, package_name.casefold())
+            if name_key in existing_names or name_key in seen_names:
+                raise ValueError("This product already has a package with that name.")
+
+            units = _decimal(
+                row.get("units_per_package", ""),
+                name="units_per_package", digits=14, places=3,
+            )
+            if units <= 0:
+                raise ValueError("units_per_package must be greater than zero.")
+
+            barcode = row.get("barcode", "")
+            sku_alias = row.get("sku_alias", "")
+            if len(barcode) > 64 or len(sku_alias) > 64:
+                raise ValueError("barcode and sku_alias must each be 64 characters or fewer.")
+            row_codes = [code.casefold() for code in (barcode, sku_alias) if code]
+            if len(row_codes) != len(set(row_codes)):
+                raise ValueError("barcode and sku_alias must be different when both are supplied.")
+            for code in row_codes:
+                if code in reserved_codes or code in seen_codes:
+                    raise ValueError("A package barcode or alias already belongs to another scanner identity.")
+
+            sell_price = (
+                _decimal(row["sell_price"], name="sell_price", digits=12, places=2)
+                if row.get("sell_price") else None
+            )
+            if sell_price is not None:
+                per_base = sell_price / units
+                if per_base != per_base.quantize(Decimal("0.01")):
+                    raise ValueError(
+                        "sell_price must divide exactly into a two-decimal base-unit price."
+                    )
+
+            prepared.append({
+                "menu_item_id": item.pk,
+                "product_sku": item.sku,
+                "product_name": item.name,
+                "package_name": package_name,
+                "units_per_package": units,
+                "barcode": barcode,
+                "sku_alias": sku_alias,
+                "sell_price": sell_price,
+                "is_sellable": _parse_bool(
+                    row.get("is_sellable") or "yes", field_name="is_sellable",
+                ),
+                "is_purchasable": _parse_bool(
+                    row.get("is_purchasable") or "yes", field_name="is_purchasable",
+                ),
+                "is_active": _parse_bool(
+                    row.get("is_active") or "yes", field_name="is_active",
+                ),
+            })
+            seen_names.add(name_key)
+            seen_codes.update(row_codes)
+        except ValueError as exc:
+            errors.append(f"Row {number}: {exc}")
+            if len(errors) >= 20:
+                break
+    if errors:
+        raise CatalogImportProblem(errors)
+    return prepared
+
+
+@transaction.atomic
+def import_product_packages(*, tenant, rows):
+    """Create validated package definitions only; never post inventory."""
+    if not rows or len(rows) > MAX_ITEMS:
+        raise CatalogImportProblem(["Import between 1 and 1,000 package rows."])
+    Tenant.objects.select_for_update().get(pk=tenant.pk)
+
+    ids = [row["menu_item_id"] for row in rows]
+    products = {
+        item.pk: item
+        for item in MenuItem.objects.select_for_update().filter(
+            tenant=tenant, pk__in=ids,
+        )
+    }
+    reserved_codes = _package_reserved_codes(tenant=tenant)
+    seen_names = set()
+    seen_codes = set()
+
+    for row in rows:
+        item = products.get(row["menu_item_id"])
+        if item is None or item.sku.casefold() != row["product_sku"].casefold():
+            raise CatalogImportProblem(["Product identity changed; check the package file again."])
+        if MenuItem.objects.filter(tenant=tenant, sku__iexact=item.sku).count() != 1:
+            raise CatalogImportProblem([f"SKU {item.sku} is no longer unique in this business."])
+        name_key = (item.pk, row["package_name"].casefold())
+        if name_key in seen_names or ProductPackage.objects.filter(
+            tenant=tenant, menu_item=item, name__iexact=row["package_name"],
+        ).exists():
+            raise CatalogImportProblem([f"{item.sku} already has package {row['package_name']}."])
+        seen_names.add(name_key)
+        codes = [code.casefold() for code in (row["barcode"], row["sku_alias"]) if code]
+        if len(codes) != len(set(codes)):
+            raise CatalogImportProblem([f"{item.sku} package barcode and alias must be different."])
+        for code in codes:
+            if code in reserved_codes or code in seen_codes:
+                raise CatalogImportProblem([f"Scanner code collision while importing package for {item.sku}."])
+        seen_codes.update(codes)
+
+    created = 0
+    for row in rows:
+        item = products[row["menu_item_id"]]
+        package = ProductPackage(
+            tenant=tenant,
+            menu_item=item,
+            name=row["package_name"],
+            units_per_package=row["units_per_package"],
+            barcode=row["barcode"],
+            sku_alias=row["sku_alias"],
+            sell_price=row["sell_price"],
+            is_sellable=row["is_sellable"],
+            is_purchasable=row["is_purchasable"],
+            is_active=row["is_active"],
+        )
+        try:
+            package.full_clean()
+        except ModelValidationError as exc:
+            raise CatalogImportProblem([f"Package {item.sku} / {package.name}: {exc}"])
+        package.save()
+        created += 1
+    return created
 
 
 @transaction.atomic
