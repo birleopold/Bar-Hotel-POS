@@ -533,6 +533,8 @@ class PurchaseReceipt(TimeStampedModel):
     class LandedCostAllocation(models.TextChoices):
         EXCLUDE = "exclude", "Do not add to inventory cost"
         BY_COST = "by_cost", "Distribute by received supplier cost"
+        BY_QUANTITY = "by_quantity", "Distribute by received quantity"
+        MANUAL = "manual", "Manual per-line allocation"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="purchase_receipts")
