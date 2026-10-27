@@ -20,6 +20,7 @@ def test_training_demo_is_isolated_and_has_no_financial_side_effects(business_ty
     call_command("create_training_demo", type=business_type, slug=slug)
     tenant = Tenant.objects.get(slug=slug)
     assert tenant.name.startswith("TRAINING")
+    assert tenant.is_training is True
     assert tenant.settings.business_lines == [business_type]
     assert tenant.settings.efris_enabled is False
     assert tenant.sites.count() == 1
