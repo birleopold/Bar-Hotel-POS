@@ -28,6 +28,8 @@ from apps.catalog.models import (
     SupermarketSkuProfile,
 )
 from apps.lodging.models import Room, RoomRateWindow, RoomType
+from apps.customers.models import Customer
+from apps.pos.models import CustomerPriceBookAssignment, PriceBook, PriceBookRule
 from apps.tenants.models import (
     BillingInvoice,
     BillingInvoiceStatus,
@@ -741,6 +743,133 @@ class ConsoleProductCustomValuesForm(forms.Form):
                 definition=definition,
                 defaults={"value_text": text},
             )
+
+
+class ConsolePriceBookForm(forms.ModelForm):
+    class Meta:
+        model = PriceBook
+        fields = ("name", "code", "starts_at", "ends_at", "is_active", "outlets")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "staff-input"}),
+            "code": forms.TextInput(attrs={"class": "staff-input"}),
+            "starts_at": forms.DateTimeInput(attrs={"class": "staff-input", "type": "datetime-local"}),
+            "ends_at": forms.DateTimeInput(attrs={"class": "staff-input", "type": "datetime-local"}),
+            "is_active": forms.CheckboxInput(),
+            "outlets": forms.SelectMultiple(attrs={"class": "staff-input", "size": 6}),
+        }
+
+    def __init__(self, *args, tenant, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        self.fields["starts_at"].required = False
+        self.fields["ends_at"].required = False
+        self.fields["outlets"].required = False
+        self.fields["outlets"].queryset = Outlet.objects.filter(
+            site__tenant=tenant,
+            is_active=True,
+            outlet_type__in=("retail", "supermarket"),
+        ).select_related("site").order_by("site__name", "name")
+
+    def clean_code(self):
+        code = (self.cleaned_data.get("code") or "").strip().upper()
+        if not code:
+            raise forms.ValidationError("Enter a short price-book code.")
+        qs = PriceBook.objects.filter(tenant=self.tenant, code__iexact=code)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("This price-book code is already in use.")
+        return code
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        qs = PriceBook.objects.filter(tenant=self.tenant, name__iexact=name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A price book with this name already exists.")
+        return name
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get("starts_at"), data.get("ends_at")
+        if start and end and end <= start:
+            self.add_error("ends_at", "End must be later than start.")
+        return data
+
+
+class ConsolePriceBookRuleForm(forms.ModelForm):
+    class Meta:
+        model = PriceBookRule
+        fields = ("menu_item", "minimum_quantity", "unit_price", "is_active")
+        widgets = {
+            "menu_item": forms.Select(attrs={"class": "staff-input"}),
+            "minimum_quantity": forms.NumberInput(attrs={"class": "staff-input", "min": "0.001", "step": "0.001"}),
+            "unit_price": forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.01"}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant, price_book, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        self.price_book = price_book
+        self.fields["menu_item"].queryset = MenuItem.objects.filter(
+            tenant=tenant,
+            is_active=True,
+        ).order_by("name")
+
+    def clean_menu_item(self):
+        item = self.cleaned_data.get("menu_item")
+        if item and item.tenant_id != self.tenant.pk:
+            raise forms.ValidationError("Choose a product from this business.")
+        return item
+
+    def clean(self):
+        data = super().clean()
+        item = data.get("menu_item")
+        qty = data.get("minimum_quantity")
+        if item and qty is not None:
+            qs = PriceBookRule.objects.filter(
+                price_book=self.price_book,
+                menu_item=item,
+                minimum_quantity=qty,
+            )
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error("minimum_quantity", "This product already has a tier at that quantity.")
+        return data
+
+
+class ConsoleCustomerPriceBookAssignmentForm(forms.ModelForm):
+    class Meta:
+        model = CustomerPriceBookAssignment
+        fields = ("customer", "price_book")
+        widgets = {
+            "customer": forms.Select(attrs={"class": "staff-input"}),
+            "price_book": forms.Select(attrs={"class": "staff-input"}),
+        }
+
+    def __init__(self, *args, tenant, price_book=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        self.fields["customer"].queryset = Customer.objects.filter(
+            tenant=tenant,
+            merged_into__isnull=True,
+        ).order_by("name")
+        self.fields["price_book"].queryset = PriceBook.objects.filter(
+            tenant=tenant,
+            is_active=True,
+        ).order_by("name")
+        if price_book is not None:
+            self.fields["price_book"].initial = price_book
+            self.fields["price_book"].widget = forms.HiddenInput()
+
+    def clean_customer(self):
+        customer = self.cleaned_data.get("customer")
+        if customer and customer.tenant_id != self.tenant.pk:
+            raise forms.ValidationError("Choose a customer from this business.")
+        return customer
 
 
 class ConsoleProductFamilyForm(forms.ModelForm):
