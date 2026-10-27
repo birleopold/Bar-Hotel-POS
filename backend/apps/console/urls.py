@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_catalog, views_catalog_import, views_org, views_platform, views_rates, views_practice
+from . import views, views_catalog, views_catalog_import, views_org, views_platform, views_pricing, views_rates, views_practice
 
 urlpatterns = [
     path("", views.ConsoleIndexView.as_view(), name="console-index"),
@@ -53,6 +53,15 @@ urlpatterns = [
     path("org/team/new/", views_org.OrgWorkerCreateView.as_view(), name="console-org-team-create"),
     path("org/team/<uuid:membership_id>/edit/", views_org.OrgMembershipUpdateView.as_view(), name="console-org-team-edit"),
     path("org/menu/import/", views_catalog_import.OrgCatalogImportView.as_view(), name="console-org-catalog-import"),
+    path("org/pricing/price-books/", views_pricing.OrgPriceBookListView.as_view(), name="console-org-price-books"),
+    path("org/pricing/price-books/new/", views_pricing.OrgPriceBookCreateView.as_view(), name="console-org-price-book-create"),
+    path("org/pricing/price-books/<uuid:price_book_id>/", views_pricing.OrgPriceBookDetailView.as_view(), name="console-org-price-book-detail"),
+    path("org/pricing/price-books/<uuid:price_book_id>/edit/", views_pricing.OrgPriceBookUpdateView.as_view(), name="console-org-price-book-edit"),
+    path("org/pricing/price-books/<uuid:price_book_id>/tiers/new/", views_pricing.OrgPriceBookRuleCreateView.as_view(), name="console-org-price-book-rule-create"),
+    path("org/pricing/price-books/<uuid:price_book_id>/tiers/<uuid:rule_id>/edit/", views_pricing.OrgPriceBookRuleUpdateView.as_view(), name="console-org-price-book-rule-edit"),
+    path("org/pricing/price-books/<uuid:price_book_id>/tiers/<uuid:rule_id>/delete/", views_pricing.OrgPriceBookRuleDeleteView.as_view(), name="console-org-price-book-rule-delete"),
+    path("org/pricing/price-books/<uuid:price_book_id>/assignments/", views_pricing.OrgPriceBookAssignmentView.as_view(), name="console-org-price-book-assignment"),
+
     path("org/setup/practice-sale/", views_practice.OrgPracticeSaleView.as_view(), name="console-org-practice-sale"),
     path("org/setup/step-state/", views_org.OrgSetupStepStateView.as_view(), name="console-org-setup-step-state"),
     path("org/sites/", views_org.OrgSiteListView.as_view(), name="console-org-sites"),
