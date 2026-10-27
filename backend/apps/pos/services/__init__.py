@@ -7,6 +7,7 @@ from .commands import (
     adjust_open_order_line_quantity,
     assign_order_line_seat,
     add_line_to_open_order,
+    add_retail_group_to_open_order,
     add_service_to_open_order,
     add_supermarket_line_by_code,
     apply_supermarket_line_discount,
@@ -46,6 +47,7 @@ from .queries import (
 
 __all__ = [
     "add_line_to_open_order",
+    "add_retail_group_to_open_order",
     "add_service_to_open_order",
     "add_supermarket_line_by_code",
     "adjust_open_order_line_quantity",
