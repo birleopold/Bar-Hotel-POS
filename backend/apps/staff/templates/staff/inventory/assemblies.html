@@ -1,0 +1,49 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Assemblies · {{ request.tenant.name|default:"Business" }}{% endblock %}
+{% block main_class %}staff-main--wide fizo-stock-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.1">{% endblock %}
+{% block content %}
+<div class="fizo-stock">
+  <header class="fizo-stock__head">
+    <div><p class="fizo-stock__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory</p><h1>Build &amp; unbuild assemblies</h1><p>Convert tracked component stock into finished retail products, or reverse a finished item back into its configured components.</p></div>
+    <div class="fizo-stock__actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Configure products</a></div>
+  </header>
+  {% include "staff/inventory/includes/subnav.html" %}
+
+  {% if can_modify_inventory %}
+  <section class="staff-card mb-3">
+    <h2>Record assembly operation</h2>
+    <p class="staff-muted">All component and finished-product movements post together in one transaction. Batch/expiry-tracked stock is blocked until lot-aware assembly allocation is supported.</p>
+    {% if assembly_items %}
+    <form method="post" class="row g-3 align-items-end">{% csrf_token %}
+      <div class="col-12 col-lg-3"><label class="staff-label" for="assembly-outlet">Section</label><select id="assembly-outlet" name="outlet" class="staff-input" required><option value="">Choose section</option>{% for outlet in outlets %}<option value="{{ outlet.id }}"{% if current_outlet and current_outlet.id == outlet.id %} selected{% endif %}>{{ outlet.site.name }} / {{ outlet.name }}</option>{% endfor %}</select></div>
+      <div class="col-12 col-lg-3"><label class="staff-label" for="assembly-item">Finished product</label><select id="assembly-item" name="assembled_item" class="staff-input" required><option value="">Choose configured assembly</option>{% for item in assembly_items %}<option value="{{ item.id }}">{{ item.name }}{% if item.sku %} · {{ item.sku }}{% endif %}</option>{% endfor %}</select></div>
+      <div class="col-6 col-lg-2"><label class="staff-label" for="assembly-direction">Operation</label><select id="assembly-direction" name="direction" class="staff-input" required><option value="build">Build</option><option value="unbuild">Unbuild</option></select></div>
+      <div class="col-6 col-lg-2"><label class="staff-label" for="assembly-quantity">Finished units</label><input id="assembly-quantity" name="quantity" class="staff-input" type="number" min="0.001" step="0.001" required></div>
+      <div class="col-12 col-lg-2"><button class="staff-btn staff-btn--primary w-100" type="submit">Record operation</button></div>
+      <div class="col-12"><label class="staff-label" for="assembly-note">Note (optional)</label><input id="assembly-note" name="note" class="staff-input" maxlength="512" placeholder="Production batch, repack note, reason for unbuild"></div>
+    </form>
+    {% else %}
+      <p class="staff-muted mb-2">No retail assembly BOMs are configured yet.</p>
+      <a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-items' %}">Open product catalogue</a>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="fizo-stock__panel">
+    <h2>Recent assembly runs</h2>
+    {% if assembly_runs %}
+    <div class="fizo-stock__tablewrap"><table class="fizo-stock__table">
+      <thead><tr><th>When</th><th>Section</th><th>Operation</th><th>Finished product</th><th>Quantity</th><th>Worker</th><th>Stock movements</th></tr></thead>
+      <tbody>{% for run in assembly_runs %}
+        <tr>
+          <td>{{ run.created_at }}</td><td>{{ run.outlet.name }}</td><td>{{ run.get_direction_display }}</td><td><strong>{{ run.assembled_item.name }}</strong>{% if run.note %}<span class="staff-muted small d-block">{{ run.note }}</span>{% endif %}</td><td>{{ run.quantity }}</td><td>{% if run.created_by %}{{ run.created_by.email }}{% else %}System{% endif %}</td>
+          <td>{% for movement in run.stock_movements.all %}<div>{{ movement.menu_item.name }} · {% if movement.quantity_change > 0 %}+{% endif %}{{ movement.quantity_change }}</div>{% endfor %}</td>
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="fizo-stock__empty"><i class="bi bi-boxes"></i><h2>No assembly runs yet</h2><p>Configured products will appear here after the first build or unbuild operation.</p></div>{% endif %}
+  </section>
+</div>
+{% endblock %}
