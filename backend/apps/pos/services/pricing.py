@@ -171,6 +171,23 @@ def promotion_discount_for_order(
         return Decimal("0.00")
 
     ceiling = basis if scoped else subtotal + tax_total
+    if (
+        promotion.offer_type == Promotion.OfferType.BUY_X_GET_Y
+        and scoped
+        and (
+            promotion.reward_menu_item_id
+            or promotion.reward_product_family_id
+            or promotion.reward_category_id
+            or (promotion.reward_brand or "").strip()
+        )
+    ):
+        # Cross-target BOGO discounts reward merchandise, which can legitimately
+        # be worth more than the qualifying pool. Cap at the live reward value,
+        # not the buy-side basis.
+        ceiling = sum(
+            (line.line_total for line in reward_lines),
+            Decimal("0.00"),
+        ).quantize(Decimal("0.01"))
     return min(discount, ceiling).quantize(Decimal("0.01"))
 
 
