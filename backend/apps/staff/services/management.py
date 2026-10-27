@@ -385,9 +385,17 @@ def management_loss_patterns(request, *, policy, limit=10):
             status=PosShiftStatus.CLOSED,
             closed_at__gte=cutoff,
             counted_cash__isnull=False,
-        ).exclude(counted_cash=F("expected_cash")).select_related("closed_by")
+        ).exclude(counted_cash=F("expected_cash")).select_related(
+            "opened_by", "closed_by"
+        )
         for shift in shifts.iterator(chunk_size=500):
-            wr = worker_row(shift.closed_by)
+            attributable_worker = (
+                shift.opened_by
+                if shift.opened_by_id
+                and shift.opened_by_id == shift.closed_by_id
+                else None
+            )
+            wr = worker_row(attributable_worker)
             wr["cash_variances"] += 1
             stamp(wr, shift.closed_at)
             orow = outlet_row(shift.outlet_id)
@@ -619,16 +627,24 @@ def management_loss_pattern_detail(
                 closed_at__gte=cutoff,
                 counted_cash__isnull=False,
             ).exclude(counted_cash=F("expected_cash")).select_related(
-                "closed_by", "outlet"
+                "opened_by", "closed_by", "outlet"
             )
             for shift in shifts.iterator(chunk_size=500):
-                if not matches_worker(shift.closed_by):
+                attributable_worker = (
+                    shift.opened_by
+                    if shift.opened_by_id
+                    and shift.opened_by_id == shift.closed_by_id
+                    else None
+                )
+                if not matches_worker(attributable_worker):
                     continue
                 if not matches_outlet(shift.outlet_id):
                     continue
                 actor = (
-                    shift.closed_by.get_full_name() or shift.closed_by.email
-                    if shift.closed_by_id else "Unknown worker"
+                    attributable_worker.get_full_name()
+                    or attributable_worker.email
+                    if attributable_worker
+                    else "Shared or historically unattributed shift"
                 )
                 variance = shift.counted_cash - shift.expected_cash
                 add_event(
