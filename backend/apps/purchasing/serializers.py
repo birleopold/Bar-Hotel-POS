@@ -200,11 +200,26 @@ class ConfirmMissingUnitCostSerializer(serializers.Serializer):
 
 class PurchaseOrderSerializer(serializers.ModelSerializer):
     lines = PurchaseOrderLineReadSerializer(many=True, read_only=True)
+    sourcing = serializers.SerializerMethodField()
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     outlet_name = serializers.CharField(source="outlet.name", read_only=True)
     receipts = PurchaseReceiptSerializer(many=True, read_only=True)
     payments = SupplierPaymentSerializer(many=True, read_only=True)
     invoices = SupplierInvoiceReadSerializer(many=True, read_only=True)
+
+    def get_sourcing(self, obj):
+        try:
+            quote = obj.source_supplier_quote
+        except Exception:
+            return None
+        return {
+            "supplier_quote_id": str(quote.pk),
+            "supplier_quote_reference": quote.reference,
+            "rfq_id": str(quote.rfq_id),
+            "rfq_reference": quote.rfq.reference,
+            "quoted_shipping_cost": str(quote.shipping_cost),
+            "quoted_other_cost": str(quote.other_cost),
+        }
 
     class Meta:
         model = PurchaseOrder
@@ -217,6 +232,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
             "outlet_name",
             "status",
             "approval_status",
+            "sourcing",
             "reviewed_by",
             "reviewed_at",
             "review_note",
