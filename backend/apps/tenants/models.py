@@ -62,6 +62,13 @@ class Tenant(TimeStampedModel):
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=80, unique=True)
     is_active = models.BooleanField(default=True)
+    is_training = models.BooleanField(
+        default=False,
+        help_text=(
+            "Isolated training workspace. Training status is chosen at creation "
+            "and cannot be converted into or out of a live business."
+        ),
+    )
 
     class Meta:
         ordering = ["name"]
