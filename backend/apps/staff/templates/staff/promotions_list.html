@@ -17,28 +17,69 @@
       </div>
     </div>
   </header>
+  <div class="staff-card mb-3">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <strong>Performance window</strong>
+      {% for days in "7,30,90,365".split %}
+      {% endfor %}
+      <a class="staff-btn staff-btn--sm {% if promotion_report_days == 7 %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?days=7">7 days</a>
+      <a class="staff-btn staff-btn--sm {% if promotion_report_days == 30 %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?days=30">30 days</a>
+      <a class="staff-btn staff-btn--sm {% if promotion_report_days == 90 %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?days=90">90 days</a>
+      <a class="staff-btn staff-btn--sm {% if promotion_report_days == 365 %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?days=365">1 year</a>
+    </div>
+    <p class="staff-muted small mb-0 mt-2">Performance counts fully paid orders only. Gross is pre-promotion subtotal; net is the final order total.</p>
+  </div>
+
   <h2 class="staff-section-head">Active &amp; scheduled</h2>
   <div class="staff-table-wrap">
     <table class="staff-table">
-      <thead><tr><th>Name</th><th>Type</th><th>Target</th><th>Coupon</th><th>Qty min</th><th>Starts</th><th>Ends</th><th>Active</th></tr></thead>
+      <thead><tr><th>Name</th><th>Type</th><th>Target</th><th>Uses</th><th>Discount value</th><th>Net sales</th><th>Coupon</th><th>Starts</th><th>Ends</th><th>Active</th></tr></thead>
       <tbody>
         {% for p in promotions %}
           <tr>
             <td><a href="{% url 'staff-promotion-detail' promotion_id=p.id %}">{{ p.name }}</a></td>
             <td>{{ p.get_offer_type_display }}</td>
             <td>{{ p.target_label }}</td>
+            <td>{{ p.report_uses }}</td>
+            <td>{{ request.tenant.settings.default_currency }} {{ p.report_discount_total }}</td>
+            <td>{{ request.tenant.settings.default_currency }} {{ p.report_net_sales }}</td>
             <td>{% if p.coupon_code %}<code>{{ p.coupon_code }}</code>{% else %}—{% endif %}</td>
-            <td>{{ p.min_target_quantity|default:"—" }}</td>
             <td>{{ p.starts_at }}</td>
             <td>{{ p.ends_at|default:"—" }}</td>
             <td>{% if p.is_active %}Yes{% else %}No{% endif %}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="8" class="staff-muted">No promotions yet.</td></tr>
+          <tr><td colspan="10" class="staff-muted">No promotions yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  <h2 class="staff-section-head mt-4">Recent price changes</h2>
+  <div class="staff-card">
+    <p class="staff-muted small">Audited base and outlet price changes in the same {{ promotion_report_days }}-day window.</p>
+    {% if price_history_rows %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th>When</th><th>Product</th><th>Outlet</th><th>Before</th><th>After</th><th>Changed by</th></tr></thead>
+        <tbody>
+          {% for row in price_history_rows %}
+          <tr>
+            <td>{{ row.created_at }}</td>
+            <td>{{ row.item_name }}</td>
+            <td>{{ row.outlet_name }}</td>
+            <td>{{ request.tenant.settings.default_currency }} {{ row.before }}</td>
+            <td>{{ request.tenant.settings.default_currency }} {{ row.after }}</td>
+            <td>{% if row.user %}{{ row.user.email }}{% else %}System{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="staff-muted mb-0">No audited price changes in this period.</p>
+    {% endif %}
+  </div>
+
   {% if is_paginated %}
     <nav class="staff-pager">
       {% if page_obj.has_previous %}<a class="staff-btn staff-btn--sm staff-btn--ghost" href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
