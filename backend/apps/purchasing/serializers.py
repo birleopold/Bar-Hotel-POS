@@ -9,6 +9,7 @@ from apps.catalog.packaging import to_stock_units
 from apps.tenants.models import Outlet
 
 from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice
+from .supplier_catalog import suggested_supplier_unit_cost
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -361,9 +362,17 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 ordered_units += (Decimal(row["package_count"]) * package.units_per_package).quantize(Decimal("0.001"))
                 if ordered_units > Decimal("99999999999.999"):
                     raise serializers.ValidationError({"lines": f"Ordered quantity for {item.name} exceeds stock limits."})
+            unit_cost = row.get("unit_cost")
+            if unit_cost is None:
+                unit_cost, _cost_source = suggested_supplier_unit_cost(
+                    tenant_id=tenant.id,
+                    supplier_id=validated_data["_supplier"].id,
+                    menu_item_id=item.id,
+                    product_package_id=package.id if package else None,
+                )
             line_objects.append({
                 "menu_item": item, "quantity_ordered": ordered_units,
-                "unit_cost": row.get("unit_cost"),
+                "unit_cost": unit_cost,
                 "units_per_carton_snapshot": item.units_per_carton,
                 "product_package": package,
                 "package_name_snapshot": package.name if package else "",
