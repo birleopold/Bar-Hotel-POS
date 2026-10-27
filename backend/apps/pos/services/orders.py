@@ -1030,6 +1030,8 @@ def void_open_order_line(
                 "The basket cannot fall below the net amount already received."
             )
         }, code="refund_required")
+    from apps.inventory.services_serials import release_open_order_serial_reservations
+    release_open_order_serial_reservations(order=locked_o, order_line=locked_ln, user=user)
     log_audit(
         tenant_id=locked_o.tenant_id,
         user_id=user.id if user else None,
@@ -1066,6 +1068,22 @@ def adjust_open_order_line_quantity(
         raise ValidationError("Cannot edit a voided line.")
     if locked_o.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL} and locked_ln.menu_item_id:
         quantity = normalize_supermarket_quantity(menu_item=locked_ln.menu_item, quantity=quantity)
+    if locked_ln.menu_item_id and locked_ln.menu_item.serial_tracking:
+        from apps.inventory.models import InventorySerialUnit, SerializedUnitStatus
+        reserved_count = InventorySerialUnit.objects.filter(
+            tenant_id=locked_o.tenant_id,
+            reserved_order_line=locked_ln,
+            status=SerializedUnitStatus.RESERVED,
+        ).count()
+        if quantity != quantity.to_integral_value():
+            raise ValidationError({"quantity": "Serialized products must use whole-unit quantities."})
+        if int(quantity) < reserved_count:
+            raise ValidationError({
+                "quantity": (
+                    f"Release {reserved_count - int(quantity)} assigned serial / IMEI "
+                    "before reducing this serialized line."
+                )
+            })
     tax_rate = Decimal("0")
     if locked_ln.menu_item is not None and locked_ln.menu_item.tax_rate_percent is not None:
         tax_rate = locked_ln.menu_item.tax_rate_percent
@@ -1195,6 +1213,8 @@ def cancel_open_unpaid_order(*, order: Order, user, reason: str = "") -> Order:
         )
     locked.status = OrderStatus.CANCELLED
     locked.save(update_fields=["status", "updated_at"])
+    from apps.inventory.services_serials import release_open_order_serial_reservations
+    release_open_order_serial_reservations(order=locked, user=user)
     log_audit(
         tenant_id=locked.tenant_id,
         user_id=user.id if user else None,
