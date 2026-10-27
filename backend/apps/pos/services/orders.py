@@ -573,6 +573,8 @@ def create_order_with_lines(
             merchandise_category_snapshot=(
                 menu_item.category.name if menu_item.category_id else ""
             ),
+            merchandise_sku_snapshot=menu_item.sku or "",
+            inventory_tracked_snapshot=bool(menu_item.track_inventory),
             sort_order=i,
             kds_station=(menu_item.kds_station or "")[:32],
             modifiers_snapshot=mod_snapshot,
@@ -992,6 +994,12 @@ def add_line_to_open_order(
                 candidate.merchandise_category_snapshot = (
                     menu_item.category.name if menu_item.category_id else ""
                 )
+            if not candidate.merchandise_sku_snapshot:
+                candidate.merchandise_sku_snapshot = menu_item.sku or ""
+            if candidate.inventory_tracked_snapshot is None:
+                candidate.inventory_tracked_snapshot = bool(
+                    menu_item.track_inventory
+                )
             candidate.price_book_rule = merged_rule
             candidate.price_book_base_unit_price = candidate_base if merged_rule is not None else None
             merged_eff_unit = merged_price + per_unit_mod
@@ -999,6 +1007,7 @@ def add_line_to_open_order(
             candidate.tax_amount = line_tax(candidate.line_total, menu_item.tax_rate_percent)
             candidate.save(update_fields=[
                 "quantity", "unit_price", "merchandise_category_snapshot",
+                "merchandise_sku_snapshot", "inventory_tracked_snapshot",
                 "price_book_rule", "price_book_base_unit_price",
                 "line_total", "tax_amount", "updated_at",
             ])
@@ -1032,6 +1041,8 @@ def add_line_to_open_order(
         merchandise_category_snapshot=(
             menu_item.category.name if menu_item.category_id else ""
         ),
+        merchandise_sku_snapshot=menu_item.sku or "",
+        inventory_tracked_snapshot=bool(menu_item.track_inventory),
         price_book_rule=new_line_rule,
         price_book_base_unit_price=base_unit_price if new_line_rule is not None else None,
         sort_order=next_sort,
