@@ -50,3 +50,37 @@ def promotion_target_q_for_items(items) -> Q:
     for brand in brands:
         q |= Q(brand__iexact=brand)
     return q
+
+
+def promotion_qualifying_quantity(promotion, order):
+    """Return the basket quantity eligible for one promotion target."""
+    from decimal import Decimal
+
+    quantity = Decimal("0")
+    for line in order.lines.select_related("menu_item").filter(
+        is_voided=False,
+        menu_item__isnull=False,
+    ):
+        if promotion_matches_item(promotion, line.menu_item):
+            quantity += line.quantity
+    return quantity
+
+
+def promotion_redemption_block_reason(promotion, order) -> str:
+    """Return a user-facing reason when paid-order redemption limits are exhausted."""
+    from apps.pos.models import Order
+
+    paid = Order.objects.filter(
+        tenant_id=promotion.tenant_id,
+        applied_promotion_id=promotion.pk,
+        is_paid=True,
+    )
+    if promotion.max_redemptions is not None and paid.count() >= promotion.max_redemptions:
+        return "This offer has reached its total redemption limit."
+    if (
+        promotion.max_redemptions_per_customer is not None
+        and order.customer_id is not None
+        and paid.filter(customer_id=order.customer_id).count() >= promotion.max_redemptions_per_customer
+    ):
+        return "This customer has reached the redemption limit for this offer."
+    return ""
