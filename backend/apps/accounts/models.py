@@ -164,6 +164,110 @@ class RoleTemplate(TimeStampedModel):
         return f"{self.name} ({self.get_base_role_display()})"
 
 
+class CommissionRule(TimeStampedModel):
+    """Tenant commission rule evaluated only when a sale is fully settled."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="commission_rules",
+    )
+    name = models.CharField(max_length=80)
+    membership = models.ForeignKey(
+        Membership,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="commission_rules",
+    )
+    menu_item = models.ForeignKey(
+        "catalog.MenuItem",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="commission_rules",
+    )
+    category = models.ForeignKey(
+        "catalog.MenuCategory",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="commission_rules",
+    )
+    rate_percent = models.DecimalField(max_digits=5, decimal_places=2)
+    effective_from = models.DateField(null=True, blank=True)
+    effective_to = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="commission_rules_created",
+    )
+
+    class Meta:
+        ordering = ["-is_active", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "name"],
+                name="uniq_commission_rule_name_per_tenant",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(rate_percent__gte=0)
+                & models.Q(rate_percent__lte=100),
+                name="commission_rate_percent_0_100",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} · {self.rate_percent}%"
+
+
+class SalesTarget(TimeStampedModel):
+    """Manager-set sales target; reporting only, never payroll."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="sales_targets",
+    )
+    membership = models.ForeignKey(
+        Membership,
+        on_delete=models.CASCADE,
+        related_name="sales_targets",
+    )
+    period_start = models.DateField()
+    period_end = models.DateField()
+    target_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    note = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sales_targets_created",
+    )
+
+    class Meta:
+        ordering = ["-period_start", "membership"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(target_amount__gte=0),
+                name="sales_target_amount_nonnegative",
+            ),
+            models.UniqueConstraint(
+                fields=["tenant", "membership", "period_start", "period_end"],
+                name="uniq_sales_target_worker_period",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.membership.user.email} · {self.period_start}–{self.period_end}"
+
+
 class AttendanceShiftStatus(models.TextChoices):
     OPEN = "open", "Clocked in"
     PENDING = "pending", "Pending review"
