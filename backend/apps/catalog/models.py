@@ -891,6 +891,32 @@ class Promotion(TimeStampedModel):
         related_name="promotions",
     )
     name = models.CharField(max_length=128)
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.PROTECT,
+        related_name="promotions",
+        null=True,
+        blank=True,
+    )
+    product_family = models.ForeignKey(
+        ProductFamily,
+        on_delete=models.PROTECT,
+        related_name="promotions",
+        null=True,
+        blank=True,
+    )
+    category = models.ForeignKey(
+        MenuCategory,
+        on_delete=models.PROTECT,
+        related_name="promotions",
+        null=True,
+        blank=True,
+    )
+    brand = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Optional case-insensitive brand target. Leave all targets blank for a whole-basket promotion.",
+    )
     discount_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -924,6 +950,47 @@ class Promotion(TimeStampedModel):
 
     class Meta:
         ordering = ["-starts_at", "name"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(menu_item__isnull=True, product_family__isnull=True, category__isnull=True)
+                    | models.Q(menu_item__isnull=False, product_family__isnull=True, category__isnull=True, brand="")
+                    | models.Q(menu_item__isnull=True, product_family__isnull=False, category__isnull=True, brand="")
+                    | models.Q(menu_item__isnull=True, product_family__isnull=True, category__isnull=False, brand="")
+                ),
+                name="promotion_at_most_one_structured_target",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.menu_item_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Promotion product must belong to this business."})
+        if self.product_family_id and self.product_family.tenant_id != self.tenant_id:
+            raise ValidationError({"product_family": "Promotion family must belong to this business."})
+        if self.category_id and self.category.tenant_id != self.tenant_id:
+            raise ValidationError({"category": "Promotion category must belong to this business."})
+        targets = (
+            int(bool(self.menu_item_id))
+            + int(bool(self.product_family_id))
+            + int(bool(self.category_id))
+            + int(bool((self.brand or "").strip()))
+        )
+        if targets > 1:
+            raise ValidationError("Choose only one promotion target: product, family, brand, or category.")
+        self.brand = (self.brand or "").strip()
+
+    @property
+    def target_label(self):
+        if self.menu_item_id:
+            return self.menu_item.name
+        if self.product_family_id:
+            return f"Family · {self.product_family.name}"
+        if self.category_id:
+            return f"Category · {self.category.name}"
+        if self.brand:
+            return f"Brand · {self.brand}"
+        return "Whole basket"
 
     def __str__(self) -> str:
         return self.name
