@@ -54,6 +54,10 @@ from .pricing_policy import (
     manual_discount_combination_block_reason,
     promotion_combination_block_reason,
 )
+from .margin_floor import (
+    line_margin_floor_result,
+    promotion_margin_floor_result,
+)
 
 
 def require_active_retail_basket(order: Order) -> None:
@@ -726,6 +730,12 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
     )
     if promotion.offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT and disc <= 0:
         raise ValidationError({"promotion": "This quantity deal does not reduce the current qualifying item price."})
+    margin_breach, margin_reason = promotion_margin_floor_result(
+        order=locked,
+        discount_amount=disc,
+    )
+    if margin_breach:
+        raise ValidationError({"margin_floor": margin_reason})
     locked.discount_amount = disc
     locked.applied_promotion = promotion
     locked.save(update_fields=["discount_amount", "applied_promotion", "updated_at"])
@@ -1309,6 +1319,8 @@ def apply_supermarket_line_discount(
     user,
     discount_amount: Decimal | None = None,
     discount_percent: Decimal | None = None,
+    allow_margin_override: bool = False,
+    margin_override_reason: str = "",
 ) -> OrderLine:
     locked_o = Order.objects.select_for_update().get(pk=order.pk)
     require_active_retail_basket(locked_o)
@@ -1338,6 +1350,23 @@ def apply_supermarket_line_discount(
             raise ValidationError({"discount_amount": "Discount amount cannot be negative."})
     discount = min(discount, gross)
     net = (gross - discount).quantize(Decimal("0.01"))
+    proposed_unit = (
+        (net / locked_ln.quantity).quantize(Decimal("0.01"))
+        if locked_ln.quantity > 0 else Decimal("0.00")
+    )
+    margin_result = line_margin_floor_result(
+        order=locked_o,
+        line=locked_ln,
+        proposed_unit_price=proposed_unit,
+    )
+    override_reason = (margin_override_reason or "").strip()
+    if margin_result.breach:
+        if not allow_margin_override:
+            raise ValidationError({"margin_floor": margin_result.reason})
+        if len(override_reason) < 8:
+            raise ValidationError({
+                "margin_override_reason": "Explain the margin-floor override in at least 8 characters."
+            })
     tax_rate = Decimal("0")
     if locked_ln.menu_item is not None and locked_ln.menu_item.tax_rate_percent is not None:
         tax_rate = locked_ln.menu_item.tax_rate_percent
@@ -1368,6 +1397,17 @@ def apply_supermarket_line_discount(
             "order_id": str(locked_o.id),
             "line_discount_amount": str(discount),
             "line_discount_percent": str(discount_percent) if discount_percent is not None else None,
+            "margin_floor_percent": (
+                str(margin_result.floor_percent)
+                if margin_result.floor_percent is not None else None
+            ),
+            "minimum_unit_price": (
+                str(margin_result.minimum_unit_price)
+                if margin_result.minimum_unit_price is not None else None
+            ),
+            "proposed_unit_price": str(margin_result.proposed_unit_price),
+            "margin_floor_overridden": bool(margin_result.breach and allow_margin_override),
+            "margin_override_reason": override_reason if margin_result.breach else "",
         },
     )
     return locked_ln
