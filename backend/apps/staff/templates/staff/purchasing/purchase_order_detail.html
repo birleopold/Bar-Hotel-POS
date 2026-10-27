@@ -8,6 +8,31 @@
 
   <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Purchase order details</h1><p>Review ordered and received quantities, invoices and authorized actions.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All orders</a></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
+  <section class="staff-card mb-3" aria-label="Purchase approval">
+    <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+      <div>
+        <p class="staff-muted small mb-1">Purchase approval</p>
+        <h2 class="staff-card__title mb-1">{{ po.get_approval_status_display }}</h2>
+        <p class="staff-muted small mb-0">Requested by {{ po.created_by.get_full_name|default:po.created_by.email|default:"Unknown user" }}{% if po.reviewed_at %} · reviewed {{ po.reviewed_at }}{% endif %}</p>
+      </div>
+      {% if po.reviewed_by %}<span class="staff-tag">Reviewed by {{ po.reviewed_by.get_full_name|default:po.reviewed_by.email }}</span>{% endif %}
+    </div>
+    {% if po.review_note %}<p class="mt-2 mb-0"><strong>Review note:</strong> {{ po.review_note }}</p>{% endif %}
+    {% if can_approve_purchasing %}
+      <form method="post" class="row g-2 align-items-end mt-2">
+        {% csrf_token %}
+        <div class="col-12 col-md-6"><label class="staff-label" for="purchase-review-note">Review note</label><input class="staff-input" id="purchase-review-note" name="review_note" maxlength="512" placeholder="Optional for approval; required for rejection"></div>
+        <div class="col-6 col-md-3"><button class="staff-btn staff-btn--primary w-100" type="submit" name="action" value="approve_request">Approve request</button></div>
+        <div class="col-6 col-md-3"><button class="staff-btn staff-btn--ghost w-100" type="submit" name="action" value="reject_request">Reject request</button></div>
+      </form>
+    {% elif can_withdraw_purchase_request %}
+      <form method="post" class="mt-2">
+        {% csrf_token %}
+        <button class="staff-btn staff-btn--ghost" type="submit" name="action" value="withdraw_request">Withdraw my request</button>
+      </form>
+    {% endif %}
+    {% if po.approval_status == 'pending' %}<p class="staff-muted small mt-2 mb-0">Nothing can be sent to the supplier until a different authorized manager approves this request.</p>{% elif po.approval_status == 'rejected' %}<p class="staff-muted small mt-2 mb-0">This request cannot be sent. Create a corrected request if stock is still needed.</p>{% endif %}
+  </section>
   <h2 class="fizo-purchasing__section-heading">{% if grocery_owner_shell %}Products ordered{% else %}Line items{% endif %}</h2>
   <div class="fizo-purchasing__panel mb-3">
     <div class="fizo-purchasing__tablewrap">
@@ -30,7 +55,7 @@
     <h2 class="fizo-purchasing__section-heading">Status</h2>
     <div class="staff-toolbar staff-toolbar--tight flex-wrap mb-3">
       {% if can_modify_purchasing %}
-      {% if po.status == 'draft' %}
+      {% if po.status == 'draft' and po.approval_status == 'approved' %}
         <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="send"><button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Mark order as sent{% else %}Mark sent{% endif %}</button></form>
       {% endif %}
       {% if po.status == 'draft' or po.status == 'sent' %}
