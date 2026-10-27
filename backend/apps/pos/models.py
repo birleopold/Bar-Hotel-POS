@@ -256,6 +256,17 @@ class OrderLine(TimeStampedModel):
         default="",
         help_text="Merchandise category name captured when the sale line was created for historical reporting.",
     )
+    merchandise_sku_snapshot = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="SKU captured for historical merchandise reporting.",
+    )
+    inventory_tracked_snapshot = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Whether this merchandise line was inventory tracked at sale time; null means legacy/unknown.",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     seat_number = models.PositiveSmallIntegerField(
         null=True,
