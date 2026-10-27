@@ -1116,15 +1116,15 @@ class TargetedPromotionTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.discount_amount, Decimal("5000.00"))
 
-    def test_cross_target_bogo_recalculates_when_reward_removed(self):
+    def test_cross_target_bogo_recalculates_when_qualifying_quantity_drops(self):
         order = self._order()
-        add_line_to_open_order(
+        qualifying_line = add_line_to_open_order(
             order=order,
             menu_item=self.oil,
-            quantity=Decimal("1"),
+            quantity=Decimal("2"),
             user=self.user,
         )
-        reward_line = add_line_to_open_order(
+        add_line_to_open_order(
             order=order,
             menu_item=self.soap,
             quantity=Decimal("1"),
@@ -1137,7 +1137,7 @@ class TargetedPromotionTests(TestCase):
             reward_menu_item=self.soap,
             discount_percent=None,
             discount_amount=None,
-            buy_quantity=1,
+            buy_quantity=2,
             get_quantity=1,
         )
         apply_promotion_to_order(order=order, promotion=promo, user=self.user)
@@ -1147,8 +1147,8 @@ class TargetedPromotionTests(TestCase):
         from apps.pos.services.orders import adjust_open_order_line_quantity
         adjust_open_order_line_quantity(
             order=order,
-            line=reward_line,
-            quantity=Decimal("0"),
+            line=qualifying_line,
+            quantity=Decimal("1"),
             user=self.user,
         )
         order.refresh_from_db()
@@ -1195,4 +1195,28 @@ class TargetedPromotionTests(TestCase):
         )
         self.assertFalse(serializer.is_valid())
         self.assertIn("reward_menu_item", serializer.errors)
+
+    def test_cross_target_bogo_overlap_fails_closed(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Unsafe overlapping BOGO",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            category=self.food,
+            reward_menu_item=self.oil,
+            discount_percent=None,
+            discount_amount=None,
+            buy_quantity=1,
+            get_quantity=1,
+        )
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
 
