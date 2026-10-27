@@ -22,7 +22,8 @@ from apps.pos.models import (
     SupermarketLineReturn,
 )
 from apps.pos.services.commissions import snapshot_order_commissions
-from apps.pos.services.payments import record_order_payment
+from apps.lodging.models import Folio
+from apps.pos.services.payments import charge_order_to_folio, record_order_payment
 from apps.staff.middleware import (
     STAFF_SESSION_OUTLET_KEY,
     STAFF_SESSION_SITE_KEY,
@@ -199,6 +200,48 @@ class CommissionWorkflowTests(TestCase):
         line.refresh_from_db()
         self.assertEqual(line.commission_rate_percent_snapshot, Decimal("5.00"))
         self.assertEqual(line.commission_amount_snapshot, Decimal("5.00"))
+
+    def test_folio_charged_completed_sale_gets_commission_snapshot(self):
+        CommissionRule.objects.create(
+            tenant=self.tenant,
+            name="Folio worker rate",
+            membership=self.membership,
+            rate_percent=Decimal("7.00"),
+            created_by=self.owner,
+        )
+        folio = Folio.objects.create(
+            tenant=self.tenant,
+            site=self.site,
+            guest_name="House account",
+            currency="UGX",
+        )
+        order, line = self._order()
+        order.folio = folio
+        order.save(update_fields=["folio", "updated_at"])
+
+        charge_order_to_folio(
+            order=order,
+            membership=self.membership,
+            user=self.user,
+        )
+        order.refresh_from_db()
+        line.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.CLOSED)
+        self.assertFalse(order.is_paid)
+        self.assertEqual(line.sales_attributed_membership_id, self.membership.pk)
+        self.assertEqual(line.commission_rate_percent_snapshot, Decimal("7.00"))
+        self.assertEqual(line.commission_amount_snapshot, Decimal("7.00"))
+        self.assertIsNotNone(line.commission_settled_at_snapshot)
+
+        today = timezone.localdate()
+        result = build_commission_report(
+            tenant_id=self.tenant.pk,
+            date_from=today,
+            date_to=today,
+            allowed_outlet_ids=[self.outlet.pk],
+            currency="UGX",
+        )
+        self.assertEqual(result["gross_commission"], Decimal("7.00"))
 
     def test_returns_and_refunds_reverse_commission_across_periods(self):
         CommissionRule.objects.create(
@@ -410,5 +453,35 @@ class CommissionWorkflowTests(TestCase):
             CommissionRule.objects.filter(
                 tenant=self.tenant,
                 name="Cross tenant",
+            ).exists()
+        )
+
+        existing = CommissionRule.objects.create(
+            tenant=self.tenant,
+            name="Existing worker rule",
+            membership=self.membership,
+            rate_percent=Decimal("4.00"),
+            effective_from=timezone.localdate(),
+            created_by=self.owner,
+        )
+        overlap = owner_client.post(
+            reverse("staff-workspace-commission-rule-create"),
+            {
+                "name": "Ambiguous worker rule",
+                "membership": str(self.membership.pk),
+                "menu_item": "",
+                "category": "",
+                "rate_percent": "6",
+                "effective_from": timezone.localdate().isoformat(),
+                "effective_to": "",
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(overlap.status_code, 200)
+        self.assertContains(overlap, "already overlaps this effective period")
+        self.assertFalse(
+            CommissionRule.objects.filter(
+                tenant=self.tenant,
+                name="Ambiguous worker rule",
             ).exists()
         )
