@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Membership, MembershipRole
 from apps.staff.report_csv import format_sales_summary_csv_from_summary
+from apps.staff.profitability import build_merchandise_profitability
 from apps.staff.sales_summary import build_sales_summary
 from apps.tenants.models import (
     Outlet, OwnerReportDelivery, OwnerReportDeliveryStatus,
@@ -162,7 +163,46 @@ def build_pdf_summary(*, schedule, period, summary):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
         ("TOPPADDING", (0, 0), (-1, -1), 9),
     ]))
-    story.extend([table, Spacer(1, 16), Paragraph("Top items", styles["Heading2"])])
+    profitability = summary.get("merchandise_profitability")
+    if profitability:
+        story.extend([
+            table,
+            Spacer(1, 16),
+            Paragraph("Merchandise profitability", styles["Heading2"]),
+        ])
+        profit_rows = [
+            ["Metric", "Amount / coverage"],
+            ["Net merchandise revenue", f"{profitability['currency']} {profitability['net_merchandise_revenue']}"],
+            ["Known net COGS", f"{profitability['currency']} {profitability['known_net_cogs']}"],
+            ["Known gross profit", f"{profitability['currency']} {profitability['known_gross_profit']}"],
+            ["Known margin", (
+                f"{profitability['known_margin_percent']}%"
+                if profitability["known_margin_percent"] is not None else "—"
+            )],
+            ["Cost coverage", f"{profitability['cost_coverage_percent']}%"],
+            ["Profitability coverage", (
+                "Complete" if profitability["profitability_complete"] else "Incomplete"
+            )],
+        ]
+        profit_table = Table(profit_rows, colWidths=[270, 190], repeatRows=1)
+        profit_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E5EFF2")),
+            ("GRID", (0, 0), (-1, -1), .4, colors.HexColor("#D2D9E2")),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+            ("TOPPADDING", (0, 0), (-1, -1), 9),
+        ]))
+        story.extend([profit_table, Spacer(1, 10)])
+        if not profitability["profitability_complete"]:
+            story.append(Paragraph(
+                "Profitability is incomplete because one or more sale-time costs, "
+                "restocked-return cost reversals, refund attributions, or historical "
+                "currency records are not fully attributable. No current cost was "
+                "substituted for missing historical cost.",
+                styles["Normal"],
+            ))
+        story.extend([Spacer(1, 16), Paragraph("Top items", styles["Heading2"])])
+    else:
+        story.extend([table, Spacer(1, 16), Paragraph("Top items", styles["Heading2"])])
     items = summary.get("top_items") or []
     if not items:
         story.append(Paragraph("No sales items recorded for this period.", styles["Normal"]))
@@ -202,11 +242,20 @@ def _summary_for_schedule(schedule, period):
         site__is_active=True,
         **({"site": schedule.site} if schedule.site_id else {}),
     ).values_list("pk", flat=True))
-    return build_sales_summary(
+    summary = build_sales_summary(
         schedule.tenant_id, period[0], period[1],
         allowed_outlet_ids=allowed_ids,
         business_date_site=schedule.site if schedule.site_id else None,
     )
+    summary["merchandise_profitability"] = build_merchandise_profitability(
+        tenant_id=schedule.tenant_id,
+        date_from=period[0],
+        date_to=period[1],
+        allowed_outlet_ids=allowed_ids,
+        currency=schedule.tenant.settings.default_currency,
+        business_date_site=schedule.site if schedule.site_id else None,
+    )
+    return summary
 
 
 @transaction.atomic
