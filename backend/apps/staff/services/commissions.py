@@ -196,8 +196,8 @@ def build_commission_report(
         for target in SalesTarget.objects.filter(
             tenant_id=tenant_id,
             membership_id__in=[row["membership_id"] for row in rows],
-            period_start__lte=date_to,
-            period_end__gte=date_from,
+            period_start__lte=date_from,
+            period_end__gte=date_to,
         ).select_related("membership__user")
     }
     for row in rows:
