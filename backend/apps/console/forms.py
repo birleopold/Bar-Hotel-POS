@@ -538,11 +538,19 @@ class ConsoleMenuItemForm(forms.ModelForm):
             Q(barcode__iexact=barcode) | Q(sku_alias__iexact=barcode)
         ).exists():
             self.add_error("barcode", "This code is already assigned to a product package.")
+        if barcode and RetailProductGroup.objects.filter(
+            tenant=self.tenant, code__iexact=barcode
+        ).exists():
+            self.add_error("barcode", "This code is already assigned to a retail product group.")
         sku = (values.get("sku") or "").strip()
         if sku and ProductPackage.objects.filter(tenant=self.tenant).filter(
             Q(sku_alias__iexact=sku) | Q(barcode__iexact=sku)
         ).exists():
             self.add_error("sku", "This code is already assigned to a product package.")
+        if sku and RetailProductGroup.objects.filter(
+            tenant=self.tenant, code__iexact=sku
+        ).exists():
+            self.add_error("sku", "This code is already assigned to a retail product group.")
         return values
 
 
@@ -711,6 +719,8 @@ class ConsoleProductPackageForm(forms.ModelForm):
             Q(barcode__iexact=barcode) | Q(sku__iexact=barcode)
         ).exists():
             raise forms.ValidationError("This code is already registered to a product barcode or SKU.")
+        if RetailProductGroup.objects.filter(tenant=self.tenant, code__iexact=barcode).exists():
+            raise forms.ValidationError("This code is already used by a retail product group.")
         qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
             Q(barcode__iexact=barcode) | Q(sku_alias__iexact=barcode)
         )
@@ -728,6 +738,8 @@ class ConsoleProductPackageForm(forms.ModelForm):
             Q(sku__iexact=code) | Q(barcode__iexact=code)
         ).exists():
             raise forms.ValidationError("This package code is already used by a product SKU or barcode.")
+        if RetailProductGroup.objects.filter(tenant=self.tenant, code__iexact=code).exists():
+            raise forms.ValidationError("This package code is already used by a retail product group.")
         qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
             Q(sku_alias__iexact=code) | Q(barcode__iexact=code)
         )
