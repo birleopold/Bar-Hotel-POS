@@ -670,6 +670,14 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
         ]
         if not reward_lines:
             raise ValidationError({"promotion": "Add the configured reward item before applying this Buy X Get Y offer."})
+        if reward_is_separate and any(
+            promotion_matches_item(promotion, line.menu_item)
+            and promotion_reward_matches_item(promotion, line.menu_item)
+            for line in active_lines
+        ):
+            raise ValidationError({
+                "promotion": "Qualifying and reward pools overlap in this basket. Use separate non-overlapping targets."
+            })
         if any(
             line.quantity != line.quantity.to_integral_value()
             for line in eligible_lines + reward_lines
