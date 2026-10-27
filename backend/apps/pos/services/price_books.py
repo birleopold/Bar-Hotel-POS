@@ -20,6 +20,7 @@ from apps.pos.models import (
 from apps.tenants.models import OutletType
 
 from .pricing import line_tax, line_total, recalculate_order_totals
+from .margin_floor import line_margin_floor_result
 
 
 RETAIL_OUTLET_TYPES = {OutletType.RETAIL, OutletType.SUPERMARKET}
@@ -173,6 +174,17 @@ def apply_customer_price_to_locked_line(
     )
 
     new_price = rule.unit_price if rule is not None else base
+    if rule is not None:
+        margin_result = line_margin_floor_result(
+            order=order,
+            line=line,
+            proposed_unit_price=new_price,
+        )
+        if margin_result.breach:
+            # Automatic customer pricing may never cross a configured margin
+            # floor. Fall back to the ordinary price rather than blocking sale.
+            rule = None
+            new_price = base
     new_rule_id = rule.pk if rule is not None else None
     new_base = base if rule is not None else None
     if (
