@@ -1,0 +1,66 @@
+{% extends "staff/base.html" %}
+{% block title %}Roles & access{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Workspace</p>
+    <div class="staff-page-hero__head">
+      <div class="staff-page-hero__copy">
+        <h1 class="staff-page-title mb-0">Roles & access<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+        <p class="staff-dash-hero__tagline mb-0">Use safe built-in roles, or save reusable role-and-scope templates for your branches.</p>
+      </div>
+      <div class="staff-page-hero__actions">
+        <a class="staff-btn staff-btn--primary" href="{% url 'staff-workspace-role-template-create' %}">New role template</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+{% include "staff/settings/includes/subnav.html" %}
+
+<section class="staff-card mb-3">
+  <h2 class="staff-card__title">How role templates work</h2>
+  <p class="staff-muted">A saved template copies one proven base role plus its default branch/outlet scope onto a worker. Templates never create owner/admin access and never grant capabilities beyond the selected base role. Editing a template does not silently change workers who already received it.</p>
+</section>
+
+<h2 class="staff-section-head">Saved templates</h2>
+<div class="staff-tile-grid mb-4">
+  {% for template in role_templates %}
+  <article class="staff-tile">
+    <div class="d-flex justify-content-between gap-2 align-items-start">
+      <div>
+        <strong>{{ template.name }}</strong>
+        <span class="staff-muted small d-block">{{ template.get_base_role_display }}{% if not template.is_active %} · Inactive{% endif %}</span>
+      </div>
+      <a class="staff-table__action-link" href="{% url 'staff-workspace-role-template-edit' template_id=template.id %}">Edit</a>
+    </div>
+    {% if template.description %}<p class="small mb-2">{{ template.description }}</p>{% endif %}
+    <p class="staff-muted small mb-2">{{ template.access_preview.summary }}</p>
+    <p class="small mb-1"><strong>Branches:</strong> {% for site in template.sites.all %}{{ site.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    <p class="small mb-1"><strong>Sales areas:</strong> {% for outlet in template.outlets.all %}{{ outlet.name }}{% if not forloop.last %}, {% endif %}{% empty %}All compatible outlets in selected branches{% endfor %}</p>
+    <p class="staff-muted small mb-0">{{ template.applied_member_count }} worker{{ template.applied_member_count|pluralize }} last applied from this template</p>
+  </article>
+  {% empty %}
+  <div class="staff-card"><p class="mb-0">No saved role templates yet. Built-in roles below are already available.</p></div>
+  {% endfor %}
+</div>
+
+<h2 class="staff-section-head">Built-in role preview</h2>
+<div class="staff-tile-grid">
+  {% for role in built_in_role_previews %}
+  <article class="staff-tile">
+    <strong>{{ role.role_label }}</strong>
+    <p class="staff-muted small">{{ role.summary }}</p>
+    {% for group in role.groups %}
+      <div class="mb-2">
+        <span class="staff-muted small d-block"><strong>{{ group.label }}</strong></span>
+        <ul class="small mb-0">
+          {% for item in group.items %}<li>{{ item }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+    <p class="staff-muted small mb-0">{{ role.scope_note }}</p>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}
