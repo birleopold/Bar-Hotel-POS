@@ -5,7 +5,7 @@ from django.db.models.functions import Cast, Replace
 from django.utils import timezone
 from django.urls import reverse
 from apps.accounts.models import MembershipRole
-from apps.audit.models import AuditEvent, ExceptionReview
+from apps.audit.models import AuditEvent, ExceptionReview, SensitiveActionApproval
 from apps.audit.services import exception_fingerprint
 from apps.finance.models import FinancePostingLink
 from apps.inventory.models import StockMovement, StockReason
@@ -13,7 +13,7 @@ from apps.integrations.models import EfrisSubmission
 from apps.pos.models import Order, OrderLine, OfflineQueuedOperation, Payment, Refund
 from apps.purchasing.models import PurchaseReceipt
 
-EXTRA_KINDS = ("discount", "line_discount", "void", "drawer_no_sale", "manual_price", "price_change", "stock_adjustment", "delivery_discrepancy", "efris_failure", "offline_conflict", "pin_failure")
+EXTRA_KINDS = ("discount", "line_discount", "margin_override", "void", "drawer_no_sale", "manual_price", "price_change", "stock_adjustment", "delivery_discrepancy", "efris_failure", "offline_conflict", "pin_failure")
 
 
 def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
@@ -94,6 +94,84 @@ def extra_exception_rows(request, policy, outlets, modules, vis, source, row):
                 f"{obj.label} · {obj.line_discount_amount} {obj.order.currency} · applied by {actor}",
                 reverse("staff-order-detail", kwargs={"order_id": obj.order_id}),
                 (obj.line_discount_amount, obj.updated_at),
+            ))
+        margin_override_events = list(limited(
+            AuditEvent.objects.filter(
+                tenant=request.tenant,
+                action="order.line_discount_applied",
+                created_at__gte=cutoff,
+                payload__margin_floor_overridden=True,
+            ).select_related("user").order_by("-created_at"),
+            "margin_override",
+        ))
+        margin_override_lines = {
+            str(line.pk): line
+            for line in OrderLine.objects.filter(
+                pk__in=[event.entity_id for event in margin_override_events],
+                order__tenant=request.tenant,
+                order__outlet_id__in=ids,
+            ).select_related("order", "order__outlet", "order__created_by")
+        }
+        margin_override_approvals = {}
+        order_ids = {
+            str(line.order_id) for line in margin_override_lines.values()
+        }
+        if order_ids:
+            approvals = (
+                SensitiveActionApproval.objects.filter(
+                    tenant=request.tenant,
+                    action="discount",
+                    entity_type="order",
+                    entity_id__in=order_ids,
+                    used_at__isnull=False,
+                )
+                .select_related("requester__user", "approver__user")
+                .order_by("created_at")
+            )
+            for approval in approvals:
+                line_id = str((approval.intent_payload or {}).get("line_id") or "")
+                if line_id in margin_override_lines:
+                    margin_override_approvals[line_id] = approval
+        for event in margin_override_events:
+            line = margin_override_lines.get(str(event.entity_id))
+            if line is None:
+                continue
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            approval = margin_override_approvals.get(str(line.pk))
+            cashier = actor_label(
+                event.user or line.order.created_by,
+                fallback="Operator not recorded",
+            )
+            approver = (
+                actor_label(approval.approver.user)
+                if approval is not None else "Approval record not linked"
+            )
+            reason = str(payload.get("margin_override_reason") or "").strip()
+            detail = (
+                f"{line.order.outlet.name} · {line.label}"
+                f" · floor {payload.get('margin_floor_percent') or '?'}%"
+                f" · minimum {payload.get('minimum_unit_price') or '?'}"
+                f" · sold at {payload.get('proposed_unit_price') or '?'} {line.order.currency}"
+                f" · cashier {cashier} · approved by {approver}"
+            )
+            if reason:
+                detail += f" · {reason}"
+            result.append(row(
+                "margin_override",
+                event,
+                "Retail margin-floor override",
+                detail,
+                reverse("staff-order-detail", kwargs={"order_id": line.order_id}),
+                (
+                    event.pk,
+                    event.created_at,
+                    payload.get("margin_floor_percent"),
+                    payload.get("minimum_unit_price"),
+                    payload.get("proposed_unit_price"),
+                    reason,
+                    approval.pk if approval is not None else None,
+                ),
+                outlet_id=line.order.outlet_id,
             ))
         # Investigate repeated voids on the same sale without mistaking the
         # most recent 50 displayed records for a complete frequency count.
