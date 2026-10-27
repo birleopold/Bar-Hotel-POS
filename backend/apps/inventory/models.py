@@ -134,6 +134,7 @@ class InventorySerialUnit(TimeStampedModel):
     )
     received_at = models.DateField()
     sold_at = models.DateTimeField(null=True, blank=True)
+    warranty_started_at = models.DateField(null=True, blank=True)
     warranty_expires_at = models.DateField(null=True, blank=True)
     note = models.CharField(max_length=512, blank=True)
 
