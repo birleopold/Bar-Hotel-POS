@@ -116,3 +116,44 @@ def promotion_reward_quantity(promotion, order):
         if promotion_reward_matches_item(promotion, line.menu_item):
             quantity += line.quantity
     return quantity
+
+
+
+def promotion_schedule_active(promotion, *, at=None) -> bool:
+    """Evaluate date range plus recurring weekdays/times in tenant local time."""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+    from django.utils import timezone
+    from apps.tenants.models import TenantSettings
+
+    moment = at or timezone.now()
+    if not promotion.is_active:
+        return False
+    if promotion.starts_at > moment:
+        return False
+    if promotion.ends_at is not None and promotion.ends_at < moment:
+        return False
+
+    timezone_name = (
+        TenantSettings.objects.filter(tenant_id=promotion.tenant_id)
+        .values_list("default_timezone", flat=True)
+        .first()
+        or "UTC"
+    )
+    try:
+        business_tz = ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        business_tz = ZoneInfo("UTC")
+    local = timezone.localtime(moment, business_tz)
+
+    weekdays = promotion.schedule_weekdays or []
+    if weekdays and local.isoweekday() not in {int(value) for value in weekdays}:
+        return False
+
+    start_time = promotion.schedule_start_time
+    end_time = promotion.schedule_end_time
+    if start_time is not None and end_time is not None:
+        current_time = local.timetz().replace(tzinfo=None)
+        if not (start_time <= current_time < end_time):
+            return False
+    return True
