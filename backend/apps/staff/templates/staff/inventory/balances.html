@@ -10,6 +10,7 @@
     <div class="fizo-stock__actions">
       {% if can_modify_inventory %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}"><i class="bi bi-plus-lg"></i> Record stock</a><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer' %}">Transfer</a>{% endif %}
       <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
+      {% if 'supermarket' in request.tenant.settings.business_lines or 'retail' in request.tenant.settings.business_lines %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-assemblies' %}">Build / unbuild</a>{% endif %}
     </div>
   </header>
   {% include "staff/inventory/includes/subnav.html" %}
