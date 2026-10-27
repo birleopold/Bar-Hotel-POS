@@ -134,17 +134,18 @@ def membership_has_inventory_capability(membership: Membership | None, capabilit
 
 # Phase 20: purchasing actions share one role policy. This does not replace
 # tenant/module/site/outlet authorization at individual views and services.
+PURCHASING_MANAGER_ROLES = frozenset({
+    MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
+    MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
+})
+
 PURCHASING_CAPABILITY_ROLES = {
     "view": INVENTORY_CAPABILITY_ROLES["view"],
+    "request": INVENTORY_CAPABILITY_ROLES["adjust"],
     "receive": INVENTORY_CAPABILITY_ROLES["adjust"],
-    "manage": frozenset({
-        MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
-        MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
-    }),
-    "supplier_payment": frozenset({
-        MembershipRole.OWNER, MembershipRole.TENANT_ADMIN,
-        MembershipRole.SITE_MANAGER, MembershipRole.OUTLET_MANAGER,
-    }),
+    "manage": PURCHASING_MANAGER_ROLES,
+    "approve": PURCHASING_MANAGER_ROLES,
+    "supplier_payment": PURCHASING_MANAGER_ROLES,
 }
 
 
