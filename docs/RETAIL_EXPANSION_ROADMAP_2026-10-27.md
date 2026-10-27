@@ -153,9 +153,10 @@ Implemented in source, pending exact-head software/browser certification:
 - Optional coupon codes are tenant-unique and hidden from the normal offer dropdown; cashiers must enter the code explicitly.
 - Optional global and per-identified-customer redemption limits count fully paid orders, so apply/remove/reapply clicks do not consume redemptions.
 - Staff management and API serializers expose the same target, coupon, quantity and redemption controls.
+- X-for-fixed-amount quantity deals run through the same promotion engine: complete whole-unit sets only, product/family/category/brand target, optional per-order set cap, live basket recalculation, API/staff controls and a fail-closed guard when the configured deal would not reduce the qualifying price.
 
 Still R2 work:
-- buy-X-get-Y, X-for-fixed-amount and mix-and-match mechanics;
+- mix-and-match mechanics and cross-target Buy-X-Get-Y;
 - group/bundle promotional pricing;
 - richer markdown scheduling and price/promotion performance reporting;
 - an explicit multi-offer stacking/precedence contract if simultaneous offers are later allowed;
