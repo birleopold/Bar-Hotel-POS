@@ -168,6 +168,21 @@ urlpatterns = [
         name="console-org-menu-category-edit",
     ),
     path(
+        "org/menu/product-families/",
+        views_catalog.OrgProductFamilyListView.as_view(),
+        name="console-org-product-families",
+    ),
+    path(
+        "org/menu/product-families/new/",
+        views_catalog.OrgProductFamilyCreateView.as_view(),
+        name="console-org-product-family-create",
+    ),
+    path(
+        "org/menu/product-families/<uuid:family_id>/edit/",
+        views_catalog.OrgProductFamilyUpdateView.as_view(),
+        name="console-org-product-family-edit",
+    ),
+    path(
         "org/menu/items/",
         views_catalog.OrgMenuItemListView.as_view(),
         name="console-org-menu-items",
@@ -186,6 +201,21 @@ urlpatterns = [
         "org/menu/items/<uuid:item_id>/edit/",
         views_catalog.OrgMenuItemUpdateView.as_view(),
         name="console-org-menu-item-edit",
+    ),
+    path(
+        "org/menu/items/<uuid:item_id>/packages/",
+        views_catalog.OrgProductPackageListView.as_view(),
+        name="console-org-menu-item-packages",
+    ),
+    path(
+        "org/menu/items/<uuid:item_id>/packages/new/",
+        views_catalog.OrgProductPackageCreateView.as_view(),
+        name="console-org-menu-item-package-create",
+    ),
+    path(
+        "org/menu/items/<uuid:item_id>/packages/<uuid:package_id>/edit/",
+        views_catalog.OrgProductPackageUpdateView.as_view(),
+        name="console-org-menu-item-package-edit",
     ),
     path(
         "org/menu/items/<uuid:item_id>/outlets/",
