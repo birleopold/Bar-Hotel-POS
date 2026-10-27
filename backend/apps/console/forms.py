@@ -896,14 +896,15 @@ class ConsolePriceBookRuleForm(forms.ModelForm):
         return data
 
 
-class ConsoleCustomerPriceBookAssignmentForm(forms.ModelForm):
-    class Meta:
-        model = CustomerPriceBookAssignment
-        fields = ("customer", "price_book")
-        widgets = {
-            "customer": forms.Select(attrs={"class": "staff-input"}),
-            "price_book": forms.Select(attrs={"class": "staff-input"}),
-        }
+class ConsoleCustomerPriceBookAssignmentForm(forms.Form):
+    customer = forms.ModelChoiceField(
+        queryset=Customer.objects.none(),
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
+    price_book = forms.ModelChoiceField(
+        queryset=PriceBook.objects.none(),
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
 
     def __init__(self, *args, tenant, price_book=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -925,6 +926,12 @@ class ConsoleCustomerPriceBookAssignmentForm(forms.ModelForm):
         if customer and customer.tenant_id != self.tenant.pk:
             raise forms.ValidationError("Choose a customer from this business.")
         return customer
+
+    def clean_price_book(self):
+        price_book = self.cleaned_data.get("price_book")
+        if price_book and price_book.tenant_id != self.tenant.pk:
+            raise forms.ValidationError("Choose a price book from this business.")
+        return price_book
 
 
 class ConsoleProductFamilyForm(forms.ModelForm):
