@@ -181,10 +181,15 @@ def receive_purchase_order_goods(
             else None
         )
 
-    if (
+    should_allocate = (
         total_extra_cost > 0
-        and landed_cost_allocation != PurchaseReceipt.LandedCostAllocation.EXCLUDE
-    ):
+        and landed_cost_allocation
+        in {
+            PurchaseReceipt.LandedCostAllocation.BY_COST,
+            PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+        }
+    ) or landed_cost_allocation == PurchaseReceipt.LandedCostAllocation.MANUAL
+    if should_allocate:
         if any(row["_line"].unit_cost is None for row in positive_rows):
             raise ValidationError({
                 "landed_cost": (
