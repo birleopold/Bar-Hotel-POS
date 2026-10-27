@@ -14,10 +14,14 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem, ProductPackage
 from apps.pos.services import default_currency_for_tenant
-from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod, SupplierProductCode
+from apps.purchasing.models import PurchaseApprovalStatus, PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod, SupplierProductCode
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
 from apps.purchasing.supplier_catalog import supplier_cost_histories
+from apps.purchasing.approvals import (
+    review_purchase_order_request,
+    withdraw_purchase_order_request,
+)
 from apps.tenants.models import Outlet, TenantSettings
 
 from .forms import StaffPOHeaderForm, StaffSupplierForm, StaffSupplierProductCodeForm
@@ -308,7 +312,9 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
         ctx["status_filter"] = self.request.GET.get("status") or ""
         ctx["receiving_lane"] = self.request.GET.get("lane") == "receiving"
         ctx["can_receive_stock"] = membership_has_purchasing_capability(self.request.tenant_membership, "receive")
+        ctx["can_request_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "request")
         ctx["can_modify_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "manage")
+        ctx["can_approve_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "approve")
         return ctx
 
 
@@ -321,8 +327,8 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
         bad = _purchasing_requires_outlets(request)
         if bad:
             return bad
-        if not membership_has_purchasing_capability(request.tenant_membership, "manage"):
-            messages.error(request, "Your role cannot create purchase orders.")
+        if not membership_has_purchasing_capability(request.tenant_membership, "request"):
+            messages.error(request, "Your role cannot prepare purchase requests.")
             return redirect("staff-purchasing-orders")
         return super().dispatch(request, *args, **kwargs)
 
@@ -549,7 +555,12 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
                 "notes": vd.get("notes") or "",
                 "lines": lines_payload,
             },
-            context={"request": request},
+            context={
+                "request": request,
+                "auto_approve": membership_has_purchasing_capability(
+                    request.tenant_membership, "approve"
+                ),
+            },
         )
         if not ser.is_valid():
             _flash_serializer_errors(request, ser.errors)
@@ -561,7 +572,13 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
         except DRFValidationError as exc:
             _flash_drf_validation(request, exc)
             return render(request, self.template_name, self.get_context_data(form=form))
-        messages.success(self.request, "Purchase order created as draft.")
+        if po.approval_status == PurchaseApprovalStatus.PENDING:
+            messages.success(
+                self.request,
+                "Purchase request submitted for manager approval. Nothing has been sent to the supplier.",
+            )
+        else:
+            messages.success(self.request, "Manager-created purchase order saved as an approved draft.")
         return redirect("staff-purchasing-order-detail", po_id=po.id)
 
 
@@ -589,6 +606,17 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["can_modify_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "manage")
+        ctx["can_approve_purchasing"] = bool(
+            membership_has_purchasing_capability(self.request.tenant_membership, "approve")
+            and self.object.status == PurchaseOrderStatus.DRAFT
+            and self.object.approval_status == PurchaseApprovalStatus.PENDING
+            and self.object.created_by_id != self.request.user.pk
+        )
+        ctx["can_withdraw_purchase_request"] = bool(
+            self.object.status == PurchaseOrderStatus.DRAFT
+            and self.object.approval_status == PurchaseApprovalStatus.PENDING
+            and self.object.created_by_id == self.request.user.pk
+        )
         ctx["can_receive"] = membership_has_purchasing_capability(self.request.tenant_membership, "receive") and self.object.status in (
             PurchaseOrderStatus.SENT,
             PurchaseOrderStatus.PARTIALLY_RECEIVED,
@@ -621,10 +649,63 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
 
         action = request.POST.get("action", "").strip()
         receiving = action in {"receive", "receive_all"}
-        permitted = (membership_has_purchasing_capability(request.tenant_membership, "receive") if receiving
-                     else membership_has_purchasing_capability(request.tenant_membership, "manage"))
+        if action == "withdraw_request":
+            permitted = membership_has_purchasing_capability(
+                request.tenant_membership, "request"
+            )
+        elif action in {"approve_request", "reject_request"}:
+            permitted = membership_has_purchasing_capability(
+                request.tenant_membership, "approve"
+            )
+        else:
+            permitted = (
+                membership_has_purchasing_capability(
+                    request.tenant_membership, "receive"
+                )
+                if receiving
+                else membership_has_purchasing_capability(
+                    request.tenant_membership, "manage"
+                )
+            )
         if not permitted:
-            messages.error(request, "Your role cannot change purchase orders.")
+            messages.error(request, "Your role cannot perform that purchasing action.")
+            return redirect("staff-purchasing-order-detail", po_id=po.id)
+
+        if action in {"approve_request", "reject_request"}:
+            try:
+                review_purchase_order_request(
+                    po=po,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                    decision=(
+                        PurchaseApprovalStatus.APPROVED
+                        if action == "approve_request"
+                        else PurchaseApprovalStatus.REJECTED
+                    ),
+                    note=(request.POST.get("review_note") or "").strip(),
+                )
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(
+                    request,
+                    "Purchase request approved; the draft may now be sent."
+                    if action == "approve_request"
+                    else "Purchase request rejected; nothing was sent to the supplier.",
+                )
+            return redirect("staff-purchasing-order-detail", po_id=po.id)
+
+        if action == "withdraw_request":
+            try:
+                withdraw_purchase_order_request(
+                    po=po,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                )
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(request, "Purchase request withdrawn.")
             return redirect("staff-purchasing-order-detail", po_id=po.id)
 
         if action == "confirm_cost":
