@@ -10,6 +10,7 @@ from apps.catalog.models import MenuCategory, MenuItem
 from apps.purchasing.models import (
     PurchaseApprovalStatus,
     PurchaseOrder,
+    PurchaseOrderLine,
     PurchaseOrderStatus,
     Supplier,
 )
@@ -309,3 +310,66 @@ class PurchaseRequestApprovalTests(TestCase):
         self.assertEqual(response.status_code, 302)
         po.refresh_from_db()
         self.assertEqual(po.approval_status, PurchaseApprovalStatus.PENDING)
+
+
+    def test_manager_consolidates_approved_requests_without_erasing_sources(self):
+        first_needed = date.today() + timedelta(days=3)
+        second_needed = date.today() + timedelta(days=6)
+        _c1, first = self._create_request(
+            reference="REQ-CONS-1",
+            needed_by=first_needed,
+            request_reason="Weekend shelf fill",
+        )
+        _c2, second = self._create_request(
+            reference="REQ-CONS-2",
+            needed_by=second_needed,
+            request_reason="Promotion backup stock",
+        )
+        manager = self._client_for(self.manager)
+        for po in (first, second):
+            response = manager.post(
+                reverse("staff-purchasing-order-detail", kwargs={"po_id": po.pk}),
+                {
+                    "action": "approve_request",
+                    "review_note": "Approved for consolidated supplier order",
+                },
+            )
+            self.assertEqual(response.status_code, 302)
+
+        response = manager.post(
+            reverse("staff-purchasing-orders"),
+            {
+                "action": "consolidate_requests",
+                "source_request": [str(first.pk), str(second.pk)],
+                "reference": "PO-CONSOLIDATED-1",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        target = PurchaseOrder.objects.get(reference="PO-CONSOLIDATED-1")
+        self.assertEqual(target.status, PurchaseOrderStatus.DRAFT)
+        self.assertEqual(target.approval_status, PurchaseApprovalStatus.APPROVED)
+        self.assertEqual(target.needed_by, first_needed)
+        self.assertEqual(
+            PurchaseOrderLine.objects.get(
+                purchase_order=target,
+                menu_item=self.item,
+            ).quantity_ordered,
+            Decimal("16.000"),
+        )
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual(first.consolidated_into, target)
+        self.assertEqual(second.consolidated_into, target)
+        self.assertEqual(first.status, PurchaseOrderStatus.CANCELLED)
+        self.assertEqual(second.status, PurchaseOrderStatus.CANCELLED)
+        self.assertEqual(target.consolidated_source_requests.count(), 2)
+
+        event = AuditEvent.objects.filter(
+            tenant=self.tenant,
+            action="purchasing.requests_consolidated",
+            entity_id=str(target.pk),
+        ).latest("created_at")
+        self.assertEqual(
+            set(event.payload["source_request_ids"]),
+            {str(first.pk), str(second.pk)},
+        )
