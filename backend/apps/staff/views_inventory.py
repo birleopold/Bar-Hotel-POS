@@ -26,6 +26,7 @@ from apps.inventory.services import (
 )
 from apps.pos.services import menu_items_for_outlet_queryset
 from apps.tenants.models import Outlet
+from apps.tenants.business_lines import normalize_business_lines
 
 from .forms import (
     StaffQuickTrackedMenuItemForm,
@@ -101,6 +102,13 @@ class StaffRetailAssemblyView(StaffTenantRequiredMixin, TemplateView):
         blocked = _inventory_requires_outlets(request)
         if blocked:
             return blocked
+        try:
+            lines = set(normalize_business_lines(request.tenant.settings.business_lines))
+        except Exception:
+            lines = set()
+        if not lines.intersection({"retail", "supermarket"}):
+            messages.error(request, "Retail assembly operations are available only for Retail or Supermarket workspaces.")
+            return redirect("staff-inventory-balances")
         return super().dispatch(request, *args, **kwargs)
 
     def _outlets(self):
