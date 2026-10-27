@@ -1,14 +1,14 @@
 {% extends "console/base.html" %}
-{% block title %}{% if grocery_console_shell %}Sales areas{% else %}Sections{% endif %}{% endblock %}
+{% block title %}{% if grocery_console_shell %}Sales & stock areas{% else %}Sections{% endif %}{% endblock %}
 {% block main_class %}fizo-entity-list-page{% endblock %}
 {% block content %}
 <section class="fizo-entity fizo-entity--list" aria-labelledby="fizo-list-title">
   <header class="fizo-entity__header">
-    <div><p class="grocery-form-kicker">{{ request.tenant.name|default:'Business' }} / {% if grocery_console_shell %}SALES AREAS{% else %}SECTIONS{% endif %}</p><h1 id="fizo-list-title">{% if grocery_console_shell %}Sales areas{% else %}Sections{% endif %}</h1><p class="staff-muted">{% if grocery_console_shell %}Manage checkout and sales areas at {{ site.name }}.{% else %}Manage service sections at {{ site.name }}.{% endif %}</p></div>
-    <a href="{% url 'console-org-outlet-create' site_id=site.id %}" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> {% if grocery_console_shell %}Add sales area{% else %}Add section{% endif %}</a>
+    <div><p class="grocery-form-kicker">{{ request.tenant.name|default:'Business' }} / {% if grocery_console_shell %}SALES & STOCK AREAS{% else %}SECTIONS{% endif %}</p><h1 id="fizo-list-title">{% if grocery_console_shell %}Sales & stock areas{% else %}Sections{% endif %}</h1><p class="staff-muted">{% if grocery_console_shell %}Manage checkout areas and inventory-only warehouse/storage locations at {{ site.name }}.{% else %}Manage service sections at {{ site.name }}.{% endif %}</p></div>
+    <a href="{% url 'console-org-outlet-create' site_id=site.id %}" class="staff-btn staff-btn--primary"><i class="bi bi-plus-lg" aria-hidden="true"></i> {% if grocery_console_shell %}Add area{% else %}Add section{% endif %}</a>
   </header>
   <section class="staff-card fizo-entity__card">
-    <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Name</th><th>Type</th><th>Actions</th></tr></thead><tbody>{% for o in outlets %}<tr><td><strong>{{ o.name }}</strong></td><td>{{ o.get_outlet_type_display }}</td><td><a href="{% url 'console-org-outlet-edit' outlet_id=o.id %}">Edit</a></td></tr>{% empty %}<tr><td colspan="3" class="staff-muted">{% if grocery_console_shell %}No sales areas yet. Add a sales area for this branch.{% else %}No sections yet. Add a section for this branch.{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Name</th><th>Type</th><th>Actions</th></tr></thead><tbody>{% for o in outlets %}<tr><td><strong>{{ o.name }}</strong></td><td>{{ o.get_outlet_type_display }}</td><td><a href="{% url 'console-org-outlet-edit' outlet_id=o.id %}">Edit</a></td></tr>{% empty %}<tr><td colspan="3" class="staff-muted">{% if grocery_console_shell %}No sales or stock areas yet. Add a checkout area or warehouse for this branch.{% else %}No sections yet. Add a section for this branch.{% endif %}</td></tr>{% endfor %}</tbody></table></div>
   </section>
   <p class="mt-3"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-setup' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Guided setup</a></p>
 </section>
