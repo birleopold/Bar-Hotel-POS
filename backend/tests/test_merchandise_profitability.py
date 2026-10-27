@@ -337,3 +337,29 @@ def test_profitability_survives_product_tracking_change_and_deleted_relation():
     assert product["sku"] == original_sku
     assert result["categories"][0]["category_name"] == original_category
 
+@pytest.mark.django_db
+def test_product_profitability_separates_sale_time_name_and_sku_versions():
+    env = _seed_tenant_bundle(
+        name="Profit Product Identity",
+        slug="profit-product-identity",
+        user_email="profit-product-identity@test.local",
+    )
+    original_name = env["item"].name
+    original_sku = env["item"].sku
+    _sale(env, reference="PROFIT-IDENTITY-OLD")
+
+    env["item"].name = "Renamed product"
+    env["item"].sku = "RENAMED-SKU"
+    env["item"].save(update_fields=["name", "sku", "updated_at"])
+    _sale(env, reference="PROFIT-IDENTITY-NEW")
+
+    result = _report(env)
+    assert result["sale_revenue"] == Decimal("180.00")
+    assert result["known_net_cogs"] == Decimal("120.00")
+    assert result["known_gross_profit"] == Decimal("60.00")
+    assert len(result["products"]) == 2
+    identities = {(row["item_name"], row["sku"]) for row in result["products"]}
+    assert (original_name, original_sku) in identities
+    assert ("Renamed product", "RENAMED-SKU") in identities
+    assert all(row["net_revenue"] == Decimal("90.00") for row in result["products"])
+
