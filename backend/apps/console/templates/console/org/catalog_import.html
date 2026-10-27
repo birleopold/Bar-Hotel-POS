@@ -24,7 +24,7 @@
   <a href="{% url 'console-org-setup' %}" class="staff-btn staff-btn--ghost">Back to setup</a>
   <a href="{% url 'console-org-menu-items' %}" class="staff-btn staff-btn--ghost">View catalog</a>
   <a href="?sample=1" class="staff-btn staff-btn--primary">Download example CSV</a>
-  <a href="?export=1" class="staff-btn staff-btn--ghost">Export my current products</a>
+  <a href="?compat_export=neutral" class="staff-btn staff-btn--ghost">Neutral migration export</a>
 </div>
 <div class="row g-3">
   <div class="col-12 col-xl-7">
@@ -93,8 +93,8 @@
     </section>
     {% endif %}
     <section class="staff-card">
-      <h2 class="staff-section-head">Upload your file</h2>
-      <p class="staff-muted">The importer checks all rows first. If one row has an error, no items will be saved. Existing SKUs and barcodes are never silently overwritten.</p>
+      <h2 class="staff-section-head">Import from another POS / ecommerce platform</h2>
+      <p class="staff-muted">Choose the system that produced the CSV. We normalize it into this POS's canonical product schema, then run the same tenant-safe validation used by native imports. Existing SKUs and barcodes are never silently overwritten.</p>
       <p class="staff-muted">Photos are optional. Import products first, then open <a href="{% url 'console-org-menu-items' %}">Products</a> and choose <strong>Add photo</strong> for any item. Upload from this computer, or use <strong>Copy phone link</strong> on the product editor to take or choose a photo from your phone while continuing desktop edits.</p>
       {% if import_issues %}
       <div class="staff-alert staff-alert--warning" role="alert">
@@ -107,6 +107,10 @@
       {% if form.non_field_errors %}<div class="staff-alert staff-alert--warning" role="alert">{{ form.non_field_errors }}</div>{% endif %}
       <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
+        <label for="{{ form.source_platform.id_for_label }}" class="staff-label">{{ form.source_platform.label }}</label>
+        {{ form.source_platform }}
+        {% if form.source_platform.errors %}<p class="staff-field-error">{{ form.source_platform.errors }}</p>{% endif %}
+        <p class="staff-muted small">{{ form.source_platform.help_text }}</p>
         <label for="{{ form.file.id_for_label }}" class="staff-label">{{ form.file.label }}</label>
         {{ form.file }}
         {% if form.file.errors %}<p class="staff-field-error">{{ form.file.errors }}</p>{% endif %}
@@ -118,6 +122,13 @@
       </form>
       {% if preview_count %}
         <div class="staff-alert staff-alert--info mt-3" role="status">{{ preview_count }} rows passed validation. No items were saved. To import, choose the same file again and select Import items.</div>
+        {% if compatibility_report %}
+        <div class="staff-card mt-2">
+          <strong>Compatibility report:</strong> {{ compatibility_report.source }} adapter {{ compatibility_report.adapter_version }} · {{ compatibility_report.input_rows }} source rows → {{ compatibility_report.canonical_rows }} canonical rows.
+          {% if compatibility_report.ignored_columns %}<p class="staff-muted small mt-2 mb-1">Unmapped source columns (not imported): {{ compatibility_report.ignored_columns|join:", " }}.</p>{% endif %}
+          {% if compatibility_report.warnings %}<ul class="staff-muted small mb-0">{% for warning in compatibility_report.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        {% endif %}
         <div class="staff-table-wrap">
           <table class="staff-table">
             <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>SKU</th><th>Track inventory</th></tr></thead>
@@ -133,7 +144,19 @@
   </div>
   <div class="col-12 col-xl-5">
     <section class="staff-card mb-3">
-      <h2 class="staff-section-head">Required columns</h2>
+      <h2 class="staff-section-head">Move to or from another platform</h2>
+      <p class="staff-muted">Inbound adapters currently cover Shopify product CSV, Square item-library CSV, QuickBooks Online products/services CSV and WooCommerce product CSV. Export profiles are provided for the same targets plus our neutral migration format.</p>
+      <div class="d-grid gap-2">
+        <a class="staff-btn staff-btn--ghost" href="?compat_export=neutral">Export neutral migration CSV</a>
+        <a class="staff-btn staff-btn--ghost" href="?compat_export=shopify">Export for Shopify</a>
+        <a class="staff-btn staff-btn--ghost" href="?compat_export=square">Export for Square</a>
+        <a class="staff-btn staff-btn--ghost" href="?compat_export=quickbooks_online">Export for QuickBooks Online</a>
+        <a class="staff-btn staff-btn--ghost" href="?compat_export=woocommerce">Export for WooCommerce</a>
+      </div>
+      <p class="staff-muted small mt-3 mb-0">Target platforms change their import schemas. These exports use the adapter version shown in our migration audit and should be previewed in the target platform before final import. Stock quantities are intentionally excluded from product migration files.</p>
+    </section>
+    <section class="staff-card mb-3">
+      <h2 class="staff-section-head">Native CSV columns</h2>
       <p><code>category</code>, <code>name</code> and <code>unit_price</code>.</p>
       <h3 class="staff-card__title">Optional columns</h3>
       <p class="small"><code>sku</code>, <code>barcode</code>, <code>track_inventory</code>, <code>reorder_level</code>, <code>unit_of_measure</code>, <code>tax_rate_percent</code>, <code>description</code>.</p>
