@@ -557,6 +557,47 @@ class ManagementWorkspaceTests(TestCase):
         self.assertContains(worker_detail, "Damaged during handling")
         self.assertContains(worker_detail, f"movement={movement.pk}")
         self.assertContains(worker_detail, "Open source")
+        self.assertContains(worker_detail, "Export evidence CSV")
+        self.assertContains(worker_detail, "Margin override")
+
+        filtered_worker = self.client.get(
+            reverse(
+                "staff-management-loss-pattern",
+                args=["worker", worker_pattern["pattern_key"]],
+            ),
+            {"kind": "margin_override"},
+        )
+        self.assertEqual(filtered_worker.status_code, 200)
+        self.assertContains(filtered_worker, "Clearance item approved")
+        self.assertNotContains(filtered_worker, "Refund 20")
+        self.assertNotContains(filtered_worker, "Damaged during handling")
+
+        exported_worker = self.client.get(
+            reverse(
+                "staff-management-loss-pattern",
+                args=["worker", worker_pattern["pattern_key"]],
+            ),
+            {"kind": "margin_override", "export": "csv"},
+        )
+        self.assertEqual(exported_worker.status_code, 200)
+        self.assertEqual(
+            exported_worker["Content-Type"], "text/csv; charset=utf-8"
+        )
+        exported_body = exported_worker.content.decode()
+        self.assertIn("when,type,section,evidence,details,source", exported_body)
+        self.assertIn("Margin override", exported_body)
+        self.assertIn("Clearance item approved", exported_body)
+        self.assertNotIn("Damaged during handling", exported_body)
+
+        invalid_filter = self.client.get(
+            reverse(
+                "staff-management-loss-pattern",
+                args=["worker", worker_pattern["pattern_key"]],
+            ),
+            {"kind": "invented_signal"},
+        )
+        self.assertEqual(invalid_filter.status_code, 404)
+
         movement_source = self.client.get(
             reverse("staff-inventory-movements"),
             {"movement": str(movement.pk)},
