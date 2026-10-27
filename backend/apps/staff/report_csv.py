@@ -147,6 +147,26 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
                     row["margin_floor_percent"],
                 ])
 
+        if profitability.get("margin_breach_sales"):
+            writer.writerow([])
+            writer.writerow([
+                "below_floor_sale", "outlet", "product", "sku",
+                "quantity", "net_revenue", "known_cogs",
+                "known_gross_profit", "known_margin_percent",
+                "configured_margin_floor_percent",
+            ])
+            for row in profitability["margin_breach_sales"]:
+                writer.writerow([
+                    _spreadsheet_text(row["bill_reference"]),
+                    _spreadsheet_text(row["outlet_name"]),
+                    _spreadsheet_text(row["item_name"]),
+                    _spreadsheet_text(row["sku"]),
+                    row["quantity"], row["net_revenue"], row["known_cogs"],
+                    row["known_gross_profit"],
+                    row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
+                    row["margin_floor_percent"],
+                ])
+
 
 def format_sales_summary_csv(
     tenant_id: UUID,
