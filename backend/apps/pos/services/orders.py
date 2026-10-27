@@ -766,13 +766,13 @@ def add_line_to_open_order(
     # price when a quantity tier is crossed, but only before any payment exists.
     if retail_checkout:
         existing = (
-            locked.lines.select_for_update().filter(
+            locked.lines.select_for_update(of=("self",)).filter(
                 menu_item_id=menu_item.pk,
                 is_voided=False,
                 pricing_source__in=("menu", "barcode", "plu", "package", "serial", "alternate"),
                 label=menu_item.name,
                 line_discount_amount=Decimal("0"),
-            ).select_related("price_book_rule").order_by("sort_order")
+            ).order_by("sort_order")
         )
         for candidate in existing:
             if candidate.line_discount_percent is not None:
