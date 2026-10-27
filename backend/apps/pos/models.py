@@ -943,6 +943,7 @@ class WorkstationDeviceCommandType(models.TextChoices):
     PRINT_KITCHEN = "print_kitchen", "Print kitchen ticket"
     OPEN_DRAWER = "open_drawer", "Open cash drawer"
     READ_SCALE = "read_scale", "Read scale"
+    TARE_SCALE = "tare_scale", "Tare scale"
 
 
 class WorkstationDeviceCommand(TimeStampedModel):
