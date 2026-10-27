@@ -21,10 +21,11 @@
         <option value="1"{% if low_only %} selected{% endif %}>At or below reorder level</option>
       </select>
     </div>
-    <div class="col-12 col-sm-3 col-lg-4"><button class="staff-btn staff-btn--primary" type="submit">Update view</button></div>
+    <div class="col-12 col-sm-3 col-lg-4 d-flex flex-wrap gap-2"><button class="staff-btn staff-btn--primary" type="submit">Update view</button><a class="staff-btn staff-btn--ghost" href="?format=csv&amp;low={% if low_only %}1{% else %}0{% endif %}&amp;safety_days={{ safety_days }}">Download CSV</a></div>
   </form>
   {% if planning_warning %}<p role="alert" class="staff-alert staff-alert--info mt-2">{{ planning_warning }}</p>{% endif %}
   <p class="staff-muted mt-3 mb-0">Suggestions use 30 days of recorded sales and recipe usage, actual supplier receipt dates when available, and your selected buffer. Without a delivery history, only your configured reorder level is used.</p>
+  <p class="staff-muted small mb-0">CSV export uses the same section, low-stock and buffer filters and is capped at {{ planning_export_limit }} rows.</p>
 </section>
 <div class="staff-metric-row staff-metric-row--folio mb-3">
   <span><strong>{{ page_obj.paginator.count }}</strong><small>Tracked stock records in selected sections</small></span>
