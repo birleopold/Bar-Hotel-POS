@@ -388,7 +388,9 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Supplier price-list import is preview-first and all-or-nothing: row/file limits, numeric/date validation, duplicate target detection and tenant-safe identifier resolution run before a signed server-generated preview is produced. Apply accepts only that signed preview and rechecks that the matched product/package is still active.
 - Re-importing the same supplier/product/package/minimum/effective/source key updates that planning record rather than multiplying duplicates. Import audit evidence records file name, row count and create/update counts.
 - Planning supplier prices remain separate from received-cost evidence, weighted-average inventory cost, historical COGS and retail price. A price-list import cannot rewrite any of those facts.
-- Remaining enhancement: richer automated supplier-price recommendations/comparisons where useful; received-cost snapshots remain the factual cost history.
+- Supplier comparison is now embedded in the existing purchase-request/PO creation screen when stock planning prefills an item and quantity. It compares current eligible effective price-list cost, supplier default planning cost and latest received-cost fallback, while showing MOQ, lead time, preferred relationship and supplier code separately.
+- “Lowest” is highlighted only among suppliers that are currently eligible for the requested quantity and have a known planning cost. A cheaper supplier below its MOQ is shown as ineligible rather than being recommended, expired price-list rows are ignored, and no supplier is auto-selected or awarded.
+- Comparison remains tenant-scoped and evidence-based; received-cost snapshots remain the factual purchasing history and the buyer must still choose the supplier. Benchmark check (Lightspeed Retail vendor/default cost and Square vendor/unit-cost workflows, 2026-10-27): vendor identity/code, vendor cost and actual received unit cost are maintained as distinct purchasing evidence rather than collapsed into an opaque supplier score.
 
 ### R4.4 Landed cost
 - Shipping/freight and duty/clearing are implemented at physical receipt level.
