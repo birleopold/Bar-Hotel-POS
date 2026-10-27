@@ -70,66 +70,58 @@
     </div>
 
     <h2 class="staff-section-head">Profitability &amp; cost coverage</h2>
+    {% with p=summary.merchandise_profitability %}
     <div class="staff-card staff-card--pos mb-4">
       <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div>
           <h3 class="staff-card__title staff-card__title--pos mb-1">Historical merchandise profitability</h3>
-          <p class="staff-muted mb-0">Uses weighted-average inventory cost captured when each sale posted. Current stock cost is never back-applied to old sales.</p>
+          <p class="staff-muted mb-0">Uses inventory cost captured at the time each sale posted. Missing historical cost is never replaced with today’s stock cost.</p>
         </div>
-        {% if summary.profitability.cost_coverage_percent != None %}
-          <span class="staff-tag">{{ summary.profitability.cost_coverage_percent }}% cost coverage</span>
-        {% endif %}
+        <span class="staff-tag">{{ p.cost_coverage_percent }}% cost coverage</span>
       </div>
       <div class="row g-3 mt-1">
-        <div class="col-6 col-lg-3">
-          <div class="staff-card h-100">
-            <p class="staff-muted small mb-1">Cost-covered net revenue</p>
-            <strong>{{ request.tenant.settings.default_currency }} {{ summary.profitability.known_net_revenue }}</strong>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="staff-card h-100">
-            <p class="staff-muted small mb-1">Historical COGS</p>
-            <strong>{{ request.tenant.settings.default_currency }} {{ summary.profitability.known_cogs }}</strong>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="staff-card h-100">
-            <p class="staff-muted small mb-1">Gross profit on covered sales</p>
-            <strong>{{ request.tenant.settings.default_currency }} {{ summary.profitability.known_gross_profit }}</strong>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="staff-card h-100">
-            <p class="staff-muted small mb-1">Gross margin on covered sales</p>
-            <strong>{% if summary.profitability.known_margin_percent != None %}{{ summary.profitability.known_margin_percent }}%{% else %}—{% endif %}</strong>
-          </div>
-        </div>
+        <div class="col-6 col-lg-3"><div class="staff-card h-100"><p class="staff-muted small mb-1">Net merchandise revenue</p><strong>{{ p.currency }} {{ p.net_merchandise_revenue }}</strong></div></div>
+        <div class="col-6 col-lg-3"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known net COGS</p><strong>{{ p.currency }} {{ p.known_net_cogs }}</strong></div></div>
+        <div class="col-6 col-lg-3"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known gross profit</p><strong>{{ p.currency }} {{ p.known_gross_profit }}</strong></div></div>
+        <div class="col-6 col-lg-3"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known gross margin</p><strong>{% if p.known_margin_percent != None %}{{ p.known_margin_percent }}%{% else %}—{% endif %}</strong></div></div>
       </div>
-      {% if summary.profitability.incomplete_lines %}
-        <div class="staff-alert staff-alert--warning mt-3 mb-0">
-          <strong>{{ summary.profitability.incomplete_lines }} merchandise sale line{{ summary.profitability.incomplete_lines|pluralize }} lack trustworthy historical cost.</strong>
-          <span>{{ request.tenant.settings.default_currency }} {{ summary.profitability.unknown_net_revenue }} of net merchandise revenue is excluded from the gross-profit figure. Missing cost is never treated as zero.</span>
-        </div>
+
+      {% if p.profitability_complete %}
+        <div class="staff-alert staff-alert--success mt-3 mb-0">All merchandise activity in this period has attributable historical cost and return evidence.</div>
       {% else %}
-        <div class="staff-alert staff-alert--success mt-3 mb-0">All tracked merchandise activity in this report has sale-time cost evidence.</div>
+        <div class="staff-alert staff-alert--warning mt-3 mb-0">
+          <strong>Profitability is incomplete.</strong>
+          <span>
+            {% if p.incomplete_sale_lines %}{{ p.incomplete_sale_lines }} sale line{{ p.incomplete_sale_lines|pluralize }} lack trusted sale-time cost. {% endif %}
+            {% if p.incomplete_restock_return_lines %}{{ p.incomplete_restock_return_lines }} restocked return line{{ p.incomplete_restock_return_lines|pluralize }} lack trusted original cost. {% endif %}
+            {% if p.unmapped_refund_count %}{{ p.unmapped_refund_count }} refund{{ p.unmapped_refund_count|pluralize }} totaling {{ p.currency }} {{ p.unmapped_refund_amount }} cannot be attributed to a returned merchandise line. {% endif %}
+            {% if p.foreign_currency_payment_count %}{{ p.foreign_currency_payment_count }} payment{{ p.foreign_currency_payment_count|pluralize }} use a different historical currency and are excluded from this merchandise calculation. {% endif %}
+          </span>
+        </div>
       {% endif %}
-      {% if summary.profitability.refund_allocation_used %}
-        <p class="staff-muted small mt-2 mb-0">Refunds in this period are recorded at order/payment level, so refund revenue and COGS are allocated proportionally across the original order for aggregate reporting. This should not be interpreted as exact returned-item margin.</p>
-      {% endif %}
-      {% if summary.profitability.incomplete_items %}
+
+      {% if p.products %}
         <div class="staff-table-wrap staff-table-wrap--pos mt-3">
           <table class="staff-table staff-table--pos">
-            <thead><tr><th>Needs historical cost evidence</th><th class="text-end">Affected lines</th><th class="text-end">Revenue activity</th></tr></thead>
+            <thead><tr><th>Product</th><th class="text-end">Net revenue</th><th class="text-end">Known COGS</th><th class="text-end">Known profit</th><th class="text-end">Margin</th><th class="text-end">Cost gaps</th></tr></thead>
             <tbody>
-              {% for row in summary.profitability.incomplete_items %}
-                <tr><td class="fw-bold">{{ row.item_name }}</td><td class="text-end">{{ row.lines_count }}</td><td class="text-end">{{ request.tenant.settings.default_currency }} {{ row.revenue }}</td></tr>
+              {% for row in p.products|slice:":10" %}
+                <tr>
+                  <td class="fw-bold">{{ row.item_name }}{% if row.sku %}<div class="staff-muted small">{{ row.sku }}</div>{% endif %}</td>
+                  <td class="text-end">{{ p.currency }} {{ row.net_revenue }}</td>
+                  <td class="text-end">{{ p.currency }} {{ row.known_net_cogs }}</td>
+                  <td class="text-end">{{ p.currency }} {{ row.known_gross_profit }}</td>
+                  <td class="text-end">{% if row.known_margin_percent != None %}{{ row.known_margin_percent }}%{% else %}—{% endif %}</td>
+                  <td class="text-end">{{ row.incomplete_lines|add:row.incomplete_return_lines }}</td>
+                </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
       {% endif %}
+      <p class="staff-muted small mt-2 mb-0">A line-level return uses the original sale’s cost. Any refund that cannot be tied to a returned merchandise line is surfaced as an attribution gap rather than guessed.</p>
     </div>
+    {% endwith %}
 
     <h2 class="staff-section-head">Breakdown</h2>
     <div class="row g-4">
