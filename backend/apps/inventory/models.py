@@ -200,6 +200,40 @@ class InventorySerialEvent(TimeStampedModel):
         ordering = ["-created_at"]
 
 
+class InventorySerialReturnLink(TimeStampedModel):
+    """Bind exact serialized units to an existing retail return record."""
+
+    class Disposition(models.TextChoices):
+        RESTOCKED = "restocked", "Returned to saleable stock"
+        QUARANTINED = "quarantined", "Returned but quarantined"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="serialized_return_links",
+    )
+    serial_unit = models.ForeignKey(
+        InventorySerialUnit,
+        on_delete=models.PROTECT,
+        related_name="return_links",
+    )
+    return_record = models.ForeignKey(
+        "pos.SupermarketLineReturn",
+        on_delete=models.CASCADE,
+        related_name="serialized_unit_links",
+    )
+    disposition = models.CharField(max_length=16, choices=Disposition.choices)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["serial_unit", "return_record"],
+                name="uniq_serial_unit_return_record",
+            ),
+        ]
+
+
 class StockBalance(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
