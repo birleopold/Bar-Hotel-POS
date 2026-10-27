@@ -1482,3 +1482,92 @@ class TargetedPromotionTests(TestCase):
         self.assertContains(response, "Wholesale pricing is active")
         self.assertNotContains(response, "Or enter coupon code")
 
+    def test_promotion_report_filters_by_accessible_outlet_and_exports_csv(self):
+        other_outlet = Outlet.objects.create(
+            site=self.site,
+            name="Second checkout",
+            outlet_type=OutletType.SUPERMARKET,
+        )
+        self.membership.outlets.add(other_outlet)
+        promo = self._promotion(name="Outlet report offer", menu_item=self.oil)
+        Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.user,
+            applied_promotion=promo,
+            is_paid=True,
+            status="closed",
+            subtotal=Decimal("10000"),
+            discount_amount=Decimal("1000"),
+            total=Decimal("9000"),
+            currency="UGX",
+        )
+        Order.objects.create(
+            tenant=self.tenant,
+            outlet=other_outlet,
+            created_by=self.user,
+            applied_promotion=promo,
+            is_paid=True,
+            status="closed",
+            subtotal=Decimal("20000"),
+            discount_amount=Decimal("2000"),
+            total=Decimal("18000"),
+            currency="UGX",
+        )
+
+        page = self.client.get(
+            reverse("staff-promotions"),
+            {"days": "30", "outlet": str(self.outlet.pk)},
+        )
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Outlet report offer")
+        self.assertContains(page, "UGX 1000")
+        self.assertContains(page, "UGX 9000")
+        self.assertNotContains(page, "UGX 2000")
+
+        exported = self.client.get(
+            reverse("staff-promotions"),
+            {
+                "days": "30",
+                "outlet": str(other_outlet.pk),
+                "export": "csv",
+            },
+        )
+        self.assertEqual(exported.status_code, 200)
+        self.assertEqual(exported["Content-Type"], "text/csv")
+        body = exported.content.decode("utf-8")
+        self.assertIn("Outlet report offer", body)
+        self.assertIn("2000", body)
+        self.assertIn("18000", body)
+        self.assertIn("Second checkout", body)
+
+    def test_promotion_report_ignores_outlet_outside_membership_scope(self):
+        outside_site = Site.objects.create(tenant=self.tenant, name="Restricted site")
+        outside_outlet = Outlet.objects.create(
+            site=outside_site,
+            name="Restricted checkout",
+            outlet_type=OutletType.SUPERMARKET,
+        )
+        promo = self._promotion(name="Scoped report offer", menu_item=self.oil)
+        Order.objects.create(
+            tenant=self.tenant,
+            outlet=outside_outlet,
+            created_by=self.user,
+            applied_promotion=promo,
+            is_paid=True,
+            status="closed",
+            subtotal=Decimal("50000"),
+            discount_amount=Decimal("5000"),
+            total=Decimal("45000"),
+            currency="UGX",
+        )
+
+        response = self.client.get(
+            reverse("staff-promotions"),
+            {"days": "30", "outlet": str(outside_outlet.pk), "export": "csv"},
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode("utf-8")
+        self.assertIn("All accessible outlets", body)
+        self.assertNotIn("Restricted checkout", body)
+
