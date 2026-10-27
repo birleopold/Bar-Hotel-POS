@@ -14,8 +14,13 @@ from apps.purchasing.models import (
     PurchaseOrderStatus,
     PurchaseReceipt,
     PurchaseReceiptLine,
+    PurchaseRfq,
+    PurchaseRfqLine,
     Supplier,
     SupplierProductCode,
+    SupplierQuote,
+    SupplierQuoteLine,
+    SupplierQuoteStatus,
     SupplierReturn,
 )
 from apps.purchasing.supplier_performance import supplier_performance_rows
@@ -202,6 +207,7 @@ class SupplierPerformanceTests(TestCase):
         self.assertEqual(row["cost_increases"], 1)
         self.assertEqual(row["cost_decreases"], 0)
         self.assertEqual(row["cost_unchanged"], 0)
+        self.assertEqual(row["received_goods_value"], Decimal("9500.00"))
         self.assertGreater(row["average_lead_days"], Decimal("3.9"))
         self.assertLess(row["average_lead_days"], Decimal("4.1"))
 
@@ -218,3 +224,53 @@ class SupplierPerformanceTests(TestCase):
         self.assertContains(response, "10.0% returned")
         self.assertContains(response, "↑ 1")
         self.assertContains(response, "No subjective overall score is assigned")
+
+    def test_supplier_performance_includes_quote_wins_losses_and_no_response(self):
+        for index, status in enumerate(
+            (
+                SupplierQuoteStatus.ACCEPTED,
+                SupplierQuoteStatus.REJECTED,
+                SupplierQuoteStatus.REJECTED,
+            ),
+            start=1,
+        ):
+            rfq = PurchaseRfq.objects.create(
+                tenant=self.tenant,
+                outlet=self.outlet,
+                reference=f"PERF-RFQ-{index}",
+                status="awarded" if status == SupplierQuoteStatus.ACCEPTED else "open",
+                created_by=self.user,
+            )
+            rfq_line = PurchaseRfqLine.objects.create(
+                tenant=self.tenant,
+                rfq=rfq,
+                menu_item=self.item,
+                quantity_requested=Decimal("5"),
+            )
+            quote = SupplierQuote.objects.create(
+                tenant=self.tenant,
+                rfq=rfq,
+                supplier=self.supplier,
+                status=status,
+                created_by=self.user,
+            )
+            if index < 3:
+                SupplierQuoteLine.objects.create(
+                    tenant=self.tenant,
+                    quote=quote,
+                    rfq_line=rfq_line,
+                    unit_cost=Decimal("1000"),
+                    quantity_available=Decimal("5"),
+                )
+
+        row = supplier_performance_rows(
+            tenant=self.tenant,
+            suppliers=[self.supplier],
+            days=365,
+        )[self.supplier.pk]
+        self.assertEqual(row["quotes_received"], 2)
+        self.assertEqual(row["quote_wins"], 1)
+        self.assertEqual(row["quote_losses"], 1)
+        self.assertEqual(row["quote_no_response"], 1)
+        self.assertEqual(row["quote_win_percent"], Decimal("50.0"))
+
