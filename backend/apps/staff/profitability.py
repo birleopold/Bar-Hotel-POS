@@ -101,6 +101,7 @@ def build_merchandise_profitability(
         "covered_sale_units": Decimal("0"),
         "known_sale_cogs": Decimal("0.00"),
         "return_revenue": Decimal("0.00"),
+        "covered_return_revenue": Decimal("0.00"),
         "return_units": Decimal("0"),
         "known_restock_cogs_reversal": Decimal("0.00"),
         "incomplete_sale_lines": 0,
@@ -118,6 +119,7 @@ def build_merchandise_profitability(
         "covered_units": Decimal("0"),
         "known_cogs": Decimal("0.00"),
         "return_revenue": Decimal("0.00"),
+        "covered_return_revenue": Decimal("0.00"),
         "return_units": Decimal("0"),
         "known_cogs_reversal": Decimal("0.00"),
         "incomplete_lines": 0,
@@ -186,6 +188,9 @@ def build_merchandise_profitability(
         row["return_units"] += returned.quantity
         totals["return_revenue"] += revenue_reversal
         totals["return_units"] += returned.quantity
+        if trusted:
+            row["covered_return_revenue"] += revenue_reversal
+            totals["covered_return_revenue"] += revenue_reversal
         if returned.restocked:
             if trusted:
                 cogs_reversal = (
@@ -224,6 +229,9 @@ def build_merchandise_profitability(
     totals["covered_sale_revenue"] = _money(totals["covered_sale_revenue"])
     totals["known_sale_cogs"] = _money(totals["known_sale_cogs"])
     totals["return_revenue"] = _money(totals["return_revenue"])
+    totals["covered_return_revenue"] = _money(
+        totals["covered_return_revenue"]
+    )
     totals["known_restock_cogs_reversal"] = _money(
         totals["known_restock_cogs_reversal"]
     )
@@ -241,12 +249,13 @@ def build_merchandise_profitability(
         row["covered_revenue"] = _money(row["covered_revenue"])
         row["known_cogs"] = _money(row["known_cogs"])
         row["return_revenue"] = _money(row["return_revenue"])
+        row["covered_return_revenue"] = _money(row["covered_return_revenue"])
         row["known_cogs_reversal"] = _money(row["known_cogs_reversal"])
         # Physical return revenue is known from the original sale line even
         # when the sale happened before this reporting period. Cost uncertainty
         # matters only when a restocked return needs an unknown COGS reversal.
         row["covered_net_revenue"] = _money(
-            row["covered_revenue"] - row["return_revenue"]
+            row["covered_revenue"] - row["covered_return_revenue"]
         )
         row["known_net_cogs"] = _money(
             row["known_cogs"] - row["known_cogs_reversal"]
