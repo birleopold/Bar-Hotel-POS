@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.db.models import Q, QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
+from django.utils.dateparse import parse_date
 from django.urls import reverse_lazy
 from django.views.generic import DetailView, FormView, ListView, UpdateView, TemplateView
 
@@ -14,7 +15,11 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuItem, ProductPackage
 from apps.pos.services import default_currency_for_tenant
-from apps.purchasing.models import PurchaseApprovalStatus, PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod, SupplierProductCode
+from apps.purchasing.models import (
+    PurchaseApprovalStatus, PurchaseOrder, PurchaseOrderStatus,
+    PurchaseRfq, PurchaseRfqStatus, Supplier, SupplierPaymentMethod,
+    SupplierProductCode, SupplierQuote, SupplierQuoteStatus,
+)
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
 from apps.purchasing.supplier_catalog import supplier_cost_histories
@@ -23,15 +28,328 @@ from apps.purchasing.approvals import (
     review_purchase_order_request,
     withdraw_purchase_order_request,
 )
+from apps.purchasing.rfq import (
+    award_supplier_quote,
+    create_rfq,
+    invite_supplier_to_rfq,
+    quote_comparison_rows,
+    record_supplier_quote,
+)
 from apps.tenants.models import Outlet, TenantSettings
 
-from .forms import StaffPOHeaderForm, StaffSupplierForm, StaffSupplierProductCodeForm
+from .forms import (
+    StaffPOHeaderForm, StaffRfqForm, StaffRfqInviteForm,
+    StaffSupplierForm, StaffSupplierProductCodeForm, StaffSupplierQuoteForm,
+)
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets, membership_can_modify_lodging, resolve_staff_outlet
 from .services.permissions import membership_has_purchasing_capability
 
 PO_LINE_SLOTS = 8
+RFQ_LINE_SLOTS = 8
+
+
+class StaffRfqListView(StaffTenantRequiredMixin, ListView):
+    staff_nav_capability = "purchasing"
+    template_name = "staff/purchasing/rfq_list.html"
+    context_object_name = "rfqs"
+    paginate_by = 40
+
+    def dispatch(self, request, *args, **kwargs):
+        bad = _purchasing_requires_outlets(request)
+        if bad:
+            return bad
+        if not membership_has_purchasing_capability(
+            request.tenant_membership, "manage"
+        ):
+            messages.error(request, "Only an authorized purchasing manager can manage supplier quotations.")
+            return redirect("staff-purchasing-orders")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        outlet_ids = [o.pk for o in staff_accessible_outlets(
+            self.request.tenant_membership
+        )]
+        qs = (
+            PurchaseRfq.objects.filter(
+                tenant=self.request.tenant,
+                outlet_id__in=outlet_ids,
+            )
+            .select_related("outlet", "outlet__site", "created_by")
+            .prefetch_related("quotes")
+            .order_by("-created_at")
+        )
+        status = (self.request.GET.get("status") or "").strip()
+        if status in PurchaseRfqStatus.values:
+            qs = qs.filter(status=status)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["status_filter"] = (self.request.GET.get("status") or "").strip()
+        return ctx
+
+
+class StaffRfqCreateView(StaffTenantRequiredMixin, TemplateView):
+    staff_nav_capability = "purchasing"
+    template_name = "staff/purchasing/rfq_create.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        bad = _purchasing_requires_outlets(request)
+        if bad:
+            return bad
+        if not membership_has_purchasing_capability(
+            request.tenant_membership, "manage"
+        ):
+            messages.error(request, "Only an authorized purchasing manager can create RFQs.")
+            return redirect("staff-purchasing-rfqs")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _outlets(self):
+        ids = [o.pk for o in staff_accessible_outlets(
+            self.request.tenant_membership
+        )]
+        return Outlet.objects.filter(pk__in=ids).order_by("site__name", "name")
+
+    def _context(self, form=None):
+        return {
+            "form": form or StaffRfqForm(outlets_qs=self._outlets()),
+            "menu_items": MenuItem.objects.filter(
+                tenant=self.request.tenant,
+                is_active=True,
+                track_inventory=True,
+            ).order_by("name"),
+            "line_slots": range(RFQ_LINE_SLOTS),
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._context())
+
+    def post(self, request):
+        form = StaffRfqForm(request.POST, outlets_qs=self._outlets())
+        if not form.is_valid():
+            return render(request, self.template_name, self._context(form), status=400)
+        items = {
+            str(item.pk): item
+            for item in MenuItem.objects.filter(
+                tenant=request.tenant, is_active=True, track_inventory=True
+            )
+        }
+        lines = []
+        for idx in range(RFQ_LINE_SLOTS):
+            item_id = (request.POST.get(f"line_{idx}_menu_item") or "").strip()
+            qty = (request.POST.get(f"line_{idx}_quantity") or "").strip()
+            note = (request.POST.get(f"line_{idx}_note") or "").strip()
+            if not item_id and not qty and not note:
+                continue
+            item = items.get(item_id)
+            if item is None:
+                messages.error(request, f"Line {idx + 1}: choose a valid inventory product.")
+                return render(request, self.template_name, self._context(form), status=400)
+            lines.append({"menu_item": item, "quantity": qty, "note": note})
+        try:
+            rfq = create_rfq(
+                tenant=request.tenant,
+                outlet=form.cleaned_data["outlet"],
+                membership=request.tenant_membership,
+                user=request.user,
+                reference=form.cleaned_data.get("reference") or "",
+                needed_by=form.cleaned_data.get("needed_by"),
+                notes=form.cleaned_data.get("notes") or "",
+                lines=lines,
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+            return render(request, self.template_name, self._context(form), status=400)
+        messages.success(request, "RFQ created. Invite suppliers and record their quotations.")
+        return redirect("staff-purchasing-rfq-detail", rfq_id=rfq.pk)
+
+
+class StaffRfqDetailView(StaffTenantRequiredMixin, TemplateView):
+    staff_nav_capability = "purchasing"
+    template_name = "staff/purchasing/rfq_detail.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        bad = _purchasing_requires_outlets(request)
+        if bad:
+            return bad
+        if not membership_has_purchasing_capability(
+            request.tenant_membership, "manage"
+        ):
+            messages.error(request, "Only an authorized purchasing manager can manage supplier quotations.")
+            return redirect("staff-purchasing-orders")
+        self.rfq = self._rfq()
+        if self.rfq is None:
+            messages.error(request, "RFQ not found in your authorized purchasing scope.")
+            return redirect("staff-purchasing-rfqs")
+        return super().dispatch(request, *args, **kwargs)
+
+    def _rfq(self):
+        outlet_ids = [o.pk for o in staff_accessible_outlets(
+            self.request.tenant_membership
+        )]
+        return (
+            PurchaseRfq.objects.filter(
+                tenant=self.request.tenant,
+                outlet_id__in=outlet_ids,
+                pk=self.kwargs["rfq_id"],
+            )
+            .select_related("outlet", "outlet__site", "created_by")
+            .prefetch_related(
+                "lines__menu_item",
+                "quotes__supplier",
+                "quotes__lines__rfq_line__menu_item",
+                "quotes__converted_purchase_order",
+            )
+            .first()
+        )
+
+    def _context(self, *, invite_form=None, quote_forms=None):
+        rows = quote_comparison_rows(self.rfq)
+        forms_by_quote = quote_forms or {}
+        for row in rows:
+            quote = row["quote"]
+            if quote.pk not in forms_by_quote:
+                forms_by_quote[quote.pk] = StaffSupplierQuoteForm(initial={
+                    "reference": quote.reference,
+                    "shipping_cost": quote.shipping_cost,
+                    "other_cost": quote.other_cost,
+                    "lead_time_days": quote.lead_time_days,
+                    "valid_until": quote.valid_until,
+                    "payment_terms": quote.payment_terms,
+                    "availability_note": quote.availability_note,
+                })
+            row["form"] = forms_by_quote[quote.pk]
+            row["existing_lines"] = {
+                line.rfq_line_id: line for line in quote.lines.all()
+            }
+        return {
+            "rfq": self.rfq,
+            "comparison_rows": rows,
+            "invite_form": invite_form or StaffRfqInviteForm(
+                tenant=self.request.tenant, rfq=self.rfq
+            ),
+            "currency": default_currency_for_tenant(self.request.tenant),
+        }
+
+    def get(self, request, rfq_id):
+        return render(request, self.template_name, self._context())
+
+    def post(self, request, rfq_id):
+        action = (request.POST.get("action") or "").strip()
+        if action == "invite":
+            form = StaffRfqInviteForm(
+                request.POST, tenant=request.tenant, rfq=self.rfq
+            )
+            if not form.is_valid():
+                return render(
+                    request, self.template_name,
+                    self._context(invite_form=form), status=400,
+                )
+            try:
+                invite_supplier_to_rfq(
+                    rfq=self.rfq,
+                    supplier=form.cleaned_data["supplier"],
+                    user=request.user,
+                )
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(request, "Supplier added to this RFQ.")
+            return redirect("staff-purchasing-rfq-detail", rfq_id=self.rfq.pk)
+
+        try:
+            quote_id = uuid.UUID((request.POST.get("quote_id") or "").strip())
+        except (TypeError, ValueError):
+            messages.error(request, "Choose a valid supplier quotation.")
+            return redirect("staff-purchasing-rfq-detail", rfq_id=self.rfq.pk)
+        quote = SupplierQuote.objects.filter(
+            pk=quote_id, rfq=self.rfq, tenant=request.tenant
+        ).select_related("supplier", "rfq").first()
+        if quote is None:
+            messages.error(request, "Supplier quotation not found.")
+            return redirect("staff-purchasing-rfq-detail", rfq_id=self.rfq.pk)
+
+        if action == "award":
+            try:
+                po = award_supplier_quote(
+                    quote=quote,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                )
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+                return redirect("staff-purchasing-rfq-detail", rfq_id=self.rfq.pk)
+            messages.success(
+                request,
+                "Supplier quotation awarded. An approved draft purchase order was created.",
+            )
+            return redirect("staff-purchasing-order-detail", po_id=po.pk)
+
+        if action != "record_quote":
+            messages.error(request, "Unknown RFQ action.")
+            return redirect("staff-purchasing-rfq-detail", rfq_id=self.rfq.pk)
+
+        form = StaffSupplierQuoteForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request, self.template_name,
+                self._context(quote_forms={quote.pk: form}), status=400,
+            )
+        response_lines = []
+        rfq_lines = list(self.rfq.lines.select_related("menu_item").all())
+        for rfq_line in rfq_lines:
+            unit_cost = (
+                request.POST.get(f"quote_line_{rfq_line.pk}_unit_cost") or ""
+            ).strip()
+            available = (
+                request.POST.get(f"quote_line_{rfq_line.pk}_available") or ""
+            ).strip()
+            promised_raw = (
+                request.POST.get(f"quote_line_{rfq_line.pk}_promised") or ""
+            ).strip()
+            note = (
+                request.POST.get(f"quote_line_{rfq_line.pk}_note") or ""
+            ).strip()
+            promised = parse_date(promised_raw) if promised_raw else None
+            if promised_raw and promised is None:
+                messages.error(
+                    request,
+                    f"{rfq_line.menu_item.name}: choose a valid promised date.",
+                )
+                return render(
+                    request, self.template_name,
+                    self._context(quote_forms={quote.pk: form}), status=400,
+                )
+            response_lines.append({
+                "rfq_line": rfq_line,
+                "unit_cost": unit_cost,
+                "quantity_available": available,
+                "promised_date": promised,
+                "note": note,
+            })
+        try:
+            record_supplier_quote(
+                quote=quote,
+                user=request.user,
+                reference=form.cleaned_data.get("reference") or "",
+                shipping_cost=form.cleaned_data.get("shipping_cost") or 0,
+                other_cost=form.cleaned_data.get("other_cost") or 0,
+                lead_time_days=form.cleaned_data.get("lead_time_days"),
+                availability_note=form.cleaned_data.get("availability_note") or "",
+                payment_terms=form.cleaned_data.get("payment_terms") or "",
+                valid_until=form.cleaned_data.get("valid_until"),
+                lines=response_lines,
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+            return render(
+                request, self.template_name,
+                self._context(quote_forms={quote.pk: form}), status=400,
+            )
+        messages.success(request, f"Quotation from {quote.supplier.name} recorded.")
+        return redirect("staff-purchasing-rfq-detail", rfq_id=self.rfq.pk)
 
 
 def _purchase_order_can_receive(po: PurchaseOrder) -> bool:
