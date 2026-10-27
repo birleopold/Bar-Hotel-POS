@@ -223,6 +223,27 @@ urlpatterns = [
         name="console-org-menu-item-package-edit",
     ),
     path(
+        "org/menu/items/<uuid:item_id>/assembly/",
+        views_catalog.OrgRetailAssemblyListView.as_view(),
+        name="console-org-menu-item-assembly",
+    ),
+    path(
+        "org/menu/items/<uuid:item_id>/assembly/new/",
+        views_catalog.OrgRetailAssemblyCreateView.as_view(),
+        name="console-org-menu-item-assembly-create",
+    ),
+    path(
+        "org/menu/items/<uuid:item_id>/assembly/<uuid:component_id>/edit/",
+        views_catalog.OrgRetailAssemblyUpdateView.as_view(),
+        name="console-org-menu-item-assembly-edit",
+    ),
+    path(
+        "org/menu/items/<uuid:item_id>/assembly/<uuid:component_id>/delete/",
+        views_catalog.OrgRetailAssemblyDeleteView.as_view(),
+        name="console-org-menu-item-assembly-delete",
+    ),
+
+    path(
         "org/menu/items/<uuid:item_id>/outlets/",
         views_catalog.OrgMenuItemOutletListView.as_view(),
         name="console-org-menu-item-outlets",
