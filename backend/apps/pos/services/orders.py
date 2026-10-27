@@ -43,6 +43,7 @@ from apps.tenants.models import Outlet, OutletType, Tenant, TenantSettings
 
 from .menu import menu_item_available_at_outlet
 from .pricing import line_tax, line_total, recalculate_order_totals
+from .price_books import qualifying_customer_price_rule
 
 
 def require_active_retail_basket(order: Order) -> None:
@@ -732,22 +733,43 @@ def add_line_to_open_order(
         ):
             raise ValidationError({"unit_price": "Retail unit price must use two decimal places."})
         unit_price = override
+    base_unit_price = unit_price
+    retail_checkout = locked.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
+    price_book_allowed = bool(
+        retail_checkout
+        and locked.customer_id
+        and not locked.applied_promotion_id
+        and not locked.discount_amount
+        and not locked.payments.exists()
+    )
+    new_line_rule = (
+        qualifying_customer_price_rule(
+            tenant_id=locked.tenant_id,
+            outlet_id=locked.outlet_id,
+            customer_id=locked.customer_id,
+            menu_item_id=menu_item.pk,
+            quantity=quantity,
+        )
+        if price_book_allowed
+        else None
+    )
+    if new_line_rule is not None:
+        unit_price = new_line_rule.unit_price
     eff_unit = unit_price + per_unit_mod
     sub = line_total(quantity, eff_unit)
     tax = line_tax(sub, menu_item.tax_rate_percent)
     # Retail baskets group identical products on one row. The order row lock
-    # serializes concurrent scans; only pristine, undiscounted menu-price lines
-    # can absorb another add. Hospitality/KDS keeps its separate-line behavior.
-    if locked.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+    # serializes concurrent scans. Customer price books may change the effective
+    # price when a quantity tier is crossed, but only before any payment exists.
+    if retail_checkout:
         existing = (
             locked.lines.select_for_update().filter(
                 menu_item_id=menu_item.pk,
                 is_voided=False,
                 pricing_source__in=("menu", "barcode", "plu", "package", "serial", "alternate"),
-                unit_price=unit_price,
                 label=menu_item.name,
                 line_discount_amount=Decimal("0"),
-            ).order_by("sort_order")
+            ).select_related("price_book_rule").order_by("sort_order")
         )
         for candidate in existing:
             if candidate.line_discount_percent is not None:
@@ -756,11 +778,37 @@ def add_line_to_open_order(
                 continue
             if candidate.kds_status not in ("pending", ""):
                 continue
+            candidate_base = (
+                candidate.price_book_base_unit_price
+                if candidate.price_book_rule_id and candidate.price_book_base_unit_price is not None
+                else candidate.unit_price
+            )
+            if candidate_base != base_unit_price:
+                continue
             new_qty = candidate.quantity + quantity
+            merged_rule = (
+                qualifying_customer_price_rule(
+                    tenant_id=locked.tenant_id,
+                    outlet_id=locked.outlet_id,
+                    customer_id=locked.customer_id,
+                    menu_item_id=menu_item.pk,
+                    quantity=new_qty,
+                )
+                if price_book_allowed
+                else None
+            )
+            merged_price = merged_rule.unit_price if merged_rule is not None else candidate_base
             candidate.quantity = new_qty
-            candidate.line_total = line_total(new_qty, eff_unit)
+            candidate.unit_price = merged_price
+            candidate.price_book_rule = merged_rule
+            candidate.price_book_base_unit_price = candidate_base if merged_rule is not None else None
+            merged_eff_unit = merged_price + per_unit_mod
+            candidate.line_total = line_total(new_qty, merged_eff_unit)
             candidate.tax_amount = line_tax(candidate.line_total, menu_item.tax_rate_percent)
-            candidate.save(update_fields=["quantity", "line_total", "tax_amount", "updated_at"])
+            candidate.save(update_fields=[
+                "quantity", "unit_price", "price_book_rule",
+                "price_book_base_unit_price", "line_total", "tax_amount", "updated_at",
+            ])
             recalculate_order_totals(locked)
             log_audit(
                 tenant_id=locked.tenant_id,
@@ -768,8 +816,13 @@ def add_line_to_open_order(
                 action="order.line_quantity_merged",
                 entity_type="order_line",
                 entity_id=str(candidate.id),
-                payload={"order_id": str(locked.id), "added_quantity": str(quantity),
-                         "new_quantity": str(new_qty), "menu_item_id": str(menu_item.pk)},
+                payload={
+                    "order_id": str(locked.id),
+                    "added_quantity": str(quantity),
+                    "new_quantity": str(new_qty),
+                    "menu_item_id": str(menu_item.pk),
+                    "price_book_rule_id": str(merged_rule.pk) if merged_rule else None,
+                },
             )
             return candidate
     mx = locked.lines.aggregate(m=Max("sort_order"))["m"]
@@ -783,6 +836,8 @@ def add_line_to_open_order(
         line_total=sub,
         tax_amount=tax,
         pricing_source=pricing_source,
+        price_book_rule=new_line_rule,
+        price_book_base_unit_price=base_unit_price if new_line_rule is not None else None,
         sort_order=next_sort,
         seat_number=seat,
         kds_station=(menu_item.kds_station or "")[:32],
@@ -799,6 +854,7 @@ def add_line_to_open_order(
             "line_id": str(line.id),
             "menu_item_id": str(menu_item.id),
             "seat_number": seat,
+            "price_book_rule_id": str(new_line_rule.pk) if new_line_rule else None,
         },
     )
     return line
