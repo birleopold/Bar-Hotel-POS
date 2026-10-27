@@ -48,22 +48,55 @@ def supplier_product_reference(*, tenant_id, supplier_id, menu_item_id, product_
     return qs.filter(product_package__isnull=True).order_by("-is_preferred", "created_at").first()
 
 
-def supplier_cost_history(*, tenant_id, supplier_id, menu_item_id, limit=2) -> SupplierCostHistory:
-    rows = list(
+def supplier_cost_histories(*, tenant_id, supplier_id, menu_item_ids) -> dict:
+    wanted = {item_id for item_id in menu_item_ids if item_id}
+    if not wanted:
+        return {}
+    buckets = {item_id: [] for item_id in wanted}
+    rows = (
         PurchaseReceiptLine.objects.filter(
             receipt__tenant_id=tenant_id,
             receipt__purchase_order__supplier_id=supplier_id,
-            purchase_order_line__menu_item_id=menu_item_id,
+            purchase_order_line__menu_item_id__in=wanted,
             unit_cost_snapshot__isnull=False,
         )
-        .select_related("receipt")
-        .order_by("-receipt__created_at", "-created_at")
-        .values_list("unit_cost_snapshot", "receipt__created_at")[: max(2, int(limit))]
+        .order_by(
+            "purchase_order_line__menu_item_id",
+            "-receipt__created_at",
+            "-created_at",
+        )
+        .values_list(
+            "purchase_order_line__menu_item_id",
+            "unit_cost_snapshot",
+            "receipt__created_at",
+        )
     )
-    latest = rows[0][0] if rows else None
-    previous = rows[1][0] if len(rows) > 1 else None
-    latest_at = rows[0][1] if rows else None
-    return SupplierCostHistory(latest, previous, latest_at)
+    remaining = len(wanted)
+    for menu_item_id, unit_cost, received_at in rows.iterator():
+        bucket = buckets.get(menu_item_id)
+        if bucket is None or len(bucket) >= 2:
+            continue
+        bucket.append((unit_cost, received_at))
+        if len(bucket) == 2:
+            remaining -= 1
+            if remaining <= 0:
+                break
+    result = {}
+    for menu_item_id, bucket in buckets.items():
+        result[menu_item_id] = SupplierCostHistory(
+            bucket[0][0] if bucket else None,
+            bucket[1][0] if len(bucket) > 1 else None,
+            bucket[0][1] if bucket else None,
+        )
+    return result
+
+
+def supplier_cost_history(*, tenant_id, supplier_id, menu_item_id, limit=2) -> SupplierCostHistory:
+    return supplier_cost_histories(
+        tenant_id=tenant_id,
+        supplier_id=supplier_id,
+        menu_item_ids=[menu_item_id],
+    ).get(menu_item_id, SupplierCostHistory(None, None, None))
 
 
 def suggested_supplier_unit_cost(*, tenant_id, supplier_id, menu_item_id, product_package_id=None):
