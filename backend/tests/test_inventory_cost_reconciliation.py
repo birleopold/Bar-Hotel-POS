@@ -191,3 +191,47 @@ class InventoryCostReconciliationTests(TestCase):
         self.balance.refresh_from_db()
         self.assertFalse(self.balance.cost_basis_complete)
         self.assertIsNone(self.balance.average_unit_cost)
+
+    def test_stock_valuation_excludes_other_outlets_and_marks_incomplete_value(self):
+        second = Outlet.objects.create(
+            site=self.site, name="Other branch",
+            outlet_type=OutletType.SUPERMARKET,
+        )
+        StockBalance.objects.create(
+            tenant=self.tenant, outlet=second, menu_item=self.item,
+            quantity=Decimal("100"), average_unit_cost=Decimal("9000"),
+            cost_basis_complete=True,
+        )
+        self.balance.average_unit_cost = Decimal("2000")
+        self.balance.cost_basis_complete = True
+        self.balance.save(update_fields=[
+            "average_unit_cost", "cost_basis_complete", "updated_at",
+        ])
+        client = self._client(self.manager)
+        response = client.get(reverse("staff-inventory-balances"))
+        self.assertEqual(response.status_code, 200)
+        summary = response.context["valuation_summary"]
+        self.assertEqual(summary["trusted_value"], Decimal("24000.00"))
+        self.assertEqual(summary["trusted_rows"], 1)
+        self.assertNotContains(response, "Other branch")
+
+        exported = client.get(
+            reverse("staff-inventory-balances"), {"export": "csv"},
+        )
+        self.assertEqual(exported.status_code, 200)
+        body = exported.content.decode("utf-8-sig")
+        self.assertIn("Stock room", body)
+        self.assertIn("24000.00", body)
+        self.assertNotIn("Other branch", body)
+        self.assertNotIn("900000", body)
+
+        self.balance.average_unit_cost = None
+        self.balance.cost_basis_complete = False
+        self.balance.save(update_fields=[
+            "average_unit_cost", "cost_basis_complete", "updated_at",
+        ])
+        response = client.get(reverse("staff-inventory-balances"))
+        summary = response.context["valuation_summary"]
+        self.assertEqual(summary["trusted_value"], Decimal("0.00"))
+        self.assertEqual(summary["incomplete_rows"], 1)
+        self.assertContains(response, "Total inventory value is unknown")
