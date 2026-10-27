@@ -16,6 +16,7 @@ from apps.inventory.insights import build_stock_intelligence
 from apps.inventory.models import StockBalance, StockMovement, StockReason
 from apps.purchasing.models import (
     Supplier, PurchaseOrder, PurchaseOrderLine, PurchaseReceipt, PurchaseReceiptLine,
+    SupplierProductCode,
 )
 from apps.tenants.models import Tenant, TenantSettings, Site, Outlet, OutletType
 from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
@@ -105,6 +106,40 @@ class InventoryIntelligenceTests(TestCase):
             build_stock_intelligence(tenant=other, balances=[self.balance])
         with self.assertRaises(ValueError):
             self.insight(safety_days=40)
+
+
+    def test_preferred_supplier_flows_into_planning_row_and_purchase_order_link(self):
+        supplier = Supplier.objects.create(tenant=self.tenant, name="Preferred Foods")
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=supplier,
+            menu_item=self.item,
+            code="PASTA-PREF",
+            default_unit_cost=Decimal("1800"),
+            is_preferred=True,
+        )
+        row = self.insight()
+        self.assertEqual(row["preferred_supplier_id"], supplier.pk)
+        self.assertEqual(row["preferred_supplier"], "Preferred Foods")
+        self.assertEqual(row["preferred_supplier_code"], "PASTA-PREF")
+        self.assertEqual(row["preferred_supplier_cost"], Decimal("1800"))
+
+        user = get_user_model().objects.create_user(
+            email="planning-pref@test.local", password="Password9!",
+        )
+        membership = Membership.objects.create(
+            tenant=self.tenant, user=user, role=MembershipRole.OWNER,
+        )
+        membership.outlets.add(self.outlet)
+        membership.sites.add(self.outlet.site)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session.save()
+        response = self.client.get(reverse("staff-inventory-intelligence"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Preferred Foods")
+        self.assertContains(response, f"supplier={supplier.pk}")
 
 
 class InventoryIntelligenceExportTests(TestCase):
