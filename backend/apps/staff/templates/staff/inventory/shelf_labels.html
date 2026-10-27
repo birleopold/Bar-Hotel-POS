@@ -49,6 +49,64 @@
   </div>
 </form>
 
+{% if label_outlet and can_manage_label_queue %}
+<section class="fizo-inventory__panel mb-3" aria-label="Pending label tasks">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div><h2 class="staff-card__title mb-1">Pending label work</h2><p class="staff-muted small mb-0">Automatic reasons stay separate for audit. Print a product to complete all of its pending reasons, or dismiss a task only when no label is required.</p></div>
+    <strong>{{ pending_label_count }} pending</strong>
+  </div>
+  {% if pending_label_entries %}
+  <div class="fizo-inventory__tablewrap mb-3"><table class="fizo-inventory__table">
+    <thead><tr><th>Product</th><th>Reason</th><th>Queued price</th><th>Requested</th><th>Note</th><th>Action</th></tr></thead>
+    <tbody>{% for entry in pending_label_entries %}
+      <tr>
+        <td><strong>{{ entry.menu_item.name }}</strong></td>
+        <td>{{ entry.get_reason_display }}</td>
+        <td>{% if entry.price_snapshot != None %}{{ request.tenant.settings.default_currency }} {{ entry.price_snapshot }}{% else %}—{% endif %}</td>
+        <td>{{ entry.created_at }}</td>
+        <td>{{ entry.note|default:"—" }}</td>
+        <td>
+          <form method="post" class="m-0">{% csrf_token %}
+            <input type="hidden" name="action" value="dismiss_queue">
+            <input type="hidden" name="outlet" value="{{ label_outlet.pk }}">
+            <input type="hidden" name="return_q" value="{{ label_q }}">
+            <input type="hidden" name="return_queue" value="1">
+            <input type="hidden" name="queue_entry_ids" value="{{ entry.pk }}">
+            <input type="hidden" name="dismiss_note" value="Dismissed from shelf-label queue">
+            <button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit">Dismiss</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="staff-muted">No pending label tasks for this outlet.</p>{% endif %}
+
+  {% if label_items %}
+  <form method="post" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="action" value="manual_queue">
+    <input type="hidden" name="outlet" value="{{ label_outlet.pk }}">
+    <input type="hidden" name="return_q" value="{{ label_q }}">
+    <input type="hidden" name="return_queue" value="1">
+    <div class="col-12 col-md-5"><label class="staff-label" for="manual-label-item">Manual label request</label><select class="staff-input" id="manual-label-item" name="manual_item_id" required><option value="">Choose a product on this page</option>{% for item in label_items %}<option value="{{ item.pk }}">{{ item.name }}{% if item.sku %} · {{ item.sku }}{% endif %}</option>{% endfor %}</select></div>
+    <div class="col-12 col-md-5"><label class="staff-label" for="manual-label-note">Reason / note</label><input class="staff-input" id="manual-label-note" name="queue_note" maxlength="255" placeholder="Shelf moved, damaged label, customer-facing price card"></div>
+    <div class="col-12 col-md-2"><button class="staff-btn staff-btn--ghost w-100" type="submit">Queue label</button></div>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if label_outlet and recent_label_history %}
+<section class="staff-card mb-3" aria-label="Recent label queue history">
+  <details>
+    <summary><strong>Recent completed label work</strong> · {{ recent_label_history|length }} shown</summary>
+    <div class="fizo-inventory__tablewrap mt-3"><table class="fizo-inventory__table">
+      <thead><tr><th>Product</th><th>Reason</th><th>Outcome</th><th>Completed</th><th>By</th></tr></thead>
+      <tbody>{% for entry in recent_label_history %}<tr><td>{{ entry.menu_item.name }}</td><td>{{ entry.get_reason_display }}</td><td>{{ entry.get_status_display }}</td><td>{{ entry.completed_at }}</td><td>{% if entry.completed_by %}{{ entry.completed_by.email }}{% else %}System{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </details>
+</section>
+{% endif %}
+
 {% if not label_outlet %}
 <div class="staff-card"><h2 class="staff-card__title">Choose an outlet</h2><p class="staff-muted mb-0">Select the store whose shelf prices should be printed.</p></div>
 {% elif label_items %}
@@ -59,7 +117,7 @@
   <input type="hidden" name="return_queue" value="{% if label_queue_only %}1{% endif %}">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div><strong>{{ label_outlet.name }}</strong><div class="staff-muted small">Select products and copies, then generate the PDF.</div></div>
-    <button class="staff-btn staff-btn--primary staff-btn--touch" type="submit">Generate shelf-label PDF</button>
+    <button class="staff-btn staff-btn--primary staff-btn--touch" type="submit" name="action" value="print">Generate shelf-label PDF</button>
   </div>
   <div class="fizo-inventory__tablewrap">
     <table class="fizo-inventory__table">
