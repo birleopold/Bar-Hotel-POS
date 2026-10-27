@@ -1,0 +1,77 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Hardware bridge · {{ station.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261027.1">{% endblock %}
+{% block content %}
+<div class="fizo-register fizo-register--workstation-bridge">
+<header class="fizo-register__header">
+  <div>
+    <p class="fizo-register__eyebrow">{{ request.tenant.name|default:"Business" }} / Workstations / {{ station.name }}</p>
+    <h1>Local hardware bridge</h1>
+    <p>{{ station.outlet.name }} · {{ station.code }} · Direct printer/drawer/scale command boundary</p>
+  </div>
+  <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-test' station.id %}">Equipment check</a>
+</header>
+
+<section class="staff-card mb-3">
+  <h2 class="staff-section-head">How this works</h2>
+  <p class="staff-muted mb-0">The bridge is a separately installed local agent on the register computer. It polls this tenant for commands and reports success/failure. The POS server never stores the raw bridge secret and never marks a command successful merely because it was queued.</p>
+</section>
+
+{% if one_time_token %}
+<section class="staff-card mb-3">
+  <h2 class="staff-section-head">Copy this token now</h2>
+  <div class="staff-alert staff-alert--warning">This credential is shown once. Store it only on the local workstation running the bridge.</div>
+  <label class="staff-label" for="bridge-token">Bridge token</label>
+  <textarea id="bridge-token" class="staff-input" rows="3" readonly>{{ one_time_token }}</textarea>
+</section>
+{% endif %}
+
+<section class="staff-card mb-4">
+  <h2 class="staff-section-head">Provision a bridge</h2>
+  <form method="post" class="row g-3">
+    {% csrf_token %}
+    <div class="col-12 col-md-4">{{ form.label.label_tag }}{{ form.label }}{{ form.label.errors }}</div>
+    <div class="col-12 col-md-3">{{ form.expires_days.label_tag }}{{ form.expires_days }}{{ form.expires_days.errors }}</div>
+    <div class="col-12 col-md-5">{{ form.password.label_tag }}{{ form.password }}{{ form.password.errors }}</div>
+    {% if form.non_field_errors %}<div class="col-12 staff-alert staff-alert--warning">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="col-12"><button class="staff-btn staff-btn--primary" type="submit">Create one-time bridge token</button></div>
+  </form>
+</section>
+
+<section class="staff-card">
+  <h2 class="staff-section-head">Bridge credentials</h2>
+  <div class="staff-table-wrap">
+    <table class="staff-table">
+      <thead><tr><th>Name</th><th>Created</th><th>Expires</th><th>Last contact</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for credential in bridge_credentials %}
+        <tr>
+          <td><strong>{{ credential.label }}</strong></td>
+          <td>{{ credential.created_at }}</td>
+          <td>{{ credential.expires_at }}</td>
+          <td>{{ credential.last_seen_at|default:"No bridge contact yet" }}</td>
+          <td>{% if credential.revoked_at %}<span class="staff-muted">Revoked</span>{% else %}<span class="staff-team-state staff-team-state--ready">Active</span>{% endif %}</td>
+          <td>
+            {% if not credential.revoked_at %}
+            <details>
+              <summary>Revoke</summary>
+              <form method="post" class="mt-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="revoke">
+                <input type="hidden" name="credential_id" value="{{ credential.id }}">
+                <label class="staff-label">Reason<input class="staff-input" type="text" name="reason" maxlength="255" required></label>
+                <label class="staff-label">Password<input class="staff-input" type="password" name="password" autocomplete="current-password" required></label>
+                <button class="staff-btn staff-btn--secondary staff-btn--sm" type="submit">Revoke bridge</button>
+              </form>
+            </details>
+            {% else %}{{ credential.revocation_reason|default:"—" }}{% endif %}
+          </td>
+        </tr>
+      {% empty %}<tr><td colspan="6" class="staff-muted">No bridge credentials provisioned.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+</div>
+{% endblock %}
