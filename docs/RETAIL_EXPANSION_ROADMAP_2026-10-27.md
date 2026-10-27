@@ -502,22 +502,25 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 **Maps to:** phases 10, 17, 18, 19, 22, 32; SM-13, SM-19, SM-23, SM-29, SM-31, SM-36.
 
 ### R7.1 Operational accounting dimensions
-- Revenue category mapping.
-- Inventory/COGS category mapping.
-- Tender clearing mapping.
-- Tax/VAT mapping.
-- Supplier payable/customer receivable references.
-- Branch/outlet/register dimensions.
-- Immutable source links back to POS/PO/refund/customer account records.
+- Provider-neutral accounting mappings are implemented for default/category revenue, sales returns, tender clearing by payment method, tax/VAT liability, default/category inventory asset, default/category COGS, accounts receivable and accounts payable.
+- Completed POS sales are recognized once at final settlement. Revenue is split by sale-time category after proportional order discount, VAT/tax is separate, and tender debits use net retained payment amounts by method at settlement so split/partial tender remains balanced even when a payment was refunded before completion.
+- Trusted sale-time inventory cost produces paired COGS debit / inventory credit entries. Inventory-tracked lines without trusted cost are explicitly counted and warned; the bridge never treats unknown cost as zero.
+- Refunds are recognized in the refund period: tender clearing is credited, sales returns are debited for the pre-tax portion, and VAT/tax liability is proportionally reversed from immutable order totals.
+- POS orders charged to guest folios debit any retained POS tender plus Accounts Receivable for the unpaid balance, then credit revenue/tax and trusted COGS/inventory. Later folio payments debit tender clearing and credit A/R.
+- Fully matched supplier invoices debit inventory asset by matched product category and credit Accounts Payable. Supplier payments debit A/P and credit the mapped tender/bank clearing account. Supplier invoices whose matched immutable lines do not equal the invoice total block export instead of guessing the difference into inventory or expense.
+- Journal rows carry branch, outlet, register, cashier, tender, category, folio and supplier dimensions where the operational source proves them.
+- Operational source references are preserved on journal rows. POS/folio/supplier settlement sources also resolve through the existing FinancePostingLink to the corresponding cashbook entry when one exists, giving journal → source transaction → cashbook traceability without a second posting ledger.
+- Accounting mapping and export-history tables have PostgreSQL tenant RLS policies and remain scoped by the existing membership/site/outlet rules.
 
 ### R7.2 Accounting export/integration boundary
-- Period export.
-- Journal-ready CSV.
-- Mapping preview and validation.
-- Export history/idempotency.
-- Adapter interface for future QuickBooks/Xero/Sage integrations.
-- Provider-specific integrations deferred until chosen.
-- Do not build bank feeds or full GL in this phase.
+- Workspace → Accounting mappings is implemented for owner/tenant-admin setup. Category and tender sources are selected through tenant-scoped forms rather than manual UUID entry; duplicate source mappings fail validation and mappings may be made inactive instead of destructively deleted.
+- Accounting export is implemented for owner, tenant-admin and accountant roles within their authorized outlet scope. The preview validates required mappings, operational match constraints and debit=credit balance before enabling export.
+- Generated AccountingExportBatch records freeze date range, outlet scope, mapping snapshot, journal lines, source summary, totals, generator and fingerprint. Re-generating an identical preview reuses the existing batch; later mapping edits create a new fingerprint and cannot mutate historical exports.
+- Journal-ready CSV is spreadsheet-formula safe and includes accounting accounts, debit/credit amounts, operational dimensions and source references. Historical downloads re-check the user's current outlet scope and fail closed if the batch includes outlets no longer visible to that user.
+- A provider-neutral AccountingExportAdapter boundary is implemented; Journal CSV is the first adapter. Future QuickBooks/Xero/Sage connectors must consume the immutable export batch rather than embedding provider-specific account IDs or API behavior in POS settlement/accounting logic.
+- Mapping preview and export are read/export operations only. Existing CashbookEntry and FinancePostingLink records remain authoritative operational postings and are never duplicated or rewritten by the accounting bridge.
+- Provider-specific API integrations, bank feeds and a full general ledger remain deliberately out of scope until a provider is selected.
+- Benchmark check (Lightspeed accounting mapping/export patterns, 2026-10-27): map revenue/discount/payment/tax/inventory/COGS dimensions to accounting accounts, validate the mapping before activation/export, preserve location/source dimensions and keep provider sync behind an integration boundary. The implementation follows that model while retaining immutable POS/PO/refund/folio source evidence.
 
 ### R7.3 Management reporting
 - Sales by hour/day/branch/outlet/register/cashier/category/item.
