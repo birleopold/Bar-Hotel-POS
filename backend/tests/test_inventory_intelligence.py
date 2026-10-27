@@ -12,14 +12,22 @@ from apps.accounts.models import Membership, MembershipRole
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.console.forms import ConsoleMenuItemForm
 from apps.inventory.batches import InventoryBatch
-from apps.inventory.insights import build_stock_intelligence
-from apps.inventory.models import StockBalance, StockMovement, StockReason
+from apps.inventory.insights import (
+    build_stock_intelligence,
+    build_warehouse_replenishment_proposals,
+)
+from apps.inventory.models import (
+    StockBalance, StockMovement, StockReason,
+    StockTransferRequest, StockTransferRequestStatus,
+)
 from apps.purchasing.models import (
     Supplier, PurchaseOrder, PurchaseOrderLine, PurchaseReceipt, PurchaseReceiptLine,
     SupplierProductCode,
 )
 from apps.tenants.models import Tenant, TenantSettings, Site, Outlet, OutletType
-from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
+from apps.staff.middleware import (
+    STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY,
+)
 from apps.staff.views_inventory import StaffStockBalanceListView
 
 
@@ -242,3 +250,173 @@ class InventoryCatalogueVisibilityTests(TestCase):
     def test_new_supermarket_product_defaults_to_inventory_tracking(self):
         form = ConsoleMenuItemForm(tenant=self.tenant)
         self.assertIs(form.fields["track_inventory"].initial, True)
+
+
+
+class WarehouseReplenishmentPlanningTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(
+            name="Warehouse Planning",
+            slug="warehouse-planning",
+        )
+        TenantSettings.objects.create(
+            tenant=self.tenant,
+            business_lines=["supermarket"],
+            enabled_staff_modules=["inventory", "purchasing", "pos"],
+            default_currency="UGX",
+        )
+        self.site = Site.objects.create(tenant=self.tenant, name="Main")
+        self.branch_a = Outlet.objects.create(
+            site=self.site, name="Branch A", outlet_type=OutletType.SUPERMARKET,
+        )
+        self.branch_b = Outlet.objects.create(
+            site=self.site, name="Branch B", outlet_type=OutletType.RETAIL,
+        )
+        self.warehouse = Outlet.objects.create(
+            site=self.site, name="Central warehouse", outlet_type=OutletType.WAREHOUSE,
+        )
+        category = MenuCategory.objects.create(
+            tenant=self.tenant, name="General",
+        )
+        self.item = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=category,
+            name="Replenishment soap",
+            sku="REPL-SOAP",
+            unit_price=Decimal("5000"),
+            track_inventory=True,
+            reorder_level=Decimal("10"),
+        )
+        self.branch_a_balance = StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.branch_a, menu_item=self.item,
+            quantity=Decimal("2"),
+        )
+        self.branch_b_balance = StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.branch_b, menu_item=self.item,
+            quantity=Decimal("2"),
+        )
+        self.warehouse_balance = StockBalance.objects.create(
+            tenant=self.tenant, outlet=self.warehouse, menu_item=self.item,
+            quantity=Decimal("10"),
+        )
+
+    def _planning_rows(self):
+        return build_stock_intelligence(
+            tenant=self.tenant,
+            balances=[self.branch_a_balance, self.branch_b_balance],
+            safety_days=3,
+        )
+
+    def test_proposals_never_double_allocate_warehouse_stock(self):
+        proposals = build_warehouse_replenishment_proposals(
+            tenant=self.tenant,
+            planning_rows=self._planning_rows(),
+            warehouse_balances=[self.warehouse_balance],
+        )
+        self.assertEqual(len(proposals), 2)
+        self.assertEqual(proposals[0]["proposed_quantity"], Decimal("8.000"))
+        self.assertEqual(proposals[1]["proposed_quantity"], Decimal("2.000"))
+        self.assertEqual(
+            sum((row["proposed_quantity"] for row in proposals), Decimal("0")),
+            Decimal("10.000"),
+        )
+
+    def test_open_inbound_and_approved_source_commitments_reduce_proposals(self):
+        StockTransferRequest.objects.create(
+            tenant=self.tenant,
+            from_outlet=self.warehouse,
+            to_outlet=self.branch_a,
+            menu_item=self.item,
+            requested_quantity=Decimal("5"),
+            status=StockTransferRequestStatus.PENDING,
+        )
+        other_site = Site.objects.create(tenant=self.tenant, name="Other")
+        other_branch = Outlet.objects.create(
+            site=other_site, name="Other branch", outlet_type=OutletType.SUPERMARKET,
+        )
+        StockTransferRequest.objects.create(
+            tenant=self.tenant,
+            from_outlet=self.warehouse,
+            to_outlet=other_branch,
+            menu_item=self.item,
+            requested_quantity=Decimal("4"),
+            approved_quantity=Decimal("4"),
+            status=StockTransferRequestStatus.APPROVED,
+        )
+
+        proposals = build_warehouse_replenishment_proposals(
+            tenant=self.tenant,
+            planning_rows=self._planning_rows(),
+            warehouse_balances=[self.warehouse_balance],
+        )
+        by_branch = {row["to_outlet_id"]: row for row in proposals}
+        self.assertEqual(
+            by_branch[self.branch_a.pk]["open_inbound"], Decimal("5.000")
+        )
+        self.assertEqual(
+            by_branch[self.branch_a.pk]["proposed_quantity"], Decimal("3.000")
+        )
+        self.assertEqual(
+            by_branch[self.branch_b.pk]["proposed_quantity"], Decimal("3.000")
+        )
+        self.assertEqual(
+            sum((row["proposed_quantity"] for row in proposals), Decimal("0")),
+            Decimal("6.000"),
+        )
+
+    def test_stock_planning_ui_creates_pending_request_without_moving_stock(self):
+        user = get_user_model().objects.create_user(
+            email="warehouse-planning@test.local",
+            password="Password9!",
+        )
+        membership = Membership.objects.create(
+            tenant=self.tenant, user=user, role=MembershipRole.OWNER,
+        )
+        membership.sites.add(self.site)
+        membership.outlets.add(self.branch_a, self.warehouse)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.branch_a.pk)
+        session.save()
+
+        page = self.client.get(reverse("staff-inventory-intelligence"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Warehouse stock can cover")
+        self.assertContains(page, "Central warehouse")
+        self.assertContains(page, "Request from warehouse")
+
+        before_branch = self.branch_a_balance.quantity
+        before_warehouse = self.warehouse_balance.quantity
+        response = self.client.post(
+            reverse("staff-inventory-intelligence"),
+            {
+                "from_outlet": str(self.warehouse.pk),
+                "to_outlet": str(self.branch_a.pk),
+                "menu_item": str(self.item.pk),
+                "safety_days": "3",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("staff-inventory-transfer-requests"))
+
+        request_row = StockTransferRequest.objects.get(
+            tenant=self.tenant,
+            from_outlet=self.warehouse,
+            to_outlet=self.branch_a,
+            menu_item=self.item,
+        )
+        self.assertEqual(request_row.status, StockTransferRequestStatus.PENDING)
+        self.assertEqual(request_row.requested_quantity, Decimal("8.000"))
+
+        self.branch_a_balance.refresh_from_db()
+        self.warehouse_balance.refresh_from_db()
+        self.assertEqual(self.branch_a_balance.quantity, before_branch)
+        self.assertEqual(self.warehouse_balance.quantity, before_warehouse)
+        self.assertFalse(
+            StockMovement.objects.filter(
+                tenant=self.tenant,
+                menu_item=self.item,
+                reason__in=[StockReason.TRANSFER_OUT, StockReason.TRANSFER_IN],
+            ).exists()
+        )
