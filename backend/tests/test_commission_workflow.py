@@ -191,6 +191,7 @@ class CommissionWorkflowTests(TestCase):
         self.assertEqual(line.commission_base_snapshot, Decimal("100.00"))
         self.assertEqual(line.commission_rate_percent_snapshot, Decimal("5.00"))
         self.assertEqual(line.commission_amount_snapshot, Decimal("5.00"))
+        self.assertIsNotNone(line.commission_settled_at_snapshot)
 
         specific.rate_percent = Decimal("20.00")
         specific.save(update_fields=["rate_percent", "updated_at"])
@@ -217,7 +218,9 @@ class CommissionWorkflowTests(TestCase):
             idempotency_key="commission-old-sale",
         )
         old_time = timezone.now() - timedelta(days=40)
-        Payment.objects.filter(pk=old_payment.pk).update(created_at=old_time)
+        OrderLine.objects.filter(pk=old_line.pk).update(
+            commission_settled_at_snapshot=old_time
+        )
 
         mapped_refund = Refund.objects.create(
             tenant=self.tenant,
@@ -248,7 +251,9 @@ class CommissionWorkflowTests(TestCase):
             method="cash",
             idempotency_key="commission-general-sale",
         )
-        Payment.objects.filter(pk=general_payment.pk).update(created_at=old_time)
+        OrderLine.objects.filter(pk=general_line.pk).update(
+            commission_settled_at_snapshot=old_time
+        )
         Refund.objects.create(
             tenant=self.tenant,
             order=general_order,
