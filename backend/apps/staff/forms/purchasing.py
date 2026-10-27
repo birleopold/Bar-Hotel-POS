@@ -126,3 +126,94 @@ class StaffPOHeaderForm(forms.Form):
             )
         if outlets_qs is not None:
             self.fields["outlet"].queryset = outlets_qs
+
+class StaffRfqForm(forms.Form):
+    outlet = forms.ModelChoiceField(
+        queryset=Outlet.objects.none(),
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
+    reference = forms.CharField(
+        required=False,
+        max_length=128,
+        widget=forms.TextInput(attrs={
+            "class": "staff-input", "placeholder": "Optional; generated if blank",
+        }),
+    )
+    needed_by = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "staff-input", "type": "date"}),
+    )
+    notes = forms.CharField(
+        required=False,
+        max_length=2000,
+        widget=forms.Textarea(attrs={"class": "staff-input", "rows": 2}),
+    )
+
+    def __init__(self, *args, outlets_qs=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if outlets_qs is not None:
+            self.fields["outlet"].queryset = outlets_qs
+
+
+class StaffRfqInviteForm(forms.Form):
+    supplier = forms.ModelChoiceField(
+        queryset=Supplier.objects.none(),
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
+
+    def __init__(self, *args, tenant=None, rfq=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        qs = Supplier.objects.none()
+        if tenant is not None:
+            qs = Supplier.objects.filter(tenant=tenant, is_active=True)
+            if rfq is not None:
+                qs = qs.exclude(
+                    pk__in=rfq.quotes.values_list("supplier_id", flat=True)
+                )
+            qs = qs.order_by("name")
+        self.fields["supplier"].queryset = qs
+
+
+class StaffSupplierQuoteForm(forms.Form):
+    reference = forms.CharField(
+        required=False,
+        max_length=128,
+        widget=forms.TextInput(attrs={"class": "staff-input"}),
+    )
+    shipping_cost = forms.DecimalField(
+        required=False,
+        initial=0,
+        min_value=0,
+        max_digits=14,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.01"}),
+    )
+    other_cost = forms.DecimalField(
+        required=False,
+        initial=0,
+        min_value=0,
+        max_digits=14,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.01"}),
+    )
+    lead_time_days = forms.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=3650,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "min": "0"}),
+    )
+    valid_until = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "staff-input", "type": "date"}),
+    )
+    payment_terms = forms.CharField(
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(attrs={"class": "staff-input"}),
+    )
+    availability_note = forms.CharField(
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(attrs={"class": "staff-input"}),
+    )
+
