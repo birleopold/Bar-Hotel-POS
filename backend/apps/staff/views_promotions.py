@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from apps.audit.services import log_audit
 from apps.catalog.models import Promotion
 
 from .forms import StaffPromotionForm
@@ -24,6 +25,7 @@ class StaffPromotionListView(StaffTenantRequiredMixin, ListView):
     def get_queryset(self):
         return (
             Promotion.objects.filter(tenant=self.request.tenant)
+            .select_related("menu_item", "product_family", "category")
             .prefetch_related("outlets")
             .order_by("-starts_at", "name")
         )
@@ -44,7 +46,11 @@ class StaffPromotionDetailView(StaffTenantRequiredMixin, DetailView):
     pk_url_kwarg = "promotion_id"
 
     def get_queryset(self):
-        return Promotion.objects.filter(tenant=self.request.tenant).prefetch_related("outlets")
+        return (
+            Promotion.objects.filter(tenant=self.request.tenant)
+            .select_related("menu_item", "product_family", "category")
+            .prefetch_related("outlets")
+        )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -80,6 +86,21 @@ class StaffPromotionCreateView(StaffTenantRequiredMixin, CreateView):
         self.object.tenant = self.request.tenant
         self.object.save()
         form.save_m2m()
+        log_audit(
+            tenant_id=self.request.tenant.pk,
+            user_id=self.request.user.pk,
+            action="promotion.created",
+            entity_type="promotion",
+            entity_id=str(self.object.pk),
+            payload={
+                "name": self.object.name,
+                "target": self.object.target_label,
+                "discount_percent": str(self.object.discount_percent) if self.object.discount_percent is not None else None,
+                "discount_amount": str(self.object.discount_amount) if self.object.discount_amount is not None else None,
+                "starts_at": str(self.object.starts_at),
+                "ends_at": str(self.object.ends_at) if self.object.ends_at else None,
+            },
+        )
         messages.success(self.request, "Offer created.")
         return redirect(self.success_url)
 
@@ -115,9 +136,37 @@ class StaffPromotionUpdateView(StaffTenantRequiredMixin, UpdateView):
         return kw
 
     def form_valid(self, form):
+        before = {
+            "name": self.object.name,
+            "target": self.object.target_label,
+            "discount_percent": str(self.object.discount_percent) if self.object.discount_percent is not None else None,
+            "discount_amount": str(self.object.discount_amount) if self.object.discount_amount is not None else None,
+            "starts_at": str(self.object.starts_at),
+            "ends_at": str(self.object.ends_at) if self.object.ends_at else None,
+            "is_active": self.object.is_active,
+        }
         self.object = form.save(commit=False)
         self.object.save()
         form.save_m2m()
+        log_audit(
+            tenant_id=self.request.tenant.pk,
+            user_id=self.request.user.pk,
+            action="promotion.updated",
+            entity_type="promotion",
+            entity_id=str(self.object.pk),
+            payload={
+                "before": before,
+                "after": {
+                    "name": self.object.name,
+                    "target": self.object.target_label,
+                    "discount_percent": str(self.object.discount_percent) if self.object.discount_percent is not None else None,
+                    "discount_amount": str(self.object.discount_amount) if self.object.discount_amount is not None else None,
+                    "starts_at": str(self.object.starts_at),
+                    "ends_at": str(self.object.ends_at) if self.object.ends_at else None,
+                    "is_active": self.object.is_active,
+                },
+            },
+        )
         messages.success(self.request, "Offer updated.")
         return redirect(self.success_url)
 
