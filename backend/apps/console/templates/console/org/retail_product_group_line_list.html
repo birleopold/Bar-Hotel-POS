@@ -1,0 +1,14 @@
+{% extends "console/base.html" %}
+{% block title %}Products · {{ retail_group.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-setup__eyebrow">Catalogue / Retail groups</p><h1>{{ retail_group.name }}</h1><p class="staff-muted">Each group add expands into these products in this order. Component prices, tax, stock and serialized-unit rules remain authoritative.</p></div>
+    <div class="grocery-setup__hero-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-retail-group-edit' retail_group.id %}">Edit group</a><a class="staff-btn staff-btn--primary" href="{% url 'console-org-retail-group-line-create' retail_group.id %}">Add product</a></div>
+  </header>
+  <section class="staff-card"><p><strong>Cashier code:</strong> {{ retail_group.code|default:"No lookup code" }} · <strong>Status:</strong> {% if retail_group.is_active %}Active{% else %}Inactive{% endif %}</p><p class="staff-muted mb-0">This group does not create a new stock SKU.</p></section>
+  <div class="staff-table-wrap mt-3"><table class="staff-table"><thead><tr><th>Order</th><th>Product</th><th>Quantity per group</th><th>Action</th></tr></thead><tbody>
+  {% for line in lines %}<tr><td>{{ line.sort_order }}</td><td><strong>{{ line.menu_item.name }}</strong><span class="staff-muted small d-block">{{ line.menu_item.sku|default:"No SKU" }}</span></td><td>{{ line.quantity }}</td><td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-retail-group-line-edit' retail_group.id line.id %}">Edit</a><a href="{% url 'console-org-retail-group-line-delete' retail_group.id line.id %}">Remove</a></div></td></tr>
+  {% empty %}<tr><td colspan="4" class="staff-muted">This group is empty. Add at least one product before using it at checkout.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}
