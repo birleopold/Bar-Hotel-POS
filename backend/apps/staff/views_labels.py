@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+import uuid
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -161,7 +162,12 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             return self._return_to_list(request, outlet)
 
         if action == "manual_queue":
-            item_id = (request.POST.get("manual_item_id") or "").strip()
+            item_raw = (request.POST.get("manual_item_id") or "").strip()
+            try:
+                item_id = uuid.UUID(item_raw)
+            except (TypeError, ValueError):
+                messages.error(request, "Choose a valid product for the label request.")
+                return self._return_to_list(request, outlet)
             item = (
                 menu_items_for_outlet_queryset(request.tenant.pk, outlet.pk)
                 .filter(pk=item_id, is_active=True)
@@ -185,7 +191,12 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             return self._return_to_list(request, outlet)
 
         if action == "dismiss_queue":
-            entry_ids = request.POST.getlist("queue_entry_ids")
+            raw_entry_ids = request.POST.getlist("queue_entry_ids")
+            try:
+                entry_ids = [uuid.UUID(value) for value in raw_entry_ids]
+            except (TypeError, ValueError):
+                messages.error(request, "Choose valid pending label tasks to dismiss.")
+                return self._return_to_list(request, outlet)
             changed = dismiss_product_label_entries(
                 tenant_id=request.tenant.pk,
                 outlet=outlet,
