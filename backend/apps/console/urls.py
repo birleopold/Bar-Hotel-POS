@@ -168,6 +168,41 @@ urlpatterns = [
         name="console-org-menu-category-edit",
     ),
     path(
+        "org/menu/retail-groups/",
+        views_catalog.OrgRetailProductGroupListView.as_view(),
+        name="console-org-retail-groups",
+    ),
+    path(
+        "org/menu/retail-groups/new/",
+        views_catalog.OrgRetailProductGroupCreateView.as_view(),
+        name="console-org-retail-group-create",
+    ),
+    path(
+        "org/menu/retail-groups/<uuid:group_id>/edit/",
+        views_catalog.OrgRetailProductGroupUpdateView.as_view(),
+        name="console-org-retail-group-edit",
+    ),
+    path(
+        "org/menu/retail-groups/<uuid:group_id>/products/",
+        views_catalog.OrgRetailProductGroupLineListView.as_view(),
+        name="console-org-retail-group-lines",
+    ),
+    path(
+        "org/menu/retail-groups/<uuid:group_id>/products/new/",
+        views_catalog.OrgRetailProductGroupLineCreateView.as_view(),
+        name="console-org-retail-group-line-create",
+    ),
+    path(
+        "org/menu/retail-groups/<uuid:group_id>/products/<uuid:line_id>/edit/",
+        views_catalog.OrgRetailProductGroupLineUpdateView.as_view(),
+        name="console-org-retail-group-line-edit",
+    ),
+    path(
+        "org/menu/retail-groups/<uuid:group_id>/products/<uuid:line_id>/delete/",
+        views_catalog.OrgRetailProductGroupLineDeleteView.as_view(),
+        name="console-org-retail-group-line-delete",
+    ),
+    path(
         "org/menu/product-families/",
         views_catalog.OrgProductFamilyListView.as_view(),
         name="console-org-product-families",
