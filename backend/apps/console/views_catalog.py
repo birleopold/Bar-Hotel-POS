@@ -297,21 +297,7 @@ class OrgProductVariantMatrixView(ConsoleOrgAdminRequiredMixin, View):
                 },
             )
         messages.success(request, f"Created {len(planned)} new variant SKU(s). Existing combinations were left unchanged.")
-        family.refresh_from_db()
-        return self._render(
-            request,
-            family,
-            ConsoleVariantMatrixForm(initial={
-                **self._initial_from_family(family),
-                "sku_prefix": form.cleaned_data["sku_prefix"],
-                "unit_price": form.cleaned_data["unit_price"],
-                "tax_rate_percent": form.cleaned_data.get("tax_rate_percent"),
-                "reorder_level": form.cleaned_data.get("reorder_level"),
-                "track_inventory": form.cleaned_data["track_inventory"],
-                "is_active": form.cleaned_data["is_active"],
-            }),
-            created_count=len(planned),
-        )
+        return redirect("console-org-product-family-matrix", family_id=family.pk)
 
 
 class OrgProductPackageListView(MenuItemScopedMixin, ListView):
