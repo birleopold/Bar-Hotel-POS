@@ -77,6 +77,23 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
                 row["incomplete_lines"] + row["incomplete_return_lines"],
             ])
 
+        if profitability.get("categories"):
+            writer.writerow([])
+            writer.writerow([
+                "merchandise_category", "net_revenue", "covered_net_revenue",
+                "uncovered_net_revenue", "known_net_cogs", "known_gross_profit",
+                "known_margin_percent", "incomplete_cost_lines",
+            ])
+            for row in profitability["categories"]:
+                writer.writerow([
+                    _spreadsheet_text(row["category_name"]),
+                    row["net_revenue"], row["covered_net_revenue"],
+                    row["uncovered_net_revenue"], row["known_net_cogs"],
+                    row["known_gross_profit"],
+                    row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
+                    row["incomplete_lines"] + row["incomplete_return_lines"],
+                ])
+
 
 def format_sales_summary_csv(
     tenant_id: UUID,
