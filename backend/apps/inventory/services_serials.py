@@ -70,6 +70,22 @@ def validate_serial_receipt(*, tenant_id, outlet, menu_item, quantity, serial_nu
                 f"identifier{'s' if expected != 1 else ''} for the {expected} unit{'s' if expected != 1 else ''} received."
             )
         })
+    from apps.catalog.models import RetailProductGroup
+    group_collisions = []
+    for identifier in serials:
+        if RetailProductGroup.objects.filter(
+            tenant_id=tenant_id,
+            code__iexact=identifier,
+        ).exists():
+            group_collisions.append(identifier)
+    if group_collisions:
+        raise ValidationError({
+            "serial_numbers": (
+                "These identifiers are already reserved as retail group lookup codes: "
+                + ", ".join(group_collisions)
+            )
+        })
+
     existing = []
     for identifier in serials:
         match = InventorySerialUnit.objects.filter(
