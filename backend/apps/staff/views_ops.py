@@ -23,12 +23,13 @@ from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, ServiceOffering, ServiceOfferingOption
+from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, RetailProductGroup, ServiceOffering, ServiceOfferingOption
 from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderServiceMode, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table, Workstation
 from apps.pos.services import (
     adjust_open_order_line_quantity,
     assign_order_line_seat,
     add_line_to_open_order,
+    add_retail_group_to_open_order,
     add_service_to_open_order,
     add_supermarket_line_by_code,
     apply_promotion_to_order,
@@ -1690,6 +1691,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_line_discount(request, order)
         cashier_actions = {
             "add_line",
+            "add_retail_group",
             "scan_add_line",
             "adjust_line_qty",
             "record_payment",
@@ -1774,6 +1776,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_quick_create_product(request, order)
         if action == "add_line":
             return self._post_add_line(request, order)
+        if action == "add_retail_group":
+            return self._post_add_retail_group(request, order)
         if action == "add_service_line":
             return self._post_add_service_line(request, order)
         if action == "adjust_line_qty":
@@ -2537,6 +2541,52 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 })
             messages.success(request, "Line added.")
         return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_add_retail_group(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_add = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        def reject(message, status=422):
+            if async_add:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.pk)
+
+        if order.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            return reject("Retail product groups are available only at supermarket or retail checkout.", 403)
+        if order.status != OrderStatus.OPEN or order.is_paid:
+            return reject("Groups can be added only to an open unpaid basket.", 409)
+        try:
+            group_id = uuid.UUID((request.POST.get("retail_group_id") or "").strip())
+        except (TypeError, ValueError):
+            return reject("Choose a retail product group.")
+        group = RetailProductGroup.objects.filter(
+            pk=group_id,
+            tenant_id=order.tenant_id,
+            is_active=True,
+        ).first()
+        if group is None:
+            return reject("Choose an active retail product group.")
+        try:
+            add_retail_group_to_open_order(
+                order=order,
+                retail_group=group,
+                quantity=(request.POST.get("quantity") or "1").strip(),
+                user=request.user,
+            )
+        except DRFValidationError as exc:
+            return reject(exc.detail, 409)
+        if async_add:
+            order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
+            return JsonResponse({
+                "ok": True,
+                "message": f"{group.name} added.",
+                "order_id": str(order.pk),
+                "currency": order.currency,
+                "total": str(order.total),
+            })
+        messages.success(request, f"{group.name} added to basket.")
+        return redirect("staff-order-detail", order_id=order.pk)
+
 
     def _post_add_service_line(self, request: HttpRequest, order: Order) -> HttpResponse:
         async_service = (
