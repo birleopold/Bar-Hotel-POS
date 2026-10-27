@@ -545,11 +545,19 @@ class StaffStockMovementListView(StaffTenantRequiredMixin, ListView):
     def get_queryset(self):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ids = _outlet_filter_ids(self.request, outlets)
-        return (
+        qs = (
             StockMovement.objects.filter(tenant=self.request.tenant, outlet_id__in=ids)
             .select_related("outlet", "menu_item", "created_by")
             .order_by("-created_at")
         )
+        movement_id = (self.request.GET.get("movement") or "").strip()
+        if movement_id:
+            try:
+                movement_uuid = uuid.UUID(movement_id)
+            except (ValueError, TypeError, AttributeError):
+                return qs.none()
+            qs = qs.filter(pk=movement_uuid)
+        return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
