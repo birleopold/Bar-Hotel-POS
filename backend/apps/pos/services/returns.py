@@ -14,7 +14,8 @@ from .payments import record_order_refund
 
 def refund_retail_line(*, order: Order, line: OrderLine, quantity: Decimal,
                        amount: Decimal, reason: str, restock: bool, user,
-                       idempotency_key: str, payment_id=None, workstation_id=None, shift_id=None) -> tuple[SupermarketLineReturn, bool]:
+                       idempotency_key: str, payment_id=None, workstation_id=None, shift_id=None,
+                       serial_numbers=None) -> tuple[SupermarketLineReturn, bool]:
     # Fail with a user-facing error before touching any refund, loyalty or
     # stock record. Reject NaN/Infinity, negative and excessive precision.
     try:
@@ -61,6 +62,19 @@ def refund_retail_line(*, order: Order, line: OrderLine, quantity: Decimal,
                     or ret.quantity != quantity or ret.restocked != restock
                     or ret.reason != (reason or "")[:255]):
                 raise ValidationError({"Idempotency-Key": "This key was already used for a different return."})
+            if line.menu_item_id and line.menu_item.serial_tracking:
+                from apps.inventory.services_serials import normalize_serial_numbers
+                supplied = {value.casefold() for value in normalize_serial_numbers(serial_numbers)}
+                linked = {
+                    value.casefold()
+                    for value in ret.serialized_unit_links.values_list(
+                        "serial_unit__serial_number", flat=True
+                    )
+                }
+                if supplied != linked:
+                    raise ValidationError({
+                        "Idempotency-Key": "This refund key was already used with different serial / IMEI values."
+                    })
         refund, replay = record_order_refund(
             order=locked, user=user, amount=amount, reason=reason,
             idempotency_key=idempotency_key, restock=False, payment_id=payment_id,
@@ -70,7 +84,7 @@ def refund_retail_line(*, order: Order, line: OrderLine, quantity: Decimal,
             return ret, True
         ret = process_supermarket_line_return(
             order=locked, line=line, quantity=quantity, reason=reason,
-            restock=restock, user=user,
+            restock=restock, user=user, serial_numbers=serial_numbers,
         )
         ret.refund = refund
         ret.save(update_fields=["refund", "updated_at"])
