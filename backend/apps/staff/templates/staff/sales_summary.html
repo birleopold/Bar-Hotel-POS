@@ -219,6 +219,43 @@
         </div>
       </div>
     </div>
+
+    <div class="row g-4 mt-1">
+      <div class="col-12 col-xl-6">
+        <div class="staff-card staff-card--pos h-100">
+          <h3 class="staff-card__title staff-card__title--pos"><i class="bi bi-clock me-2 text-muted"></i>Sales by hour</h3>
+          <p class="staff-muted small">Local clock hour for the selected operating scope. Refunds stay in the hour they occurred.</p>
+          <div class="staff-table-wrap staff-table-wrap--pos mt-3">
+            <table class="staff-table staff-table--pos">
+              <thead><tr><th>Hour</th><th class="text-end">Payments</th><th class="text-end">Gross</th><th class="text-end">Refunds</th><th class="text-end">Net</th></tr></thead>
+              <tbody>
+              {% for row in summary.hourly_sales %}
+                {% if row.payments_count or row.refunds_count %}
+                <tr><td class="fw-bold">{{ row.label }}</td><td class="text-end">{{ row.payments_count }}</td><td class="text-end">{{ row.gross_sales }}</td><td class="text-end">{{ row.refunds_total }}</td><td class="text-end">{{ row.net_sales }}</td></tr>
+                {% endif %}
+              {% empty %}<tr><td colspan="5" class="staff-muted">No hourly activity.</td></tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-6">
+        <div class="staff-card staff-card--pos h-100">
+          <h3 class="staff-card__title staff-card__title--pos"><i class="bi bi-calculator me-2 text-muted"></i>Sales by register</h3>
+          <p class="staff-muted small">Payments/refunds without a recorded register stay in Unattributed / legacy.</p>
+          <div class="staff-table-wrap staff-table-wrap--pos mt-3">
+            <table class="staff-table staff-table--pos">
+              <thead><tr><th>Register</th><th class="text-end">Payments</th><th class="text-end">Gross</th><th class="text-end">Refunds</th><th class="text-end">Net</th></tr></thead>
+              <tbody>
+              {% for row in summary.by_register %}
+                <tr><td class="fw-bold">{{ row.register_name }}{% if row.register_code %}<span class="staff-muted small d-block">{{ row.register_code }}</span>{% endif %}</td><td class="text-end">{{ row.payments_count }}</td><td class="text-end">{{ row.gross_sales }}</td><td class="text-end">{{ row.refunds_total }}</td><td class="text-end">{{ row.net_sales }}</td></tr>
+              {% empty %}<tr><td colspan="5" class="staff-muted">No register activity.</td></tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   {% elif not date_errors %}
     <div class="staff-card staff-card--pos text-center py-5">
       <div style="font-size: 3rem; color: var(--text-muted); opacity: 0.5; margin-bottom: 1rem;"><i class="bi bi-inbox"></i></div>
