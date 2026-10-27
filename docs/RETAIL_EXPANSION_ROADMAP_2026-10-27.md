@@ -447,10 +447,13 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 **Maps to:** phases 01, 03, 04, 18, 20, 21, 22, 26; SM-07, SM-20, SM-29, SM-33, SM-35.
 
 ### R6.1 Role/permission templates
-- Reusable permission presets.
-- Tenant-custom role definitions layered over safe capability primitives.
-- Cannot grant cross-tenant/outlet access.
-- Clear UI preview of what each role can do.
+- Built-in reusable role presets remain business-line aware, and the workspace now has a dedicated Roles & access screen with permission previews derived from the existing enforced base-role policies.
+- Tenant-custom saved role templates are implemented as a safe base role plus default branch/outlet scope. Templates cannot package owner/tenant-admin access, cannot reference another tenant's branches/outlets, and cannot grant capabilities beyond the selected built-in base role.
+- Saved templates can be applied during worker creation/editing and through bulk team actions. Applying a template copies its current role/scope to the worker and records the template source in membership/audit evidence.
+- Template edits are deliberately non-retroactive: changing a template does not silently rewrite live workers; an administrator must re-apply it intentionally. Built-in presets and saved templates are mutually exclusive on one submission to avoid ambiguous access.
+- Roles and templates stay filtered by the tenant's configured business lines and existing outlet-type compatibility rules. Existing site/outlet scoping remains authoritative and fail-closed.
+- Role administration is audit logged, templates can be made inactive instead of requiring destructive deletion, and the Members directory shows each worker's last-applied template.
+- Benchmark check (Lightspeed Retail employee roles/access and Shopify POS staff roles/location access, 2026-10-27): use named reusable roles, explicit task permissions, location assignment and individual worker identity; our implementation keeps the same understandable model while preserving the stricter tenant/business-line/outlet scope already enforced by this POS.
 
 ### R6.2 Time and attendance
 - Clock in/out.
