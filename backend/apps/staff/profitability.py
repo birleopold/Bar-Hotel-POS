@@ -10,8 +10,9 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.db.models import Max
 from apps.common.datetime_bounds import utc_day_range_inclusive
-from apps.pos.models import OrderLine, Payment, Refund, SupermarketLineReturn
+from apps.pos.models import Order, OrderLine, Refund, SupermarketLineReturn
 
 
 MONEY = Decimal("0.01")
@@ -60,19 +61,25 @@ def build_merchandise_profitability(
         start, end = utc_day_range_inclusive(date_from, date_to)
     currency = (currency or "UGX").strip().upper()
 
-    payments = Payment.objects.filter(
-        tenant_id=tenant_id,
-        created_at__gte=start,
-        created_at__lte=end,
-        order__outlet_id__in=allowed_outlet_ids,
+    # Recognize merchandise revenue once, on the order's final POS payment.
+    # This prevents a basket paid in installments across different report dates
+    # from contributing its full line revenue to every partial-payment period.
+    completed_orders = (
+        Order.objects.filter(
+            tenant_id=tenant_id,
+            outlet_id__in=allowed_outlet_ids,
+            is_paid=True,
+        )
+        .annotate(final_payment_at=Max("payments__created_at"))
+        .filter(
+            final_payment_at__gte=start,
+            final_payment_at__lte=end,
+        )
     )
-    foreign_payment_count = payments.exclude(
-        order__currency=currency,
-    ).count()
+    foreign_payment_count = completed_orders.exclude(currency=currency).count()
     paid_order_ids = list(
-        payments.filter(order__currency=currency)
-        .values_list("order_id", flat=True)
-        .distinct()
+        completed_orders.filter(currency=currency)
+        .values_list("id", flat=True)
     )
 
     line_qs = (
