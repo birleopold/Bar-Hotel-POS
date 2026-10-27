@@ -47,6 +47,7 @@ from apps.pos.services import (
     hold_open_order,
     resume_held_retail_order,
     menu_items_for_outlet_queryset,
+    lookup_supermarket_item_for_code,
     open_pos_shift,
     open_or_resume_table_order,
     transfer_table_order,
@@ -2817,11 +2818,33 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     messages.error(request, f"{fld}: {err}")
             return redirect("staff-order-detail", order_id=order.id)
         group_code = (form.cleaned_data["code"] or "").strip()
-        retail_group = RetailProductGroup.objects.filter(
+        # Existing/legacy data may predate the shared code-namespace guards.
+        # Always prefer a real physical/product identity over a convenience
+        # group shortcut so an IMEI, barcode, package code, PLU or scale label
+        # can never expand an unrelated group.
+        from apps.inventory.models import InventorySerialUnit
+        from apps.catalog.scale_labels import decode_scale_weight_label
+        normal_item, _normal_source = lookup_supermarket_item_for_code(
             tenant_id=order.tenant_id,
-            is_active=True,
-            code__iexact=group_code,
-        ).first()
+            outlet_id=order.outlet_id,
+            code=group_code,
+        )
+        serial_identity = InventorySerialUnit.objects.filter(
+            tenant_id=order.tenant_id,
+            serial_number__iexact=group_code,
+        ).exists()
+        scale_identity = decode_scale_weight_label(
+            tenant_id=order.tenant_id,
+            outlet_id=order.outlet_id,
+            code=group_code,
+        ) is not None
+        retail_group = None
+        if normal_item is None and not serial_identity and not scale_identity:
+            retail_group = RetailProductGroup.objects.filter(
+                tenant_id=order.tenant_id,
+                is_active=True,
+                code__iexact=group_code,
+            ).first()
         try:
             if retail_group is not None:
                 add_retail_group_to_open_order(
