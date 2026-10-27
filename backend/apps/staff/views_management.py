@@ -267,6 +267,37 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                                 row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
                                 row["incomplete_lines"] + row["incomplete_return_lines"],
                             ])
+                    if p.get("outlets"):
+                        writer.writerow([])
+                        writer.writerow([
+                            "Section", "Net revenue", "Covered net revenue",
+                            "Revenue without trusted cost", "Known net COGS",
+                            "Known gross profit", "Known margin %",
+                            "Cost coverage %", "Incomplete cost lines",
+                        ])
+                        for row in p["outlets"]:
+                            writer.writerow([
+                                csv_safe(row["outlet_name"]),
+                                row["net_revenue"], row["covered_net_revenue"],
+                                row["uncovered_net_revenue"], row["known_net_cogs"],
+                                row["known_gross_profit"],
+                                row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
+                                row["cost_coverage_percent"],
+                                row["incomplete_lines"] + row["incomplete_return_lines"],
+                            ])
+                    if p.get("unknown_cost_exposure"):
+                        writer.writerow([])
+                        writer.writerow([
+                            "Unknown-cost product", "SKU",
+                            "Revenue without trusted cost",
+                            "Incomplete cost lines",
+                        ])
+                        for row in p["unknown_cost_exposure"]:
+                            writer.writerow([
+                                csv_safe(row["item_name"]), csv_safe(row["sku"]),
+                                row["uncovered_net_revenue"],
+                                row["incomplete_lines"],
+                            ])
                     response = HttpResponse(
                         out.getvalue(), content_type="text/csv; charset=utf-8"
                     )
