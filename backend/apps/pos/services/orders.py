@@ -10,6 +10,7 @@ from apps.accounts.models import Membership, MembershipRole
 from apps.audit.services import log_audit
 from apps.catalog.models import (
     MenuItem,
+    ProductAlternateCode,
     ProductPackage,
     RetailProductGroup,
     Promotion,
@@ -441,6 +442,19 @@ def lookup_supermarket_sellable_for_code(
     if package and menu_item_available_at_outlet(package.menu_item, outlet_id):
         return package.menu_item, "package", package
 
+    alternate = (
+        ProductAlternateCode.objects.select_related("menu_item")
+        .filter(
+            tenant_id=tenant_id,
+            is_active=True,
+            code__iexact=token,
+            menu_item__is_active=True,
+        )
+        .first()
+    )
+    if alternate and menu_item_available_at_outlet(alternate.menu_item, outlet_id):
+        return alternate.menu_item, "alternate", None
+
     profile = (
         SupermarketSkuProfile.objects.select_related("menu_item")
         .filter(
@@ -690,7 +704,7 @@ def add_line_to_open_order(
 ) -> OrderLine:
     from apps.catalog.modifiers_service import resolve_modifier_selection_drfsafe
 
-    if pricing_source not in {"menu", "barcode", "plu", "weighted", "package", "serial"}:
+    if pricing_source not in {"menu", "barcode", "plu", "weighted", "package", "serial", "alternate"}:
         raise ValidationError({"pricing_source": "Invalid retail scan source."})
 
     locked = Order.objects.select_for_update().get(pk=order.pk)
@@ -727,7 +741,7 @@ def add_line_to_open_order(
             locked.lines.select_for_update().filter(
                 menu_item_id=menu_item.pk,
                 is_voided=False,
-                pricing_source__in=("menu", "barcode", "plu", "package", "serial"),
+                pricing_source__in=("menu", "barcode", "plu", "package", "serial", "alternate"),
                 unit_price=unit_price,
                 label=menu_item.name,
                 line_discount_amount=Decimal("0"),
