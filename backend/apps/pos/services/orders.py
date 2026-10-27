@@ -339,6 +339,10 @@ def resolve_order_create(
     )
     if outlet is None:
         raise ValidationError({"outlet": "Invalid or inactive outlet for this tenant."})
+    if outlet.outlet_type == OutletType.WAREHOUSE:
+        raise ValidationError({
+            "outlet": "Warehouse / storage locations are inventory-only and cannot create sales orders."
+        })
     if not outlet_belongs_to_membership(membership, outlet.id):
         raise ValidationError({"outlet": "You cannot create orders for this outlet."})
 
@@ -532,6 +536,12 @@ def create_order_with_lines(
     service_mode: str = "",
     guest_count: int | None = None,
 ) -> Order:
+    if outlet.site.tenant_id != tenant_id:
+        raise ValidationError({"outlet": "Order outlet must belong to this business."})
+    if outlet.outlet_type == OutletType.WAREHOUSE:
+        raise ValidationError({
+            "outlet": "Warehouse / storage locations are inventory-only and cannot create sales orders."
+        })
     if service_mode not in {"", *OrderServiceMode.values}:
         raise ValidationError({"service_mode": "Choose a supported order type."})
     if guest_count is not None and (guest_count < 1 or guest_count > 999):
