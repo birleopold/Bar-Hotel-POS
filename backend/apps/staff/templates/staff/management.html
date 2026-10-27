@@ -42,7 +42,7 @@
         <tbody>
         {% for item in loss_patterns.workers %}
           <tr>
-            <td><strong>{{ item.worker }}</strong></td>
+            <td><a href="{% url 'staff-management-loss-pattern' 'worker' item.pattern_key %}"><strong>{{ item.worker }}</strong></a></td>
             <td>{{ item.refunds }}</td>
             <td>{{ item.voids }}</td>
             <td>{{ item.line_discounts }}</td>
@@ -65,7 +65,7 @@
         <tbody>
         {% for item in loss_patterns.outlets %}
           <tr>
-            <td><strong>{{ item.outlet }}</strong></td>
+            <td><a href="{% url 'staff-management-loss-pattern' 'outlet' item.pattern_key %}"><strong>{{ item.outlet }}</strong></a></td>
             <td>{{ item.refunds }}</td>
             <td>{{ item.voids }}</td>
             <td>{{ item.line_discounts }}</td>
@@ -88,7 +88,7 @@
         <tbody>
         {% for item in loss_patterns.products %}
           <tr>
-            <td><strong>{{ item.product }}</strong></td>
+            <td><a href="{% url 'staff-management-loss-pattern' 'product' item.pattern_key %}"><strong>{{ item.product }}</strong></a></td>
             <td>{{ item.voids }}</td>
             <td>{{ item.line_discounts }}</td>
             <td>{{ item.margin_overrides }}</td>
