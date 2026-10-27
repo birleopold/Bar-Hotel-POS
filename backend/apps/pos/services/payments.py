@@ -204,6 +204,16 @@ def charge_order_to_folio(*, order: Order, membership, user) -> FolioLine:
 
 
 def _restock_paid_order_tracked_lines(*, order: Order, user) -> None:
+    if order.lines.filter(
+        is_voided=False,
+        menu_item__serial_tracking=True,
+    ).exists():
+        raise ValidationError({
+            "restock": (
+                "This sale contains serial / IMEI tracked products. "
+                "Use the item return workflow and enter the exact returned identifiers."
+            )
+        })
     # Return only stock that this order actually consumed, regardless of current
     # catalog settings. Account for items already restocked via line returns.
     sold = StockMovement.objects.filter(order=order, reason=StockReason.SALE).values(
