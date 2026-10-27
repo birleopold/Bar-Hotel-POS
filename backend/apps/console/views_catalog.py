@@ -989,7 +989,7 @@ class OrgRetailProductGroupLineDeleteView(RetailProductGroupScopedMixin, DeleteV
     pk_url_kwarg = "line_id"
 
     def get_queryset(self):
-        return self.retail_group.lines.all()
+        return self.retail_group.lines.filter(tenant=self.request.tenant)
 
     def get_success_url(self):
         return reverse("console-org-retail-group-lines", kwargs={"group_id": self.retail_group.pk})
