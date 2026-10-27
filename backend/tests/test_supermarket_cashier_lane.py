@@ -846,6 +846,35 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertNotContains(scoped, "Neighbour apples")
         self.assertFalse(scoped.context["pos_menu_categories"])
 
+    def test_cashier_catalogue_search_finds_active_package_barcode(self):
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Package search")
+        item = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=category,
+            name="Soda bottle",
+            sku="SODA-500",
+            unit_price=Decimal("2500"),
+            track_inventory=False,
+        )
+        ProductPackage.objects.create(
+            tenant=self.tenant,
+            menu_item=item,
+            name="Crate of 24",
+            units_per_package=Decimal("24"),
+            barcode="SODA-CRATE-24",
+            sku_alias="SODA24",
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user, currency="UGX",
+        )
+        url = reverse("staff-order-detail", kwargs={"order_id": order.pk})
+        by_barcode = self.client.get(url, {"catalogue_q": "SODA-CRATE-24"})
+        self.assertEqual(by_barcode.status_code, 200)
+        self.assertContains(by_barcode, "Soda bottle")
+        by_code = self.client.get(url, {"catalogue_q": "SODA24"})
+        self.assertEqual(by_code.status_code, 200)
+        self.assertContains(by_code, "Soda bottle")
+
     def test_barcode_and_plu_scans_merge_without_overwriting_original_source(self):
         from apps.pos.services import add_supermarket_line_by_code
         category = MenuCategory.objects.create(tenant=self.tenant, name="Scan provenance")
