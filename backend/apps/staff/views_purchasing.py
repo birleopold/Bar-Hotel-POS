@@ -1004,6 +1004,8 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
                 "outlet": str(vd["outlet"].id),
                 "reference": vd.get("reference") or "",
                 "expected_date": vd.get("expected_date"),
+                "needed_by": vd.get("needed_by"),
+                "request_reason": vd.get("request_reason") or "",
                 "notes": vd.get("notes") or "",
                 "lines": lines_payload,
             },
