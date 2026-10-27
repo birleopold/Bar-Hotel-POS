@@ -34,6 +34,12 @@ class UnitOfMeasure(models.TextChoices):
     LITER = "liter", "Liter"
 
 
+class SerialIdentifierType(models.TextChoices):
+    SERIAL = "serial", "Serial number"
+    IMEI = "imei", "IMEI"
+    CUSTOM = "custom", "Custom identifier"
+
+
 class ProductFamily(TimeStampedModel):
     """Optional parent merchandise record for related sellable variants."""
 
@@ -161,6 +167,21 @@ class MenuItem(TimeStampedModel):
     track_inventory = models.BooleanField(
         default=False,
         help_text="When true, outlet stock is reduced when the order is paid.",
+    )
+    serial_tracking = models.BooleanField(
+        default=False,
+        help_text="Track every physical unit by serial number or IMEI. Requires piece-based inventory tracking.",
+    )
+    serial_identifier_type = models.CharField(
+        max_length=16,
+        choices=SerialIdentifierType.choices,
+        default=SerialIdentifierType.SERIAL,
+    )
+    warranty_months = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(240)],
+        help_text="Optional default warranty term for serialized units, in months.",
     )
     reorder_level = models.DecimalField(
         max_digits=14,
