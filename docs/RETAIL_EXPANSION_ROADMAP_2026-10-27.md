@@ -61,6 +61,27 @@
 
 **UI surfaces:** Catalog list, product editor, variant matrix, package/UoM editor, assemblies, serial registry, label queue.
 
+## R1 implementation checkpoint — 27 October 2026
+
+Implemented in source, pending exact-head CI/browser certification:
+- Product families with tenant scope and PostgreSQL RLS.
+- Variant matrix preview/generation for up to three dimensions and 120 combinations per batch; generated rows remain normal sellable `MenuItem` SKUs.
+- Product packages with base-unit conversion, package barcode/code, sell/purchase flags and optional exactly representable package price.
+- Symmetric barcode/SKU/package-code collision guards.
+- Cashier scan resolution and catalogue search by package barcode/code; package scans convert into base stock quantity through the existing basket service.
+- Purchase-order package snapshots: package name, units per package and ordered package count are frozen on the PO line while financial/stock quantities remain base units.
+- Staff PO creation and receiving UI for package counts; partial receipt converts packages to base stock and records packages received.
+- Service-level rejection of fractional package receipt counts.
+- Retail-only UI isolation for family/package tools.
+
+Still R1 work:
+- richer variant option editing after generation;
+- package-aware catalog import/export and supplier-specific package codes;
+- retail assembly/build/unbuild and groups/bundles;
+- serialized/IMEI stock lifecycle;
+- product custom fields and richer label queues;
+- exact-head CI, PostgreSQL/RLS evidence and browser acceptance.
+
 ## Workstream R2 — Pricing, promotions and merchandising
 
 **Goal:** centralize all non-base-price behavior in one pricing engine instead of scattered checkout conditions.
