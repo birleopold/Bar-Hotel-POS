@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from .batches import InventoryBatch
 from .models import StockMovement, StockReason
-from apps.purchasing.models import PurchaseReceiptLine
+from apps.purchasing.models import PurchaseReceiptLine, SupplierProductCode
 
 
 def build_stock_intelligence(*, tenant, balances, safety_days=3, at=None):
@@ -70,6 +70,24 @@ def build_stock_intelligence(*, tenant, balances, safety_days=3, at=None):
         aging[key][bucket] += units
         allocated[key] += units
 
+    preferred_suppliers = {
+        row["menu_item_id"]: row
+        for row in SupplierProductCode.objects.filter(
+            tenant=tenant,
+            menu_item_id__in=product_ids,
+            product_package__isnull=True,
+            is_active=True,
+            is_preferred=True,
+        )
+        .values(
+            "menu_item_id",
+            "supplier_id",
+            "supplier__name",
+            "default_unit_cost",
+            "code",
+        )
+    }
+
     lead_samples = defaultdict(list)
     deliveries = PurchaseReceiptLine.objects.filter(
         receipt__tenant=tenant,
@@ -114,11 +132,16 @@ def build_stock_intelligence(*, tenant, balances, safety_days=3, at=None):
                     and (last_use is None or last_use < since_90))
         movement_ratio = (usage / (usage + qty) * 100
                           if usage + qty > 0 else None)
+        preferred = preferred_suppliers.get(balance.menu_item_id)
         results.append({
             "outlet_id": balance.outlet_id,
             "outlet": balance.outlet.name,
             "menu_item_id": balance.menu_item_id,
             "item": balance.menu_item.name,
+            "preferred_supplier_id": preferred["supplier_id"] if preferred else None,
+            "preferred_supplier": preferred["supplier__name"] if preferred else "",
+            "preferred_supplier_code": preferred["code"] if preferred else "",
+            "preferred_supplier_cost": preferred["default_unit_cost"] if preferred else None,
             "unit": balance.menu_item.get_unit_of_measure_display(),
             "qty": qty,
             "reorder_level": threshold,
