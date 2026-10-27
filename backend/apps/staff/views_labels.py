@@ -16,7 +16,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen.canvas import Canvas
 
-from apps.catalog.models import MenuItem
+from apps.catalog.label_queue import mark_product_labels_printed
+from apps.catalog.models import MenuItem, ProductLabelQueueEntry
 from apps.pos.services.menu import menu_items_for_outlet_queryset
 from apps.tenants.models import OutletType
 from .mixins import StaffTenantRequiredMixin
@@ -61,11 +62,28 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             .prefetch_related("outlet_links")
             .order_by("name", "pk")
         )
+        if (self.request.GET.get("queue") or "").strip() in {"1", "true", "yes"}:
+            pending_ids = ProductLabelQueueEntry.objects.filter(
+                tenant=self.request.tenant,
+                outlet=outlet,
+                status=ProductLabelQueueEntry.Status.PENDING,
+            ).values_list("menu_item_id", flat=True)
+            qs = qs.filter(pk__in=pending_ids)
         q = (self.request.GET.get("q") or "").strip()[:80]
         if q:
             qs = qs.filter(
-                Q(name__icontains=q) | Q(sku__icontains=q) | Q(barcode__icontains=q)
-            )
+                Q(name__icontains=q)
+                | Q(sku__icontains=q)
+                | Q(barcode__icontains=q)
+                | Q(brand__icontains=q)
+                | Q(model_number__icontains=q)
+                | Q(reference_code__icontains=q)
+                | Q(
+                    alternate_codes__code__icontains=q,
+                    alternate_codes__tenant=self.request.tenant,
+                    alternate_codes__is_active=True,
+                )
+            ).distinct()
         return qs
 
     def get_context_data(self, **kwargs):
@@ -74,9 +92,23 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
         ctx["label_outlets"] = self._retail_outlets()
         ctx["label_outlet"] = outlet
         ctx["label_q"] = (self.request.GET.get("q") or "").strip()[:80]
+        ctx["label_queue_only"] = (self.request.GET.get("queue") or "").strip() in {"1", "true", "yes"}
+        ctx["pending_label_count"] = 0
         if outlet:
+            pending = list(
+                ProductLabelQueueEntry.objects.filter(
+                    tenant=self.request.tenant,
+                    outlet=outlet,
+                    status=ProductLabelQueueEntry.Status.PENDING,
+                ).select_related("menu_item").order_by("-created_at")
+            )
+            ctx["pending_label_count"] = len(pending)
+            reasons_by_item = {}
+            for entry in pending:
+                reasons_by_item.setdefault(entry.menu_item_id, []).append(entry.get_reason_display())
             for item in ctx["label_items"]:
                 item.label_price = item.unit_price_for_outlet(outlet.pk)
+                item.label_queue_reasons = reasons_by_item.get(item.pk, [])
         return ctx
 
     def post(self, request, *args, **kwargs):
@@ -117,6 +149,12 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             return self._return_to_list(request, outlet)
 
         pdf = self._build_pdf(labels, outlet)
+        mark_product_labels_printed(
+            tenant_id=request.tenant.pk,
+            outlet=outlet,
+            menu_item_ids=[item.pk for item in labels],
+            user=request.user,
+        )
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = 'attachment; filename="shelf-labels.pdf"'
         response["Cache-Control"] = "private, no-store"
@@ -127,6 +165,8 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
         q = (request.POST.get("return_q") or "").strip()[:80]
         if q:
             query["q"] = q
+        if (request.POST.get("return_queue") or "").strip() in {"1", "true", "yes"}:
+            query["queue"] = "1"
         return redirect(reverse("staff-inventory-shelf-labels") + "?" + urlencode(query))
 
     def _build_pdf(self, labels, outlet):
