@@ -23,6 +23,7 @@ def promotion_discount_for_order(
     *,
     subtotal: Decimal,
     tax_total: Decimal,
+    promotion_override: Promotion | None = None,
 ) -> Decimal:
     """Recompute the current applied-promotion discount from live basket lines.
 
@@ -31,10 +32,11 @@ def promotion_discount_for_order(
     and will recover automatically if the basket qualifies again before
     payment starts.
     """
-    if not order.applied_promotion_id:
-        return Decimal("0.00")
-
-    promotion = order.applied_promotion
+    promotion = promotion_override
+    if promotion is None:
+        if not order.applied_promotion_id:
+            return Decimal("0.00")
+        promotion = order.applied_promotion
     if promotion.min_order_subtotal is not None and subtotal < promotion.min_order_subtotal:
         return Decimal("0.00")
 
