@@ -91,11 +91,12 @@ def format_sales_summary_csv(
         outlet_ids=outlet_ids,
         business_date_site=business_date_site,
     )
-    effective_outlet_ids = allowed_outlet_ids
-    if effective_outlet_ids is None:
-        effective_outlet_ids = outlet_ids
-    if effective_outlet_ids is None and outlet_id is not None:
+    if outlet_id is not None:
         effective_outlet_ids = [outlet_id]
+    elif outlet_ids is not None:
+        effective_outlet_ids = outlet_ids
+    else:
+        effective_outlet_ids = allowed_outlet_ids
     if effective_outlet_ids is not None:
         currency = (
             TenantSettings.objects.filter(tenant_id=tenant_id)
