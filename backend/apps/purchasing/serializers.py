@@ -488,6 +488,19 @@ class ReceivePurchaseOrderSerializer(serializers.Serializer):
     discrepancy_note = serializers.CharField(required=False, allow_blank=True, max_length=512, default="")
     delivery_reference = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
     note = serializers.CharField(required=False, allow_blank=True, max_length=512, default="")
+    shipping_cost = serializers.DecimalField(
+        max_digits=14, decimal_places=2, min_value=Decimal("0"),
+        required=False, default=Decimal("0"),
+    )
+    duty_cost = serializers.DecimalField(
+        max_digits=14, decimal_places=2, min_value=Decimal("0"),
+        required=False, default=Decimal("0"),
+    )
+    landed_cost_allocation = serializers.ChoiceField(
+        choices=PurchaseReceipt.LandedCostAllocation.choices,
+        required=False,
+        default=PurchaseReceipt.LandedCostAllocation.EXCLUDE,
+    )
 
     def validate_lines(self, value):
         if not value:
