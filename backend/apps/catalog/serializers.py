@@ -1,5 +1,5 @@
 from drf_spectacular.utils import extend_schema_field
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.db import transaction
 from apps.tenants.models import Tenant
 from rest_framework import serializers
@@ -267,14 +267,20 @@ class MenuItemSerializer(serializers.ModelSerializer):
                 existing = existing.exclude(pk=instance.pk)
             if existing.filter(name__iexact=name, is_active=True).exists():
                 raise serializers.ValidationError({"name": "A product with this name already exists."})
-            if barcode and existing.filter(barcode__iexact=barcode).exists():
-                raise serializers.ValidationError({"barcode": "This barcode is already registered."})
+            if barcode and existing.filter(
+                Q(barcode__iexact=barcode) | Q(sku__iexact=barcode)
+            ).exists():
+                raise serializers.ValidationError({"barcode": "This code is already registered to another product barcode or SKU."})
+            if sku and existing.filter(
+                Q(sku__iexact=sku) | Q(barcode__iexact=sku)
+            ).exists():
+                raise serializers.ValidationError({"sku": "This code is already registered to another product SKU or barcode."})
             for field_name, code in (("barcode", barcode), ("sku", sku)):
                 if not code:
                     continue
                 if ProductPackage.objects.filter(tenant_id=tenant_id).filter(
-                    serializers.models.Q(barcode__iexact=code)
-                    | serializers.models.Q(sku_alias__iexact=code)
+                    Q(barcode__iexact=code)
+                    | Q(sku_alias__iexact=code)
                 ).exists():
                     raise serializers.ValidationError({field_name: "This code is already assigned to a product package."})
                 if RetailProductGroup.objects.filter(
