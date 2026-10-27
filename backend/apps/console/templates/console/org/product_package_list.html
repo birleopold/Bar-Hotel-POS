@@ -1,0 +1,17 @@
+{% extends "console/base.html" %}
+{% block title %}Packages · {{ menu_item.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-setup__eyebrow">Catalogue / {{ menu_item.name }}</p><h1>Packages &amp; barcodes</h1><p class="staff-muted">Define pack, case or carton barcodes without creating a second stock ledger. Every package converts into the product's base stock unit.</p></div>
+    <div class="grocery-setup__hero-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-edit' menu_item.id %}">Edit product</a><a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-package-create' menu_item.id %}">Add package</a></div>
+  </header>
+  <section class="staff-card"><p><strong>Base unit:</strong> {{ menu_item.get_unit_of_measure_display }} · <strong>Base selling price:</strong> {{ menu_item.unit_price }}</p><p class="staff-muted mb-0">Existing “pieces per carton” remains supported for current purchasing flows while package definitions are introduced progressively.</p></section>
+  <div class="staff-table-wrap"><table class="staff-table">
+    <thead><tr><th>Package</th><th>Base units</th><th>Barcode</th><th>Code</th><th>Selling price</th><th>Use</th><th>Action</th></tr></thead>
+    <tbody>{% for package in packages %}
+      <tr><td><strong>{{ package.name }}</strong>{% if not package.is_active %}<span class="staff-muted small d-block">Inactive</span>{% endif %}</td><td>{{ package.units_per_package }}</td><td>{{ package.barcode|default:"—" }}</td><td>{{ package.sku_alias|default:"—" }}</td><td>{% if package.sell_price != None %}{{ package.sell_price }}{% else %}Base price × units{% endif %}</td><td>{% if package.is_sellable %}Sell{% endif %}{% if package.is_sellable and package.is_purchasable %} · {% endif %}{% if package.is_purchasable %}Purchase{% endif %}</td><td><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-package-edit' menu_item.id package.id %}">Edit</a></td></tr>
+    {% empty %}<tr><td colspan="7" class="staff-muted">No alternative packages yet. The product continues to sell in its base unit.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}
