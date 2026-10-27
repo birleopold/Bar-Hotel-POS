@@ -364,12 +364,45 @@ def execute_retail_assembly(
                 )
             })
 
+    finished_unit_cost = None
+    component_cost_snapshot = {}
+    assembly_cost_complete = False
+    if direction == RetailAssemblyRun.Direction.BUILD:
+        assembly_cost_complete = all(
+            balances[item_id].cost_basis_complete
+            and balances[item_id].average_unit_cost is not None
+            for item_id in component_need
+        )
+        for component in components:
+            balance = balances[component.component_item_id]
+            component_cost_snapshot[str(component.component_item_id)] = {
+                "quantity_per_finished_unit": str(component.quantity_per_unit),
+                "unit_cost": (
+                    str(balance.average_unit_cost)
+                    if balance.cost_basis_complete
+                    and balance.average_unit_cost is not None
+                    else None
+                ),
+            }
+        if assembly_cost_complete:
+            finished_unit_cost = sum(
+                (
+                    component.quantity_per_unit
+                    * balances[component.component_item_id].average_unit_cost
+                    for component in components
+                ),
+                Decimal("0"),
+            ).quantize(Decimal("0.0001"))
+
     run = RetailAssemblyRun.objects.create(
         tenant_id=tenant_id,
         outlet=outlet,
         assembled_item=assembled_item,
         direction=direction,
         quantity=qty,
+        finished_unit_cost_snapshot=finished_unit_cost,
+        cost_basis_complete_snapshot=assembly_cost_complete,
+        component_cost_snapshot=component_cost_snapshot,
         note=(note or "")[:512],
         created_by=user,
     )
@@ -377,7 +410,7 @@ def execute_retail_assembly(
         f"{run.get_direction_display()} {assembled_item.name} · run {run.pk}"
     )[:512]
 
-    def post(item_id, change):
+    def post(item_id, change, *, inbound_unit_cost=None, inbound_cost_complete=False):
         balance = balances[item_id]
         new_qty = balance.quantity + change
         if new_qty < 0:
@@ -386,13 +419,28 @@ def execute_retail_assembly(
             raise ValidationError({"stock": f'Assembly would exceed the stock limit for "{item_names[item_id]}".'})
         balance.quantity = new_qty
         assembly_updates = ["quantity", "updated_at"]
-        if change > 0:
-            # Component costing for assemblies needs a dedicated roll-up. Until
-            # then, never claim the newly created side has an authoritative cost.
+        known_inbound_cost = bool(
+            change > 0 and inbound_cost_complete and inbound_unit_cost is not None
+        )
+        if change > 0 and not known_inbound_cost:
+            # Unbuild/component recovery still lacks historical component-cost
+            # provenance, so never claim trust on that positive inflow.
             balance.average_unit_cost = None
             balance.cost_basis_complete = False
             assembly_updates.extend(["average_unit_cost", "cost_basis_complete"])
         balance.save(update_fields=assembly_updates)
+        if known_inbound_cost:
+            apply_inbound_cost_basis(
+                tenant_id=tenant_id,
+                outlet=outlet,
+                menu_item=assembled_item if item_id == assembled_item.pk else next(
+                    component.component_item for component in components
+                    if component.component_item_id == item_id
+                ),
+                quantity_received=change,
+                unit_cost=inbound_unit_cost,
+                incoming_cost_complete=True,
+            )
         StockMovement.objects.create(
             tenant_id=tenant_id,
             outlet=outlet,
@@ -411,7 +459,12 @@ def execute_retail_assembly(
     if direction == RetailAssemblyRun.Direction.BUILD:
         for item_id, need in sorted(component_need.items(), key=lambda row: str(row[0])):
             post(item_id, -need)
-        post(assembled_item.pk, qty)
+        post(
+            assembled_item.pk,
+            qty,
+            inbound_unit_cost=finished_unit_cost,
+            inbound_cost_complete=assembly_cost_complete,
+        )
     else:
         post(assembled_item.pk, -qty)
         for item_id, need in sorted(component_need.items(), key=lambda row: str(row[0])):
@@ -430,6 +483,11 @@ def execute_retail_assembly(
             "components": {
                 str(item_id): str(need) for item_id, need in component_need.items()
             },
+            "finished_unit_cost_snapshot": (
+                str(finished_unit_cost) if finished_unit_cost is not None else None
+            ),
+            "cost_basis_complete_snapshot": assembly_cost_complete,
+            "component_cost_snapshot": component_cost_snapshot,
         },
     )
     return run
