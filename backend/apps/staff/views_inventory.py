@@ -147,7 +147,43 @@ class StaffSerializedUnitListView(StaffTenantRequiredMixin, ListView):
         ctx["serial_status"] = (self.request.GET.get("status") or "").strip()
         from apps.inventory.models import SerializedUnitStatus
         ctx["serial_status_choices"] = SerializedUnitStatus.choices
+        ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
+        ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
+        ctx["can_transfer_serials"] = membership_has_inventory_capability(
+            self.request.tenant_membership, "transfer"
+        )
         return ctx
+
+    def post(self, request, *args, **kwargs):
+        if not membership_has_inventory_capability(request.tenant_membership, "transfer"):
+            messages.error(request, "Your role cannot transfer serialized inventory.")
+            return redirect("staff-inventory-serials")
+        outlets = staff_accessible_outlets(request.tenant_membership)
+        allowed = {str(outlet.pk): outlet for outlet in outlets}
+        from_outlet = allowed.get((request.POST.get("from_outlet") or "").strip())
+        to_outlet = allowed.get((request.POST.get("to_outlet") or "").strip())
+        if from_outlet is None or to_outlet is None:
+            messages.error(request, "Choose source and destination sections you are allowed to use.")
+            return redirect("staff-inventory-serials")
+        from apps.inventory.services_serials import execute_serialized_transfer
+        try:
+            _batch, units = execute_serialized_transfer(
+                tenant_id=request.tenant.pk,
+                membership=request.tenant_membership,
+                from_outlet=from_outlet,
+                to_outlet=to_outlet,
+                serial_numbers=request.POST.get("serial_numbers", ""),
+                user=request.user,
+                note=request.POST.get("note", ""),
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(
+                request,
+                f"Transferred {len(units)} serialized unit{'s' if len(units) != 1 else ''} to {to_outlet.name}.",
+            )
+        return redirect("staff-inventory-serials")
 
 
 class StaffSerializedUnitDetailView(StaffTenantRequiredMixin, DetailView):
