@@ -533,6 +533,8 @@ def complete_serialized_return(*, return_record, units, restock: bool, user) -> 
             user=user,
             note=f"Serialized return {order.bill_reference}"[:512],
             allow_serialized=True,
+            inbound_unit_cost=line.cost_unit_snapshot,
+            inbound_cost_complete=line.cost_basis_complete_snapshot,
         )
     disposition = (
         InventorySerialReturnLink.Disposition.RESTOCKED
