@@ -112,6 +112,9 @@ def test_profitability_never_substitutes_current_cost_for_incomplete_sale():
     assert result["cost_coverage_percent"] == Decimal("0.0")
     assert result["incomplete_sale_lines"] == 1
     assert result["profitability_complete"] is False
+    assert result["profitability_actions"][0]["kind"] == "cost_reconciliation"
+    assert result["profitability_actions"][0]["priority"] == "high"
+    assert result["profitability_actions"][0]["exposure_amount"] == Decimal("90.00")
 
 
 @pytest.mark.django_db
@@ -363,3 +366,29 @@ def test_product_profitability_separates_sale_time_name_and_sku_versions():
     assert ("Renamed product", "RENAMED-SKU") in identities
     assert all(row["net_revenue"] == Decimal("90.00") for row in result["products"])
 
+
+
+@pytest.mark.django_db
+def test_profitability_action_queue_flags_trusted_margin_floor_shortfall():
+    env = _seed_tenant_bundle(
+        name="Profit Action Margin",
+        slug="profit-action-margin",
+        user_email="profit-action-margin@test.local",
+    )
+    settings_obj = env["tenant"].settings
+    settings_obj.retail_min_margin_percent = Decimal("40.0")
+    settings_obj.save(update_fields=["retail_min_margin_percent", "updated_at"])
+    _sale(env, reference="PROFIT-ACTION-MARGIN")
+
+    result = _report(env)
+
+    assert result["profitability_complete"] is True
+    assert result["margin_breach_sale_count"] == 1
+    assert result["margin_breach_shortfall"] == Decimal("6.00")
+    assert [row["kind"] for row in result["profitability_actions"]] == [
+        "margin_floor_review",
+    ]
+    action = result["profitability_actions"][0]
+    assert action["priority"] == "high"
+    assert action["exposure_amount"] == Decimal("6.00")
+    assert action["affected_count"] == 1
