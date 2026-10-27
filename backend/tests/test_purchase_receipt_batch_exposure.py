@@ -333,6 +333,170 @@ class LandedCostAllocationTests(TestCase):
             rows[line_b.pk].landed_cost_allocated, Decimal("30.00")
         )
 
+    def test_posted_landed_cost_adjustment_is_append_only_and_revalues_current_stock(self):
+        from apps.inventory.models import StockBalance
+        from apps.purchasing.models import (
+            PurchaseReceipt,
+            PurchaseReceiptCostAdjustment,
+        )
+        from apps.purchasing.services import (
+            receive_purchase_order_goods,
+            record_receipt_landed_cost_adjustment,
+        )
+
+        tenant, outlet, po, line_a, line_b, user, member = self._bundle(
+            "landed-adjustment"
+        )
+        receive_purchase_order_goods(
+            po=po,
+            membership=member,
+            user=user,
+            shipping_cost=Decimal("40.00"),
+            landed_cost_allocation=PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+            lines_payload=[
+                {"line_id": line_a.pk, "quantity": "1"},
+                {"line_id": line_b.pk, "quantity": "3"},
+            ],
+        )
+        receipt = PurchaseReceipt.objects.get(purchase_order=po)
+        original = {
+            row.purchase_order_line_id: (
+                row.landed_cost_allocated,
+                row.landed_unit_cost_snapshot,
+            )
+            for row in receipt.lines.all()
+        }
+
+        adjustment = record_receipt_landed_cost_adjustment(
+            receipt=receipt,
+            amount=Decimal("20.00"),
+            allocation_method=PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+            reference="FREIGHT-ADJ-1",
+            reason="Final freight invoice exceeded the provisional charge.",
+            user=user,
+            membership=member,
+        )
+        self.assertEqual(
+            adjustment.amount,
+            Decimal("20.00"),
+        )
+        allocated = {
+            row.receipt_line.purchase_order_line_id: row.amount
+            for row in adjustment.lines.select_related(
+                "receipt_line__purchase_order_line"
+            )
+        }
+        self.assertEqual(allocated[line_a.pk], Decimal("5.00"))
+        self.assertEqual(allocated[line_b.pk], Decimal("15.00"))
+
+        receipt.refresh_from_db()
+        after_original = {
+            row.purchase_order_line_id: (
+                row.landed_cost_allocated,
+                row.landed_unit_cost_snapshot,
+            )
+            for row in receipt.lines.all()
+        }
+        self.assertEqual(after_original, original)
+        self.assertEqual(
+            StockBalance.objects.get(
+                outlet=outlet, menu_item=line_a.menu_item
+            ).average_unit_cost,
+            Decimal("115.0000"),
+        )
+        self.assertEqual(
+            StockBalance.objects.get(
+                outlet=outlet, menu_item=line_b.menu_item
+            ).average_unit_cost,
+            Decimal("215.0000"),
+        )
+        self.assertEqual(
+            PurchaseReceiptCostAdjustment.objects.filter(receipt=receipt).count(),
+            1,
+        )
+
+    def test_landed_cost_credit_cannot_exceed_cumulative_landed_cost(self):
+        from apps.purchasing.models import PurchaseReceipt
+        from apps.purchasing.services import (
+            receive_purchase_order_goods,
+            record_receipt_landed_cost_adjustment,
+        )
+        from rest_framework.exceptions import ValidationError
+
+        _tenant, _outlet, po, line_a, line_b, user, member = self._bundle(
+            "landed-credit-limit"
+        )
+        receive_purchase_order_goods(
+            po=po,
+            membership=member,
+            user=user,
+            shipping_cost=Decimal("40.00"),
+            landed_cost_allocation=PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+            lines_payload=[
+                {"line_id": line_a.pk, "quantity": "1"},
+                {"line_id": line_b.pk, "quantity": "3"},
+            ],
+        )
+        receipt = PurchaseReceipt.objects.get(purchase_order=po)
+        with self.assertRaises(ValidationError):
+            record_receipt_landed_cost_adjustment(
+                receipt=receipt,
+                amount=Decimal("-50.00"),
+                allocation_method=PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+                reference="FREIGHT-CREDIT-TOO-LARGE",
+                reason="Carrier credit exceeded the landed cost on this receipt.",
+                user=user,
+                membership=member,
+            )
+        self.assertFalse(receipt.cost_adjustments.exists())
+
+    def test_landed_cost_adjustment_is_blocked_after_outbound_stock(self):
+        from apps.inventory.models import StockReason
+        from apps.inventory.services import apply_manual_stock_change
+        from apps.purchasing.models import PurchaseReceipt
+        from apps.purchasing.services import (
+            receive_purchase_order_goods,
+            record_receipt_landed_cost_adjustment,
+        )
+        from rest_framework.exceptions import ValidationError
+
+        tenant, outlet, po, line_a, line_b, user, member = self._bundle(
+            "landed-after-outflow"
+        )
+        receive_purchase_order_goods(
+            po=po,
+            membership=member,
+            user=user,
+            shipping_cost=Decimal("20.00"),
+            landed_cost_allocation=PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+            lines_payload=[
+                {"line_id": line_a.pk, "quantity": "2"},
+                {"line_id": line_b.pk, "quantity": "2"},
+            ],
+        )
+        receipt = PurchaseReceipt.objects.get(purchase_order=po)
+        apply_manual_stock_change(
+            tenant_id=tenant.pk,
+            outlet=outlet,
+            menu_item=line_a.menu_item,
+            quantity_change=Decimal("-1.000"),
+            reason=StockReason.ADJUST_OUT,
+            user=user,
+            note="Damaged after receiving",
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            record_receipt_landed_cost_adjustment(
+                receipt=receipt,
+                amount=Decimal("10.00"),
+                allocation_method=PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+                reference="LATE-FREIGHT-1",
+                reason="Late freight charge received after stock already moved.",
+                user=user,
+                membership=member,
+            )
+        self.assertIn("outbound stock activity", str(ctx.exception.detail))
+        self.assertFalse(receipt.cost_adjustments.exists())
+
     def test_allocating_mode_rejects_missing_supplier_cost_before_stock_write(self):
         from apps.inventory.models import StockBalance
         from apps.purchasing.models import PurchaseReceipt
