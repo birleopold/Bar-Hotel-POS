@@ -305,6 +305,7 @@ def execute_retail_assembly(
     if not components:
         raise ValidationError({"assembly": "Configure at least one retail assembly component first."})
     component_need = {}
+    component_items = {}
     item_names = {assembled_item.pk: assembled_item.name}
     for line in components:
         component = line.component_item
@@ -318,6 +319,7 @@ def execute_retail_assembly(
         if need <= 0 or need > Decimal("99999999999.999"):
             raise ValidationError({"assembly": f'Invalid component requirement for "{component.name}".'})
         component_need[component.pk] = component_need.get(component.pk, Decimal("0")) + need
+        component_items[component.pk] = component
         item_names[component.pk] = component.name
 
     all_item_ids = sorted({assembled_item.pk, *component_need.keys()}, key=str)
@@ -433,9 +435,10 @@ def execute_retail_assembly(
             apply_inbound_cost_basis(
                 tenant_id=tenant_id,
                 outlet=outlet,
-                menu_item=assembled_item if item_id == assembled_item.pk else next(
-                    component.component_item for component in components
-                    if component.component_item_id == item_id
+                menu_item=(
+                    assembled_item
+                    if item_id == assembled_item.pk
+                    else component_items[item_id]
                 ),
                 quantity_received=change,
                 unit_cost=inbound_unit_cost,
