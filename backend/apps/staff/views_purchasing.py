@@ -234,6 +234,14 @@ class StaffSupplierProductCodeView(StaffTenantRequiredMixin, TemplateView):
                 supplier=self.supplier,
                 pk=code_id,
             ).first()
+        if instance is None:
+            instance = SupplierProductCode(
+                tenant=request.tenant,
+                supplier=self.supplier,
+            )
+        else:
+            instance.tenant = request.tenant
+            instance.supplier = self.supplier
         form = StaffSupplierProductCodeForm(
             request.POST,
             tenant=request.tenant,
