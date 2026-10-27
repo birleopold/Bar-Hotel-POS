@@ -584,6 +584,15 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 .prefetch_related("lines__menu_item")
                 .first()
             )
+            if po_fresh is not None and any(
+                line.quantity_remaining > 0 and line.menu_item.serial_tracking
+                for line in po_fresh.lines.all()
+            ):
+                messages.error(
+                    request,
+                    "Serialized products need their exact serial / IMEI values. Use Partial goods received for this delivery.",
+                )
+                return redirect("staff-purchasing-order-detail", po_id=po.id)
             if po_fresh is None:
                 messages.error(request, "Order not found.")
                 return redirect("staff-purchasing-orders")
@@ -623,7 +632,13 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 raw = (request.POST.get(f"recv_{line.id}") or "").strip()
                 cartons_raw = (request.POST.get(f"recv_cartons_{line.id}") or "").strip()
                 packages_raw = (request.POST.get(f"recv_packages_{line.id}") or "").strip()
-                if not raw and not cartons_raw and not packages_raw:
+                serials_raw = (request.POST.get(f"recv_serials_{line.id}") or "").strip()
+                serial_numbers = [
+                    value.strip()
+                    for value in serials_raw.replace(",", "\n").splitlines()
+                    if value.strip()
+                ]
+                if not raw and not cartons_raw and not packages_raw and not serial_numbers:
                     continue
                 if cartons_raw and packages_raw:
                     messages.error(request, f"Use packages or cartons for {line.menu_item.name}, not both.")
@@ -632,7 +647,11 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     messages.error(request, f"{line.menu_item.name} was not ordered with a package definition.")
                     return redirect("staff-purchasing-order-detail", po_id=po.id)
                 try:
-                    qty = Decimal(raw) if raw else Decimal("0")
+                    qty = Decimal(raw) if raw else (
+                        Decimal(len(serial_numbers))
+                        if line.menu_item.serial_tracking and serial_numbers and not cartons_raw and not packages_raw
+                        else Decimal("0")
+                    )
                 except InvalidOperation:
                     messages.error(request, f"Invalid quantity for line {line.menu_item.name}.")
                     return redirect("staff-purchasing-order-detail", po_id=po.id)
@@ -645,6 +664,8 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         entry["cartons"] = cartons_raw
                     if packages_raw:
                         entry["packages"] = packages_raw
+                    if serial_numbers:
+                        entry["serial_numbers"] = serial_numbers
                     code = (request.POST.get(f"batch_{line.id}") or "").strip()
                     expiry_raw = (request.POST.get(f"expiry_{line.id}") or "").strip()
                     if code:
