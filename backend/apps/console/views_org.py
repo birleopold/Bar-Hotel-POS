@@ -15,6 +15,11 @@ from apps.lodging.models import Room, RoomType
 from apps.staff.forms import StaffTenantBrandingForm, StaffTenantModulesForm
 from apps.staff import views_invites as staff_invite_views
 from apps.staff.services.modules import STAFF_MODULE_CHOICES, initial_staff_modules_for_form
+from apps.staff.views_workstations import (
+    StaffWorkstationDeviceTestView,
+    StaffWorkstationEditView,
+    StaffWorkstationPairView,
+)
 from apps.tenants.business_lines import (
     modules_for_business_lines,
     normalize_business_lines,
@@ -63,21 +68,25 @@ class OrgOverviewView(ConsoleOrgAdminRequiredMixin, TemplateView):
         return ctx
 
 
-from apps.staff.views_workstations import (
-    StaffWorkstationDeviceTestView,
-    StaffWorkstationEditView,
-    StaffWorkstationPairView,
-)
+class OrgWorkstationOutletScopeMixin:
+    """Organization administrators manage all outlets in the active tenant."""
+
+    def workstation_outlets(self, request):
+        return list(
+            Outlet.objects.filter(site__tenant=request.tenant)
+            .select_related("site")
+            .order_by("site__name", "name")
+        )
 
 
-class OrgWorkstationEditView(ConsoleOrgAdminRequiredMixin, StaffWorkstationEditView):
+class OrgWorkstationEditView(ConsoleOrgAdminRequiredMixin, OrgWorkstationOutletScopeMixin, StaffWorkstationEditView):
     """Reuse the validated workstation editor with an organization-native shell."""
 
     template_name = "console/org/workstation_form.html"
     success_url_name = "console-org-workstations"
 
 
-class OrgWorkstationPairView(ConsoleOrgAdminRequiredMixin, StaffWorkstationPairView):
+class OrgWorkstationPairView(ConsoleOrgAdminRequiredMixin, OrgWorkstationOutletScopeMixin, StaffWorkstationPairView):
     """Browser approval administration rendered inside the organization shell."""
 
     shell_template_name = "console/base.html"
@@ -86,7 +95,7 @@ class OrgWorkstationPairView(ConsoleOrgAdminRequiredMixin, StaffWorkstationPairV
     edit_url_name = "console-org-workstation-edit"
 
 
-class OrgWorkstationDeviceTestView(ConsoleOrgAdminRequiredMixin, StaffWorkstationDeviceTestView):
+class OrgWorkstationDeviceTestView(ConsoleOrgAdminRequiredMixin, OrgWorkstationOutletScopeMixin, StaffWorkstationDeviceTestView):
     """Equipment observations remain non-financial while using the organization shell."""
 
     shell_template_name = "console/base.html"
