@@ -346,7 +346,8 @@ def test_catalog_api_uses_same_tenant_lock_as_import_and_cashier():
     src = inspect.getsource(MenuItemSerializer._save_with_tenant_lock)
     assert "Tenant.objects.select_for_update().get(pk=tenant_id)" in src
     assert "name__iexact=name" in src
-    assert "Q(barcode__iexact=barcode)" in src\n    assert "Q(sku__iexact=barcode)" in src
+    assert "Q(barcode__iexact=barcode)" in src
+    assert "Q(sku__iexact=barcode)" in src
     assert "with transaction.atomic()" in src
 
 
