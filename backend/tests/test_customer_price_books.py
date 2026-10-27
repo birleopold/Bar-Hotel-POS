@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.catalog.models import MenuCategory, MenuItem, Promotion
+from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, Promotion
 from apps.customers.models import Customer
 from apps.pos.models import (
     CustomerPriceBookAssignment,
@@ -231,6 +231,153 @@ class CustomerPriceBookTests(TestCase):
         self.assertEqual(line.unit_price, Decimal("9000"))
         self.assertEqual(line.price_book_rule, self.rule_one)
         self.assertEqual(line.price_book_base_unit_price, Decimal("10000"))
+
+    def test_category_rule_prices_product_without_sku_rule(self):
+        category_rule = PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            category=self.category,
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("9500"),
+        )
+        self.rule_one.is_active = False
+        self.rule_one.save(update_fields=["is_active"])
+        self.rule_five.is_active = False
+        self.rule_five.save(update_fields=["is_active"])
+        order = self._order(self.customer)
+        line = add_line_to_open_order(
+            order=order, menu_item=self.item, quantity=Decimal("1"), user=self.user,
+        )
+        self.assertEqual(line.unit_price, Decimal("9500"))
+        self.assertEqual(line.price_book_rule, category_rule)
+
+    def test_brand_rule_beats_category_rule(self):
+        self.item.brand = "Acme"
+        self.item.save(update_fields=["brand"])
+        self.rule_one.is_active = False
+        self.rule_one.save(update_fields=["is_active"])
+        self.rule_five.is_active = False
+        self.rule_five.save(update_fields=["is_active"])
+        PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            category=self.category,
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("9600"),
+        )
+        brand_rule = PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            brand="acme",
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("9400"),
+        )
+        order = self._order(self.customer)
+        line = add_line_to_open_order(
+            order=order, menu_item=self.item, quantity=Decimal("1"), user=self.user,
+        )
+        self.assertEqual(line.unit_price, Decimal("9400"))
+        self.assertEqual(line.price_book_rule, brand_rule)
+
+    def test_family_rule_beats_brand_and_category_rule(self):
+        family = ProductFamily.objects.create(
+            tenant=self.tenant,
+            category=self.category,
+            name="Cooking oils",
+        )
+        self.item.product_family = family
+        self.item.brand = "Acme"
+        self.item.save(update_fields=["product_family", "brand"])
+        self.rule_one.is_active = False
+        self.rule_one.save(update_fields=["is_active"])
+        self.rule_five.is_active = False
+        self.rule_five.save(update_fields=["is_active"])
+        PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            category=self.category,
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("9700"),
+        )
+        PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            brand="ACME",
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("9600"),
+        )
+        family_rule = PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            product_family=family,
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("9300"),
+        )
+        order = self._order(self.customer)
+        line = add_line_to_open_order(
+            order=order, menu_item=self.item, quantity=Decimal("1"), user=self.user,
+        )
+        self.assertEqual(line.unit_price, Decimal("9300"))
+        self.assertEqual(line.price_book_rule, family_rule)
+
+    def test_sku_rule_beats_all_broader_targets_even_if_broader_price_is_lower(self):
+        family = ProductFamily.objects.create(
+            tenant=self.tenant,
+            category=self.category,
+            name="Cooking oils",
+        )
+        self.item.product_family = family
+        self.item.brand = "Acme"
+        self.item.save(update_fields=["product_family", "brand"])
+        PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            category=self.category,
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("5000"),
+        )
+        PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            brand="Acme",
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("6000"),
+        )
+        PriceBookRule.objects.create(
+            tenant=self.tenant,
+            price_book=self.book,
+            product_family=family,
+            minimum_quantity=Decimal("1"),
+            unit_price=Decimal("7000"),
+        )
+        order = self._order(self.customer)
+        line = add_line_to_open_order(
+            order=order, menu_item=self.item, quantity=Decimal("1"), user=self.user,
+        )
+        self.assertEqual(line.unit_price, Decimal("9000"))
+        self.assertEqual(line.price_book_rule, self.rule_one)
+
+    def test_scoped_rule_admin_requires_exactly_one_target(self):
+        response = self.client.post(
+            reverse("console-org-price-book-rule-create", args=[self.book.pk]),
+            {
+                "menu_item": str(self.item.pk),
+                "category": str(self.category.pk),
+                "product_family": "",
+                "brand": "",
+                "minimum_quantity": "2",
+                "unit_price": "8500",
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Choose exactly one target")
+        self.assertFalse(
+            PriceBookRule.objects.filter(
+                price_book=self.book,
+                minimum_quantity=Decimal("2"),
+            ).exists()
+        )
 
     def test_price_book_outlet_scope_falls_back_to_base_price_elsewhere(self):
         other = Outlet.objects.create(
