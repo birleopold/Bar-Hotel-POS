@@ -13,7 +13,8 @@
   <a class="fizo-inventory__tab {% if n == 'staff-inventory-movement-create' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-movement-create' %}">Stock movement</a>
   <a class="fizo-inventory__tab {% if n == 'staff-inventory-movement-upload' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-movement-upload' %}">Upload CSV</a>
   <a class="fizo-inventory__tab {% if n == 'staff-inventory-transfer' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-transfer' %}">Transfer</a>
-  <a class="fizo-inventory__tab {% if n == 'staff-inventory-transfer-receipts' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-transfer-receipts' %}">Transfers &amp; deliveries</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-transfer-requests' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-transfer-requests' %}">Transfer requests</a>
+  <a class="fizo-inventory__tab {% if n == 'staff-inventory-transfer-receipts' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-transfer-receipts' %}">Deliveries</a>
   <a class="fizo-inventory__tab {% if n == 'staff-inventory-counts' or n == 'staff-inventory-count-create' %}fizo-inventory__tab--active{% else %}fizo-inventory__tab--normal{% endif %}" href="{% url 'staff-inventory-counts' %}">Stock take</a>
 </div>
 {% endwith %}
