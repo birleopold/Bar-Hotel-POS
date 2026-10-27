@@ -1330,7 +1330,9 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         )
         promo_qs = promotions_selectable_for_order(order) if can_modify_open else None
         ctx["apply_promotion_form"] = (
-            StaffOrderApplyPromotionForm(eligible_queryset=promo_qs) if promo_qs is not None and promo_qs.exists() else None
+            StaffOrderApplyPromotionForm(eligible_queryset=promo_qs)
+            if promo_qs is not None
+            else None
         )
         refundable = order_refundable_remaining(order)
         can_approve_refunds = membership_can_approve_refunds(m)
