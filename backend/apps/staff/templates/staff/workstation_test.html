@@ -25,7 +25,7 @@
 <header class="fizo-register__header"><div><p class="fizo-register__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Workstations</p><h1>Equipment check · {{ station.name }}</h1><p>{{ station.outlet.name }} · {{ station.code }} · Local equipment checks only</p></div><a class="staff-btn staff-btn--ghost" href="{% url workstation_list_url_name %}">All workstations</a></header>
 <div class="d-flex flex-wrap gap-2 mb-3">
 <a class="staff-btn staff-btn--ghost" href="{% url workstation_list_url_name %}">Back to workstations</a>
-{% if can_manage %}<a class="staff-btn staff-btn--ghost" href="{% url workstation_edit_url_name station.pk %}">Edit workstation</a><a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-device-create' station.pk %}">Add hardware device</a>{% endif %}
+{% if can_manage %}<a class="staff-btn staff-btn--ghost" href="{% url workstation_edit_url_name station.pk %}">Edit workstation</a><a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-device-create' station.pk %}">Add hardware device</a><a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-bridge' station.pk %}">Local hardware bridge</a>{% endif %}
 </div>
 <section class="fizo-register__panel mb-3">
 <h2 class="staff-section-head">Before testing</h2>
