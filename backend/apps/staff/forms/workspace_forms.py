@@ -3,7 +3,7 @@ import re
 
 from django import forms
 
-from apps.accounts.models import Membership, MembershipRole, User
+from apps.accounts.models import Membership, MembershipRole, RoleTemplate, User
 from apps.accounts.role_policy import permitted_roles, role_choices_for_tenant
 from apps.integrations.models import IntegrationLink
 from apps.tenants.models import Outlet, Site, TenantSettings
@@ -69,6 +69,157 @@ def apply_role_preset(cleaned_data: dict) -> dict:
     if defaults:
         cleaned_data["role"] = defaults["role"]
     return cleaned_data
+
+
+def apply_tenant_role_template(cleaned_data: dict) -> dict:
+    template = cleaned_data.get("role_template")
+    if template is None:
+        return cleaned_data
+    if cleaned_data.get("role_preset"):
+        raise forms.ValidationError(
+            "Choose either a built-in role preset or a saved role template, not both."
+        )
+    cleaned_data["role"] = template.base_role
+    cleaned_data["sites"] = template.sites.all()
+    cleaned_data["outlets"] = template.outlets.all()
+    return cleaned_data
+
+
+def role_template_queryset(tenant):
+    if tenant is None:
+        return RoleTemplate.objects.none()
+    return (
+        RoleTemplate.objects.filter(tenant=tenant, is_active=True)
+        .prefetch_related("sites", "outlets")
+        .order_by("name")
+    )
+
+
+class StaffRoleTemplateForm(forms.ModelForm):
+    sites = forms.ModelMultipleChoiceField(
+        queryset=Site.objects.none(),
+        required=True,
+        widget=forms.CheckboxSelectMultiple(),
+        help_text="Choose at least one branch. Templates never grant access outside these branches.",
+    )
+    outlets = forms.ModelMultipleChoiceField(
+        queryset=Outlet.objects.none(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple(),
+        help_text="Optional. Leave blank to allow compatible outlets under the selected branches.",
+    )
+
+    class Meta:
+        model = RoleTemplate
+        fields = ["name", "description", "base_role", "is_active", "sites", "outlets"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "staff-input"}),
+            "description": forms.TextInput(attrs={"class": "staff-input"}),
+            "base_role": forms.Select(attrs={"class": "staff-input"}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tenant = tenant
+        if tenant is None:
+            return
+        self.fields["base_role"].choices = role_choices_for_tenant(
+            tenant, include_admin=False
+        )
+        from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
+        try:
+            allowed_types = set(
+                outlet_types_for_business_lines(
+                    normalize_business_lines(tenant.settings.business_lines)
+                )
+            )
+        except Exception:
+            allowed_types = set()
+        self.fields["sites"].queryset = (
+            Site.objects.filter(
+                tenant=tenant,
+                is_active=True,
+                outlets__is_active=True,
+                outlets__outlet_type__in=allowed_types,
+            )
+            .distinct()
+            .order_by("name")
+        )
+        self.fields["outlets"].queryset = (
+            Outlet.objects.filter(
+                site__tenant=tenant,
+                site__is_active=True,
+                is_active=True,
+                outlet_type__in=allowed_types,
+            )
+            .select_related("site")
+            .order_by("site__name", "name")
+        )
+
+    def clean_name(self):
+        name = " ".join((self.cleaned_data.get("name") or "").split())
+        if not name:
+            raise forms.ValidationError("Enter a template name.")
+        qs = RoleTemplate.objects.filter(tenant=self._tenant, name__iexact=name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A role template with this name already exists.")
+        return name
+
+    def clean(self):
+        data = super().clean()
+        role = data.get("base_role")
+        if self._tenant is not None and role not in permitted_roles(self._tenant):
+            raise forms.ValidationError(
+                {"base_role": "This base role is not available for the configured business lines."}
+            )
+        if role in {MembershipRole.OWNER, MembershipRole.TENANT_ADMIN}:
+            raise forms.ValidationError(
+                {"base_role": "Owner and tenant admin access cannot be packaged into worker templates."}
+            )
+        sites = data.get("sites")
+        outlets = data.get("outlets")
+        if sites and outlets:
+            site_ids = set(sites.values_list("id", flat=True))
+            if any(outlet.site_id not in site_ids for outlet in outlets):
+                raise forms.ValidationError(
+                    {"outlets": "Selected outlets must belong to the selected branches."}
+                )
+        if sites and self._tenant is not None:
+            from apps.staff.services.membership import ROLE_OUTLET_TYPES
+            from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
+            try:
+                configured_types = set(
+                    outlet_types_for_business_lines(
+                        normalize_business_lines(self._tenant.settings.business_lines)
+                    )
+                )
+            except Exception:
+                configured_types = set()
+            role_types = ROLE_OUTLET_TYPES.get(role)
+            allowed_types = (
+                configured_types
+                if role_types is None
+                else configured_types & set(role_types)
+            )
+            if any(
+                not site.outlets.filter(
+                    is_active=True, outlet_type__in=allowed_types
+                ).exists()
+                for site in sites
+            ):
+                raise forms.ValidationError(
+                    {"sites": "Each selected branch must have an active outlet compatible with this base role."}
+                )
+            if outlets and any(
+                outlet.outlet_type not in allowed_types for outlet in outlets
+            ):
+                raise forms.ValidationError(
+                    {"outlets": "Selected outlets do not match this base role."}
+                )
+        return data
 
 
 class StaffTenantModulesForm(forms.Form):
@@ -479,6 +630,12 @@ class StaffTeamInviteForm(forms.Form):
         choices=ROLE_PRESET_CHOICES,
         widget=forms.Select(attrs={"class": "staff-input"}),
     )
+    role_template = forms.ModelChoiceField(
+        queryset=RoleTemplate.objects.none(),
+        required=False,
+        empty_label="Custom / no saved template",
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
     role = forms.ChoiceField(
         choices=[(c.value, c.label) for c in MembershipRole],
         initial=MembershipRole.SERVER,
@@ -499,6 +656,7 @@ class StaffTeamInviteForm(forms.Form):
         if tenant is not None:
             self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=False)
             self.fields["role_preset"].choices = role_presets_for_tenant(tenant)
+            self.fields["role_template"].queryset = role_template_queryset(tenant)
         if tenant is not None:
             from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
             from apps.tenants.models import OutletType
@@ -521,7 +679,7 @@ class StaffTeamInviteForm(forms.Form):
         self.fields["outlets"].help_text = "Optional additional limit within those branches."
 
     def clean(self):
-        data = apply_role_preset(super().clean())
+        data = apply_tenant_role_template(apply_role_preset(super().clean()))
         if self._tenant is not None and data.get("role") not in permitted_roles(self._tenant):
             raise forms.ValidationError({"role": "This role is not available for the configured business lines."})
         selected_sites = data.get("sites")
@@ -652,7 +810,8 @@ class StaffMembershipBulkActionForm(forms.Form):
         choices=[
             ("activate", "Activate selected"),
             ("deactivate", "Deactivate selected"),
-            ("apply_preset", "Apply role preset"),
+            ("apply_preset", "Apply built-in role preset"),
+            ("apply_template", "Apply saved role template"),
         ],
         widget=forms.Select(attrs={"class": "staff-input"}),
     )
@@ -661,21 +820,36 @@ class StaffMembershipBulkActionForm(forms.Form):
         choices=ROLE_PRESET_CHOICES,
         widget=forms.Select(attrs={"class": "staff-input"}),
     )
+    role_template = forms.ModelChoiceField(
+        queryset=RoleTemplate.objects.none(),
+        required=False,
+        empty_label="Choose saved template",
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
 
     def __init__(self, *args, tenant=None, **kwargs):
         super().__init__(*args, **kwargs)
         if tenant is not None:
             self.fields["member_ids"].queryset = Membership.objects.filter(tenant=tenant)
             self.fields["role_preset"].choices = role_presets_for_tenant(tenant)
+            self.fields["role_template"].queryset = role_template_queryset(tenant)
 
     def clean(self):
         data = super().clean()
         if data.get("action") == "apply_preset" and not data.get("role_preset"):
             raise forms.ValidationError({"role_preset": "Choose a role preset for this bulk action."})
+        if data.get("action") == "apply_template" and not data.get("role_template"):
+            raise forms.ValidationError({"role_template": "Choose a saved role template for this bulk action."})
         return data
 
 
 class StaffMembershipManageForm(forms.ModelForm):
+    role_template = forms.ModelChoiceField(
+        queryset=RoleTemplate.objects.none(),
+        required=False,
+        empty_label="Custom / no saved template",
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
     role_preset = forms.ChoiceField(
         required=False,
         choices=ROLE_PRESET_CHOICES,
@@ -694,7 +868,7 @@ class StaffMembershipManageForm(forms.ModelForm):
 
     class Meta:
         model = Membership
-        fields = ["role_preset", "role", "is_active", "sites", "outlets"]
+        fields = ["role_template", "role_preset", "role", "is_active", "sites", "outlets"]
         widgets = {
             "role": forms.Select(attrs={"class": "staff-input"}),
             "is_active": forms.CheckboxInput(),
@@ -706,6 +880,9 @@ class StaffMembershipManageForm(forms.ModelForm):
         if tenant is not None:
             self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=True)
             self.fields["role_preset"].choices = role_presets_for_tenant(tenant)
+            self.fields["role_template"].queryset = role_template_queryset(tenant)
+            if self.instance.pk and self.instance.role_template_id:
+                self.fields["role_template"].initial = self.instance.role_template_id
         if self.instance.pk and self.instance.role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
             self.fields["sites"].required = False
         site_qs = Site.objects.none()
@@ -747,7 +924,7 @@ class StaffMembershipManageForm(forms.ModelForm):
         return outlets.filter(site__tenant=self._tenant)
 
     def clean(self):
-        data = apply_role_preset(super().clean())
+        data = apply_tenant_role_template(apply_role_preset(super().clean()))
         if self._tenant is not None and data.get("role") not in permitted_roles(self._tenant):
             raise forms.ValidationError({"role": "This role is not available for the configured business lines."})
         selected_sites = data.get("sites")
