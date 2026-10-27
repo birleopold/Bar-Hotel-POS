@@ -100,6 +100,57 @@ def queue_product_labels(
 
 
 @transaction.atomic
+def dismiss_product_label_entries(
+    *,
+    tenant_id,
+    outlet: Outlet,
+    entry_ids,
+    user=None,
+    note: str = "",
+) -> int:
+    """Dismiss pending label tasks without pretending they were printed."""
+    if outlet.site.tenant_id != tenant_id:
+        raise ValidationError({"outlet": "Label outlet must belong to this business."})
+    ids = list(dict.fromkeys(entry_ids))
+    if not ids:
+        return 0
+    now = timezone.now()
+    qs = ProductLabelQueueEntry.objects.select_for_update().filter(
+        tenant_id=tenant_id,
+        outlet=outlet,
+        pk__in=ids,
+        status=ProductLabelQueueEntry.Status.PENDING,
+    )
+    entries = list(qs.select_related("menu_item"))
+    if not entries:
+        return 0
+    for entry in entries:
+        entry.status = ProductLabelQueueEntry.Status.DISMISSED
+        entry.completed_by = user
+        entry.completed_at = now
+        if note:
+            entry.note = (note or "")[:255]
+        entry.save(update_fields=[
+            "status", "completed_by", "completed_at", "note", "updated_at",
+        ])
+    log_audit(
+        tenant_id=tenant_id,
+        user_id=user.pk if user else None,
+        action="catalog.product_labels_dismissed",
+        entity_type="product_label_queue",
+        entity_id=str(outlet.pk),
+        payload={
+            "outlet_id": str(outlet.pk),
+            "entry_ids": [str(entry.pk) for entry in entries],
+            "item_ids": [str(entry.menu_item_id) for entry in entries],
+            "count": len(entries),
+            "note": (note or "")[:255],
+        },
+    )
+    return len(entries)
+
+
+@transaction.atomic
 def mark_product_labels_printed(
     *,
     tenant_id,
