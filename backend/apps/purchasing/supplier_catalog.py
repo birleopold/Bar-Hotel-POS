@@ -4,7 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
-from .models import PurchaseReceiptLine, SupplierProductCode
+from django.db.models import Q
+from django.utils import timezone
+
+from .models import PurchaseReceiptLine, SupplierPriceRecord, SupplierProductCode
 
 
 @dataclass(frozen=True)
@@ -99,7 +102,61 @@ def supplier_cost_history(*, tenant_id, supplier_id, menu_item_id, limit=2) -> S
     ).get(menu_item_id, SupplierCostHistory(None, None, None))
 
 
-def suggested_supplier_unit_cost(*, tenant_id, supplier_id, menu_item_id, product_package_id=None):
+def active_supplier_price(
+    *,
+    tenant_id,
+    supplier_id,
+    menu_item_id,
+    ordered_quantity=None,
+    product_package_id=None,
+    as_of=None,
+):
+    day = as_of or timezone.localdate()
+    qs = SupplierPriceRecord.objects.filter(
+        tenant_id=tenant_id,
+        supplier_id=supplier_id,
+        menu_item_id=menu_item_id,
+        is_active=True,
+    ).filter(
+        Q(valid_from__isnull=True) | Q(valid_from__lte=day),
+        Q(valid_until__isnull=True) | Q(valid_until__gte=day),
+    )
+    if ordered_quantity is not None:
+        qty = Decimal(str(ordered_quantity))
+        qs = qs.filter(minimum_quantity__lte=qty)
+    else:
+        qs = qs.filter(minimum_quantity__lte=Decimal("0.001"))
+
+    ordering = ("-minimum_quantity", "-valid_from", "-created_at")
+    if product_package_id:
+        package_row = qs.filter(
+            product_package_id=product_package_id
+        ).order_by(*ordering).first()
+        if package_row is not None:
+            return package_row
+    return qs.filter(product_package__isnull=True).order_by(*ordering).first()
+
+
+def suggested_supplier_unit_cost(
+    *,
+    tenant_id,
+    supplier_id,
+    menu_item_id,
+    product_package_id=None,
+    ordered_quantity=None,
+    as_of=None,
+):
+    price = active_supplier_price(
+        tenant_id=tenant_id,
+        supplier_id=supplier_id,
+        menu_item_id=menu_item_id,
+        product_package_id=product_package_id,
+        ordered_quantity=ordered_quantity,
+        as_of=as_of,
+    )
+    if price is not None:
+        return price.unit_cost, "supplier_price_list"
+
     reference = supplier_product_reference(
         tenant_id=tenant_id,
         supplier_id=supplier_id,
