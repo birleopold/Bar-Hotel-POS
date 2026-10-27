@@ -583,3 +583,125 @@ class TargetedPromotionTests(TestCase):
         self.assertTrue(
             promotions_selectable_for_order(anonymous).filter(pk=promo.pk).exists()
         )
+
+
+    def test_buy_x_get_y_same_category_makes_cheapest_qualifying_unit_free(self):
+        cheaper = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=self.food,
+            name="Small Oil",
+            brand="Acme",
+            sku="OIL-SMALL",
+            unit_price=Decimal("5000"),
+            track_inventory=False,
+        )
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        add_line_to_open_order(
+            order=order,
+            menu_item=cheaper,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Food BOGO",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            category=self.food,
+            discount_percent=None,
+            discount_amount=None,
+            buy_quantity=1,
+            get_quantity=1,
+        )
+
+        self.assertTrue(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+
+        self.assertEqual(order.subtotal, Decimal("15000.00"))
+        self.assertEqual(order.discount_amount, Decimal("5000.00"))
+        self.assertEqual(order.total, Decimal("10000.00"))
+
+    def test_buy_x_get_y_requires_complete_set_and_whole_units(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Oil BOGO",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            menu_item=self.oil,
+            discount_percent=None,
+            discount_amount=None,
+            buy_quantity=1,
+            get_quantity=1,
+        )
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+    def test_buy_x_get_y_respects_max_uses_per_order(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("4"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="One BOGO set only",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            menu_item=self.oil,
+            discount_percent=None,
+            discount_amount=None,
+            buy_quantity=1,
+            get_quantity=1,
+            max_uses_per_order=1,
+        )
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("10000.00"))
+        self.assertEqual(order.total, Decimal("30000.00"))
+
+    def test_manager_form_rejects_buy_x_get_y_without_specific_target(self):
+        response = self.client.post(
+            reverse("staff-promotion-create"),
+            {
+                "name": "Bad BOGO",
+                "offer_type": Promotion.OfferType.BUY_X_GET_Y,
+                "menu_item": "",
+                "product_family": "",
+                "category": "",
+                "brand": "",
+                "discount_percent": "",
+                "discount_amount": "",
+                "min_order_subtotal": "",
+                "min_target_quantity": "",
+                "coupon_code": "",
+                "max_redemptions": "",
+                "max_redemptions_per_customer": "",
+                "buy_quantity": "1",
+                "get_quantity": "1",
+                "max_uses_per_order": "",
+                "starts_at": (timezone.localtime() - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M"),
+                "ends_at": (timezone.localtime() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+                "is_active": "on",
+                "outlets": [str(self.outlet.pk)],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Buy X Get Y requires exactly one")
+        self.assertFalse(
+            Promotion.objects.filter(tenant=self.tenant, name="Bad BOGO").exists()
+        )
