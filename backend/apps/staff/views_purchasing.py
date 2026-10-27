@@ -336,12 +336,26 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
         kw["tenant"] = self.request.tenant
         kw["outlets_qs"] = Outlet.objects.filter(pk__in=oids, is_active=True).select_related("site")
         if self.request.method == "GET":
+            initial = kw.setdefault("initial", {})
             try:
                 chosen = uuid.UUID(self.request.GET.get("outlet", ""))
             except (ValueError, TypeError):
                 chosen = None
             if chosen in oids:
-                kw.setdefault("initial", {})["outlet"] = chosen
+                initial["outlet"] = chosen
+            try:
+                supplier_id = uuid.UUID(self.request.GET.get("supplier", ""))
+            except (ValueError, TypeError):
+                supplier_id = None
+            if (
+                supplier_id is not None
+                and Supplier.objects.filter(
+                    tenant=self.request.tenant,
+                    pk=supplier_id,
+                    is_active=True,
+                ).exists()
+            ):
+                initial["supplier"] = supplier_id
         return kw
 
     def get_context_data(self, **kwargs):
