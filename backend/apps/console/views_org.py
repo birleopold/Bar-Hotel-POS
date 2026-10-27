@@ -103,6 +103,11 @@ class OrgWorkstationDeviceTestView(ConsoleOrgAdminRequiredMixin, OrgWorkstationO
     edit_url_name = "console-org-workstation-edit"
     success_url_name = "console-org-workstation-test"
 
+    def can_manage_device_config(self, request):
+        # ConsoleOrgAdminRequiredMixin already restricts this route to an
+        # organization administrator or platform operator.
+        return True
+
 
 class OrgWorkstationListView(ConsoleOrgAdminRequiredMixin, TemplateView):
     """Organization device directory; cashier selection remains a Staff operation."""
