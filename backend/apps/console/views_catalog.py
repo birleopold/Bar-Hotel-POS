@@ -856,11 +856,11 @@ class OrgRetailAssemblyCreateView(RetailMerchandiseRequiredMixin, MenuItemScoped
     form_class = ConsoleRetailAssemblyComponentForm
     template_name = "console/org/retail_assembly_form.html"
 
-    def dispatch(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         if not self.menu_item.track_inventory:
             messages.error(request, "Enable stock tracking on the finished product before configuring an assembly.")
             return redirect("console-org-menu-item-edit", item_id=self.menu_item.pk)
-        return super().dispatch(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
 
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
@@ -872,6 +872,9 @@ class OrgRetailAssemblyCreateView(RetailMerchandiseRequiredMixin, MenuItemScoped
         return reverse("console-org-menu-item-assembly", kwargs={"item_id": self.menu_item.pk})
 
     def form_valid(self, form):
+        if not self.menu_item.track_inventory:
+            form.add_error(None, "Enable stock tracking on the finished product before configuring an assembly.")
+            return self.form_invalid(form)
         obj = form.save(commit=False)
         obj.tenant = self.request.tenant
         obj.parent_item = self.menu_item
