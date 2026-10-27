@@ -83,6 +83,10 @@ class PromotionSerializer(serializers.ModelSerializer):
             "product_family",
             "category",
             "brand",
+            "reward_menu_item",
+            "reward_product_family",
+            "reward_category",
+            "reward_brand",
             "discount_percent",
             "discount_amount",
             "min_order_subtotal",
@@ -174,6 +178,15 @@ class PromotionSerializer(serializers.ModelSerializer):
         product_family = attrs.get("product_family", inst.product_family if inst else None)
         category = attrs.get("category", inst.category if inst else None)
         brand = (attrs.get("brand", inst.brand if inst else "") or "").strip()
+        reward_menu_item = attrs.get("reward_menu_item", inst.reward_menu_item if inst else None)
+        reward_product_family = attrs.get(
+            "reward_product_family",
+            inst.reward_product_family if inst else None,
+        )
+        reward_category = attrs.get("reward_category", inst.reward_category if inst else None)
+        reward_brand = (
+            attrs.get("reward_brand", inst.reward_brand if inst else "") or ""
+        ).strip()
         if sum(bool(value) for value in (menu_item, product_family, category, brand)) > 1:
             raise serializers.ValidationError(
                 "Choose only one promotion target: product, product family, category, or brand."
@@ -190,11 +203,27 @@ class PromotionSerializer(serializers.ModelSerializer):
             )
         if menu_item is not None and menu_item.tenant_id != tenant.pk:
             raise serializers.ValidationError({"menu_item": "Choose a product from this business."})
+        reward_targets = (reward_menu_item, reward_product_family, reward_category, reward_brand)
+        if sum(bool(value) for value in reward_targets) > 1:
+            raise serializers.ValidationError(
+                "Choose only one Buy X Get Y reward target: product, product family, category, or brand."
+            )
+        if offer_type != Promotion.OfferType.BUY_X_GET_Y and any(reward_targets):
+            raise serializers.ValidationError(
+                "Reward targets are only valid for Buy X Get Y offers."
+            )
+        if reward_menu_item is not None and reward_menu_item.tenant_id != tenant.pk:
+            raise serializers.ValidationError({"reward_menu_item": "Choose a reward product from this business."})
+        if reward_product_family is not None and reward_product_family.tenant_id != tenant.pk:
+            raise serializers.ValidationError({"reward_product_family": "Choose a reward family from this business."})
+        if reward_category is not None and reward_category.tenant_id != tenant.pk:
+            raise serializers.ValidationError({"reward_category": "Choose a reward category from this business."})
         if product_family is not None and product_family.tenant_id != tenant.pk:
             raise serializers.ValidationError({"product_family": "Choose a product family from this business."})
         if category is not None and category.tenant_id != tenant.pk:
             raise serializers.ValidationError({"category": "Choose a category from this business."})
         attrs["brand"] = brand
+        attrs["reward_brand"] = reward_brand
 
         coupon_code = (attrs.get("coupon_code", inst.coupon_code if inst else "") or "").strip()
         if coupon_code:
