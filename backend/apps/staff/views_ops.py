@@ -673,6 +673,12 @@ class StaffOrderQuickCreateView(StaffTenantRequiredMixin, View):
         if not staff_outlet_allowed_for_membership(request.tenant_membership, outlet.id):
             messages.error(request, "You cannot create orders for this outlet.")
             return redirect("staff-orders")
+        if outlet.outlet_type == OutletType.WAREHOUSE:
+            messages.error(
+                request,
+                "Warehouse / storage locations are inventory-only. Switch to a selling section to start an order.",
+            )
+            return redirect("staff-orders")
         label = ""
         service_mode = ""
         if mode == "takeaway":
