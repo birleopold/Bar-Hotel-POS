@@ -437,6 +437,100 @@ class StockCountLine(TimeStampedModel):
 
 
 
+class StockTransferRequestStatus(models.TextChoices):
+    PENDING = "pending", "Pending approval"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+    DISPATCHED = "dispatched", "Dispatched"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class StockTransferRequest(TimeStampedModel):
+    """Non-ledger request that hands off to the staged stock-transfer ledger."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="stock_transfer_requests",
+    )
+    from_outlet = models.ForeignKey(
+        "tenants.Outlet",
+        on_delete=models.PROTECT,
+        related_name="outgoing_stock_transfer_requests",
+    )
+    to_outlet = models.ForeignKey(
+        "tenants.Outlet",
+        on_delete=models.PROTECT,
+        related_name="incoming_stock_transfer_requests",
+    )
+    menu_item = models.ForeignKey(
+        "catalog.MenuItem",
+        on_delete=models.PROTECT,
+        related_name="stock_transfer_requests",
+    )
+    requested_quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+    approved_quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+    needed_by = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=StockTransferRequestStatus.choices,
+        default=StockTransferRequestStatus.PENDING,
+    )
+    request_note = models.CharField(max_length=512, blank=True)
+    review_note = models.CharField(max_length=512, blank=True)
+    requested_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="stock_transfer_requests_created",
+    )
+    reviewed_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_transfer_requests_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    transfer_receipt = models.OneToOneField(
+        "inventory.StockTransferReceipt",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="source_request",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(requested_quantity__gt=0),
+                name="transfer_request_quantity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(approved_quantity__gt=0) | models.Q(approved_quantity__isnull=True),
+                name="transfer_request_approved_quantity_positive",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.menu_item.name}: {self.from_outlet.name} → "
+            f"{self.to_outlet.name} ({self.status})"
+        )
+
+
 class StockTransferReceipt(TimeStampedModel):
     """Legacy instant checks plus individually tracked staged transfers."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
