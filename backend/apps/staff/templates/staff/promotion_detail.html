@@ -18,6 +18,17 @@
       </div>
     </div>
   </header>
+  <h2 class="staff-section-head">Performance · last {{ promotion_report_days }} days</h2>
+  <div class="staff-card mb-3">
+    <div class="row g-3">
+      <div class="col-6 col-lg-3"><div class="staff-muted small">Paid uses</div><strong>{{ promotion_report.uses }}</strong></div>
+      <div class="col-6 col-lg-3"><div class="staff-muted small">Gross sales</div><strong>{{ request.tenant.settings.default_currency }} {{ promotion_report.gross_sales }}</strong></div>
+      <div class="col-6 col-lg-3"><div class="staff-muted small">Discount value</div><strong>{{ request.tenant.settings.default_currency }} {{ promotion_report.discount_total }}</strong></div>
+      <div class="col-6 col-lg-3"><div class="staff-muted small">Net sales</div><strong>{{ request.tenant.settings.default_currency }} {{ promotion_report.net_sales }}</strong></div>
+    </div>
+    <p class="staff-muted small mb-0 mt-2">Identified customers in this period: {{ promotion_report.customers }}.</p>
+  </div>
+
   <h2 class="staff-section-head">Details</h2>
   <div class="staff-card">
     <p><strong>Schedule</strong> {{ promotion.starts_at }} → {{ promotion.ends_at|default:"open" }}</p>
