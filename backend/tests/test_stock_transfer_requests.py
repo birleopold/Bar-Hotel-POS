@@ -319,3 +319,70 @@ class StockTransferRequestTests(TestCase):
             )
         row.refresh_from_db()
         self.assertEqual(row.status, StockTransferRequestStatus.PENDING)
+
+    def test_transfer_document_is_visible_only_to_staff_with_source_or_destination_scope(self):
+        row = create_stock_transfer_request(
+            tenant_id=self.tenant.pk,
+            membership=self.requester_membership,
+            from_outlet=self.source,
+            to_outlet=self.destination,
+            menu_item=self.item,
+            quantity="2",
+            user=self.requester,
+            note="Need stock for the shelf",
+        )
+        review_stock_transfer_request(
+            transfer_request=row,
+            membership=self.manager_membership,
+            user=self.manager,
+            decision=StockTransferRequestStatus.APPROVED,
+            approved_quantity="2",
+            note="Approved from warehouse stock",
+        )
+        manager = self._client(self.manager, self.source)
+        dispatched = manager.post(
+            reverse("staff-inventory-transfer-requests"),
+            {"request_id": str(row.pk), "action": "dispatch"},
+        )
+        self.assertEqual(dispatched.status_code, 302)
+        row.refresh_from_db()
+        receipt = row.transfer_receipt
+
+        document = manager.get(
+            reverse(
+                "staff-inventory-transfer-document",
+                kwargs={"receipt_id": receipt.pk},
+            )
+        )
+        self.assertEqual(document.status_code, 200)
+        self.assertContains(document, "Stock transfer document")
+        self.assertContains(document, str(receipt.transfer_batch))
+        self.assertContains(document, "Warehouse")
+        self.assertContains(document, "Retail floor")
+        self.assertContains(document, "Need stock for the shelf")
+
+        other_outlet = Outlet.objects.create(
+            site=self.site,
+            name="Unrelated section",
+            outlet_type=OutletType.SUPERMARKET,
+        )
+        outsider = User.objects.create_user(
+            email="transfer-outsider@test.local",
+            password="Password9!",
+        )
+        outsider_membership = Membership.objects.create(
+            tenant=self.tenant,
+            user=outsider,
+            role=MembershipRole.STOREKEEPER,
+        )
+        outsider_membership.sites.add(self.site)
+        outsider_membership.outlets.add(other_outlet)
+        outsider_client = self._client(outsider, other_outlet)
+        denied = outsider_client.get(
+            reverse(
+                "staff-inventory-transfer-document",
+                kwargs={"receipt_id": receipt.pk},
+            )
+        )
+        self.assertEqual(denied.status_code, 404)
+
