@@ -2,9 +2,24 @@
 
 from django.urls import path
 
-from . import views_audit, views_commissions, views_invites, views_workspace, views_owner_reports
+from . import views_accounting, views_audit, views_commissions, views_invites, views_workspace, views_owner_reports
 
 urlpatterns = [
+    path(
+        "accounting/",
+        views_accounting.StaffAccountingMappingListView.as_view(),
+        name="staff-workspace-accounting-mappings",
+    ),
+    path(
+        "accounting/new/",
+        views_accounting.StaffAccountingMappingCreateView.as_view(),
+        name="staff-workspace-accounting-mapping-create",
+    ),
+    path(
+        "accounting/<uuid:mapping_id>/edit/",
+        views_accounting.StaffAccountingMappingUpdateView.as_view(),
+        name="staff-workspace-accounting-mapping-edit",
+    ),
     path(
         "commissions/",
         views_commissions.StaffCommissionRuleListView.as_view(),
