@@ -8,11 +8,11 @@
   <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Purchase orders</h1><p>Manage requests, approvals, stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions">{% if can_request_purchasing %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-order-create' %}">{% if can_approve_purchasing %}New PO{% else %}New purchase request{% endif %}</a>{% endif %}</div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   <nav class="staff-chip-row mb-3" aria-label="Purchasing tasks">
-    {% if can_approve_purchasing %}<a class="staff-btn staff-btn--ghost" href="?lane=approval"{% if approval_lane %} aria-current="page"{% endif %}>Needs approval</a>{% endif %}
+    {% if can_approve_purchasing %}<a class="staff-btn staff-btn--ghost" href="?lane=approval"{% if approval_lane %} aria-current="page"{% endif %}>Needs approval</a><a class="staff-btn staff-btn--ghost" href="?lane=consolidate"{% if consolidate_lane %} aria-current="page"{% endif %}>Combine approved</a>{% endif %}
     <a class="staff-btn staff-btn--ghost" href="?lane=receiving"{% if receiving_lane %} aria-current="page"{% endif %}>Awaiting delivery</a>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All purchase orders</a>
   </nav>
-  {% if receiving_lane %}<p class="staff-muted">Open a sent or partially received order to record the quantities delivered.</p>{% elif approval_lane %}<p class="staff-muted">Review pending purchase requests before anything is sent to a supplier.</p>{% endif %}
+  {% if receiving_lane %}<p class="staff-muted">Open a sent or partially received order to record the quantities delivered.</p>{% elif approval_lane %}<p class="staff-muted">Review pending purchase requests before anything is sent to a supplier. Requests with the earliest stated need date appear first.</p>{% elif consolidate_lane %}<p class="staff-muted">Select two or more approved unsent drafts for the same supplier and receiving section. The originals remain linked as evidence; conflicting SKU costs are rejected rather than averaged.</p>{% endif %}
   <h2 class="fizo-purchasing__section-heading">Status</h2>
   <form class="mb-3" method="get">
     {% if receiving_lane %}<input type="hidden" name="lane" value="receiving">{% elif approval_lane %}<input type="hidden" name="lane" value="approval">{% endif %}
@@ -27,13 +27,15 @@
     </select>
   </form>
   <h2 class="fizo-purchasing__section-heading">Orders</h2>
+  {% if consolidate_lane %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="consolidate_requests">{% endif %}
   <div class="fizo-purchasing__tablewrap">
     <table class="fizo-purchasing__table">
-      <thead><tr><th>Reference</th><th>Supplier</th><th>Section</th><th>Needed by / reason</th><th>Approval</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <thead><tr>{% if consolidate_lane %}<th scope="col">Combine</th>{% endif %}<th>Reference</th><th>Supplier</th><th>Section</th><th>Needed by / reason</th><th>Approval</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for po in purchase_orders %}
           <tr>
-            <td><a href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{{ po.reference|default:po.id }}</a></td>
+            {% if consolidate_lane %}<td><label class="visually-hidden" for="combine-{{ po.id }}">Combine {{ po.reference|default:po.id }}</label><input id="combine-{{ po.id }}" type="checkbox" name="source_request" value="{{ po.id }}"></td>{% endif %}
+            <td><a href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{{ po.reference|default:po.id }}</a>{% if po.consolidated_source_requests.all %}<span class="staff-muted small d-block">{{ po.consolidated_source_requests.all|length }} source request{{ po.consolidated_source_requests.all|length|pluralize }}</span>{% endif %}</td>
             <td>{{ po.supplier.name }}</td>
             <td>{{ po.outlet.name }}</td>
             <td>{% if po.needed_by %}<strong>{{ po.needed_by }}</strong>{% else %}<span class="staff-muted">No date</span>{% endif %}{% if po.request_reason %}<span class="staff-muted small d-block">{{ po.request_reason|truncatechars:70 }}</span>{% endif %}</td>
@@ -42,16 +44,25 @@
             <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{% if receiving_lane and can_receive_stock %}Receive delivery{% else %}View{% endif %}</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="7" class="staff-muted">{% if receiving_lane %}No purchase orders are awaiting delivery for this scope and status.{% else %}No purchase orders match this scope and status.{% endif %}</td></tr>
+          <tr><td colspan="{% if consolidate_lane %}8{% else %}7{% endif %}" class="staff-muted">{% if receiving_lane %}No purchase orders are awaiting delivery for this scope and status.{% elif consolidate_lane %}No approved unsent drafts are available to combine.{% else %}No purchase orders match this scope and status.{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% if consolidate_lane %}
+    <div class="staff-card mt-3">
+      <label class="staff-label" for="consolidated-reference">Combined PO reference (optional)</label>
+      <input class="staff-input" id="consolidated-reference" name="reference" maxlength="128" placeholder="Generated automatically if blank">
+      <p class="staff-muted small mt-2">Only selected drafts with the same supplier and receiving section can be combined. The resulting PO stays draft/approved until you review and send it.</p>
+      <button class="staff-btn staff-btn--primary" type="submit">Combine selected requests</button>
+    </div>
+  </form>
+  {% endif %}
   {% if is_paginated %}
     <nav class="staff-pager">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% elif approval_lane %}&lane=approval{% endif %}">Previous</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% elif approval_lane %}&lane=approval{% elif consolidate_lane %}&lane=consolidate{% endif %}">Previous</a>{% endif %}
       <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% elif approval_lane %}&lane=approval{% endif %}">Next</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% elif approval_lane %}&lane=approval{% elif consolidate_lane %}&lane=consolidate{% endif %}">Next</a>{% endif %}
     </nav>
   {% endif %}
 </div>
