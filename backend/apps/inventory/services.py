@@ -508,6 +508,7 @@ def execute_stock_transfer(
     user,
     note: str = "",
     staged: bool = False,
+    allow_destination_outside_scope: bool = False,
 ) -> tuple[uuid.UUID, StockMovement, StockMovement | None]:
     try:
         quantity = Decimal(str(quantity))
@@ -523,7 +524,10 @@ def execute_stock_transfer(
         raise ValidationError("Outlets must belong to the current tenant.")
     if not outlet_belongs_to_membership(membership, from_outlet.id):
         raise ValidationError({"from_outlet": "You cannot transfer from this outlet."})
-    if not outlet_belongs_to_membership(membership, to_outlet.id):
+    if (
+        not allow_destination_outside_scope
+        and not outlet_belongs_to_membership(membership, to_outlet.id)
+    ):
         raise ValidationError({"to_outlet": "You cannot transfer to this outlet."})
     if menu_item.tenant_id != tenant_id:
         raise ValidationError({"menu_item": "Product must belong to this business."})
