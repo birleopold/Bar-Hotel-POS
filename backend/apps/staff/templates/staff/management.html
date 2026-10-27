@@ -196,6 +196,14 @@
       <div class="staff-table-wrap mt-3"><table class="staff-table"><caption>Top-selling items</caption><thead><tr><th>Item</th><th>Quantity</th><th>Line revenue</th></tr></thead><tbody>
       {% for item in executive_sales.top_items %}<tr><td>{{ item.item_name }}</td><td>{{ item.quantity_sold }}</td><td>{{ item.revenue }}</td></tr>{% empty %}<tr><td colspan="3">No item sales found.</td></tr>{% endfor %}
       </tbody></table></div>
+      <div class="staff-grid staff-grid--2 mt-3">
+        <div class="staff-table-wrap"><table class="staff-table"><caption>Net sales by register</caption><thead><tr><th>Register</th><th>Payments</th><th>Refunds</th><th>Net</th></tr></thead><tbody>
+        {% for row in executive_sales.by_register %}<tr><td>{{ row.register_name }}{% if row.register_code %}<span class="staff-muted small d-block">{{ row.register_code }}</span>{% endif %}</td><td>{{ row.payments_count }}</td><td>{{ row.refunds_total }}</td><td>{{ row.net_sales }}</td></tr>{% empty %}<tr><td colspan="4">No register activity.</td></tr>{% endfor %}
+        </tbody></table></div>
+        <div class="staff-table-wrap"><table class="staff-table"><caption>Net sales by hour</caption><thead><tr><th>Hour</th><th>Payments</th><th>Refunds</th><th>Net</th></tr></thead><tbody>
+        {% for row in executive_sales.hourly_sales %}{% if row.payments_count or row.refunds_count %}<tr><td>{{ row.label }}</td><td>{{ row.payments_count }}</td><td>{{ row.refunds_total }}</td><td>{{ row.net_sales }}</td></tr>{% endif %}{% empty %}<tr><td colspan="4">No hourly activity.</td></tr>{% endfor %}
+        </tbody></table></div>
+      </div>
       {% if executive_profitability %}
       <section class="staff-card mt-3" aria-label="Merchandise profitability">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
