@@ -920,11 +920,28 @@ class StaffStockTransferView(StaffTenantRequiredMixin, FormView):
             return redirect("staff-inventory-balances")
         return super().dispatch(request, *args, **kwargs)
 
+    def _request_mode(self):
+        return not membership_has_inventory_capability(
+            self.request.tenant_membership, "approve_transfer"
+        )
+
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
         tenant = self.request.tenant
-        outlets = list(staff_accessible_outlets(self.request.tenant_membership))
-        kw["outlets"] = outlets
+        accessible = list(staff_accessible_outlets(self.request.tenant_membership))
+        request_mode = self._request_mode()
+        if request_mode:
+            kw["from_outlets"] = list(
+                Outlet.objects.filter(
+                    site__tenant=tenant,
+                    site__is_active=True,
+                    is_active=True,
+                ).select_related("site").order_by("site__name", "name")
+            )
+            kw["to_outlets"] = accessible
+        else:
+            kw["outlets"] = accessible
+        kw["request_mode"] = request_mode
         kw["menu_items_qs"] = MenuItem.objects.filter(
             tenant=tenant,
             is_active=True,
@@ -937,24 +954,44 @@ class StaffStockTransferView(StaffTenantRequiredMixin, FormView):
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, ctx["outlets"])
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
+        ctx["transfer_request_mode"] = self._request_mode()
         return ctx
 
     def form_valid(self, form):
         try:
-            execute_stock_transfer(
-                staged=True,
-                tenant_id=self.request.tenant.id,
-                membership=self.request.tenant_membership,
-                from_outlet=form.cleaned_data["from_outlet"],
-                to_outlet=form.cleaned_data["to_outlet"],
-                menu_item=form.cleaned_data["menu_item"],
-                quantity=form.cleaned_data["quantity"],
-                user=self.request.user,
-                note=form.cleaned_data.get("note") or "",
-            )
+            if self._request_mode():
+                create_stock_transfer_request(
+                    tenant_id=self.request.tenant.id,
+                    membership=self.request.tenant_membership,
+                    from_outlet=form.cleaned_data["from_outlet"],
+                    to_outlet=form.cleaned_data["to_outlet"],
+                    menu_item=form.cleaned_data["menu_item"],
+                    quantity=form.cleaned_data["quantity"],
+                    needed_by=form.cleaned_data.get("needed_by"),
+                    user=self.request.user,
+                    note=form.cleaned_data.get("note") or "",
+                )
+            else:
+                execute_stock_transfer(
+                    staged=True,
+                    tenant_id=self.request.tenant.id,
+                    membership=self.request.tenant_membership,
+                    from_outlet=form.cleaned_data["from_outlet"],
+                    to_outlet=form.cleaned_data["to_outlet"],
+                    menu_item=form.cleaned_data["menu_item"],
+                    quantity=form.cleaned_data["quantity"],
+                    user=self.request.user,
+                    note=form.cleaned_data.get("note") or "",
+                )
         except DRFValidationError as e:
             _flash_drf_validation(self.request, e)
             return self.form_invalid(form)
+        if self._request_mode():
+            messages.success(
+                self.request,
+                "Transfer request submitted. No stock moved; the sending section must approve it first.",
+            )
+            return redirect("staff-inventory-transfer-requests")
         messages.success(self.request, "Stock dispatched. Receiving must confirm it before destination inventory becomes available.")
         return redirect("staff-inventory-transfer-receipts")
 
