@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.audit.services import log_audit
+from apps.catalog.models import MenuItem
 from apps.pos.models import (
     CustomerPriceBookAssignment,
     Order,
@@ -70,17 +71,57 @@ def qualifying_customer_price_rule(
     book = assignment.price_book
     if book.outlets.exists() and not book.outlets.filter(pk=outlet_id).exists():
         return None
-    return (
+    item = (
+        MenuItem.objects.filter(
+            tenant_id=tenant_id,
+            pk=menu_item_id,
+            is_active=True,
+        )
+        .only("id", "category_id", "product_family_id", "brand")
+        .first()
+    )
+    if item is None:
+        return None
+
+    target_filter = Q(menu_item_id=item.pk)
+    if item.product_family_id:
+        target_filter |= Q(product_family_id=item.product_family_id)
+    if item.brand:
+        target_filter |= Q(brand__iexact=item.brand)
+    target_filter |= Q(category_id=item.category_id)
+
+    candidates = list(
         PriceBookRule.objects.filter(
             tenant_id=tenant_id,
             price_book=book,
-            menu_item_id=menu_item_id,
             is_active=True,
             minimum_quantity__lte=qty,
         )
-        .order_by("-minimum_quantity", "unit_price", "pk")
-        .first()
+        .filter(target_filter)
+        .select_related("menu_item", "product_family", "category")
     )
+    if not candidates:
+        return None
+
+    def priority(rule):
+        if rule.menu_item_id == item.pk:
+            specificity = 4
+        elif item.product_family_id and rule.product_family_id == item.product_family_id:
+            specificity = 3
+        elif rule.brand and item.brand and rule.brand.casefold() == item.brand.casefold():
+            specificity = 2
+        elif rule.category_id == item.category_id:
+            specificity = 1
+        else:
+            specificity = 0
+        return (
+            specificity,
+            rule.minimum_quantity,
+            -rule.unit_price,
+            str(rule.pk),
+        )
+
+    return max(candidates, key=priority)
 
 
 def _modifier_delta(line: OrderLine) -> Decimal:
