@@ -182,6 +182,9 @@ def build_pdf_summary(*, schedule, period, summary):
                 if profitability["known_margin_percent"] is not None else "—"
             )],
             ["Cost coverage", f"{profitability['cost_coverage_percent']}%"],
+            ["Below-floor sale lines", str(profitability.get("margin_breach_sale_count", 0))],
+            ["Below-floor revenue", f"{profitability['currency']} {profitability.get('margin_breach_revenue', '0.00')}"],
+            ["Margin shortfall", f"{profitability['currency']} {profitability.get('margin_breach_shortfall', '0.00')}"],
             ["Profitability coverage", (
                 "Complete" if profitability["profitability_complete"] else "Incomplete"
             )],
@@ -225,6 +228,40 @@ def build_pdf_summary(*, schedule, period, summary):
                 ("TOPPADDING", (0, 0), (-1, -1), 6),
             ]))
             story.extend([category_table, Spacer(1, 10)])
+        breach_sales = profitability.get("margin_breach_sales") or []
+        if breach_sales:
+            story.extend([
+                Spacer(1, 8),
+                Paragraph("Retail margin breaches", styles["Heading3"]),
+            ])
+            breach_rows = [[
+                "Sale", "Section", "Product", "Revenue", "Margin", "Shortfall",
+            ]]
+            for row in breach_sales[:8]:
+                breach_rows.append([
+                    Paragraph(pdf_text(row["bill_reference"]), styles["Normal"]),
+                    Paragraph(pdf_text(row["outlet_name"]), styles["Normal"]),
+                    Paragraph(pdf_text(row["item_name"]), styles["Normal"]),
+                    pdf_text(row["net_revenue"]),
+                    (
+                        f"{row['known_margin_percent']}%"
+                        if row["known_margin_percent"] is not None else "No revenue"
+                    ),
+                    pdf_text(row["margin_shortfall"]),
+                ])
+            breach_table = Table(
+                breach_rows,
+                colWidths=[75, 80, 120, 65, 55, 65],
+                repeatRows=1,
+            )
+            breach_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E5EFF2")),
+                ("GRID", (0, 0), (-1, -1), .4, colors.HexColor("#D2D9E2")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            story.extend([breach_table, Spacer(1, 10)])
         if not profitability["profitability_complete"]:
             story.append(Paragraph(
                 "Profitability is incomplete because one or more sale-time costs, "
