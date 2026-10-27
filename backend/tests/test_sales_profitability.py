@@ -279,7 +279,14 @@ class SalesProfitabilityTests(TestCase):
         self.assertEqual(api_response.status_code, 200, api_response.content)
         api_profit = api_response.json()["merchandise_profitability"]
         self.assertEqual(api_profit["sale_revenue"], "100.00")
+        self.assertEqual(api_profit["covered_net_revenue"], "100.00")
+        self.assertEqual(api_profit["uncovered_net_revenue"], "0.00")
         self.assertEqual(api_profit["known_net_cogs"], "60.00")
+        self.assertEqual(len(api_profit["categories"]), 1)
+        self.assertEqual(
+            api_profit["categories"][0]["category_name"],
+            self.known_item.category.name,
+        )
         self.assertNotIn("900.00", str(api_profit))
 
     def test_installment_sale_is_recognized_once_on_final_payment_date(self):
