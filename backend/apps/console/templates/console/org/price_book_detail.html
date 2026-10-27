@@ -8,11 +8,11 @@
   </header>
 
   <section class="staff-card mb-3">
-    <h2>Product price tiers</h2>
-    <p class="staff-muted">The largest eligible minimum quantity wins. If no rule qualifies, the normal outlet/base price applies.</p>
-    <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Product</th><th>From quantity</th><th>Unit price</th><th>Status</th><th>Action</th></tr></thead><tbody>
-      {% for rule in rules %}<tr><td><strong>{{ rule.menu_item.name }}</strong><span class="staff-muted small d-block">{{ rule.menu_item.sku|default:"No SKU" }}</span></td><td>{{ rule.minimum_quantity }}</td><td>{{ rule.unit_price }}</td><td>{% if rule.is_active %}Active{% else %}Inactive{% endif %}</td><td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-price-book-rule-edit' price_book.id rule.id %}">Edit</a><a href="{% url 'console-org-price-book-rule-delete' price_book.id rule.id %}">Remove</a></div></td></tr>
-      {% empty %}<tr><td colspan="5" class="staff-muted">No product tiers yet.</td></tr>{% endfor %}</tbody></table></div>
+    <h2>Price tiers</h2>
+    <p class="staff-muted">Specificity wins first: product → family → brand → category. Within the same target, the largest eligible minimum quantity wins. If no rule qualifies, the normal outlet/base price applies.</p>
+    <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Target</th><th>From quantity</th><th>Unit price</th><th>Status</th><th>Action</th></tr></thead><tbody>
+      {% for rule in rules %}<tr><td><strong>{{ rule.target_label }}</strong>{% if rule.menu_item %}<span class="staff-muted small d-block">{{ rule.menu_item.sku|default:"No SKU" }}</span>{% elif rule.product_family %}<span class="staff-muted small d-block">{{ rule.product_family.category.name }}</span>{% elif rule.category %}<span class="staff-muted small d-block">All matching products</span>{% elif rule.brand %}<span class="staff-muted small d-block">Brand match is case-insensitive</span>{% endif %}</td><td>{{ rule.minimum_quantity }}</td><td>{{ rule.unit_price }}</td><td>{% if rule.is_active %}Active{% else %}Inactive{% endif %}</td><td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-price-book-rule-edit' price_book.id rule.id %}">Edit</a><a href="{% url 'console-org-price-book-rule-delete' price_book.id rule.id %}">Remove</a></div></td></tr>
+      {% empty %}<tr><td colspan="5" class="staff-muted">No price tiers yet.</td></tr>{% endfor %}</tbody></table></div>
   </section>
 
   <section class="staff-card">
