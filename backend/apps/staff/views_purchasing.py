@@ -17,6 +17,7 @@ from apps.pos.services import default_currency_for_tenant
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod, SupplierProductCode
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
+from apps.purchasing.supplier_catalog import supplier_cost_history
 from apps.tenants.models import Outlet, TenantSettings
 
 from .forms import StaffPOHeaderForm, StaffSupplierForm, StaffSupplierProductCodeForm
@@ -187,7 +188,7 @@ class StaffSupplierProductCodeView(StaffTenantRequiredMixin, TemplateView):
                     pk=code_id,
                 ).first()
         ctx["supplier"] = self.supplier
-        ctx["supplier_codes"] = (
+        supplier_codes = list(
             SupplierProductCode.objects.filter(
                 tenant=self.request.tenant,
                 supplier=self.supplier,
@@ -195,6 +196,22 @@ class StaffSupplierProductCodeView(StaffTenantRequiredMixin, TemplateView):
             .select_related("menu_item", "product_package")
             .order_by("menu_item__name", "code")
         )
+        history_cache = {}
+        for row in supplier_codes:
+            history = history_cache.get(row.menu_item_id)
+            if history is None:
+                history = supplier_cost_history(
+                    tenant_id=self.request.tenant.pk,
+                    supplier_id=self.supplier.pk,
+                    menu_item_id=row.menu_item_id,
+                )
+                history_cache[row.menu_item_id] = history
+            row.latest_received_unit_cost = history.latest_unit_cost
+            row.previous_received_unit_cost = history.previous_unit_cost
+            row.cost_change_amount = history.change_amount
+            row.cost_change_percent = history.change_percent
+            row.latest_cost_received_at = history.latest_received_at
+        ctx["supplier_codes"] = supplier_codes
         ctx["code_form"] = StaffSupplierProductCodeForm(
             tenant=self.request.tenant,
             supplier=self.supplier,
@@ -347,11 +364,14 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
                 if item is not None:
                     ctx["prefill_menu_item"] = item.pk
                     ctx["prefill_qty"] = str(quantity)
-        ctx["menu_items"] = MenuItem.objects.filter(
-            tenant=self.request.tenant,
-            is_active=True,
-            track_inventory=True,
-        ).order_by("name")
+        menu_items = list(
+            MenuItem.objects.filter(
+                tenant=self.request.tenant,
+                is_active=True,
+                track_inventory=True,
+            ).order_by("name")
+        )
+        ctx["menu_items"] = menu_items
         product_packages = list(
             ProductPackage.objects.filter(
                 tenant=self.request.tenant,
@@ -398,6 +418,28 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
             )
         ctx["product_packages"] = product_packages
         ctx["selected_supplier"] = selected_supplier
+        supplier_by_item = {}
+        for row in supplier_codes:
+            if row.product_package_id is None:
+                supplier_by_item.setdefault(row.menu_item_id, row)
+        for item in menu_items:
+            relation = supplier_by_item.get(item.pk)
+            item.supplier_reference_display = relation.code if relation else ""
+            item.supplier_default_cost_display = (
+                relation.default_unit_cost if relation and relation.default_unit_cost is not None else None
+            )
+            item.supplier_preferred_display = bool(relation and relation.is_preferred)
+            if selected_supplier is not None:
+                history = supplier_cost_history(
+                    tenant_id=self.request.tenant.pk,
+                    supplier_id=selected_supplier.pk,
+                    menu_item_id=item.pk,
+                )
+                item.supplier_latest_cost_display = history.latest_unit_cost
+                item.supplier_previous_cost_display = history.previous_unit_cost
+            else:
+                item.supplier_latest_cost_display = None
+                item.supplier_previous_cost_display = None
         ctx["supplier_product_codes"] = supplier_codes
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
