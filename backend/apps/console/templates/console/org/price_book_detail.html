@@ -1,0 +1,30 @@
+{% extends "console/base.html" %}
+{% block title %}{{ price_book.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-setup__eyebrow">Pricing / Price books</p><h1>{{ price_book.name }}</h1><p class="staff-muted">{{ price_book.code }} · {% if price_book.is_active %}Active{% else %}Inactive{% endif %} · {{ price_book.starts_at|default:"Effective now" }} → {{ price_book.ends_at|default:"No expiry" }}</p></div>
+    <div class="grocery-setup__hero-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-price-books' %}">All price books</a><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-price-book-edit' price_book.id %}">Edit settings</a><a class="staff-btn staff-btn--primary" href="{% url 'console-org-price-book-rule-create' price_book.id %}">Add price tier</a></div>
+  </header>
+
+  <section class="staff-card mb-3">
+    <h2>Product price tiers</h2>
+    <p class="staff-muted">The largest eligible minimum quantity wins. If no rule qualifies, the normal outlet/base price applies.</p>
+    <div class="staff-table-wrap"><table class="staff-table"><thead><tr><th>Product</th><th>From quantity</th><th>Unit price</th><th>Status</th><th>Action</th></tr></thead><tbody>
+      {% for rule in rules %}<tr><td><strong>{{ rule.menu_item.name }}</strong><span class="staff-muted small d-block">{{ rule.menu_item.sku|default:"No SKU" }}</span></td><td>{{ rule.minimum_quantity }}</td><td>{{ rule.unit_price }}</td><td>{% if rule.is_active %}Active{% else %}Inactive{% endif %}</td><td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-price-book-rule-edit' price_book.id rule.id %}">Edit</a><a href="{% url 'console-org-price-book-rule-delete' price_book.id rule.id %}">Remove</a></div></td></tr>
+      {% empty %}<tr><td colspan="5" class="staff-muted">No product tiers yet.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+
+  <section class="staff-card">
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap"><div><h2>Assigned customers</h2><p class="staff-muted small mb-0">A customer can belong to one price book at a time. Assigning them here moves them from another book if necessary.</p></div></div>
+    <form method="post" action="{% url 'console-org-price-book-assignment' price_book.id %}" class="row g-2 align-items-end mt-2">{% csrf_token %}
+      <input type="hidden" name="action" value="assign">
+      {% for field in assignment_form %}<div class="col-12 col-md-5"><label class="staff-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endfor %}
+      <div class="col-12 col-md-2"><button class="staff-btn staff-btn--primary w-100" type="submit">Assign</button></div>
+    </form>
+    <div class="staff-table-wrap mt-3"><table class="staff-table"><thead><tr><th>Customer</th><th>Contact</th><th>Assigned</th><th>Action</th></tr></thead><tbody>
+      {% for assignment in assignments %}<tr><td><strong>{{ assignment.customer.name }}</strong></td><td>{{ assignment.customer.phone|default:assignment.customer.email|default:"—" }}</td><td>{{ assignment.created_at }}</td><td><form method="post" action="{% url 'console-org-price-book-assignment' price_book.id %}">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="assignment_id" value="{{ assignment.id }}"><button class="staff-btn staff-btn--ghost" type="submit">Remove</button></form></td></tr>
+      {% empty %}<tr><td colspan="4" class="staff-muted">No customers assigned yet.</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+</section>
+{% endblock %}
