@@ -269,11 +269,12 @@ def record_supplier_quote(
 
 def quote_comparison_rows(rfq: PurchaseRfq) -> list[dict]:
     rows = []
-    for quote in (
-        rfq.quotes.select_related("supplier", "converted_purchase_order")
-        .prefetch_related("lines__rfq_line")
-        .order_by("supplier__name")
-    ):
+    # Detail views prefetch both relations; using the relation caches keeps the
+    # comparison cost constant instead of querying requested lines per supplier.
+    requested_lines = list(rfq.lines.all())
+    quotes = list(rfq.quotes.all())
+    quotes.sort(key=lambda quote: quote.supplier.name.lower())
+    for quote in quotes:
         line_map = {line.rfq_line_id: line for line in quote.lines.all()}
         subtotal = Decimal("0.00")
         fully_quoted = quote.status in (
@@ -282,7 +283,7 @@ def quote_comparison_rows(rfq: PurchaseRfq) -> list[dict]:
         )
         fully_available = fully_quoted
         quoted_lines = []
-        for requested in rfq.lines.select_related("menu_item").all():
+        for requested in requested_lines:
             response = line_map.get(requested.pk)
             if response is None:
                 fully_quoted = False
