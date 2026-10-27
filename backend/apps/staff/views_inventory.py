@@ -192,6 +192,19 @@ class StaffSerializedUnitDetailView(StaffTenantRequiredMixin, DetailView):
     context_object_name = "serial_unit"
     pk_url_kwarg = "serial_id"
 
+    def dispatch(self, request, *args, **kwargs):
+        blocked = _inventory_requires_outlets(request)
+        if blocked:
+            return blocked
+        try:
+            lines = set(normalize_business_lines(request.tenant.settings.business_lines))
+        except Exception:
+            lines = set()
+        if not lines.intersection({"retail", "supermarket"}):
+            messages.error(request, "Serial / IMEI inventory is available only for Retail or Supermarket workspaces.")
+            return redirect("staff-inventory-balances")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         outlet_ids = [o.pk for o in staff_accessible_outlets(self.request.tenant_membership)]
         return (
