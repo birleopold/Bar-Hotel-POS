@@ -927,6 +927,33 @@ class Promotion(TimeStampedModel):
         blank=True,
         help_text="Optional case-insensitive brand target. Leave all targets blank for a whole-basket promotion.",
     )
+    reward_menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.PROTECT,
+        related_name="reward_promotions",
+        null=True,
+        blank=True,
+        help_text="Optional Buy X Get Y reward product. Leave reward targets blank to reward from the same qualifying pool.",
+    )
+    reward_product_family = models.ForeignKey(
+        ProductFamily,
+        on_delete=models.PROTECT,
+        related_name="reward_promotions",
+        null=True,
+        blank=True,
+    )
+    reward_category = models.ForeignKey(
+        MenuCategory,
+        on_delete=models.PROTECT,
+        related_name="reward_promotions",
+        null=True,
+        blank=True,
+    )
+    reward_brand = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Optional case-insensitive Buy X Get Y reward brand.",
+    )
     discount_percent = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -1106,6 +1133,12 @@ class Promotion(TimeStampedModel):
             raise ValidationError({"product_family": "Promotion family must belong to this business."})
         if self.category_id and self.category.tenant_id != self.tenant_id:
             raise ValidationError({"category": "Promotion category must belong to this business."})
+        if self.reward_menu_item_id and self.reward_menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"reward_menu_item": "Reward product must belong to this business."})
+        if self.reward_product_family_id and self.reward_product_family.tenant_id != self.tenant_id:
+            raise ValidationError({"reward_product_family": "Reward family must belong to this business."})
+        if self.reward_category_id and self.reward_category.tenant_id != self.tenant_id:
+            raise ValidationError({"reward_category": "Reward category must belong to this business."})
         targets = (
             int(bool(self.menu_item_id))
             + int(bool(self.product_family_id))
@@ -1114,7 +1147,16 @@ class Promotion(TimeStampedModel):
         )
         if targets > 1:
             raise ValidationError("Choose only one promotion target: product, family, brand, or category.")
+        reward_targets = (
+            int(bool(self.reward_menu_item_id))
+            + int(bool(self.reward_product_family_id))
+            + int(bool(self.reward_category_id))
+            + int(bool((self.reward_brand or "").strip()))
+        )
+        if reward_targets > 1:
+            raise ValidationError("Choose only one Buy X Get Y reward target: product, family, brand, or category.")
         self.brand = (self.brand or "").strip()
+        self.reward_brand = (self.reward_brand or "").strip()
         self.coupon_code = (self.coupon_code or "").strip()
         if self.offer_type == self.OfferType.BUY_X_GET_Y:
             if targets == 0:
@@ -1126,6 +1168,8 @@ class Promotion(TimeStampedModel):
             if self.fixed_quantity is not None or self.fixed_bundle_amount is not None:
                 raise ValidationError("Fixed-set quantity and amount are only valid for X for fixed amount offers.")
         elif self.offer_type == self.OfferType.X_FOR_FIXED_AMOUNT:
+            if reward_targets:
+                raise ValidationError("Reward targets are only valid for Buy X Get Y offers.")
             if targets == 0:
                 raise ValidationError("X for fixed amount requires one product, family, category, or brand target.")
             if self.discount_percent is not None or self.discount_amount is not None:
@@ -1135,6 +1179,8 @@ class Promotion(TimeStampedModel):
             if self.buy_quantity is not None or self.get_quantity is not None:
                 raise ValidationError("Buy/get quantities are only valid for Buy X Get Y offers.")
         else:
+            if reward_targets:
+                raise ValidationError("Reward targets are only valid for Buy X Get Y offers.")
             if (self.discount_percent is None) == (self.discount_amount is None):
                 raise ValidationError("Standard offers require exactly one amount or percent discount.")
             if (
