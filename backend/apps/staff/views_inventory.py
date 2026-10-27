@@ -1665,6 +1665,27 @@ class StaffStockTransferRequestListView(StaffTenantRequiredMixin, ListView):
         return redirect("staff-inventory-transfer-requests")
 
 
+class StaffStockTransferDocumentView(StaffTenantRequiredMixin, DetailView):
+    staff_nav_capability = "inventory"
+    model = StockTransferReceipt
+    template_name = "staff/inventory/transfer_document.html"
+    context_object_name = "receipt"
+    pk_url_kwarg = "receipt_id"
+
+    def get_queryset(self):
+        ids = [o.id for o in staff_accessible_outlets(self.request.tenant_membership)]
+        return (
+            StockTransferReceipt.objects.filter(tenant=self.request.tenant)
+            .filter(Q(to_outlet_id__in=ids) | Q(from_outlet_id__in=ids))
+            .select_related(
+                "from_outlet", "from_outlet__site",
+                "to_outlet", "to_outlet__site",
+                "menu_item", "dispatched_by", "checked_by",
+                "resolved_by", "source_request",
+            )
+        )
+
+
 class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
     staff_nav_capability = "inventory"
     template_name = "staff/inventory/transfer_receipts.html"
