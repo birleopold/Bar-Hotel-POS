@@ -316,6 +316,7 @@ class StaffWorkerCreateView(StaffTenantRequiredMixin, FormView):
             user=user,
             tenant=self.request.tenant,
             role=form.cleaned_data["role"],
+            role_template=form.cleaned_data.get("role_template"),
             is_active=True,
         )
         membership.sites.set(form.cleaned_data.get("sites") or [])
@@ -334,7 +335,12 @@ class StaffWorkerCreateView(StaffTenantRequiredMixin, FormView):
             self.request,
             action="workspace.member.created",
             membership=membership,
-            payload={"email": user.email, "created_user": created_user, "role": membership.role},
+            payload={
+                "email": user.email,
+                "created_user": created_user,
+                "role": membership.role,
+                "role_template_id": str(membership.role_template_id or ""),
+            },
         )
         messages.success(self.request, "Worker created. Copy the password setup link from the members page.")
         return super().form_valid(form)
@@ -372,6 +378,14 @@ class StaffMembershipBulkActionView(StaffTenantRequiredMixin, FormView):
             target_role = ROLE_PRESET_DEFAULTS.get(preset, {}).get("role")
             if target_role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
                 form.add_error("role_preset", "Role presets cannot grant owner or tenant admin access.")
+                return self.form_invalid(form)
+        template = form.cleaned_data.get("role_template")
+        if action == "apply_template":
+            if template is None or template.tenant_id != self.request.tenant.id:
+                form.add_error("role_template", "Choose a valid role template for this workspace.")
+                return self.form_invalid(form)
+            if template.base_role in (MembershipRole.OWNER, MembershipRole.TENANT_ADMIN):
+                form.add_error("role_template", "Worker role templates cannot grant owner or tenant admin access.")
                 return self.form_invalid(form)
         updated = 0
         skipped = 0
@@ -412,7 +426,8 @@ class StaffMembershipBulkActionView(StaffTenantRequiredMixin, FormView):
                         skipped += 1
                         continue
                     membership.role = role_value
-                    membership.save(update_fields=["role", "updated_at"])
+                    membership.role_template = None
+                    membership.save(update_fields=["role", "role_template", "updated_at"])
                     _audit_membership(
                         self.request,
                         action="workspace.member.updated",
@@ -420,6 +435,36 @@ class StaffMembershipBulkActionView(StaffTenantRequiredMixin, FormView):
                         payload={"role": membership.role, "bulk": True, "preset": preset},
                     )
                     updated += 1
+        elif action == "apply_template" and template is not None:
+            template_sites = list(template.sites.all())
+            template_outlets = list(template.outlets.all())
+            for membership in memberships:
+                if _membership_edit_would_break_admin_cover(
+                    membership,
+                    new_role=template.base_role,
+                    is_active=membership.is_active,
+                ):
+                    skipped += 1
+                    continue
+                membership.role = template.base_role
+                membership.role_template = template
+                membership.save(update_fields=["role", "role_template", "updated_at"])
+                membership.sites.set(template_sites)
+                membership.outlets.set(template_outlets)
+                _audit_membership(
+                    self.request,
+                    action="workspace.member.updated",
+                    membership=membership,
+                    payload={
+                        "role": membership.role,
+                        "bulk": True,
+                        "role_template_id": str(template.pk),
+                        "role_template_name": template.name,
+                        "site_ids": [str(site.pk) for site in template_sites],
+                        "outlet_ids": [str(outlet.pk) for outlet in template_outlets],
+                    },
+                )
+                updated += 1
         if skipped:
             messages.warning(self.request, f"Bulk action applied to {updated} worker(s); skipped {skipped} protected selection(s).")
         else:
@@ -509,7 +554,11 @@ class StaffMembershipUpdateView(StaffTenantRequiredMixin, UpdateView):
             self.request,
             action="workspace.member.updated",
             membership=self.object,
-            payload={"role": self.object.role, "is_active": self.object.is_active},
+            payload={
+                "role": self.object.role,
+                "is_active": self.object.is_active,
+                "role_template_id": str(self.object.role_template_id or ""),
+            },
         )
         messages.success(self.request, "Worker access updated.")
         return response
