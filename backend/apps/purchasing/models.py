@@ -67,6 +67,19 @@ class SupplierProductCode(TimeStampedModel):
         validators=[MinValueValidator(Decimal("0"))],
         help_text="Planning cost per base unit for new purchase orders from this supplier.",
     )
+    minimum_order_quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.001"))],
+        help_text="Optional minimum base-stock quantity when ordering this product from this supplier.",
+    )
+    expected_lead_days = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Optional expected calendar days from order to delivery for this supplier/product relationship.",
+    )
     is_preferred = models.BooleanField(
         default=False,
         help_text="Preferred supplier relationship for this product. Only one preferred supplier may exist per product.",
