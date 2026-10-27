@@ -10,6 +10,7 @@ from apps.catalog.models import (
     ProductPackage,
     RetailProductGroup,
     RetailProductGroupLine,
+    SupermarketSkuProfile,
 )
 from apps.pos.models import Order
 from apps.pos.services import add_retail_group_to_open_order
@@ -98,6 +99,16 @@ class RetailProductGroupTests(TestCase):
         self.assertContains(listing, "Soap")
         self.assertContains(listing, "3.000")
 
+    def test_checkout_exposes_group_shortcuts_on_lossless_async_queue(self):
+        group = self._group()
+        order = self._order()
+        response = self.client.get(reverse("staff-order-detail", args=[order.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Quick groups")
+        self.assertContains(response, group.name)
+        self.assertContains(response, group.code)
+        self.assertContains(response, "data-retail-group-form")
+
     def test_async_group_add_expands_to_normal_component_lines(self):
         group = self._group()
         order = self._order()
@@ -120,6 +131,29 @@ class RetailProductGroupTests(TestCase):
         self.assertEqual(lines[self.lotion.pk].quantity, Decimal("2"))
         order.refresh_from_db()
         self.assertEqual(order.total, Decimal("22000.00"))
+
+    def test_repeated_group_taps_merge_component_lines_without_duplicates(self):
+        group = self._group()
+        order = self._order()
+        url = reverse("staff-order-detail", args=[order.pk])
+        payload = {
+            "action": "add_retail_group",
+            "retail_group_id": str(group.pk),
+            "quantity": "1",
+        }
+        for _ in range(3):
+            response = self.client.post(
+                url,
+                payload,
+                HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertTrue(response.json()["ok"])
+        order.refresh_from_db()
+        self.assertEqual(order.lines.filter(is_voided=False).count(), 2)
+        self.assertEqual(order.lines.get(menu_item=self.soap).quantity, Decimal("6"))
+        self.assertEqual(order.lines.get(menu_item=self.lotion).quantity, Decimal("3"))
+        self.assertEqual(order.total, Decimal("33000.00"))
 
     def test_scanner_group_code_uses_same_atomic_expansion(self):
         group = self._group()
@@ -161,6 +195,59 @@ class RetailProductGroupTests(TestCase):
         response = self.client.get(reverse("staff-order-detail", args=[order.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "EMPTYSET")
+
+    def test_group_code_cannot_reuse_active_plu(self):
+        SupermarketSkuProfile.objects.create(
+            tenant=self.tenant,
+            menu_item=self.soap,
+            plu_code="4455",
+            is_active=True,
+        )
+        response = self.client.post(
+            reverse("console-org-retail-group-create"),
+            {
+                "name": "PLU collision",
+                "code": "4455",
+                "description": "",
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already belongs to an active product PLU")
+        self.assertFalse(RetailProductGroup.objects.filter(name="PLU collision").exists())
+
+    def test_legacy_group_code_collision_defers_to_real_product_plu(self):
+        SupermarketSkuProfile.objects.create(
+            tenant=self.tenant,
+            menu_item=self.soap,
+            plu_code="5566",
+            is_active=True,
+        )
+        legacy = RetailProductGroup.objects.create(
+            tenant=self.tenant,
+            name="Legacy collision",
+            code="5566",
+        )
+        RetailProductGroupLine.objects.create(
+            tenant=self.tenant,
+            group=legacy,
+            menu_item=self.lotion,
+            quantity=Decimal("1"),
+        )
+        order = self._order()
+        response = self.client.post(
+            reverse("staff-order-detail", args=[order.pk]),
+            {
+                "action": "scan_add_line",
+                "code": "5566",
+                "quantity": "1",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        self.assertEqual(order.lines.filter(menu_item=self.soap, is_voided=False).count(), 1)
+        self.assertFalse(order.lines.filter(menu_item=self.lotion, is_voided=False).exists())
 
     def test_group_code_cannot_reuse_product_or_package_code(self):
         response = self.client.post(
