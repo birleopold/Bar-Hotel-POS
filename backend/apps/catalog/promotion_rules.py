@@ -134,12 +134,15 @@ def promotion_schedule_active(promotion, *, at=None) -> bool:
     if promotion.ends_at is not None and promotion.ends_at < moment:
         return False
 
-    timezone_name = (
-        TenantSettings.objects.filter(tenant_id=promotion.tenant_id)
-        .values_list("default_timezone", flat=True)
-        .first()
-        or "UTC"
-    )
+    try:
+        timezone_name = promotion.tenant.settings.default_timezone or "UTC"
+    except Exception:
+        timezone_name = (
+            TenantSettings.objects.filter(tenant_id=promotion.tenant_id)
+            .values_list("default_timezone", flat=True)
+            .first()
+            or "UTC"
+        )
     try:
         business_tz = ZoneInfo(timezone_name)
     except ZoneInfoNotFoundError:
