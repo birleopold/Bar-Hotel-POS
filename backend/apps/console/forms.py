@@ -458,6 +458,7 @@ class ConsoleMenuItemForm(forms.ModelForm):
 
     def __init__(self, *args, tenant, **kwargs):
         super().__init__(*args, **kwargs)
+        self.tenant = tenant
         self.fields["category"].queryset = MenuCategory.objects.filter(tenant=tenant).order_by(
             "sort_order",
             "name",
@@ -514,6 +515,12 @@ class ConsoleMenuItemForm(forms.ModelForm):
         category = values.get("category")
         if family and category and family.category_id != category.id:
             self.add_error("product_family", "Choose a product family in the same category as this sellable variant.")
+        barcode = (values.get("barcode") or "").strip()
+        if barcode and ProductPackage.objects.filter(tenant=self.tenant, barcode=barcode).exists():
+            self.add_error("barcode", "This barcode is already assigned to a product package.")
+        sku = (values.get("sku") or "").strip()
+        if sku and ProductPackage.objects.filter(tenant=self.tenant, sku_alias__iexact=sku).exists():
+            self.add_error("sku", "This SKU is already assigned as a product package code.")
         return values
 
 
@@ -573,7 +580,7 @@ class ConsoleProductPackageForm(forms.ModelForm):
         barcode = (self.cleaned_data.get("barcode") or "").strip()
         if not barcode:
             return ""
-        if MenuItem.objects.filter(tenant=self.tenant, barcode=barcode).exclude(pk=self.menu_item.pk).exists():
+        if MenuItem.objects.filter(tenant=self.tenant, barcode=barcode).exists():
             raise forms.ValidationError("This barcode is already registered to another product.")
         qs = ProductPackage.objects.filter(tenant=self.tenant, barcode=barcode)
         if self.instance.pk:
@@ -586,7 +593,7 @@ class ConsoleProductPackageForm(forms.ModelForm):
         code = (self.cleaned_data.get("sku_alias") or "").strip()
         if not code:
             return ""
-        if MenuItem.objects.filter(tenant=self.tenant, sku__iexact=code).exclude(pk=self.menu_item.pk).exists():
+        if MenuItem.objects.filter(tenant=self.tenant, sku__iexact=code).exists():
             raise forms.ValidationError("This package code is already used by another product SKU.")
         qs = ProductPackage.objects.filter(tenant=self.tenant, sku_alias__iexact=code)
         if self.instance.pk:
