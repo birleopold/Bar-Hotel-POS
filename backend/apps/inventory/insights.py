@@ -222,22 +222,33 @@ def build_warehouse_replenishment_proposals(
                     StockTransferRequestStatus.DISPATCHED,
                 ],
             )
+            .select_related("transfer_receipt")
             .only(
                 "from_outlet_id", "to_outlet_id", "menu_item_id",
                 "status", "requested_quantity", "approved_quantity",
+                "transfer_receipt__dispatched_quantity",
+                "transfer_receipt__posted_quantity",
+                "transfer_receipt__returned_quantity",
+                "transfer_receipt__written_off_quantity",
             )
         )
         for request in open_requests.iterator():
             if request.to_outlet_id in destination_ids:
-                quantity = (
-                    request.approved_quantity
-                    if request.status in {
-                        StockTransferRequestStatus.APPROVED,
-                        StockTransferRequestStatus.DISPATCHED,
-                    }
+                if (
+                    request.status == StockTransferRequestStatus.DISPATCHED
+                    and request.transfer_receipt_id
+                ):
+                    quantity = max(
+                        Decimal("0"),
+                        request.transfer_receipt.outstanding_quantity,
+                    )
+                elif (
+                    request.status == StockTransferRequestStatus.APPROVED
                     and request.approved_quantity is not None
-                    else request.requested_quantity
-                )
+                ):
+                    quantity = request.approved_quantity
+                else:
+                    quantity = request.requested_quantity
                 inbound_open[(request.to_outlet_id, request.menu_item_id)] += quantity
             if (
                 request.from_outlet_id in warehouse_ids
