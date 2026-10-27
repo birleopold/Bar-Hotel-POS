@@ -23,6 +23,15 @@ def _money(value) -> Decimal:
     return Decimal(str(value or 0)).quantize(MONEY, rounding=ROUND_HALF_UP)
 
 
+def _historical_category_name(line: OrderLine) -> str:
+    snap = (line.merchandise_category_snapshot or "").strip()
+    if snap:
+        return snap
+    if line.menu_item_id and getattr(line.menu_item, "category_id", None):
+        return line.menu_item.category.name
+    return "Uncategorized"
+
+
 def _line_net_revenue(line: OrderLine) -> Decimal:
     """Sale-time line revenue before tax after proportional order discount."""
     gross = _money(line.line_total)
@@ -144,12 +153,10 @@ def build_merchandise_profitability(
         row = products[line.menu_item_id]
         row["item_name"] = line.menu_item.name
         row["sku"] = line.menu_item.sku or ""
-        category_id = line.menu_item.category_id or "uncategorized"
-        category_row = categories[category_id]
-        category_row["category_name"] = (
-            line.menu_item.category.name
-            if line.menu_item.category_id else "Uncategorized"
-        )
+        category_name = _historical_category_name(line)
+        category_key = category_name.casefold()
+        category_row = categories[category_key]
+        category_row["category_name"] = category_name
         row["sale_revenue"] += revenue
         category_row["sale_revenue"] += revenue
         row["sale_units"] += line.quantity
@@ -210,12 +217,10 @@ def build_merchandise_profitability(
         row = products[line.menu_item_id]
         row["item_name"] = line.menu_item.name
         row["sku"] = line.menu_item.sku or ""
-        category_id = line.menu_item.category_id or "uncategorized"
-        category_row = categories[category_id]
-        category_row["category_name"] = (
-            line.menu_item.category.name
-            if line.menu_item.category_id else "Uncategorized"
-        )
+        category_name = _historical_category_name(line)
+        category_key = category_name.casefold()
+        category_row = categories[category_key]
+        category_row["category_name"] = category_name
         row["return_revenue"] += revenue_reversal
         category_row["return_revenue"] += revenue_reversal
         row["return_units"] += returned.quantity
