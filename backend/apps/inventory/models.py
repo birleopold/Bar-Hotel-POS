@@ -17,6 +17,48 @@ class StockReason(models.TextChoices):
     TRANSFER_IN = "transfer_in", "Transfer in"
     PHYSICAL_COUNT = "physical_count", "Physical count adjustment"
     RECIPE = "recipe", "Recipe / BOM consumption"
+    ASSEMBLY_BUILD = "assembly_build", "Assembly build"
+    ASSEMBLY_UNBUILD = "assembly_unbuild", "Assembly unbuild"
+
+
+class RetailAssemblyRun(TimeStampedModel):
+    class Direction(models.TextChoices):
+        BUILD = "build", "Build"
+        UNBUILD = "unbuild", "Unbuild"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="retail_assembly_runs",
+    )
+    outlet = models.ForeignKey(
+        "tenants.Outlet",
+        on_delete=models.PROTECT,
+        related_name="retail_assembly_runs",
+    )
+    assembled_item = models.ForeignKey(
+        "catalog.MenuItem",
+        on_delete=models.PROTECT,
+        related_name="retail_assembly_runs",
+    )
+    direction = models.CharField(max_length=16, choices=Direction.choices)
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+    note = models.CharField(max_length=512, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="retail_assembly_runs_created",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 class StockBalance(TimeStampedModel):
@@ -91,6 +133,13 @@ class StockMovement(TimeStampedModel):
     note = models.CharField(max_length=512, blank=True)
     purchase_order = models.ForeignKey(
         "purchasing.PurchaseOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+    )
+    assembly_run = models.ForeignKey(
+        RetailAssemblyRun,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
