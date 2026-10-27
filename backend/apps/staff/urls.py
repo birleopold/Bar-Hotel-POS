@@ -155,6 +155,12 @@ urlpatterns = [
         views_purchasing.StaffSupplierUpdateView.as_view(),
         name="staff-purchasing-supplier-edit",
     ),
+    path(
+        "purchasing/suppliers/<uuid:supplier_id>/codes/",
+        views_purchasing.StaffSupplierProductCodeView.as_view(),
+        name="staff-purchasing-supplier-codes",
+    ),
+
     path("purchasing/suppliers/", views_purchasing.StaffSupplierListView.as_view(), name="staff-purchasing-suppliers"),
     path(
         "purchasing/purchase-orders/new/",
