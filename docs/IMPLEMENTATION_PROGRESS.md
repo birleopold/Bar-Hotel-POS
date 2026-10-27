@@ -3,6 +3,7 @@
 **Last reviewed:** 16 October 2026  
 **Authoritative acceptance and chronological evidence:** [Full 34-phase checklist](SUITE_IMPLEMENTATION_TODO.md)  
 **Required supermarket workstream:** [Supermarket checklist — 36 capabilities](SUPERMARKET_IMPLEMENTATION_CHECKLIST.md)
+**Retail depth execution plan:** [Retail expansion roadmap — QuickBooks-depth benchmark](RETAIL_EXPANSION_ROADMAP_2026-10-27.md)
 
 This is the practical progress index, **not a claim of production certification**. Mark `[x]` only when the complete named workflow is implemented and local verification is recorded. `[-]` means meaningful functionality exists but missing acceptance tasks remain. `[ ]` means untouched.
 
