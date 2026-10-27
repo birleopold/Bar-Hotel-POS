@@ -2,16 +2,19 @@ from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem, ProductPackage
 from apps.inventory.models import StockBalance
 from apps.purchasing.models import (
     PurchaseOrder,
+    PurchaseOrderLine,
     PurchaseOrderStatus,
     PurchaseReceiptLine,
     Supplier,
 )
+from apps.purchasing.services import receive_purchase_order_goods
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
@@ -136,6 +139,37 @@ class PackageAwarePurchasingTests(TestCase):
         receipt_line = PurchaseReceiptLine.objects.get(receipt__purchase_order=po)
         self.assertEqual(receipt_line.packages_received, 4)
         self.assertEqual(receipt_line.quantity_received, Decimal("96"))
+
+    def test_service_rejects_fractional_package_count_without_stock_side_effect(self):
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT,
+            created_by=self.user,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po,
+            menu_item=self.item,
+            quantity_ordered=Decimal("48"),
+            unit_cost=Decimal("800"),
+            product_package=self.package,
+            package_name_snapshot="Case of 24",
+            package_units_snapshot=Decimal("24"),
+            package_quantity_ordered=2,
+        )
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po,
+                lines_payload=[{"line_id": line.pk, "packages": "1.5", "quantity": "0"}],
+                user=self.user,
+                membership=membership,
+                delivery_reference="DN-FRACTIONAL",
+            )
+        line.refresh_from_db()
+        self.assertEqual(line.quantity_received, Decimal("0"))
+        self.assertFalse(StockBalance.objects.filter(outlet=self.outlet, menu_item=self.item).exists())
 
     def test_package_snapshot_survives_later_package_edit(self):
         create = self.client.post(
