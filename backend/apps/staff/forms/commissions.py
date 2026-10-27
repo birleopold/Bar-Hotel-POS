@@ -100,6 +100,29 @@ class StaffCommissionRuleForm(forms.ModelForm):
             raise forms.ValidationError(
                 {"effective_to": "End date must be on or after the start date."}
             )
+        if data.get("is_active") and self._tenant is not None:
+            same_scope = CommissionRule.objects.filter(
+                tenant=self._tenant,
+                is_active=True,
+                membership=membership,
+                menu_item=item,
+                category=category,
+            )
+            if self.instance.pk:
+                same_scope = same_scope.exclude(pk=self.instance.pk)
+            if start:
+                same_scope = same_scope.filter(
+                    Q(effective_to__isnull=True) | Q(effective_to__gte=start)
+                )
+            if end:
+                same_scope = same_scope.filter(
+                    Q(effective_from__isnull=True) | Q(effective_from__lte=end)
+                )
+            if same_scope.exists():
+                raise forms.ValidationError(
+                    "An active commission rule with the same worker/product/category scope "
+                    "already overlaps this effective period."
+                )
         return data
 
 
