@@ -49,7 +49,12 @@
             <label class="staff-label" for="receive-all-delivery-reference">Supplier delivery reference</label>
             <input class="staff-input" id="receive-all-delivery-reference" name="delivery_reference" maxlength="128" placeholder="Delivery note or shipment number" required>
           </div>
-          <p class="staff-muted small mb-2">Only use this when everything outstanding was delivered. The supplier reference prevents the same delivery being recorded twice. For shortages, damages, batch codes or expiry dates, use Partial goods received below.</p>
+          <div class="row g-2 mb-2">
+            <div class="col-6 col-md-3"><label class="staff-label" for="receive-all-shipping">Shipping / freight</label><input class="staff-input" id="receive-all-shipping" name="shipping_cost" type="number" step="0.01" min="0" value="0"></div>
+            <div class="col-6 col-md-3"><label class="staff-label" for="receive-all-duty">Duty / clearing</label><input class="staff-input" id="receive-all-duty" name="duty_cost" type="number" step="0.01" min="0" value="0"></div>
+            <div class="col-12 col-md-6"><label class="staff-label" for="receive-all-landed-allocation">Landed-cost treatment</label><select class="staff-input" id="receive-all-landed-allocation" name="landed_cost_allocation"><option value="exclude">Record charges only — do not add to inventory cost</option><option value="by_cost">Distribute by received supplier-cost value</option></select></div>
+          </div>
+          <p class="staff-muted small mb-2">Only use this when everything outstanding was delivered. The supplier reference prevents the same delivery being recorded twice. If freight/duty should affect profitability, distribute them into landed cost; otherwise they remain receipt evidence only.</p>
           <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Receive verified outstanding</button>
         </form>
       {% endif %}
@@ -64,6 +69,9 @@
           <div class="row g-3 mb-3">
             <div class="col-12 col-md-5"><label class="staff-label" for="delivery-reference">Delivery reference</label><input class="staff-input" id="delivery-reference" name="delivery_reference" maxlength="128" placeholder="Delivery note or shipment number"></div>
             <div class="col-12 col-md-7"><label class="staff-label" for="receipt-note">Receiving note</label><input class="staff-input" id="receipt-note" name="receipt_note" maxlength="512" placeholder="Receiving notes"></div>
+            <div class="col-6 col-md-3"><label class="staff-label" for="shipping-cost">Shipping / freight</label><input class="staff-input" id="shipping-cost" name="shipping_cost" type="number" step="0.01" min="0" value="0"></div>
+            <div class="col-6 col-md-3"><label class="staff-label" for="duty-cost">Duty / clearing</label><input class="staff-input" id="duty-cost" name="duty_cost" type="number" step="0.01" min="0" value="0"></div>
+            <div class="col-12 col-md-6"><label class="staff-label" for="landed-cost-allocation">Landed-cost treatment</label><select class="staff-input" id="landed-cost-allocation" name="landed_cost_allocation"><option value="exclude">Record charges only — do not add to inventory cost</option><option value="by_cost">Distribute by received supplier-cost value</option></select><small class="staff-muted d-block">Distribution requires a supplier unit cost on every received line.</small></div>
           </div>
           <div class="fizo-purchasing__tablewrap">
             <table class="fizo-purchasing__table">
@@ -105,8 +113,8 @@
             {% for receipt in po.receipts.all %}
               <tr>
                 <td>{{ receipt.created_at }}</td>
-                <td><strong>{{ receipt.delivery_reference|default:"Unreferenced delivery" }}</strong>{% if receipt.note %}<div class="staff-muted small">{{ receipt.note }}</div>{% endif %}{% if receipt.discrepancy_note %}<div><strong>Discrepancy:</strong> {{ receipt.discrepancy_note }}</div>{% endif %}</td>
-                <td>{% for line in receipt.lines.all %}<div>{{ line.purchase_order_line.menu_item.name }} · {{ line.quantity_received }} base units{% if line.packages_received %} ({{ line.packages_received }} × {{ line.purchase_order_line.package_name_snapshot }}){% elif line.cartons_received %} ({{ line.cartons_received }} cartons){% endif %}{% if line.serialized_units.all %}<div class="staff-muted small">{{ line.purchase_order_line.menu_item.get_serial_identifier_type_display }}: {% for unit in line.serialized_units.all %}{{ unit.serial_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}{% if line.inventory_batch %} · Batch {{ line.inventory_batch.batch_code }}{% if line.inventory_batch.expiry_date %} · Expires {{ line.inventory_batch.expiry_date }}{% endif %}{% endif %}</div>{% endfor %}</td>
+                <td><strong>{{ receipt.delivery_reference|default:"Unreferenced delivery" }}</strong>{% if receipt.note %}<div class="staff-muted small">{{ receipt.note }}</div>{% endif %}{% if receipt.shipping_cost or receipt.duty_cost %}<div class="staff-muted small">Freight {{ purchase_currency }} {{ receipt.shipping_cost }} · Duty/clearing {{ purchase_currency }} {{ receipt.duty_cost }} · {{ receipt.get_landed_cost_allocation_display }}</div>{% endif %}{% if receipt.discrepancy_note %}<div><strong>Discrepancy:</strong> {{ receipt.discrepancy_note }}</div>{% endif %}</td>
+                <td>{% for line in receipt.lines.all %}<div>{{ line.purchase_order_line.menu_item.name }} · {{ line.quantity_received }} base units{% if line.landed_unit_cost_snapshot != None %}<span class="staff-muted small"> · landed {{ purchase_currency }} {{ line.landed_unit_cost_snapshot }}/unit</span>{% endif %}{% if line.packages_received %} ({{ line.packages_received }} × {{ line.purchase_order_line.package_name_snapshot }}){% elif line.cartons_received %} ({{ line.cartons_received }} cartons){% endif %}{% if line.serialized_units.all %}<div class="staff-muted small">{{ line.purchase_order_line.menu_item.get_serial_identifier_type_display }}: {% for unit in line.serialized_units.all %}{{ unit.serial_number }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}{% if line.inventory_batch %} · Batch {{ line.inventory_batch.batch_code }}{% if line.inventory_batch.expiry_date %} · Expires {{ line.inventory_batch.expiry_date }}{% endif %}{% endif %}</div>{% endfor %}</td>
                 <td>{% if receipt.received_by %}{{ receipt.received_by.email }}{% else %}<span class="staff-muted">System</span>{% endif %}</td>
               </tr>
             {% endfor %}
