@@ -8,6 +8,39 @@
 
   <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Purchase order details</h1><p>Review ordered and received quantities, invoices and authorized actions.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All orders</a></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
+
+  {% if po.consolidated_into %}
+  <section class="staff-card mb-3" aria-label="Consolidated purchase request">
+    <p class="staff-muted small mb-1">Consolidated request</p>
+    <h2 class="staff-card__title mb-1">This approved request was folded into a combined supplier draft.</h2>
+    <p class="mb-0"><a href="{% url 'staff-purchasing-order-detail' po_id=po.consolidated_into_id %}">Open {{ po.consolidated_into.reference|default:po.consolidated_into_id }}</a></p>
+  </section>
+  {% endif %}
+
+  {% if po.consolidated_source_requests.all %}
+  <section class="staff-card mb-3" aria-label="Source purchase requests">
+    <p class="staff-muted small mb-1">Consolidation evidence</p>
+    <h2 class="staff-card__title mb-1">{{ po.consolidated_source_requests.all|length }} approved source request{{ po.consolidated_source_requests.all|length|pluralize }}</h2>
+    <p class="staff-muted small">These source requests remain preserved for requester, approval, need-date and package evidence. Their quantities were combined into this supplier draft.</p>
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <thead><tr><th>Source request</th><th>Requested by</th><th>Needed by</th><th>Reason</th><th>Approval evidence</th></tr></thead>
+        <tbody>
+        {% for source in po.consolidated_source_requests.all %}
+          <tr>
+            <td><a href="{% url 'staff-purchasing-order-detail' po_id=source.id %}">{{ source.reference|default:source.id }}</a></td>
+            <td>{{ source.created_by.get_full_name|default:source.created_by.email|default:"Unknown user" }}</td>
+            <td>{{ source.needed_by|default:"Not specified" }}</td>
+            <td>{{ source.request_reason|default:"Not specified" }}</td>
+            <td>{{ source.review_note|default:"Approved" }}{% if source.reviewed_by %}<span class="staff-muted small d-block">{{ source.reviewed_by.email }} · {{ source.reviewed_at }}</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
   {% if po.source_supplier_quote %}
   <section class="staff-card mb-3" aria-label="Sourcing evidence">
     <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
