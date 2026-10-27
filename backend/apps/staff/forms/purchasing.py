@@ -121,6 +121,22 @@ class StaffPOHeaderForm(forms.Form):
     expected_date = forms.DateField(
         required=False,
         widget=forms.DateInput(attrs={"type": "date", "class": "staff-input"}),
+        help_text="Supplier/delivery expectation. This is separate from when the business needs the stock.",
+    )
+    needed_by = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date", "class": "staff-input"}),
+        help_text="Optional business need date used during approval and prioritization.",
+    )
+    request_reason = forms.CharField(
+        required=False,
+        max_length=512,
+        widget=forms.Textarea(attrs={
+            "class": "staff-input",
+            "rows": 2,
+            "placeholder": "Optional: low stock, promotion, customer order, new branch, event…",
+        }),
+        help_text="Optional context for the approving manager. Keep supplier instructions in Notes.",
     )
     notes = forms.CharField(
         required=False,
