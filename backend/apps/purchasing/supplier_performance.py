@@ -168,6 +168,7 @@ def supplier_performance_rows(*, tenant, suppliers, days=365, at=None) -> dict:
         SupplierReturn.objects.filter(
             tenant=tenant,
             purchase_order__supplier_id__in=supplier_ids,
+            receipt_line__receipt__created_at__gte=since,
             created_at__gte=since,
         )
         .values("purchase_order__supplier_id", "quantity")
