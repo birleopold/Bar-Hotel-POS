@@ -211,13 +211,23 @@
         </div>
         <div class="staff-table-wrap mt-3"><table class="staff-table">
           <caption>Individual trusted-cost sales below the retail margin floor</caption>
-          <thead><tr><th>Sale</th><th>Section</th><th>Product</th><th>Quantity</th><th>Net revenue</th><th>Known COGS</th><th>Known gross profit</th><th>Known margin</th><th>Configured floor</th><th>Shortfall</th></tr></thead>
+          <thead><tr><th>Sale</th><th>Section</th><th>Product</th><th>Cashier</th><th>Approval</th><th>Quantity</th><th>Net revenue</th><th>Known COGS</th><th>Known gross profit</th><th>Known margin</th><th>Configured floor</th><th>Shortfall</th></tr></thead>
           <tbody>
           {% for row in executive_profitability.margin_breach_sales %}
             <tr>
               <td><a href="{% url 'staff-order-detail' row.order_id %}">{{ row.bill_reference }}</a></td>
               <td>{{ row.outlet_name }}</td>
               <td><strong>{{ row.item_name }}</strong>{% if row.sku %}<div class="staff-muted small">{{ row.sku }}</div>{% endif %}</td>
+              <td>{% if row.cashier_email %}{{ row.cashier_email }}{% else %}<span class="staff-muted">Unknown</span>{% endif %}</td>
+              <td>
+                {% if row.has_linked_margin_override %}
+                  <strong>{{ row.override_approver_email }}</strong>
+                  <div class="staff-muted small">Requested by {{ row.override_requester_email }}</div>
+                  {% if row.override_reason %}<div class="staff-muted small">Reason: {{ row.override_reason }}</div>{% endif %}
+                {% else %}
+                  <span class="staff-muted">No linked margin override</span>
+                {% endif %}
+              </td>
               <td>{{ row.quantity }}</td>
               <td>{{ executive_profitability.currency }} {{ row.net_revenue }}</td>
               <td>{{ executive_profitability.currency }} {{ row.known_cogs }}</td>
