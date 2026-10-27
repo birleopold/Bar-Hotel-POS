@@ -317,6 +317,9 @@ Implemented in source, pending exact-head certification:
 - Existing Stock balances now shows trusted inventory value, trusted-versus-incomplete stock coverage and a scoped CSV export. All calculations use the same authorized outlet and search filters as the listing; partial value is explicitly not described as total inventory value.
 - Historical merchandise profitability now reports net revenue, revenue with trusted sale-time cost, revenue without trusted sale-time cost, known net COGS, known gross profit and known margin. Unknown-cost returns stay in overall net revenue but are excluded from the known-profit revenue pool instead of being treated as zero-cost.
 - Sales, Management and CSV exports expose the same covered/uncovered revenue basis plus category profitability derived from immutable sale-time cost snapshots. Category figures inherit the same incomplete-cost, refund-attribution, outlet-scope and currency rules as product profitability.
+- New merchandise sale lines also snapshot the category name used for historical category reporting, so moving or renaming a product category later does not rewrite old category profitability. Pre-snapshot legacy lines fall back to their current category.
+- Scheduled owner PDF/CSV reports expose the same covered/uncovered revenue basis; the PDF includes a category-profitability table rather than presenting known gross profit without its cost-coverage context.
+
 
 - Sales Summary now reuses the same historical merchandise-profitability service as scheduled owner reports. COGS comes only from immutable sale-time cost snapshots; current stock cost is never substituted for missing historical cost.
 - Interactive HTML, CSV and scheduled owner reports now share the same cost-coverage, return and attribution rules. Selected-outlet reports pass the exact same outlet scope into profitability as the sales totals.
