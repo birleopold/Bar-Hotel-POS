@@ -8,6 +8,7 @@ from apps.catalog.label_queue import (
     queue_product_label,
     retail_label_outlets_for_item,
 )
+from apps.audit.services import log_audit
 from apps.catalog.models import MenuItem, ProductLabelQueueEntry, Promotion
 
 
@@ -85,6 +86,29 @@ def queue_markdown_labels_for_promotion(*, promotion: Promotion, user=None) -> i
                     regular - (promotion.discount_amount or Decimal("0.00")),
                 ).quantize(Decimal("0.01"))
             if markdown >= regular:
+                continue
+            existing = ProductLabelQueueEntry.objects.filter(
+                tenant_id=promotion.tenant_id,
+                outlet=outlet,
+                menu_item=item,
+                reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+                status=ProductLabelQueueEntry.Status.PENDING,
+            ).first()
+            if existing is not None and not (existing.note or "").startswith(owner_prefix):
+                log_audit(
+                    tenant_id=promotion.tenant_id,
+                    user_id=user.pk if user else None,
+                    action="promotion.markdown_label_conflict",
+                    entity_type="promotion",
+                    entity_id=str(promotion.pk),
+                    payload={
+                        "menu_item_id": str(item.pk),
+                        "outlet_id": str(outlet.pk),
+                        "existing_label_entry_id": str(existing.pk),
+                        "regular_price": str(regular),
+                        "proposed_markdown_price": str(markdown),
+                    },
+                )
                 continue
             note = (
                 f"{owner_prefix} {promotion.name}: {regular} → {markdown}; "
