@@ -556,6 +556,12 @@ class ManagementWorkspaceTests(TestCase):
         self.assertContains(worker_detail, "Damaged during handling")
         self.assertContains(worker_detail, f"movement={movement.pk}")
         self.assertContains(worker_detail, "Open source")
+        movement_source = self.client.get(
+            reverse("staff-inventory-movements"),
+            {"movement": str(movement.pk)},
+        )
+        self.assertEqual(movement_source.status_code, 200)
+        self.assertEqual(list(movement_source.context["movements"]), [movement])
 
         outlet_detail = self.client.get(
             reverse(
