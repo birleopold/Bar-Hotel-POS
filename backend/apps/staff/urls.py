@@ -163,6 +163,21 @@ urlpatterns = [
 
     path("purchasing/suppliers/", views_purchasing.StaffSupplierListView.as_view(), name="staff-purchasing-suppliers"),
     path(
+        "purchasing/rfqs/new/",
+        views_purchasing.StaffRfqCreateView.as_view(),
+        name="staff-purchasing-rfq-create",
+    ),
+    path(
+        "purchasing/rfqs/<uuid:rfq_id>/",
+        views_purchasing.StaffRfqDetailView.as_view(),
+        name="staff-purchasing-rfq-detail",
+    ),
+    path(
+        "purchasing/rfqs/",
+        views_purchasing.StaffRfqListView.as_view(),
+        name="staff-purchasing-rfqs",
+    ),
+    path(
         "purchasing/purchase-orders/new/",
         views_purchasing.StaffPurchaseOrderCreateView.as_view(),
         name="staff-purchasing-order-create",
