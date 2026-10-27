@@ -342,6 +342,41 @@ class SerializedInventoryLifecycleTests(TestCase):
             InventorySerialReturnLink.Disposition.QUARANTINED,
         )
 
+    def test_serialized_transfer_moves_exact_custody_and_aggregate_stock_together(self):
+        self._receive_two()
+        destination = Outlet.objects.create(
+            site=self.site, name="Phone kiosk", outlet_type=OutletType.SUPERMARKET,
+        )
+        self.membership.outlets.add(destination)
+        response = self.client.post(
+            reverse("staff-inventory-serials"),
+            {
+                "from_outlet": str(self.outlet.pk),
+                "to_outlet": str(destination.pk),
+                "serial_numbers": "356000000000001",
+                "note": "Move one phone to kiosk",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        unit = InventorySerialUnit.objects.get(serial_number="356000000000001")
+        self.assertEqual(unit.outlet, destination)
+        self.assertEqual(unit.status, SerializedUnitStatus.AVAILABLE)
+        self.assertEqual(
+            StockBalance.objects.get(outlet=self.outlet, menu_item=self.item).quantity,
+            Decimal("1"),
+        )
+        self.assertEqual(
+            StockBalance.objects.get(outlet=destination, menu_item=self.item).quantity,
+            Decimal("1"),
+        )
+        movements = StockMovement.objects.filter(
+            menu_item=self.item,
+            reason__in=[StockReason.TRANSFER_OUT, StockReason.TRANSFER_IN],
+        ).order_by("created_at")
+        self.assertEqual(movements.count(), 2)
+        self.assertEqual(movements[0].transfer_batch, movements[1].transfer_batch)
+        self.assertTrue(unit.events.filter(event_type="transferred", outlet=destination).exists())
+
     def test_generic_transfer_rejects_serialized_product_without_side_effect(self):
         self._receive_two()
         other_outlet = Outlet.objects.create(
