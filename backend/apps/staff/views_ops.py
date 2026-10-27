@@ -33,6 +33,7 @@ from apps.pos.services import (
     add_service_to_open_order,
     add_supermarket_line_by_code,
     apply_promotion_to_order,
+    remove_promotion_from_order,
     apply_supermarket_line_discount,
     cancel_open_unpaid_order,
     charge_order_to_folio,
@@ -1823,6 +1824,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_void_order(request, order)
         if action == "apply_promotion":
             return self._post_apply_promotion(request, order)
+        if action == "remove_promotion":
+            return self._post_remove_promotion(request, order)
         if action == "void_line":
             return self._post_void_line(request, order)
         messages.error(request, "Unknown action.")
@@ -3277,6 +3280,41 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             })
         messages.success(request, "Promotion applied.")
         return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_remove_promotion(self, request: HttpRequest, order: Order) -> HttpResponse:
+        async_retail = (
+            order.outlet.outlet_type in {
+                OutletType.SUPERMARKET, OutletType.RETAIL,
+                OutletType.RESTAURANT, OutletType.BAR,
+                OutletType.LOUNGE, OutletType.CAFETERIA,
+            }
+            and request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        )
+
+        def reject(message: str, *, status: int = 422) -> HttpResponse:
+            if async_retail:
+                return JsonResponse({"ok": False, "message": str(message)}, status=status)
+            messages.error(request, str(message))
+            return redirect("staff-order-detail", order_id=order.id)
+
+        try:
+            changed = remove_promotion_from_order(order=order, user=request.user)
+        except DRFValidationError as exc:
+            return reject(" ".join(_drf_detail_messages(exc.detail)), status=409)
+        if async_retail:
+            return JsonResponse({
+                "ok": True,
+                "message": "Offer removed.",
+                "order_id": str(changed.pk),
+                "currency": changed.currency,
+                "subtotal": str(changed.subtotal),
+                "discount": str(changed.discount_amount),
+                "tax": str(changed.tax_total),
+                "total": str(changed.total),
+            })
+        messages.success(request, "Promotion removed.")
+        return redirect("staff-order-detail", order_id=order.id)
+
 
     def _post_void_line(self, request: HttpRequest, order: Order) -> HttpResponse:
         async_void = (
