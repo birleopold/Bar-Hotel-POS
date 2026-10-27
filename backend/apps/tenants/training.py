@@ -314,6 +314,7 @@ def seed_retail_training_workspace(*, tenant: Tenant, user, reset=False):
         subtotal=Decimal("6500.00"),
         tax_total=Decimal("0.00"),
         total=Decimal("6500.00"),
+        currency=tenant.settings.default_currency,
         created_by=user,
     )
     water_line = OrderLine.objects.create(
