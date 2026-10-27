@@ -119,3 +119,97 @@ class FinancePostingLink(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.source_type}:{self.source_id}"
+
+
+class AccountingMappingKind(models.TextChoices):
+    REVENUE_DEFAULT = "revenue_default", "Revenue default"
+    REVENUE_CATEGORY = "revenue_category", "Revenue category"
+    RETURNS = "returns", "Sales returns"
+    TENDER = "tender", "Tender clearing"
+    TAX_LIABILITY = "tax_liability", "Tax / VAT liability"
+    INVENTORY_DEFAULT = "inventory_default", "Inventory asset default"
+    INVENTORY_CATEGORY = "inventory_category", "Inventory asset category"
+    COGS_DEFAULT = "cogs_default", "COGS default"
+    COGS_CATEGORY = "cogs_category", "COGS category"
+
+
+class AccountingMapping(TimeStampedModel):
+    """Provider-neutral accounting account mapping for operational exports."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="accounting_mappings",
+    )
+    kind = models.CharField(max_length=32, choices=AccountingMappingKind.choices)
+    source_key = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="Category UUID, tender method, or blank for a default mapping.",
+    )
+    source_label = models.CharField(max_length=128, blank=True, default="")
+    account_code = models.CharField(max_length=64)
+    account_name = models.CharField(max_length=128)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accounting_mappings_created",
+    )
+
+    class Meta:
+        ordering = ["kind", "source_label", "account_code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "kind", "source_key"],
+                name="uniq_accounting_mapping_source_per_tenant",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} · {self.account_code} {self.account_name}"
+
+
+class AccountingExportBatch(TimeStampedModel):
+    """Immutable journal export snapshot for replay/download and audit evidence."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="accounting_export_batches",
+    )
+    date_from = models.DateField()
+    date_to = models.DateField()
+    currency = models.CharField(max_length=3)
+    scope_outlet_ids = models.JSONField(default=list, blank=True)
+    mapping_snapshot = models.JSONField(default=dict, blank=True)
+    journal_lines = models.JSONField(default=list, blank=True)
+    source_summary = models.JSONField(default=dict, blank=True)
+    fingerprint = models.CharField(max_length=64, db_index=True)
+    line_count = models.PositiveIntegerField(default=0)
+    total_debit = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal("0.00"))
+    total_credit = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal("0.00"))
+    generated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accounting_exports_generated",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "fingerprint"],
+                name="uniq_accounting_export_fingerprint_per_tenant",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.date_from}–{self.date_to} {self.currency} ({self.line_count} lines)"
