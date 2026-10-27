@@ -17,6 +17,11 @@ class MenuCategory(TimeStampedModel):
         related_name="menu_categories",
     )
     name = models.CharField(max_length=128)
+    offer_type = models.CharField(
+        max_length=24,
+        choices=OfferType.choices,
+        default=OfferType.STANDARD,
+    )
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -884,6 +889,10 @@ class ServiceOfferingOption(TimeStampedModel):
 
 
 class Promotion(TimeStampedModel):
+    class OfferType(models.TextChoices):
+        STANDARD = "standard", "Amount / percent off"
+        BUY_X_GET_Y = "buy_x_get_y", "Buy X get Y free"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
         "tenants.Tenant",
@@ -963,6 +972,24 @@ class Promotion(TimeStampedModel):
         validators=[MinValueValidator(1)],
         help_text="Optional paid-order limit per identified customer. Anonymous sales are not counted against this customer-specific limit.",
     )
+    buy_quantity = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="For Buy X Get Y, number of qualifying units the customer buys.",
+    )
+    get_quantity = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="For Buy X Get Y, number of additional qualifying units discounted to free.",
+    )
+    max_uses_per_order = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Optional maximum number of Buy X Get Y sets discounted on one order.",
+    )
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -981,6 +1008,34 @@ class Promotion(TimeStampedModel):
                 "tenant",
                 condition=~models.Q(coupon_code=""),
                 name="uniq_promotion_coupon_code_ci_tenant",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(
+                            offer_type="standard",
+                            discount_percent__isnull=False,
+                            discount_amount__isnull=True,
+                            buy_quantity__isnull=True,
+                            get_quantity__isnull=True,
+                        )
+                        | models.Q(
+                            offer_type="standard",
+                            discount_percent__isnull=True,
+                            discount_amount__isnull=False,
+                            buy_quantity__isnull=True,
+                            get_quantity__isnull=True,
+                        )
+                        | models.Q(
+                            offer_type="buy_x_get_y",
+                            discount_percent__isnull=True,
+                            discount_amount__isnull=True,
+                            buy_quantity__isnull=False,
+                            get_quantity__isnull=False,
+                        )
+                    )
+                ),
+                name="promotion_offer_type_fields_valid",
             ),
             models.CheckConstraint(
                 condition=(
@@ -1019,6 +1074,18 @@ class Promotion(TimeStampedModel):
             raise ValidationError("Choose only one promotion target: product, family, brand, or category.")
         self.brand = (self.brand or "").strip()
         self.coupon_code = (self.coupon_code or "").strip()
+        if self.offer_type == self.OfferType.BUY_X_GET_Y:
+            if targets == 0:
+                raise ValidationError("Buy X Get Y requires one product, family, category, or brand target.")
+            if self.discount_percent is not None or self.discount_amount is not None:
+                raise ValidationError("Buy X Get Y uses buy/get quantities instead of amount or percent discount.")
+            if not self.buy_quantity or not self.get_quantity:
+                raise ValidationError("Buy X Get Y requires both buy quantity and get quantity.")
+        else:
+            if (self.discount_percent is None) == (self.discount_amount is None):
+                raise ValidationError("Standard offers require exactly one amount or percent discount.")
+            if self.buy_quantity is not None or self.get_quantity is not None:
+                raise ValidationError("Buy/get quantities are only valid for Buy X Get Y offers.")
         if (
             self.max_redemptions is not None
             and self.max_redemptions_per_customer is not None
