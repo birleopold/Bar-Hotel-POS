@@ -166,7 +166,7 @@ def apply_customer_price_to_locked_line(
 def reprice_open_retail_order_for_customer(*, order: Order, user=None) -> tuple[int, bool]:
     """Reprice normal lines after customer link changes; never mutate paid/deposit history."""
     locked = (
-        Order.objects.select_for_update()
+        Order.objects.select_for_update(of=("self",))
         .select_related("outlet", "customer")
         .get(pk=order.pk)
     )
@@ -181,7 +181,7 @@ def reprice_open_retail_order_for_customer(*, order: Order, user=None) -> tuple[
 
     changed = 0
     lines = list(
-        locked.lines.select_for_update()
+        locked.lines.select_for_update(of=("self",))
         .select_related("menu_item")
         .filter(is_voided=False, menu_item__isnull=False)
         .order_by("sort_order")
