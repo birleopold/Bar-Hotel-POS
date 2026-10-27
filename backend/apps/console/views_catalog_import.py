@@ -46,6 +46,7 @@ class CatalogUploadForm(forms.Form):
         label="Source format",
         choices=[(key, value["label"]) for key, value in ADAPTERS.items()],
         initial="neutral",
+        required=False,
         widget=forms.Select(attrs={"class": "staff-input"}),
         help_text="Choose the platform that produced this CSV. The file is normalized into this POS's canonical catalogue rules before import.",
     )
