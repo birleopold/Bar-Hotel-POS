@@ -124,6 +124,17 @@ class TenantSettings(TimeStampedModel):
         help_text="Optional maximum offline cash payment in the default currency. Blank preserves existing legacy policy.",
     )
     default_timezone = models.CharField(max_length=64, default="UTC")
+    retail_min_margin_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("99.99"))],
+        help_text=(
+            "Optional minimum gross margin for retail/supermarket items with a complete "
+            "authoritative inventory cost basis. Blank disables margin-floor enforcement."
+        ),
+    )
     business_day_cutover_hour = models.PositiveSmallIntegerField(
         default=4, validators=[MinValueValidator(0), MaxValueValidator(23)],
         help_text="Local hour at which the next operating day begins (0–23).",
