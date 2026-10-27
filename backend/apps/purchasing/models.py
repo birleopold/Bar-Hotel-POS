@@ -205,12 +205,35 @@ class PurchaseOrderLine(TimeStampedModel):
 class PurchaseReceipt(TimeStampedModel):
     """One physical delivery received against a purchase order."""
 
+    class LandedCostAllocation(models.TextChoices):
+        EXCLUDE = "exclude", "Do not add to inventory cost"
+        BY_COST = "by_cost", "Distribute by received supplier cost"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey("tenants.Tenant", on_delete=models.CASCADE, related_name="purchase_receipts")
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name="receipts")
     delivery_reference = models.CharField(max_length=128, blank=True)
     note = models.CharField(max_length=512, blank=True)
     discrepancy_note = models.CharField(max_length=512, blank=True)
+    shipping_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Shipping/freight paid for this physical delivery.",
+    )
+    duty_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Import duty, clearing or similar landed cost for this delivery.",
+    )
+    landed_cost_allocation = models.CharField(
+        max_length=16,
+        choices=LandedCostAllocation.choices,
+        default=LandedCostAllocation.EXCLUDE,
+    )
     received_by = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,
@@ -243,7 +266,22 @@ class PurchaseReceiptLine(TimeStampedModel):
         null=True,
         blank=True,
         validators=[MinValueValidator(Decimal("0"))],
-        help_text="Purchase unit cost captured when this physical receipt was posted.",
+        help_text="Supplier unit cost captured when this physical receipt was posted.",
+    )
+    landed_unit_cost_snapshot = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Supplier cost plus this receipt line's allocated landed costs per base unit.",
+    )
+    landed_cost_allocated = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Shipping/duty amount allocated to this receipt line.",
     )
     inventory_batch = models.ForeignKey(
         "inventory.InventoryBatch", on_delete=models.PROTECT,
