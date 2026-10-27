@@ -1,0 +1,78 @@
+{% extends "staff/base.html" %}
+{% block title %}My attendance{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Workforce</p>
+    <div class="staff-page-hero__head">
+      <div class="staff-page-hero__copy">
+        <h1 class="staff-page-title mb-0">My attendance<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+        <p class="staff-dash-hero__tagline mb-0">Clock work time separately from the POS cash/register shift.</p>
+      </div>
+      {% if can_review_timesheets %}
+      <div class="staff-page-hero__actions">
+        <a class="staff-btn staff-btn--ghost" href="{% url 'staff-timesheets' %}">Review timesheets</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+{% if attendance_shift %}
+<section class="staff-card mb-3">
+  <h2 class="staff-card__title">Currently clocked in</h2>
+  <p><strong>{{ attendance_shift.site.name }}</strong>{% if attendance_shift.outlet_id %} · {{ attendance_shift.outlet.name }}{% endif %}</p>
+  <p class="staff-muted">Started {{ attendance_shift.clock_in_at }} · {{ attendance_shift.duration_summary.worked_hours }} worked hours so far.</p>
+
+  {% if attendance_shift.open_break %}
+    <div class="staff-alert staff-alert--info mb-3">Break started {{ attendance_shift.open_break.started_at }}.</div>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="action" value="end_break">
+      <button class="staff-btn staff-btn--primary" type="submit">End break</button>
+    </form>
+  {% else %}
+    <form method="post" class="staff-card staff-card--flat mb-3">{% csrf_token %}
+      <input type="hidden" name="action" value="start_break">
+      <div class="mb-2">{{ attendance_form.note.label_tag }}{{ attendance_form.note }}</div>
+      <button class="staff-btn staff-btn--ghost" type="submit">Start break</button>
+    </form>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="action" value="clock_out">
+      <div class="mb-2">{{ attendance_form.note.label_tag }}{{ attendance_form.note }}</div>
+      <button class="staff-btn staff-btn--primary" type="submit">Clock out</button>
+    </form>
+  {% endif %}
+</section>
+{% else %}
+<section class="staff-card mb-3">
+  <h2 class="staff-card__title">Start work</h2>
+  <p class="staff-muted">Your current authorized branch and sales area will be recorded with the attendance entry.</p>
+  <form method="post">{% csrf_token %}
+    <input type="hidden" name="action" value="clock_in">
+    <div class="mb-2">{{ attendance_form.note.label_tag }}{{ attendance_form.note }}</div>
+    <button class="staff-btn staff-btn--primary" type="submit">Clock in</button>
+  </form>
+</section>
+{% endif %}
+
+<h2 class="staff-section-head">Recent attendance</h2>
+<div class="staff-table-wrap">
+<table class="staff-table">
+  <thead><tr><th>Clock in</th><th>Clock out</th><th>Branch</th><th>Breaks</th><th>Worked</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for shift in recent_attendance %}
+    <tr>
+      <td>{{ shift.clock_in_at }}</td>
+      <td>{{ shift.clock_out_at|default:"—" }}</td>
+      <td>{{ shift.site.name }}{% if shift.outlet_id %}<span class="staff-muted small d-block">{{ shift.outlet.name }}</span>{% endif %}</td>
+      <td>{{ shift.duration_summary.break_hours }} h</td>
+      <td>{{ shift.duration_summary.worked_hours }} h</td>
+      <td>{{ shift.get_status_display }}{% if shift.reviewed_by_id %}<span class="staff-muted small d-block">Reviewed by {{ shift.reviewed_by.email }}</span>{% endif %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6" class="staff-muted">No attendance entries yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
