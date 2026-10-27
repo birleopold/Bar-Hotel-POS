@@ -35,7 +35,7 @@ from .pos_orders import (
     StaffTableForm,
 )
 from .promotions import StaffPromotionForm
-from .purchasing import StaffPOHeaderForm, StaffSupplierForm
+from .purchasing import StaffPOHeaderForm, StaffSupplierForm, StaffSupplierProductCodeForm
 from .workspace_forms import (
     StaffEfrisSettingsForm,
     StaffIntegrationLinkForm,
@@ -93,6 +93,7 @@ __all__ = [
     "StaffStockMovementUploadForm",
     "StaffStockTransferForm",
     "StaffSupplierForm",
+    "StaffSupplierProductCodeForm",
     "StaffTableForm",
     "StaffTeamInviteForm",
     "StaffTenantBrandingForm",
