@@ -1,0 +1,16 @@
+{% extends "console/base.html" %}
+{% block title %}Retail groups{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-setup__eyebrow">Catalogue / Quick sale</p><h1>Retail product groups</h1><p class="staff-muted">Create one cashier shortcut that expands into several ordinary products. Groups do not hold stock and do not create a separate inventory ledger.</p></div>
+    <div class="grocery-setup__hero-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Products</a><a class="staff-btn staff-btn--primary" href="{% url 'console-org-retail-group-create' %}">New group</a></div>
+  </header>
+  <div class="staff-table-wrap"><table class="staff-table">
+    <thead><tr><th>Group</th><th>Lookup code</th><th>Products</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>{% for group in groups %}
+      <tr><td><strong>{{ group.name }}</strong>{% if group.description %}<span class="staff-muted small d-block">{{ group.description|truncatechars:120 }}</span>{% endif %}</td><td>{{ group.code|default:"—" }}</td><td>{{ group.lines.count }}</td><td>{% if group.is_active %}Active{% else %}Inactive{% endif %}</td><td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-retail-group-lines' group.id %}">Products</a><a href="{% url 'console-org-retail-group-edit' group.id %}">Edit</a></div></td></tr>
+    {% empty %}<tr><td colspan="5" class="staff-muted">No retail groups yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}
