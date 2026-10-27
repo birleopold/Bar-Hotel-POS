@@ -197,6 +197,7 @@
         </div>
         <div class="col-md-2">{{ line_return_form.quantity.label_tag }}{{ line_return_form.quantity }}</div>
         <div class="col-md-4">{{ line_return_form.reason.label_tag }}{{ line_return_form.reason }}</div>
+        <div class="col-12 col-md-6">{{ line_return_form.serial_numbers.label_tag }}{{ line_return_form.serial_numbers }}{% if line_return_form.serial_numbers.help_text %}<p class="staff-muted small mb-0">{{ line_return_form.serial_numbers.help_text }}</p>{% endif %}</div>
         <div class="col-md-2"><label class="staff-label" for="{{ line_return_form.restock.id_for_label }}">{{ line_return_form.restock }} Restock received goods</label></div>
         <div class="col-md-1"><button type="submit" class="staff-btn staff-btn--primary">Return</button></div>
         <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-line-return-status></p></div>
