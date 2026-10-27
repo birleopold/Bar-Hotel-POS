@@ -19,6 +19,7 @@
   <h2 class="staff-card__title">Printing policy</h2>
   <p class="staff-muted mb-1">The PDF uses the selected outlet's current price. A stored barcode is printed as Code 128; products without a barcode still receive a price/SKU label and are clearly marked as non-scannable.</p>
   <p class="staff-muted small mb-0">This is generic A4 shelf-label output. Physical printer/media alignment remains a hardware acceptance task.</p>
+  {% if label_outlet %}<p class="staff-muted small mt-2 mb-0"><strong>{{ pending_label_count }}</strong> pending label task{{ pending_label_count|pluralize }} for this outlet. Printing a selected product completes its pending queue reasons using the current price.</p>{% endif %}
 </section>
 
 <form method="get" class="fizo-inventory__panel mb-3" role="search">
@@ -39,6 +40,12 @@
     <div class="col-12 col-md-2">
       <button class="staff-btn staff-btn--primary staff-btn--touch w-100" type="submit">Load</button>
     </div>
+    {% if label_outlet %}
+    <div class="col-12 d-flex flex-wrap gap-2">
+      <a class="staff-btn {% if not label_queue_only %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?outlet={{ label_outlet.pk }}{% if label_q %}&amp;q={{ label_q|urlencode }}{% endif %}">All products</a>
+      <a class="staff-btn {% if label_queue_only %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?outlet={{ label_outlet.pk }}&amp;queue=1{% if label_q %}&amp;q={{ label_q|urlencode }}{% endif %}">Pending queue · {{ pending_label_count }}</a>
+    </div>
+    {% endif %}
   </div>
 </form>
 
@@ -49,6 +56,7 @@
   {% csrf_token %}
   <input type="hidden" name="outlet" value="{{ label_outlet.pk }}">
   <input type="hidden" name="return_q" value="{{ label_q }}">
+  <input type="hidden" name="return_queue" value="{% if label_queue_only %}1{% endif %}">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div><strong>{{ label_outlet.name }}</strong><div class="staff-muted small">Select products and copies, then generate the PDF.</div></div>
     <button class="staff-btn staff-btn--primary staff-btn--touch" type="submit">Generate shelf-label PDF</button>
@@ -60,7 +68,7 @@
         {% for item in label_items %}
         <tr>
           <td><input type="checkbox" name="item_ids" value="{{ item.pk }}" aria-label="Print {{ item.name }}"></td>
-          <td><strong>{{ item.name }}</strong><div class="staff-muted small">{{ item.get_unit_of_measure_display }}</div></td>
+          <td><strong>{{ item.name }}</strong><div class="staff-muted small">{{ item.get_unit_of_measure_display }}{% if item.brand %} · {{ item.brand }}{% endif %}</div>{% if item.label_queue_reasons %}<div class="d-flex flex-wrap gap-1 mt-1">{% for reason in item.label_queue_reasons %}<span class="staff-tag">{{ reason }}</span>{% endfor %}</div>{% endif %}</td>
           <td>{{ request.tenant.settings.default_currency }} {{ item.label_price }}</td>
           <td>{% if item.barcode %}<code>{{ item.barcode }}</code>{% elif item.sku %}<code>{{ item.sku }}</code><div class="staff-muted small">No barcode stored</div>{% else %}<span class="staff-muted">No barcode or SKU</span>{% endif %}</td>
           <td><label class="visually-hidden" for="copies-{{ item.pk }}">Copies for {{ item.name }}</label><input class="staff-input" style="max-width:6rem" id="copies-{{ item.pk }}" type="number" min="1" max="20" value="1" name="copies_{{ item.pk }}"></td>
@@ -76,9 +84,9 @@
 
 {% if is_paginated %}
 <nav class="staff-pager" aria-label="Shelf-label products pagination">
-  {% if page_obj.has_previous %}<a href="?outlet={{ label_outlet.pk }}&amp;q={{ label_q|urlencode }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+  {% if page_obj.has_previous %}<a href="?outlet={{ label_outlet.pk }}&amp;q={{ label_q|urlencode }}{% if label_queue_only %}&amp;queue=1{% endif %}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
   <span>{{ page_obj.number }} of {{ paginator.num_pages }}</span>
-  {% if page_obj.has_next %}<a href="?outlet={{ label_outlet.pk }}&amp;q={{ label_q|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  {% if page_obj.has_next %}<a href="?outlet={{ label_outlet.pk }}&amp;q={{ label_q|urlencode }}{% if label_queue_only %}&amp;queue=1{% endif %}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}
 </nav>
 {% endif %}
 </div>
