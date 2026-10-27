@@ -12,15 +12,23 @@ class StaffTenantRequiredMixin(LoginRequiredMixin):
     login_url = reverse_lazy("staff-login")
     #: If set, require this nav capability (or any of the tuple) for the active tenant + role.
     staff_nav_capability: str | tuple[str, ...] | None = None
+    #: Console wrappers may explicitly allow a platform operator to reuse a
+    #: Staff implementation without manufacturing a tenant Membership row.
+    allow_tenant_scope_without_membership = False
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return super().dispatch(request, *args, **kwargs)
-        if not getattr(request, "tenant", None) or not getattr(request, "tenant_membership", None):
+        tenant = getattr(request, "tenant", None)
+        membership = getattr(request, "tenant_membership", None)
+        allow_without_membership = bool(
+            getattr(self, "allow_tenant_scope_without_membership", False)
+        )
+        if not tenant or (membership is None and not allow_without_membership):
             messages.info(request, "Choose a workspace from the home page first.")
             return redirect("staff-dashboard")
         cap = getattr(self, "staff_nav_capability", None)
-        if cap is not None:
+        if cap is not None and membership is not None:
             from .services import (
                 get_tenant_staff_modules,
                 resolve_staff_outlet,
