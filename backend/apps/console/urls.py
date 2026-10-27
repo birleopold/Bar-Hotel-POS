@@ -183,6 +183,11 @@ urlpatterns = [
         name="console-org-product-family-edit",
     ),
     path(
+        "org/menu/product-families/<uuid:family_id>/matrix/",
+        views_catalog.OrgProductVariantMatrixView.as_view(),
+        name="console-org-product-family-matrix",
+    ),
+    path(
         "org/menu/items/",
         views_catalog.OrgMenuItemListView.as_view(),
         name="console-org-menu-items",
