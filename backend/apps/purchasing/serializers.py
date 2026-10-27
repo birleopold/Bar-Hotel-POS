@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -210,7 +211,7 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
     def get_sourcing(self, obj):
         try:
             quote = obj.source_supplier_quote
-        except Exception:
+        except ObjectDoesNotExist:
             return None
         return {
             "supplier_quote_id": str(quote.pk),
