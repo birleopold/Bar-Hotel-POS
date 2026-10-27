@@ -319,6 +319,8 @@ Implemented in source, pending exact-head certification:
 - Sales, Management and CSV exports expose the same covered/uncovered revenue basis plus category profitability derived from immutable sale-time cost snapshots. Category figures inherit the same incomplete-cost, refund-attribution, outlet-scope and currency rules as product profitability.
 - New merchandise sale lines also snapshot the category name used for historical category reporting, so moving or renaming a product category later does not rewrite old category profitability. Pre-snapshot legacy lines fall back to their current category.
 - The category snapshot is finalized again at full-settlement stock posting alongside the authoritative COGS snapshot. This makes the historical classification reflect the completed sale, covers alternate line-creation paths, and avoids depending solely on when the item first entered an open basket.
+- Sale lines now also snapshot SKU and whether the merchandise was inventory-tracked. Historical profitability prefers these snapshots, so later product renames, SKU changes, inventory-tracking changes, or a removed product relation do not erase the sale from COGS/profit reporting. Legacy lines without these snapshots continue to fall back to the current catalog relationship.
+
 
 - Scheduled owner PDF/CSV reports expose the same covered/uncovered revenue basis; the PDF includes a category-profitability table rather than presenting known gross profit without its cost-coverage context.
 
