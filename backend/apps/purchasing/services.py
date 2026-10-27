@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.audit.models import ExceptionReview
 from apps.audit.services import exception_fingerprint, log_audit
+from apps.catalog.label_queue import queue_product_label
 from apps.catalog.packaging import to_stock_units
 from apps.finance.models import FinancePostingLink, FinancePostingSource
 from apps.finance.services import post_supplier_payment_expense
@@ -198,6 +199,14 @@ def receive_purchase_order_goods(
             cartons_received=row["cartons"],
             packages_received=row["packages"],
             inventory_batch=batch,
+        )
+        queue_product_label(
+            tenant_id=po_locked.tenant_id,
+            outlet=po_locked.outlet,
+            menu_item=line.menu_item,
+            reason="receiving",
+            user=user,
+            note=f"Goods received on PO {po_locked.reference or po_locked.pk}.",
         )
         if line.menu_item.serial_tracking:
             create_received_serial_units(
