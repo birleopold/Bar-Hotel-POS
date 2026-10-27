@@ -101,6 +101,9 @@ class PromotionSerializer(serializers.ModelSerializer):
             "max_uses_per_order",
             "starts_at",
             "ends_at",
+            "schedule_weekdays",
+            "schedule_start_time",
+            "schedule_end_time",
             "is_active",
             "outlets",
             "outlet_ids",
@@ -236,6 +239,47 @@ class PromotionSerializer(serializers.ModelSerializer):
             if qs.exists():
                 raise serializers.ValidationError({"coupon_code": "This coupon code is already in use."})
         attrs["coupon_code"] = coupon_code
+
+        weekdays = attrs.get(
+            "schedule_weekdays",
+            inst.schedule_weekdays if inst else [],
+        ) or []
+        try:
+            normalized_weekdays = sorted({int(value) for value in weekdays})
+        except (TypeError, ValueError) as exc:
+            raise serializers.ValidationError({
+                "schedule_weekdays": "Weekdays must be numbers from 1 to 7."
+            }) from exc
+        if any(day < 1 or day > 7 for day in normalized_weekdays):
+            raise serializers.ValidationError({
+                "schedule_weekdays": "Weekdays must be numbers from 1 to 7."
+            })
+        attrs["schedule_weekdays"] = normalized_weekdays
+        schedule_start = attrs.get(
+            "schedule_start_time",
+            inst.schedule_start_time if inst else None,
+        )
+        schedule_end = attrs.get(
+            "schedule_end_time",
+            inst.schedule_end_time if inst else None,
+        )
+        if (schedule_start is None) != (schedule_end is None):
+            raise serializers.ValidationError(
+                "Set both recurring start and end times, or leave both blank."
+            )
+        if schedule_start is not None and schedule_end <= schedule_start:
+            raise serializers.ValidationError({
+                "schedule_end_time": (
+                    "Recurring end time must be later than start time. "
+                    "Split overnight offers into two schedules."
+                )
+            })
+        starts_at = attrs.get("starts_at", inst.starts_at if inst else None)
+        ends_at = attrs.get("ends_at", inst.ends_at if inst else None)
+        if starts_at is not None and ends_at is not None and ends_at <= starts_at:
+            raise serializers.ValidationError({
+                "ends_at": "Offer end must be later than its start."
+            })
 
         total_limit = attrs.get("max_redemptions", inst.max_redemptions if inst else None)
         customer_limit = attrs.get(
