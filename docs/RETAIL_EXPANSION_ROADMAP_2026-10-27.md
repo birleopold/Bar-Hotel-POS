@@ -315,6 +315,11 @@ Implemented in source, pending exact-head certification:
 - Legacy/incomplete positive stock can now be reconciled to a trusted average cost by an authorized inventory manager from the existing Stock balances screen. Reconciliation requires a documented evidence/reason, changes no quantity, cannot overwrite an already trusted basis, and does not rewrite historical sale cost snapshots.
 - Cost reconciliation emits `inventory.cost_basis_reconciled` audit evidence with before/after values and explicit flags confirming quantity/history were untouched.
 - Existing Stock balances now shows trusted inventory value, trusted-versus-incomplete stock coverage and a scoped CSV export. All calculations use the same authorized outlet and search filters as the listing; partial value is explicitly not described as total inventory value.
+- Management → Reports now includes historical merchandise profitability derived from each sale line's immutable cost snapshot, never today's average cost. It reports net merchandise revenue, known net COGS, known gross profit/margin, cost coverage and product-level gaps.
+- Physical line returns reverse sale-time merchandise revenue; COGS reverses only when stock was actually restocked. General/unmapped refunds, incomplete restock costs and historical foreign-currency payments are surfaced as coverage warnings instead of being guessed into product margin.
+- Profitability uses the same authorized outlet/date scope as management reporting and exports CSV with spreadsheet-formula protection.
+- Scheduled owner PDF/CSV reports now include the same merchandise profitability coverage and use the property's operating-day boundary when a property-specific schedule is configured; business-wide schedules retain the existing UTC calendar convention.
+
 - Cross-target Buy-X-Get-Y pricing now caps the free discount against the reward pool rather than the qualifying pool, so a more expensive reward can be fully discounted when the configured deal intends it.
 
 This checkpoint intentionally does **not** enable automatic margin-floor blocking yet. Margin-floor enforcement will use only balances where `cost_basis_complete=True`; incomplete/legacy stock must first be reconciled through approved cost-bearing workflows.
