@@ -1,13 +1,13 @@
 {% extends "console/base.html" %}
-{% block title %}{% if object %}{% if grocery_console_shell %}Edit sales area{% else %}Edit section{% endif %}{% else %}{% if grocery_console_shell %}Add sales area{% else %}Add section{% endif %}{% endif %}{% endblock %}
+{% block title %}{% if object %}{% if grocery_console_shell %}Edit sales / stock area{% else %}Edit section{% endif %}{% else %}{% if grocery_console_shell %}Add sales / stock area{% else %}Add section{% endif %}{% endif %}{% endblock %}
 {% block main_class %}fizo-entity-form-page{% endblock %}
 {% block content %}
 <section class="fizo-entity" aria-labelledby="fizo-entity-title">
   <header class="fizo-entity__header">
     <div>
-      <p class="grocery-form-kicker">{{ request.tenant.name|default:'Business' }} / BUSINESS SETUP / {% if grocery_console_shell %}SALES AREA{% else %}SECTION{% endif %}</p>
-      <h1 id="fizo-entity-title">{% if object %}{% if grocery_console_shell %}Edit sales area{% else %}Edit section{% endif %}{% else %}{% if grocery_console_shell %}Add sales area{% else %}Add section{% endif %}{% endif %}</h1>
-      <p class="staff-muted">{% if grocery_console_shell %}Create the checkout or sales area staff will use at this branch.{% else %}Configure the service section your team will use.{% endif %}</p>
+      <p class="grocery-form-kicker">{{ request.tenant.name|default:'Business' }} / BUSINESS SETUP / {% if grocery_console_shell %}SALES / STOCK AREA{% else %}SECTION{% endif %}</p>
+      <h1 id="fizo-entity-title">{% if object %}{% if grocery_console_shell %}Edit sales / stock area{% else %}Edit section{% endif %}{% else %}{% if grocery_console_shell %}Add sales / stock area{% else %}Add section{% endif %}{% endif %}</h1>
+      <p class="staff-muted">{% if grocery_console_shell %}Create a checkout area or an inventory-only warehouse/storage location for this branch.{% else %}Configure the service section your team will use.{% endif %}</p>
     </div>
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-outlets' site_id=site.id %}"><i class="bi bi-arrow-left" aria-hidden="true"></i> Back to list</a>
   </header>
@@ -26,7 +26,7 @@
     </div>
     <footer class="grocery-form-footer"><span>* Required field</span><div>
       <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-outlets' site_id=site.id %}">Cancel</a>
-      <button class="staff-btn staff-btn--primary" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> {% if grocery_console_shell %}Save sales area{% else %}Save section{% endif %}</button>
+      <button class="staff-btn staff-btn--primary" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> {% if grocery_console_shell %}Save area{% else %}Save section{% endif %}</button>
     </div></footer>
   </form>
 </section>
