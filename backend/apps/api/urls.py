@@ -29,6 +29,7 @@ from apps.lodging.views import (
     RoomTypeViewSet,
     RoomViewSet,
 )
+from apps.pos.hardware_bridge_views import HardwareBridgePollView, HardwareBridgeReportView
 from apps.pos.kds_views import KdsTicketView
 from apps.pos.catalog_sync_views import PosCatalogVersionView
 from apps.pos.offline_views import OfflineQueueBatchSubmitView, OfflineQueueSubmitView
@@ -85,6 +86,8 @@ urlpatterns = [
         name="api-schema-redoc",
     ),
     path("health/", views.health, name="api-health"),
+    path("hardware/bridge/poll/", HardwareBridgePollView.as_view(), name="hardware-bridge-poll"),
+    path("hardware/bridge/report/", HardwareBridgeReportView.as_view(), name="hardware-bridge-report"),
     path("auth/token/", TokenObtainPairThrottledView.as_view(), name="token_obtain_pair"),
     path("auth/token/refresh/", TokenRefreshThrottledView.as_view(), name="token_refresh"),
     path("auth/signup/", PublicSignupView.as_view(), name="auth-signup"),
