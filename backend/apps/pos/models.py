@@ -314,7 +314,7 @@ class PriceBook(TimeStampedModel):
 
 
 class PriceBookRule(TimeStampedModel):
-    """Per-SKU quantity tier inside one customer price book."""
+    """Quantity tier targeting one SKU, family, brand, or category."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
@@ -331,6 +331,27 @@ class PriceBookRule(TimeStampedModel):
         "catalog.MenuItem",
         on_delete=models.PROTECT,
         related_name="price_book_rules",
+        null=True,
+        blank=True,
+    )
+    product_family = models.ForeignKey(
+        "catalog.ProductFamily",
+        on_delete=models.PROTECT,
+        related_name="price_book_rules",
+        null=True,
+        blank=True,
+    )
+    category = models.ForeignKey(
+        "catalog.MenuCategory",
+        on_delete=models.PROTECT,
+        related_name="price_book_rules",
+        null=True,
+        blank=True,
+    )
+    brand = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Case-insensitive brand target. Leave blank unless this is a brand-wide rule.",
     )
     minimum_quantity = models.DecimalField(
         max_digits=10,
@@ -346,11 +367,36 @@ class PriceBookRule(TimeStampedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["price_book", "menu_item", "-minimum_quantity"]
+        ordering = ["price_book", "-minimum_quantity", "pk"]
         constraints = [
             models.UniqueConstraint(
                 fields=["price_book", "menu_item", "minimum_quantity"],
+                condition=models.Q(menu_item__isnull=False),
                 name="uniq_price_book_item_tier",
+            ),
+            models.UniqueConstraint(
+                fields=["price_book", "product_family", "minimum_quantity"],
+                condition=models.Q(product_family__isnull=False),
+                name="uniq_price_book_family_tier",
+            ),
+            models.UniqueConstraint(
+                fields=["price_book", "category", "minimum_quantity"],
+                condition=models.Q(category__isnull=False),
+                name="uniq_price_book_category_tier",
+            ),
+            models.UniqueConstraint(
+                fields=["price_book", "brand", "minimum_quantity"],
+                condition=~models.Q(brand=""),
+                name="uniq_price_book_brand_tier",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(menu_item__isnull=False, product_family__isnull=True, category__isnull=True, brand="")
+                    | models.Q(menu_item__isnull=True, product_family__isnull=False, category__isnull=True, brand="")
+                    | models.Q(menu_item__isnull=True, product_family__isnull=True, category__isnull=False, brand="")
+                    | (models.Q(menu_item__isnull=True, product_family__isnull=True, category__isnull=True) & ~models.Q(brand=""))
+                ),
+                name="price_book_rule_exactly_one_target",
             ),
         ]
 
@@ -360,6 +406,24 @@ class PriceBookRule(TimeStampedModel):
             raise ValidationError({"price_book": "Price book must belong to this business."})
         if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
             raise ValidationError({"menu_item": "Product must belong to this business."})
+        if self.product_family_id and self.tenant_id and self.product_family.tenant_id != self.tenant_id:
+            raise ValidationError({"product_family": "Product family must belong to this business."})
+        if self.category_id and self.tenant_id and self.category.tenant_id != self.tenant_id:
+            raise ValidationError({"category": "Category must belong to this business."})
+        targets = int(bool(self.menu_item_id)) + int(bool(self.product_family_id)) + int(bool(self.category_id)) + int(bool((self.brand or "").strip()))
+        if targets != 1:
+            raise ValidationError("Choose exactly one price-rule target: product, family, brand, or category.")
+        self.brand = (self.brand or "").strip()
+
+    @property
+    def target_label(self):
+        if self.menu_item_id:
+            return self.menu_item.name
+        if self.product_family_id:
+            return f"Family · {self.product_family.name}"
+        if self.category_id:
+            return f"Category · {self.category.name}"
+        return f"Brand · {self.brand}"
 
 
 class CustomerPriceBookAssignment(TimeStampedModel):
