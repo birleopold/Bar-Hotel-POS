@@ -136,6 +136,7 @@ def promotions_selectable_for_order(order: Order):
         margin_breach, _margin_reason = promotion_margin_floor_result(
             order=order,
             discount_amount=discount,
+            promotion=promotion,
         )
         if margin_breach:
             continue
