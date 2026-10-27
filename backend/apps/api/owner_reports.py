@@ -173,6 +173,8 @@ def build_pdf_summary(*, schedule, period, summary):
         profit_rows = [
             ["Metric", "Amount / coverage"],
             ["Net merchandise revenue", f"{profitability['currency']} {profitability['net_merchandise_revenue']}"],
+            ["Revenue with trusted cost", f"{profitability['currency']} {profitability['covered_net_revenue']}"],
+            ["Revenue without trusted cost", f"{profitability['currency']} {profitability['uncovered_net_revenue']}"],
             ["Known net COGS", f"{profitability['currency']} {profitability['known_net_cogs']}"],
             ["Known gross profit", f"{profitability['currency']} {profitability['known_gross_profit']}"],
             ["Known margin", (
@@ -192,6 +194,37 @@ def build_pdf_summary(*, schedule, period, summary):
             ("TOPPADDING", (0, 0), (-1, -1), 9),
         ]))
         story.extend([profit_table, Spacer(1, 10)])
+        categories = profitability.get("categories") or []
+        if categories:
+            story.extend([
+                Spacer(1, 8),
+                Paragraph("Category profitability", styles["Heading3"]),
+            ])
+            category_rows = [[
+                "Category", "Net revenue", "Covered revenue",
+                "Known COGS", "Known profit",
+            ]]
+            for row in categories[:8]:
+                category_rows.append([
+                    Paragraph(pdf_text(row["category_name"]), styles["Normal"]),
+                    pdf_text(row["net_revenue"]),
+                    pdf_text(row["covered_net_revenue"]),
+                    pdf_text(row["known_net_cogs"]),
+                    pdf_text(row["known_gross_profit"]),
+                ])
+            category_table = Table(
+                category_rows,
+                colWidths=[150, 80, 80, 75, 75],
+                repeatRows=1,
+            )
+            category_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E5EFF2")),
+                ("GRID", (0, 0), (-1, -1), .4, colors.HexColor("#D2D9E2")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            story.extend([category_table, Spacer(1, 10)])
         if not profitability["profitability_complete"]:
             story.append(Paragraph(
                 "Profitability is incomplete because one or more sale-time costs, "
