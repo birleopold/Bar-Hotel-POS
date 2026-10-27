@@ -579,6 +579,7 @@ def _po_base_queryset(request) -> QuerySet:
             "receipts__lines__purchase_order_line__menu_item",
             "receipts__cost_adjustments__lines__receipt_line__purchase_order_line__menu_item",
             "payments",
+            "consolidated_source_requests",
         )
     )
 
