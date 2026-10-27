@@ -286,6 +286,13 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
     outlet = serializers.UUIDField()
     reference = serializers.CharField(required=False, allow_blank=True, default="")
     expected_date = serializers.DateField(required=False, allow_null=True)
+    needed_by = serializers.DateField(required=False, allow_null=True)
+    request_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=512,
+        default="",
+    )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     lines = PurchaseOrderLineInputSerializer(many=True)
 
@@ -446,6 +453,8 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                     if expected_lead_days else None
                 )
             ),
+            needed_by=validated_data.get("needed_by"),
+            request_reason=(validated_data.get("request_reason") or "").strip(),
             notes=validated_data.get("notes") or "",
             created_by=request.user,
             status=PurchaseOrderStatus.DRAFT,
