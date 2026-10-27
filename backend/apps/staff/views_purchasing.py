@@ -21,7 +21,7 @@ from apps.purchasing.models import (
     SupplierPriceRecord, SupplierProductCode, SupplierQuote, SupplierQuoteStatus,
 )
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
-from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
+from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_receipt_landed_cost_adjustment, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
 from apps.purchasing.supplier_catalog import supplier_cost_histories
 from apps.purchasing.supplier_performance import supplier_performance_rows
 from apps.purchasing.approvals import (
@@ -1179,6 +1179,73 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     _flash_drf_validation(request, exc)
                 else:
                     messages.success(request, "Unit cost confirmed.")
+            return redirect("staff-purchasing-order-detail", po_id=po.id)
+
+        if action == "landed_cost_adjustment":
+            try:
+                receipt_id = uuid.UUID(
+                    (request.POST.get("receipt_id") or "").strip()
+                )
+            except (ValueError, TypeError):
+                messages.error(request, "Choose a valid received delivery.")
+                return redirect("staff-purchasing-order-detail", po_id=po.id)
+            receipt = po.receipts.filter(
+                pk=receipt_id,
+                tenant=request.tenant,
+            ).prefetch_related("lines__purchase_order_line__menu_item").first()
+            if receipt is None:
+                messages.error(request, "Received delivery not found.")
+                return redirect("staff-purchasing-order-detail", po_id=po.id)
+            direction = (request.POST.get("adjustment_direction") or "").strip()
+            raw_amount = (request.POST.get("amount") or "").strip()
+            try:
+                magnitude = Decimal(raw_amount)
+            except InvalidOperation:
+                magnitude = Decimal("0")
+            if (
+                not magnitude.is_finite()
+                or magnitude <= 0
+            ):
+                messages.error(
+                    request,
+                    "Enter a positive landed-cost adjustment amount.",
+                )
+                return redirect("staff-purchasing-order-detail", po_id=po.id)
+            if direction == "credit":
+                signed_amount = -magnitude
+            elif direction == "additional":
+                signed_amount = magnitude
+            else:
+                messages.error(request, "Choose additional cost or credit.")
+                return redirect("staff-purchasing-order-detail", po_id=po.id)
+            manual_allocations = {
+                str(line.pk): (
+                    request.POST.get(f"adjust_landed_{line.pk}") or "0"
+                )
+                for line in receipt.lines.all()
+            }
+            try:
+                record_receipt_landed_cost_adjustment(
+                    receipt=receipt,
+                    amount=signed_amount,
+                    allocation_method=(
+                        request.POST.get("allocation_method") or ""
+                    ).strip(),
+                    reference=(
+                        request.POST.get("reference") or ""
+                    ).strip(),
+                    reason=(request.POST.get("reason") or "").strip(),
+                    user=request.user,
+                    membership=request.tenant_membership,
+                    manual_allocations=manual_allocations,
+                )
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(
+                    request,
+                    "Landed-cost adjustment recorded. Original receipt and historical sales were not rewritten.",
+                )
             return redirect("staff-purchasing-order-detail", po_id=po.id)
 
         if action == "supplier_credit":
