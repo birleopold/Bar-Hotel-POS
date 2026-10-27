@@ -561,6 +561,11 @@ class SalesProfitabilityTests(TestCase):
         self.assertEqual(breach["known_gross_profit"], Decimal("20.00"))
         self.assertEqual(breach["known_margin_percent"], Decimal("20.0"))
         self.assertEqual(breach["margin_floor_percent"], Decimal("30"))
+        self.assertEqual(breach["target_gross_profit"], Decimal("30.00"))
+        self.assertEqual(breach["margin_shortfall"], Decimal("10.00"))
+        self.assertEqual(result["margin_breach_revenue"], Decimal("100.00"))
+        self.assertEqual(result["margin_breach_gross_profit"], Decimal("20.00"))
+        self.assertEqual(result["margin_breach_shortfall"], Decimal("10.00"))
 
         csv_body = format_sales_summary_csv(
             self.tenant.pk,
@@ -569,6 +574,9 @@ class SalesProfitabilityTests(TestCase):
             allowed_outlet_ids=[self.outlet.pk],
         )
         self.assertIn("below_floor_sale", csv_body)
+        self.assertIn("margin_breach_shortfall,10.00,UGX", csv_body)
+        self.assertIn("target_gross_profit,margin_shortfall", csv_body)
         self.assertIn("LOW-MARGIN-SALE", csv_body)
+        self.assertIn(",30,30.00,10.00", csv_body)
         self.assertNotIn("HIGH-MARGIN-SALE", csv_body)
 
