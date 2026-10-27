@@ -529,6 +529,52 @@ class ManagementWorkspaceTests(TestCase):
         self.assertIn(self.outlet.name, body)
         self.assertIn("Manager discount", body)
 
+        worker_detail = self.client.get(
+            reverse(
+                "staff-management-loss-pattern",
+                args=["worker", worker_pattern["pattern_key"]],
+            )
+        )
+        self.assertEqual(worker_detail.status_code, 200)
+        self.assertContains(worker_detail, "Worker evidence")
+        self.assertContains(worker_detail, self.worker.email)
+        self.assertContains(worker_detail, "Refund")
+        self.assertContains(worker_detail, "Margin override")
+        self.assertContains(worker_detail, "Clearance item approved")
+        self.assertContains(worker_detail, "Open source")
+
+        outlet_detail = self.client.get(
+            reverse(
+                "staff-management-loss-pattern",
+                args=["outlet", outlet_pattern["pattern_key"]],
+            )
+        )
+        self.assertEqual(outlet_detail.status_code, 200)
+        self.assertContains(outlet_detail, "Section evidence")
+        self.assertContains(outlet_detail, self.outlet.name)
+        self.assertContains(outlet_detail, "Cash variance")
+
+        product_detail = self.client.get(
+            reverse(
+                "staff-management-loss-pattern",
+                args=["product", product_pattern["pattern_key"]],
+            )
+        )
+        self.assertEqual(product_detail.status_code, 200)
+        self.assertContains(product_detail, "Product evidence")
+        self.assertContains(product_detail, "Manager discount")
+        self.assertContains(product_detail, "Margin override")
+        self.assertNotContains(product_detail, "Cash variance")
+        self.assertNotContains(product_detail, "Refund 20")
+
+        hidden = self.client.get(
+            reverse(
+                "staff-management-loss-pattern",
+                args=["outlet", str(self.other.pk)],
+            )
+        )
+        self.assertEqual(hidden.status_code, 404)
+
     def test_approved_discount_is_not_duplicated_as_manual_price_exception(self):
         from apps.pos.models import OrderLine
         self.login()
