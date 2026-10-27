@@ -256,6 +256,17 @@ def _save_catalog_item_safely(view, form, *, creating):
         if barcode and candidates.filter(barcode=barcode).exists():
             form.add_error("barcode", "This barcode is already registered to another product.")
             return view.form_invalid(form)
+        if barcode and ProductPackage.objects.filter(
+            tenant=view.request.tenant, barcode=barcode,
+        ).exists():
+            form.add_error("barcode", "This barcode is already registered to a product package.")
+            return view.form_invalid(form)
+        sku = (form.cleaned_data.get("sku") or "").strip()
+        if sku and ProductPackage.objects.filter(
+            tenant=view.request.tenant, sku_alias__iexact=sku,
+        ).exists():
+            form.add_error("sku", "This SKU is already registered as a product package code.")
+            return view.form_invalid(form)
         instance = form.save(commit=False)
         if creating:
             instance.tenant = view.request.tenant
