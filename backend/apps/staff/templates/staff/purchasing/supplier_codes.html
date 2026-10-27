@@ -37,6 +37,116 @@
     </form>
   </section>
 
+  <section class="staff-card mb-3">
+    <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+      <div>
+        <h2 class="staff-card__title">{% if editing_price %}Edit supplier price{% else %}Effective-dated supplier prices{% endif %}</h2>
+        <p class="staff-muted small mb-0">Planning prices help prepare future purchase orders. They never rewrite received cost, weighted-average inventory cost, sale COGS or retail price.</p>
+      </div>
+    </div>
+    <form method="post" class="grocery-admin-form mt-3">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="price_save">
+      {% if editing_price %}<input type="hidden" name="price_id" value="{{ editing_price.id }}">{% endif %}
+      <div class="grocery-admin-fields">
+        {% for field in price_form %}
+        <div class="mb-3">
+          {{ field.label_tag }}{{ field }}
+          {% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<div class="grocery-form-errors">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <button class="staff-btn staff-btn--primary" type="submit">Save supplier price</button>
+      {% if editing_price %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-supplier-codes' supplier.id %}">Cancel price edit</a>{% endif %}
+    </form>
+
+    {% if supplier_prices %}
+    <div class="staff-table-wrap mt-3">
+      <table class="fizo-purchasing__table">
+        <thead><tr><th>Product</th><th>Package</th><th>Cost</th><th>Minimum</th><th>Effective</th><th>Source</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for row in supplier_prices %}
+          <tr>
+            <td>{{ row.menu_item.name }}</td>
+            <td>{% if row.product_package %}{{ row.product_package.name }}{% else %}Base product{% endif %}</td>
+            <td><strong>{{ request.tenant.settings.default_currency }} {{ row.unit_cost }}</strong></td>
+            <td>{{ row.minimum_quantity }} base units</td>
+            <td>{{ row.valid_from|default:"Any start" }} → {{ row.valid_until|default:"No end" }}</td>
+            <td>{{ row.source_reference|default:"—" }}{% if row.note %}<span class="staff-muted small d-block">{{ row.note }}</span>{% endif %}</td>
+            <td>{% if row.is_active %}Active{% else %}Inactive{% endif %}</td>
+            <td>
+              <a href="?price_edit={{ row.id }}">Edit</a>
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="price_delete">
+                <input type="hidden" name="price_id" value="{{ row.id }}">
+                <button class="staff-link-button" type="submit">Remove</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="staff-muted mt-3 mb-0">No effective-dated supplier price records yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="staff-card mb-3">
+    <h2 class="staff-card__title">Import supplier price list</h2>
+    <p class="staff-muted">Preview a UTF-8 CSV before applying it. Match existing stock by <code>supplier_code</code> or <code>sku</code>; no products are created from this import.</p>
+    <p class="staff-muted small">Columns: <code>supplier_code</code> or <code>sku</code>, <code>unit_cost</code>; optional <code>minimum_quantity</code>, <code>valid_from</code>, <code>valid_until</code>, <code>source_reference</code>, <code>note</code>. Dates use YYYY-MM-DD and numeric costs must not include currency symbols.</p>
+    <form method="post" enctype="multipart/form-data" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="price_import_preview">
+      <div class="col-12 col-md-8">
+        <label class="staff-label" for="supplier-price-file">Supplier price CSV</label>
+        <input class="staff-input" id="supplier-price-file" type="file" name="price_file" accept=".csv,text/csv" required>
+      </div>
+      <div class="col-12 col-md-4"><button class="staff-btn staff-btn--ghost w-100" type="submit">Preview price list</button></div>
+    </form>
+
+    {% if price_import_errors %}
+      <div class="staff-alert staff-alert--danger mt-3">
+        <strong>Import not ready</strong>
+        <ul class="mb-0">{% for error in price_import_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+
+    {% if price_import_rows %}
+      <div class="staff-alert staff-alert--info mt-3"><strong>{{ price_import_file_name }}</strong> · {{ price_import_rows|length }} validated row{{ price_import_rows|length|pluralize }}. Review before applying.</div>
+      <div class="staff-table-wrap mt-3">
+        <table class="fizo-purchasing__table">
+          <thead><tr><th>Row</th><th>Matched product</th><th>Package</th><th>Supplier code / SKU</th><th>Cost</th><th>Minimum</th><th>Effective</th><th>Source</th></tr></thead>
+          <tbody>
+          {% for row in price_import_rows %}
+            <tr>
+              <td>{{ row.row_number }}</td>
+              <td>{{ row.menu_item_name }}</td>
+              <td>{{ row.product_package_name|default:"Base product" }}</td>
+              <td>{% if row.supplier_code %}{{ row.supplier_code }}{% else %}{{ row.sku }}{% endif %}</td>
+              <td>{{ request.tenant.settings.default_currency }} {{ row.unit_cost }}</td>
+              <td>{{ row.minimum_quantity }}</td>
+              <td>{{ row.valid_from|default:"Any start" }} → {{ row.valid_until|default:"No end" }}</td>
+              <td>{{ row.source_reference|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if price_import_token %}
+      <form method="post" class="mt-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="price_import_apply">
+        <input type="hidden" name="price_import_token" value="{{ price_import_token }}">
+        <button class="staff-btn staff-btn--primary" type="submit">Apply validated price list</button>
+      </form>
+      {% endif %}
+    {% endif %}
+  </section>
+
   <section class="staff-card">
     <h2 class="staff-card__title">Mapped supplier codes</h2>
     {% if supplier_codes %}
