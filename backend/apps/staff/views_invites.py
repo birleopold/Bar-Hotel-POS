@@ -203,7 +203,7 @@ class StaffMembershipListView(StaffTenantRequiredMixin, ListView):
     def get_queryset(self):
         qs = (
             Membership.objects.filter(tenant=self.request.tenant)
-            .select_related("user")
+            .select_related("user", "role_template")
             .prefetch_related("sites", "outlets")
             .order_by("-is_active", "user__email")
         )
