@@ -43,7 +43,7 @@ def upload(text, name="migration.csv"):
         ),
         (
             "woocommerce",
-            "Type,SKU,Name,Published,Regular price,Categories,Description,GTIN, UPC, EAN, or ISBN\n"
+            'Type,SKU,Name,Published,Regular price,Categories,Description,"GTIN, UPC, EAN, or ISBN"\n'
             "simple,MUG-1,Office Mug,1,18000,Office,Ceramic mug,444555666\n",
             "Office Mug", "MUG-1", "18000.00",
         ),
@@ -72,6 +72,45 @@ def test_supported_external_catalogue_adapters_normalize_into_canonical_import(
     assert MenuItem.objects.filter(
         tenant=bundle["tenant"], sku=expected_sku, name=expected_name,
     ).exists()
+
+
+@pytest.mark.django_db
+def test_generic_other_platform_auto_maps_common_column_names_and_reports_mapping():
+    bundle = _seed_tenant_bundle(
+        name="Generic migration", slug="generic-migration",
+        user_email="generic-migration@example.test",
+    )
+    content = (
+        "Department,Product Name,Selling Price,Product Code,EAN,Track Stock,Product Description,Unknown Legacy Field\n"
+        "Household,Floor Cleaner,9500,CLEAN-1,123123123,Y,1 litre bottle,legacy-only\n"
+    )
+    rows, report = parse_compatible_catalog_csv(
+        tenant=bundle["tenant"],
+        uploaded=upload(content),
+        source="generic",
+    )
+    assert len(rows) == 1
+    assert rows[0]["category_name"] == "Household"
+    assert rows[0]["name"] == "Floor Cleaner"
+    assert rows[0]["sku"] == "CLEAN-1"
+    assert rows[0]["barcode"] == "123123123"
+    assert rows[0]["track_inventory"] is True
+    assert report.ignored_columns == ("Unknown Legacy Field",)
+    assert any("Product Name → name" in warning for warning in report.warnings)
+
+
+@pytest.mark.django_db
+def test_generic_mapper_rejects_file_without_product_name_or_price_mapping():
+    bundle = _seed_tenant_bundle(
+        name="Generic missing fields", slug="generic-missing-fields",
+        user_email="generic-missing@example.test",
+    )
+    with pytest.raises(Exception, match="could not find required fields"):
+        parse_compatible_catalog_csv(
+            tenant=bundle["tenant"],
+            uploaded=upload("Code,Notes\nABC,Nothing useful\n"),
+            source="generic",
+        )
 
 
 @pytest.mark.django_db
