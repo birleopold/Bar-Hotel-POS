@@ -1,12 +1,12 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}New purchase order{% endblock %}
+{% block title %}{% if can_approve_purchasing %}New purchase order{% else %}New purchase request{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261022.1">{% endblock %}
 {% block content %}
 <div class="fizo-purchasing fizo-purchasing--purchase-order-create">
 
-  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>New purchase order</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"></div></header>
+  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>{% if can_approve_purchasing %}New purchase order{% else %}New purchase request{% endif %}</h1><p>{% if can_approve_purchasing %}Prepare an approved draft for supplier ordering.{% else %}Prepare stock needs for manager review. Nothing is sent to the supplier until approved.{% endif %}</p></div><div class="fizo-purchasing__head-actions"></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   {% if prefill_menu_item %}
   <p class="staff-alert staff-alert--info">Item and quantity were suggested from stock planning. Check the supplier, actual need, current stock and price before saving this draft.</p>
@@ -53,7 +53,7 @@
         </tbody>
       </table>
     </div>
-    <button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Save purchase order draft{% else %}Create draft{% endif %}</button>
+    <button type="submit" class="staff-btn staff-btn--primary">{% if can_approve_purchasing %}{% if grocery_owner_shell %}Save approved PO draft{% else %}Create approved draft{% endif %}{% else %}Submit purchase request{% endif %}</button>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">Cancel</a>
   </form>
 </div>
