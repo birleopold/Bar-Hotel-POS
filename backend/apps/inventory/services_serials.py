@@ -10,6 +10,7 @@ from apps.audit.services import log_audit
 
 from .models import (
     InventorySerialEvent,
+    InventorySerialReturnLink,
     InventorySerialUnit,
     SerializedUnitEventType,
     SerializedUnitStatus,
@@ -167,7 +168,6 @@ def assign_serial_to_order_line(*, order_line, serial_number: str, user) -> Inve
             serial_number__iexact=identifier,
             status__in=[SerializedUnitStatus.AVAILABLE, SerializedUnitStatus.RETURNED],
             reserved_order_line__isnull=True,
-            sold_order_line__isnull=True,
         )
         .first()
     )
@@ -175,7 +175,13 @@ def assign_serial_to_order_line(*, order_line, serial_number: str, user) -> Inve
         raise ValidationError({"serial_number": "No available matching serial / IMEI exists for this product and section."})
     unit.status = SerializedUnitStatus.RESERVED
     unit.reserved_order_line = line
-    unit.save(update_fields=["status", "reserved_order_line", "updated_at"])
+    # A previously returned unit keeps its original-sale trace in events/return
+    # links. Clear the current sold pointer only when it is reserved for resale.
+    unit.sold_order_line = None
+    unit.sold_at = None
+    unit.save(update_fields=[
+        "status", "reserved_order_line", "sold_order_line", "sold_at", "updated_at"
+    ])
     InventorySerialEvent.objects.create(
         tenant_id=line.order.tenant_id,
         serial_unit=unit,
@@ -273,6 +279,120 @@ def validate_serial_assignments_for_order(*, order) -> dict:
             })
         assignments[line.pk] = units
     return assignments
+
+
+def lock_serial_units_for_return(*, order, order_line, quantity, serial_numbers) -> list[InventorySerialUnit]:
+    serials = normalize_serial_numbers(serial_numbers)
+    item = order_line.menu_item
+    if item is None or not item.serial_tracking:
+        if serials:
+            raise ValidationError({"serial_numbers": "Serial / IMEI values are only valid for serialized products."})
+        return []
+    qty = Decimal(str(quantity))
+    if qty != qty.to_integral_value():
+        raise ValidationError({"serial_numbers": "Serialized returns use whole-unit quantities."})
+    expected = int(qty)
+    if len(serials) != expected:
+        raise ValidationError({
+            "serial_numbers": (
+                f"Enter exactly {expected} returned {item.get_serial_identifier_type_display().lower()}"
+                f'{"s" if expected != 1 else ""}.'
+            )
+        })
+    units = []
+    for identifier in serials:
+        unit = (
+            InventorySerialUnit.objects.select_for_update()
+            .filter(
+                tenant_id=order.tenant_id,
+                outlet_id=order.outlet_id,
+                menu_item=item,
+                sold_order_line=order_line,
+                status=SerializedUnitStatus.SOLD,
+                serial_number__iexact=identifier,
+            )
+            .first()
+        )
+        if unit is None:
+            raise ValidationError({
+                "serial_numbers": (
+                    f'"{identifier}" is not a sold serial / IMEI from this sale line '
+                    "or it has already been returned."
+                )
+            })
+        units.append(unit)
+    return units
+
+
+def complete_serialized_return(*, return_record, units, restock: bool, user) -> None:
+    if not units:
+        return
+    from .services import apply_manual_stock_change
+
+    order = return_record.order
+    line = return_record.order_line
+    quantity = Decimal(len(units))
+    if restock:
+        apply_manual_stock_change(
+            tenant_id=order.tenant_id,
+            outlet=order.outlet,
+            menu_item=line.menu_item,
+            quantity_change=quantity,
+            reason="adjust_in",
+            user=user,
+            note=f"Serialized return {order.bill_reference}"[:512],
+            allow_serialized=True,
+        )
+    disposition = (
+        InventorySerialReturnLink.Disposition.RESTOCKED
+        if restock
+        else InventorySerialReturnLink.Disposition.QUARANTINED
+    )
+    event_type = (
+        SerializedUnitEventType.RETURNED
+        if restock
+        else SerializedUnitEventType.QUARANTINED
+    )
+    status = (
+        SerializedUnitStatus.RETURNED
+        if restock
+        else SerializedUnitStatus.QUARANTINED
+    )
+    for unit in units:
+        unit.status = status
+        unit.reserved_order_line = None
+        unit.save(update_fields=["status", "reserved_order_line", "updated_at"])
+        InventorySerialReturnLink.objects.create(
+            tenant_id=order.tenant_id,
+            serial_unit=unit,
+            return_record=return_record,
+            disposition=disposition,
+        )
+        InventorySerialEvent.objects.create(
+            tenant_id=order.tenant_id,
+            serial_unit=unit,
+            event_type=event_type,
+            outlet=order.outlet,
+            order_line=line,
+            created_by=user,
+            note=(
+                f"Returned on {order.bill_reference}; "
+                + ("restocked for resale" if restock else "quarantined / not restocked")
+            )[:512],
+        )
+    log_audit(
+        tenant_id=order.tenant_id,
+        user_id=user.pk if user else None,
+        action="inventory.serials_returned",
+        entity_type="supermarket_line_return",
+        entity_id=str(return_record.pk),
+        payload={
+            "order_id": str(order.pk),
+            "order_line_id": str(line.pk),
+            "restock": restock,
+            "serial_unit_ids": [str(unit.pk) for unit in units],
+        },
+    )
 
 
 def mark_serial_assignments_sold(*, order, assignments: dict, user) -> None:
