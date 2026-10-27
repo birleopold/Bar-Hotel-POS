@@ -101,17 +101,26 @@ def apply_wholesale_tier(*, order, line_id, membership, user):
     if line.pricing_source == "wholesale" and line.unit_price == rule.unit_price:
         return line, True
     original = line.unit_price
+    previous_price_book_rule_id = line.price_book_rule_id
     line.unit_price = rule.unit_price
     line.line_total = line_total(line.quantity, rule.unit_price)
     line.tax_amount = line_tax(line.line_total, line.menu_item.tax_rate_percent)
     line.pricing_source = "wholesale"
-    line.save(update_fields=["unit_price", "line_total", "tax_amount", "pricing_source", "updated_at"])
+    line.price_book_rule = None
+    line.price_book_base_unit_price = None
+    line.save(update_fields=[
+        "unit_price", "line_total", "tax_amount", "pricing_source",
+        "price_book_rule", "price_book_base_unit_price", "updated_at",
+    ])
     recalculate_order_totals(locked)
     log_audit(tenant_id=locked.tenant_id, user_id=user.pk,
               action="retail.wholesale_price_applied", entity_type="order_line",
               entity_id=str(line.pk), payload={
                   "order_id": str(locked.pk), "customer_id": str(locked.customer_id),
                   "price_rule_id": str(rule.pk), "previous_unit_price": str(original),
+                  "previous_customer_price_book_rule_id": (
+                      str(previous_price_book_rule_id) if previous_price_book_rule_id else None
+                  ),
                   "unit_price": str(rule.unit_price), "quantity": str(line.quantity),
               })
     return line, False
