@@ -291,6 +291,11 @@ Implemented in source, pending exact-head certification:
 - Supplier unit cost and landed unit cost remain separate immutable receipt-line snapshots. Weighted-average outlet cost uses the landed unit cost only when distribution was explicitly selected.
 - Landed-cost distribution fails closed if any received line lacks supplier unit cost or if the received supplier-cost value is zero; it never invents a basis.
 - Delivery history shows freight, duty/clearing, allocation treatment and landed unit cost per received line.
+- Supplier-product relationships now carry an optional planning cost and one preferred-supplier flag per product, reusing the existing supplier code/package mapping rather than adding a parallel supplier catalog.
+- New purchase orders can preselect a preferred supplier from stock planning. If the buyer leaves unit cost blank, the server suggests the selected supplier's configured planning cost, falling back to that supplier's latest physically received unit cost; an entered quoted cost always takes precedence.
+- Supplier management now shows latest and previous received supplier cost plus cost movement, while receipt snapshots remain the immutable evidence source. Planning/default cost never rewrites historical receipts or outlet weighted-average cost by itself.
+- Stock planning and CSV exports include preferred supplier, supplier code and planning cost. The PO handoff carries supplier, outlet, product and suggested quantity without auto-ordering.
+- Supplier cost-history reads are batched per supplier screen to avoid per-SKU query growth on large catalogs.
 - Optional tenant-wide minimum retail gross margin is now configurable in Business settings. Enforcement activates only for Retail/Supermarket products whose outlet cost basis is complete.
 - Automatic promotions that would breach the trusted-cost margin floor are hidden and rejected server-side; automatic customer price-book rates fall back to ordinary price; wholesale tiers are rejected rather than silently selling below the configured floor.
 - Manager-approved manual line discounts may cross the floor only when the approval intent includes an explicit margin-override reason of at least eight characters. The override, configured floor, computed minimum unit price and proposed unit price are written to the existing audit ledger.
