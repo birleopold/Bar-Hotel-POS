@@ -8,11 +8,12 @@ from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, Promotion
-from apps.pos.models import Order
+from apps.pos.models import Order, Payment, PaymentMethod
 from apps.pos.services.orders import (
     add_line_to_open_order,
     apply_promotion_to_order,
     apply_supermarket_line_discount,
+    remove_promotion_from_order,
 )
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.staff.services import promotions_selectable_for_order
@@ -240,6 +241,96 @@ class TargetedPromotionTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+    def test_offer_can_be_removed_and_reapplied_before_payment(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="Reversible")
+
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("1000.00"))
+        self.assertEqual(order.applied_promotion, promo)
+
+        remove_promotion_from_order(order=order, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("0.00"))
+        self.assertIsNone(order.applied_promotion_id)
+        self.assertEqual(order.total, Decimal("10000.00"))
+
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("1000.00"))
+        self.assertEqual(order.applied_promotion, promo)
+
+    def test_async_remove_offer_updates_checkout_without_page_refresh_contract(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="Async removable")
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+        response = self.client.post(
+            reverse("staff-order-detail", args=[order.pk]),
+            {"action": "remove_promotion"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        self.assertEqual(response.json()["discount"], "0.00")
+        order.refresh_from_db()
+        self.assertIsNone(order.applied_promotion_id)
+
+    def test_payment_start_freezes_promotion_changes(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="Frozen after tender")
+        Payment.objects.create(
+            tenant=self.tenant,
+            order=order,
+            amount=Decimal("1000"),
+            method=PaymentMethod.CASH,
+            idempotency_key="promo-freeze-apply",
+            recorded_by=self.user,
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+        second = self._order()
+        add_line_to_open_order(
+            order=second,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        apply_promotion_to_order(order=second, promotion=promo, user=self.user)
+        Payment.objects.create(
+            tenant=self.tenant,
+            order=second,
+            amount=Decimal("1000"),
+            method=PaymentMethod.CASH,
+            idempotency_key="promo-freeze-remove",
+            recorded_by=self.user,
+        )
+        with self.assertRaises(ValidationError):
+            remove_promotion_from_order(order=second, user=self.user)
+        second.refresh_from_db()
+        self.assertEqual(second.applied_promotion, promo)
+        self.assertEqual(second.discount_amount, Decimal("1000.00"))
 
     def test_manager_form_rejects_multiple_targets(self):
         response = self.client.post(
