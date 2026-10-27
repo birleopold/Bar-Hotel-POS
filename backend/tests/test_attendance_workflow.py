@@ -223,6 +223,24 @@ class AttendanceWorkflowTests(TestCase):
             ).exists()
         )
 
+        filtered = self.client.get(
+            reverse("staff-timesheets"),
+            {"worker": str(self.worker_membership.pk)},
+        )
+        self.assertEqual(filtered.status_code, 200)
+        self.assertContains(filtered, self.worker.email)
+        self.assertNotContains(filtered, self.other_worker.email)
+
+        malformed = self.client.post(
+            reverse("staff-timesheets"),
+            {
+                "shift_id": "not-a-uuid",
+                "action": "approve",
+                "review_note": "Invalid",
+            },
+        )
+        self.assertEqual(malformed.status_code, 404)
+
         exported = self.client.get(
             reverse("staff-timesheets"),
             {"export": "csv"},
