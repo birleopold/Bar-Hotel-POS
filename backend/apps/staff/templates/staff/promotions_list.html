@@ -46,13 +46,14 @@
   <h2 class="staff-section-head">Active &amp; scheduled</h2>
   <div class="staff-table-wrap">
     <table class="staff-table">
-      <thead><tr><th>Name</th><th>Type</th><th>Target</th><th>Uses</th><th>Discount value</th><th>Net sales</th><th>Coupon</th><th>Starts</th><th>Ends</th><th>Active</th></tr></thead>
+      <thead><tr><th>Name</th><th>Type</th><th>Target</th><th>Recurring</th><th>Uses</th><th>Discount value</th><th>Net sales</th><th>Coupon</th><th>Starts</th><th>Ends</th><th>Active</th></tr></thead>
       <tbody>
         {% for p in promotions %}
           <tr>
             <td><a href="{% url 'staff-promotion-detail' promotion_id=p.id %}">{{ p.name }}</a></td>
             <td>{{ p.get_offer_type_display }}</td>
             <td>{{ p.target_label }}</td>
+            <td>{{ p.schedule_label }}</td>
             <td>{{ p.report_uses }}</td>
             <td>{{ request.tenant.settings.default_currency }} {{ p.report_discount_total }}</td>
             <td>{{ request.tenant.settings.default_currency }} {{ p.report_net_sales }}</td>
@@ -62,7 +63,7 @@
             <td>{% if p.is_active %}Yes{% else %}No{% endif %}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="10" class="staff-muted">No promotions yet.</td></tr>
+          <tr><td colspan="11" class="staff-muted">No promotions yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
