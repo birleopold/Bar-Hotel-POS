@@ -472,6 +472,7 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Price overrides.
 - Repeated void/refund patterns.
 - Excess discount patterns.
+- Margin-floor override exceptions now appear in the existing Management → Exceptions/Cases workflow even when the discount amount itself is below the generic large-discount threshold. Each exception carries outlet/product, configured floor, minimum allowed unit price, actual approved unit price, cashier, approving manager and override reason, and can use the existing review/assignment/follow-up/resolution trail.
 - Cash variance trend.
 - Shrink/write-off trend.
 - Cashier/product/outlet heat maps.
