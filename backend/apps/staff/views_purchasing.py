@@ -77,7 +77,7 @@ class StaffRfqListView(StaffTenantRequiredMixin, ListView):
                 outlet_id__in=outlet_ids,
             )
             .select_related("outlet", "outlet__site", "created_by")
-            .prefetch_related("quotes")
+            .prefetch_related("lines", "quotes")
             .order_by("-created_at")
         )
         status = (self.request.GET.get("status") or "").strip()
@@ -221,9 +221,6 @@ class StaffRfqDetailView(StaffTenantRequiredMixin, TemplateView):
                     "availability_note": quote.availability_note,
                 })
             row["form"] = forms_by_quote[quote.pk]
-            row["existing_lines"] = {
-                line.rfq_line_id: line for line in quote.lines.all()
-            }
         return {
             "rfq": self.rfq,
             "comparison_rows": rows,
