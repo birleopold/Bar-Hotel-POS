@@ -139,6 +139,7 @@ def build_stock_intelligence(*, tenant, balances, safety_days=3, at=None):
         results.append({
             "outlet_id": balance.outlet_id,
             "outlet": balance.outlet.name,
+            "outlet_type": balance.outlet.outlet_type,
             "menu_item_id": balance.menu_item_id,
             "item": balance.menu_item.name,
             "preferred_supplier_id": preferred["supplier_id"] if preferred else None,
@@ -265,7 +266,13 @@ def build_warehouse_replenishment_proposals(
     proposals = []
     for row in rows:
         suggested = row.get("suggested_order")
-        if suggested is None or suggested <= 0:
+        if (
+            suggested is None
+            or suggested <= 0
+            or row.get("outlet_type") not in {
+                OutletType.RETAIL, OutletType.SUPERMARKET,
+            }
+        ):
             continue
         destination_id = row["outlet_id"]
         item_id = row["menu_item_id"]
