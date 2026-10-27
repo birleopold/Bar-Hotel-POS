@@ -13,9 +13,20 @@ from rest_framework.views import APIView
 
 from apps.access.outlets import membership_outlet_ids
 from apps.pos.models import Payment, Refund
+from apps.staff.profitability import build_merchandise_profitability
 
 from .permissions import CanViewSalesReports, HasTenantContext, HasTenantModule
 from .report_queries import parse_outlet_uuid_param, parse_report_dates_from_query
+
+
+def _json_report_value(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: _json_report_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_report_value(item) for item in value]
+    return value
 
 
 class SalesSummaryView(APIView):
@@ -111,6 +122,14 @@ class SalesSummaryView(APIView):
         ]
 
         net = (gross - ref_total).quantize(Decimal("0.01"))
+        profitability_outlets = [oid] if oid is not None else list(allowed_outlets)
+        profitability = build_merchandise_profitability(
+            tenant_id=tenant_id,
+            date_from=rng.d0,
+            date_to=rng.d1,
+            allowed_outlet_ids=profitability_outlets,
+            currency=request.tenant.settings.default_currency,
+        )
 
         return Response(
             {
@@ -125,6 +144,7 @@ class SalesSummaryView(APIView):
                     "total": str(ref_total),
                 },
                 "net_sales": str(net),
+                "merchandise_profitability": _json_report_value(profitability),
                 "by_payment_method": by_method,
                 "by_outlet": by_outlet,
             }
