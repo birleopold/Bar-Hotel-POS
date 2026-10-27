@@ -156,11 +156,15 @@ Implemented in source, pending exact-head software/browser certification:
 - X-for-fixed-amount quantity deals run through the same promotion engine: complete whole-unit sets only, product/family/category/brand target, optional per-order set cap, live basket recalculation, API/staff controls and a fail-closed guard when the configured deal would not reduce the qualifying price.
 - Buy-X-Get-Y now supports a distinct reward product/family/category/brand while preserving same-pool BOGO when no reward target is set. The reward must already be in the basket, reward/qualifying pools must be non-overlapping in this first safe implementation, the cheapest eligible reward units are discounted, and live basket mutations recalculate the saving.
 - Mix-and-match fixed-price deals are supported within one merchandise pool (for example any 3 items in a category/brand/family for one fixed amount) through X-for-fixed-amount; arbitrary multi-pool mix-and-match remains deferred.
+- Promotion governance now includes a consolidated Offers performance view over selectable 7/30/90/365-day windows using fully paid orders only: uses, gross sales, discount value, net sales and identified-customer count. Offer detail exposes the same paid-order metrics without creating a second reporting engine.
+- Recent audited base-price, outlet-price and variant-price changes are surfaced in the Offers area from the existing audit ledger, preserving before/after, outlet, operator and timestamp evidence.
+- Safe physical markdowns are synchronized into the existing merchandise label queue. Only unconditional standard offers with a truthful per-item price are auto-queued; coupon/minimum-basket/minimum-quantity and ambiguous multi-item fixed-amount deals are deliberately excluded. The markdown label prints the promotional price snapshot and regular price, and printing it completes only the markdown queue task.
+- Promotion edits/deactivation reconcile and dismiss stale promotion-owned markdown tasks before creating replacements, preventing obsolete promotional shelf prices from remaining printable.
 
 Still R2 work:
 - arbitrary multi-pool mix-and-match mechanics beyond one product/family/category/brand pool;
 - group/bundle promotional pricing;
-- richer markdown scheduling and price/promotion performance reporting;
+- richer recurring day/time markdown scheduling and location-filtered/exportable promotion reporting;
 - an explicit multi-offer stacking/precedence contract if simultaneous offers are later allowed;
 - margin-floor controls once verified cost is authoritative for the affected merchandise;
 - exact-head CI and deployed browser/till acceptance for this promotion checkpoint.
