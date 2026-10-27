@@ -707,6 +707,19 @@ class ConsoleProductPackageForm(forms.ModelForm):
             raise forms.ValidationError("This package code is already in use.")
         return code
 
+    def clean(self):
+        data = super().clean()
+        units = data.get("units_per_package")
+        price = data.get("sell_price")
+        if units and price is not None:
+            per_base = price / units
+            if per_base != per_base.quantize(Decimal("0.01")):
+                self.add_error(
+                    "sell_price",
+                    "For this R1 package flow, the package price must divide exactly into a two-decimal base-unit price. Leave it blank to use the normal product price; richer pack discounts are handled in R2 pricing.",
+                )
+        return data
+
 
 class ConsoleModifierGroupForm(forms.ModelForm):
     class Meta:
