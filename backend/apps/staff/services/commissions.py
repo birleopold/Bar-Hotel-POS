@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Max, Q, Sum
+from django.db.models import Max
 
 from apps.accounts.models import SalesTarget
 from apps.common.datetime_bounds import utc_day_range_inclusive
@@ -19,31 +19,12 @@ def _money(value) -> Decimal:
     return Decimal(str(value or 0)).quantize(MONEY, rounding=ROUND_HALF_UP)
 
 
-def _line_net_revenue(order: Order, line: OrderLine) -> Decimal:
-    gross = _money(line.line_total)
-    subtotal = _money(order.subtotal)
-    discount = _money(order.discount_amount)
-    if gross <= 0 or subtotal <= 0 or discount <= 0:
-        return gross
-    allocated = (discount * gross / subtotal).quantize(MONEY, rounding=ROUND_HALF_UP)
-    return max(ZERO, gross - min(gross, allocated))
-
-
-def _mapped_return_reversal(line: OrderLine, *, start, end) -> Decimal:
-    if not line.commission_amount_snapshot or line.quantity <= 0:
-        return ZERO
-    qty = (
-        SupermarketLineReturn.objects.filter(
-            order_line=line,
-            created_at__gte=start,
-            created_at__lte=end,
-        ).aggregate(total=Sum("quantity"))["total"]
-        or Decimal("0")
-    )
-    qty = min(Decimal(str(line.quantity)), Decimal(str(qty)))
-    return (
-        _money(line.commission_amount_snapshot) * qty / Decimal(str(line.quantity))
-    ).quantize(MONEY, rounding=ROUND_HALF_UP)
+def _worker_row(workers, membership):
+    key = str(membership.pk)
+    row = workers[key]
+    row["membership_id"] = key
+    row["worker"] = membership.user.get_full_name() or membership.user.email
+    return row
 
 
 def build_commission_report(
@@ -54,8 +35,27 @@ def build_commission_report(
     allowed_outlet_ids,
     currency: str,
 ) -> dict:
-    """Commission report from frozen sale snapshots plus refund evidence."""
+    """Frozen sale commissions plus return/refund adjustments for the period.
+
+    Gross commission is recognized on the date of final settlement. Reversals
+    are recognized when the return/refund occurs, even if the original sale was
+    settled in an earlier reporting period.
+    """
     start, end = utc_day_range_inclusive(date_from, date_to)
+    workers = defaultdict(lambda: {
+        "membership_id": "",
+        "worker": "",
+        "gross_sales": ZERO,
+        "sales_reversal": ZERO,
+        "net_sales": ZERO,
+        "gross_commission": ZERO,
+        "mapped_return_reversal": ZERO,
+        "allocated_refund_reversal": ZERO,
+        "total_reversal": ZERO,
+        "net_commission": ZERO,
+        "line_count": 0,
+    })
+
     completed_order_ids = (
         Order.objects.filter(
             tenant_id=tenant_id,
@@ -66,7 +66,7 @@ def build_commission_report(
         .filter(final_payment_at__gte=start, final_payment_at__lte=end)
         .values_list("id", flat=True)
     )
-    lines = list(
+    sale_lines = list(
         OrderLine.objects.filter(
             order_id__in=completed_order_ids,
             is_voided=False,
@@ -75,48 +75,58 @@ def build_commission_report(
         )
         .select_related(
             "order",
-            "order__outlet",
             "sales_attributed_membership__user",
         )
         .order_by("sales_attributed_membership_id", "order_id", "sort_order")
     )
-
-    workers = defaultdict(lambda: {
-        "membership_id": "",
-        "worker": "",
-        "gross_sales": ZERO,
-        "gross_commission": ZERO,
-        "mapped_return_reversal": ZERO,
-        "allocated_refund_reversal": ZERO,
-        "net_commission": ZERO,
-        "line_count": 0,
-    })
-    order_lines = defaultdict(list)
-    for line in lines:
-        membership = line.sales_attributed_membership
-        row = workers[str(membership.pk)]
-        row["membership_id"] = str(membership.pk)
-        row["worker"] = membership.user.get_full_name() or membership.user.email
+    for line in sale_lines:
+        row = _worker_row(workers, line.sales_attributed_membership)
         row["gross_sales"] += _money(line.commission_base_snapshot)
         row["gross_commission"] += _money(line.commission_amount_snapshot)
         row["line_count"] += 1
-        reversal = _mapped_return_reversal(line, start=start, end=end)
-        row["mapped_return_reversal"] += reversal
-        order_lines[line.order_id].append(line)
 
-    # Refunds that are already linked to physical line returns are handled above.
-    # Other order-level refunds do not prove which item was refunded, so allocate
-    # their commission reversal proportionally across commissionable line revenue.
-    mapped_refund_ids = set(
+    # Exact physical returns reverse the exact credited line, regardless of the
+    # original sale date. Linked refund IDs are excluded from general refund
+    # allocation below so the same customer refund cannot reverse commission twice.
+    returns = list(
         SupermarketLineReturn.objects.filter(
-            refund__isnull=False,
-            refund__created_at__gte=start,
-            refund__created_at__lte=end,
             order__tenant_id=tenant_id,
             order__outlet_id__in=allowed_outlet_ids,
-        ).values_list("refund_id", flat=True)
+            created_at__gte=start,
+            created_at__lte=end,
+            order_line__sales_attributed_membership__isnull=False,
+            order_line__commission_base_snapshot__isnull=False,
+        )
+        .select_related(
+            "order_line",
+            "order_line__sales_attributed_membership__user",
+            "refund",
+        )
+        .order_by("created_at")
     )
-    refunds = (
+    mapped_refund_ids = {
+        item.refund_id for item in returns if item.refund_id is not None
+    }
+    for item in returns:
+        line = item.order_line
+        if line.quantity <= 0:
+            continue
+        fraction = min(
+            Decimal("1"),
+            Decimal(str(item.quantity)) / Decimal(str(line.quantity)),
+        )
+        row = _worker_row(workers, line.sales_attributed_membership)
+        row["sales_reversal"] += (
+            _money(line.commission_base_snapshot) * fraction
+        ).quantize(MONEY, rounding=ROUND_HALF_UP)
+        row["mapped_return_reversal"] += (
+            _money(line.commission_amount_snapshot) * fraction
+        ).quantize(MONEY, rounding=ROUND_HALF_UP)
+
+    # A general refund identifies the sale but not a specific item. Allocate its
+    # adjustment proportionally across that sale's frozen credited lines. This
+    # is explicit allocation, not inferred product attribution.
+    refunds = list(
         Refund.objects.filter(
             tenant_id=tenant_id,
             order__outlet_id__in=allowed_outlet_ids,
@@ -125,40 +135,58 @@ def build_commission_report(
         )
         .exclude(pk__in=mapped_refund_ids)
         .select_related("order")
+        .order_by("created_at")
     )
+    refund_order_ids = {refund.order_id for refund in refunds}
+    refund_lines = defaultdict(list)
+    if refund_order_ids:
+        for line in (
+            OrderLine.objects.filter(
+                order_id__in=refund_order_ids,
+                is_voided=False,
+                commission_base_snapshot__isnull=False,
+                sales_attributed_membership__isnull=False,
+            )
+            .select_related("sales_attributed_membership__user")
+            .order_by("order_id", "sort_order")
+        ):
+            refund_lines[line.order_id].append(line)
+
     unallocated_refund_amount = ZERO
     for refund in refunds:
-        commission_lines = order_lines.get(refund.order_id, [])
-        total_base = sum(
-            (_money(line.commission_base_snapshot) for line in commission_lines),
-            ZERO,
-        )
+        commission_lines = refund_lines.get(refund.order_id, [])
         order_total = _money(refund.order.total)
-        if not commission_lines or total_base <= 0 or order_total <= 0:
+        if not commission_lines or order_total <= 0:
             unallocated_refund_amount += _money(refund.amount)
             continue
         refunded_share = min(Decimal("1"), _money(refund.amount) / order_total)
         for line in commission_lines:
-            membership = line.sales_attributed_membership
-            reversal = (
+            row = _worker_row(workers, line.sales_attributed_membership)
+            row["sales_reversal"] += (
+                _money(line.commission_base_snapshot) * refunded_share
+            ).quantize(MONEY, rounding=ROUND_HALF_UP)
+            row["allocated_refund_reversal"] += (
                 _money(line.commission_amount_snapshot) * refunded_share
             ).quantize(MONEY, rounding=ROUND_HALF_UP)
-            workers[str(membership.pk)]["allocated_refund_reversal"] += reversal
 
     rows = []
     for row in workers.values():
         for key in (
             "gross_sales",
+            "sales_reversal",
             "gross_commission",
             "mapped_return_reversal",
             "allocated_refund_reversal",
         ):
             row[key] = _money(row[key])
+        row["net_sales"] = _money(row["gross_sales"] - row["sales_reversal"])
         row["total_reversal"] = _money(
             row["mapped_return_reversal"] + row["allocated_refund_reversal"]
         )
+        # Reporting may be negative when this period contains a clawback from an
+        # earlier sale. Payroll payment itself remains out of scope.
         row["net_commission"] = _money(
-            max(ZERO, row["gross_commission"] - row["total_reversal"])
+            row["gross_commission"] - row["total_reversal"]
         )
         rows.append(row)
     rows.sort(key=lambda row: (-row["net_commission"], row["worker"].lower()))
@@ -177,7 +205,7 @@ def build_commission_report(
         row["target_amount"] = _money(target.target_amount) if target else None
         if target and target.target_amount > 0:
             row["target_progress_percent"] = (
-                row["gross_sales"] * Decimal("100") / target.target_amount
+                row["net_sales"] * Decimal("100") / target.target_amount
             ).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
         else:
             row["target_progress_percent"] = None
@@ -185,6 +213,9 @@ def build_commission_report(
     return {
         "currency": (currency or "UGX").upper(),
         "workers": rows,
+        "gross_sales": _money(sum((row["gross_sales"] for row in rows), ZERO)),
+        "sales_reversal": _money(sum((row["sales_reversal"] for row in rows), ZERO)),
+        "net_sales": _money(sum((row["net_sales"] for row in rows), ZERO)),
         "gross_commission": _money(sum((row["gross_commission"] for row in rows), ZERO)),
         "total_reversal": _money(sum((row["total_reversal"] for row in rows), ZERO)),
         "net_commission": _money(sum((row["net_commission"] for row in rows), ZERO)),
