@@ -154,9 +154,11 @@ Implemented in source, pending exact-head software/browser certification:
 - Optional global and per-identified-customer redemption limits count fully paid orders, so apply/remove/reapply clicks do not consume redemptions.
 - Staff management and API serializers expose the same target, coupon, quantity and redemption controls.
 - X-for-fixed-amount quantity deals run through the same promotion engine: complete whole-unit sets only, product/family/category/brand target, optional per-order set cap, live basket recalculation, API/staff controls and a fail-closed guard when the configured deal would not reduce the qualifying price.
+- Buy-X-Get-Y now supports a distinct reward product/family/category/brand while preserving same-pool BOGO when no reward target is set. The reward must already be in the basket, reward/qualifying pools must be non-overlapping in this first safe implementation, the cheapest eligible reward units are discounted, and live basket mutations recalculate the saving.
+- Mix-and-match fixed-price deals are supported within one merchandise pool (for example any 3 items in a category/brand/family for one fixed amount) through X-for-fixed-amount; arbitrary multi-pool mix-and-match remains deferred.
 
 Still R2 work:
-- mix-and-match mechanics and cross-target Buy-X-Get-Y;
+- arbitrary multi-pool mix-and-match mechanics beyond one product/family/category/brand pool;
 - group/bundle promotional pricing;
 - richer markdown scheduling and price/promotion performance reporting;
 - an explicit multi-offer stacking/precedence contract if simultaneous offers are later allowed;
