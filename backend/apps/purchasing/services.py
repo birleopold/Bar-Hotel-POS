@@ -13,6 +13,7 @@ from apps.finance.services import post_supplier_payment_expense
 from apps.inventory.models import StockMovement, StockReason
 from apps.inventory.services import apply_manual_stock_change
 from apps.inventory.services_batches import receive_tracked_batch
+from apps.inventory.services_serials import create_received_serial_units, validate_serial_receipt
 from apps.inventory.batches import InventoryBatch
 from django.utils import timezone
 
@@ -52,6 +53,7 @@ def receive_purchase_order_goods(
     if not lines_payload:
         raise ValidationError({"lines": "Enter at least one delivery line."})
     normalized = []
+    delivery_serials = set()
     for row in lines_payload:
         try:
             line_id = row["line_id"]
@@ -87,9 +89,22 @@ def receive_purchase_order_goods(
             qty += (Decimal(package_count) * line.package_units_snapshot).quantize(Decimal("0.001"))
             if qty > Decimal("99999999999.999"):
                 raise ValidationError({"lines": f"Received quantity for {line.menu_item.name} exceeds stock limits."})
+        serials = validate_serial_receipt(
+            tenant_id=po_locked.tenant_id,
+            outlet=po_locked.outlet,
+            menu_item=line.menu_item,
+            quantity=qty,
+            serial_numbers=row.get("serial_numbers", []),
+        )
+        for identifier in serials:
+            folded = identifier.casefold()
+            if folded in delivery_serials:
+                raise ValidationError({"serial_numbers": f'Duplicate identifier "{identifier}" across this delivery.'})
+            delivery_serials.add(folded)
         normalized.append({
             **row, "line_id": line.pk, "quantity": qty,
-            "cartons": carton_count, "packages": package_count, "_line": line,
+            "cartons": carton_count, "packages": package_count,
+            "serial_numbers": serials, "_line": line,
         })
     lines_payload = normalized
     positive_ids = [row["line_id"] for row in lines_payload if row["quantity"] > 0]
@@ -165,10 +180,11 @@ def receive_purchase_order_goods(
                 user=user,
                 note=(f"PO {po_locked.reference or po_locked.pk}")[:512],
                 purchase_order=po_locked,
+                allow_serialized=line.menu_item.serial_tracking,
             )
         line.quantity_received += qty
         line.save(update_fields=["quantity_received", "updated_at"])
-        PurchaseReceiptLine.objects.create(
+        receipt_line = PurchaseReceiptLine.objects.create(
             receipt=receipt,
             purchase_order_line=line,
             quantity_received=qty,
@@ -176,6 +192,16 @@ def receive_purchase_order_goods(
             packages_received=row["packages"],
             inventory_batch=batch,
         )
+        if line.menu_item.serial_tracking:
+            create_received_serial_units(
+                tenant_id=po_locked.tenant_id,
+                outlet=po_locked.outlet,
+                menu_item=line.menu_item,
+                receipt_line=receipt_line,
+                received_at=row.get("received_at") or timezone.localdate(),
+                serial_numbers=row["serial_numbers"],
+                user=user,
+            )
 
     _sync_po_status(po_locked)
     # Trace the delivery itself, including shortages and supplier reference.
