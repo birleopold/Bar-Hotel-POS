@@ -1437,8 +1437,16 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 if catalogue_search:
                     menu_qs = menu_qs.filter(
                         Q(name__icontains=catalogue_search)
+                        | Q(brand__icontains=catalogue_search)
+                        | Q(model_number__icontains=catalogue_search)
+                        | Q(reference_code__icontains=catalogue_search)
                         | Q(sku__icontains=catalogue_search)
                         | Q(barcode__icontains=catalogue_search)
+                        | Q(
+                            alternate_codes__code__icontains=catalogue_search,
+                            alternate_codes__tenant_id=order.tenant_id,
+                            alternate_codes__is_active=True,
+                        )
                         | Q(
                             packages__barcode__icontains=catalogue_search,
                             packages__tenant_id=order.tenant_id,
