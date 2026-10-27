@@ -469,20 +469,6 @@ def lookup_supermarket_sellable_for_code(
     if profile and menu_item_available_at_outlet(profile.menu_item, outlet_id):
         return profile.menu_item, "plu", None
 
-    alternate = (
-        ProductAlternateCode.objects.select_related("menu_item")
-        .filter(
-            tenant_id=tenant_id,
-            is_active=True,
-            code__iexact=token,
-            menu_item__is_active=True,
-        )
-        .first()
-    )
-    if alternate and menu_item_available_at_outlet(alternate.menu_item, outlet_id):
-        # Alternate codes identify the same concrete SKU and do not introduce
-        # different pricing semantics. Treat them like a barcode-origin add.
-        return alternate.menu_item, "barcode", None
     return None, "", None
 
 
