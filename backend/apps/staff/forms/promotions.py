@@ -26,6 +26,8 @@ class StaffPromotionForm(forms.ModelForm):
             "max_redemptions_per_customer",
             "buy_quantity",
             "get_quantity",
+            "fixed_quantity",
+            "fixed_bundle_amount",
             "max_uses_per_order",
             "starts_at",
             "ends_at",
@@ -64,6 +66,12 @@ class StaffPromotionForm(forms.ModelForm):
             "get_quantity": forms.NumberInput(
                 attrs={"class": "staff-input", "min": 1, "step": 1},
             ),
+            "fixed_quantity": forms.NumberInput(
+                attrs={"class": "staff-input", "min": 1, "step": 1},
+            ),
+            "fixed_bundle_amount": forms.NumberInput(
+                attrs={"class": "staff-input", "min": "0.01", "step": "0.01"},
+            ),
             "max_uses_per_order": forms.NumberInput(
                 attrs={"class": "staff-input", "min": 1, "step": 1},
             ),
@@ -88,6 +96,8 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["max_redemptions_per_customer"].required = False
         self.fields["buy_quantity"].required = False
         self.fields["get_quantity"].required = False
+        self.fields["fixed_quantity"].required = False
+        self.fields["fixed_bundle_amount"].required = False
         self.fields["max_uses_per_order"].required = False
         self.fields["ends_at"].required = False
         self.fields["outlets"].required = False
@@ -136,7 +146,9 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["max_redemptions_per_customer"].help_text = "Optional limit for identified customers; anonymous sales do not consume a customer-specific allowance."
         self.fields["buy_quantity"].help_text = "Buy X Get Y only: whole qualifying units the customer pays for in each set."
         self.fields["get_quantity"].help_text = "Buy X Get Y only: whole additional qualifying units made free in each set."
-        self.fields["max_uses_per_order"].help_text = "Buy X Get Y only: optional cap on qualifying sets per order."
+        self.fields["fixed_quantity"].help_text = "X for fixed amount only: whole qualifying units in each deal set."
+        self.fields["fixed_bundle_amount"].help_text = "X for fixed amount only: total price charged for each complete deal set."
+        self.fields["max_uses_per_order"].help_text = "Quantity deals only: optional cap on qualifying sets per order."
         if self.instance.pk:
             if self.instance.starts_at:
                 st = self.instance.starts_at
@@ -170,14 +182,37 @@ class StaffPromotionForm(forms.ModelForm):
                 raise forms.ValidationError(
                     "Buy X Get Y requires both buy quantity and get quantity.",
                 )
+            if data.get("fixed_quantity") or data.get("fixed_bundle_amount"):
+                raise forms.ValidationError(
+                    "Fixed-set fields are only available for X for fixed amount offers.",
+                )
+        elif offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT:
+            if has_pct or has_amt:
+                raise forms.ValidationError(
+                    "X for fixed amount uses set quantity and set price; leave percent and amount discount blank.",
+                )
+            if not data.get("fixed_quantity") or data.get("fixed_bundle_amount") is None:
+                raise forms.ValidationError(
+                    "X for fixed amount requires both set quantity and set price.",
+                )
+            if data.get("buy_quantity") or data.get("get_quantity"):
+                raise forms.ValidationError(
+                    "Buy/get quantities are only available for Buy X Get Y offers.",
+                )
         else:
             if has_pct == has_amt:
                 raise forms.ValidationError(
                     "Set either a percent discount or a fixed amount — exactly one.",
                 )
-            if data.get("buy_quantity") or data.get("get_quantity") or data.get("max_uses_per_order"):
+            if (
+                data.get("buy_quantity")
+                or data.get("get_quantity")
+                or data.get("fixed_quantity")
+                or data.get("fixed_bundle_amount")
+                or data.get("max_uses_per_order")
+            ):
                 raise forms.ValidationError(
-                    "Buy/get quantities are only available for Buy X Get Y offers.",
+                    "Quantity-deal fields are only available for Buy X Get Y or X for fixed amount offers.",
                 )
         targets = [
             bool(data.get("menu_item")),
@@ -189,9 +224,12 @@ class StaffPromotionForm(forms.ModelForm):
             raise forms.ValidationError(
                 "Choose only one promotion target: product, product family, category, or brand.",
             )
-        if offer_type == Promotion.OfferType.BUY_X_GET_Y and sum(targets) != 1:
+        if offer_type in {
+            Promotion.OfferType.BUY_X_GET_Y,
+            Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+        } and sum(targets) != 1:
             raise forms.ValidationError(
-                "Buy X Get Y requires exactly one product, product family, category, or brand target.",
+                "Quantity deals require exactly one product, product family, category, or brand target.",
             )
         if data.get("brand") is not None:
             data["brand"] = (data.get("brand") or "").strip()
