@@ -266,6 +266,13 @@ class ConsoleAccessTests(TestCase):
             business_lines=["bar"],
             enabled_staff_modules=["pos", "workspace"],
         )
+        second_site = Site.objects.create(tenant=second_tenant, name="Main")
+        second_outlet = Outlet.objects.create(
+            site=second_site, name="Bar", outlet_type=OutletType.BAR,
+        )
+        second_station = Workstation.objects.create(
+            tenant=second_tenant, outlet=second_outlet, name="Bar till", code="bar-till",
+        )
         self.client.force_login(user)
 
         home = self.client.get(reverse("console-index"))
@@ -286,6 +293,15 @@ class ConsoleAccessTests(TestCase):
         self.assertContains(home, "Active workspace:</strong> Second Console Org")
         organization = self.client.get(reverse("console-org"))
         self.assertEqual(organization.status_code, 200)
+        self.assertEqual(self.client.get(reverse("console-org-workstation-create")).status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse("console-org-workstation-test", args=[second_station.pk])).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(reverse("console-org-workstation-pair", args=[second_station.pk])).status_code,
+            200,
+        )
 
     def test_non_platform_user_cannot_switch_to_workspace_without_membership(self) -> None:
         user = User.objects.create_user(email="co-switch-denied@test.local", password="TestPass9!")
