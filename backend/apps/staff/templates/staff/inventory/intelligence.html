@@ -32,6 +32,7 @@
   <span><strong>{{ low_stock_page_count }}</strong><small>Low stock on this page</small></span>
   <span><strong>{{ inactive_page_count }}</strong><small>Potentially idle on this page</small></span>
   <span><strong>{{ unknown_age_page_count }}</strong><small>Unbatched stock records on this page</small></span>
+  <span><strong>{{ warehouse_proposal_count }}</strong><small>Warehouse replenishment proposals on this page</small></span>
 </div>
 {% if stock_rows %}
 <div class="row g-3 mb-3">
@@ -74,6 +75,29 @@
       {% else %}
         <p class="staff-muted mb-0">Not enough information. Set a reorder level or record supplier deliveries.</p>
       {% endif %}
+      {% if row.warehouse_proposal %}
+      <div class="staff-alert staff-alert--info mt-3">
+        <strong>Warehouse stock can cover {{ row.warehouse_proposal.proposed_quantity }} {{ row.unit }}.</strong>
+        <div class="small mt-1">
+          Source: {{ row.warehouse_proposal.from_outlet }} ·
+          warehouse available {{ row.warehouse_proposal.warehouse_available }} ·
+          branch need {{ row.warehouse_proposal.suggested_need }} ·
+          already inbound {{ row.warehouse_proposal.open_inbound }}.
+          {% if row.warehouse_proposal.unfilled_after_proposal > 0 %}
+          Remaining uncovered need after this proposal: {{ row.warehouse_proposal.unfilled_after_proposal }}.
+          {% endif %}
+        </div>
+      </div>
+      {% if can_request_transfer %}
+      <form method="post" class="mt-2">{% csrf_token %}
+        <input type="hidden" name="from_outlet" value="{{ row.warehouse_proposal.from_outlet_id }}">
+        <input type="hidden" name="to_outlet" value="{{ row.warehouse_proposal.to_outlet_id }}">
+        <input type="hidden" name="menu_item" value="{{ row.warehouse_proposal.menu_item_id }}">
+        <input type="hidden" name="safety_days" value="{{ safety_days }}">
+        <button class="staff-btn staff-btn--primary" type="submit">Request from warehouse</button>
+      </form>
+      {% endif %}
+      {% endif %}
       {% if can_create_purchasing and row.suggested_order > 0 %}
       <a class="staff-btn staff-btn--ghost mt-3" href="{% url 'staff-purchasing-order-create' %}?outlet={{ row.outlet_id }}&amp;menu_item={{ row.menu_item_id }}&amp;quantity={{ row.suggested_order }}{% if row.preferred_supplier_id %}&amp;supplier={{ row.preferred_supplier_id }}{% endif %}">Prepare purchase order</a>
       {% endif %}
@@ -92,7 +116,7 @@
 {% endif %}
 <section class="staff-card mt-4">
   <h2 class="fizo-inventory__heading">How to read this report</h2>
-  <p class="staff-muted mb-0">Only stock with recorded batch receipt dates has a reliable age. The movement ratio is a simple 30-day usage comparison, not a formal sell-through rate. Dead-stock flags require evidence of old receiving activity and 90 days without recorded usage. Check stock counts, missing supplier prices and purchase orders before making purchasing decisions.</p>
+  <p class="staff-muted mb-0">Only stock with recorded batch receipt dates has a reliable age. The movement ratio is a simple 30-day usage comparison, not a formal sell-through rate. Dead-stock flags require evidence of old receiving activity and 90 days without recorded usage. Warehouse proposals use current warehouse on-hand stock, subtract approved source commitments and existing inbound transfer requests, and never move stock automatically. Check stock counts, transfer requests, missing supplier prices and purchase orders before making purchasing decisions.</p>
 </section>
 </div>
 {% endblock %}
