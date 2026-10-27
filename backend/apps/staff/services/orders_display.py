@@ -59,7 +59,11 @@ def promotions_selectable_for_order(order: Order):
             coupon_code="",
         )
         .filter(Q(ends_at__isnull=True) | Q(ends_at__gte=now))
-        .filter(Q(discount_percent__isnull=False) | Q(discount_amount__isnull=False))
+        .filter(
+            Q(offer_type=Promotion.OfferType.BUY_X_GET_Y)
+            | Q(discount_percent__isnull=False)
+            | Q(discount_amount__isnull=False)
+        )
         .filter(Q(min_order_subtotal__isnull=True) | Q(min_order_subtotal__lte=order.subtotal))
         .filter(target_q)
         .annotate(_outlet_count=Count("outlets", distinct=True))
@@ -69,11 +73,18 @@ def promotions_selectable_for_order(order: Order):
     )
     eligible_ids = []
     for promotion in base:
+        qualifying_quantity = promotion_qualifying_quantity(promotion, order)
         if (
             promotion.min_target_quantity is not None
-            and promotion_qualifying_quantity(promotion, order) < promotion.min_target_quantity
+            and qualifying_quantity < promotion.min_target_quantity
         ):
             continue
+        if promotion.offer_type == Promotion.OfferType.BUY_X_GET_Y:
+            required = (promotion.buy_quantity or 0) + (promotion.get_quantity or 0)
+            if required <= 0 or qualifying_quantity != qualifying_quantity.to_integral_value():
+                continue
+            if qualifying_quantity < required:
+                continue
         if promotion_redemption_block_reason(promotion, order):
             continue
         eligible_ids.append(promotion.pk)
