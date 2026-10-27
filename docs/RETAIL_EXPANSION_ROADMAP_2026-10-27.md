@@ -286,7 +286,11 @@ Implemented in source, pending exact-head certification:
 - Manual stock increases, upward physical-count corrections and assembly-created stock invalidate cost trust unless a dedicated known-cost workflow supplies evidence.
 - Legitimate retail and serialized restocks reuse the original sale-line cost snapshot when it was authoritative; historically uncosted returns remain incomplete.
 - The existing Stock balances screen now shows average cost, trusted inventory value and an explicit `Cost incomplete` state instead of hiding cost coverage in the database.
-- This is weighted-average cost by outlet. Landed-cost allocation, supplier freight/duty distribution and assembly cost roll-up remain R4 work.
+- This is weighted-average cost by outlet. Assembly cost roll-up remains R4 work.
+- Receipt-level landed-cost allocation is implemented for shipping/freight and duty/clearing. The receiver can record those charges as evidence without affecting inventory cost, or explicitly distribute them by received supplier-cost value.
+- Supplier unit cost and landed unit cost remain separate immutable receipt-line snapshots. Weighted-average outlet cost uses the landed unit cost only when distribution was explicitly selected.
+- Landed-cost distribution fails closed if any received line lacks supplier unit cost or if the received supplier-cost value is zero; it never invents a basis.
+- Delivery history shows freight, duty/clearing, allocation treatment and landed unit cost per received line.
 - Optional tenant-wide minimum retail gross margin is now configurable in Business settings. Enforcement activates only for Retail/Supermarket products whose outlet cost basis is complete.
 - Automatic promotions that would breach the trusted-cost margin floor are hidden and rejected server-side; automatic customer price-book rates fall back to ordinary price; wholesale tiers are rejected rather than silently selling below the configured floor.
 - Manager-approved manual line discounts may cross the floor only when the approval intent includes an explicit margin-override reason of at least eight characters. The override, configured floor, computed minimum unit price and proposed unit price are written to the existing audit ledger.
@@ -325,10 +329,11 @@ This checkpoint intentionally does **not** enable automatic margin-floor blockin
 - Lead-time history.
 
 ### R4.4 Landed cost
-- Freight, duty, handling and other landed charges.
-- Allocation method: value/quantity/weight/manual.
-- Preserve original supplier unit cost and landed unit cost separately.
-- Margin warnings/recommended selling price based on approved cost policy.
+- Shipping/freight and duty/clearing are implemented at physical receipt level.
+- Current allocation methods: exclude from inventory cost, or distribute proportionally by received supplier-cost value.
+- Original supplier unit cost and landed unit cost are preserved separately on receipt lines.
+- Landed unit cost feeds the authoritative outlet weighted-average inventory cost and therefore future sale COGS/margin snapshots.
+- Remaining: quantity/weight/manual allocation modes, landed-cost corrections/credit handling, richer profitability recommendations and assembly cost roll-up.
 
 ### R4.5 Supplier performance
 - On-time delivery.
