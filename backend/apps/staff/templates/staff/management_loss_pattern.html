@@ -16,12 +16,12 @@
 <section class="staff-card mb-3">
   <h2 class="staff-card__title">Pattern summary</h2>
   <div class="staff-tile-grid">
-    {% if pattern_detail.summary.refunds != None %}<article class="staff-tile"><span class="staff-muted small">Refunds</span><strong>{{ pattern_detail.summary.refunds }}</strong></article>{% endif %}
-    {% if pattern_detail.summary.voids != None %}<article class="staff-tile"><span class="staff-muted small">Voids</span><strong>{{ pattern_detail.summary.voids }}</strong></article>{% endif %}
-    {% if pattern_detail.summary.line_discounts != None %}<article class="staff-tile"><span class="staff-muted small">Line discounts</span><strong>{{ pattern_detail.summary.line_discounts }}</strong></article>{% endif %}
-    {% if pattern_detail.summary.margin_overrides != None %}<article class="staff-tile"><span class="staff-muted small">Margin overrides</span><strong>{{ pattern_detail.summary.margin_overrides }}</strong></article>{% endif %}
-    {% if pattern_detail.summary.cash_variances != None %}<article class="staff-tile"><span class="staff-muted small">Cash variances</span><strong>{{ pattern_detail.summary.cash_variances }}</strong></article>{% endif %}
-    {% if pattern_detail.summary.stock_removals != None %}<article class="staff-tile"><span class="staff-muted small">Stock removals</span><strong>{{ pattern_detail.summary.stock_removals }}</strong></article>{% endif %}
+    {% if pattern_detail.dimension != "product" %}<article class="staff-tile"><span class="staff-muted small">Refunds</span><strong>{{ pattern_detail.summary.refunds }}</strong></article>{% endif %}
+    <article class="staff-tile"><span class="staff-muted small">Voids</span><strong>{{ pattern_detail.summary.voids }}</strong></article>
+    <article class="staff-tile"><span class="staff-muted small">Line discounts</span><strong>{{ pattern_detail.summary.line_discounts }}</strong></article>
+    <article class="staff-tile"><span class="staff-muted small">Margin overrides</span><strong>{{ pattern_detail.summary.margin_overrides }}</strong></article>
+    {% if pattern_detail.dimension != "product" %}<article class="staff-tile"><span class="staff-muted small">Cash variances</span><strong>{{ pattern_detail.summary.cash_variances }}</strong></article>{% endif %}
+    <article class="staff-tile"><span class="staff-muted small">Stock removals</span><strong>{{ pattern_detail.summary.stock_removals }}</strong></article>
     <article class="staff-tile"><span class="staff-muted small">Total signals</span><strong>{{ pattern_detail.summary.signal_count }}</strong></article>
   </div>
 </section>
