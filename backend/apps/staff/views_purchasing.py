@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.db.models import Q, QuerySet, Sum
+from django.db.models import F, Q, QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils.dateparse import parse_date
@@ -735,6 +735,9 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
             qs = qs.filter(
                 status=PurchaseOrderStatus.DRAFT,
                 approval_status=PurchaseApprovalStatus.PENDING,
+            ).order_by(
+                F("needed_by").asc(nulls_last=True),
+                "created_at",
             ).order_by("created_at")
         st = self.request.GET.get("status")
         if st and st in {c[0] for c in PurchaseOrderStatus.choices}:
