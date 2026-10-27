@@ -158,7 +158,9 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
                 "quantity", "net_revenue", "known_cogs",
                 "known_gross_profit", "known_margin_percent",
                 "configured_margin_floor_percent", "target_gross_profit",
-                "margin_shortfall",
+                "margin_shortfall", "cashier", "margin_override_linked",
+                "override_requester", "override_approver", "override_reason",
+                "override_approved_at",
             ])
             for row in profitability["margin_breach_sales"]:
                 writer.writerow([
@@ -171,6 +173,15 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
                     row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
                     row["margin_floor_percent"], row["target_gross_profit"],
                     row["margin_shortfall"],
+                    _spreadsheet_text(row.get("cashier_email", "")),
+                    "yes" if row.get("has_linked_margin_override") else "no",
+                    _spreadsheet_text(row.get("override_requester_email", "")),
+                    _spreadsheet_text(row.get("override_approver_email", "")),
+                    _spreadsheet_text(row.get("override_reason", "")),
+                    (
+                        row["override_approved_at"].isoformat()
+                        if row.get("override_approved_at") else ""
+                    ),
                 ])
 
 
