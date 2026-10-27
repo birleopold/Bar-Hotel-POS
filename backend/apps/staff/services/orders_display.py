@@ -8,7 +8,11 @@ from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from apps.catalog.models import Promotion
-from apps.catalog.promotion_rules import promotion_target_q_for_items
+from apps.catalog.promotion_rules import (
+    promotion_qualifying_quantity,
+    promotion_redemption_block_reason,
+    promotion_target_q_for_items,
+)
 from apps.pos.models import Order
 
 
@@ -47,11 +51,12 @@ def promotions_selectable_for_order(order: Order):
     ]
     target_q = promotion_target_q_for_items(items)
     now = timezone.now()
-    return (
+    base = (
         Promotion.objects.filter(
             tenant_id=order.tenant_id,
             is_active=True,
             starts_at__lte=now,
+            coupon_code="",
         )
         .filter(Q(ends_at__isnull=True) | Q(ends_at__gte=now))
         .filter(Q(discount_percent__isnull=False) | Q(discount_amount__isnull=False))
@@ -62,6 +67,17 @@ def promotions_selectable_for_order(order: Order):
         .distinct()
         .order_by("name")
     )
+    eligible_ids = []
+    for promotion in base:
+        if (
+            promotion.min_target_quantity is not None
+            and promotion_qualifying_quantity(promotion, order) < promotion.min_target_quantity
+        ):
+            continue
+        if promotion_redemption_block_reason(promotion, order):
+            continue
+        eligible_ids.append(promotion.pk)
+    return Promotion.objects.filter(pk__in=eligible_ids).order_by("name")
 
 
 def attach_order_payment_display(orders: list[Order]) -> None:
