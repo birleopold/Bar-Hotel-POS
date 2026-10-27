@@ -169,6 +169,8 @@ class StaffStockTransferForm(forms.Form):
             self.fields["note"].widget.attrs["placeholder"] = (
                 "Why this stock is needed or any transfer instructions"
             )
+        else:
+            self.fields.pop("needed_by", None)
 
     def clean(self):
         data = super().clean()
