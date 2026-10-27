@@ -23,7 +23,7 @@ from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, RetailProductGroup, ServiceOffering, ServiceOfferingOption
+from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, Promotion, RetailProductGroup, ServiceOffering, ServiceOfferingOption
 from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderServiceMode, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table, Workstation
 from apps.pos.services import (
     adjust_open_order_line_quantity,
@@ -3259,11 +3259,22 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 for error in error_list
             ) or "Check the offer details."
             return reject(detail)
+        promotion = form.cleaned_data.get("promotion")
+        coupon_code = form.cleaned_data.get("coupon_code") or ""
+        if promotion is None:
+            promotion = Promotion.objects.filter(
+                tenant_id=order.tenant_id,
+                is_active=True,
+                coupon_code__iexact=coupon_code,
+            ).first()
+            if promotion is None:
+                return reject("Coupon code was not recognized.")
         try:
             changed = apply_promotion_to_order(
                 order=order,
-                promotion=form.cleaned_data["promotion"],
+                promotion=promotion,
                 user=request.user,
+                coupon_code=coupon_code,
             )
         except DRFValidationError as exc:
             return reject(" ".join(_drf_detail_messages(exc.detail)))
