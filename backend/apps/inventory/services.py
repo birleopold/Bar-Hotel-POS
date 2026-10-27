@@ -254,6 +254,19 @@ def execute_retail_assembly(
         item_names[component.pk] = component.name
 
     all_item_ids = sorted({assembled_item.pk, *component_need.keys()}, key=str)
+    balances = {}
+    for item_id in all_item_ids:
+        balance, _ = StockBalance.objects.select_for_update().get_or_create(
+            tenant_id=tenant_id,
+            outlet=outlet,
+            menu_item_id=item_id,
+            defaults={"quantity": Decimal("0")},
+        )
+        balances[item_id] = balance
+
+    # Batch intake uses the same StockBalance lock before creating a lot. Check
+    # only after all balances are locked so a concurrent batch receipt cannot
+    # appear between this guard and the assembly stock movements.
     if InventoryBatch.objects.filter(
         tenant_id=tenant_id,
         outlet_id=outlet.id,
@@ -265,16 +278,6 @@ def execute_retail_assembly(
                 "Lot-aware assembly allocation must be configured before build/unbuild."
             )
         })
-
-    balances = {}
-    for item_id in all_item_ids:
-        balance, _ = StockBalance.objects.select_for_update().get_or_create(
-            tenant_id=tenant_id,
-            outlet=outlet,
-            menu_item_id=item_id,
-            defaults={"quantity": Decimal("0")},
-        )
-        balances[item_id] = balance
 
     if direction == RetailAssemblyRun.Direction.BUILD:
         for item_id, need in component_need.items():
