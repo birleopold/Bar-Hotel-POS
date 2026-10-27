@@ -286,7 +286,7 @@ Implemented in source, pending exact-head certification:
 - Manual stock increases, upward physical-count corrections and assembly-created stock invalidate cost trust unless a dedicated known-cost workflow supplies evidence.
 - Legitimate retail and serialized restocks reuse the original sale-line cost snapshot when it was authoritative; historically uncosted returns remain incomplete.
 - The existing Stock balances screen now shows average cost, trusted inventory value and an explicit `Cost incomplete` state instead of hiding cost coverage in the database.
-- This is weighted-average cost by outlet. Assembly cost roll-up remains R4 work.
+- This is weighted-average cost by outlet. Trusted retail assembly build cost roll-up is implemented; historical-cost reconstruction for unbuild remains deferred.
 - Receipt-level landed-cost allocation is implemented for shipping/freight and duty/clearing. The receiver can record those charges as evidence without affecting inventory cost, or explicitly distribute them by received supplier-cost value.
 - The purchasing receive API now accepts and validates the same shipping/duty and allocation fields as the staff receiving UI; API receipt/line responses expose landed-cost treatment and cost snapshots.
 - API purchase receiving also forwards package counts, cartons and serial/IMEI identifiers to the authoritative stock-receipt service instead of discarding fields validated by the serializer.
@@ -322,7 +322,7 @@ Implemented in source, pending exact-head certification:
 
 - Cross-target Buy-X-Get-Y pricing now caps the free discount against the reward pool rather than the qualifying pool, so a more expensive reward can be fully discounted when the configured deal intends it.
 
-This checkpoint intentionally does **not** enable automatic margin-floor blocking yet. Margin-floor enforcement will use only balances where `cost_basis_complete=True`; incomplete/legacy stock must first be reconciled through approved cost-bearing workflows.
+Margin-floor enforcement is now active only when `cost_basis_complete=True`. Automatic promotions, customer price books and wholesale pricing cannot cross the configured floor on trusted-cost merchandise; manager-approved manual discounts require an audited override reason. Incomplete/legacy stock remains non-blocking until reconciled through an approved cost-bearing workflow.
 
 ## Workstream R4 — Sourcing, purchasing and supplier intelligence
 
@@ -330,12 +330,12 @@ This checkpoint intentionally does **not** enable automatic margin-floor blockin
 
 **Maps to:** phases 07, 09, 18, 20, 21, 22, 32; SM-10, SM-16, SM-19, SM-31, SM-36.
 
-### R4.1 Purchase requisitions
-- Staff/branch request.
-- Needed-by date, outlet, product, quantity and reason.
-- Draft/submitted/approved/rejected.
-- Manager approval.
-- Consolidate approved requests.
+### R4.1 Purchase requests / approvals
+- Implemented by reusing the existing draft purchase order as the request record; no duplicate requisition ledger.
+- Storekeepers can prepare a pending request for an authorized outlet; manager-created drafts are immediately approved.
+- Pending requests require a different authorized manager to approve or reject before supplier send; rejection requires a note and requester withdrawal is supported.
+- A dedicated Needs approval lane surfaces pending requests to managers; approval state is also exposed through the API and audited.
+- Remaining enhancement: optional needed-by/reason fields and consolidation of multiple approved requests when a business genuinely needs centralized procurement.
 
 ### R4.2 RFQ and quotation comparison
 - Send/record RFQ against one or more suppliers.
