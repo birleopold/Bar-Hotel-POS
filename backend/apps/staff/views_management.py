@@ -298,6 +298,25 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                                 row["uncovered_net_revenue"],
                                 row["incomplete_lines"],
                             ])
+                    if p.get("margin_exceptions"):
+                        writer.writerow([])
+                        writer.writerow([
+                            "Margin-exception section", "Product", "SKU",
+                            "Covered revenue", "Known COGS",
+                            "Known gross profit", "Known margin %",
+                            "Configured floor %",
+                        ])
+                        for row in p["margin_exceptions"]:
+                            writer.writerow([
+                                csv_safe(row["outlet_name"]),
+                                csv_safe(row["item_name"]),
+                                csv_safe(row["sku"]),
+                                row["covered_net_revenue"],
+                                row["known_net_cogs"],
+                                row["known_gross_profit"],
+                                row["known_margin_percent"],
+                                row["margin_floor_percent"],
+                            ])
                     response = HttpResponse(
                         out.getvalue(), content_type="text/csv; charset=utf-8"
                     )
