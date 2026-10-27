@@ -14,7 +14,7 @@
   </header>
   <div class="d-flex flex-wrap gap-2 mb-3">
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags"></i> Categories</a>
-    {% if console_has_retail %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-families' %}"><i class="bi bi-diagram-3"></i> Product families</a>{% endif %}
+    {% if console_has_retail %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-families' %}"><i class="bi bi-diagram-3"></i> Product families</a><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-retail-groups' %}"><i class="bi bi-collection"></i> Quick groups</a>{% endif %}
     {% if console_has_retail %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-retail-groups' %}"><i class="bi bi-collection"></i> Quick-sale groups</a>{% endif %}
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes"></i> View stock levels</a>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-movement-upload' %}"><i class="bi bi-file-earmark-arrow-up"></i> Import opening stock</a>
