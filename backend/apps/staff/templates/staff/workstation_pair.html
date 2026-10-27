@@ -1,4 +1,4 @@
-{% extends workstation_shell_template %}
+{% extends workstation_shell_template|default:"staff/base.html" %}
 {% load static %}
 {% block title %}Browser approvals{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-register.css' %}?v=20261022.2">{% endblock %}
