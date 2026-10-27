@@ -9,7 +9,8 @@ from django.urls import reverse
 from apps.accounts.models import Membership, MembershipRole
 from apps.audit.models import AuditEvent
 from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet
-from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
+from apps.pos.models import Order
+from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
 User = get_user_model()
@@ -83,7 +84,7 @@ class GroceryOwnerConsolePagesTests(TestCase):
         response = self.client.get(
             reverse("console-org-outlets", kwargs={"site_id": self.site.pk})
         )
-        self.assertContains(response, "Sales areas")
+        self.assertContains(response, "Sales &amp; stock areas")
         self.assertContains(response, "Main shop")
         response = self.client.get(
             reverse("console-org-outlet-create", kwargs={"site_id": self.site.pk})
@@ -98,12 +99,12 @@ class GroceryOwnerConsolePagesTests(TestCase):
             self.assertContains(response, self.tenant.name)
             self.assertNotContains(response, "FIZO /")
             self.assertNotContains(response, "Hotel dashboard")
-        self.assertContains(index, "Sales areas")
-        self.assertContains(index, "Manage checkout and sales areas at")
+        self.assertContains(index, "Sales &amp; stock areas")
+        self.assertContains(index, "Manage checkout areas and inventory-only warehouse/storage locations")
         self.assertNotContains(index, "Manage service sections at")
-        self.assertContains(index, "Add sales area")
-        self.assertContains(create, "Save sales area")
-        self.assertContains(create, "Create the checkout or sales area staff will use")
+        self.assertContains(index, "Add area")
+        self.assertContains(create, "Save area")
+        self.assertContains(create, "Create a checkout area or an inventory-only warehouse/storage location")
         self.assertNotContains(create, "Configure the service section your team will use.")
 
     def test_product_editor_keeps_advanced_inputs_available(self):
@@ -229,3 +230,39 @@ class GroceryOwnerConsolePagesTests(TestCase):
         self.assertContains(response, 'aria-label="Administration navigation"')
         self.assertNotContains(response, 'aria-label="Store management"')
         self.assertNotContains(response, 'class="grocery-setup"')
+
+
+    def test_retail_workspace_can_create_inventory_only_warehouse_but_cannot_sell_from_it(self):
+        created = self.client.post(
+            reverse("console-org-outlet-create", kwargs={"site_id": self.site.pk}),
+            {
+                "name": "Central warehouse",
+                "outlet_type": OutletType.WAREHOUSE,
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(created.status_code, 302)
+        warehouse = Outlet.objects.get(site=self.site, name="Central warehouse")
+        self.assertEqual(warehouse.outlet_type, OutletType.WAREHOUSE)
+
+        listing = self.client.get(
+            reverse("console-org-outlets", kwargs={"site_id": self.site.pk})
+        )
+        self.assertContains(listing, "Central warehouse")
+        self.assertContains(listing, "Warehouse / storage")
+
+        session = self.client.session
+        session[STAFF_SESSION_OUTLET_KEY] = str(warehouse.pk)
+        session.save()
+
+        checkout = self.client.get(reverse("staff-retail-pos-entry"))
+        self.assertEqual(checkout.status_code, 302)
+        self.assertEqual(checkout.url, reverse("staff-orders"))
+
+        quick = self.client.post(
+            reverse("staff-order-quick-create"),
+            {"mode": "", "quick_create_key": ""},
+        )
+        self.assertEqual(quick.status_code, 302)
+        self.assertEqual(quick.url, reverse("staff-orders"))
+        self.assertFalse(Order.objects.filter(outlet=warehouse).exists())
