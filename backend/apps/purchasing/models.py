@@ -627,6 +627,85 @@ class SupplierPaymentMethod(models.TextChoices):
     OTHER = "other", "Other"
 
 
+class PurchaseReceiptCostAdjustment(TimeStampedModel):
+    """Append-only landed-cost correction/credit for an already posted receipt."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="purchase_receipt_cost_adjustments",
+    )
+    receipt = models.ForeignKey(
+        PurchaseReceipt,
+        on_delete=models.PROTECT,
+        related_name="cost_adjustments",
+    )
+    reference = models.CharField(max_length=128)
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        help_text="Signed landed-cost change: positive additional cost, negative supplier/freight credit.",
+    )
+    allocation_method = models.CharField(
+        max_length=16,
+        choices=PurchaseReceipt.LandedCostAllocation.choices,
+    )
+    reason = models.CharField(max_length=512)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_receipt_cost_adjustments",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "receipt", "reference"],
+                name="uniq_receipt_cost_adjustment_reference",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(amount=Decimal("0")),
+                name="receipt_cost_adjustment_nonzero",
+            ),
+        ]
+
+
+class PurchaseReceiptCostAdjustmentLine(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    adjustment = models.ForeignKey(
+        PurchaseReceiptCostAdjustment,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    receipt_line = models.ForeignKey(
+        PurchaseReceiptLine,
+        on_delete=models.PROTECT,
+        related_name="cost_adjustment_lines",
+    )
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        help_text="Signed landed-cost value applied to this receipt line.",
+    )
+
+    class Meta:
+        ordering = ["adjustment", "receipt_line"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["adjustment", "receipt_line"],
+                name="uniq_receipt_cost_adjustment_line",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(amount=Decimal("0")),
+                name="receipt_cost_adjustment_line_nonzero",
+            ),
+        ]
+
+
 class SupplierPayment(TimeStampedModel):
     """Actual settlement of received goods; distinct from physical receipt."""
 
