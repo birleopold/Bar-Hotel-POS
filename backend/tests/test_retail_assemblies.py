@@ -226,6 +226,29 @@ class RetailAssemblyJourneyTests(TestCase):
         self.assertEqual(StockBalance.objects.get(menu_item=self.finished).quantity, Decimal("0"))
         self.assertFalse(RetailAssemblyRun.objects.exists())
 
+    def test_hospitality_only_workspace_cannot_open_assembly_operations(self):
+        other = Tenant.objects.create(name="Restaurant assembly", slug="restaurant-assembly")
+        TenantSettings.objects.create(
+            tenant=other,
+            business_lines=["restaurant"],
+            enabled_staff_modules=["inventory", "pos"],
+        )
+        site = Site.objects.create(tenant=other, name="Restaurant")
+        outlet = Outlet.objects.create(site=site, name="Stores", outlet_type=OutletType.RESTAURANT)
+        user = User.objects.create_user(email="restaurant-assembly@test.local", password="Password9!")
+        member = Membership.objects.create(user=user, tenant=other, role=MembershipRole.OWNER)
+        member.sites.add(site)
+        member.outlets.add(outlet)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(other.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(outlet.pk)
+        session.save()
+
+        response = self.client.get(reverse("staff-inventory-assemblies"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("staff-inventory-balances"))
+
     def test_assembly_route_rejects_foreign_outlet(self):
         self._configure_bom()
         other_tenant = Tenant.objects.create(name="Other assembly tenant", slug="other-assembly")
