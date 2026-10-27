@@ -50,6 +50,7 @@ from .forms import (
     ConsoleRetailProductGroupForm,
     ConsoleRetailProductGroupLineForm,
     ConsoleVariantMatrixForm,
+    ConsoleVariantMaintenanceForm,
     ConsoleModifierGroupForm,
     ConsoleModifierOptionForm,
     ConsoleServiceOfferingForm,
@@ -391,15 +392,148 @@ class OrgProductVariantMatrixView(RetailMerchandiseRequiredMixin, View):
     def _combinations(self, schema):
         return list(product(*(row["values"] for row in schema)))
 
-    def _render(self, request, family, form, *, preview=None, created_count=0):
+    def _variant_rows(self, family, *, data=None):
+        rows = []
+        for variant in family.variants.order_by("name"):
+            initial = {
+                "unit_price": variant.unit_price,
+                "reorder_level": variant.reorder_level,
+                "is_active": variant.is_active,
+            }
+            form = ConsoleVariantMaintenanceForm(
+                data if data is not None else None,
+                prefix=f"variant-{variant.pk}",
+                initial=initial,
+            )
+            rows.append({"variant": variant, "form": form})
+        return rows
+
+    def _render(
+        self, request, family, form, *, preview=None, created_count=0,
+        variant_rows=None,
+    ):
         from django.shortcuts import render
+        rows = variant_rows if variant_rows is not None else self._variant_rows(family)
         return render(request, self.template_name, {
             "family": family,
             "form": form,
             "preview_rows": preview or [],
             "created_count": created_count,
-            "variants": family.variants.order_by("name"),
+            "variants": [row["variant"] for row in rows],
+            "variant_rows": rows,
         })
+
+    def _post_update_existing(self, request, family):
+        rows = self._variant_rows(family, data=request.POST)
+        valid = True
+        for row in rows:
+            if not row["form"].is_valid():
+                valid = False
+        if not rows:
+            messages.info(request, "There are no existing variants to update.")
+            return redirect("console-org-product-family-matrix", family_id=family.pk)
+        matrix_form = ConsoleVariantMatrixForm(initial=self._initial_from_family(family))
+        if not valid:
+            return self._render(
+                request, family, matrix_form, variant_rows=rows,
+            )
+
+        with transaction.atomic():
+            locked_family = ProductFamily.objects.select_for_update().get(
+                pk=family.pk, tenant=request.tenant,
+            )
+            ids = [row["variant"].pk for row in rows]
+            locked = {
+                item.pk: item
+                for item in MenuItem.objects.select_for_update().filter(
+                    tenant=request.tenant,
+                    product_family=locked_family,
+                    pk__in=ids,
+                )
+            }
+            if len(locked) != len(ids):
+                messages.error(
+                    request,
+                    "Variant membership changed while you were editing. Reload and try again.",
+                )
+                return redirect(
+                    "console-org-product-family-matrix", family_id=locked_family.pk,
+                )
+
+            changed_count = 0
+            for row in rows:
+                variant = locked[row["variant"].pk]
+                cleaned = row["form"].cleaned_data
+                new_price = cleaned["unit_price"]
+                new_reorder = cleaned.get("reorder_level")
+                new_active = bool(cleaned.get("is_active"))
+                before = {
+                    "unit_price": str(variant.unit_price),
+                    "reorder_level": (
+                        str(variant.reorder_level)
+                        if variant.reorder_level is not None else None
+                    ),
+                    "is_active": variant.is_active,
+                }
+                update_fields = []
+                price_changed = variant.unit_price != new_price
+                if price_changed:
+                    variant.unit_price = new_price
+                    update_fields.append("unit_price")
+                if variant.reorder_level != new_reorder:
+                    variant.reorder_level = new_reorder
+                    update_fields.append("reorder_level")
+                if variant.is_active != new_active:
+                    variant.is_active = new_active
+                    update_fields.append("is_active")
+                if not update_fields:
+                    continue
+                update_fields.append("updated_at")
+                variant.save(update_fields=update_fields)
+                changed_count += 1
+                after = {
+                    "unit_price": str(variant.unit_price),
+                    "reorder_level": (
+                        str(variant.reorder_level)
+                        if variant.reorder_level is not None else None
+                    ),
+                    "is_active": variant.is_active,
+                }
+                log_audit(
+                    tenant_id=request.tenant.pk,
+                    user_id=request.user.pk,
+                    action="catalog.variant_bulk_updated",
+                    entity_type="menu_item",
+                    entity_id=str(variant.pk),
+                    payload={
+                        "product_family_id": str(locked_family.pk),
+                        "sku": variant.sku,
+                        "variant_values": variant.variant_values,
+                        "before": before,
+                        "after": after,
+                    },
+                )
+                if price_changed and variant.is_active:
+                    queue_product_labels(
+                        menu_item=variant,
+                        reason="price_change",
+                        user=request.user,
+                        note=(
+                            f"Variant price changed from {before['unit_price']} "
+                            f"to {after['unit_price']}."
+                        ),
+                    )
+
+        if changed_count:
+            messages.success(
+                request,
+                f"Updated {changed_count} existing variant SKU"
+                f"{'s' if changed_count != 1 else ''}. "
+                "SKU, barcode and variant dimensions were not changed.",
+            )
+        else:
+            messages.info(request, "No variant values changed.")
+        return redirect("console-org-product-family-matrix", family_id=family.pk)
 
     def get(self, request, family_id):
         family = self._family(request, family_id)
@@ -411,6 +545,8 @@ class OrgProductVariantMatrixView(RetailMerchandiseRequiredMixin, View):
 
     def post(self, request, family_id):
         family = self._family(request, family_id)
+        if request.POST.get("action") == "update_existing":
+            return self._post_update_existing(request, family)
         form = ConsoleVariantMatrixForm(request.POST)
         if not form.is_valid():
             return self._render(request, family, form)
@@ -460,7 +596,7 @@ class OrgProductVariantMatrixView(RetailMerchandiseRequiredMixin, View):
             family.variant_schema = schema
             family.save(update_fields=["variant_schema", "updated_at"])
             for name, sku, snapshot, key in planned:
-                MenuItem.objects.create(
+                variant = MenuItem.objects.create(
                     tenant=request.tenant,
                     category=family.category,
                     product_family=family,
@@ -476,6 +612,13 @@ class OrgProductVariantMatrixView(RetailMerchandiseRequiredMixin, View):
                     tax_rate_percent=form.cleaned_data.get("tax_rate_percent"),
                     is_active=form.cleaned_data["is_active"],
                 )
+                if variant.is_active:
+                    queue_product_labels(
+                        menu_item=variant,
+                        reason="new_product",
+                        user=request.user,
+                        note="Variant created from product-family matrix.",
+                    )
             log_audit(
                 tenant_id=request.tenant.pk,
                 user_id=request.user.pk,
