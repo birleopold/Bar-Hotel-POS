@@ -75,7 +75,7 @@ class RetailShelfLabelTests(TestCase):
     def test_label_screen_uses_outlet_price_and_keeps_foreign_items_out(self):
         response = self.client.get(self.url, {"outlet": str(self.outlet.pk)})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Shelf &amp; price labels", html=False)
+        self.assertContains(response, "Merchandise labels", html=False)
         self.assertContains(response, "Geisha Soap")
         self.assertContains(response, "UGX 5500.00")
         self.assertContains(response, "6001234567890")
