@@ -47,6 +47,18 @@ from .menu_sync import sync_menu_item_modifier_groups, sync_menu_item_outlet_lin
 from .mixins import ConsoleOrgAdminRequiredMixin
 
 
+class RetailMerchandiseRequiredMixin(ConsoleOrgAdminRequiredMixin):
+    """Keep retail merchandise tools out of hospitality-only workspaces."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if getattr(request, "tenant", None) is not None:
+            from .services import console_business_line_flags
+            if not console_business_line_flags(request.tenant)["console_has_retail"]:
+                messages.error(request, "Retail merchandise tools are available only when Retail or Supermarket is enabled.")
+                return redirect("console-org-menu-items")
+        return super().dispatch(request, *args, **kwargs)
+
+
 class MenuItemScopedMixin(ConsoleOrgAdminRequiredMixin):
     """Load ``menu_item`` for nested menu URLs."""
 
@@ -96,7 +108,7 @@ class OrgMenuCategoryUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class OrgProductFamilyListView(ConsoleOrgAdminRequiredMixin, ListView):
+class OrgProductFamilyListView(RetailMerchandiseRequiredMixin, ListView):
     template_name = "console/org/product_family_list.html"
     context_object_name = "families"
 
@@ -109,7 +121,7 @@ class OrgProductFamilyListView(ConsoleOrgAdminRequiredMixin, ListView):
         )
 
 
-class OrgProductFamilyCreateView(ConsoleOrgAdminRequiredMixin, CreateView):
+class OrgProductFamilyCreateView(RetailMerchandiseRequiredMixin, CreateView):
     model = ProductFamily
     form_class = ConsoleProductFamilyForm
     template_name = "console/org/product_family_form.html"
@@ -126,7 +138,7 @@ class OrgProductFamilyCreateView(ConsoleOrgAdminRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class OrgProductFamilyUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
+class OrgProductFamilyUpdateView(RetailMerchandiseRequiredMixin, UpdateView):
     model = ProductFamily
     form_class = ConsoleProductFamilyForm
     template_name = "console/org/product_family_form.html"
@@ -146,7 +158,7 @@ class OrgProductFamilyUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class OrgProductVariantMatrixView(ConsoleOrgAdminRequiredMixin, View):
+class OrgProductVariantMatrixView(RetailMerchandiseRequiredMixin, View):
     template_name = "console/org/product_variant_matrix.html"
 
     def _family(self, request, family_id):
@@ -163,7 +175,7 @@ class OrgProductVariantMatrixView(ConsoleOrgAdminRequiredMixin, View):
             initial[f"option_{index}_name"] = row.get("name", "")
             initial[f"option_{index}_values"] = ", ".join(row.get("values", []))
         initial.setdefault("option_1_name", "Colour")
-        initial.setdefault("option_2_name", "Size")
+        initial.setdefault("option_2_name", "")
         first = family.variants.order_by("created_at").first()
         initial["sku_prefix"] = (
             (first.sku.split("-", 1)[0] if first and first.sku else "")
@@ -300,7 +312,7 @@ class OrgProductVariantMatrixView(ConsoleOrgAdminRequiredMixin, View):
         return redirect("console-org-product-family-matrix", family_id=family.pk)
 
 
-class OrgProductPackageListView(MenuItemScopedMixin, ListView):
+class OrgProductPackageListView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, ListView):
     template_name = "console/org/product_package_list.html"
     context_object_name = "packages"
 
@@ -315,7 +327,7 @@ class OrgProductPackageListView(MenuItemScopedMixin, ListView):
         return ctx
 
 
-class OrgProductPackageCreateView(MenuItemScopedMixin, CreateView):
+class OrgProductPackageCreateView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, CreateView):
     model = ProductPackage
     form_class = ConsoleProductPackageForm
     template_name = "console/org/product_package_form.html"
@@ -341,7 +353,7 @@ class OrgProductPackageCreateView(MenuItemScopedMixin, CreateView):
         return ctx
 
 
-class OrgProductPackageUpdateView(MenuItemScopedMixin, UpdateView):
+class OrgProductPackageUpdateView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, UpdateView):
     model = ProductPackage
     form_class = ConsoleProductPackageForm
     template_name = "console/org/product_package_form.html"
