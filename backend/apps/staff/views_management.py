@@ -103,14 +103,72 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                     "unresolved": unresolved,
                     "follow_up": follow_up,
                 })
+            patterns = management_loss_patterns(request, policy=policy)
             ctx.update(
                 exception_rows=rows,
                 exception_policy=policy,
                 exception_assignees=exception_assignees(request),
                 exception_summary=summary,
                 shrink_watch=management_shrink_watch(request, policy=policy),
-                loss_patterns=management_loss_patterns(request, policy=policy),
+                loss_patterns=patterns,
             )
+            if request.GET.get("loss_export") == "csv":
+                out = io.StringIO()
+                writer = csv.writer(out)
+
+                def csv_safe(value):
+                    token = str(value or "")
+                    return "'" + token if token.startswith(
+                        ("=", "+", "-", "@", "\t", "\r")
+                    ) else token
+
+                writer.writerow([
+                    "worker", "refunds", "voids", "line_discounts",
+                    "margin_overrides", "cash_variances", "stock_removals",
+                    "total_signals", "last_activity",
+                ])
+                for item in patterns["workers"]:
+                    writer.writerow([
+                        csv_safe(item["worker"]), item["refunds"], item["voids"],
+                        item["line_discounts"], item["margin_overrides"],
+                        item["cash_variances"], item["stock_removals"],
+                        item["signal_count"],
+                        item["last_seen"].isoformat() if item["last_seen"] else "",
+                    ])
+                writer.writerow([])
+                writer.writerow([
+                    "section", "refunds", "voids", "line_discounts",
+                    "margin_overrides", "cash_variances", "stock_removals",
+                    "total_signals", "last_activity",
+                ])
+                for item in patterns["outlets"]:
+                    writer.writerow([
+                        csv_safe(item["outlet"]), item["refunds"], item["voids"],
+                        item["line_discounts"], item["margin_overrides"],
+                        item["cash_variances"], item["stock_removals"],
+                        item["signal_count"],
+                        item["last_seen"].isoformat() if item["last_seen"] else "",
+                    ])
+                writer.writerow([])
+                writer.writerow([
+                    "product", "voids", "line_discounts", "margin_overrides",
+                    "stock_removals", "total_signals", "last_activity",
+                ])
+                for item in patterns["products"]:
+                    writer.writerow([
+                        csv_safe(item["product"]), item["voids"],
+                        item["line_discounts"], item["margin_overrides"],
+                        item["stock_removals"], item["signal_count"],
+                        item["last_seen"].isoformat() if item["last_seen"] else "",
+                    ])
+                response = HttpResponse(
+                    out.getvalue(), content_type="text/csv; charset=utf-8"
+                )
+                response["Content-Disposition"] = (
+                    f'attachment; filename="loss-patterns-{timezone.localdate()}.csv"'
+                )
+                response["Cache-Control"] = "private, no-store"
+                return response
             can_configure = membership_can_manage_workspace_settings(request.tenant_membership) and not request.session.get("staff_pin_authenticated")
             ctx["can_configure_exceptions"] = can_configure
             ctx["policy_form"] = policy_form or ExceptionPolicyForm(instance=policy)
@@ -324,7 +382,11 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                             "Below-floor sale", "Section", "Product", "SKU",
                             "Quantity", "Net revenue", "Known COGS",
                             "Known gross profit", "Known margin %",
-                            "Configured floor %",
+                            "Configured floor %", "Target gross profit",
+                            "Margin shortfall", "Cashier",
+                            "Margin override linked", "Override requester",
+                            "Override approver", "Override reason",
+                            "Override approved at",
                         ])
                         for row in p["margin_breach_sales"]:
                             writer.writerow([
@@ -338,6 +400,17 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                                 row["known_gross_profit"],
                                 row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
                                 row["margin_floor_percent"],
+                                row.get("target_gross_profit", ""),
+                                row.get("margin_shortfall", ""),
+                                csv_safe(row.get("cashier_email", "")),
+                                "yes" if row.get("has_linked_margin_override") else "no",
+                                csv_safe(row.get("override_requester_email", "")),
+                                csv_safe(row.get("override_approver_email", "")),
+                                csv_safe(row.get("override_reason", "")),
+                                (
+                                    row["override_approved_at"].isoformat()
+                                    if row.get("override_approved_at") else ""
+                                ),
                             ])
                     response = HttpResponse(
                         out.getvalue(), content_type="text/csv; charset=utf-8"
