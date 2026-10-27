@@ -70,7 +70,10 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         oids = membership_outlet_ids(self.request.tenant_membership)
         qs = (
             PurchaseOrder.objects.filter(tenant=self.request.tenant, outlet_id__in=oids)
-            .select_related("supplier", "outlet", "created_by", "reviewed_by")
+            .select_related(
+                "supplier", "outlet", "created_by", "reviewed_by",
+                "source_supplier_quote__rfq",
+            )
             .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments", "invoices__credits", "invoices__allocated_payments", "invoices__matched_lines")
             .order_by("-created_at")
         )
@@ -107,7 +110,10 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         po = serializer.save()
         po = (
             PurchaseOrder.objects.filter(pk=po.pk)
-            .select_related("supplier", "outlet", "created_by")
+            .select_related(
+                "supplier", "outlet", "created_by", "reviewed_by",
+                "source_supplier_quote__rfq",
+            )
             .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments")
             .first()
         )
@@ -145,7 +151,10 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         )
         po = (
             PurchaseOrder.objects.filter(pk=po.pk)
-            .select_related("supplier", "outlet", "created_by")
+            .select_related(
+                "supplier", "outlet", "created_by", "reviewed_by",
+                "source_supplier_quote__rfq",
+            )
             .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments")
             .first()
         )
