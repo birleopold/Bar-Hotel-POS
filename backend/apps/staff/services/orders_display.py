@@ -51,7 +51,7 @@ def promotions_selectable_for_order(order: Order):
     target_q = promotion_target_q_for_items(items)
     now = timezone.now()
     base = (
-        Promotion.objects.filter(
+        Promotion.objects.select_related("tenant__settings").filter(
             tenant_id=order.tenant_id,
             is_active=True,
             starts_at__lte=now,
