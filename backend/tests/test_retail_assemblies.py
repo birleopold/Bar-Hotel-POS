@@ -119,6 +119,8 @@ class RetailAssemblyJourneyTests(TestCase):
         page = self.client.get(url)
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Build &amp; unbuild assemblies")
+        self.assertContains(page, "Trusted build provenance")
+        self.assertContains(page, "mixed or legacy provenance stays cost incomplete")
         self.assertContains(page, "Gift pack")
 
         built = self.client.post(
