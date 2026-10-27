@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from datetime import timedelta
 from decimal import Decimal
 
@@ -8,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, Promotion
+from apps.catalog.recipe_promo_serializers import PromotionSerializer
 from apps.customers.models import Customer
 from apps.pos.models import Order, Payment, PaymentMethod
 from apps.pos.services.orders import (
@@ -791,3 +793,68 @@ class TargetedPromotionTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.discount_amount, Decimal("0.00"))
         self.assertEqual(order.total, Decimal("10000.00"))
+
+
+    def test_promotion_api_serializer_matches_bogo_and_coupon_management_contract(self):
+        payload = {
+            "name": "API BOGO coupon",
+            "offer_type": Promotion.OfferType.BUY_X_GET_Y,
+            "menu_item": str(self.oil.pk),
+            "product_family": None,
+            "category": None,
+            "brand": "",
+            "discount_percent": None,
+            "discount_amount": None,
+            "min_order_subtotal": None,
+            "min_target_quantity": "2",
+            "coupon_code": "APIBOGO",
+            "max_redemptions": 10,
+            "max_redemptions_per_customer": 1,
+            "buy_quantity": 1,
+            "get_quantity": 1,
+            "max_uses_per_order": 2,
+            "starts_at": (timezone.now() - timedelta(minutes=1)).isoformat(),
+            "ends_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            "is_active": True,
+            "outlet_ids": [str(self.outlet.pk)],
+        }
+        serializer = PromotionSerializer(
+            data=payload,
+            context={"request": SimpleNamespace(tenant=self.tenant)},
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        promo = serializer.save()
+        self.assertEqual(promo.offer_type, Promotion.OfferType.BUY_X_GET_Y)
+        self.assertEqual(promo.coupon_code, "APIBOGO")
+        self.assertEqual(promo.buy_quantity, 1)
+        self.assertEqual(promo.get_quantity, 1)
+        self.assertEqual(promo.max_uses_per_order, 2)
+        self.assertEqual(list(promo.outlets.values_list("pk", flat=True)), [self.outlet.pk])
+
+    def test_promotion_api_serializer_rejects_cross_tenant_target(self):
+        other = Tenant.objects.create(name="Other promo tenant", slug="other-promo-tenant")
+        TenantSettings.objects.create(tenant=other, business_lines=["supermarket"])
+        other_category = MenuCategory.objects.create(tenant=other, name="Other")
+        other_item = MenuItem.objects.create(
+            tenant=other,
+            category=other_category,
+            name="Other item",
+            unit_price=Decimal("1000"),
+        )
+        payload = {
+            "name": "Cross tenant offer",
+            "offer_type": Promotion.OfferType.STANDARD,
+            "menu_item": str(other_item.pk),
+            "brand": "",
+            "discount_percent": "10",
+            "discount_amount": None,
+            "starts_at": (timezone.now() - timedelta(minutes=1)).isoformat(),
+            "ends_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            "is_active": True,
+        }
+        serializer = PromotionSerializer(
+            data=payload,
+            context={"request": SimpleNamespace(tenant=self.tenant)},
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("menu_item", serializer.errors)
