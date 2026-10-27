@@ -38,6 +38,7 @@ def queue_product_label(
     reason: str,
     user=None,
     note: str = "",
+    price_snapshot=None,
 ) -> ProductLabelQueueEntry | None:
     """Create/update one pending label task without creating duplicate work."""
     if reason not in ProductLabelQueueEntry.Reason.values:
@@ -54,7 +55,11 @@ def queue_product_label(
         pk=menu_item.pk,
         tenant_id=tenant_id,
     )
-    price = locked_item.unit_price_for_outlet(outlet.pk)
+    price = (
+        locked_item.unit_price_for_outlet(outlet.pk)
+        if price_snapshot is None
+        else price_snapshot
+    )
     entry, created = ProductLabelQueueEntry.objects.update_or_create(
         tenant_id=tenant_id,
         outlet=outlet,
@@ -90,6 +95,7 @@ def queue_product_labels(
     user=None,
     outlets: Iterable[Outlet] | None = None,
     note: str = "",
+    price_snapshot=None,
 ) -> int:
     targets = list(outlets) if outlets is not None else retail_label_outlets_for_item(item=menu_item)
     count = 0
@@ -101,6 +107,7 @@ def queue_product_labels(
             reason=reason,
             user=user,
             note=note,
+            price_snapshot=price_snapshot,
         ) is not None:
             count += 1
     return count
@@ -164,6 +171,7 @@ def mark_product_labels_printed(
     outlet: Outlet,
     menu_item_ids,
     user=None,
+    reason: str | None = None,
 ) -> int:
     if outlet.site.tenant_id != tenant_id:
         raise ValidationError({"outlet": "Label outlet must belong to this business."})
@@ -177,6 +185,10 @@ def mark_product_labels_printed(
         menu_item_id__in=ids,
         status=ProductLabelQueueEntry.Status.PENDING,
     )
+    if reason is not None:
+        if reason not in ProductLabelQueueEntry.Reason.values:
+            raise ValidationError({"reason": "Choose a supported label reason."})
+        qs = qs.filter(reason=reason)
     entry_ids = list(qs.values_list("id", flat=True))
     if not entry_ids:
         return 0
