@@ -60,7 +60,10 @@ def promotions_selectable_for_order(order: Order):
         )
         .filter(Q(ends_at__isnull=True) | Q(ends_at__gte=now))
         .filter(
-            Q(offer_type=Promotion.OfferType.BUY_X_GET_Y)
+            Q(offer_type__in=[
+                Promotion.OfferType.BUY_X_GET_Y,
+                Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+            ])
             | Q(discount_percent__isnull=False)
             | Q(discount_amount__isnull=False)
         )
@@ -81,6 +84,12 @@ def promotions_selectable_for_order(order: Order):
             continue
         if promotion.offer_type == Promotion.OfferType.BUY_X_GET_Y:
             required = (promotion.buy_quantity or 0) + (promotion.get_quantity or 0)
+            if required <= 0 or qualifying_quantity != qualifying_quantity.to_integral_value():
+                continue
+            if qualifying_quantity < required:
+                continue
+        elif promotion.offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT:
+            required = promotion.fixed_quantity or 0
             if required <= 0 or qualifying_quantity != qualifying_quantity.to_integral_value():
                 continue
             if qualifying_quantity < required:
