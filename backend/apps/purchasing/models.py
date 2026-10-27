@@ -100,6 +100,24 @@ class PurchaseOrderLine(TimeStampedModel):
         validators=[MinValueValidator(Decimal("0.001"))],
     )
     units_per_carton_snapshot = models.PositiveSmallIntegerField(default=1)
+    product_package = models.ForeignKey(
+        "catalog.ProductPackage",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_order_lines",
+        help_text="Optional package selected when this PO line was created.",
+    )
+    package_name_snapshot = models.CharField(max_length=96, blank=True)
+    package_units_snapshot = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0.001"))],
+        help_text="Base stock units per selected package at the time the PO was created.",
+    )
+    package_quantity_ordered = models.PositiveIntegerField(default=0)
     quantity_received = models.DecimalField(
         max_digits=14,
         decimal_places=3,
@@ -160,6 +178,7 @@ class PurchaseReceiptLine(TimeStampedModel):
         validators=[MinValueValidator(Decimal("0.001"))],
     )
     cartons_received = models.PositiveIntegerField(default=0)
+    packages_received = models.PositiveIntegerField(default=0)
     inventory_batch = models.ForeignKey(
         "inventory.InventoryBatch", on_delete=models.PROTECT,
         null=True, blank=True, related_name="purchase_receipt_lines",
