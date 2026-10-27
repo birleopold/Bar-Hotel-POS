@@ -305,6 +305,11 @@ class OrderLine(TimeStampedModel):
         validators=[MinValueValidator(Decimal("0"))],
         help_text="Commission earned on this line before later return/refund reversals.",
     )
+    commission_settled_at_snapshot = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When commission attribution was frozen for the completed sale.",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     seat_number = models.PositiveSmallIntegerField(
         null=True,
