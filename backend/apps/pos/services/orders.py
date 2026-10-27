@@ -689,7 +689,7 @@ def add_line_to_open_order(
 ) -> OrderLine:
     from apps.catalog.modifiers_service import resolve_modifier_selection_drfsafe
 
-    if pricing_source not in {"menu", "barcode", "plu", "weighted", "package"}:
+    if pricing_source not in {"menu", "barcode", "plu", "weighted", "package", "serial"}:
         raise ValidationError({"pricing_source": "Invalid retail scan source."})
 
     locked = Order.objects.select_for_update().get(pk=order.pk)
@@ -726,7 +726,7 @@ def add_line_to_open_order(
             locked.lines.select_for_update().filter(
                 menu_item_id=menu_item.pk,
                 is_voided=False,
-                pricing_source__in=("menu", "barcode", "plu", "package"),
+                pricing_source__in=("menu", "barcode", "plu", "package", "serial"),
                 unit_price=unit_price,
                 label=menu_item.name,
                 line_discount_amount=Decimal("0"),
@@ -861,12 +861,33 @@ def add_supermarket_line_by_code(
     user,
 ) -> OrderLine:
     from apps.catalog.scale_labels import decode_scale_weight_label
+    from apps.inventory.models import InventorySerialUnit, SerializedUnitStatus
 
-    decoded = decode_scale_weight_label(
-        tenant_id=order.tenant_id, outlet_id=order.outlet_id, code=(code or "").strip(),
+    token = (code or "").strip()
+    serial_unit = (
+        InventorySerialUnit.objects.select_for_update()
+        .select_related("menu_item")
+        .filter(
+            tenant_id=order.tenant_id,
+            outlet_id=order.outlet_id,
+            serial_number__iexact=token,
+            status__in=[SerializedUnitStatus.AVAILABLE, SerializedUnitStatus.RETURNED],
+            menu_item__is_active=True,
+            menu_item__serial_tracking=True,
+        )
+        .first()
+    )
+    decoded = None if serial_unit is not None else decode_scale_weight_label(
+        tenant_id=order.tenant_id, outlet_id=order.outlet_id, code=token,
     )
     package = None
-    if decoded is not None:
+    if serial_unit is not None:
+        if Decimal(str(quantity)) != Decimal("1"):
+            raise ValidationError({"quantity": "A serial / IMEI scan identifies one physical unit. Leave quantity at 1."})
+        item = serial_unit.menu_item
+        source = "serial"
+        qty = Decimal("1")
+    elif decoded is not None:
         if Decimal(str(quantity)) != Decimal("1"):
             raise ValidationError({"quantity": "Scale labels contain their weight. Leave scan quantity at 1."})
         item, qty = decoded
@@ -915,11 +936,19 @@ def add_supermarket_line_by_code(
         unit_price_override = represented
     # Source assignment and line creation/merge share the same order lock and
     # transaction. Stock quantity is always expressed in the product's base unit.
-    return add_line_to_open_order(
+    line = add_line_to_open_order(
         order=order, menu_item=item, quantity=qty, user=user,
         pricing_source=pricing_source,
         unit_price_override=unit_price_override,
     )
+    if source == "serial" and serial_unit is not None:
+        from apps.inventory.services_serials import assign_serial_to_order_line
+        assign_serial_to_order_line(
+            order_line=line,
+            serial_number=serial_unit.serial_number,
+            user=user,
+        )
+    return line
 
 
 @transaction.atomic
