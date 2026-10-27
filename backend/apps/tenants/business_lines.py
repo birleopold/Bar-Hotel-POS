@@ -148,4 +148,10 @@ def outlet_types_for_business_lines(lines: list[str]) -> list[str]:
         if p.default_outlet_type not in seen:
             seen.add(p.default_outlet_type)
             out.append(p.default_outlet_type)
+    # Retail workspaces may add inventory-only storage locations without
+    # exposing them as checkout sections. Warehouse is intentionally a location
+    # type rather than a separate business line.
+    if any(key in {"retail", "supermarket"} for key in lines):
+        if OutletType.WAREHOUSE not in seen:
+            out.append(OutletType.WAREHOUSE)
     return out
