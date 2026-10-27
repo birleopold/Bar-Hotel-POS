@@ -984,6 +984,14 @@ class Promotion(TimeStampedModel):
             ),
             models.CheckConstraint(
                 condition=(
+                    models.Q(max_redemptions__isnull=True)
+                    | models.Q(max_redemptions_per_customer__isnull=True)
+                    | models.Q(max_redemptions_per_customer__lte=models.F("max_redemptions"))
+                ),
+                name="promotion_customer_limit_within_total",
+            ),
+            models.CheckConstraint(
+                condition=(
                     models.Q(menu_item__isnull=True, product_family__isnull=True, category__isnull=True)
                     | models.Q(menu_item__isnull=False, product_family__isnull=True, category__isnull=True, brand="")
                     | models.Q(menu_item__isnull=True, product_family__isnull=False, category__isnull=True, brand="")
@@ -1011,9 +1019,14 @@ class Promotion(TimeStampedModel):
             raise ValidationError("Choose only one promotion target: product, family, brand, or category.")
         self.brand = (self.brand or "").strip()
         self.coupon_code = (self.coupon_code or "").strip()
-        if self.max_redemptions_per_customer and not self.max_redemptions:
-            # Per-customer limits can stand alone; no global cap is required.
-            pass
+        if (
+            self.max_redemptions is not None
+            and self.max_redemptions_per_customer is not None
+            and self.max_redemptions_per_customer > self.max_redemptions
+        ):
+            raise ValidationError({
+                "max_redemptions_per_customer": "Per-customer limit cannot exceed the total redemption limit."
+            })
 
     @property
     def target_label(self):
