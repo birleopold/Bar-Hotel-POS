@@ -16,6 +16,7 @@ from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView, View
 
 from apps.audit.services import log_audit
+from apps.catalog.label_queue import queue_product_label, queue_product_labels
 from apps.catalog.models import (
     MenuCategory,
     MenuItem,
@@ -628,6 +629,13 @@ def _save_catalog_item_safely(view, form, *, creating):
         instance.save()
         sync_menu_item_outlet_links(instance, form.cleaned_data.get("outlets"))
         sync_menu_item_modifier_groups(instance, form.cleaned_data.get("modifier_groups"))
+        if creating:
+            queue_product_labels(
+                menu_item=instance,
+                reason="new_product",
+                user=view.request.user,
+                note="New product added to the catalogue.",
+            )
         if not creating and before_price != instance.unit_price:
             explicit_outlet_ids = list(
                 MenuItemOutlet.objects.filter(menu_item=instance)
@@ -658,6 +666,14 @@ def _save_catalog_item_safely(view, form, *, creating):
                         "after": str(instance.unit_price),
                         "applies_to_all_outlets": not bool(explicit_outlet_ids),
                     },
+                )
+                queue_product_label(
+                    tenant_id=view.request.tenant.pk,
+                    outlet=outlet,
+                    menu_item=instance,
+                    reason="price_change",
+                    user=view.request.user,
+                    note=f"Base price changed from {before_price} to {instance.unit_price}.",
                 )
         view.object = instance
     messages.success(view.request, f"Item “{view.object.name}” {'created' if creating else 'saved'}.")
@@ -889,6 +905,14 @@ class OrgMenuItemOutletCreateView(MenuItemScopedMixin, CreateView):
             price_override=price_override,
         )
         if price_override is not None:
+            queue_product_label(
+                tenant_id=self.request.tenant.pk,
+                outlet=outlet,
+                menu_item=self.menu_item,
+                reason="price_change",
+                user=self.request.user,
+                note=f"Outlet price set to {price_override}.",
+            )
             log_audit(
                 tenant_id=self.request.tenant.pk,
                 user_id=self.request.user.pk,
@@ -933,6 +957,18 @@ class OrgMenuItemOutletUpdateView(MenuItemScopedMixin, UpdateView):
         response = super().form_valid(form)
         current = self.object.price_override
         if previous != current:
+            queue_product_label(
+                tenant_id=self.request.tenant.pk,
+                outlet=self.object.outlet,
+                menu_item=self.menu_item,
+                reason="price_change",
+                user=self.request.user,
+                note=(
+                    f"Outlet price changed from "
+                    f"{previous if previous is not None else self.menu_item.unit_price} "
+                    f"to {current if current is not None else self.menu_item.unit_price}."
+                ),
+            )
             log_audit(
                 tenant_id=self.request.tenant.pk,
                 user_id=self.request.user.pk,
@@ -976,10 +1012,18 @@ class OrgMenuItemOutletDeleteView(MenuItemScopedMixin, DeleteView):
         name = obj.outlet.name
         override = obj.price_override
         outlet_id = obj.outlet_id
+        outlet = obj.outlet
         link_id = obj.pk
         response = super().form_valid(form)
+        remaining_links = MenuItemOutlet.objects.filter(menu_item=self.menu_item).exists()
+        if override is not None and not remaining_links:
+            queue_product_labels(
+                menu_item=self.menu_item,
+                reason="price_change",
+                user=self.request.user,
+                note="Last outlet-specific link removed; product reverted to base-price availability.",
+            )
         if override is not None:
-            remaining_links = MenuItemOutlet.objects.filter(menu_item=self.menu_item).exists()
             after_value = (
                 str(self.menu_item.unit_price)
                 if not remaining_links
