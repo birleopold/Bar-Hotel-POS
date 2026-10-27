@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, Promotion
+from apps.customers.models import Customer
 from apps.pos.models import Order, Payment, PaymentMethod
 from apps.pos.services.orders import (
     add_line_to_open_order,
@@ -420,4 +421,165 @@ class TargetedPromotionTests(TestCase):
         self.assertContains(response, "Choose only one promotion target")
         self.assertFalse(
             Promotion.objects.filter(tenant=self.tenant, name="Bad scope").exists()
+        )
+
+
+    def test_minimum_target_quantity_controls_selector_and_apply(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Buy two oils",
+            menu_item=self.oil,
+            min_target_quantity=Decimal("2"),
+        )
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertTrue(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("2000.00"))
+
+    def test_coupon_offer_is_hidden_from_dropdown_and_requires_matching_code(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Secret coupon",
+            coupon_code="SAVE10",
+        )
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(
+                order=order,
+                promotion=promo,
+                user=self.user,
+                coupon_code="WRONG",
+            )
+        apply_promotion_to_order(
+            order=order,
+            promotion=promo,
+            user=self.user,
+            coupon_code="save10",
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.applied_promotion, promo)
+        self.assertEqual(order.discount_amount, Decimal("1000.00"))
+
+    def test_async_checkout_accepts_coupon_code_without_exposing_coupon_offer(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Code only",
+            coupon_code="CODEONLY",
+        )
+        page = self.client.get(reverse("staff-order-detail", args=[order.pk]))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'name="coupon_code"')
+        self.assertNotContains(page, f'value="{promo.pk}"')
+
+        response = self.client.post(
+            reverse("staff-order-detail", args=[order.pk]),
+            {
+                "action": "apply_promotion",
+                "promotion": "",
+                "coupon_code": "codeonly",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        order.refresh_from_db()
+        self.assertEqual(order.applied_promotion, promo)
+
+    def test_global_paid_redemption_limit_blocks_future_use(self):
+        promo = self._promotion(
+            name="One redemption",
+            max_redemptions=1,
+        )
+        used = self._order()
+        used.applied_promotion = promo
+        used.is_paid = True
+        used.save(update_fields=["applied_promotion", "is_paid", "updated_at"])
+
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+    def test_per_customer_paid_limit_does_not_block_anonymous_customer(self):
+        promo = self._promotion(
+            name="Once per customer",
+            max_redemptions_per_customer=1,
+        )
+        customer = Customer.objects.create(
+            tenant=self.tenant,
+            name="Known shopper",
+            created_by=self.user,
+        )
+        used = self._order()
+        used.customer = customer
+        used.applied_promotion = promo
+        used.is_paid = True
+        used.save(update_fields=["customer", "applied_promotion", "is_paid", "updated_at"])
+
+        same_customer = self._order()
+        same_customer.customer = customer
+        same_customer.save(update_fields=["customer", "updated_at"])
+        add_line_to_open_order(
+            order=same_customer,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertFalse(
+            promotions_selectable_for_order(same_customer).filter(pk=promo.pk).exists()
+        )
+
+        anonymous = self._order()
+        add_line_to_open_order(
+            order=anonymous,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertTrue(
+            promotions_selectable_for_order(anonymous).filter(pk=promo.pk).exists()
         )
