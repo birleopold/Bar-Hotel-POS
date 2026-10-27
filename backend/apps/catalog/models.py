@@ -17,11 +17,6 @@ class MenuCategory(TimeStampedModel):
         related_name="menu_categories",
     )
     name = models.CharField(max_length=128)
-    offer_type = models.CharField(
-        max_length=24,
-        choices=OfferType.choices,
-        default=OfferType.STANDARD,
-    )
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -900,6 +895,11 @@ class Promotion(TimeStampedModel):
         related_name="promotions",
     )
     name = models.CharField(max_length=128)
+    offer_type = models.CharField(
+        max_length=24,
+        choices=OfferType.choices,
+        default=OfferType.STANDARD,
+    )
     menu_item = models.ForeignKey(
         MenuItem,
         on_delete=models.PROTECT,
