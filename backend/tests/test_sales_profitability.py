@@ -354,3 +354,71 @@ class SalesProfitabilityTests(TestCase):
         self.assertEqual(current_report["sale_revenue"], Decimal("100.00"))
         self.assertEqual(current_report["known_net_cogs"], Decimal("60.00"))
         self.assertEqual(current_report["known_gross_profit"], Decimal("40.00"))
+
+    def test_outlet_profitability_coverage_and_unknown_cost_exposure(self):
+        self._paid_order(
+            outlet=self.outlet,
+            item=self.known_item,
+            price="100.00",
+            cost="60.00",
+            trusted=True,
+            key="profit-outlet-known",
+        )
+        self._paid_order(
+            outlet=self.other_outlet,
+            item=self.unknown_item,
+            price="250.00",
+            cost=None,
+            trusted=False,
+            key="profit-outlet-unknown",
+        )
+
+        result = build_merchandise_profitability(
+            tenant_id=self.tenant.pk,
+            date_from=self.today,
+            date_to=self.today,
+            allowed_outlet_ids=[self.outlet.pk, self.other_outlet.pk],
+            currency="UGX",
+        )
+        self.assertEqual(result["sale_revenue"], Decimal("350.00"))
+        self.assertEqual(result["covered_sale_revenue"], Decimal("100.00"))
+        self.assertEqual(result["uncovered_net_revenue"], Decimal("250.00"))
+
+        rows = {row["outlet_id"]: row for row in result["outlets"]}
+        known = rows[str(self.outlet.pk)]
+        unknown = rows[str(self.other_outlet.pk)]
+        self.assertEqual(known["net_revenue"], Decimal("100.00"))
+        self.assertEqual(known["known_net_cogs"], Decimal("60.00"))
+        self.assertEqual(known["known_gross_profit"], Decimal("40.00"))
+        self.assertEqual(known["cost_coverage_percent"], Decimal("100.0"))
+        self.assertTrue(known["profitability_complete"])
+
+        self.assertEqual(unknown["net_revenue"], Decimal("250.00"))
+        self.assertEqual(unknown["covered_net_revenue"], Decimal("0.00"))
+        self.assertEqual(unknown["uncovered_net_revenue"], Decimal("250.00"))
+        self.assertEqual(unknown["known_net_cogs"], Decimal("0.00"))
+        self.assertEqual(unknown["cost_coverage_percent"], Decimal("0.0"))
+        self.assertFalse(unknown["profitability_complete"])
+
+        self.assertEqual(len(result["unknown_cost_exposure"]), 1)
+        exposure = result["unknown_cost_exposure"][0]
+        self.assertEqual(exposure["item_name"], self.unknown_item.name)
+        self.assertEqual(exposure["sku"], self.unknown_item.sku)
+        self.assertEqual(
+            exposure["uncovered_net_revenue"], Decimal("250.00")
+        )
+        self.assertEqual(exposure["incomplete_lines"], 1)
+
+        csv_body = format_sales_summary_csv(
+            self.tenant.pk,
+            self.today,
+            self.today,
+            allowed_outlet_ids=[self.outlet.pk, self.other_outlet.pk],
+        )
+        self.assertIn("merchandise_outlet", csv_body)
+        self.assertIn(self.outlet.name, csv_body)
+        self.assertIn(self.other_outlet.name, csv_body)
+        self.assertIn("unknown_cost_product", csv_body)
+        self.assertIn(self.unknown_item.name, csv_body)
+        self.assertIn("250.00", csv_body)
+
