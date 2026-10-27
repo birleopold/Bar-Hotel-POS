@@ -422,3 +422,88 @@ class SalesProfitabilityTests(TestCase):
         self.assertIn(self.unknown_item.name, csv_body)
         self.assertIn("250.00", csv_body)
 
+    def test_margin_exceptions_only_use_trusted_retail_sale_time_cost(self):
+        settings_obj = self.tenant.settings
+        settings_obj.retail_min_margin_percent = Decimal("30")
+        settings_obj.save(update_fields=[
+            "retail_min_margin_percent", "updated_at",
+        ])
+
+        bar = Outlet.objects.create(
+            site=self.site,
+            name="Bar counter",
+            outlet_type=OutletType.BAR,
+        )
+        membership = Membership.objects.get(
+            tenant=self.tenant, user=self.user,
+        )
+        membership.outlets.add(bar)
+
+        self._paid_order(
+            outlet=self.outlet,
+            item=self.known_item,
+            price="100.00",
+            cost="80.00",
+            trusted=True,
+            key="profit-margin-retail-low",
+        )
+        self._paid_order(
+            outlet=bar,
+            item=self.known_item,
+            price="100.00",
+            cost="80.00",
+            trusted=True,
+            key="profit-margin-bar-low",
+        )
+        self._paid_order(
+            outlet=self.other_outlet,
+            item=self.unknown_item,
+            price="200.00",
+            cost=None,
+            trusted=False,
+            key="profit-margin-retail-unknown",
+        )
+
+        result = build_merchandise_profitability(
+            tenant_id=self.tenant.pk,
+            date_from=self.today,
+            date_to=self.today,
+            allowed_outlet_ids=[
+                self.outlet.pk, self.other_outlet.pk, bar.pk,
+            ],
+            currency="UGX",
+        )
+        self.assertEqual(
+            result["configured_margin_floor_percent"], Decimal("30")
+        )
+        self.assertEqual(len(result["margin_exceptions"]), 1)
+        alert = result["margin_exceptions"][0]
+        self.assertEqual(alert["outlet_id"], str(self.outlet.pk))
+        self.assertEqual(alert["outlet_name"], self.outlet.name)
+        self.assertEqual(alert["item_name"], self.known_item.name)
+        self.assertEqual(alert["covered_net_revenue"], Decimal("100.00"))
+        self.assertEqual(alert["known_net_cogs"], Decimal("80.00"))
+        self.assertEqual(alert["known_gross_profit"], Decimal("20.00"))
+        self.assertEqual(alert["known_margin_percent"], Decimal("20.0"))
+        self.assertEqual(alert["margin_floor_percent"], Decimal("30"))
+        self.assertNotEqual(alert["outlet_id"], str(bar.pk))
+        self.assertTrue(
+            all(
+                row["item_name"] != self.unknown_item.name
+                for row in result["margin_exceptions"]
+            )
+        )
+
+        csv_body = format_sales_summary_csv(
+            self.tenant.pk,
+            self.today,
+            self.today,
+            allowed_outlet_ids=[
+                self.outlet.pk, self.other_outlet.pk, bar.pk,
+            ],
+        )
+        self.assertIn("margin_exception_outlet", csv_body)
+        self.assertIn(self.outlet.name, csv_body)
+        self.assertIn(self.known_item.name, csv_body)
+        self.assertNotIn("Bar counter,Known cost soap", csv_body)
+
