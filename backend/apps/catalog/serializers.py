@@ -6,7 +6,18 @@ from rest_framework import serializers
 
 from apps.tenants.models import Outlet
 
-from .models import MenuCategory, MenuItem, MenuItemModifierGroup, MenuItemOutlet, ModifierGroup, ModifierOption
+from .models import (
+    MenuCategory,
+    MenuItem,
+    MenuItemModifierGroup,
+    MenuItemOutlet,
+    ModifierGroup,
+    ModifierOption,
+    ProductAlternateCode,
+    ProductCustomFieldValue,
+    ProductPackage,
+    RetailProductGroup,
+)
 
 
 class MenuCategorySerializer(serializers.ModelSerializer):
@@ -50,6 +61,8 @@ class MenuItemSerializer(serializers.ModelSerializer):
         required=False,
         help_text="Ordered list of modifier group ids attached to this item.",
     )
+    alternate_codes = serializers.SerializerMethodField(read_only=True)
+    custom_fields = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = MenuItem
@@ -60,6 +73,10 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "category_name",
             "name",
             "description",
+            "brand",
+            "model_number",
+            "reference_code",
+            "msrp",
             "sku",
             "barcode",
             "unit_of_measure",
@@ -78,6 +95,8 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "outlet_ids",
             "modifier_groups",
             "modifier_group_ids",
+            "alternate_codes",
+            "custom_fields",
             "created_at",
             "updated_at",
         ]
@@ -87,6 +106,8 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "category_name",
             "outlet_links",
             "modifier_groups",
+            "alternate_codes",
+            "custom_fields",
             "created_at",
             "updated_at",
         ]
@@ -126,6 +147,61 @@ class MenuItemSerializer(serializers.ModelSerializer):
             },
         }
     )
+    @extend_schema_field({
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string", "format": "uuid"},
+                "code": {"type": "string"},
+                "code_type": {"type": "string"},
+                "label": {"type": "string"},
+            },
+        },
+    })
+    def get_alternate_codes(self, obj: MenuItem) -> list:
+        return [
+            {
+                "id": str(row.pk),
+                "code": row.code,
+                "code_type": row.code_type,
+                "label": row.label,
+            }
+            for row in obj.alternate_codes.filter(is_active=True).order_by("code_type", "code")
+        ]
+
+    @extend_schema_field({
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string"},
+                "name": {"type": "string"},
+                "field_type": {"type": "string"},
+                "value": {},
+            },
+        },
+    })
+    def get_custom_fields(self, obj: MenuItem) -> list:
+        rows = (
+            ProductCustomFieldValue.objects.filter(
+                tenant_id=obj.tenant_id,
+                menu_item=obj,
+                definition__is_active=True,
+            )
+            .select_related("definition")
+            .order_by("definition__sort_order", "definition__name")
+        )
+        return [
+            {
+                "key": row.definition.key,
+                "name": row.definition.name,
+                "field_type": row.definition.field_type,
+                "value": row.typed_value(),
+            }
+            for row in rows
+        ]
+
     def get_modifier_groups(self, obj: MenuItem) -> list:
         links = (
             MenuItemModifierGroup.objects.filter(menu_item=obj)
@@ -182,6 +258,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Tenant context is required.")
         name = str(validated_data.get("name", getattr(instance, "name", ""))).strip()
         barcode = str(validated_data.get("barcode", getattr(instance, "barcode", "")) or "").strip()
+        sku = str(validated_data.get("sku", getattr(instance, "sku", "")) or "").strip()
         with transaction.atomic():
             # Shared lock with CSV import, manager console and retail quick-add.
             Tenant.objects.select_for_update().get(pk=tenant_id)
@@ -190,8 +267,24 @@ class MenuItemSerializer(serializers.ModelSerializer):
                 existing = existing.exclude(pk=instance.pk)
             if existing.filter(name__iexact=name, is_active=True).exists():
                 raise serializers.ValidationError({"name": "A product with this name already exists."})
-            if barcode and existing.filter(barcode=barcode).exists():
+            if barcode and existing.filter(barcode__iexact=barcode).exists():
                 raise serializers.ValidationError({"barcode": "This barcode is already registered."})
+            for field_name, code in (("barcode", barcode), ("sku", sku)):
+                if not code:
+                    continue
+                if ProductPackage.objects.filter(tenant_id=tenant_id).filter(
+                    serializers.models.Q(barcode__iexact=code)
+                    | serializers.models.Q(sku_alias__iexact=code)
+                ).exists():
+                    raise serializers.ValidationError({field_name: "This code is already assigned to a product package."})
+                if RetailProductGroup.objects.filter(
+                    tenant_id=tenant_id, code__iexact=code
+                ).exists():
+                    raise serializers.ValidationError({field_name: "This code is already assigned to a retail product group."})
+                if ProductAlternateCode.objects.filter(
+                    tenant_id=tenant_id, code__iexact=code
+                ).exists():
+                    raise serializers.ValidationError({field_name: "This code is already assigned as an alternate product code."})
             if create:
                 return self._create_catalog_record(validated_data)
             return self._update_catalog_record(instance, validated_data)
@@ -264,6 +357,10 @@ class MenuItemListSerializer(serializers.ModelSerializer):
             "category_name",
             "name",
             "description",
+            "brand",
+            "model_number",
+            "reference_code",
+            "msrp",
             "sku",
             "unit_price",
             "effective_unit_price",
