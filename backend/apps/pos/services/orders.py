@@ -693,6 +693,8 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
         tax_total=locked.tax_total,
         promotion_override=promotion,
     )
+    if promotion.offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT and disc <= 0:
+        raise ValidationError({"promotion": "This quantity deal does not reduce the current qualifying item price."})
     locked.discount_amount = disc
     locked.applied_promotion = promotion
     locked.save(update_fields=["discount_amount", "applied_promotion", "updated_at"])
