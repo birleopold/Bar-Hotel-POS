@@ -730,6 +730,158 @@ class StaffSupplierProductCodeView(StaffTenantRequiredMixin, TemplateView):
 
     def post(self, request, *args, **kwargs):
         action = (request.POST.get("action") or "save").strip()
+
+        if action == "price_import_preview":
+            rows, errors, file_name = _parse_supplier_price_import(
+                tenant=request.tenant,
+                supplier=self.supplier,
+                upload=request.FILES.get("price_file"),
+            )
+            token = ""
+            if rows and not errors:
+                token = signing.dumps(
+                    {
+                        "tenant_id": str(request.tenant.pk),
+                        "supplier_id": str(self.supplier.pk),
+                        "file_name": file_name,
+                        "rows": rows,
+                    },
+                    salt=SUPPLIER_PRICE_IMPORT_SALT,
+                    compress=True,
+                )
+            ctx = self.get_context_data()
+            ctx["price_import_rows"] = rows
+            ctx["price_import_errors"] = errors
+            ctx["price_import_token"] = token
+            ctx["price_import_file_name"] = file_name
+            return render(
+                request,
+                self.template_name,
+                ctx,
+                status=400 if errors else 200,
+            )
+
+        if action == "price_import_apply":
+            token = (request.POST.get("price_import_token") or "").strip()
+            try:
+                payload = signing.loads(
+                    token,
+                    salt=SUPPLIER_PRICE_IMPORT_SALT,
+                    max_age=3600,
+                )
+            except (signing.BadSignature, signing.SignatureExpired):
+                messages.error(
+                    request,
+                    "Price-list preview expired or was altered. Preview the CSV again.",
+                )
+                return redirect(
+                    "staff-purchasing-supplier-codes",
+                    supplier_id=self.supplier.pk,
+                )
+            if (
+                payload.get("tenant_id") != str(request.tenant.pk)
+                or payload.get("supplier_id") != str(self.supplier.pk)
+            ):
+                messages.error(request, "Price-list preview does not belong to this supplier.")
+                return redirect(
+                    "staff-purchasing-supplier-codes",
+                    supplier_id=self.supplier.pk,
+                )
+            rows = payload.get("rows") or []
+            if not rows or len(rows) > SUPPLIER_PRICE_IMPORT_MAX_ROWS:
+                messages.error(request, "Price-list preview contains no valid rows.")
+                return redirect(
+                    "staff-purchasing-supplier-codes",
+                    supplier_id=self.supplier.pk,
+                )
+            created_count = 0
+            updated_count = 0
+            try:
+                with transaction.atomic():
+                    for row in rows:
+                        item = MenuItem.objects.filter(
+                            tenant=request.tenant,
+                            pk=row["menu_item_id"],
+                            is_active=True,
+                            track_inventory=True,
+                        ).first()
+                        if item is None:
+                            raise DRFValidationError({
+                                "price_import": (
+                                    f"Row {row.get('row_number')}: product is no longer active."
+                                )
+                            })
+                        package = None
+                        package_id = row.get("product_package_id") or ""
+                        if package_id:
+                            package = ProductPackage.objects.filter(
+                                tenant=request.tenant,
+                                pk=package_id,
+                                menu_item=item,
+                                is_active=True,
+                                is_purchasable=True,
+                            ).first()
+                            if package is None:
+                                raise DRFValidationError({
+                                    "price_import": (
+                                        f"Row {row.get('row_number')}: package is no longer purchasable."
+                                    )
+                                })
+                        valid_from = (
+                            parse_date(row.get("valid_from") or "")
+                            if row.get("valid_from") else None
+                        )
+                        valid_until = (
+                            parse_date(row.get("valid_until") or "")
+                            if row.get("valid_until") else None
+                        )
+                        record, created = SupplierPriceRecord.objects.update_or_create(
+                            tenant=request.tenant,
+                            supplier=self.supplier,
+                            menu_item=item,
+                            product_package=package,
+                            minimum_quantity=Decimal(row["minimum_quantity"]),
+                            valid_from=valid_from,
+                            valid_until=valid_until,
+                            source_reference=row.get("source_reference") or "",
+                            defaults={
+                                "unit_cost": Decimal(row["unit_cost"]),
+                                "note": row.get("note") or "",
+                                "is_active": True,
+                            },
+                        )
+                        if created:
+                            created_count += 1
+                        else:
+                            updated_count += 1
+                    log_audit(
+                        tenant_id=request.tenant.pk,
+                        user_id=request.user.pk,
+                        action="purchasing.supplier_price_list_imported",
+                        entity_type="supplier",
+                        entity_id=str(self.supplier.pk),
+                        payload={
+                            "file_name": payload.get("file_name") or "",
+                            "rows": len(rows),
+                            "created": created_count,
+                            "updated": updated_count,
+                        },
+                    )
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+                return redirect(
+                    "staff-purchasing-supplier-codes",
+                    supplier_id=self.supplier.pk,
+                )
+            messages.success(
+                request,
+                f"Supplier price list applied: {created_count} created, {updated_count} updated.",
+            )
+            return redirect(
+                "staff-purchasing-supplier-codes",
+                supplier_id=self.supplier.pk,
+            )
+
         if action in {"price_save", "price_delete"}:
             price_instance = None
             raw_price_id = (request.POST.get("price_id") or "").strip()
