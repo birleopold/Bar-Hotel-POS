@@ -84,6 +84,7 @@ urlpatterns = [
     path("pos/workstations/<uuid:workstation_id>/devices/new/", views_workstations.StaffWorkstationDeviceEditView.as_view(), name="staff-workstation-device-create"),
     path("pos/workstations/<uuid:workstation_id>/devices/<uuid:device_id>/edit/", views_workstations.StaffWorkstationDeviceEditView.as_view(), name="staff-workstation-device-edit"),
     path("pos/workstations/<uuid:workstation_id>/browsers/", views_workstations.StaffWorkstationPairView.as_view(), name="staff-workstation-pair"),
+    path("pos/workstations/<uuid:workstation_id>/bridge/", views_workstations.StaffWorkstationBridgeView.as_view(), name="staff-workstation-bridge"),
     path("pos/workstations/new/", views_workstations.StaffWorkstationEditView.as_view(), name="staff-workstation-create"),
     path("pos/workstations/<uuid:workstation_id>/edit/", views_workstations.StaffWorkstationEditView.as_view(), name="staff-workstation-edit"),
     path("pos/shifts/", views_ops.StaffPosShiftListView.as_view(), name="staff-pos-shifts"),
