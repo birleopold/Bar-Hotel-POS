@@ -264,6 +264,18 @@ class StockBalance(TimeStampedModel):
         default=Decimal("0"),
         validators=[MinValueValidator(Decimal("0"))],
     )
+    average_unit_cost = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Weighted average unit cost for this outlet balance when cost_basis_complete is true.",
+    )
+    cost_basis_complete = models.BooleanField(
+        default=False,
+        help_text="True only when the full on-hand quantity has an authoritative cost basis.",
+    )
 
     class Meta:
         unique_together = [["outlet", "menu_item"]]
