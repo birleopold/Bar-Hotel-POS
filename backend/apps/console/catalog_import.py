@@ -12,6 +12,7 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError as ModelValidationError
 from django.db import transaction
 
+from apps.catalog.label_queue import queue_product_labels
 from apps.catalog.models import MenuCategory, MenuItem, UnitOfMeasure
 from apps.tenants.models import Tenant
 
@@ -331,6 +332,12 @@ def apply_price_updates(*, tenant, rows, user):
         previous = item.unit_price
         item.unit_price = row["new_price"]
         item.save(update_fields=["unit_price", "updated_at"])
+        queue_product_labels(
+            menu_item=item,
+            reason="price_change",
+            user=user,
+            note=f"Bulk base price changed from {previous} to {item.unit_price}.",
+        )
         changed.append({
             "item_id": str(item.pk), "sku": item.sku,
             "before": str(previous), "after": str(item.unit_price),
