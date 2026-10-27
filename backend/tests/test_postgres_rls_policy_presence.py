@@ -21,6 +21,8 @@ class PostgresRlsPolicyPresenceTests(TestCase):
             "finance_accountingmapping",
             "finance_accountingexportbatch",
             "inventory_stockbalance",
+            "purchasing_purchasereceiptcostadjustment",
+            "purchasing_purchasereceiptcostadjustmentline",
             "pos_order",
             "pos_payment",
             "pos_orderdelivery",
