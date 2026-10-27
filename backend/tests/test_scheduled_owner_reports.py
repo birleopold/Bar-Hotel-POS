@@ -168,6 +168,9 @@ def test_owner_summary_includes_historical_cost_coverage_without_guessing():
         line_total=Decimal("100.00"),
         cost_unit_snapshot=None,
         cost_basis_complete_snapshot=False,
+        merchandise_category_snapshot=a["item"].category.name,
+        merchandise_sku_snapshot=a["item"].sku or "",
+        inventory_tracked_snapshot=True,
     )
     payment = Payment.objects.create(
         tenant=a["tenant"],
@@ -184,12 +187,19 @@ def test_owner_summary_includes_historical_cost_coverage_without_guessing():
     summary = _summary_for_schedule(schedule, (period_day, period_day))
     profitability = summary["merchandise_profitability"]
     assert profitability["sale_revenue"] == Decimal("100.00")
+    assert profitability["covered_net_revenue"] == Decimal("0.00")
+    assert profitability["uncovered_net_revenue"] == Decimal("100.00")
     assert profitability["cost_coverage_percent"] == Decimal("0.0")
     assert profitability["profitability_complete"] is False
     assert profitability["known_net_cogs"] == Decimal("0.00")
+    assert profitability["categories"][0]["category_name"] == a["item"].category.name
 
     csv_body = format_sales_summary_csv_from_summary(summary)
     assert "merchandise_profitability_metric" in csv_body
+    assert "covered_net_revenue,0.00,UGX" in csv_body
+    assert "uncovered_net_revenue,100.00,UGX" in csv_body
+    assert "merchandise_category" in csv_body
+    assert a["item"].category.name in csv_body
     assert "cost_coverage_percent,0.0,%" in csv_body
     assert "profitability_complete,no," in csv_body
 
