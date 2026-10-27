@@ -1,11 +1,13 @@
 from decimal import Decimal
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem, ProductPackage
-from apps.purchasing.models import Supplier, SupplierProductCode
+from apps.inventory.models import StockBalance
+from apps.purchasing.models import Supplier, SupplierPriceRecord, SupplierProductCode
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
@@ -210,3 +212,212 @@ class SupplierProductCodeTests(TestCase):
             ).exists()
         )
 
+
+
+    def test_supplier_price_csv_preview_apply_preserves_inventory_and_retail_price(self):
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            product_package=self.package,
+            code="SUP-CASE-24",
+        )
+        StockBalance.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.item,
+            quantity=Decimal("12"),
+            average_unit_cost=Decimal("650.0000"),
+            cost_basis_complete=True,
+        )
+        url = reverse(
+            "staff-purchasing-supplier-codes",
+            args=[self.supplier.pk],
+        )
+        body = (
+            "supplier_code,sku,unit_cost,minimum_quantity,valid_from,valid_until,source_reference,note\n"
+            "SUP-CASE-24,,600,24,2026-11-01,2026-12-31,NOV-CATALOG,Case contract\n"
+            ",WATER-500,640,1,2027-01-01,,JAN-CATALOG,Base price\n"
+        )
+        preview = self.client.post(
+            url,
+            {
+                "action": "price_import_preview",
+                "price_file": SimpleUploadedFile(
+                    "water-prices.csv",
+                    body.encode("utf-8"),
+                    content_type="text/csv",
+                ),
+            },
+        )
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(len(preview.context["price_import_rows"]), 2)
+        token = preview.context["price_import_token"]
+        self.assertTrue(token)
+        self.assertContains(preview, "SUP-CASE-24")
+        self.assertContains(preview, "WATER-500")
+
+        retail_price_before = self.item.unit_price
+        average_cost_before = StockBalance.objects.get(
+            outlet=self.outlet,
+            menu_item=self.item,
+        ).average_unit_cost
+        apply_response = self.client.post(
+            url,
+            {
+                "action": "price_import_apply",
+                "price_import_token": token,
+            },
+        )
+        self.assertEqual(apply_response.status_code, 302)
+
+        prices = SupplierPriceRecord.objects.filter(
+            tenant=self.tenant,
+            supplier=self.supplier,
+        ).order_by("valid_from")
+        self.assertEqual(prices.count(), 2)
+        package_price = prices.get(source_reference="NOV-CATALOG")
+        self.assertEqual(package_price.menu_item_id, self.item.pk)
+        self.assertEqual(package_price.product_package_id, self.package.pk)
+        self.assertEqual(package_price.unit_cost, Decimal("600.00"))
+        self.assertEqual(
+            package_price.minimum_quantity,
+            Decimal("24.000"),
+        )
+        base_price = prices.get(source_reference="JAN-CATALOG")
+        self.assertIsNone(base_price.product_package_id)
+        self.assertEqual(base_price.unit_cost, Decimal("640.00"))
+
+        self.item.refresh_from_db()
+        balance = StockBalance.objects.get(
+            outlet=self.outlet,
+            menu_item=self.item,
+        )
+        self.assertEqual(self.item.unit_price, retail_price_before)
+        self.assertEqual(balance.average_unit_cost, average_cost_before)
+
+    def test_supplier_price_import_rejects_duplicate_rows_and_tampered_preview(self):
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="SUP-WATER",
+        )
+        url = reverse(
+            "staff-purchasing-supplier-codes",
+            args=[self.supplier.pk],
+        )
+        duplicate_body = (
+            "supplier_code,unit_cost,minimum_quantity,valid_from,source_reference\n"
+            "SUP-WATER,700,1,2026-11-01,CATALOG-A\n"
+            "SUP-WATER,710,1,2026-11-01,CATALOG-A\n"
+        )
+        duplicate = self.client.post(
+            url,
+            {
+                "action": "price_import_preview",
+                "price_file": SimpleUploadedFile(
+                    "duplicate.csv",
+                    duplicate_body.encode("utf-8"),
+                    content_type="text/csv",
+                ),
+            },
+        )
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertContains(
+            duplicate,
+            "duplicate price target in this CSV",
+            status_code=400,
+        )
+        self.assertFalse(
+            SupplierPriceRecord.objects.filter(
+                tenant=self.tenant,
+                supplier=self.supplier,
+            ).exists()
+        )
+
+        valid_body = (
+            "supplier_code,unit_cost,source_reference\n"
+            "SUP-WATER,700,CATALOG-B\n"
+        )
+        preview = self.client.post(
+            url,
+            {
+                "action": "price_import_preview",
+                "price_file": SimpleUploadedFile(
+                    "valid.csv",
+                    valid_body.encode("utf-8"),
+                    content_type="text/csv",
+                ),
+            },
+        )
+        token = preview.context["price_import_token"]
+        tampered = token[:-1] + ("x" if token[-1] != "x" else "y")
+        response = self.client.post(
+            url,
+            {
+                "action": "price_import_apply",
+                "price_import_token": tampered,
+            },
+            follow=True,
+        )
+        self.assertContains(
+            response,
+            "preview expired or was altered",
+        )
+        self.assertFalse(
+            SupplierPriceRecord.objects.filter(
+                tenant=self.tenant,
+                supplier=self.supplier,
+            ).exists()
+        )
+
+    def test_supplier_price_import_cannot_match_other_tenant_sku(self):
+        other = Tenant.objects.create(
+            name="Foreign price tenant",
+            slug="foreign-price-tenant",
+        )
+        TenantSettings.objects.create(
+            tenant=other,
+            business_lines=["supermarket"],
+        )
+        other_category = MenuCategory.objects.create(
+            tenant=other,
+            name="Private",
+        )
+        MenuItem.objects.create(
+            tenant=other,
+            category=other_category,
+            name="Private item",
+            sku="FOREIGN-ONLY",
+            unit_price=Decimal("1"),
+            track_inventory=True,
+        )
+        url = reverse(
+            "staff-purchasing-supplier-codes",
+            args=[self.supplier.pk],
+        )
+        body = "sku,unit_cost\nFOREIGN-ONLY,10\n"
+        response = self.client.post(
+            url,
+            {
+                "action": "price_import_preview",
+                "price_file": SimpleUploadedFile(
+                    "foreign.csv",
+                    body.encode("utf-8"),
+                    content_type="text/csv",
+                ),
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response,
+            "no active product matches",
+            status_code=400,
+        )
+        self.assertFalse(
+            SupplierPriceRecord.objects.filter(
+                tenant=self.tenant,
+                supplier=self.supplier,
+            ).exists()
+        )
