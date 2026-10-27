@@ -373,3 +373,79 @@ class PurchaseRequestApprovalTests(TestCase):
             set(event.payload["source_request_ids"]),
             {str(first.pk), str(second.pk)},
         )
+
+
+    def test_consolidation_rejects_conflicting_costs(self):
+        _c1, first = self._create_request(reference="REQ-COST-1")
+        _c2, second = self._create_request(reference="REQ-COST-2")
+        second_line = second.lines.get()
+        second_line.unit_cost = Decimal("2600.00")
+        second_line.save(update_fields=["unit_cost", "updated_at"])
+        manager = self._client_for(self.manager)
+        for po in (first, second):
+            manager.post(
+                reverse("staff-purchasing-order-detail", kwargs={"po_id": po.pk}),
+                {
+                    "action": "approve_request",
+                    "review_note": "Approved for consolidation check",
+                },
+            )
+        response = manager.post(
+            reverse("staff-purchasing-orders"),
+            {
+                "action": "consolidate_requests",
+                "source_request": [str(first.pk), str(second.pk)],
+                "reference": "SHOULD-NOT-EXIST",
+            },
+            follow=True,
+        )
+        self.assertContains(response, "conflicting unit costs")
+        self.assertFalse(
+            PurchaseOrder.objects.filter(reference="SHOULD-NOT-EXIST").exists()
+        )
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertIsNone(first.consolidated_into_id)
+        self.assertIsNone(second.consolidated_into_id)
+
+    def test_consolidation_rejects_mixed_supplier(self):
+        _client, first = self._create_request(reference="REQ-SUPPLIER-1")
+        manager = self._client_for(self.manager)
+        manager.post(
+            reverse("staff-purchasing-order-detail", kwargs={"po_id": first.pk}),
+            {
+                "action": "approve_request",
+                "review_note": "Approved for consolidation",
+            },
+        )
+        other_supplier = Supplier.objects.create(
+            tenant=self.tenant,
+            name="Second supplier",
+        )
+        other = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=other_supplier,
+            outlet=self.outlet,
+            created_by=self.storekeeper,
+            status=PurchaseOrderStatus.DRAFT,
+            approval_status=PurchaseApprovalStatus.APPROVED,
+        )
+        PurchaseOrderLine.objects.create(
+            purchase_order=other,
+            menu_item=self.item,
+            quantity_ordered=Decimal("2"),
+            unit_cost=Decimal("2500"),
+        )
+        response = manager.post(
+            reverse("staff-purchasing-orders"),
+            {
+                "action": "consolidate_requests",
+                "source_request": [str(first.pk), str(other.pk)],
+                "reference": "MIXED-SUPPLIER",
+            },
+            follow=True,
+        )
+        self.assertContains(response, "same supplier and receiving section")
+        self.assertFalse(
+            PurchaseOrder.objects.filter(reference="MIXED-SUPPLIER").exists()
+        )
