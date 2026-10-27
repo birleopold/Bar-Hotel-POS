@@ -527,3 +527,30 @@ class PackageAwarePurchasingTests(TestCase):
         self.assertContains(response, "10.00%")
         self.assertContains(response, "Preferred")
 
+    def test_preferred_supplier_query_preselects_supplier_and_shows_cost_context(self):
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="PREF-WATER",
+            default_unit_cost=Decimal("810"),
+            is_preferred=True,
+        )
+        response = self.client.get(
+            reverse("staff-purchasing-order-create"),
+            {
+                "supplier": str(self.supplier.pk),
+                "outlet": str(self.outlet.pk),
+                "menu_item": str(self.item.pk),
+                "quantity": "12",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["form"].initial.get("supplier"),
+            self.supplier.pk,
+        )
+        self.assertContains(response, "supplier catalog loaded")
+        self.assertContains(response, "PREF-WATER")
+        self.assertContains(response, "default UGX 810.00")
+
