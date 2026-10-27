@@ -425,6 +425,16 @@ class PurchaseOrder(TimeStampedModel):
         help_text="Supplier or internal reference number.",
     )
     expected_date = models.DateField(null=True, blank=True)
+    needed_by = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Requester business need date; separate from supplier expected delivery date.",
+    )
+    request_reason = models.CharField(
+        max_length=512,
+        blank=True,
+        help_text="Why the stock is needed or what business event triggered the request.",
+    )
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(
         "accounts.User",
