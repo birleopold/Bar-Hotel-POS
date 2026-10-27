@@ -371,6 +371,7 @@ class ManagementWorkspaceTests(TestCase):
         self.assertEqual(self.client.get(rows[0].url).status_code, 200)
 
     def test_loss_prevention_exceptions_show_truthful_operator_evidence(self):
+        from apps.inventory.models import StockMovement, StockReason
         from apps.pos.models import OrderLine
 
         self.login()
@@ -441,6 +442,15 @@ class ManagementWorkspaceTests(TestCase):
                 "approval_id": str(approval.pk),
             },
         )
+        movement = StockMovement.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.balance.menu_item,
+            quantity_change=Decimal("-1"),
+            reason=StockReason.ADJUST_OUT,
+            note="Damaged during handling",
+            created_by=self.worker,
+        )
 
         historical_order = Order.objects.create(
             tenant=self.tenant,
@@ -504,6 +514,7 @@ class ManagementWorkspaceTests(TestCase):
         self.assertGreaterEqual(worker_pattern["refunds"], 1)
         self.assertEqual(worker_pattern["line_discounts"], 1)
         self.assertEqual(worker_pattern["margin_overrides"], 1)
+        self.assertGreaterEqual(worker_pattern["stock_removals"], 1)
         self.assertGreaterEqual(manager_pattern["cash_variances"], 1)
         self.assertGreaterEqual(outlet_pattern["refunds"], 1)
         self.assertEqual(outlet_pattern["margin_overrides"], 1)
@@ -541,6 +552,9 @@ class ManagementWorkspaceTests(TestCase):
         self.assertContains(worker_detail, "Refund")
         self.assertContains(worker_detail, "Margin override")
         self.assertContains(worker_detail, "Clearance item approved")
+        self.assertContains(worker_detail, "Stock removal")
+        self.assertContains(worker_detail, "Damaged during handling")
+        self.assertContains(worker_detail, f"movement={movement.pk}")
         self.assertContains(worker_detail, "Open source")
 
         outlet_detail = self.client.get(
