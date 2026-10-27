@@ -1368,3 +1368,38 @@ class TargetedPromotionTests(TestCase):
         self.assertContains(response, "Recent price changes")
         self.assertContains(response, self.oil.name)
 
+    def test_markdown_label_collision_does_not_overwrite_existing_promotion_task(self):
+        first = self._promotion(
+            name="First shelf markdown",
+            menu_item=self.oil,
+            discount_percent=Decimal("10"),
+        )
+        from apps.catalog.promotion_labels import queue_markdown_labels_for_promotion
+        queue_markdown_labels_for_promotion(promotion=first, user=self.user)
+        existing = ProductLabelQueueEntry.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.oil,
+            reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+            status=ProductLabelQueueEntry.Status.PENDING,
+        )
+        self.assertEqual(existing.price_snapshot, Decimal("9000.00"))
+
+        second = self._promotion(
+            name="Second shelf markdown",
+            menu_item=self.oil,
+            discount_percent=Decimal("20"),
+        )
+        queued = queue_markdown_labels_for_promotion(promotion=second, user=self.user)
+        self.assertEqual(queued, 0)
+        existing.refresh_from_db()
+        self.assertEqual(existing.price_snapshot, Decimal("9000.00"))
+        self.assertTrue(existing.note.startswith(f"[promotion:{first.pk}]"))
+        self.assertTrue(
+            AuditEvent.objects.filter(
+                tenant=self.tenant,
+                action="promotion.markdown_label_conflict",
+                entity_id=str(second.pk),
+            ).exists()
+        )
+
