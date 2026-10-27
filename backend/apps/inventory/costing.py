@@ -29,20 +29,16 @@ def normalize_unit_cost(value) -> Decimal:
 
 
 @transaction.atomic
-def apply_receipt_cost_basis(
+def apply_inbound_cost_basis(
     *,
     tenant_id,
     outlet,
     menu_item,
     quantity_received,
     unit_cost,
+    incoming_cost_complete: bool,
 ) -> StockBalance:
-    """Update weighted average cost after the matching stock receipt is posted.
-
-    The caller must have already increased StockBalance by quantity_received in
-    the same outer transaction. This function locks that row again and derives
-    the pre-receipt quantity from the post-receipt balance.
-    """
+    """Blend one already-posted stock increase into the outlet cost basis."""
     try:
         qty = Decimal(str(quantity_received)).quantize(QTY_QUANT)
     except (InvalidOperation, TypeError, ValueError) as exc:
@@ -56,36 +52,55 @@ def apply_receipt_cost_basis(
         menu_item=menu_item,
     )
     if balance.quantity < qty:
-        raise ValidationError({"cost": "Stock balance is lower than the posted receipt quantity."})
+        raise ValidationError({"cost": "Stock balance is lower than the posted inbound quantity."})
 
     old_qty = (balance.quantity - qty).quantize(QTY_QUANT)
-    if unit_cost is None:
-        # Missing supplier cost means the full balance is not safe for margin
-        # protection, even when this was the first receipt.
+    incoming_cost = (
+        normalize_unit_cost(unit_cost)
+        if incoming_cost_complete and unit_cost is not None
+        else None
+    )
+    if incoming_cost is None:
         balance.average_unit_cost = None
         balance.cost_basis_complete = False
+    elif old_qty == 0:
+        balance.average_unit_cost = incoming_cost
+        balance.cost_basis_complete = True
+    elif balance.cost_basis_complete and balance.average_unit_cost is not None:
+        old_value = old_qty * balance.average_unit_cost
+        incoming_value = qty * incoming_cost
+        balance.average_unit_cost = (
+            (old_value + incoming_value) / balance.quantity
+        ).quantize(COST_QUANT, rounding=ROUND_HALF_UP)
+        balance.cost_basis_complete = True
     else:
-        receipt_cost = normalize_unit_cost(unit_cost)
-        if old_qty == 0:
-            balance.average_unit_cost = receipt_cost
-            balance.cost_basis_complete = True
-        elif balance.cost_basis_complete and balance.average_unit_cost is not None:
-            old_value = old_qty * balance.average_unit_cost
-            receipt_value = qty * receipt_cost
-            balance.average_unit_cost = (
-                (old_value + receipt_value) / balance.quantity
-            ).quantize(COST_QUANT, rounding=ROUND_HALF_UP)
-            balance.cost_basis_complete = True
-        else:
-            # Existing legacy/uncosted units make the blended balance unknown.
-            # Do not invent an average from the new receipt alone.
-            balance.average_unit_cost = None
-            balance.cost_basis_complete = False
+        # Existing legacy/uncosted units make the blended balance unknown.
+        balance.average_unit_cost = None
+        balance.cost_basis_complete = False
 
     balance.save(update_fields=[
         "average_unit_cost", "cost_basis_complete", "updated_at",
     ])
     return balance
+
+
+def apply_receipt_cost_basis(
+    *,
+    tenant_id,
+    outlet,
+    menu_item,
+    quantity_received,
+    unit_cost,
+) -> StockBalance:
+    """Update weighted average cost from a physical supplier receipt."""
+    return apply_inbound_cost_basis(
+        tenant_id=tenant_id,
+        outlet=outlet,
+        menu_item=menu_item,
+        quantity_received=quantity_received,
+        unit_cost=unit_cost,
+        incoming_cost_complete=unit_cost is not None,
+    )
 
 
 def authoritative_unit_cost(balance: StockBalance) -> Decimal | None:
