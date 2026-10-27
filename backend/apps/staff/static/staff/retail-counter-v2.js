@@ -824,6 +824,19 @@
   }
   document.addEventListener("submit",function(event){
     var form=event.target;
+    if(!(form instanceof HTMLFormElement)||!form.matches("[data-retail-group-form]"))return;
+    if(!form.checkValidity())return;
+    var asyncReady=!!(window.fetch&&window.FormData&&window.retailEnqueueAddMutation);
+    if(!asyncReady)return;
+    event.preventDefault();
+    var status=form.querySelector("[data-retail-group-status]");
+    window.retailEnqueueAddMutation(form,status,function(data){
+      if(status)status.textContent=data.message||"Group accepted.";
+    });
+  });
+
+  document.addEventListener("submit",function(event){
+    var form=event.target;
     if(!(form instanceof HTMLFormElement)||
        !form.matches("[data-retail-void-line-form]"))return;
     var asyncReady=!!(window.fetch&&window.FormData&&window.retailRefreshCheckout);
