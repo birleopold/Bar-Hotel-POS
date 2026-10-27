@@ -1,13 +1,13 @@
 {% extends "staff/base.html" %}
 {% load static %}
-{% block title %}Stock transfer{% endblock %}
+{% block title %}{% if transfer_request_mode %}Request stock transfer{% else %}Dispatch stock transfer{% endif %}{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.2">{% endblock %}
 {% block content %}
 <div class="fizo-inventory fizo-inventory--transfer-form">
 
   {% include "staff/inventory/includes/subnav.html" %}
-  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory / Transfers</p><h1>Dispatch stock transfer</h1><p>Only the sender's stock decreases now. The recipient confirms quantities before stock is added at the receiving outlet.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></header>
-  <h2 class="fizo-inventory__heading">Transfer</h2>
+  <header class="fizo-inventory__header"><div><p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory / Transfers</p><h1>{% if transfer_request_mode %}Request stock from another section{% else %}Dispatch stock transfer{% endif %}</h1><p>{% if transfer_request_mode %}Submit what your section needs. No stock moves until the sending section approves and dispatches the request.{% else %}Only the sender's stock decreases now. The recipient confirms quantities before stock is added at the receiving outlet.{% endif %}</p></div><div class="d-flex gap-2 flex-wrap"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer-requests' %}">Transfer requests</a><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-box-seam"></i> Stock balances</a></div></header>
+  <h2 class="fizo-inventory__heading">{% if transfer_request_mode %}Request details{% else %}Transfer{% endif %}</h2>
   <form method="post" class="fizo-inventory__panel{% if grocery_owner_shell %} grocery-admin-form{% endif %}" data-transfer-form>
     {% csrf_token %}
     {% if grocery_owner_shell %}<div class="grocery-admin-fields">{% endif %}
@@ -15,8 +15,8 @@
       <div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}</div>
     {% endfor %}
     {% if grocery_owner_shell %}</div>{% endif %}
-    <p class="staff-muted small">Loose units and whole cartons are supported. Quantity remains in transit until physically verified.</p>
-    <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-transfer-submit>Dispatch stock</button>
+    <p class="staff-muted small">{% if transfer_request_mode %}Loose units and whole cartons are supported. Approval does not move stock; movement begins only when the sending section dispatches the approved request.{% else %}Loose units and whole cartons are supported. Quantity remains in transit until physically verified.{% endif %}</p>
+    <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch" data-transfer-submit>{% if transfer_request_mode %}Submit transfer request{% else %}Dispatch stock{% endif %}</button>
     <p class="staff-muted small mt-2" role="status" aria-live="polite" data-transfer-status></p>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Cancel</a>
   </form>
@@ -36,8 +36,8 @@
     inFlight = true;
     var button = form.querySelector("[data-transfer-submit]");
     var status = form.querySelector("[data-transfer-status]");
-    if (button) { button.disabled = true; button.textContent = "Dispatching…"; }
-    if (status) status.textContent = "Saving this transfer. Do not submit it again.";
+    if (button) { button.disabled = true; button.textContent = {% if transfer_request_mode %}"Submitting…"{% else %}"Dispatching…"{% endif %}; }
+    if (status) status.textContent = {% if transfer_request_mode %}"Saving this request. No stock is moving yet."{% else %}"Saving this transfer. Do not submit it again."{% endif %};
   });
 }());
 </script>
