@@ -1,0 +1,95 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}{{ rfq.reference }} · Supplier quotations{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261022.1">{% endblock %}
+{% block content %}
+<div class="fizo-purchasing">
+  <header class="fizo-purchasing__header">
+    <div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing / RFQ</p><h1>{{ rfq.reference }}</h1><p>{{ rfq.outlet.name }} · {{ rfq.get_status_display }}{% if rfq.needed_by %} · Needed by {{ rfq.needed_by }}{% endif %}</p></div>
+    <div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-rfqs' %}">All quotations</a></div>
+  </header>
+  {% include "staff/purchasing/includes/subnav.html" %}
+
+  {% if rfq.notes %}<div class="staff-card mb-3"><strong>Specification / note</strong><p class="mb-0">{{ rfq.notes }}</p></div>{% endif %}
+
+  <section class="staff-card mb-3">
+    <h2 class="staff-section-head">Requested products</h2>
+    <div class="staff-table-wrap"><table class="staff-table">
+      <thead><tr><th>Product</th><th>Requested quantity</th><th>Note</th></tr></thead>
+      <tbody>{% for line in rfq.lines.all %}<tr><td>{{ line.menu_item.name }}</td><td>{{ line.quantity_requested }}</td><td>{{ line.note|default:"—" }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+
+  {% if rfq.status != "awarded" and rfq.status != "cancelled" %}
+  <section class="staff-card mb-3">
+    <h2 class="staff-section-head">Invite another supplier</h2>
+    {% if invite_form.fields.supplier.queryset.exists %}
+    <form method="post" class="d-flex flex-wrap gap-2 align-items-end">{% csrf_token %}<input type="hidden" name="action" value="invite">
+      <div class="flex-grow-1"><label class="staff-label" for="{{ invite_form.supplier.id_for_label }}">Supplier</label>{{ invite_form.supplier }}{% if invite_form.supplier.errors %}<p class="staff-field-error">{{ invite_form.supplier.errors }}</p>{% endif %}</div>
+      <button class="staff-btn staff-btn--primary" type="submit">Add supplier to RFQ</button>
+    </form>
+    {% else %}<p class="staff-muted mb-0">Every active supplier is already on this RFQ.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="staff-card mb-3">
+    <h2 class="staff-section-head">Quote comparison</h2>
+    <p class="staff-muted small">Best price highlights the lowest complete, fully available quotation only. Lead time, payment terms and supplier performance remain separate decision evidence.</p>
+    <div class="staff-table-wrap"><table class="staff-table">
+      <thead><tr><th>Supplier</th><th>Status</th><th>Items</th><th>Freight</th><th>Other</th><th>Total</th><th>Lead time</th><th>Availability</th><th>Decision</th></tr></thead>
+      <tbody>
+      {% for row in comparison_rows %}
+        <tr>
+          <td><strong>{{ row.supplier.name }}</strong>{% if row.quote.reference %}<div class="staff-muted small">{{ row.quote.reference }}</div>{% endif %}</td>
+          <td>{{ row.quote.get_status_display }}{% if row.best_price %}<div><span class="staff-tag">Lowest complete price</span></div>{% endif %}</td>
+          <td>{{ currency }} {{ row.subtotal }}</td>
+          <td>{{ currency }} {{ row.shipping_cost }}</td>
+          <td>{{ currency }} {{ row.other_cost }}</td>
+          <td><strong>{{ currency }} {{ row.total }}</strong></td>
+          <td>{% if row.quote.lead_time_days != None %}{{ row.quote.lead_time_days }} days{% else %}—{% endif %}</td>
+          <td>{% if row.fully_quoted and row.fully_available %}Fully available{% elif row.fully_quoted %}Short supply{% else %}Quote incomplete{% endif %}</td>
+          <td>{% if row.quote.converted_purchase_order_id %}<a href="{% url 'staff-purchasing-order-detail' po_id=row.quote.converted_purchase_order_id %}">Open PO</a>{% elif row.quote.status == "submitted" and row.fully_available and rfq.status != "awarded" %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="award"><input type="hidden" name="quote_id" value="{{ row.quote.pk }}"><button class="staff-btn staff-btn--primary staff-btn--sm" type="submit">Award &amp; create PO</button></form>{% else %}—{% endif %}</td>
+        </tr>
+      {% empty %}<tr><td colspan="9" class="staff-muted">No suppliers added yet.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+
+  {% for row in comparison_rows %}
+  <details class="staff-card mb-3"{% if row.quote.status == "invited" %} open{% endif %}>
+    <summary><strong>{{ row.supplier.name }}</strong> · record / review quotation</summary>
+    {% if row.quote.status == "accepted" %}
+      <p class="staff-muted mt-3">Accepted quotation is locked as sourcing evidence.{% if row.quote.converted_purchase_order_id %} <a href="{% url 'staff-purchasing-order-detail' po_id=row.quote.converted_purchase_order_id %}">Open resulting purchase order</a>.{% endif %}</p>
+    {% else %}
+    <form method="post" class="mt-3">{% csrf_token %}
+      <input type="hidden" name="action" value="record_quote"><input type="hidden" name="quote_id" value="{{ row.quote.pk }}">
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-md-4"><label class="staff-label">Supplier quote reference</label>{{ row.form.reference }}</div>
+        <div class="col-6 col-md-2"><label class="staff-label">Freight</label>{{ row.form.shipping_cost }}</div>
+        <div class="col-6 col-md-2"><label class="staff-label">Other charges</label>{{ row.form.other_cost }}</div>
+        <div class="col-6 col-md-2"><label class="staff-label">Lead days</label>{{ row.form.lead_time_days }}</div>
+        <div class="col-6 col-md-2"><label class="staff-label">Valid until</label>{{ row.form.valid_until }}</div>
+        <div class="col-12 col-md-6"><label class="staff-label">Payment terms</label>{{ row.form.payment_terms }}</div>
+        <div class="col-12 col-md-6"><label class="staff-label">Availability note</label>{{ row.form.availability_note }}</div>
+      </div>
+      <div class="staff-table-wrap"><table class="staff-table">
+        <thead><tr><th>Product</th><th>Requested</th><th>Unit cost</th><th>Available</th><th>Promised date</th><th>Note</th></tr></thead>
+        <tbody>
+        {% for line in row.lines %}
+          <tr>
+            <td>{{ line.item.name }}</td><td>{{ line.quantity_requested }}</td>
+            <td><input class="staff-input" type="number" min="0" step="0.01" required name="quote_line_{{ line.item.purchase_rfq_lines.first.pk }}_unit_cost" value="{{ line.unit_cost|default_if_none:'' }}"></td>
+            <td><input class="staff-input" type="number" min="0" step="0.001" name="quote_line_{{ line.item.purchase_rfq_lines.first.pk }}_available" value="{{ line.quantity_available|default_if_none:'' }}"></td>
+            <td><input class="staff-input" type="date" name="quote_line_{{ line.item.purchase_rfq_lines.first.pk }}_promised" value="{% if line.promised_date %}{{ line.promised_date|date:'Y-m-d' }}{% endif %}"></td>
+            <td><input class="staff-input" maxlength="255" name="quote_line_{{ line.item.purchase_rfq_lines.first.pk }}_note"></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      <button class="staff-btn staff-btn--primary mt-3" type="submit">Save supplier quotation</button>
+    </form>
+    {% endif %}
+  </details>
+  {% endfor %}
+</div>
+{% endblock %}
