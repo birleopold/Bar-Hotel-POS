@@ -39,7 +39,7 @@
                 <a href="{% url 'console-org-menu-item-edit' item_id=it.id %}">Edit</a>
                 <a href="{% url 'console-org-menu-item-photo' item_id=it.id %}">{% if it.product_image_render_src %}Change photo{% else %}Add photo{% endif %}</a>
                 <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Area pricing</a>
-                {% if console_has_retail %}<a href="{% url 'console-org-menu-item-packages' item_id=it.id %}">Packages</a>{% endif %}
+                {% if console_has_retail %}<a href="{% url 'console-org-menu-item-packages' item_id=it.id %}">Packages</a><a href="{% url 'console-org-menu-item-assembly' item_id=it.id %}">Assembly</a>{% endif %}
                 {% if console_has_fnb %}<a href="{% url 'console-org-menu-item-recipe' item_id=it.id %}">Recipe</a>{% endif %}
               </div></td></tr>
           {% endfor %}</tbody>
