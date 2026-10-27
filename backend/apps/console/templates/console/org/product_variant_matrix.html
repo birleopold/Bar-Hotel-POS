@@ -1,0 +1,80 @@
+{% extends "console/base.html" %}
+{% block title %}Variant matrix · {{ family.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header">
+    <div>
+      <p class="grocery-setup__eyebrow">Catalogue / Product families / {{ family.name }}</p>
+      <h1>Variant matrix</h1>
+      <p class="staff-muted">Define up to three dimensions, preview the combinations, then create only the missing sellable SKUs. Existing variants are never rewritten by this screen.</p>
+    </div>
+    <div class="grocery-setup__hero-actions">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-family-edit' family.id %}">Edit family</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-families' %}">All families</a>
+    </div>
+  </header>
+
+  <section class="staff-card">
+    <p class="mb-1"><strong>{{ family.name }}</strong> · {{ family.category.name }}</p>
+    <p class="staff-muted mb-0">The family itself does not hold stock. Every generated row is a normal product with its own SKU, price, stock, barcode and package settings.</p>
+  </section>
+
+  <form method="post" class="staff-card grocery-guided-form mt-3">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grocery-form-fields">
+      {% for field in form %}
+      <div class="grocery-form-field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<div class="grocery-form-errors" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="grocery-form-footer">
+      <span>Preview first. Generation is bounded to 120 combinations in one batch.</span>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="staff-btn staff-btn--ghost" type="submit" name="action" value="preview">Preview matrix</button>
+        <button class="staff-btn staff-btn--primary" type="submit" name="action" value="generate">Create missing variants</button>
+      </div>
+    </div>
+  </form>
+
+  {% if preview_rows %}
+  <section class="staff-card mt-3">
+    <h2>Preview · {{ preview_rows|length }} combinations</h2>
+    <div class="staff-table-wrap"><table class="staff-table">
+      <thead><tr><th>Variant</th><th>Generated SKU</th><th>Result</th></tr></thead>
+      <tbody>{% for row in preview_rows %}
+        <tr><td>{{ row.values }}</td><td>{{ row.sku }}</td><td>{% if row.exists %}Already exists — unchanged{% else %}Will be created{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+  </section>
+  {% endif %}
+
+  <section class="staff-card mt-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div><h2 class="mb-1">Current sellable variants</h2><p class="staff-muted mb-0">{{ variants|length }} product SKU{{ variants|length|pluralize }} currently linked to this family.</p></div>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-create' %}">Add one manually</a>
+    </div>
+    {% if variants %}
+    <div class="staff-table-wrap mt-3"><table class="staff-table">
+      <thead><tr><th>Product</th><th>Variant</th><th>SKU</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+      <tbody>{% for variant in variants %}
+        <tr>
+          <td><strong>{{ variant.name }}</strong></td>
+          <td>{% if variant.variant_values %}{% for option, value in variant.variant_values.items %}<span class="staff-tag">{{ option }}: {{ value }}</span>{% endfor %}{% else %}<span class="staff-muted">Manual family member</span>{% endif %}</td>
+          <td>{{ variant.sku|default:"—" }}</td>
+          <td>{{ variant.unit_price }}</td>
+          <td>{% if variant.track_inventory %}Tracked{% else %}Not tracked{% endif %}</td>
+          <td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-menu-item-edit' variant.id %}">Edit</a><a href="{% url 'console-org-menu-item-packages' variant.id %}">Packages</a></div></td>
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}
+    <p class="staff-muted mt-3 mb-0">No variants have been generated yet.</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}
