@@ -344,13 +344,15 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
             is_active=True,
             track_inventory=True,
         ).order_by("name")
-        ctx["product_packages"] = ProductPackage.objects.filter(
-            tenant=self.request.tenant,
-            is_active=True,
-            is_purchasable=True,
-            menu_item__is_active=True,
-            menu_item__track_inventory=True,
-        ).select_related("menu_item").order_by("menu_item__name", "units_per_package", "name")
+        product_packages = list(
+            ProductPackage.objects.filter(
+                tenant=self.request.tenant,
+                is_active=True,
+                is_purchasable=True,
+                menu_item__is_active=True,
+                menu_item__track_inventory=True,
+            ).select_related("menu_item").order_by("menu_item__name", "units_per_package", "name")
+        )
         selected_supplier = None
         supplier_raw = self.request.POST.get("supplier") if self.request.method == "POST" else self.request.GET.get("supplier")
         if supplier_raw:
@@ -362,10 +364,7 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
                 selected_supplier = Supplier.objects.filter(
                     tenant=self.request.tenant, pk=supplier_id, is_active=True
                 ).first()
-        if selected_supplier is None and self.request.method == "POST" and self.get_form().is_valid():
-            selected_supplier = self.get_form().cleaned_data.get("supplier")
-        ctx["selected_supplier"] = selected_supplier
-        ctx["supplier_product_codes"] = (
+        supplier_codes = list(
             SupplierProductCode.objects.filter(
                 tenant=self.request.tenant,
                 supplier=selected_supplier,
@@ -373,9 +372,25 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
             )
             .select_related("menu_item", "product_package")
             .order_by("menu_item__name", "code")
-            if selected_supplier is not None
-            else SupplierProductCode.objects.none()
-        )
+        ) if selected_supplier is not None else []
+        package_codes = {
+            row.product_package_id: row.code
+            for row in supplier_codes
+            if row.product_package_id is not None
+        }
+        product_codes = {}
+        for row in supplier_codes:
+            if row.product_package_id is None:
+                product_codes.setdefault(row.menu_item_id, row.code)
+        for package in product_packages:
+            package.supplier_code_display = (
+                package_codes.get(package.pk)
+                or product_codes.get(package.menu_item_id)
+                or ""
+            )
+        ctx["product_packages"] = product_packages
+        ctx["selected_supplier"] = selected_supplier
+        ctx["supplier_product_codes"] = supplier_codes
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
