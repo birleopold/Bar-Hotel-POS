@@ -78,6 +78,7 @@ class PromotionSerializer(serializers.ModelSerializer):
             "id",
             "tenant",
             "name",
+            "offer_type",
             "menu_item",
             "product_family",
             "category",
@@ -89,6 +90,9 @@ class PromotionSerializer(serializers.ModelSerializer):
             "coupon_code",
             "max_redemptions",
             "max_redemptions_per_customer",
+            "buy_quantity",
+            "get_quantity",
+            "max_uses_per_order",
             "starts_at",
             "ends_at",
             "is_active",
@@ -101,18 +105,42 @@ class PromotionSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         inst = self.instance
+        offer_type = attrs.get(
+            "offer_type",
+            inst.offer_type if inst else Promotion.OfferType.STANDARD,
+        )
         pct = attrs["discount_percent"] if "discount_percent" in attrs else (
             inst.discount_percent if inst else None
         )
         amt = attrs["discount_amount"] if "discount_amount" in attrs else (
             inst.discount_amount if inst else None
         )
+        buy_quantity = attrs.get("buy_quantity", inst.buy_quantity if inst else None)
+        get_quantity = attrs.get("get_quantity", inst.get_quantity if inst else None)
+        max_uses_per_order = attrs.get(
+            "max_uses_per_order",
+            inst.max_uses_per_order if inst else None,
+        )
         has_pct = pct is not None
         has_amt = amt is not None
-        if has_pct == has_amt:
-            raise serializers.ValidationError(
-                "Set exactly one of discount_percent or discount_amount."
-            )
+        if offer_type == Promotion.OfferType.BUY_X_GET_Y:
+            if has_pct or has_amt:
+                raise serializers.ValidationError(
+                    "Buy X Get Y uses buy/get quantities; leave amount and percent blank."
+                )
+            if not buy_quantity or not get_quantity:
+                raise serializers.ValidationError(
+                    "Buy X Get Y requires both buy quantity and get quantity."
+                )
+        else:
+            if has_pct == has_amt:
+                raise serializers.ValidationError(
+                    "Set exactly one of discount_percent or discount_amount."
+                )
+            if buy_quantity or get_quantity or max_uses_per_order:
+                raise serializers.ValidationError(
+                    "Buy/get quantities are only valid for Buy X Get Y offers."
+                )
 
         tenant = self.context["request"].tenant
         menu_item = attrs.get("menu_item", inst.menu_item if inst else None)
@@ -122,6 +150,13 @@ class PromotionSerializer(serializers.ModelSerializer):
         if sum(bool(value) for value in (menu_item, product_family, category, brand)) > 1:
             raise serializers.ValidationError(
                 "Choose only one promotion target: product, product family, category, or brand."
+            )
+        if (
+            offer_type == Promotion.OfferType.BUY_X_GET_Y
+            and sum(bool(value) for value in (menu_item, product_family, category, brand)) != 1
+        ):
+            raise serializers.ValidationError(
+                "Buy X Get Y requires exactly one product, product family, category, or brand target."
             )
         if menu_item is not None and menu_item.tenant_id != tenant.pk:
             raise serializers.ValidationError({"menu_item": "Choose a product from this business."})
