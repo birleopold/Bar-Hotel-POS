@@ -402,7 +402,9 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Post-receipt landed-cost correction/credit handling is now implemented as an append-only evidence workflow. Original receipt snapshots are never rewritten; the adjustment records its own reference, reason, signed amount, allocation method and per-line amounts.
 - A correction may revalue current weighted-average inventory only when every affected stock balance is complete/positive and no outbound stock movement has occurred for any affected item since that receipt. If stock has already been sold, transferred, returned, wasted or adjusted out, correction fails closed because part of the original cost may already belong in historical COGS.
 - Credits cannot reduce cumulative landed cost below zero. Corrections change no stock quantity, cash, supplier payable, supplier credit-note record or historical sale snapshot; those remain separate workflows.
-- Remaining: richer profitability recommendations and historical-cost reconstruction for assembly unbuilds.
+- Evidence-based profitability recommendations are now implemented in Management → Reports and the profitability CSV. The queue prioritizes missing trusted cost, trusted-cost retail margin-floor shortfalls, unattributed merchandise refunds and foreign-currency scope gaps without auto-changing retail prices, supplier costs, historical COGS, refunds or policy settings.
+- Benchmark check (Lightspeed Retail advanced reporting/inventory performance and Shopify profit reports, 2026-10-27): profit reporting should preserve cost-at-sale semantics, show COGS/gross profit/margin by product/location, and make missing cost visible instead of silently substituting current cost. The action queue follows that evidence-first model and keeps operational correction separate from historical reporting.
+- Remaining: historical-cost reconstruction for assembly unbuilds.
 
 ### R4.5 Supplier performance
 - Implemented on the existing Suppliers directory rather than a separate dashboard.
