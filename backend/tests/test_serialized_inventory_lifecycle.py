@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 
 from django.test import TestCase
 from django.urls import reverse
@@ -7,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem
+from apps.catalog.serializers import MenuItemListSerializer, MenuItemSerializer
 from apps.inventory.models import (
     InventorySerialReturnLink,
     InventorySerialUnit,
@@ -115,6 +117,87 @@ class SerializedInventoryLifecycleTests(TestCase):
             line_total=Decimal(total),
         )
         return order, line
+
+    def test_catalog_api_exposes_and_validates_serialized_product_settings(self):
+        request = SimpleNamespace(tenant=self.tenant)
+        valid = MenuItemSerializer(
+            data={
+                "category": str(self.category.pk),
+                "name": "Tracked tablet",
+                "sku": "TAB-SER",
+                "barcode": "",
+                "unit_of_measure": "each",
+                "units_per_carton": 1,
+                "track_inventory": True,
+                "serial_tracking": True,
+                "serial_identifier_type": "serial",
+                "warranty_months": 24,
+                "unit_price": "900000",
+                "is_active": True,
+            },
+            context={"request": request},
+        )
+        self.assertTrue(valid.is_valid(), valid.errors)
+        self.assertTrue(valid.validated_data["serial_tracking"])
+        self.assertEqual(valid.validated_data["warranty_months"], 24)
+
+        untracked = MenuItemSerializer(
+            data={
+                "category": str(self.category.pk),
+                "name": "Invalid untracked phone",
+                "unit_of_measure": "each",
+                "track_inventory": False,
+                "serial_tracking": True,
+                "serial_identifier_type": "imei",
+                "unit_price": "1000",
+            },
+            context={"request": request},
+        )
+        self.assertFalse(untracked.is_valid())
+        self.assertIn("serial_tracking", untracked.errors)
+
+        weighted = MenuItemSerializer(
+            data={
+                "category": str(self.category.pk),
+                "name": "Invalid weighted serial",
+                "unit_of_measure": "kg",
+                "track_inventory": True,
+                "serial_tracking": True,
+                "serial_identifier_type": "serial",
+                "unit_price": "1000",
+            },
+            context={"request": request},
+        )
+        self.assertFalse(weighted.is_valid())
+        self.assertIn("serial_tracking", weighted.errors)
+
+        payload = MenuItemListSerializer(self.item).data
+        self.assertTrue(payload["serial_tracking"])
+        self.assertEqual(payload["serial_identifier_type"], "imei")
+        self.assertEqual(payload["warranty_months"], 12)
+
+    def test_serial_detail_route_is_not_available_in_hospitality_only_workspace(self):
+        other = Tenant.objects.create(name="Hotel only serials", slug="hotel-only-serials")
+        TenantSettings.objects.create(
+            tenant=other,
+            business_lines=["hotel"],
+            enabled_staff_modules=["inventory", "lodging"],
+        )
+        site = Site.objects.create(tenant=other, name="Hotel")
+        outlet = Outlet.objects.create(site=site, name="Stores", outlet_type=OutletType.HOTEL)
+        user = User.objects.create_user(email="hotel-serial@test.local", password="Password9!")
+        member = Membership.objects.create(user=user, tenant=other, role=MembershipRole.OWNER)
+        member.sites.add(site)
+        member.outlets.add(outlet)
+        self.client.force_login(user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(other.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(outlet.pk)
+        session.save()
+
+        response = self.client.get(reverse("staff-inventory-serial-detail", args=[self.item.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("staff-inventory-balances"))
 
     def test_serialized_po_receipt_creates_stock_and_identifiers_together(self):
         po, line = self._receive_two()
