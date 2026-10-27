@@ -29,8 +29,14 @@
       <option value="approved"{% if status_filter == "approved" %} selected{% endif %}>Approved</option>
     </select>
   </label>
+  <label class="staff-label">Worker
+    <select class="staff-input" name="worker">
+      <option value="">All workers</option>
+      {% for value,label in worker_options %}<option value="{{ value }}"{% if worker_filter == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
   <button class="staff-btn staff-btn--ghost" type="submit">Filter</button>
-  <a class="staff-btn staff-btn--ghost" href="?date_from={{ date_from }}&amp;date_to={{ date_to }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}&amp;export=csv">Export CSV</a>
+  <a class="staff-btn staff-btn--ghost" href="?date_from={{ date_from }}&amp;date_to={{ date_to }}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if worker_filter %}&amp;worker={{ worker_filter }}{% endif %}&amp;export=csv">Export CSV</a>
 </form>
 
 <div class="staff-table-wrap">
