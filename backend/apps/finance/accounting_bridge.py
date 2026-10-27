@@ -15,7 +15,9 @@ from apps.finance.models import (
     AccountingMapping,
     AccountingMappingKind,
 )
+from apps.lodging.models import FolioLine, FolioPayment
 from apps.pos.models import Order, OrderLine, Payment, Refund
+from apps.purchasing.models import SupplierInvoice, SupplierPayment
 
 
 MONEY = Decimal("0.01")
@@ -155,9 +157,15 @@ def build_accounting_preview(
         ):
             sale_lines[line.order_id].append(line)
 
+    validation_errors = []
     source_counts = {
         "completed_sales": len(completed),
         "refunds": 0,
+        "folio_charges": 0,
+        "folio_payments": 0,
+        "supplier_invoices": 0,
+        "supplier_payments": 0,
+        "unmatched_supplier_invoices": 0,
         "trusted_cost_lines": 0,
         "unknown_cost_lines": 0,
     }
@@ -410,6 +418,409 @@ def build_accounting_preview(
                 source_ref=refund_ref,
             )
 
+    # POS orders charged to a guest folio: recognize the sale at the folio
+    # charge event, debit any retained POS tender plus A/R for the unpaid balance.
+    folio_charges = list(
+        FolioLine.objects.filter(
+            tenant_id=tenant_id,
+            source_order__isnull=False,
+            source_order__outlet_id__in=outlet_ids,
+            source_order__currency=currency,
+            amount__gt=0,
+            created_at__gte=start,
+            created_at__lte=end,
+        )
+        .select_related(
+            "folio",
+            "source_order",
+            "source_order__outlet",
+            "source_order__outlet__site",
+            "source_order__created_by",
+        )
+        .order_by("created_at", "pk")
+    )
+    source_counts["folio_charges"] = len(folio_charges)
+    folio_order_ids = [charge.source_order_id for charge in folio_charges]
+    folio_lines = defaultdict(list)
+    if folio_order_ids:
+        for line in (
+            OrderLine.objects.filter(
+                order_id__in=folio_order_ids,
+                is_voided=False,
+            )
+            .select_related("menu_item", "menu_item__category")
+            .order_by("order_id", "sort_order", "created_at")
+        ):
+            folio_lines[line.order_id].append(line)
+
+    for charge in folio_charges:
+        order = charge.source_order
+        dimensions = {
+            "site": order.outlet.site.name,
+            "site_id": str(order.outlet.site_id),
+            "outlet": order.outlet.name,
+            "outlet_id": str(order.outlet_id),
+            "register": "",
+            "cashier": order.created_by.email if order.created_by_id else "",
+            "folio": str(charge.folio_id),
+        }
+        charge_ref = f"folio_charge:{charge.pk}"
+        category_totals = defaultdict(Decimal)
+        category_costs = defaultdict(Decimal)
+        for line in folio_lines.get(order.pk, []):
+            category_id, category_name = _category_identity(line)
+            category_totals[(category_id, category_name)] += _line_net_revenue(order, line)
+            inventory_tracked = (
+                line.inventory_tracked_snapshot is True
+                or (
+                    line.inventory_tracked_snapshot is None
+                    and line.menu_item_id
+                    and line.menu_item.track_inventory
+                )
+            )
+            if (
+                inventory_tracked
+                and line.cost_basis_complete_snapshot
+                and line.cost_unit_snapshot is not None
+            ):
+                category_costs[(category_id, category_name)] += (
+                    Decimal(str(line.cost_unit_snapshot))
+                    * Decimal(str(line.quantity))
+                )
+                source_counts["trusted_cost_lines"] += 1
+            elif inventory_tracked:
+                source_counts["unknown_cost_lines"] += 1
+
+        for (category_id, category_name), amount in category_totals.items():
+            if amount <= 0:
+                continue
+            account = require(
+                resolver.with_default(
+                    AccountingMappingKind.REVENUE_CATEGORY,
+                    category_id,
+                    AccountingMappingKind.REVENUE_DEFAULT,
+                ),
+                f"Revenue mapping for {category_name}",
+            )
+            if account:
+                _append_aggregate(
+                    aggregate,
+                    account=account,
+                    credit=amount,
+                    memo=f"Folio sale revenue · {category_name}",
+                    dimensions={**dimensions, "category": category_name},
+                    source_ref=charge_ref,
+                )
+
+        tax = _money(order.tax_total)
+        if tax > 0:
+            tax_account = require(
+                resolver.exact(AccountingMappingKind.TAX_LIABILITY, ""),
+                "Tax / VAT liability mapping",
+            )
+            if tax_account:
+                _append_aggregate(
+                    aggregate,
+                    account=tax_account,
+                    credit=tax,
+                    memo="Folio sale tax / VAT",
+                    dimensions=dimensions,
+                    source_ref=charge_ref,
+                )
+
+        retained_by_method = defaultdict(Decimal)
+        retained_total = ZERO
+        for payment in (
+            Payment.objects.filter(order=order, created_at__lte=charge.created_at)
+            .select_related("shift", "shift__workstation")
+            .order_by("created_at", "pk")
+        ):
+            refunded = (
+                Refund.objects.filter(
+                    payment=payment,
+                    created_at__lte=charge.created_at,
+                ).aggregate(total=Sum("amount"))["total"]
+                or ZERO
+            )
+            retained = _money(payment.amount - refunded)
+            if retained > 0:
+                retained_by_method[payment.method] += retained
+                retained_total += retained
+                if payment.shift_id and payment.shift.workstation_id:
+                    dimensions["register"] = payment.shift.workstation.code
+        retained_total = _money(retained_total)
+        for method, amount in retained_by_method.items():
+            tender = require(
+                resolver.exact(AccountingMappingKind.TENDER, method),
+                f"Tender clearing mapping for {method}",
+            )
+            if tender:
+                _append_aggregate(
+                    aggregate,
+                    account=tender,
+                    debit=amount,
+                    memo=f"Folio sale POS tender · {method}",
+                    dimensions={**dimensions, "tender": method},
+                    source_ref=charge_ref,
+                )
+
+        receivable = _money(order.total - retained_total)
+        if receivable > 0:
+            ar = require(
+                resolver.exact(AccountingMappingKind.ACCOUNTS_RECEIVABLE, ""),
+                "Accounts receivable mapping",
+            )
+            if ar:
+                _append_aggregate(
+                    aggregate,
+                    account=ar,
+                    debit=receivable,
+                    memo="Guest folio receivable",
+                    dimensions=dimensions,
+                    source_ref=charge_ref,
+                )
+
+        expected_debit = _money(retained_total + receivable)
+        if expected_debit != _money(order.total):
+            validation_errors.append(
+                f"{order.bill_reference}: folio sale settlement dimensions do not equal the order total."
+            )
+
+        for (category_id, category_name), raw_cost in category_costs.items():
+            cost = _money(raw_cost)
+            if cost <= 0:
+                continue
+            cogs = require(
+                resolver.with_default(
+                    AccountingMappingKind.COGS_CATEGORY,
+                    category_id,
+                    AccountingMappingKind.COGS_DEFAULT,
+                ),
+                f"COGS mapping for {category_name}",
+            )
+            inventory = require(
+                resolver.with_default(
+                    AccountingMappingKind.INVENTORY_CATEGORY,
+                    category_id,
+                    AccountingMappingKind.INVENTORY_DEFAULT,
+                ),
+                f"Inventory asset mapping for {category_name}",
+            )
+            if cogs and inventory:
+                _append_aggregate(
+                    aggregate,
+                    account=cogs,
+                    debit=cost,
+                    memo=f"Folio sale COGS · {category_name}",
+                    dimensions={**dimensions, "category": category_name},
+                    source_ref=charge_ref,
+                )
+                _append_aggregate(
+                    aggregate,
+                    account=inventory,
+                    credit=cost,
+                    memo=f"Folio inventory relieved · {category_name}",
+                    dimensions={**dimensions, "category": category_name},
+                    source_ref=charge_ref,
+                )
+
+    folio_payments = list(
+        FolioPayment.objects.filter(
+            tenant_id=tenant_id,
+            folio__site__outlets__id__in=outlet_ids,
+            folio__currency=currency,
+            created_at__gte=start,
+            created_at__lte=end,
+        )
+        .select_related("folio", "folio__site", "recorded_by")
+        .distinct()
+        .order_by("created_at", "pk")
+    )
+    source_counts["folio_payments"] = len(folio_payments)
+    for payment in folio_payments:
+        ar = require(
+            resolver.exact(AccountingMappingKind.ACCOUNTS_RECEIVABLE, ""),
+            "Accounts receivable mapping",
+        )
+        tender = require(
+            resolver.exact(AccountingMappingKind.TENDER, payment.method),
+            f"Tender clearing mapping for {payment.method}",
+        )
+        dims = {
+            "site": payment.folio.site.name,
+            "site_id": str(payment.folio.site_id),
+            "outlet": "",
+            "outlet_id": "",
+            "register": "",
+            "cashier": payment.recorded_by.email if payment.recorded_by_id else "",
+            "folio": str(payment.folio_id),
+            "tender": payment.method,
+        }
+        ref = f"folio_payment:{payment.pk}"
+        if tender:
+            _append_aggregate(
+                aggregate,
+                account=tender,
+                debit=payment.amount,
+                memo=f"Folio payment · {payment.method}",
+                dimensions=dims,
+                source_ref=ref,
+            )
+        if ar:
+            _append_aggregate(
+                aggregate,
+                account=ar,
+                credit=payment.amount,
+                memo="Guest folio receivable settlement",
+                dimensions=dims,
+                source_ref=ref,
+            )
+
+    # Supplier invoices create A/P only when immutable matched invoice lines
+    # fully explain the supplier invoice amount.
+    supplier_invoices = list(
+        SupplierInvoice.objects.filter(
+            tenant_id=tenant_id,
+            purchase_order__outlet_id__in=outlet_ids,
+            invoice_date__gte=date_from,
+            invoice_date__lte=date_to,
+        )
+        .select_related(
+            "purchase_order",
+            "purchase_order__outlet",
+            "purchase_order__outlet__site",
+            "purchase_order__supplier",
+        )
+        .prefetch_related(
+            "matched_lines__purchase_order_line__menu_item__category"
+        )
+        .order_by("invoice_date", "pk")
+    )
+    source_counts["supplier_invoices"] = len(supplier_invoices)
+    for invoice in supplier_invoices:
+        matched = list(invoice.matched_lines.all())
+        matched_total = _money(sum((item.amount for item in matched), ZERO))
+        if matched_total != _money(invoice.amount):
+            source_counts["unmatched_supplier_invoices"] += 1
+            validation_errors.append(
+                f"Supplier invoice {invoice.reference}: matched lines {matched_total} do not equal invoice amount {_money(invoice.amount)}."
+            )
+            continue
+        dims = {
+            "site": invoice.purchase_order.outlet.site.name,
+            "site_id": str(invoice.purchase_order.outlet.site_id),
+            "outlet": invoice.purchase_order.outlet.name,
+            "outlet_id": str(invoice.purchase_order.outlet_id),
+            "register": "",
+            "cashier": "",
+            "supplier": invoice.purchase_order.supplier.name,
+        }
+        ref = f"supplier_invoice:{invoice.pk}"
+        category_amounts = defaultdict(Decimal)
+        for item in matched:
+            menu_item = item.purchase_order_line.menu_item
+            category_id = str(menu_item.category_id or "")
+            category_name = (
+                menu_item.category.name
+                if menu_item.category_id else "Uncategorized"
+            )
+            category_amounts[(category_id, category_name)] += item.amount
+        all_mapped = True
+        mapped_rows = []
+        for (category_id, category_name), amount in category_amounts.items():
+            inventory = require(
+                resolver.with_default(
+                    AccountingMappingKind.INVENTORY_CATEGORY,
+                    category_id,
+                    AccountingMappingKind.INVENTORY_DEFAULT,
+                ),
+                f"Inventory asset mapping for {category_name}",
+            )
+            if inventory is None:
+                all_mapped = False
+            else:
+                mapped_rows.append((inventory, category_name, _money(amount)))
+        ap = require(
+            resolver.exact(AccountingMappingKind.ACCOUNTS_PAYABLE, ""),
+            "Accounts payable mapping",
+        )
+        if ap is None:
+            all_mapped = False
+        if all_mapped:
+            for inventory, category_name, amount in mapped_rows:
+                _append_aggregate(
+                    aggregate,
+                    account=inventory,
+                    debit=amount,
+                    memo=f"Supplier inventory invoice · {category_name}",
+                    dimensions={**dims, "category": category_name},
+                    source_ref=ref,
+                )
+            _append_aggregate(
+                aggregate,
+                account=ap,
+                credit=invoice.amount,
+                memo=f"Supplier payable · {invoice.reference}",
+                dimensions=dims,
+                source_ref=ref,
+            )
+
+    supplier_payments = list(
+        SupplierPayment.objects.filter(
+            tenant_id=tenant_id,
+            purchase_order__outlet_id__in=outlet_ids,
+            created_at__gte=start,
+            created_at__lte=end,
+        )
+        .select_related(
+            "purchase_order",
+            "purchase_order__outlet",
+            "purchase_order__outlet__site",
+            "purchase_order__supplier",
+            "recorded_by",
+        )
+        .order_by("created_at", "pk")
+    )
+    source_counts["supplier_payments"] = len(supplier_payments)
+    for payment in supplier_payments:
+        ap = require(
+            resolver.exact(AccountingMappingKind.ACCOUNTS_PAYABLE, ""),
+            "Accounts payable mapping",
+        )
+        tender = require(
+            resolver.exact(AccountingMappingKind.TENDER, payment.method),
+            f"Tender clearing mapping for {payment.method}",
+        )
+        dims = {
+            "site": payment.purchase_order.outlet.site.name,
+            "site_id": str(payment.purchase_order.outlet.site_id),
+            "outlet": payment.purchase_order.outlet.name,
+            "outlet_id": str(payment.purchase_order.outlet_id),
+            "register": "",
+            "cashier": payment.recorded_by.email if payment.recorded_by_id else "",
+            "supplier": payment.purchase_order.supplier.name,
+            "tender": payment.method,
+        }
+        ref = f"supplier_payment:{payment.pk}"
+        if ap:
+            _append_aggregate(
+                aggregate,
+                account=ap,
+                debit=payment.amount,
+                memo="Supplier payable settlement",
+                dimensions=dims,
+                source_ref=ref,
+            )
+        if tender:
+            _append_aggregate(
+                aggregate,
+                account=tender,
+                credit=payment.amount,
+                memo=f"Supplier payment · {payment.method}",
+                dimensions=dims,
+                source_ref=ref,
+            )
+
     if source_counts["unknown_cost_lines"]:
         warnings.append(
             f"{source_counts['unknown_cost_lines']} inventory-tracked sale line(s) have incomplete sale-time cost; no COGS/inventory journal was guessed for them."
@@ -454,12 +865,13 @@ def build_accounting_preview(
         "journal_lines": journal_lines,
         "mapping_snapshot": resolver.snapshot(),
         "missing_mappings": missing,
+        "validation_errors": validation_errors,
         "warnings": warnings,
         "source_summary": source_counts,
         "total_debit": total_debit,
         "total_credit": total_credit,
         "balanced": balanced,
-        "ready": balanced and not missing and bool(journal_lines),
+        "ready": balanced and not missing and not validation_errors and bool(journal_lines),
     }
 
 
