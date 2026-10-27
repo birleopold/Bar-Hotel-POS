@@ -17,6 +17,8 @@ from apps.catalog.models import (
     MenuItem,
     MenuItemOutlet,
     MenuItemRecipeLine,
+    ProductFamily,
+    ProductPackage,
     ModifierGroup,
     ModifierOption,
     ServiceOffering,
@@ -29,6 +31,8 @@ from .forms import (
     ConsoleMenuItemOutletCreateForm,
     ConsoleMenuItemOutletUpdateForm,
     ConsoleMenuItemRecipeLineForm,
+    ConsoleProductFamilyForm,
+    ConsoleProductPackageForm,
     ConsoleModifierGroupForm,
     ConsoleModifierOptionForm,
     ConsoleServiceOfferingForm,
@@ -85,6 +89,127 @@ class OrgMenuCategoryUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f"Category “{form.instance.name}” saved.")
         return super().form_valid(form)
+
+
+class OrgProductFamilyListView(ConsoleOrgAdminRequiredMixin, ListView):
+    template_name = "console/org/product_family_list.html"
+    context_object_name = "families"
+
+    def get_queryset(self):
+        return (
+            ProductFamily.objects.filter(tenant=self.request.tenant)
+            .select_related("category")
+            .prefetch_related("variants")
+            .order_by("category__sort_order", "category__name", "name")
+        )
+
+
+class OrgProductFamilyCreateView(ConsoleOrgAdminRequiredMixin, CreateView):
+    model = ProductFamily
+    form_class = ConsoleProductFamilyForm
+    template_name = "console/org/product_family_form.html"
+    success_url = reverse_lazy("console-org-product-families")
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def form_valid(self, form):
+        form.instance.tenant = self.request.tenant
+        messages.success(self.request, f"Product family “{form.instance.name}” created.")
+        return super().form_valid(form)
+
+
+class OrgProductFamilyUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
+    model = ProductFamily
+    form_class = ConsoleProductFamilyForm
+    template_name = "console/org/product_family_form.html"
+    pk_url_kwarg = "family_id"
+    success_url = reverse_lazy("console-org-product-families")
+
+    def get_queryset(self):
+        return ProductFamily.objects.filter(tenant=self.request.tenant)
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Product family “{form.instance.name}” saved.")
+        return super().form_valid(form)
+
+
+class OrgProductPackageListView(MenuItemScopedMixin, ListView):
+    template_name = "console/org/product_package_list.html"
+    context_object_name = "packages"
+
+    def get_queryset(self):
+        return ProductPackage.objects.filter(
+            tenant=self.request.tenant, menu_item=self.menu_item,
+        ).order_by("units_per_package", "name")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        return ctx
+
+
+class OrgProductPackageCreateView(MenuItemScopedMixin, CreateView):
+    model = ProductPackage
+    form_class = ConsoleProductPackageForm
+    template_name = "console/org/product_package_form.html"
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        kw["menu_item"] = self.menu_item
+        return kw
+
+    def get_success_url(self):
+        return reverse("console-org-menu-item-packages", kwargs={"item_id": self.menu_item.pk})
+
+    def form_valid(self, form):
+        form.instance.tenant = self.request.tenant
+        form.instance.menu_item = self.menu_item
+        messages.success(self.request, f"Package “{form.instance.name}” added.")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        return ctx
+
+
+class OrgProductPackageUpdateView(MenuItemScopedMixin, UpdateView):
+    model = ProductPackage
+    form_class = ConsoleProductPackageForm
+    template_name = "console/org/product_package_form.html"
+    pk_url_kwarg = "package_id"
+
+    def get_queryset(self):
+        return ProductPackage.objects.filter(
+            tenant=self.request.tenant, menu_item=self.menu_item,
+        )
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        kw["menu_item"] = self.menu_item
+        return kw
+
+    def get_success_url(self):
+        return reverse("console-org-menu-item-packages", kwargs={"item_id": self.menu_item.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Package “{form.instance.name}” saved.")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        return ctx
 
 
 class OrgMenuItemListView(ConsoleOrgAdminRequiredMixin, ListView):
