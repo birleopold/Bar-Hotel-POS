@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 
 from django.test import TestCase
 from django.urls import reverse
@@ -11,6 +12,7 @@ from apps.catalog.models import (
     ProductCustomFieldDefinition,
     ProductCustomFieldValue,
 )
+from apps.catalog.serializers import MenuItemSerializer
 from apps.pos.models import Order
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
@@ -177,7 +179,7 @@ class MerchandiseMetadataTests(TestCase):
         line = order.lines.get(is_voided=False)
         self.assertEqual(line.menu_item, self.item)
         self.assertEqual(line.quantity, Decimal("1"))
-        self.assertEqual(line.pricing_source, "barcode")
+        self.assertEqual(line.pricing_source, "alternate")
 
     def test_catalogue_search_finds_brand_model_reference_and_alternate_code(self):
         self.item.brand = "Acme"
@@ -202,6 +204,86 @@ class MerchandiseMetadataTests(TestCase):
             response = self.client.get(url, {"catalogue_q": term})
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, "Smart Phone")
+
+    def test_catalog_api_exposes_standard_custom_and_alternate_metadata(self):
+        self.item.brand = "Acme"
+        self.item.model_number = "A100"
+        self.item.reference_code = "REF-API"
+        self.item.msrp = Decimal("800000")
+        self.item.save(update_fields=["brand", "model_number", "reference_code", "msrp"])
+        definition = ProductCustomFieldDefinition.objects.create(
+            tenant=self.tenant,
+            name="Storage",
+            key="storage",
+            field_type="text",
+            is_active=True,
+        )
+        ProductCustomFieldValue.objects.create(
+            tenant=self.tenant,
+            menu_item=self.item,
+            definition=definition,
+            value_text="256 GB",
+        )
+        ProductAlternateCode.objects.create(
+            tenant=self.tenant,
+            menu_item=self.item,
+            code="API-ALT-001",
+            code_type="manufacturer",
+            label="Maker code",
+            is_active=True,
+        )
+        payload = MenuItemSerializer(
+            self.item,
+            context={"request": SimpleNamespace(tenant=self.tenant)},
+        ).data
+        self.assertEqual(payload["brand"], "Acme")
+        self.assertEqual(payload["model_number"], "A100")
+        self.assertEqual(payload["reference_code"], "REF-API")
+        self.assertEqual(Decimal(payload["msrp"]), Decimal("800000.00"))
+        self.assertEqual(payload["alternate_codes"][0]["code"], "API-ALT-001")
+        self.assertEqual(payload["custom_fields"][0]["key"], "storage")
+        self.assertEqual(payload["custom_fields"][0]["value"], "256 GB")
+
+    def test_primary_product_code_cannot_reuse_alternate_code(self):
+        ProductAlternateCode.objects.create(
+            tenant=self.tenant,
+            menu_item=self.item,
+            code="ALT-OWNED",
+            code_type="supplier",
+            is_active=True,
+        )
+        response = self.client.post(
+            reverse("console-org-menu-item-edit", args=[self.item.pk]),
+            {
+                "category": str(self.category.pk),
+                "product_family": "",
+                "name": self.item.name,
+                "description": "",
+                "brand": "",
+                "model_number": "",
+                "reference_code": "",
+                "msrp": "",
+                "display_image_url": "",
+                "sku": self.item.sku,
+                "barcode": "ALT-OWNED",
+                "unit_of_measure": "each",
+                "units_per_carton": "1",
+                "track_inventory": "",
+                "serial_tracking": "",
+                "serial_identifier_type": "serial",
+                "warranty_months": "",
+                "reorder_level": "",
+                "unit_price": "750000",
+                "tax_rate_percent": "",
+                "is_active": "on",
+                "kds_station": "",
+                "consume_recipe_on_sale": "",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already assigned as an alternate product code")
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.barcode, "100200300")
 
     def test_other_tenant_product_metadata_is_not_accessible(self):
         other = Tenant.objects.create(name="Other metadata tenant", slug="other-metadata")
