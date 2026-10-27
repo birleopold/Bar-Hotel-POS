@@ -1047,9 +1047,12 @@
     form.dataset.submitting="1";
     var submit=form.querySelector('button[type="submit"]');
     var previous=submit&&submit.textContent;
-    var status=form.querySelector("[data-retail-promotion-status]");
-    if(submit){submit.disabled=true;submit.textContent="Applying…";}
-    if(status)status.textContent="Applying offer…";
+    var status=form.querySelector("[data-retail-promotion-status]")||
+      form.querySelector("[data-hospitality-promotion-status]");
+    var actionInput=form.querySelector('input[name="action"]');
+    var removing=!!(actionInput&&actionInput.value==="remove_promotion");
+    if(submit){submit.disabled=true;submit.textContent=removing?"Removing…":"Applying…";}
+    if(status)status.textContent=removing?"Removing offer…":"Applying offer…";
     var csrf=form.querySelector('input[name="csrfmiddlewaretoken"]');
     fetch(form.getAttribute("action")||window.location.pathname+window.location.search,{
       method:"POST",body:new FormData(form),credentials:"same-origin",redirect:"follow",
@@ -1060,7 +1063,7 @@
       if(!type.includes("application/json"))throw new Error("Unexpected offer response.");
       return response.json().then(function(data){
         if(!response.ok||!data.ok){
-          var rejected=new Error(data.message||"Offer could not be applied.");
+          var rejected=new Error(data.message||(removing?"Offer could not be removed.":"Offer could not be applied."));
           rejected.serverRejected=true;
           throw rejected;
         }
@@ -1069,10 +1072,12 @@
     }).then(function(data){
       return window.retailRefreshCheckout().then(function(){return data;});
     }).then(function(data){
-      var live=document.querySelector("[data-retail-promotion-status]")||status;
-      if(live)live.textContent=data.message||"Offer applied.";
+      var live=document.querySelector("[data-retail-promotion-status]")||
+        document.querySelector("[data-hospitality-promotion-status]")||status;
+      if(live)live.textContent=data.message||(removing?"Offer removed.":"Offer applied.");
     }).catch(function(error){
-      var live=document.querySelector("[data-retail-promotion-status]")||status;
+      var live=document.querySelector("[data-retail-promotion-status]")||
+        document.querySelector("[data-hospitality-promotion-status]")||status;
       if(error&&error.serverRejected){
         if(live)live.textContent=error.message;
       }else if(live){
@@ -1080,7 +1085,7 @@
       }
     }).then(function(){
       delete form.dataset.submitting;
-      if(submit){submit.disabled=false;submit.textContent=previous||"Apply";}
+      if(submit){submit.disabled=false;submit.textContent=previous||(removing?"Remove offer":"Apply");}
     });
   });
 
