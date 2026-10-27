@@ -6,7 +6,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
 from apps.audit.services import log_audit
-from apps.pos.models import PosShiftStatus, Workstation
+from apps.pos.models import (
+    PosShiftStatus,
+    Workstation,
+    WorkstationDevice,
+    WorkstationDeviceAdapter,
+    WorkstationDeviceType,
+)
+from apps.pos.services.device_adapters import (
+    ALLOWED_ADAPTERS,
+    device_status_summary,
+    validate_device_adapter,
+)
 from apps.tenants.models import Outlet
 
 from .mixins import StaffTenantRequiredMixin
@@ -55,12 +66,222 @@ class WorkstationForm(forms.ModelForm):
         return data
 
 
+class WorkstationDeviceForm(forms.ModelForm):
+    class Meta:
+        model = WorkstationDevice
+        fields = ["device_type", "adapter", "label", "is_active"]
+        widgets = {
+            "device_type": forms.Select(attrs={"class": "staff-input"}),
+            "adapter": forms.Select(attrs={"class": "staff-input"}),
+            "label": forms.TextInput(attrs={"class": "staff-input"}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant, workstation, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tenant = tenant
+        self._workstation = workstation
+        self.instance.tenant = tenant
+        self.instance.workstation = workstation
+        self.fields["label"].help_text = (
+            "Human-readable physical label, for example Front Epson TM-T20."
+        )
+        self.fields["adapter"].help_text = (
+            "Browser adapters are supervised fallbacks. Local bridge is reserved "
+            "for an installed authenticated device bridge."
+        )
+        from .services.modules import get_tenant_staff_modules
+        if "kitchen" not in get_tenant_staff_modules(
+            tenant, outlet=workstation.outlet
+        ):
+            allowed_types = [
+                choice for choice in WorkstationDeviceType.choices
+                if choice[0] != WorkstationDeviceType.KITCHEN_PRINTER
+            ]
+            self.fields["device_type"].choices = allowed_types
+
+    def clean(self):
+        data = super().clean()
+        device_type = data.get("device_type")
+        adapter = data.get("adapter")
+        if device_type and adapter:
+            try:
+                validate_device_adapter(
+                    device_type=device_type,
+                    adapter=adapter,
+                )
+            except Exception as exc:
+                detail = getattr(exc, "detail", None)
+                if isinstance(detail, dict) and "adapter" in detail:
+                    raise forms.ValidationError(
+                        {"adapter": str(detail["adapter"])}
+                    )
+                raise
+        if (
+            device_type == WorkstationDeviceType.KITCHEN_PRINTER
+            and "kitchen" not in __import__(
+                "apps.staff.services.modules",
+                fromlist=["get_tenant_staff_modules"],
+            ).get_tenant_staff_modules(
+                self._tenant,
+                outlet=self._workstation.outlet,
+            )
+        ):
+            raise forms.ValidationError(
+                {"device_type": "Kitchen hardware is not enabled for this section."}
+            )
+        label = " ".join((data.get("label") or "").split())
+        if not label:
+            raise forms.ValidationError({"label": "Enter a physical device label."})
+        data["label"] = label
+        duplicate = WorkstationDevice.objects.filter(
+            tenant=self._tenant,
+            workstation=self._workstation,
+            device_type=device_type,
+            label__iexact=label,
+        )
+        if self.instance.pk:
+            duplicate = duplicate.exclude(pk=self.instance.pk)
+        if duplicate.exists():
+            raise forms.ValidationError(
+                {"label": "This workstation already has that device label."}
+            )
+        return data
+
+
+class StaffWorkstationDeviceEditView(StaffTenantRequiredMixin, View):
+    staff_nav_capability = "orders"
+    template_name = "staff/workstation_device_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if (
+            getattr(request, "tenant_membership", None)
+            and not membership_can_manage_workspace_settings(
+                request.tenant_membership
+            )
+        ):
+            return HttpResponseForbidden(
+                "Only workspace owners and administrators can configure devices."
+            )
+        if request.session.get("staff_pin_authenticated"):
+            return HttpResponseForbidden(
+                "Sign in with your account password to administer workstation devices."
+            )
+        return super().dispatch(request, *args, **kwargs)
+
+    def _station(self, request, workstation_id):
+        outlets = staff_accessible_outlets(request.tenant_membership)
+        return get_object_or_404(
+            Workstation.objects.select_related("outlet"),
+            pk=workstation_id,
+            tenant=request.tenant,
+            outlet__in=outlets,
+        )
+
+    def _device(self, request, station, device_id=None):
+        if device_id is None:
+            return WorkstationDevice(
+                tenant=request.tenant,
+                workstation=station,
+            )
+        return get_object_or_404(
+            WorkstationDevice,
+            pk=device_id,
+            tenant=request.tenant,
+            workstation=station,
+        )
+
+    def get(self, request, workstation_id, device_id=None):
+        station = self._station(request, workstation_id)
+        device = self._device(request, station, device_id)
+        form = WorkstationDeviceForm(
+            instance=device,
+            tenant=request.tenant,
+            workstation=station,
+        )
+        return render(
+            request,
+            self.template_name,
+            {
+                "station": station,
+                "device": device if device.pk else None,
+                "form": form,
+                "adapter_matrix": {
+                    key: sorted(values)
+                    for key, values in ALLOWED_ADAPTERS.items()
+                },
+            },
+        )
+
+    @transaction.atomic
+    def post(self, request, workstation_id, device_id=None):
+        station = self._station(request, workstation_id)
+        device = self._device(request, station, device_id)
+        form = WorkstationDeviceForm(
+            request.POST,
+            instance=device,
+            tenant=request.tenant,
+            workstation=station,
+        )
+        if not form.is_valid():
+            return render(
+                request,
+                self.template_name,
+                {
+                    "station": station,
+                    "device": device if device.pk else None,
+                    "form": form,
+                },
+                status=400,
+            )
+        obj = form.save(commit=False)
+        obj.tenant = request.tenant
+        obj.workstation = station
+        if not obj.pk:
+            obj.created_by = request.user
+        obj.save()
+        log_audit(
+            tenant_id=request.tenant.pk,
+            user_id=request.user.pk,
+            action=(
+                "workstation.device_updated"
+                if device_id
+                else "workstation.device_created"
+            ),
+            entity_type="workstation_device",
+            entity_id=str(obj.pk),
+            payload={
+                "workstation_id": str(station.pk),
+                "device_type": obj.device_type,
+                "adapter": obj.adapter,
+                "label": obj.label,
+                "active": obj.is_active,
+            },
+            source="staff",
+        )
+        messages.success(request, "Workstation device saved.")
+        return redirect("staff-workstation-test", workstation_id=station.pk)
+
+
 class StaffWorkstationListView(StaffTenantRequiredMixin, View):
     staff_nav_capability = "orders"
 
     def get(self, request):
         outlets = staff_accessible_outlets(request.tenant_membership)
-        stations = Workstation.objects.filter(tenant=request.tenant, outlet__in=outlets).select_related("outlet")
+        stations = list(
+            Workstation.objects.filter(
+                tenant=request.tenant,
+                outlet__in=outlets,
+            )
+            .select_related("outlet")
+            .prefetch_related("devices")
+        )
+        for station in stations:
+            station.device_statuses = [
+                device_status_summary(device)
+                for device in station.devices.all()
+                if device.is_active
+            ]
         return render(request, "staff/workstations.html", {
             "workstations": stations,
             "selected_station": selected_workstation(request, outlets=outlets),
@@ -257,6 +478,12 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
                 request.tenant, outlet=station.outlet,
             ),
             "device_capabilities": browser_device_capabilities(station),
+            "registered_devices": [
+                device_status_summary(device)
+                for device in station.devices.all().order_by(
+                    "device_type", "label"
+                )
+            ],
             "check_history": history,
             "workstation_shell_template": self.shell_template_name,
             "workstation_list_url_name": self.list_url_name,
