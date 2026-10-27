@@ -10,7 +10,7 @@ from apps.accounts.models import Membership
 from apps.audit.services import log_audit
 from apps.pos.models import Order
 
-from .costing import authoritative_unit_cost
+from .costing import authoritative_unit_cost, apply_inbound_cost_basis
 from .models import (
     StockBalance,
     StockCountLine,
@@ -81,7 +81,14 @@ def apply_manual_stock_change(
             quantity=-quantity_change,
         )
     bal.quantity = new_qty
-    bal.save(update_fields=["quantity", "updated_at"])
+    update_fields = ["quantity", "updated_at"]
+    if quantity_change > 0 and reason != StockReason.RECEIVE:
+        # Uncosted manual additions/count-like corrections make the full
+        # balance unsafe for margin enforcement until it is reconciled.
+        bal.average_unit_cost = None
+        bal.cost_basis_complete = False
+        update_fields.extend(["average_unit_cost", "cost_basis_complete"])
+    bal.save(update_fields=update_fields)
 
     movement = StockMovement.objects.create(
         tenant_id=tenant_id,
@@ -361,7 +368,14 @@ def execute_retail_assembly(
         if new_qty > Decimal("99999999999.999"):
             raise ValidationError({"stock": f'Assembly would exceed the stock limit for "{item_names[item_id]}".'})
         balance.quantity = new_qty
-        balance.save(update_fields=["quantity", "updated_at"])
+        assembly_updates = ["quantity", "updated_at"]
+        if change > 0:
+            # Component costing for assemblies needs a dedicated roll-up. Until
+            # then, never claim the newly created side has an authoritative cost.
+            balance.average_unit_cost = None
+            balance.cost_basis_complete = False
+            assembly_updates.extend(["average_unit_cost", "cost_basis_complete"])
+        balance.save(update_fields=assembly_updates)
         StockMovement.objects.create(
             tenant_id=tenant_id,
             outlet=outlet,
@@ -453,6 +467,8 @@ def execute_stock_transfer(
         menu_item=menu_item,
         defaults={"tenant_id": tenant_id, "quantity": Decimal("0")},
     )
+    source_unit_cost = authoritative_unit_cost(bal_from)
+    source_cost_complete = source_unit_cost is not None
     if bal_from.quantity < quantity:
         raise ValidationError(
             {
@@ -489,6 +505,8 @@ def execute_stock_transfer(
         StockTransferReceipt.objects.create(
             tenant_id=tenant_id, transfer_batch=batch, from_outlet=from_outlet,
             to_outlet=to_outlet, menu_item=menu_item, dispatched_quantity=quantity,
+            unit_cost_snapshot=source_unit_cost,
+            cost_basis_complete_snapshot=source_cost_complete,
             dispatched_by=user, mode="staged", status="in_transit",
         )
         log_audit(
@@ -508,6 +526,14 @@ def execute_stock_transfer(
     )
     bal_to.quantity += quantity
     bal_to.save(update_fields=["quantity", "updated_at"])
+    apply_inbound_cost_basis(
+        tenant_id=tenant_id,
+        outlet=to_outlet,
+        menu_item=menu_item,
+        quantity_received=quantity,
+        unit_cost=source_unit_cost,
+        incoming_cost_complete=source_cost_complete,
+    )
     destination_allocations = []
     if source_batches:
         from .batches import InventoryBatch
@@ -553,6 +579,8 @@ def execute_stock_transfer(
     StockTransferReceipt.objects.create(
         tenant_id=tenant_id, transfer_batch=batch, from_outlet=from_outlet,
         to_outlet=to_outlet, menu_item=menu_item, dispatched_quantity=quantity,
+        unit_cost_snapshot=source_unit_cost,
+        cost_basis_complete_snapshot=source_cost_complete,
         dispatched_by=user,
     )
     log_audit(
@@ -657,7 +685,12 @@ def complete_stock_count_session(
                 menu_item_id=mi.id, quantity=-delta,
             )
         bal.quantity = counted
-        bal.save(update_fields=["quantity", "updated_at"])
+        count_updates = ["quantity", "updated_at"]
+        if delta > 0:
+            bal.average_unit_cost = None
+            bal.cost_basis_complete = False
+            count_updates.extend(["average_unit_cost", "cost_basis_complete"])
+        bal.save(update_fields=count_updates)
         if delta != 0:
             movement = StockMovement.objects.create(
                 tenant_id=tenant_id,
@@ -1034,6 +1067,14 @@ def _post_staged_transfer_arrival(*, receipt, quantity, destination, user, note)
     )
     bal.quantity += quantity
     bal.save(update_fields=["quantity", "updated_at"])
+    apply_inbound_cost_basis(
+        tenant_id=receipt.tenant_id,
+        outlet=destination,
+        menu_item=receipt.menu_item,
+        quantity_received=quantity,
+        unit_cost=receipt.unit_cost_snapshot,
+        incoming_cost_complete=receipt.cost_basis_complete_snapshot,
+    )
     movement = StockMovement.objects.create(
         tenant_id=receipt.tenant_id, outlet=destination, menu_item=receipt.menu_item,
         quantity_change=quantity, reason=StockReason.TRANSFER_IN,
