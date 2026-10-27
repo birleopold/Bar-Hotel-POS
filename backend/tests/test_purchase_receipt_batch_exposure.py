@@ -187,3 +187,178 @@ class SupplierPaymentAmountPreflightTests(SimpleTestCase):
                         po=None, amount=amount, method="cash", reference="",
                         idempotency_key="preflight-no-finance", user=None, membership=None,
                     )
+
+
+class LandedCostAllocationTests(TestCase):
+    def _bundle(self, slug):
+        from apps.accounts.models import Membership, MembershipRole, User
+        tenant = Tenant.objects.create(name=slug, slug=slug)
+        site = Site.objects.create(tenant=tenant, name="Warehouse")
+        outlet = Outlet.objects.create(
+            site=site, name="Receiving", outlet_type=OutletType.SUPERMARKET
+        )
+        category = MenuCategory.objects.create(tenant=tenant, name="Goods")
+        item_a = MenuItem.objects.create(
+            tenant=tenant, category=category, name="Item A",
+            unit_price=Decimal("1000"), track_inventory=True,
+        )
+        item_b = MenuItem.objects.create(
+            tenant=tenant, category=category, name="Item B",
+            unit_price=Decimal("2000"), track_inventory=True,
+        )
+        supplier = Supplier.objects.create(tenant=tenant, name="Supplier")
+        po = PurchaseOrder.objects.create(
+            tenant=tenant, supplier=supplier, outlet=outlet,
+            status=PurchaseOrderStatus.SENT,
+        )
+        line_a = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=item_a,
+            quantity_ordered=Decimal("10"), unit_cost=Decimal("100.00"),
+        )
+        line_b = PurchaseOrderLine.objects.create(
+            purchase_order=po, menu_item=item_b,
+            quantity_ordered=Decimal("10"), unit_cost=Decimal("200.00"),
+        )
+        user = User.objects.create_user(
+            email=f"{slug}@example.test", password="TestPass9!"
+        )
+        member = Membership.objects.create(
+            tenant=tenant, user=user, role=MembershipRole.OWNER
+        )
+        member.sites.add(site)
+        member.outlets.add(outlet)
+        return tenant, outlet, po, line_a, line_b, user, member
+
+    def test_quantity_allocation_distributes_extra_cost_by_received_units(self):
+        from apps.purchasing.models import PurchaseReceipt
+        from apps.purchasing.services import receive_purchase_order_goods
+        _tenant, _outlet, po, line_a, line_b, user, member = self._bundle(
+            "landed-by-quantity"
+        )
+        receive_purchase_order_goods(
+            po=po,
+            membership=member,
+            user=user,
+            shipping_cost=Decimal("40.00"),
+            duty_cost=Decimal("0.00"),
+            landed_cost_allocation=PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+            lines_payload=[
+                {"line_id": line_a.pk, "quantity": "1"},
+                {"line_id": line_b.pk, "quantity": "3"},
+            ],
+        )
+        receipt = PurchaseReceipt.objects.get(purchase_order=po)
+        rows = {
+            row.purchase_order_line_id: row
+            for row in receipt.lines.all()
+        }
+        self.assertEqual(
+            rows[line_a.pk].landed_cost_allocated, Decimal("10.00")
+        )
+        self.assertEqual(
+            rows[line_b.pk].landed_cost_allocated, Decimal("30.00")
+        )
+        self.assertEqual(
+            rows[line_a.pk].landed_unit_cost_snapshot, Decimal("110.0000")
+        )
+        self.assertEqual(
+            rows[line_b.pk].landed_unit_cost_snapshot, Decimal("210.0000")
+        )
+
+    def test_manual_allocation_requires_exact_total_and_is_all_or_nothing(self):
+        from apps.inventory.models import StockBalance
+        from apps.purchasing.models import PurchaseReceipt
+        from apps.purchasing.services import receive_purchase_order_goods
+        from rest_framework.exceptions import ValidationError
+
+        tenant, outlet, po, line_a, line_b, user, member = self._bundle(
+            "landed-manual"
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            receive_purchase_order_goods(
+                po=po,
+                membership=member,
+                user=user,
+                shipping_cost=Decimal("50.00"),
+                landed_cost_allocation=PurchaseReceipt.LandedCostAllocation.MANUAL,
+                lines_payload=[
+                    {
+                        "line_id": line_a.pk,
+                        "quantity": "2",
+                        "landed_cost_amount": "20.00",
+                    },
+                    {
+                        "line_id": line_b.pk,
+                        "quantity": "3",
+                        "landed_cost_amount": "20.00",
+                    },
+                ],
+            )
+        self.assertIn("must total 50.00", str(ctx.exception.detail))
+        self.assertFalse(
+            PurchaseReceipt.objects.filter(purchase_order=po).exists()
+        )
+        self.assertFalse(
+            StockBalance.objects.filter(outlet=outlet).exists()
+        )
+
+        receive_purchase_order_goods(
+            po=po,
+            membership=member,
+            user=user,
+            shipping_cost=Decimal("50.00"),
+            landed_cost_allocation=PurchaseReceipt.LandedCostAllocation.MANUAL,
+            lines_payload=[
+                {
+                    "line_id": line_a.pk,
+                    "quantity": "2",
+                    "landed_cost_amount": "20.00",
+                },
+                {
+                    "line_id": line_b.pk,
+                    "quantity": "3",
+                    "landed_cost_amount": "30.00",
+                },
+            ],
+        )
+        receipt = PurchaseReceipt.objects.get(purchase_order=po)
+        rows = {
+            row.purchase_order_line_id: row
+            for row in receipt.lines.all()
+        }
+        self.assertEqual(
+            rows[line_a.pk].landed_cost_allocated, Decimal("20.00")
+        )
+        self.assertEqual(
+            rows[line_b.pk].landed_cost_allocated, Decimal("30.00")
+        )
+
+    def test_allocating_mode_rejects_missing_supplier_cost_before_stock_write(self):
+        from apps.inventory.models import StockBalance
+        from apps.purchasing.models import PurchaseReceipt
+        from apps.purchasing.services import receive_purchase_order_goods
+        from rest_framework.exceptions import ValidationError
+
+        _tenant, outlet, po, line_a, line_b, user, member = self._bundle(
+            "landed-missing-cost"
+        )
+        line_b.unit_cost = None
+        line_b.save(update_fields=["unit_cost", "updated_at"])
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po,
+                membership=member,
+                user=user,
+                shipping_cost=Decimal("25.00"),
+                landed_cost_allocation=PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+                lines_payload=[
+                    {"line_id": line_a.pk, "quantity": "1"},
+                    {"line_id": line_b.pk, "quantity": "1"},
+                ],
+            )
+        self.assertFalse(
+            PurchaseReceipt.objects.filter(purchase_order=po).exists()
+        )
+        self.assertFalse(
+            StockBalance.objects.filter(outlet=outlet).exists()
+        )
