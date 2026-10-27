@@ -33,12 +33,12 @@
   {% else %}
     <form method="post" class="staff-card staff-card--flat mb-3">{% csrf_token %}
       <input type="hidden" name="action" value="start_break">
-      <div class="mb-2">{{ attendance_form.note.label_tag }}{{ attendance_form.note }}</div>
+      <div class="mb-2"><label for="attendance-break-note">Note</label><input class="staff-input" id="attendance-break-note" type="text" name="note" maxlength="255" placeholder="Optional note"></div>
       <button class="staff-btn staff-btn--ghost" type="submit">Start break</button>
     </form>
     <form method="post">{% csrf_token %}
       <input type="hidden" name="action" value="clock_out">
-      <div class="mb-2">{{ attendance_form.note.label_tag }}{{ attendance_form.note }}</div>
+      <div class="mb-2"><label for="attendance-clockout-note">Note</label><input class="staff-input" id="attendance-clockout-note" type="text" name="note" maxlength="255" placeholder="Optional note"></div>
       <button class="staff-btn staff-btn--primary" type="submit">Clock out</button>
     </form>
   {% endif %}
@@ -49,7 +49,7 @@
   <p class="staff-muted">Your current authorized branch and sales area will be recorded with the attendance entry.</p>
   <form method="post">{% csrf_token %}
     <input type="hidden" name="action" value="clock_in">
-    <div class="mb-2">{{ attendance_form.note.label_tag }}{{ attendance_form.note }}</div>
+    <div class="mb-2"><label for="attendance-clockin-note">Note</label><input class="staff-input" id="attendance-clockin-note" type="text" name="note" maxlength="255" placeholder="Optional note"></div>
     <button class="staff-btn staff-btn--primary" type="submit">Clock in</button>
   </form>
 </section>
