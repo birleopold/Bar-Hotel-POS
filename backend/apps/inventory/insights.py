@@ -221,10 +221,6 @@ def build_warehouse_replenishment_proposals(
                     StockTransferRequestStatus.DISPATCHED,
                 ],
             )
-            .filter(
-                to_outlet_id__in=destination_ids
-                | warehouse_ids
-            )
             .only(
                 "from_outlet_id", "to_outlet_id", "menu_item_id",
                 "status", "requested_quantity", "approved_quantity",
@@ -252,6 +248,7 @@ def build_warehouse_replenishment_proposals(
                 ] += request.approved_quantity
 
     warehouse_by_product = defaultdict(list)
+    remaining_source_available = {}
     for balance in warehouses:
         available = max(
             Decimal("0"),
@@ -261,7 +258,9 @@ def build_warehouse_replenishment_proposals(
         )
         if available <= 0:
             continue
-        warehouse_by_product[balance.menu_item_id].append((balance, available))
+        key = (balance.outlet_id, balance.menu_item_id)
+        remaining_source_available[key] = available
+        warehouse_by_product[balance.menu_item_id].append(balance)
 
     proposals = []
     for row in rows:
@@ -279,20 +278,33 @@ def build_warehouse_replenishment_proposals(
 
         candidates = sorted(
             warehouse_by_product.get(item_id, []),
-            key=lambda pair: (
-                -pair[1],
-                pair[0].outlet.name.casefold(),
-                str(pair[0].outlet_id),
+            key=lambda balance: (
+                -remaining_source_available.get(
+                    (balance.outlet_id, item_id), Decimal("0")
+                ),
+                balance.outlet.name.casefold(),
+                str(balance.outlet_id),
             ),
         )
-        if not candidates:
+        source_balance = next(
+            (
+                balance for balance in candidates
+                if remaining_source_available.get(
+                    (balance.outlet_id, item_id), Decimal("0")
+                ) > 0
+            ),
+            None,
+        )
+        if source_balance is None:
             continue
-        source_balance, source_available = candidates[0]
+        source_key = (source_balance.outlet_id, item_id)
+        source_available = remaining_source_available[source_key]
         proposed = min(remaining_need, source_available).quantize(
             Decimal("0.001"), rounding=ROUND_CEILING
         )
         if proposed <= 0:
             continue
+        remaining_source_available[source_key] = source_available - proposed
         proposals.append({
             "from_outlet_id": source_balance.outlet_id,
             "from_outlet": source_balance.outlet.name,
