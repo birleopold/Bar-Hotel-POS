@@ -11,6 +11,7 @@ from apps.catalog.models import Promotion
 from apps.catalog.promotion_rules import (
     promotion_qualifying_quantity,
     promotion_redemption_block_reason,
+    promotion_reward_quantity,
     promotion_target_q_for_items,
 )
 from apps.pos.models import Order
@@ -83,10 +84,25 @@ def promotions_selectable_for_order(order: Order):
         ):
             continue
         if promotion.offer_type == Promotion.OfferType.BUY_X_GET_Y:
-            required = (promotion.buy_quantity or 0) + (promotion.get_quantity or 0)
-            if required <= 0 or qualifying_quantity != qualifying_quantity.to_integral_value():
+            buy_required = promotion.buy_quantity or 0
+            get_required = promotion.get_quantity or 0
+            reward_is_separate = bool(
+                promotion.reward_menu_item_id
+                or promotion.reward_product_family_id
+                or promotion.reward_category_id
+                or (promotion.reward_brand or "").strip()
+            )
+            if buy_required <= 0 or get_required <= 0:
                 continue
-            if qualifying_quantity < required:
+            if qualifying_quantity != qualifying_quantity.to_integral_value():
+                continue
+            if reward_is_separate:
+                reward_quantity = promotion_reward_quantity(promotion, order)
+                if reward_quantity != reward_quantity.to_integral_value():
+                    continue
+                if qualifying_quantity < buy_required or reward_quantity < get_required:
+                    continue
+            elif qualifying_quantity < buy_required + get_required:
                 continue
         elif promotion.offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT:
             required = promotion.fixed_quantity or 0
