@@ -170,6 +170,11 @@
         {% endfor %}
       </div>
       <p class="setup-card__note"><i class="bi bi-info-circle"></i> Automatic checks cannot prove a printer, payment provider or local network works. Test real equipment before opening.</p>
+      {% if request.tenant.is_training %}
+      <div class="setup-board__footer-action">
+        <a class="staff-btn staff-btn--primary" href="{% url 'console-org-training' %}"><i class="bi bi-mortarboard"></i> Open guided training workspace</a>
+      </div>
+      {% endif %}
     </section>
   </div>
 </section>
