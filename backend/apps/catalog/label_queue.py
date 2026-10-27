@@ -47,7 +47,14 @@ def queue_product_label(
     if outlet.outlet_type not in RETAIL_OUTLET_TYPES or not outlet.is_active:
         return None
 
-    price = menu_item.unit_price_for_outlet(outlet.pk)
+    # Serialize label requests per product. Conditional uniqueness protects the
+    # database, while this lock prevents two concurrent receipts/price changes
+    # from racing through update_or_create before either pending row exists.
+    locked_item = MenuItem.objects.select_for_update().get(
+        pk=menu_item.pk,
+        tenant_id=tenant_id,
+    )
+    price = locked_item.unit_price_for_outlet(outlet.pk)
     entry, created = ProductLabelQueueEntry.objects.update_or_create(
         tenant_id=tenant_id,
         outlet=outlet,
