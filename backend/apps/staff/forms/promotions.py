@@ -17,6 +17,10 @@ class StaffPromotionForm(forms.ModelForm):
             "product_family",
             "category",
             "brand",
+            "reward_menu_item",
+            "reward_product_family",
+            "reward_category",
+            "reward_brand",
             "discount_percent",
             "discount_amount",
             "min_order_subtotal",
@@ -41,6 +45,10 @@ class StaffPromotionForm(forms.ModelForm):
             "product_family": forms.Select(attrs={"class": "staff-input"}),
             "category": forms.Select(attrs={"class": "staff-input"}),
             "brand": forms.TextInput(attrs={"class": "staff-input", "placeholder": "e.g. Samsung"}),
+            "reward_menu_item": forms.Select(attrs={"class": "staff-input"}),
+            "reward_product_family": forms.Select(attrs={"class": "staff-input"}),
+            "reward_category": forms.Select(attrs={"class": "staff-input"}),
+            "reward_brand": forms.TextInput(attrs={"class": "staff-input", "placeholder": "e.g. Pepsi"}),
             "discount_percent": forms.NumberInput(
                 attrs={"class": "staff-input", "step": "0.01", "min": 0, "max": 100}
             ),
@@ -87,6 +95,10 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["product_family"].required = False
         self.fields["category"].required = False
         self.fields["brand"].required = False
+        self.fields["reward_menu_item"].required = False
+        self.fields["reward_product_family"].required = False
+        self.fields["reward_category"].required = False
+        self.fields["reward_brand"].required = False
         self.fields["discount_percent"].required = False
         self.fields["discount_amount"].required = False
         self.fields["min_order_subtotal"].required = False
@@ -136,10 +148,17 @@ class StaffPromotionForm(forms.ModelForm):
                 tenant=tenant,
                 is_active=True,
             ).order_by("sort_order", "name")
+            self.fields["reward_menu_item"].queryset = self.fields["menu_item"].queryset
+            self.fields["reward_product_family"].queryset = self.fields["product_family"].queryset
+            self.fields["reward_category"].queryset = self.fields["category"].queryset
         self.fields["menu_item"].help_text = "Optional. Most specific target."
         self.fields["product_family"].help_text = "Optional. Applies to all matching variants."
         self.fields["category"].help_text = "Optional. Applies to all products in this category."
-        self.fields["brand"].help_text = "Optional case-insensitive brand target. Leave all targets blank for the whole basket."
+        self.fields["brand"].help_text = "Optional case-insensitive qualifying brand target. Leave all qualifying targets blank only for standard whole-basket offers."
+        self.fields["reward_menu_item"].help_text = "Buy X Get Y only: optional different reward product. Leave all reward targets blank to reward from the same qualifying pool."
+        self.fields["reward_product_family"].help_text = "Buy X Get Y only: optional different reward product family."
+        self.fields["reward_category"].help_text = "Buy X Get Y only: optional different reward category."
+        self.fields["reward_brand"].help_text = "Buy X Get Y only: optional different reward brand."
         self.fields["min_target_quantity"].help_text = "Optional qualifying quantity. For targeted offers this counts matching units; for whole-basket offers it counts all sellable basket units."
         self.fields["coupon_code"].help_text = "Optional. Coupon offers are not shown in the normal checkout offer list; the cashier must enter the code."
         self.fields["max_redemptions"].help_text = "Optional global limit counted only after orders are fully paid."
@@ -220,6 +239,20 @@ class StaffPromotionForm(forms.ModelForm):
             bool(data.get("category")),
             bool((data.get("brand") or "").strip()),
         ]
+        reward_targets = [
+            bool(data.get("reward_menu_item")),
+            bool(data.get("reward_product_family")),
+            bool(data.get("reward_category")),
+            bool((data.get("reward_brand") or "").strip()),
+        ]
+        if sum(reward_targets) > 1:
+            raise forms.ValidationError(
+                "Choose only one Buy X Get Y reward target: product, product family, category, or brand.",
+            )
+        if offer_type != Promotion.OfferType.BUY_X_GET_Y and any(reward_targets):
+            raise forms.ValidationError(
+                "Reward targets are only available for Buy X Get Y offers.",
+            )
         if sum(targets) > 1:
             raise forms.ValidationError(
                 "Choose only one promotion target: product, product family, category, or brand.",
@@ -233,6 +266,8 @@ class StaffPromotionForm(forms.ModelForm):
             )
         if data.get("brand") is not None:
             data["brand"] = (data.get("brand") or "").strip()
+        if data.get("reward_brand") is not None:
+            data["reward_brand"] = (data.get("reward_brand") or "").strip()
         if data.get("coupon_code") is not None:
             data["coupon_code"] = (data.get("coupon_code") or "").strip()
         if (
