@@ -100,6 +100,7 @@ def _parse_supplier_price_import(*, tenant, supplier, upload):
 
     rows = []
     errors = []
+    seen_targets = set()
     for row_number, raw in enumerate(reader, start=2):
         if row_number > SUPPLIER_PRICE_IMPORT_MAX_ROWS + 1:
             errors.append(
@@ -161,6 +162,20 @@ def _parse_supplier_price_import(*, tenant, supplier, upload):
             continue
         source_reference = values.get("source_reference", "")[:128]
         note = values.get("note", "")[:255]
+        target_key = (
+            str(item.pk),
+            str(package.pk) if package else "",
+            str(minimum_quantity.quantize(Decimal("0.001"))),
+            str(valid_from or ""),
+            str(valid_until or ""),
+            source_reference.casefold(),
+        )
+        if target_key in seen_targets:
+            errors.append(
+                f"Row {row_number}: duplicate price target in this CSV."
+            )
+            continue
+        seen_targets.add(target_key)
         rows.append({
             "row_number": row_number,
             "menu_item_id": str(item.pk),
