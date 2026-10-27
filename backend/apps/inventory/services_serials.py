@@ -2,7 +2,7 @@ import calendar
 from datetime import date
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -69,12 +69,14 @@ def validate_serial_receipt(*, tenant_id, outlet, menu_item, quantity, serial_nu
                 f"identifier{'s' if expected != 1 else ''} for the {expected} unit{'s' if expected != 1 else ''} received."
             )
         })
-    existing = set(
-        InventorySerialUnit.objects.filter(
+    existing = []
+    for identifier in serials:
+        match = InventorySerialUnit.objects.filter(
             tenant_id=tenant_id,
-            serial_number__in=serials,
-        ).values_list("serial_number", flat=True)
-    )
+            serial_number__iexact=identifier,
+        ).values_list("serial_number", flat=True).first()
+        if match is not None:
+            existing.append(match)
     if existing:
         raise ValidationError({
             "serial_numbers": f"Already registered: {', '.join(sorted(existing))}."
@@ -103,15 +105,21 @@ def create_received_serial_units(
         return []
     units = []
     for identifier in serials:
-        unit = InventorySerialUnit.objects.create(
-            tenant_id=tenant_id,
-            outlet=outlet,
-            menu_item=menu_item,
-            serial_number=identifier,
-            status=SerializedUnitStatus.AVAILABLE,
-            purchase_receipt_line=receipt_line,
-            received_at=received_at,
-        )
+        try:
+            with transaction.atomic():
+                unit = InventorySerialUnit.objects.create(
+                    tenant_id=tenant_id,
+                    outlet=outlet,
+                    menu_item=menu_item,
+                    serial_number=identifier,
+                    status=SerializedUnitStatus.AVAILABLE,
+                    purchase_receipt_line=receipt_line,
+                    received_at=received_at,
+                )
+        except IntegrityError as exc:
+            raise ValidationError({
+                "serial_numbers": f'Serial / IMEI "{identifier}" was registered concurrently. Refresh and check the serial register.'
+            }) from exc
         InventorySerialEvent.objects.create(
             tenant_id=tenant_id,
             serial_unit=unit,
