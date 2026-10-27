@@ -149,14 +149,19 @@ class BrowserRevocationForm(forms.Form):
 
 class StaffWorkstationPairView(StaffWorkstationEditView):
     pair_template_name = "staff/workstation_pair.html"
+    shell_template_name = "staff/base.html"
     pair_success_url_name = "staff-workstations"
     pair_self_url_name = "staff-workstation-pair"
+    edit_url_name = "staff-workstation-edit"
 
     def _render(self, request, station, form=None, revoke_form=None, status=200):
         return render(request, self.pair_template_name, {
             "station": station, "form": form or BrowserApprovalForm(),
             "revoke_form": revoke_form or BrowserRevocationForm(),
             "pairings": station.pairings.select_related("approved_by", "revoked_by"),
+            "workstation_shell_template": self.shell_template_name,
+            "workstation_list_url_name": self.pair_success_url_name,
+            "workstation_edit_url_name": self.edit_url_name,
         }, status=status)
 
     def get(self, request, workstation_id):
@@ -194,6 +199,9 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
     staff_nav_capability = "orders"
     http_method_names = ["get", "post", "head", "options"]
     template_name = "staff/workstation_test.html"
+    shell_template_name = "staff/base.html"
+    list_url_name = "staff-workstations"
+    edit_url_name = "staff-workstation-edit"
     success_url_name = "staff-workstation-test"
 
     def _station(self, request, workstation_id):
@@ -231,6 +239,9 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
             ),
             "device_capabilities": browser_device_capabilities(station),
             "check_history": history,
+            "workstation_shell_template": self.shell_template_name,
+            "workstation_list_url_name": self.list_url_name,
+            "workstation_edit_url_name": self.edit_url_name,
         })
         response["Cache-Control"] = "private, no-store"
         return response
