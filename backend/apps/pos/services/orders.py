@@ -894,7 +894,9 @@ def add_supermarket_line_by_code(
     qty = normalize_supermarket_quantity(menu_item=item, quantity=qty)
     profile = getattr(item, "supermarket_profile", None)
     pricing_source = (
-        "weighted"
+        "package"
+        if source == "package"
+        else "weighted"
         if profile is not None and profile.weighted_pricing_mode == WeightedPricingMode.WEIGHTED
         else source or "menu"
     )
