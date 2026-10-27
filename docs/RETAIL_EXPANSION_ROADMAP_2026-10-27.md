@@ -320,6 +320,8 @@ Implemented in source, pending exact-head certification:
 - New merchandise sale lines also snapshot the category name used for historical category reporting, so moving or renaming a product category later does not rewrite old category profitability. Pre-snapshot legacy lines fall back to their current category.
 - The category snapshot is finalized again at full-settlement stock posting alongside the authoritative COGS snapshot. This makes the historical classification reflect the completed sale, covers alternate line-creation paths, and avoids depending solely on when the item first entered an open basket.
 - Sale lines now also snapshot SKU and whether the merchandise was inventory-tracked. Historical profitability prefers these snapshots, so later product renames, SKU changes, inventory-tracking changes, or a removed product relation do not erase the sale from COGS/profit reporting. Legacy lines without these snapshots continue to fall back to the current catalog relationship.
+- Product profitability rows are keyed by sale-time name/SKU identity as well as product identity. If a catalog item is renamed or re-SKU'd later, old and new sales stay as separate auditable rows while totals remain combined correctly.
+
 
 
 - Scheduled owner PDF/CSV reports expose the same covered/uncovered revenue basis; the PDF includes a category-profitability table rather than presenting known gross profit without its cost-coverage context.
