@@ -11,6 +11,7 @@ from apps.catalog.models import MenuItem
 from apps.pos.models import Order, OrderLine, OrderStatus, WholesalePriceRule
 from apps.pos.services.pricing import line_total, line_tax, recalculate_order_totals
 from apps.pos.services.pricing_policy import wholesale_combination_block_reason
+from apps.pos.services.margin_floor import line_margin_floor_result
 from apps.tenants.models import OutletType
 
 MANAGERS = frozenset({
@@ -103,6 +104,13 @@ def apply_wholesale_tier(*, order, line_id, membership, user):
                            menu_item_id=line.menu_item_id, quantity=line.quantity)
     if rule is None:
         raise ValidationError({"quantity": "No active wholesale tier covers the ordered quantity."})
+    margin_result = line_margin_floor_result(
+        order=locked,
+        line=line,
+        proposed_unit_price=rule.unit_price,
+    )
+    if margin_result.breach:
+        raise ValidationError({"margin_floor": margin_result.reason})
     if line.pricing_source == "wholesale" and line.unit_price == rule.unit_price:
         return line, True
     original = line.unit_price
