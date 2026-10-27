@@ -8,7 +8,7 @@ from apps.catalog.models import MenuItem, ProductPackage
 from apps.catalog.packaging import to_stock_units
 from apps.tenants.models import Outlet
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice
+from .models import PurchaseApprovalStatus, PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice
 from .supplier_catalog import suggested_supplier_unit_cost
 
 
@@ -380,6 +380,7 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 "package_quantity_ordered": row.get("package_count", 0) if package else 0,
             })
 
+        auto_approve = bool(self.context.get("auto_approve"))
         po = PurchaseOrder.objects.create(
             tenant=tenant,
             supplier=validated_data["_supplier"],
@@ -389,6 +390,13 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
             notes=validated_data.get("notes") or "",
             created_by=request.user,
             status=PurchaseOrderStatus.DRAFT,
+            approval_status=(
+                PurchaseApprovalStatus.APPROVED
+                if auto_approve else PurchaseApprovalStatus.PENDING
+            ),
+            reviewed_by=request.user if auto_approve else None,
+            reviewed_at=timezone.now() if auto_approve else None,
+            review_note="Manager-created draft" if auto_approve else "",
         )
         for lo in line_objects:
             PurchaseOrderLine.objects.create(
@@ -421,6 +429,10 @@ class PurchaseOrderStatusUpdateSerializer(serializers.ModelSerializer):
         if value == PurchaseOrderStatus.SENT:
             if inst.status != PurchaseOrderStatus.DRAFT:
                 raise serializers.ValidationError("Only draft orders can be sent.")
+            if inst.approval_status != PurchaseApprovalStatus.APPROVED:
+                raise serializers.ValidationError(
+                    "This purchase request must be manager-approved before it can be sent."
+                )
             if not inst.lines.exists():
                 raise serializers.ValidationError("Add line items before sending.")
         elif value == PurchaseOrderStatus.CANCELLED:
