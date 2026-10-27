@@ -479,6 +479,8 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Explainable worker/section/product pattern tables are now implemented in Management → Exceptions for the configured review window. Refunds, voids, manual line discounts, margin-floor overrides, cash variances and negative stock-removal events remain separate counts; the system does not invent a composite fraud score or combine monetary values across currencies.
 - The grouped loss-prevention view is exportable as a scoped CSV using the same worker/section/product evidence and lookback window. Management's profitability CSV is also aligned with the shared Sales CSV for below-floor sale target gross profit, margin shortfall, cashier, linked manager approval, override reason and approval time, removing a reporting divergence between the two management surfaces.
 - Cashier/product/outlet heat maps remain a visual enhancement on top of the implemented grouped evidence, not a separate data model.
+- Worker, section and product pattern rows now drill into the exact underlying refund, void, discount/margin-override, cash-variance and stock-removal evidence in the manager's current scope. Product drill-down deliberately excludes refunds/cash variance because those sources do not prove a product attribution. Source links reopen the original receipt, shift reconciliation or exact scoped stock movement rather than copying evidence into a second ledger.
+- Pattern drill-down and CSV export use the complete scoped evidence set; only the on-screen summary table is capped for readability.
 - Manager investigation trail.
 
 **UI surfaces:** Roles & permissions, attendance board, timesheets, commission rules/reports, loss-prevention dashboard.
