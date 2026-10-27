@@ -40,8 +40,24 @@ def build_merchandise_profitability(
     date_to: date,
     allowed_outlet_ids,
     currency: str,
+    business_date_site=None,
 ) -> dict:
-    start, end = utc_day_range_inclusive(date_from, date_to)
+    if business_date_site is not None:
+        from datetime import timedelta
+        from apps.tenants.business_date import business_day_window
+        start, _ = business_day_window(
+            tenant=business_date_site.tenant,
+            site=business_date_site,
+            operating_date=date_from,
+        )
+        _, end_exclusive = business_day_window(
+            tenant=business_date_site.tenant,
+            site=business_date_site,
+            operating_date=date_to,
+        )
+        end = end_exclusive - timedelta(microseconds=1)
+    else:
+        start, end = utc_day_range_inclusive(date_from, date_to)
     currency = (currency or "UGX").strip().upper()
 
     payments = Payment.objects.filter(
