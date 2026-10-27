@@ -1,9 +1,11 @@
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
+from apps.audit.models import AuditEvent
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.purchasing.models import (
     PurchaseApprovalStatus,
@@ -75,7 +77,14 @@ class PurchaseRequestApprovalTests(TestCase):
         session.save()
         return client
 
-    def _create_request(self, *, user=None, reference="REQ-001"):
+    def _create_request(
+        self,
+        *,
+        user=None,
+        reference="REQ-001",
+        needed_by=None,
+        request_reason="Low stock before weekend demand",
+    ):
         client = self._client_for(user or self.storekeeper)
         response = client.post(
             reverse("staff-purchasing-order-create"),
@@ -84,6 +93,8 @@ class PurchaseRequestApprovalTests(TestCase):
                 "outlet": str(self.outlet.pk),
                 "reference": reference,
                 "expected_date": "",
+                "needed_by": needed_by.isoformat() if needed_by else "",
+                "request_reason": request_reason,
                 "notes": "Replenish shelf stock",
                 "line_0_menu_item": str(self.item.pk),
                 "line_0_quantity_ordered": "8",
@@ -95,6 +106,68 @@ class PurchaseRequestApprovalTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         return client, PurchaseOrder.objects.get(reference=reference)
+
+    def test_request_context_is_preserved_visible_and_audited_on_approval(self):
+        needed = date.today() + timedelta(days=5)
+        _client, po = self._create_request(
+            reference="REQ-CONTEXT",
+            needed_by=needed,
+            request_reason="Promotion starts next week",
+        )
+        self.assertEqual(po.needed_by, needed)
+        self.assertEqual(po.request_reason, "Promotion starts next week")
+
+        manager = self._client_for(self.manager)
+        detail_url = reverse(
+            "staff-purchasing-order-detail",
+            kwargs={"po_id": po.pk},
+        )
+        page = manager.get(detail_url)
+        self.assertContains(page, needed.isoformat())
+        self.assertContains(page, "Promotion starts next week")
+
+        approved = manager.post(
+            detail_url,
+            {
+                "action": "approve_request",
+                "review_note": "Approved for promotion stock",
+            },
+        )
+        self.assertEqual(approved.status_code, 302)
+        event = AuditEvent.objects.filter(
+            tenant=self.tenant,
+            action="purchasing.request_approved",
+            entity_id=str(po.pk),
+        ).latest("created_at")
+        self.assertEqual(event.payload["needed_by"], needed.isoformat())
+        self.assertEqual(
+            event.payload["request_reason"],
+            "Promotion starts next week",
+        )
+
+    def test_approval_lane_prioritizes_earliest_needed_date_then_undated(self):
+        today = date.today()
+        self._create_request(
+            reference="REQ-LATE",
+            needed_by=today + timedelta(days=10),
+        )
+        self._create_request(
+            reference="REQ-EARLY",
+            needed_by=today + timedelta(days=2),
+        )
+        self._create_request(
+            reference="REQ-NODATE",
+            needed_by=None,
+        )
+        manager = self._client_for(self.manager)
+        page = manager.get(
+            reverse("staff-purchasing-orders"),
+            {"lane": "approval"},
+        )
+        self.assertEqual(page.status_code, 200)
+        body = page.content.decode()
+        self.assertLess(body.index("REQ-EARLY"), body.index("REQ-LATE"))
+        self.assertLess(body.index("REQ-LATE"), body.index("REQ-NODATE"))
 
     def test_storekeeper_creates_pending_request_and_cannot_send_it(self):
         client, po = self._create_request()
