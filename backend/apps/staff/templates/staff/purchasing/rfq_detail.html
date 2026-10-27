@@ -78,10 +78,10 @@
         {% for line in row.lines %}
           <tr>
             <td>{{ line.item.name }}</td><td>{{ line.quantity_requested }}</td>
-            <td><input class="staff-input" type="number" min="0" step="0.01" required name="quote_line_{{ line.item.purchase_rfq_lines.first.pk }}_unit_cost" value="{{ line.unit_cost|default_if_none:'' }}"></td>
-            <td><input class="staff-input" type="number" min="0" step="0.001" name="quote_line_{{ line.item.purchase_rfq_lines.first.pk }}_available" value="{{ line.quantity_available|default_if_none:'' }}"></td>
-            <td><input class="staff-input" type="date" name="quote_line_{{ line.item.purchase_rfq_lines.first.pk }}_promised" value="{% if line.promised_date %}{{ line.promised_date|date:'Y-m-d' }}{% endif %}"></td>
-            <td><input class="staff-input" maxlength="255" name="quote_line_{{ line.item.purchase_rfq_lines.first.pk }}_note"></td>
+            <td><input class="staff-input" type="number" min="0" step="0.01" required name="quote_line_{{ line.rfq_line_id }}_unit_cost" value="{{ line.unit_cost|default_if_none:'' }}"></td>
+            <td><input class="staff-input" type="number" min="0" step="0.001" name="quote_line_{{ line.rfq_line_id }}_available" value="{{ line.quantity_available|default_if_none:'' }}"></td>
+            <td><input class="staff-input" type="date" name="quote_line_{{ line.rfq_line_id }}_promised" value="{% if line.promised_date %}{{ line.promised_date|date:'Y-m-d' }}{% endif %}"></td>
+            <td><input class="staff-input" maxlength="255" name="quote_line_{{ line.rfq_line_id }}_note" value="{{ line.note|default:'' }}"></td>
           </tr>
         {% endfor %}
         </tbody>
