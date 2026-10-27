@@ -441,9 +441,9 @@ class RetailAssemblyComponent(TimeStampedModel):
         from django.core.exceptions import ValidationError
         if self.parent_item_id == self.component_item_id:
             raise ValidationError({"component_item": "A product cannot be a component of itself."})
-        if self.parent_item_id and self.parent_item.tenant_id != self.tenant_id:
+        if self.parent_item_id and self.tenant_id and self.parent_item.tenant_id != self.tenant_id:
             raise ValidationError({"parent_item": "Finished product must belong to this business."})
-        if self.component_item_id and self.component_item.tenant_id != self.tenant_id:
+        if self.component_item_id and self.tenant_id and self.component_item.tenant_id != self.tenant_id:
             raise ValidationError({"component_item": "Component must belong to this business."})
 
     def __str__(self) -> str:
