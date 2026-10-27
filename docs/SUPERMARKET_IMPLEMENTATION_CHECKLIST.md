@@ -41,7 +41,7 @@
 | SM-23 | [ ] | Retail credit accounts and credit limits | guest folios are not a general retail customer-credit engine | Authorized debt sales, aged debt, statements, payments, locks, bad-debt/writeoff approvals | 05, 32 |
 | SM-24 | [-] | Layaway, deposits and collection pickup | no verified dedicated customer reservation workflow for goods | Reserve stock, partial deposits, expiry, collection and cancellation/refunds | 05, 09 |
 | SM-25 | [-] | Wholesale pricing and customer price tiers | existing price/discount basis only | Pack/case pricing, tiered quantities, B2B price list, effective dates and quote conversion | 09, 18 |
-| SM-26 | [ ] | Pack/carton/unit conversion with purchase and sell units | UoM exists; no verified multi-pack ledger | 1 carton→N pieces, cost apportionment, barcode for each size and nonnegative stock rules | 07, 08 |
+| SM-26 | [-] | Pack/carton/unit conversion with purchase and sell units | Existing carton conversion plus organization-side package definitions with package barcode/code, base-unit factor and optional package price | Connect package scans/receiving to the authoritative stock/pricing services, cost apportionment, concurrency and full nonnegative-stock acceptance | 07, 08 |
 | SM-27 | [ ] | Multi-branch transfers with dispatch/receipt discrepancy tracking | basic inventory transfers exist | In-transit ledger, sending/receiving accountability, short shipment and reconciliation | 07, 09 |
 | SM-28 | [-] | Customer-facing display and queue management | configurable device shell, no complete verified live display | Display items/total/change, receipt number, queue/till call, secure output | 15, 23 |
 | SM-29 | [-] | Till-side reports and management dashboards | sales summary and executive report foundation | Per-cashier/till/item/category profit, shift vs tender settlement, hourly peak, variance drill-down | 18, 19 |
@@ -291,3 +291,12 @@ Do not conflate a committed regression test with a passing test or a completed r
 - The existing manager exception center now attributes voided lines to the staff user who performed the void and shows that worker's void count across the configured review window, alongside repeated voids on the same sale. This preserves fast pre-payment basket correction while making repeated cashier void patterns visible for investigation.
 - No new loss-prevention dashboard or duplicate event store was introduced; the existing `OrderLine.voided_by`, exception review workflow and manager source links are reused.
 - SM-35 advances from not evidenced to partial software implementation. No-sale drawer events, stronger shift/cashier trend aggregation, price-override approval evidence and physical/production acceptance remain open. Exact-head CI is required before treating this checkpoint as verified.
+
+
+## 2026-10-27 — R1 merchandise foundation started
+
+- Added the organized retail expansion plan in `docs/RETAIL_EXPANSION_ROADMAP_2026-10-27.md`; it groups missing QuickBooks-depth retail features into eight related workstreams rather than scattering them across unrelated screens.
+- Started R1 without replacing the existing catalog or stock ledger. `MenuItem` remains the concrete sellable SKU; optional `ProductFamily` records group related variants while simple products remain unchanged.
+- Added tenant-scoped `ProductPackage` definitions with base-unit conversion, package barcode/code, optional package selling price and sell/purchase flags. Console UI now exposes Product families and per-product Packages & barcodes.
+- Added PostgreSQL RLS for the new tenant-owned merchandise tables and blocked ambiguous base-product/package barcode and SKU collisions in the owner catalog forms.
+- Package definitions are **not yet consumed by checkout or purchasing** in this checkpoint. Scanner/package price conversion, variant option matrix, package-aware receiving and complete migration/CI/browser acceptance remain R1 work; no completed status is claimed.
