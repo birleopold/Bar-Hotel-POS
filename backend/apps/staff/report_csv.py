@@ -61,6 +61,10 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
         writer.writerow(["incomplete_sale_lines", profitability["incomplete_sale_lines"], "count"])
         writer.writerow(["unmapped_refund_amount", profitability["unmapped_refund_amount"], profitability["currency"]])
         writer.writerow(["profitability_complete", "yes" if profitability["profitability_complete"] else "no", ""])
+        writer.writerow(["margin_breach_sale_count", profitability.get("margin_breach_sale_count", 0), "count"])
+        writer.writerow(["margin_breach_revenue", profitability.get("margin_breach_revenue", "0.00"), profitability["currency"]])
+        writer.writerow(["margin_breach_gross_profit", profitability.get("margin_breach_gross_profit", "0.00"), profitability["currency"]])
+        writer.writerow(["margin_breach_shortfall", profitability.get("margin_breach_shortfall", "0.00"), profitability["currency"]])
         writer.writerow([])
         writer.writerow([
             "merchandise_product", "sku", "net_revenue", "covered_net_revenue",
@@ -153,7 +157,8 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
                 "below_floor_sale", "outlet", "product", "sku",
                 "quantity", "net_revenue", "known_cogs",
                 "known_gross_profit", "known_margin_percent",
-                "configured_margin_floor_percent",
+                "configured_margin_floor_percent", "target_gross_profit",
+                "margin_shortfall",
             ])
             for row in profitability["margin_breach_sales"]:
                 writer.writerow([
@@ -164,7 +169,8 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
                     row["quantity"], row["net_revenue"], row["known_cogs"],
                     row["known_gross_profit"],
                     row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
-                    row["margin_floor_percent"],
+                    row["margin_floor_percent"], row["target_gross_profit"],
+                    row["margin_shortfall"],
                 ])
 
 
