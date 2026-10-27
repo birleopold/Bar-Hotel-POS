@@ -116,6 +116,56 @@
       <div class="staff-table-wrap mt-3"><table class="staff-table"><caption>Top-selling items</caption><thead><tr><th>Item</th><th>Quantity</th><th>Line revenue</th></tr></thead><tbody>
       {% for item in executive_sales.top_items %}<tr><td>{{ item.item_name }}</td><td>{{ item.quantity_sold }}</td><td>{{ item.revenue }}</td></tr>{% empty %}<tr><td colspan="3">No item sales found.</td></tr>{% endfor %}
       </tbody></table></div>
+      {% if executive_profitability %}
+      <section class="staff-card mt-3" aria-label="Merchandise profitability">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <h3 class="staff-card__title">Merchandise profitability</h3>
+            <p class="staff-muted small mb-2">Uses inventory cost captured when each sale posted stock. Current average cost is never substituted for an incomplete historical sale. Tax, services and operating expenses are outside this merchandise margin view.</p>
+          </div>
+          <a class="staff-btn staff-btn--ghost" href="?view=reports&amp;date_from={{ executive_start }}&amp;date_to={{ executive_end }}&amp;profit_export=csv">Export profitability CSV</a>
+        </div>
+        <div class="staff-tile-grid">
+          <div class="staff-tile"><strong>{{ executive_profitability.currency }} {{ executive_profitability.net_merchandise_revenue }}</strong><span>Net merchandise revenue</span></div>
+          <div class="staff-tile"><strong>{{ executive_profitability.currency }} {{ executive_profitability.known_net_cogs }}</strong><span>Known net COGS</span></div>
+          <div class="staff-tile"><strong>{{ executive_profitability.currency }} {{ executive_profitability.known_gross_profit }}</strong><span>Known gross profit</span></div>
+          <div class="staff-tile"><strong>{% if executive_profitability.known_margin_percent != None %}{{ executive_profitability.known_margin_percent }}%{% else %}—{% endif %}</strong><span>Known margin</span></div>
+          <div class="staff-tile"><strong>{{ executive_profitability.cost_coverage_percent }}%</strong><span>Sale revenue with trusted cost</span></div>
+        </div>
+        {% if not executive_profitability.profitability_complete %}
+        <div class="staff-alert staff-alert--warning mt-3">
+          <strong>Profitability coverage is incomplete.</strong>
+          <span>
+            {% if executive_profitability.incomplete_sale_lines %}{{ executive_profitability.incomplete_sale_lines }} sold inventory line{{ executive_profitability.incomplete_sale_lines|pluralize }} lack trusted sale-time cost. {% endif %}
+            {% if executive_profitability.incomplete_restock_return_lines %}{{ executive_profitability.incomplete_restock_return_lines }} restocked return{{ executive_profitability.incomplete_restock_return_lines|pluralize }} lack a trustworthy COGS reversal. {% endif %}
+            {% if executive_profitability.unmapped_refund_count %}{{ executive_profitability.unmapped_refund_count }} refund{{ executive_profitability.unmapped_refund_count|pluralize }} worth {{ executive_profitability.currency }} {{ executive_profitability.unmapped_refund_amount }} cannot be attributed to returned merchandise. {% endif %}
+            {% if executive_profitability.foreign_currency_payment_count %}{{ executive_profitability.foreign_currency_payment_count }} payment{{ executive_profitability.foreign_currency_payment_count|pluralize }} in another historical currency are excluded from this {{ executive_profitability.currency }} merchandise margin view. {% endif %}
+          </span>
+        </div>
+        {% else %}
+        <div class="staff-alert staff-alert--info mt-3">All inventory-tracked merchandise sales in this report have trusted sale-time cost coverage and no unattributed merchandise refund warning.</div>
+        {% endif %}
+        <p class="staff-muted small mt-3">Physical return revenue reversal: {{ executive_profitability.currency }} {{ executive_profitability.return_revenue }}. COGS is reversed only for stock actually returned to inventory.</p>
+        <div class="staff-table-wrap mt-3"><table class="staff-table">
+          <caption>Top merchandise profitability rows</caption>
+          <thead><tr><th>Product</th><th>Net revenue</th><th>Known COGS</th><th>Known gross profit</th><th>Known margin</th><th>Cost gaps</th></tr></thead>
+          <tbody>
+          {% for row in executive_profitability.products %}
+            <tr>
+              <td><strong>{{ row.item_name }}</strong>{% if row.sku %}<div class="staff-muted small">{{ row.sku }}</div>{% endif %}</td>
+              <td>{{ executive_profitability.currency }} {{ row.net_revenue }}</td>
+              <td>{{ executive_profitability.currency }} {{ row.known_net_cogs }}</td>
+              <td>{{ executive_profitability.currency }} {{ row.known_gross_profit }}</td>
+              <td>{% if row.known_margin_percent != None %}{{ row.known_margin_percent }}%{% else %}—{% endif %}</td>
+              <td>{% with gaps=row.incomplete_lines|add:row.incomplete_return_lines %}{% if gaps %}{{ gaps }}{% else %}None{% endif %}{% endwith %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6">No inventory-tracked merchandise activity in this report period.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+      </section>
+      {% endif %}
     {% endif %}
   </section>
   {% endif %}
