@@ -1032,3 +1032,167 @@ class TargetedPromotionTests(TestCase):
         with self.assertRaises(ValidationError):
             apply_promotion_to_order(order=order, promotion=promo, user=self.user)
 
+    def test_cross_target_bogo_requires_reward_item_in_basket_and_discounts_reward(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Buy two oil get soap",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            menu_item=self.oil,
+            reward_menu_item=self.soap,
+            discount_percent=None,
+            discount_amount=None,
+            buy_quantity=2,
+            get_quantity=1,
+        )
+
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.soap,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertTrue(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("20000.00"))
+        self.assertEqual(order.total, Decimal("20000.00"))
+
+    def test_cross_target_bogo_uses_cheapest_reward_unit_and_respects_cap(self):
+        reward_small = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=self.home,
+            name="Small Soap Reward",
+            brand="CleanCo",
+            sku="SOAP-REWARD-SMALL",
+            unit_price=Decimal("5000"),
+            track_inventory=False,
+        )
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("4"),
+            user=self.user,
+        )
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.soap,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        add_line_to_open_order(
+            order=order,
+            menu_item=reward_small,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Buy oil get home reward",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            menu_item=self.oil,
+            reward_category=self.home,
+            discount_percent=None,
+            discount_amount=None,
+            buy_quantity=2,
+            get_quantity=1,
+            max_uses_per_order=1,
+        )
+
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("5000.00"))
+
+    def test_cross_target_bogo_recalculates_when_reward_removed(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        reward_line = add_line_to_open_order(
+            order=order,
+            menu_item=self.soap,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Live cross BOGO",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            menu_item=self.oil,
+            reward_menu_item=self.soap,
+            discount_percent=None,
+            discount_amount=None,
+            buy_quantity=1,
+            get_quantity=1,
+        )
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("20000.00"))
+
+        from apps.pos.services.orders import adjust_open_order_line_quantity
+        adjust_open_order_line_quantity(
+            order=order,
+            line=reward_line,
+            quantity=Decimal("0"),
+            user=self.user,
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("0.00"))
+
+    def test_promotion_api_serializer_accepts_cross_target_bogo_and_rejects_cross_tenant_reward(self):
+        payload = {
+            "name": "API buy oil get soap",
+            "offer_type": Promotion.OfferType.BUY_X_GET_Y,
+            "menu_item": str(self.oil.pk),
+            "reward_menu_item": str(self.soap.pk),
+            "brand": "",
+            "reward_brand": "",
+            "discount_percent": None,
+            "discount_amount": None,
+            "buy_quantity": 1,
+            "get_quantity": 1,
+            "starts_at": (timezone.now() - timedelta(minutes=1)).isoformat(),
+            "ends_at": (timezone.now() + timedelta(days=1)).isoformat(),
+            "is_active": True,
+        }
+        serializer = PromotionSerializer(
+            data=payload,
+            context={"request": SimpleNamespace(tenant=self.tenant)},
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        promo = serializer.save()
+        self.assertEqual(promo.reward_menu_item, self.soap)
+
+        other = Tenant.objects.create(name="Other reward tenant", slug="other-reward-tenant")
+        TenantSettings.objects.create(tenant=other, business_lines=["supermarket"])
+        other_category = MenuCategory.objects.create(tenant=other, name="Other reward category")
+        other_item = MenuItem.objects.create(
+            tenant=other,
+            category=other_category,
+            name="Other reward item",
+            unit_price=Decimal("1000"),
+        )
+        payload["name"] = "Bad cross tenant reward"
+        payload["reward_menu_item"] = str(other_item.pk)
+        serializer = PromotionSerializer(
+            data=payload,
+            context={"request": SimpleNamespace(tenant=self.tenant)},
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("reward_menu_item", serializer.errors)
+
