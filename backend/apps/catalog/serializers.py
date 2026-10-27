@@ -132,21 +132,6 @@ class MenuItemSerializer(serializers.ModelSerializer):
             })
         return attrs
 
-    @extend_schema_field(
-        {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string", "format": "uuid"},
-                    "name": {"type": "string"},
-                    "min_selections": {"type": "integer"},
-                    "max_selections": {"type": "integer", "nullable": True},
-                    "options": {"type": "array"},
-                },
-            },
-        }
-    )
     @extend_schema_field({
         "type": "array",
         "items": {
@@ -202,6 +187,21 @@ class MenuItemSerializer(serializers.ModelSerializer):
             for row in rows
         ]
 
+    @extend_schema_field(
+        {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "format": "uuid"},
+                    "name": {"type": "string"},
+                    "min_selections": {"type": "integer"},
+                    "max_selections": {"type": "integer", "nullable": True},
+                    "options": {"type": "array"},
+                },
+            },
+        }
+    )
     def get_modifier_groups(self, obj: MenuItem) -> list:
         links = (
             MenuItemModifierGroup.objects.filter(menu_item=obj)
