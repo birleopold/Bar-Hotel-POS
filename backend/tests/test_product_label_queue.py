@@ -233,6 +233,44 @@ class ProductLabelQueueTests(TestCase):
         self.assertEqual(entry.completed_by, self.user)
         self.assertIsNotNone(entry.completed_at)
 
+    def test_all_merchandise_label_templates_generate_from_same_workflow(self):
+        item = self._item(name="Template phone", price="650000")
+        item.brand = "Acme"
+        item.model_number = "A100"
+        item.reference_code = "REF-100"
+        item.msrp = Decimal("700000")
+        item.barcode = "9988776655"
+        item.save(update_fields=[
+            "brand", "model_number", "reference_code", "msrp", "barcode",
+        ])
+        url = reverse("staff-inventory-shelf-labels")
+        page = self.client.get(
+            url,
+            {"outlet": str(self.outlet.pk), "template": "product"},
+        )
+        self.assertEqual(page.status_code, 200)
+        for label in ("Shelf / price", "Product identity", "Markdown", "Receiving"):
+            self.assertContains(page, label)
+
+        for template_key in ("shelf", "product", "markdown", "receiving"):
+            response = self.client.post(
+                url,
+                {
+                    "action": "print",
+                    "outlet": str(self.outlet.pk),
+                    "template": template_key,
+                    "item_ids": [str(item.pk)],
+                    f"copies_{item.pk}": "1",
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["Content-Type"], "application/pdf")
+            self.assertIn(
+                f'filename="{template_key}-labels.pdf"',
+                response["Content-Disposition"],
+            )
+            self.assertGreater(len(response.content), 500)
+
     def test_manual_label_request_and_dismiss_are_audited_queue_states(self):
         item = self._item(name="Manual label item", price="6200")
         url = reverse("staff-inventory-shelf-labels")
