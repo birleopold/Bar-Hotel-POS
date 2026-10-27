@@ -1018,6 +1018,7 @@ class Promotion(TimeStampedModel):
                             discount_amount__isnull=True,
                             buy_quantity__isnull=True,
                             get_quantity__isnull=True,
+                            max_uses_per_order__isnull=True,
                         )
                         | models.Q(
                             offer_type="standard",
@@ -1025,6 +1026,7 @@ class Promotion(TimeStampedModel):
                             discount_amount__isnull=False,
                             buy_quantity__isnull=True,
                             get_quantity__isnull=True,
+                            max_uses_per_order__isnull=True,
                         )
                         | models.Q(
                             offer_type="buy_x_get_y",
@@ -1036,6 +1038,16 @@ class Promotion(TimeStampedModel):
                     )
                 ),
                 name="promotion_offer_type_fields_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(offer_type="standard")
+                    | models.Q(menu_item__isnull=False)
+                    | models.Q(product_family__isnull=False)
+                    | models.Q(category__isnull=False)
+                    | ~models.Q(brand="")
+                ),
+                name="promotion_bogo_requires_target",
             ),
             models.CheckConstraint(
                 condition=(
@@ -1084,8 +1096,12 @@ class Promotion(TimeStampedModel):
         else:
             if (self.discount_percent is None) == (self.discount_amount is None):
                 raise ValidationError("Standard offers require exactly one amount or percent discount.")
-            if self.buy_quantity is not None or self.get_quantity is not None:
-                raise ValidationError("Buy/get quantities are only valid for Buy X Get Y offers.")
+            if (
+                self.buy_quantity is not None
+                or self.get_quantity is not None
+                or self.max_uses_per_order is not None
+            ):
+                raise ValidationError("Buy/get quantities and uses-per-order are only valid for Buy X Get Y offers.")
         if (
             self.max_redemptions is not None
             and self.max_redemptions_per_customer is not None
