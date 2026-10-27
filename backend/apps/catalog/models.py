@@ -1123,6 +1123,34 @@ class Promotion(TimeStampedModel):
                 ),
                 name="promotion_at_most_one_structured_target",
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        reward_menu_item__isnull=True,
+                        reward_product_family__isnull=True,
+                        reward_category__isnull=True,
+                    )
+                    | models.Q(
+                        reward_menu_item__isnull=False,
+                        reward_product_family__isnull=True,
+                        reward_category__isnull=True,
+                        reward_brand="",
+                    )
+                    | models.Q(
+                        reward_menu_item__isnull=True,
+                        reward_product_family__isnull=False,
+                        reward_category__isnull=True,
+                        reward_brand="",
+                    )
+                    | models.Q(
+                        reward_menu_item__isnull=True,
+                        reward_product_family__isnull=True,
+                        reward_category__isnull=False,
+                        reward_brand="",
+                    )
+                ),
+                name="promotion_at_most_one_reward_target",
+            ),
         ]
 
     def clean(self):
