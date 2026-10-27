@@ -1230,6 +1230,23 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
         if retail_held:
             can_modify_open = False
         ctx["can_modify_open_order"] = can_modify_open
+        ctx["serialized_sale_lines"] = []
+        if order.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+            from apps.inventory.models import SerializedUnitStatus
+            for serial_line in order.lines.filter(
+                is_voided=False,
+                menu_item__serial_tracking=True,
+            ).select_related("menu_item").order_by("sort_order", "created_at"):
+                units = list(
+                    serial_line.reserved_serial_units.filter(
+                        tenant_id=order.tenant_id,
+                        status=SerializedUnitStatus.RESERVED,
+                    ).order_by("serial_number")
+                )
+                serial_line.serial_reserved_units = units
+                serial_line.serial_required_count = int(serial_line.quantity)
+                serial_line.serial_missing_count = max(0, int(serial_line.quantity) - len(units))
+                ctx["serialized_sale_lines"].append(serial_line)
 
         # Folio attach/clear (only for open, unpaid orders).
         ctx["can_set_folio"] = can_modify_open and _tenant_lodging_enabled(order.tenant)
@@ -1680,6 +1697,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             # overrides. Retail cashier UI already exposes them on active sales.
             "apply_promotion",
             "quick_create_product",
+            "assign_serial",
+            "release_serial",
         }
         hospitality_actions = {
             "add_line",
@@ -1743,6 +1762,10 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     return JsonResponse({"ok": True, "message": "Remaining balance charged to the guest folio."})
                 messages.success(request, "Remaining balance charged to the guest folio.")
             return redirect("staff-order-detail", order_id=order.id)
+        if action == "assign_serial":
+            return self._post_assign_serial(request, order)
+        if action == "release_serial":
+            return self._post_release_serial(request, order)
         if action == "quick_create_product":
             return self._post_quick_create_product(request, order)
         if action == "add_line":
@@ -1773,6 +1796,68 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             return self._post_void_line(request, order)
         messages.error(request, "Unknown action.")
         return redirect("staff-order-detail", order_id=order.id)
+
+    def _post_assign_serial(self, request: HttpRequest, order: Order) -> HttpResponse:
+        from apps.inventory.services_serials import assign_serial_to_order_line
+
+        try:
+            line_id = uuid.UUID((request.POST.get("line_id") or "").strip())
+        except (TypeError, ValueError):
+            messages.error(request, "Choose a serialized sale line.")
+            return redirect("staff-order-detail", order_id=order.pk)
+        line = OrderLine.objects.filter(
+            pk=line_id,
+            order=order,
+            is_voided=False,
+            menu_item__serial_tracking=True,
+        ).select_related("menu_item").first()
+        if line is None:
+            messages.error(request, "Serialized sale line not found.")
+            return redirect("staff-order-detail", order_id=order.pk)
+        try:
+            unit = assign_serial_to_order_line(
+                order_line=line,
+                serial_number=request.POST.get("serial_number", ""),
+                user=request.user,
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(
+                request,
+                f"{line.menu_item.get_serial_identifier_type_display()} {unit.serial_number} assigned to {line.label}.",
+            )
+        return redirect("staff-order-detail", order_id=order.pk)
+
+    def _post_release_serial(self, request: HttpRequest, order: Order) -> HttpResponse:
+        from apps.inventory.services_serials import release_serial_from_order_line
+
+        try:
+            line_id = uuid.UUID((request.POST.get("line_id") or "").strip())
+            serial_unit_id = uuid.UUID((request.POST.get("serial_unit_id") or "").strip())
+        except (TypeError, ValueError):
+            messages.error(request, "Invalid serialized unit selection.")
+            return redirect("staff-order-detail", order_id=order.pk)
+        line = OrderLine.objects.filter(
+            pk=line_id,
+            order=order,
+            is_voided=False,
+            menu_item__serial_tracking=True,
+        ).first()
+        if line is None:
+            messages.error(request, "Serialized sale line not found.")
+            return redirect("staff-order-detail", order_id=order.pk)
+        try:
+            unit = release_serial_from_order_line(
+                order_line=line,
+                serial_unit_id=serial_unit_id,
+                user=request.user,
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(request, f"Released {unit.serial_number} from this basket.")
+        return redirect("staff-order-detail", order_id=order.pk)
 
     def _post_set_customer(self, request: HttpRequest, order: Order) -> HttpResponse:
         membership = request.tenant_membership
