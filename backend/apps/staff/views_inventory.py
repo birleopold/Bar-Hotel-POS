@@ -17,7 +17,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.catalog.packaging import to_stock_units
-from apps.inventory.models import RetailAssemblyRun, StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason, StockTransferReceipt
+from apps.inventory.models import InventorySerialUnit, RetailAssemblyRun, StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason, StockTransferReceipt
 from apps.inventory.services import (
     apply_manual_stock_change, submit_stock_count_for_review,
     approve_stock_count_session, return_stock_count_for_recount, execute_stock_transfer,
@@ -92,6 +92,84 @@ def _normalize_reason(value: str) -> str | None:
         return aliases[token]
     valid = {StockReason.RECEIVE.value, StockReason.ADJUST_IN.value, StockReason.ADJUST_OUT.value, StockReason.WASTE.value}
     return token if token in valid else None
+
+
+class StaffSerializedUnitListView(StaffTenantRequiredMixin, ListView):
+    staff_nav_capability = "inventory"
+    template_name = "staff/inventory/serials.html"
+    context_object_name = "serial_units"
+    paginate_by = 50
+
+    def dispatch(self, request, *args, **kwargs):
+        blocked = _inventory_requires_outlets(request)
+        if blocked:
+            return blocked
+        try:
+            lines = set(normalize_business_lines(request.tenant.settings.business_lines))
+        except Exception:
+            lines = set()
+        if not lines.intersection({"retail", "supermarket"}):
+            messages.error(request, "Serial / IMEI inventory is available only for Retail or Supermarket workspaces.")
+            return redirect("staff-inventory-balances")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        outlets = staff_accessible_outlets(self.request.tenant_membership)
+        ids = _outlet_filter_ids(self.request, outlets)
+        qs = (
+            InventorySerialUnit.objects.filter(
+                tenant=self.request.tenant,
+                outlet_id__in=ids,
+            )
+            .select_related(
+                "outlet", "outlet__site", "menu_item",
+                "reserved_order_line__order", "sold_order_line__order",
+                "purchase_receipt_line__receipt",
+            )
+            .order_by("menu_item__name", "serial_number")
+        )
+        query = (self.request.GET.get("q") or "").strip()[:128]
+        status = (self.request.GET.get("status") or "").strip()
+        if query:
+            qs = qs.filter(
+                Q(serial_number__icontains=query)
+                | Q(secondary_identifier__icontains=query)
+                | Q(menu_item__name__icontains=query)
+                | Q(menu_item__sku__icontains=query)
+            )
+        if status:
+            qs = qs.filter(status=status)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["serial_q"] = (self.request.GET.get("q") or "").strip()[:128]
+        ctx["serial_status"] = (self.request.GET.get("status") or "").strip()
+        from apps.inventory.models import SerializedUnitStatus
+        ctx["serial_status_choices"] = SerializedUnitStatus.choices
+        return ctx
+
+
+class StaffSerializedUnitDetailView(StaffTenantRequiredMixin, DetailView):
+    staff_nav_capability = "inventory"
+    template_name = "staff/inventory/serial_detail.html"
+    context_object_name = "serial_unit"
+    pk_url_kwarg = "serial_id"
+
+    def get_queryset(self):
+        outlet_ids = [o.pk for o in staff_accessible_outlets(self.request.tenant_membership)]
+        return (
+            InventorySerialUnit.objects.filter(
+                tenant=self.request.tenant,
+                outlet_id__in=outlet_ids,
+            )
+            .select_related(
+                "outlet", "outlet__site", "menu_item",
+                "reserved_order_line__order", "sold_order_line__order",
+                "purchase_receipt_line__receipt__purchase_order",
+            )
+            .prefetch_related("events__created_by", "events__order_line__order", "events__outlet")
+        )
 
 
 class StaffRetailAssemblyView(StaffTenantRequiredMixin, TemplateView):
