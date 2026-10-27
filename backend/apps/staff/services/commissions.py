@@ -4,12 +4,9 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db import transaction
 from django.db.models import Max, Q, Sum
-from django.utils import timezone
 
-from apps.accounts.models import CommissionRule, Membership, SalesTarget
-from apps.audit.services import log_audit
+from apps.accounts.models import SalesTarget
 from apps.common.datetime_bounds import utc_day_range_inclusive
 from apps.pos.models import Order, OrderLine, Refund, SupermarketLineReturn
 
@@ -30,121 +27,6 @@ def _line_net_revenue(order: Order, line: OrderLine) -> Decimal:
         return gross
     allocated = (discount * gross / subtotal).quantize(MONEY, rounding=ROUND_HALF_UP)
     return max(ZERO, gross - min(gross, allocated))
-
-
-def _rule_specificity(rule: CommissionRule) -> tuple[int, int, int, int, str]:
-    return (
-        int(rule.membership_id is not None)
-        + int(rule.menu_item_id is not None)
-        + int(rule.category_id is not None),
-        int(rule.membership_id is not None),
-        int(rule.menu_item_id is not None),
-        int(rule.category_id is not None),
-        str(rule.pk),
-    )
-
-
-def _matching_rule(*, rules, membership, line):
-    category_id = (
-        line.menu_item.category_id
-        if line.menu_item_id and getattr(line.menu_item, "category_id", None)
-        else None
-    )
-    matching = []
-    for rule in rules:
-        if rule.membership_id and (
-            membership is None or rule.membership_id != membership.pk
-        ):
-            continue
-        if rule.menu_item_id and rule.menu_item_id != line.menu_item_id:
-            continue
-        if rule.category_id and rule.category_id != category_id:
-            continue
-        matching.append(rule)
-    if not matching:
-        return None
-    return max(matching, key=_rule_specificity)
-
-
-@transaction.atomic
-def snapshot_order_commissions(*, order: Order, settled_at=None) -> int:
-    """Freeze staff attribution and commission math once at full settlement."""
-    locked = Order.objects.select_for_update().get(pk=order.pk)
-    if not locked.is_paid:
-        return 0
-    settled_at = settled_at or timezone.now()
-    operating_date = timezone.localtime(settled_at).date()
-
-    membership = None
-    if locked.created_by_id:
-        membership = (
-            Membership.objects.filter(
-                tenant_id=locked.tenant_id,
-                user_id=locked.created_by_id,
-                is_active=True,
-            )
-            .first()
-        )
-
-    rules = list(
-        CommissionRule.objects.filter(
-            tenant_id=locked.tenant_id,
-            is_active=True,
-        )
-        .filter(Q(effective_from__isnull=True) | Q(effective_from__lte=operating_date))
-        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=operating_date))
-        .select_related("membership", "menu_item", "category")
-    )
-    lines = list(
-        OrderLine.objects.select_for_update()
-        .filter(order=locked, is_voided=False)
-        .select_related("menu_item", "menu_item__category")
-        .order_by("sort_order", "created_at")
-    )
-    updated = 0
-    for line in lines:
-        # A settled line is immutable for commission purposes. Never let a later
-        # rule or catalog edit rewrite historical commission.
-        if line.commission_base_snapshot is not None:
-            continue
-        base = _line_net_revenue(locked, line)
-        rule = _matching_rule(rules=rules, membership=membership, line=line)
-        rate = _money(rule.rate_percent if rule else ZERO)
-        amount = (base * rate / Decimal("100")).quantize(
-            MONEY, rounding=ROUND_HALF_UP
-        )
-        line.sales_attributed_membership = membership
-        line.commission_rule_name_snapshot = rule.name if rule else ""
-        line.commission_base_snapshot = base
-        line.commission_rate_percent_snapshot = rate
-        line.commission_amount_snapshot = amount
-        line.save(
-            update_fields=[
-                "sales_attributed_membership",
-                "commission_rule_name_snapshot",
-                "commission_base_snapshot",
-                "commission_rate_percent_snapshot",
-                "commission_amount_snapshot",
-                "updated_at",
-            ]
-        )
-        updated += 1
-
-    if updated:
-        log_audit(
-            tenant_id=locked.tenant_id,
-            user_id=locked.created_by_id,
-            action="commission.sale_snapshotted",
-            entity_type="order",
-            entity_id=str(locked.pk),
-            payload={
-                "line_count": updated,
-                "attributed_membership_id": str(membership.pk) if membership else "",
-                "settled_at": settled_at.isoformat(),
-            },
-            source="pos",
-        )
-    return updated
 
 
 def _mapped_return_reversal(line: OrderLine, *, start, end) -> Decimal:
