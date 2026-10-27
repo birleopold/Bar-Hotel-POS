@@ -29,7 +29,7 @@ from tests.test_phase1_isolation_and_idempotency import _seed_tenant_bundle
 def _login(client, fixture):
     assert client.login(
         username=fixture["user"].email,
-        password="Password9!",
+        password="TestPass9!",
     )
     session = client.session
     session[STAFF_SESSION_TENANT_KEY] = str(fixture["tenant"].pk)
