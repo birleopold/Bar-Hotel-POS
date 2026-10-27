@@ -97,7 +97,7 @@ class RetailMerchandiseFoundationTests(TestCase):
                 "units_per_package": "24",
                 "barcode": "240000000001",
                 "sku_alias": "WATER-500-24",
-                "sell_price": "22000",
+                "sell_price": "24000",
                 "is_sellable": "on",
                 "is_purchasable": "on",
                 "is_active": "on",
@@ -107,12 +107,80 @@ class RetailMerchandiseFoundationTests(TestCase):
         package = ProductPackage.objects.get(menu_item=self.item)
         self.assertEqual(package.tenant, self.tenant)
         self.assertEqual(package.units_per_package, Decimal("24"))
-        self.assertEqual(package.sell_price, Decimal("22000"))
+        self.assertEqual(package.sell_price, Decimal("24000"))
 
         listing = self.client.get(reverse("console-org-menu-item-packages", args=[self.item.pk]))
         self.assertEqual(listing.status_code, 200)
         self.assertContains(listing, "Case of 24")
         self.assertContains(listing, "240000000001")
+
+    def test_variant_matrix_previews_and_generates_missing_sellable_skus(self):
+        family = ProductFamily.objects.create(
+            tenant=self.tenant, category=self.category, name="Polo Shirt",
+        )
+        url = reverse("console-org-product-family-matrix", args=[family.pk])
+        page = self.client.get(url)
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Variant matrix")
+
+        payload = {
+            "option_1_name": "Colour",
+            "option_1_values": "Black, White",
+            "option_2_name": "Size",
+            "option_2_values": "M, L",
+            "option_3_name": "",
+            "option_3_values": "",
+            "sku_prefix": "POLO",
+            "unit_price": "45000",
+            "tax_rate_percent": "",
+            "reorder_level": "3",
+            "track_inventory": "on",
+            "is_active": "on",
+        }
+        preview = self.client.post(url, {**payload, "action": "preview"})
+        self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, "4 combinations")
+        self.assertEqual(MenuItem.objects.filter(product_family=family).count(), 0)
+
+        generated = self.client.post(url, {**payload, "action": "generate"})
+        self.assertEqual(generated.status_code, 302)
+        variants = MenuItem.objects.filter(product_family=family).order_by("sku")
+        self.assertEqual(variants.count(), 4)
+        self.assertTrue(all(v.variant_key for v in variants))
+        self.assertTrue(all(v.track_inventory for v in variants))
+        self.assertEqual(
+            {tuple(sorted(v.variant_values.items())) for v in variants},
+            {
+                (("Colour", "Black"), ("Size", "L")),
+                (("Colour", "Black"), ("Size", "M")),
+                (("Colour", "White"), ("Size", "L")),
+                (("Colour", "White"), ("Size", "M")),
+            },
+        )
+        family.refresh_from_db()
+        self.assertEqual([row["name"] for row in family.variant_schema], ["Colour", "Size"])
+
+        replay = self.client.post(url, {**payload, "action": "generate"})
+        self.assertEqual(replay.status_code, 302)
+        self.assertEqual(MenuItem.objects.filter(product_family=family).count(), 4)
+
+    def test_package_price_that_needs_fractional_cents_is_rejected_in_ui(self):
+        response = self.client.post(
+            reverse("console-org-menu-item-package-create", args=[self.item.pk]),
+            {
+                "name": "Case of 24",
+                "units_per_package": "24",
+                "barcode": "CASE-DISCOUNT",
+                "sku_alias": "",
+                "sell_price": "22000",
+                "is_sellable": "on",
+                "is_purchasable": "on",
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "must divide exactly")
+        self.assertFalse(ProductPackage.objects.filter(menu_item=self.item, barcode="CASE-DISCOUNT").exists())
 
     def test_package_barcode_cannot_duplicate_another_product(self):
         other = MenuItem.objects.create(
