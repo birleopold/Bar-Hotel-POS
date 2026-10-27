@@ -280,6 +280,14 @@ def test_equipment_diagnostics_can_queue_safe_commands_but_not_open_drawer():
         label="Cash drawer",
         created_by=a["user"],
     )
+    scale = WorkstationDevice.objects.create(
+        tenant=a["tenant"],
+        workstation=station,
+        device_type=WorkstationDeviceType.WEIGHING_SCALE,
+        adapter=WorkstationDeviceAdapter.LOCAL_BRIDGE,
+        label="Counter scale",
+        created_by=a["user"],
+    )
     client = Client()
     _login(client, a)
 
@@ -309,4 +317,19 @@ def test_equipment_diagnostics_can_queue_safe_commands_but_not_open_drawer():
     assert not WorkstationDeviceCommand.objects.filter(
         device=drawer,
         command_type="open_drawer",
+    ).exists()
+
+    tare = client.post(
+        reverse("staff-workstation-test", kwargs={"workstation_id": station.pk}),
+        {
+            "action": "queue_device_command",
+            "device_id": str(scale.pk),
+            "command_type": "tare_scale",
+        },
+    )
+    assert tare.status_code == 302
+    assert WorkstationDeviceCommand.objects.filter(
+        device=scale,
+        command_type="tare_scale",
+        payload__diagnostic=True,
     ).exists()
