@@ -17,6 +17,7 @@ from apps.catalog.promotion_rules import (
     promotion_target_q_for_items,
 )
 from apps.pos.models import Order
+from apps.pos.services.pricing_policy import promotion_combination_block_reason
 
 
 def order_payment_totals(order: Order) -> tuple[Decimal, Decimal]:
@@ -36,13 +37,7 @@ def order_refundable_remaining(order: Order) -> Decimal:
 
 def promotions_selectable_for_order(order: Order):
     """Active promotions whose schedule, outlet, basket state and target currently qualify."""
-    if order.lines.filter(
-        Q(pricing_source="wholesale")
-        | Q(price_book_rule__isnull=False)
-        | Q(line_discount_amount__gt=0)
-        | Q(line_discount_percent__isnull=False),
-        is_voided=False,
-    ).exists():
+    if promotion_combination_block_reason(order):
         return Promotion.objects.none()
 
     items = [
