@@ -25,7 +25,7 @@
 <header class="fizo-register__header"><div><p class="fizo-register__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Workstations</p><h1>Equipment check · {{ station.name }}</h1><p>{{ station.outlet.name }} · {{ station.code }} · Local equipment checks only</p></div><a class="staff-btn staff-btn--ghost" href="{% url workstation_list_url_name %}">All workstations</a></header>
 <div class="d-flex flex-wrap gap-2 mb-3">
 <a class="staff-btn staff-btn--ghost" href="{% url workstation_list_url_name %}">Back to workstations</a>
-{% if can_manage %}<a class="staff-btn staff-btn--ghost" href="{% url workstation_edit_url_name station.pk %}">Edit device configuration</a>{% endif %}
+{% if can_manage %}<a class="staff-btn staff-btn--ghost" href="{% url workstation_edit_url_name station.pk %}">Edit workstation</a><a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-device-create' station.pk %}">Add hardware device</a>{% endif %}
 </div>
 <section class="fizo-register__panel mb-3">
 <h2 class="staff-section-head">Before testing</h2>
@@ -33,6 +33,36 @@
 {% if is_current_station %}This browser currently uses this workstation.{% else %}This workstation is not the one currently selected in this browser. Confirm the physical device you are testing.{% endif %}</p>
 <p class="staff-muted mb-0">Stored device names are configuration labels only; they do not prove printers, scanners or cash drawers are connected. A local printer driver, supported hardware adapter and on-site checks are still required for unattended printing or drawer opening.</p>
 </section>
+{% if registered_devices %}
+<section class="staff-card mb-3">
+  <div class="d-flex flex-wrap justify-content-between gap-2 align-items-center">
+    <div><h2 class="staff-section-head mb-1">Registered devices</h2><p class="staff-muted small mb-0">Status is based on adapter capabilities, authenticated telemetry when available, and observed equipment checks.</p></div>
+    {% if can_manage %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-device-create' station.pk %}">Add device</a>{% endif %}
+  </div>
+  <div class="hardware-check-grid mt-3">
+  {% for device in registered_devices %}
+    <article class="staff-card hardware-check-card">
+      <div class="d-flex justify-content-between gap-2">
+        <div><strong>{{ device.device_type_label }}</strong><span class="staff-muted small d-block">{{ device.label }}</span></div>
+        <span class="staff-team-state {% if device.health == 'online' %}staff-team-state--ready{% endif %}">{{ device.status_label }}</span>
+      </div>
+      <p class="small mt-2 mb-1"><strong>Adapter:</strong> {{ device.adapter_label }}</p>
+      <p class="staff-muted small mb-1">{{ device.detail }}</p>
+      <p class="staff-muted small mb-2">Automatic control: {% if device.automatic_control %}Yes, through an authenticated local bridge{% else %}No{% endif %} · Live health: {% if device.live_health %}Supported{% else %}Not available{% endif %} · Retry limit: {{ device.retry_attempts }}</p>
+      {% if device.last_seen_at %}<p class="staff-muted small mb-1">Last telemetry: {{ device.last_seen_at }}</p>{% endif %}
+      {% if device.last_error %}<p class="staff-field-error small mb-2">Last error: {{ device.last_error }}</p>{% endif %}
+      {% if can_manage %}<a class="staff-btn staff-btn--secondary staff-btn--sm" href="{% url 'staff-workstation-device-edit' station.pk device.device_id %}">Edit</a>{% endif %}
+    </article>
+  {% endfor %}
+  </div>
+</section>
+{% elif can_manage %}
+<section class="staff-card mb-3">
+  <h2 class="staff-section-head">Registered devices</h2>
+  <p class="staff-muted">No device records yet. Existing printer/drawer labels below remain for backward compatibility, but add explicit devices to use adapter/status policies.</p>
+  <a class="staff-btn staff-btn--primary" href="{% url 'staff-workstation-device-create' station.pk %}">Add first device</a>
+</section>
+{% endif %}
 <div class="hardware-check-grid">
 <section class="staff-card hardware-check-card">
 <h2 class="staff-section-head">Receipt printer</h2>
