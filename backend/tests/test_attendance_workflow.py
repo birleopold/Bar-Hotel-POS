@@ -319,6 +319,45 @@ class AttendanceWorkflowTests(TestCase):
         self.assertContains(outside_break, "break would fall outside")
         self.assertEqual(target.status, AttendanceShiftStatus.PENDING)
 
+    def test_timesheet_filters_reject_malformed_values(self):
+        self.login(self.manager)
+        bad_date = self.client.get(
+            reverse("staff-timesheets"),
+            {"date_from": "not-a-date", "date_to": "2026-10-27"},
+        )
+        self.assertEqual(bad_date.status_code, 400)
+        self.assertContains(
+            bad_date,
+            "Choose a valid past date range",
+            status_code=400,
+        )
+
+        bad_worker = self.client.get(
+            reverse("staff-timesheets"),
+            {"worker": "not-a-uuid"},
+        )
+        self.assertEqual(bad_worker.status_code, 400)
+        self.assertContains(
+            bad_worker,
+            "Choose a valid worker filter",
+            status_code=400,
+        )
+
+    def test_attendance_note_fields_have_unique_ids(self):
+        self.login(self.worker)
+        page = self.client.get(reverse("staff-attendance"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'id="attendance-clockin-note"', count=1)
+
+        self.client.post(
+            reverse("staff-attendance"),
+            {"action": "clock_in", "note": ""},
+        )
+        page = self.client.get(reverse("staff-attendance"))
+        self.assertContains(page, 'id="attendance-break-note"', count=1)
+        self.assertContains(page, 'id="attendance-clockout-note"', count=1)
+        self.assertNotContains(page, 'id="id_note"')
+
     def test_non_manager_cannot_review_timesheets(self):
         self.login(self.worker)
         self.assertEqual(self.client.get(reverse("staff-timesheets")).status_code, 403)
