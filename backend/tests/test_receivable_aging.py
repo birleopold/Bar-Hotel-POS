@@ -43,10 +43,15 @@ def test_customer_financial_snapshot_includes_folio_tax():
         idempotency_key="ar-tax-payment",
     )
 
-    snapshot = customer_financial_snapshot(tenant=tenant, customer=customer)
-    assert snapshot["folio_charges"] == Decimal("118")
-    assert snapshot["folio_payments"] == Decimal("20")
-    assert snapshot["folio_outstanding"] == Decimal("98")
+    snapshot = customer_financial_snapshot(
+        tenant=tenant,
+        customer=customer,
+        site_ids=[site.pk],
+        outlet_ids=[],
+    )
+    assert snapshot["UGX"]["folio_charges"] == Decimal("118")
+    assert snapshot["UGX"]["folio_payments"] == Decimal("20")
+    assert snapshot["UGX"]["outstanding"] == Decimal("98")
 
 
 @pytest.mark.django_db
