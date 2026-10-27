@@ -94,6 +94,39 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
                     row["incomplete_lines"] + row["incomplete_return_lines"],
                 ])
 
+        if profitability.get("outlets"):
+            writer.writerow([])
+            writer.writerow([
+                "merchandise_outlet", "net_revenue", "covered_net_revenue",
+                "uncovered_net_revenue", "known_net_cogs", "known_gross_profit",
+                "known_margin_percent", "cost_coverage_percent",
+                "incomplete_cost_lines",
+            ])
+            for row in profitability["outlets"]:
+                writer.writerow([
+                    _spreadsheet_text(row["outlet_name"]),
+                    row["net_revenue"], row["covered_net_revenue"],
+                    row["uncovered_net_revenue"], row["known_net_cogs"],
+                    row["known_gross_profit"],
+                    row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
+                    row["cost_coverage_percent"],
+                    row["incomplete_lines"] + row["incomplete_return_lines"],
+                ])
+
+        if profitability.get("unknown_cost_exposure"):
+            writer.writerow([])
+            writer.writerow([
+                "unknown_cost_product", "sku",
+                "uncovered_net_revenue", "incomplete_cost_lines",
+            ])
+            for row in profitability["unknown_cost_exposure"]:
+                writer.writerow([
+                    _spreadsheet_text(row["item_name"]),
+                    _spreadsheet_text(row["sku"]),
+                    row["uncovered_net_revenue"],
+                    row["incomplete_lines"],
+                ])
+
 
 def format_sales_summary_csv(
     tenant_id: UUID,
