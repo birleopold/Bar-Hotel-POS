@@ -19,6 +19,25 @@
                 <label class="staff-pos-menu-search"><i class="bi bi-search" aria-hidden="true"></i><span class="visually-hidden">Search menu items</span><input type="search" placeholder="{% if is_supermarket_outlet %}Search name, SKU, barcode or PLU{% else %}Search items{% endif %}" autocomplete="off" data-pos-menu-search></label>
                 {% if is_supermarket_outlet %}<button type="button" class="fizo-pos-search-clear" data-fizo-search-clear aria-label="Clear product search">Clear</button>{% endif %}<span class="staff-pos-menu-count">{{ add_line_form.menu_item.field.queryset.count }} items</span>
               </div>
+              {% if is_supermarket_outlet and retail_product_groups %}
+              <div class="fizo-pos-favourites" aria-label="Retail group shortcuts">
+                <span><i class="bi bi-collection"></i> Quick groups</span>
+                <div class="d-flex flex-wrap gap-2">
+                  {% for group in retail_product_groups %}
+                  <form method="post" class="m-0" data-retail-group-form>
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_retail_group">
+                    <input type="hidden" name="retail_group_id" value="{{ group.id }}">
+                    <input type="hidden" name="quantity" value="1">
+                    <button type="submit" class="staff-btn staff-btn--ghost staff-btn--sm" title="{% if group.description %}{{ group.description }} · {% endif %}{{ group.lines.count }} product{{ group.lines.count|pluralize }}">
+                      {{ group.name }}{% if group.code %} <small>· {{ group.code }}</small>{% endif %}
+                    </button>
+                    <span class="visually-hidden" role="status" aria-live="polite" data-retail-group-status></span>
+                  </form>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
               {% if is_supermarket_outlet %}
               <div class="fizo-pos-favourites" aria-label="Frequent product shortcuts">
                 <span><i class="bi bi-star"></i> Quick picks</span>
