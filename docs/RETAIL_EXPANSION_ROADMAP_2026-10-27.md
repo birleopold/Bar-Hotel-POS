@@ -557,11 +557,17 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Benchmark check (Lightspeed Hub/Hardware and Square hardware setup, 2026-10-27): configure hardware per register/station, provide device test/status surfaces, couple printer-driven drawers to authorized sale flows, and surface connection problems quickly. Our bridge follows that pattern while keeping browser fallbacks and physical-device certification explicitly separate.
 
 ### R8.2 Training mode
-- Explicit training tenant/mode banner.
-- Sample product/customer/stock/sale/PO/return data.
-- Guided cashier, storekeeper and manager exercises.
-- Safe reset.
-- No live provider or fiscal side effects.
+- Training is implemented as an isolated tenant type (`Tenant.is_training`), chosen only when the workspace is created. Platform edit forms disable the field afterward and regression coverage proves a crafted edit POST cannot convert training ↔ live.
+- Staff, Console and customer-display surfaces carry a permanent TRAINING WORKSPACE warning. The customer display explicitly states that the basket is a practice transaction rather than a live customer checkout.
+- Retail/Supermarket training has a deterministic managed sample pack: four barcode/SKU products with trusted inventory cost, one low-stock item, one sample customer, one supplier, a draft purchase order, one completed sale, one refund and one physical-return record. The sample sale uses the tenant currency and the real internal payment/stock/finance services.
+- Guided cashier, storekeeper and manager exercise checklists are available from Console → Training and link to the real checkout, inventory, purchasing, sales, management and accounting screens. Checklist completion is stored separately from transaction truth; marking an exercise complete never fakes the underlying operation.
+- Reset is password-confirmed and requires the exact phrase `RESET TRAINING`. It deletes/recreates only the objects owned by the managed sample pack and clears exercise progress. Tenant identity/settings, domains, users/memberships, branches/sections, workstations, paired browsers and hardware configuration are preserved.
+- Managed sample object IDs are stored in a tenant-scoped `TrainingWorkspaceState` with generation number, seed audit metadata and PostgreSQL RLS. Reset uses those exact IDs instead of guessing rows by name.
+- Live tenants cannot seed/reset training data or open the guided training controller.
+- EFRIS is hard-disabled for training tenants even if global and tenant fiscal settings are accidentally enabled. Local hardware-bridge commands are also rejected in training workspaces, so practice sales cannot print/open drawers/read scales through live hardware.
+- The existing read-only Setup → Practice checkout remains available as an even safer calculation-only rehearsal that creates no Order/Payment/StockMovement.
+- The local `create_training_demo` development command now marks created tenants explicitly as training; its existing DEBUG + disposable SQLite restrictions remain unchanged.
+- Retail/Supermarket is the first production training pack. Hospitality training will reuse the same isolated-tenant boundary rather than mixing hospitality sample data into this retail reset pack.
 
 ### R8.3 Acceptance
 - Desktop/laptop/tablet/phone.
