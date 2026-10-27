@@ -170,7 +170,7 @@ Still R2 work:
 - arbitrary multi-pool mix-and-match mechanics beyond one product/family/category/brand pool;
 - group/bundle promotional pricing;
 - an explicit multi-offer stacking/precedence contract if simultaneous offers are later allowed;
-- margin-floor threshold configuration and trusted-cost enforcement are implemented; remaining work is landed-cost enrichment, richer profitability reporting and reconciliation tooling for incomplete legacy cost;
+- margin-floor threshold configuration, trusted-cost enforcement and manager reconciliation for incomplete positive legacy stock are implemented; remaining work is richer profitability reporting and controlled correction of already-trusted accounting cost if ever required;
 - exact-head CI and deployed browser/till acceptance for this promotion checkpoint.
 
 ## Workstream R2 — Pricing, promotions and merchandising
@@ -310,6 +310,8 @@ Implemented in source, pending exact-head certification:
 - Retail assembly builds now roll authoritative component outlet average costs through the configured BOM into a finished-unit cost. The build run snapshots each component quantity/unit cost plus the finished rolled-up unit cost for audit.
 - Finished assembly stock uses the same weighted-average inbound costing engine as purchase receipts and transfers. If any BOM component cost is incomplete, the finished SKU remains explicitly cost-incomplete instead of inventing COGS.
 - Assembly unbuild remains deliberately conservative: the finished SKU can be reduced without changing its average cost, but positive component recovery invalidates component cost trust because historical component-cost provenance is not yet sufficient for a safe reverse allocation.
+- Legacy/incomplete positive stock can now be reconciled to a trusted average cost by an authorized inventory manager from the existing Stock balances screen. Reconciliation requires a documented evidence/reason, changes no quantity, cannot overwrite an already trusted basis, and does not rewrite historical sale cost snapshots.
+- Cost reconciliation emits `inventory.cost_basis_reconciled` audit evidence with before/after values and explicit flags confirming quantity/history were untouched.
 - Cross-target Buy-X-Get-Y pricing now caps the free discount against the reward pool rather than the qualifying pool, so a more expensive reward can be fully discounted when the configured deal intends it.
 
 This checkpoint intentionally does **not** enable automatic margin-floor blocking yet. Margin-floor enforcement will use only balances where `cost_basis_complete=True`; incomplete/legacy stock must first be reconciled through approved cost-bearing workflows.
