@@ -52,6 +52,7 @@ urlpatterns = [
     path("customers/new/", views_customers.StaffCustomerCreateView.as_view(), name="staff-customer-create"),
     path("customers/<uuid:customer_id>/", views_customers.StaffCustomerDetailView.as_view(), name="staff-customer-detail"),
     path("management/sources/<str:kind>/<uuid:entity_id>/", views_management.StaffManagementSourceView.as_view(), name="staff-management-source"),
+    path("management/loss-patterns/<str:dimension>/<str:entity_key>/", views_management.StaffManagementLossPatternView.as_view(), name="staff-management-loss-pattern"),
     path("management/shifts/<uuid:shift_id>/", views_management.StaffManagementShiftView.as_view(), name="staff-management-shift"),
     path("management/", views_management.StaffManagementView.as_view(), name="staff-management"),
     path("login/", views.StaffLoginView.as_view(), name="staff-login"),
