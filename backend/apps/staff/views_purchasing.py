@@ -1416,6 +1416,11 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         entry["batch_code"] = code
                     if expiry_raw:
                         entry["expiry_date"] = expiry_raw
+                    landed_raw = (
+                        request.POST.get(f"landed_cost_{line.id}") or ""
+                    ).strip()
+                    if landed_raw:
+                        entry["landed_cost_amount"] = landed_raw
                     lines_payload.append(entry)
 
             if not lines_payload:
