@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Membership, MembershipRole, User
+from apps.audit.models import AuditEvent, SensitiveActionApproval
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.inventory.models import StockBalance
 from apps.pos.models import (
@@ -50,13 +51,13 @@ class SalesProfitabilityTests(TestCase):
             email="profitability@test.local",
             password="Password9!",
         )
-        membership = Membership.objects.create(
+        self.membership = Membership.objects.create(
             tenant=self.tenant,
             user=self.user,
             role=MembershipRole.OWNER,
         )
-        membership.sites.add(self.site)
-        membership.outlets.add(self.outlet, self.other_outlet)
+        self.membership.sites.add(self.site)
+        self.membership.outlets.add(self.outlet, self.other_outlet)
 
         self.category = MenuCategory.objects.create(
             tenant=self.tenant,
@@ -535,6 +536,50 @@ class SalesProfitabilityTests(TestCase):
         high_order.bill_reference = "HIGH-MARGIN-SALE"
         high_order.save(update_fields=["bill_reference", "updated_at"])
 
+        manager_user = User.objects.create_user(
+            email="margin-manager@test.local",
+            password="Password9!",
+        )
+        manager_membership = Membership.objects.create(
+            tenant=self.tenant,
+            user=manager_user,
+            role=MembershipRole.OUTLET_MANAGER,
+        )
+        manager_membership.sites.add(self.site)
+        manager_membership.outlets.add(self.outlet)
+        approval = SensitiveActionApproval.objects.create(
+            tenant=self.tenant,
+            requester=self.membership,
+            approver=manager_membership,
+            scope_outlet=self.outlet,
+            action="discount",
+            entity_type="order",
+            entity_id=str(low_order.pk),
+            request_key="margin-breach-test-approval",
+            intent_hash="test-margin-intent",
+            intent_payload={
+                "line_id": str(_low_line.pk),
+                "margin_override_reason": "Clearance stock approved",
+            },
+            expires_at=timezone.now() + timedelta(minutes=2),
+            used_at=timezone.now(),
+        )
+        AuditEvent.objects.create(
+            tenant=self.tenant,
+            user=self.user,
+            action="order.line_discount_applied",
+            entity_type="order_line",
+            entity_id=str(_low_line.pk),
+            payload={
+                "order_id": str(low_order.pk),
+                "margin_floor_overridden": True,
+                "margin_override_reason": "Clearance stock approved",
+                "minimum_unit_price": "114.29",
+                "proposed_unit_price": "100.00",
+                "approval_id": str(approval.pk),
+            },
+        )
+
         result = build_merchandise_profitability(
             tenant_id=self.tenant.pk,
             date_from=self.today,
@@ -563,6 +608,12 @@ class SalesProfitabilityTests(TestCase):
         self.assertEqual(breach["margin_floor_percent"], Decimal("30"))
         self.assertEqual(breach["target_gross_profit"], Decimal("30.00"))
         self.assertEqual(breach["margin_shortfall"], Decimal("10.00"))
+        self.assertEqual(breach["cashier_email"], self.user.email)
+        self.assertTrue(breach["has_linked_margin_override"])
+        self.assertEqual(breach["override_requester_email"], self.user.email)
+        self.assertEqual(breach["override_approver_email"], manager_user.email)
+        self.assertEqual(breach["override_reason"], "Clearance stock approved")
+        self.assertIsNotNone(breach["override_approved_at"])
         self.assertEqual(result["margin_breach_revenue"], Decimal("100.00"))
         self.assertEqual(result["margin_breach_gross_profit"], Decimal("20.00"))
         self.assertEqual(result["margin_breach_shortfall"], Decimal("10.00"))
@@ -575,8 +626,11 @@ class SalesProfitabilityTests(TestCase):
         )
         self.assertIn("below_floor_sale", csv_body)
         self.assertIn("margin_breach_shortfall,10.00,UGX", csv_body)
-        self.assertIn("target_gross_profit,margin_shortfall", csv_body)
+        self.assertIn("target_gross_profit,margin_shortfall,cashier,margin_override_linked", csv_body)
         self.assertIn("LOW-MARGIN-SALE", csv_body)
         self.assertIn(",30,30.00,10.00", csv_body)
+        self.assertIn(self.user.email, csv_body)
+        self.assertIn(manager_user.email, csv_body)
+        self.assertIn("Clearance stock approved", csv_body)
         self.assertNotIn("HIGH-MARGIN-SALE", csv_body)
 
