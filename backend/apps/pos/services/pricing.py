@@ -2,7 +2,8 @@ from decimal import Decimal
 
 from django.db.models import Sum
 
-from apps.catalog.promotion_rules import promotion_matches_item
+from apps.catalog.models import Promotion
+from apps.catalog.promotion_rules import promotion_matches_item, promotion_qualifying_quantity
 from apps.pos.models import Order
 
 
@@ -43,21 +44,64 @@ def promotion_discount_for_order(
         or promotion.category_id
         or (promotion.brand or "").strip()
     )
+    if (
+        promotion.min_target_quantity is not None
+        and promotion_qualifying_quantity(promotion, order) < promotion.min_target_quantity
+    ):
+        return Decimal("0.00")
+
+    active_lines = list(
+        order.lines.select_related("menu_item")
+        .filter(is_voided=False, menu_item__isnull=False)
+        .order_by("sort_order")
+    )
+    eligible_lines = [
+        line for line in active_lines
+        if promotion_matches_item(promotion, line.menu_item)
+    ] if scoped else active_lines
+
     basis = subtotal
     if scoped:
-        basis = Decimal("0.00")
-        for line in (
-            order.lines.select_related("menu_item")
-            .filter(is_voided=False, menu_item__isnull=False)
-            .order_by("sort_order")
-        ):
-            if promotion_matches_item(promotion, line.menu_item):
-                basis += line.line_total
-        basis = basis.quantize(Decimal("0.01"))
+        basis = sum((line.line_total for line in eligible_lines), Decimal("0.00")).quantize(Decimal("0.01"))
         if basis <= 0:
             return Decimal("0.00")
 
-    if promotion.discount_percent is not None:
+    if promotion.offer_type == Promotion.OfferType.BUY_X_GET_Y:
+        if not scoped or not eligible_lines:
+            return Decimal("0.00")
+        if any(line.quantity != line.quantity.to_integral_value() for line in eligible_lines):
+            return Decimal("0.00")
+        buy_qty = int(promotion.buy_quantity or 0)
+        get_qty = int(promotion.get_quantity or 0)
+        set_size = buy_qty + get_qty
+        if buy_qty <= 0 or get_qty <= 0 or set_size <= 1:
+            return Decimal("0.00")
+        total_units = sum(int(line.quantity) for line in eligible_lines)
+        uses = total_units // set_size
+        if promotion.max_uses_per_order is not None:
+            uses = min(uses, promotion.max_uses_per_order)
+        if uses <= 0:
+            return Decimal("0.00")
+        remaining_free = uses * get_qty
+        discount = Decimal("0.00")
+        priced = sorted(
+            (
+                ((line.line_total / line.quantity).quantize(Decimal("0.01")), int(line.quantity))
+                for line in eligible_lines
+                if line.quantity > 0
+            ),
+            key=lambda row: row[0],
+        )
+        for per_unit, available_units in priced:
+            if remaining_free <= 0:
+                break
+            take = min(remaining_free, available_units)
+            discount += per_unit * take
+            remaining_free -= take
+        if remaining_free:
+            return Decimal("0.00")
+        discount = discount.quantize(Decimal("0.01"))
+    elif promotion.discount_percent is not None:
         discount = (
             basis * promotion.discount_percent / Decimal("100")
         ).quantize(Decimal("0.01"))
