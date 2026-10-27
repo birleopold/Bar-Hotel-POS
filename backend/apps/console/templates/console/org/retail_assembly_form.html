@@ -1,0 +1,12 @@
+{% extends "console/base.html" %}
+{% block title %}{{ form_title }} · {{ menu_item.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header"><div><p class="grocery-setup__eyebrow">Catalogue / {{ menu_item.name }} / Assembly</p><h1>{{ form_title }}</h1><p class="staff-muted">Enter the base-stock quantity of this component required for one finished {{ menu_item.name }}.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-assembly' menu_item.id %}">Assembly BOM</a></header>
+  <form method="post" class="staff-card grocery-guided-form">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grocery-form-fields">{% for field in form %}<div class="grocery-form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<div class="grocery-form-errors">{{ field.errors }}</div>{% endif %}</div>{% endfor %}</div>
+    <div class="grocery-form-footer"><span>Only tracked products can be used as assembly components.</span><div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-assembly' menu_item.id %}">Cancel</a><button class="staff-btn staff-btn--primary" type="submit">Save component</button></div></div>
+  </form>
+</section>
+{% endblock %}
