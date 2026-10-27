@@ -589,6 +589,8 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
     require_active_retail_basket(locked)
     if locked.status != OrderStatus.OPEN or locked.is_paid:
         raise ValidationError("Promotion can only be applied to open, unpaid orders.")
+    if locked.payments.exists():
+        raise ValidationError({"promotion": "Promotion cannot be changed after payment has started."})
     if locked.lines.filter(pricing_source="wholesale", is_voided=False).exists():
         raise ValidationError({"promotion": "Wholesale price tiers cannot be combined with order promotions."})
     if locked.lines.filter(price_book_rule__isnull=False, is_voided=False).exists():
@@ -656,6 +658,40 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
             "promotion_target": promotion.target_label,
             "discount_basis": str(discount_basis),
             "discount_amount": str(disc),
+        },
+    )
+    return locked
+
+
+@transaction.atomic
+def remove_promotion_from_order(*, order: Order, user) -> Order:
+    """Remove an applied promotion from an open basket before payment starts."""
+
+    locked = Order.objects.select_for_update().get(pk=order.pk)
+    require_active_retail_basket(locked)
+    if locked.status != OrderStatus.OPEN or locked.is_paid:
+        raise ValidationError("Promotion can only be changed on an open unpaid order.")
+    if locked.payments.exists():
+        raise ValidationError({"promotion": "Promotion cannot be changed after payment has started."})
+    if locked.applied_promotion_id is None and not locked.discount_amount:
+        return locked
+
+    before_promotion_id = locked.applied_promotion_id
+    before_discount = locked.discount_amount
+    locked.applied_promotion = None
+    locked.discount_amount = Decimal("0.00")
+    locked.save(update_fields=["applied_promotion", "discount_amount", "updated_at"])
+    recalculate_order_totals(locked)
+    locked.refresh_from_db()
+    log_audit(
+        tenant_id=locked.tenant_id,
+        user_id=user.pk if user else None,
+        action="order.promotion_removed",
+        entity_type="order",
+        entity_id=str(locked.pk),
+        payload={
+            "promotion_id": str(before_promotion_id) if before_promotion_id else None,
+            "discount_amount": str(before_discount),
         },
     )
     return locked
