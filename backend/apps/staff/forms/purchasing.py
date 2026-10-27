@@ -25,7 +25,8 @@ class StaffSupplierProductCodeForm(forms.ModelForm):
         model = SupplierProductCode
         fields = [
             "menu_item", "product_package", "code", "description",
-            "default_unit_cost", "is_preferred", "is_active",
+            "default_unit_cost", "minimum_order_quantity", "expected_lead_days",
+            "is_preferred", "is_active",
         ]
         widgets = {
             "menu_item": forms.Select(attrs={"class": "staff-input"}),
@@ -35,6 +36,14 @@ class StaffSupplierProductCodeForm(forms.ModelForm):
             "default_unit_cost": forms.NumberInput(attrs={
                 "class": "staff-input", "min": "0", "step": "0.01",
                 "placeholder": "Optional cost per base unit",
+            }),
+            "minimum_order_quantity": forms.NumberInput(attrs={
+                "class": "staff-input", "min": "0.001", "step": "0.001",
+                "placeholder": "Optional base-unit minimum",
+            }),
+            "expected_lead_days": forms.NumberInput(attrs={
+                "class": "staff-input", "min": "0", "step": "1",
+                "placeholder": "Optional days",
             }),
             "is_preferred": forms.CheckboxInput(),
             "is_active": forms.CheckboxInput(),
