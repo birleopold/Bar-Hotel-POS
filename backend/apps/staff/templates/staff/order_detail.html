@@ -400,7 +400,19 @@
         </div>
       {% endif %}
 
-      {% if can_modify_open_order and apply_promotion_form %}
+      {% if can_modify_open_order and order.applied_promotion %}
+        <div class="staff-card staff-card--pos">
+          <h2 class="staff-card__title staff-card__title--pos">Offer</h2>
+          <p class="mb-2"><strong>{{ order.applied_promotion.name }}</strong> · {{ order.applied_promotion.target_label }}</p>
+          <form method="post" class="row g-2 align-items-end" data-retail-promotion-form data-hospitality-promotion-form>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="remove_promotion">
+            <div class="col-12 col-md-8"><p class="staff-muted small mb-0">Remove this offer before payment starts to restore normal basket pricing.</p></div>
+            <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch w-100">Remove offer</button></div>
+            <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-hospitality-promotion-status></p></div>
+          </form>
+        </div>
+      {% elif can_modify_open_order and apply_promotion_form %}
         <div class="staff-card staff-card--pos">
           <h2 class="staff-card__title staff-card__title--pos">Offer</h2>
           {% include "staff/includes/form_errors_block.html" with form=apply_promotion_form title="Fix offer details" %}
