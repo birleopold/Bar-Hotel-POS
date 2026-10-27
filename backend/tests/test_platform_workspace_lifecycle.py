@@ -33,6 +33,29 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         self.assertFalse(response.context["grocery_console_shell"])
         self.assertFalse(response.context["hospitality_console_shell"])
 
+    def test_platform_shell_uses_fresh_neutral_navigation_contract(self):
+        tenant = Tenant.objects.create(name="Tenant that must stay hidden", slug="hidden-platform-tenant")
+        TenantSettings.objects.create(tenant=tenant, business_lines=["supermarket"])
+        session = self.client.session
+        from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
+        session[STAFF_SESSION_TENANT_KEY] = str(tenant.pk)
+        session.save()
+
+        response = self.client.get(reverse("console-platform-tenants"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="fz-brand"')
+        self.assertContains(response, 'class="fz-nav"')
+        self.assertContains(response, 'class="fz-top-title"')
+        self.assertContains(response, "Platform administration")
+        self.assertContains(response, "Workspaces")
+        self.assertContains(response, "Plans")
+        self.assertContains(response, "fizo-fresh.css")
+        self.assertContains(response, "v=20261028.1")
+        self.assertNotContains(response, 'id="console-tenant-select"')
+        self.assertNotContains(response, "Tenant that must stay hidden")
+        self.assertNotContains(response, 'class="wb-side-nav"')
+        self.assertNotContains(response, 'class="staff-sidebar__brand"')
+
     def setUp(self):
         self.user = get_user_model().objects.create_superuser(
             email="platform-operator@example.test", password="test-password-safe"
