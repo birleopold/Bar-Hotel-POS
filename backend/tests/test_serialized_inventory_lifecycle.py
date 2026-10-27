@@ -184,7 +184,7 @@ class SerializedInventoryLifecycleTests(TestCase):
             enabled_staff_modules=["inventory", "lodging"],
         )
         site = Site.objects.create(tenant=other, name="Hotel")
-        outlet = Outlet.objects.create(site=site, name="Stores", outlet_type=OutletType.HOTEL)
+        outlet = Outlet.objects.create(site=site, name="Stores", outlet_type=OutletType.LODGING_FRONT_DESK)
         user = User.objects.create_user(email="hotel-serial@test.local", password="Password9!")
         member = Membership.objects.create(user=user, tenant=other, role=MembershipRole.OWNER)
         member.sites.add(site)
