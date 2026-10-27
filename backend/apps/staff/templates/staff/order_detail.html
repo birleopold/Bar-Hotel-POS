@@ -256,6 +256,8 @@
               <div class="fizo-retail-basket-row__info">
                 <strong>{{ line.label }}</strong>
                 {% if line.line_discount_amount %}<span class="staff-muted small">Discount applied</span>{% endif %}
+                {% if line.price_book_rule %}<span class="staff-muted small">Customer price · {{ line.price_book_rule.price_book.name }} · from {{ line.price_book_rule.minimum_quantity }}</span>{% endif %}
+                {% if line.pricing_source == 'wholesale' %}<span class="staff-muted small">Wholesale tier</span>{% endif %}
                 {% if line.modifiers_snapshot %}<span class="staff-muted small">{% for modifier in line.modifiers_snapshot %}{{ modifier.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
                 <span class="reference-basket-unit">{{ order.currency }} {{ line.unit_price }}</span><span class="fizo-retail-basket-row__amount">{{ order.currency }} {{ line.line_total }}</span>
               </div>
