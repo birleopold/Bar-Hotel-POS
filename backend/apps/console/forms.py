@@ -50,12 +50,25 @@ from apps.tenants.business_lines import BUSINESS_LINES, normalize_business_lines
 class ConsoleTenantForm(forms.ModelForm):
     class Meta:
         model = Tenant
-        fields = ("name", "slug", "is_active")
+        fields = ("name", "slug", "is_active", "is_training")
         widgets = {
             "name": forms.TextInput(attrs={"class": "staff-input"}),
             "slug": forms.TextInput(attrs={"class": "staff-input"}),
             "is_active": forms.CheckboxInput(attrs={"class": ""}),
+            "is_training": forms.CheckboxInput(attrs={"class": ""}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["is_training"].help_text = (
+            "Create an isolated training workspace. This cannot later be converted "
+            "to a live business or enabled on an existing live tenant."
+        )
+        if self.instance and self.instance.pk:
+            self.fields["is_training"].disabled = True
+            self.fields["is_training"].help_text = (
+                "Training/live status is permanent for tenant safety."
+            )
 
     def clean_slug(self):
         s = (self.cleaned_data.get("slug") or "").strip().lower()
