@@ -27,7 +27,7 @@
             <td>{% if s.email %}{{ s.email }}{% elif s.phone %}{{ s.phone }}{% else %}—{% endif %}</td>
             <td class="staff-table__actions-cell">
               {% if can_modify_purchasing %}
-                <a class="staff-table__action-link" href="{% url 'staff-purchasing-supplier-edit' supplier_id=s.id %}">Edit</a>
+                <a class="staff-table__action-link" href="{% url 'staff-purchasing-supplier-edit' supplier_id=s.id %}">Edit</a> · <a class="staff-table__action-link" href="{% url 'staff-purchasing-supplier-codes' supplier_id=s.id %}">Product codes</a>
               {% else %}
                 <span class="staff-muted">—</span>
               {% endif %}
