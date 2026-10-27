@@ -404,6 +404,7 @@ class ProductLabelQueueEntry(TimeStampedModel):
         NEW_PRODUCT = "new_product", "New product"
         PRICE_CHANGE = "price_change", "Price change"
         RECEIVING = "receiving", "Goods received"
+        MARKDOWN = "markdown", "Scheduled markdown"
         MANUAL = "manual", "Manual request"
 
     class Status(models.TextChoices):
