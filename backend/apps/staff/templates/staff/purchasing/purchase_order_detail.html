@@ -29,6 +29,16 @@
       </div>
       {% if po.reviewed_by %}<span class="staff-tag">Reviewed by {{ po.reviewed_by.get_full_name|default:po.reviewed_by.email }}</span>{% endif %}
     </div>
+    <div class="staff-grid staff-grid--2 mt-3">
+      <div>
+        <span class="staff-muted small d-block">Needed by</span>
+        <strong>{% if po.needed_by %}{{ po.needed_by }}{% else %}Not specified{% endif %}</strong>
+      </div>
+      <div>
+        <span class="staff-muted small d-block">Request reason</span>
+        <strong>{% if po.request_reason %}{{ po.request_reason }}{% else %}Not specified{% endif %}</strong>
+      </div>
+    </div>
     {% if po.review_note %}<p class="mt-2 mb-0"><strong>Review note:</strong> {{ po.review_note }}</p>{% endif %}
     {% if can_approve_purchasing %}
       <form method="post" class="row g-2 align-items-end mt-2">
