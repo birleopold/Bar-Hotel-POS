@@ -127,6 +127,8 @@
         </div>
         <div class="staff-tile-grid">
           <div class="staff-tile"><strong>{{ executive_profitability.currency }} {{ executive_profitability.net_merchandise_revenue }}</strong><span>Net merchandise revenue</span></div>
+          <div class="staff-tile"><strong>{{ executive_profitability.currency }} {{ executive_profitability.covered_net_revenue }}</strong><span>Revenue with trusted cost</span></div>
+          <div class="staff-tile"><strong>{{ executive_profitability.currency }} {{ executive_profitability.uncovered_net_revenue }}</strong><span>Revenue without trusted cost</span></div>
           <div class="staff-tile"><strong>{{ executive_profitability.currency }} {{ executive_profitability.known_net_cogs }}</strong><span>Known net COGS</span></div>
           <div class="staff-tile"><strong>{{ executive_profitability.currency }} {{ executive_profitability.known_gross_profit }}</strong><span>Known gross profit</span></div>
           <div class="staff-tile"><strong>{% if executive_profitability.known_margin_percent != None %}{{ executive_profitability.known_margin_percent }}%{% else %}—{% endif %}</strong><span>Known margin</span></div>
@@ -145,7 +147,7 @@
         {% else %}
         <div class="staff-alert staff-alert--info mt-3">All inventory-tracked merchandise sales in this report have trusted sale-time cost coverage and no unattributed merchandise refund warning.</div>
         {% endif %}
-        <p class="staff-muted small mt-3">Physical return revenue reversal: {{ executive_profitability.currency }} {{ executive_profitability.return_revenue }}. COGS is reversed only for stock actually returned to inventory.</p>
+        <p class="staff-muted small mt-3">Physical return revenue reversal: {{ executive_profitability.currency }} {{ executive_profitability.return_revenue }}; return revenue with trusted original cost: {{ executive_profitability.currency }} {{ executive_profitability.covered_return_revenue }}. Known profit uses only covered revenue movements, and COGS is reversed only for stock actually returned to inventory.</p>
         <div class="staff-table-wrap mt-3"><table class="staff-table">
           <caption>Top merchandise profitability rows</caption>
           <thead><tr><th>Product</th><th>Net revenue</th><th>Known COGS</th><th>Known gross profit</th><th>Known margin</th><th>Cost gaps</th></tr></thead>
