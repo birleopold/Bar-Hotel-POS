@@ -221,6 +221,22 @@ class OrderLine(TimeStampedModel):
         default="menu",
         help_text="Price source marker (menu, barcode, plu, weighted, manual).",
     )
+    price_book_rule = models.ForeignKey(
+        "pos.PriceBookRule",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="order_lines",
+        help_text="Applied customer price-book rule, if any.",
+    )
+    price_book_base_unit_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Original unit price before customer price-book override.",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     seat_number = models.PositiveSmallIntegerField(
         null=True,
@@ -257,6 +273,137 @@ class OrderLine(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.label} x {self.quantity}"
+
+
+class PriceBook(TimeStampedModel):
+    """Tenant-defined retail customer price level; base menu price remains the fallback."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="price_books",
+    )
+    name = models.CharField(max_length=128)
+    code = models.CharField(max_length=48)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    outlets = models.ManyToManyField(
+        "tenants.Outlet",
+        blank=True,
+        related_name="price_books",
+        help_text="Empty means every retail outlet in this business.",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "code"],
+                name="uniq_price_book_code_tenant",
+            ),
+            models.UniqueConstraint(
+                fields=["tenant", "name"],
+                name="uniq_price_book_name_tenant",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class PriceBookRule(TimeStampedModel):
+    """Per-SKU quantity tier inside one customer price book."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="price_book_rules",
+    )
+    price_book = models.ForeignKey(
+        PriceBook,
+        on_delete=models.CASCADE,
+        related_name="rules",
+    )
+    menu_item = models.ForeignKey(
+        "catalog.MenuItem",
+        on_delete=models.PROTECT,
+        related_name="price_book_rules",
+    )
+    minimum_quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=Decimal("1.000"),
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+    unit_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["price_book", "menu_item", "-minimum_quantity"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["price_book", "menu_item", "minimum_quantity"],
+                name="uniq_price_book_item_tier",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.price_book_id and self.tenant_id and self.price_book.tenant_id != self.tenant_id:
+            raise ValidationError({"price_book": "Price book must belong to this business."})
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Product must belong to this business."})
+
+
+class CustomerPriceBookAssignment(TimeStampedModel):
+    """One active customer price level; changing it never rewrites paid history."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="customer_price_book_assignments",
+    )
+    customer = models.OneToOneField(
+        "customers.Customer",
+        on_delete=models.CASCADE,
+        related_name="price_book_assignment",
+    )
+    price_book = models.ForeignKey(
+        PriceBook,
+        on_delete=models.PROTECT,
+        related_name="customer_assignments",
+    )
+    assigned_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="price_book_assignments_made",
+    )
+
+    class Meta:
+        ordering = ["customer__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "customer"],
+                name="uniq_customer_price_book_tenant",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.customer_id and self.tenant_id and self.customer.tenant_id != self.tenant_id:
+            raise ValidationError({"customer": "Customer must belong to this business."})
+        if self.price_book_id and self.tenant_id and self.price_book.tenant_id != self.tenant_id:
+            raise ValidationError({"price_book": "Price book must belong to this business."})
 
 
 class WholesalePriceRule(TimeStampedModel):
