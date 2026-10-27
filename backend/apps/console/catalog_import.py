@@ -229,6 +229,12 @@ def import_catalog_items(*, tenant, rows):
         except ModelValidationError as exc:
             raise CatalogImportProblem([f"Item {item.name}: {exc}"])
         item.save()
+        queue_product_labels(
+            menu_item=item,
+            reason="new_product",
+            user=None,
+            note="Product created through catalogue CSV import.",
+        )
         created += 1
     return created
 
