@@ -50,6 +50,11 @@ class ProductFamily(TimeStampedModel):
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    variant_schema = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Ordered variant dimensions and allowed values for matrix-generated sellable SKUs.",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -79,6 +84,16 @@ class MenuItem(TimeStampedModel):
         null=True,
         blank=True,
         help_text="Optional parent product used to group concrete size/colour/style variants.",
+    )
+    variant_key = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Canonical key for a matrix-generated variant; blank for ordinary/manual products.",
+    )
+    variant_values = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Variant dimension snapshot such as Colour=Black and Size=M.",
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -188,6 +203,13 @@ class MenuItem(TimeStampedModel):
 
     class Meta:
         ordering = ["category__sort_order", "category__name", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product_family", "variant_key"],
+                condition=~models.Q(variant_key=""),
+                name="uniq_product_family_variant_key",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.name
