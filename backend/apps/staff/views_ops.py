@@ -2888,6 +2888,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 restock=bool(form.cleaned_data.get("restock")),
                 user=request.user,
                 idempotency_key=request_key,
+                serial_numbers=form.cleaned_data.get("serial_numbers") or "",
             )
         except DRFValidationError as exc:
             return reject(" ".join(_drf_detail_messages(exc.detail)))
@@ -2983,6 +2984,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     idempotency_key=request_key,
                     workstation_id=settlement_workstation_id(request, outlet=order.outlet),
                     payment_id=payment_id,
+                    serial_numbers=form.cleaned_data.get("serial_numbers") or "",
                 )
         except SensitiveApprovalError as exc:
             return reject(exc)
