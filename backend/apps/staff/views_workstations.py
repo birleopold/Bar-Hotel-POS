@@ -148,8 +148,12 @@ class BrowserRevocationForm(forms.Form):
 
 
 class StaffWorkstationPairView(StaffWorkstationEditView):
+    pair_template_name = "staff/workstation_pair.html"
+    pair_success_url_name = "staff-workstations"
+    pair_self_url_name = "staff-workstation-pair"
+
     def _render(self, request, station, form=None, revoke_form=None, status=200):
-        return render(request, "staff/workstation_pair.html", {
+        return render(request, self.pair_template_name, {
             "station": station, "form": form or BrowserApprovalForm(),
             "revoke_form": revoke_form or BrowserRevocationForm(),
             "pairings": station.pairings.select_related("approved_by", "revoked_by"),
@@ -170,7 +174,7 @@ class StaffWorkstationPairView(StaffWorkstationEditView):
             pair = get_object_or_404(station.pairings, pk=form.cleaned_data["pairing_id"], tenant=request.tenant)
             revoke_pairing(pairing=pair, user=request.user, reason=form.cleaned_data["reason"])
             messages.success(request, "Browser approval revoked. Its PIN session locks on the next request.")
-            return redirect("staff-workstation-pair", workstation_id=station.pk)
+            return redirect(self.pair_self_url_name, workstation_id=station.pk)
         from rest_framework.exceptions import ValidationError
         try:
             old_pair = active_pairing(request, tenant_id=request.tenant.pk)
@@ -181,7 +185,7 @@ class StaffWorkstationPairView(StaffWorkstationEditView):
             form.add_error(None, str(exc.detail))
             return self._render(request, station, form=form, status=400)
         messages.success(request, "This browser is approved. Workers can now sign in individually and use this register.")
-        return set_pairing_cookie(redirect("staff-workstations"), pair, secret)
+        return set_pairing_cookie(redirect(self.pair_success_url_name), pair, secret)
 
 
 class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
@@ -189,6 +193,8 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
 
     staff_nav_capability = "orders"
     http_method_names = ["get", "post", "head", "options"]
+    template_name = "staff/workstation_test.html"
+    success_url_name = "staff-workstation-test"
 
     def _station(self, request, workstation_id):
         outlets = staff_accessible_outlets(request.tenant_membership)
@@ -214,7 +220,7 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
         history = WorkstationHardwareCheck.objects.filter(
             tenant=request.tenant, workstation=station,
         ).select_related("checked_by").order_by("-created_at")[:15]
-        response = render(request, "staff/workstation_test.html", {
+        response = render(request, self.template_name, {
             "station": station,
             "selected_station": selected,
             "is_current_station": bool(selected and selected.pk == station.pk),
@@ -255,4 +261,4 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
                 request,
                 "Your observed check was recorded. Physical certification is still separate.",
             )
-        return redirect("staff-workstation-test", workstation_id=station.pk)
+        return redirect(self.success_url_name, workstation_id=station.pk)
