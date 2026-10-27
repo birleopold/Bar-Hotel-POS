@@ -482,6 +482,7 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Worker, section and product pattern rows now drill into the exact underlying refund, void, discount/margin-override, cash-variance and stock-removal evidence in the manager's current scope. Product drill-down deliberately excludes refunds/cash variance because those sources do not prove a product attribution. Source links reopen the original receipt, shift reconciliation or exact scoped stock movement rather than copying evidence into a second ledger.
 - Cash variance is attributed to a named worker pattern only when the same worker both opened and closed the POS shift. Shared/legacy shifts with different or missing operators remain in the outlet pattern but use an explicit Unknown/shared attribution worker bucket, avoiding unsupported blame assignment.
 - Pattern drill-down and CSV export use the complete scoped evidence set; only the on-screen summary table is capped for readability.
+- Loss-pattern evidence drill-down now supports explicit evidence-type filters (refund, void, line discount, margin override, cash variance, stock removal where attributable) and a scoped CSV export of the exact underlying evidence. Invalid/unavailable filter values fail closed rather than creating empty synthetic categories.
 - Manager investigation trail.
 
 **UI surfaces:** Roles & permissions, attendance board, timesheets, commission rules/reports, loss-prevention dashboard.
