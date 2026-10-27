@@ -316,3 +316,130 @@ class PackageAwarePurchasingTests(TestCase):
         self.assertEqual(balance.average_unit_cost, Decimal("750.0000"))
         self.assertTrue(balance.cost_basis_complete)
 
+    def test_landed_cost_distributes_by_received_supplier_value(self):
+        second = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=self.category,
+            name="Premium juice",
+            sku="JUICE-LANDED",
+            unit_price=Decimal("2500"),
+            track_inventory=True,
+        )
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT,
+            reference="LAND-001",
+            created_by=self.user,
+        )
+        first_line = PurchaseOrderLine.objects.create(
+            purchase_order=po,
+            menu_item=self.item,
+            quantity_ordered=Decimal("10"),
+            unit_cost=Decimal("800"),
+        )
+        second_line = PurchaseOrderLine.objects.create(
+            purchase_order=po,
+            menu_item=second,
+            quantity_ordered=Decimal("10"),
+            unit_cost=Decimal("1200"),
+        )
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        receive_purchase_order_goods(
+            po=po,
+            lines_payload=[
+                {"line_id": first_line.pk, "quantity": "10"},
+                {"line_id": second_line.pk, "quantity": "10"},
+            ],
+            user=self.user,
+            membership=membership,
+            delivery_reference="DN-LAND-001",
+            shipping_cost=Decimal("1500"),
+            duty_cost=Decimal("500"),
+            landed_cost_allocation="by_cost",
+        )
+
+        receipt = po.receipts.get()
+        self.assertEqual(receipt.shipping_cost, Decimal("1500.00"))
+        self.assertEqual(receipt.duty_cost, Decimal("500.00"))
+        self.assertEqual(receipt.landed_cost_allocation, "by_cost")
+
+        first_receipt = receipt.lines.get(purchase_order_line=first_line)
+        second_receipt = receipt.lines.get(purchase_order_line=second_line)
+        self.assertEqual(first_receipt.unit_cost_snapshot, Decimal("800.00"))
+        self.assertEqual(first_receipt.landed_cost_allocated, Decimal("800.00"))
+        self.assertEqual(first_receipt.landed_unit_cost_snapshot, Decimal("880.0000"))
+        self.assertEqual(second_receipt.landed_cost_allocated, Decimal("1200.00"))
+        self.assertEqual(second_receipt.landed_unit_cost_snapshot, Decimal("1320.0000"))
+
+        first_balance = StockBalance.objects.get(outlet=self.outlet, menu_item=self.item)
+        second_balance = StockBalance.objects.get(outlet=self.outlet, menu_item=second)
+        self.assertEqual(first_balance.average_unit_cost, Decimal("880.0000"))
+        self.assertEqual(second_balance.average_unit_cost, Decimal("1320.0000"))
+        self.assertTrue(first_balance.cost_basis_complete)
+        self.assertTrue(second_balance.cost_basis_complete)
+
+    def test_excluded_delivery_charges_do_not_change_inventory_unit_cost(self):
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT,
+            reference="LAND-EXCLUDE",
+            created_by=self.user,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po,
+            menu_item=self.item,
+            quantity_ordered=Decimal("10"),
+            unit_cost=Decimal("800"),
+        )
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        receive_purchase_order_goods(
+            po=po,
+            lines_payload=[{"line_id": line.pk, "quantity": "10"}],
+            user=self.user,
+            membership=membership,
+            delivery_reference="DN-LAND-EXCLUDE",
+            shipping_cost=Decimal("1500"),
+            duty_cost=Decimal("500"),
+            landed_cost_allocation="exclude",
+        )
+        receipt_line = po.receipts.get().lines.get()
+        balance = StockBalance.objects.get(outlet=self.outlet, menu_item=self.item)
+        self.assertEqual(receipt_line.landed_cost_allocated, Decimal("0.00"))
+        self.assertEqual(receipt_line.landed_unit_cost_snapshot, Decimal("800.0000"))
+        self.assertEqual(balance.average_unit_cost, Decimal("800.0000"))
+
+    def test_landed_cost_distribution_rejects_received_line_without_supplier_cost(self):
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT,
+            reference="LAND-MISSING-COST",
+            created_by=self.user,
+        )
+        line = PurchaseOrderLine.objects.create(
+            purchase_order=po,
+            menu_item=self.item,
+            quantity_ordered=Decimal("10"),
+            unit_cost=None,
+        )
+        membership = Membership.objects.get(tenant=self.tenant, user=self.user)
+        with self.assertRaises(ValidationError):
+            receive_purchase_order_goods(
+                po=po,
+                lines_payload=[{"line_id": line.pk, "quantity": "10"}],
+                user=self.user,
+                membership=membership,
+                delivery_reference="DN-LAND-MISSING",
+                shipping_cost=Decimal("100"),
+                landed_cost_allocation="by_cost",
+            )
+        self.assertFalse(po.receipts.exists())
+        self.assertFalse(
+            StockBalance.objects.filter(outlet=self.outlet, menu_item=self.item).exists()
+        )
+
