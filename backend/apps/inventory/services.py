@@ -18,6 +18,7 @@ from .models import (
     StockMovement,
     StockReason,
     StockTransferReceipt,
+    RetailAssemblyRun,
 )
 
 @transaction.atomic
@@ -191,6 +192,168 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
                 record_batch_allocations(
                     tenant_id=tenant_id, movement=movement, allocations=allocations,
                 )
+
+
+@transaction.atomic
+def execute_retail_assembly(
+    *,
+    tenant_id,
+    outlet,
+    assembled_item,
+    quantity,
+    direction,
+    user,
+    membership,
+    note="",
+) -> RetailAssemblyRun:
+    """Build or unbuild a retail assembly using the authoritative stock ledger."""
+
+    from apps.inventory.batches import InventoryBatch
+
+    if not outlet_belongs_to_membership(membership, outlet.id):
+        raise ValidationError({"outlet": "You cannot assemble stock for this outlet."})
+    if outlet.site.tenant_id != tenant_id or assembled_item.tenant_id != tenant_id:
+        raise ValidationError({"assembly": "Outlet and finished product must belong to this business."})
+    if direction not in RetailAssemblyRun.Direction.values:
+        raise ValidationError({"direction": "Choose build or unbuild."})
+    if not assembled_item.track_inventory:
+        raise ValidationError({"assembly": "Enable stock tracking on the finished product first."})
+    try:
+        qty = Decimal(str(quantity))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValidationError({"quantity": "Enter a valid assembly quantity."}) from exc
+    if (
+        not qty.is_finite()
+        or qty <= 0
+        or qty > Decimal("99999999999.999")
+        or qty != qty.quantize(Decimal("0.001"))
+    ):
+        raise ValidationError({"quantity": "Enter a positive quantity with up to three decimal places."})
+    if assembled_item.unit_of_measure == "each" and qty != qty.to_integral_value():
+        raise ValidationError({"quantity": "Piece-based finished products must be built in whole units."})
+
+    components = list(
+        assembled_item.assembly_components.select_related("component_item")
+        .filter(tenant_id=tenant_id)
+        .order_by("component_item_id")
+    )
+    if not components:
+        raise ValidationError({"assembly": "Configure at least one retail assembly component first."})
+    component_need = {}
+    item_names = {assembled_item.pk: assembled_item.name}
+    for line in components:
+        component = line.component_item
+        if component.tenant_id != tenant_id:
+            raise ValidationError({"assembly": "Assembly contains a component from another business."})
+        if not component.track_inventory:
+            raise ValidationError({"assembly": f'Enable stock tracking on component "{component.name}".'})
+        need = (qty * line.quantity_per_unit).quantize(Decimal("0.001"))
+        if need <= 0 or need > Decimal("99999999999.999"):
+            raise ValidationError({"assembly": f'Invalid component requirement for "{component.name}".'})
+        component_need[component.pk] = component_need.get(component.pk, Decimal("0")) + need
+        item_names[component.pk] = component.name
+
+    all_item_ids = sorted({assembled_item.pk, *component_need.keys()}, key=str)
+    if InventoryBatch.objects.filter(
+        tenant_id=tenant_id,
+        outlet_id=outlet.id,
+        menu_item_id__in=all_item_ids,
+    ).exists():
+        raise ValidationError({
+            "assembly": (
+                "This assembly contains batch/expiry-tracked stock. "
+                "Lot-aware assembly allocation must be configured before build/unbuild."
+            )
+        })
+
+    balances = {}
+    for item_id in all_item_ids:
+        balance, _ = StockBalance.objects.select_for_update().get_or_create(
+            tenant_id=tenant_id,
+            outlet=outlet,
+            menu_item_id=item_id,
+            defaults={"quantity": Decimal("0")},
+        )
+        balances[item_id] = balance
+
+    if direction == RetailAssemblyRun.Direction.BUILD:
+        for item_id, need in component_need.items():
+            if balances[item_id].quantity < need:
+                raise ValidationError({
+                    "stock": (
+                        f'Insufficient "{item_names[item_id]}" for this build '
+                        f"(need {need}, have {balances[item_id].quantity})."
+                    )
+                })
+    else:
+        if balances[assembled_item.pk].quantity < qty:
+            raise ValidationError({
+                "stock": (
+                    f'Insufficient "{assembled_item.name}" to unbuild '
+                    f"(need {qty}, have {balances[assembled_item.pk].quantity})."
+                )
+            })
+
+    run = RetailAssemblyRun.objects.create(
+        tenant_id=tenant_id,
+        outlet=outlet,
+        assembled_item=assembled_item,
+        direction=direction,
+        quantity=qty,
+        note=(note or "")[:512],
+        created_by=user,
+    )
+    movement_note = (
+        f"{run.get_direction_display()} {assembled_item.name} · run {run.pk}"
+    )[:512]
+
+    def post(item_id, change):
+        balance = balances[item_id]
+        new_qty = balance.quantity + change
+        if new_qty < 0:
+            raise ValidationError({"stock": f'Assembly would make "{item_names[item_id]}" negative.'})
+        balance.quantity = new_qty
+        balance.save(update_fields=["quantity", "updated_at"])
+        StockMovement.objects.create(
+            tenant_id=tenant_id,
+            outlet=outlet,
+            menu_item_id=item_id,
+            quantity_change=change,
+            reason=(
+                StockReason.ASSEMBLY_BUILD
+                if direction == RetailAssemblyRun.Direction.BUILD
+                else StockReason.ASSEMBLY_UNBUILD
+            ),
+            created_by=user,
+            note=movement_note,
+            assembly_run=run,
+        )
+
+    if direction == RetailAssemblyRun.Direction.BUILD:
+        for item_id, need in sorted(component_need.items(), key=lambda row: str(row[0])):
+            post(item_id, -need)
+        post(assembled_item.pk, qty)
+    else:
+        post(assembled_item.pk, -qty)
+        for item_id, need in sorted(component_need.items(), key=lambda row: str(row[0])):
+            post(item_id, need)
+
+    log_audit(
+        tenant_id=tenant_id,
+        user_id=user.pk if user else None,
+        action=f"inventory.assembly_{direction}",
+        entity_type="retail_assembly_run",
+        entity_id=str(run.pk),
+        payload={
+            "outlet_id": str(outlet.pk),
+            "assembled_item_id": str(assembled_item.pk),
+            "quantity": str(qty),
+            "components": {
+                str(item_id): str(need) for item_id, need in component_need.items()
+            },
+        },
+    )
+    return run
 
 
 @transaction.atomic
