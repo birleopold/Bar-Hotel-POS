@@ -1,0 +1,74 @@
+{% extends "staff/base.html" %}
+{% block title %}Commissions & targets{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Management · Workforce</p>
+    <div class="staff-page-hero__head">
+      <div><h1 class="staff-page-title mb-0">Commissions & targets<span class="staff-page-title__accent" aria-hidden="true"></span></h1><p class="staff-muted mb-0">Settled-sale snapshots, return/refund adjustments and sales target progress in your authorized sections.</p></div>
+      {% if request.tenant_membership.role == "owner" or request.tenant_membership.role == "tenant_admin" %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-workspace-commission-rules' %}">Commission rules</a>{% endif %}
+    </div>
+  </div>
+</header>
+{% if commission_error %}<div class="staff-alert staff-alert--danger">{{ commission_error }}</div>{% endif %}
+<form method="get" class="staff-card staff-team-filters mb-3">
+  <label class="staff-label">From<input class="staff-input" type="date" name="date_from" value="{{ date_from }}"></label>
+  <label class="staff-label">To<input class="staff-input" type="date" name="date_to" value="{{ date_to }}"></label>
+  <button class="staff-btn staff-btn--ghost" type="submit">Run report</button>
+  {% if commission_report %}<a class="staff-btn staff-btn--ghost" href="?date_from={{ date_from }}&amp;date_to={{ date_to }}&amp;export=csv">Export CSV</a>{% endif %}
+</form>
+
+{% if commission_report %}
+<section class="staff-card mb-3">
+  <h2 class="staff-card__title">Commission summary</h2>
+  <div class="staff-tile-grid">
+    <article class="staff-tile"><span class="staff-muted small">Net attributed sales</span><strong>{{ commission_report.currency }} {{ commission_report.net_sales }}</strong></article>
+    <article class="staff-tile"><span class="staff-muted small">Gross commission</span><strong>{{ commission_report.currency }} {{ commission_report.gross_commission }}</strong></article>
+    <article class="staff-tile"><span class="staff-muted small">Return/refund reversals</span><strong>{{ commission_report.currency }} {{ commission_report.total_reversal }}</strong></article>
+    <article class="staff-tile"><span class="staff-muted small">Net commission</span><strong>{{ commission_report.currency }} {{ commission_report.net_commission }}</strong></article>
+  </div>
+  {% if commission_report.unallocated_refund_amount %}<p class="staff-muted small mt-2">Refund amount without commissionable attributed lines: {{ commission_report.currency }} {{ commission_report.unallocated_refund_amount }}. No worker commission was guessed for it.</p>{% endif %}
+</section>
+
+<div class="staff-table-wrap mb-4">
+<table class="staff-table">
+<thead><tr><th>Worker</th><th>Gross sales</th><th>Sales reversals</th><th>Net sales</th><th>Gross commission</th><th>Commission reversals</th><th>Net commission</th><th>Target</th><th>Progress</th></tr></thead>
+<tbody>
+{% for row in commission_report.workers %}
+<tr>
+<td><strong>{{ row.worker }}</strong></td>
+<td>{{ commission_report.currency }} {{ row.gross_sales }}</td>
+<td>{{ commission_report.currency }} {{ row.sales_reversal }}</td>
+<td>{{ commission_report.currency }} {{ row.net_sales }}</td>
+<td>{{ commission_report.currency }} {{ row.gross_commission }}</td>
+<td>{{ commission_report.currency }} {{ row.total_reversal }}</td>
+<td><strong>{{ commission_report.currency }} {{ row.net_commission }}</strong></td>
+<td>{% if row.target_amount != None %}{{ commission_report.currency }} {{ row.target_amount }}{% else %}<span class="staff-muted">No target covering this report range</span>{% endif %}</td>
+<td>{% if row.target_progress_percent != None %}{{ row.target_progress_percent }}%{% else %}—{% endif %}</td>
+</tr>
+{% empty %}<tr><td colspan="9" class="staff-muted">No attributed settled sales or commission reversals match this period.</td></tr>{% endfor %}
+</tbody>
+</table>
+</div>
+{% endif %}
+
+<section class="staff-card mb-3">
+  <h2 class="staff-card__title">Set sales target</h2>
+  <p class="staff-muted small">Targets measure net attributed sales after returns/refunds. They do not trigger payroll payments.</p>
+  <form method="post">{% csrf_token %}
+    {% for field in target_form %}<div class="mb-2">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+    {% if target_form.non_field_errors %}<div class="staff-alert staff-alert--danger">{{ target_form.non_field_errors }}</div>{% endif %}
+    <button class="staff-btn staff-btn--primary" type="submit">Save target</button>
+  </form>
+</section>
+
+<h2 class="staff-section-head">Targets in this period</h2>
+<div class="staff-table-wrap">
+<table class="staff-table"><thead><tr><th>Worker</th><th>Period</th><th>Target</th><th>Note</th><th></th></tr></thead><tbody>
+{% for target in sales_targets %}
+<tr><td>{{ target.membership.user.get_full_name|default:target.membership.user.email }}</td><td>{{ target.period_start }} → {{ target.period_end }}</td><td>{{ request.tenant.settings.default_currency }} {{ target.target_amount }}</td><td>{{ target.note|default:"—" }}</td><td><a href="{% url 'staff-sales-target-edit' target_id=target.id %}">Edit</a></td></tr>
+{% empty %}<tr><td colspan="5" class="staff-muted">No sales targets overlap this report period.</td></tr>{% endfor %}
+</tbody></table>
+</div>
+{% endblock %}
