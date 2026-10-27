@@ -57,6 +57,29 @@ class ProductFamily(TimeStampedModel):
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    brand = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Optional brand or manufacturer name.",
+    )
+    model_number = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Optional model, style, or manufacturer model number.",
+    )
+    reference_code = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Optional internal or manufacturer reference code.",
+    )
+    msrp = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Optional manufacturer suggested retail price; does not override the selling price.",
+    )
     variant_schema = models.JSONField(
         default=list,
         blank=True,
@@ -251,6 +274,124 @@ class MenuItem(TimeStampedModel):
         if link and link.price_override is not None:
             return link.price_override
         return self.unit_price
+
+
+class ProductCustomFieldDefinition(TimeStampedModel):
+    class FieldType(models.TextChoices):
+        TEXT = "text", "Text"
+        NUMBER = "number", "Number"
+        BOOLEAN = "boolean", "Yes / no"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="product_custom_field_definitions",
+    )
+    name = models.CharField(max_length=96)
+    key = models.SlugField(max_length=96)
+    field_type = models.CharField(max_length=16, choices=FieldType.choices, default=FieldType.TEXT)
+    help_text = models.CharField(max_length=255, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "key"], name="uniq_product_custom_field_key_tenant"),
+            models.UniqueConstraint(Lower("name"), "tenant", name="uniq_product_custom_field_name_ci_tenant"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ProductCustomFieldValue(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="product_custom_field_values",
+    )
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name="custom_field_values",
+    )
+    definition = models.ForeignKey(
+        ProductCustomFieldDefinition,
+        on_delete=models.CASCADE,
+        related_name="values",
+    )
+    value_text = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["definition__sort_order", "definition__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["menu_item", "definition"],
+                name="uniq_product_custom_value_item_definition",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Product and custom value must belong to the same business."})
+        if self.definition_id and self.tenant_id and self.definition.tenant_id != self.tenant_id:
+            raise ValidationError({"definition": "Custom field and value must belong to the same business."})
+
+    def typed_value(self):
+        if self.definition.field_type == ProductCustomFieldDefinition.FieldType.BOOLEAN:
+            return self.value_text.strip().lower() in {"1", "true", "yes", "on"}
+        if self.definition.field_type == ProductCustomFieldDefinition.FieldType.NUMBER:
+            try:
+                return Decimal(self.value_text)
+            except Exception:
+                return None
+        return self.value_text
+
+
+class ProductAlternateCode(TimeStampedModel):
+    class CodeType(models.TextChoices):
+        INTERNAL = "internal", "Internal"
+        SUPPLIER = "supplier", "Supplier"
+        MANUFACTURER = "manufacturer", "Manufacturer"
+        OTHER = "other", "Other"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="product_alternate_codes",
+    )
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name="alternate_codes",
+    )
+    code = models.CharField(max_length=128, db_index=True)
+    code_type = models.CharField(max_length=16, choices=CodeType.choices, default=CodeType.INTERNAL)
+    label = models.CharField(max_length=96, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["menu_item__name", "code_type", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("code"),
+                "tenant",
+                name="uniq_product_alternate_code_ci_tenant",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Product and alternate code must belong to the same business."})
+
+    def __str__(self) -> str:
+        return f"{self.menu_item.name} · {self.code}"
 
 
 class ProductPackage(TimeStampedModel):
