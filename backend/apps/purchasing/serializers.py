@@ -546,6 +546,12 @@ class ReceiveLineSerializer(serializers.Serializer):
     batch_code = serializers.CharField(required=False, allow_blank=True, max_length=128)
     expiry_date = serializers.DateField(required=False, allow_null=True)
     received_at = serializers.DateField(required=False)
+    landed_cost_amount = serializers.DecimalField(
+        required=False,
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0"),
+    )
 
     def validate(self, attrs):
         if attrs.get("expiry_date") and not (attrs.get("batch_code") or "").strip():
