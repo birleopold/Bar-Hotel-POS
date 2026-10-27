@@ -167,7 +167,7 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
 
     for line in (
         order.lines.filter(is_voided=False, menu_item__isnull=False)
-        .select_related("menu_item")
+        .select_related("menu_item", "menu_item__category")
         .prefetch_related("menu_item__recipe_lines__ingredient_item")
     ):
         item = line.menu_item
@@ -217,9 +217,14 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
         cost = authoritative_unit_cost(balance) if balance is not None else None
         line.cost_unit_snapshot = cost
         line.cost_basis_complete_snapshot = cost is not None
+        line.merchandise_category_snapshot = (
+            line.menu_item.category.name
+            if line.menu_item.category_id else ""
+        )
         line.save(update_fields=[
             "cost_unit_snapshot",
             "cost_basis_complete_snapshot",
+            "merchandise_category_snapshot",
             "updated_at",
         ])
 
