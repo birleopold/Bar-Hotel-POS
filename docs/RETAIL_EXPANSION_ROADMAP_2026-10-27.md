@@ -319,6 +319,7 @@ Implemented in source, pending exact-head certification:
 - Physical line returns reverse sale-time merchandise revenue; COGS reverses only when stock was actually restocked. General/unmapped refunds, incomplete restock costs and historical foreign-currency payments are surfaced as coverage warnings instead of being guessed into product margin.
 - Profitability uses the same authorized outlet/date scope as management reporting and exports CSV with spreadsheet-formula protection.
 - Scheduled owner PDF/CSV reports now include the same merchandise profitability coverage and use the property's operating-day boundary when a property-specific schedule is configured; business-wide schedules retain the existing UTC calendar convention.
+- RFQ sourcing is now implemented end to end: request lines → supplier invitations/responses → side-by-side quote comparison → guarded award → existing approved draft PO → reverse sourcing traceability. Supplier scorecards consume RFQ outcomes without creating a second supplier ledger.
 
 - Cross-target Buy-X-Get-Y pricing now caps the free discount against the reward pool rather than the qualifying pool, so a more expensive reward can be fully discounted when the configured deal intends it.
 
@@ -338,12 +339,15 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Remaining enhancement: optional needed-by/reason fields and consolidation of multiple approved requests when a business genuinely needs centralized procurement.
 
 ### R4.2 RFQ and quotation comparison
-- Send/record RFQ against one or more suppliers.
-- Supplier quotation header + line prices.
-- Freight/other charges noted separately.
-- Side-by-side comparison: unit cost, total, lead time, availability, terms.
-- Approve winning quote.
-- Convert approved quotation into existing PO flow.
+- Implemented as a manager-only, tenant/outlet-scoped sourcing workflow under Purchasing → Supplier quotes.
+- One RFQ records the receiving outlet, needed-by date, specification/notes and requested base-stock quantities once; multiple active suppliers can then be added against the same requirement.
+- Supplier quote evidence records reference, line unit prices, quantity availability, promised dates, freight, other quoted charges, lead time, payment terms and quote validity separately.
+- Comparison shows item subtotal, freight, other charges, total quoted cost, lead time and availability. Lowest price is highlighted only among complete quotes that can fulfil every requested quantity; it is evidence, not an automatic supplier decision.
+- Awarding requires a complete, non-expired, fully available quotation. Exactly one quote wins the RFQ and converts transactionally into the existing approved draft PO flow using quoted item unit costs.
+- Quoted freight/other charges remain sourcing evidence and PO notes; actual landed cost is still recorded from the physical delivery, so a quotation never silently changes inventory valuation.
+- Awarded POs link back to their RFQ/quote in both staff UI and the purchase-order API. Closed RFQs lock all quote editing, and unawarded RFQs can be cancelled only with a recorded reason.
+- RFQ/quote tables carry tenant ownership and PostgreSQL RLS from their creation migration; create/invite/record/award/cancel actions are audit logged where state changes occur.
+- Current rollout intentionally awards one complete supplier quote for the whole RFQ. Split awards/partial-line sourcing, external supplier email delivery and supplier self-service quotation portals remain deferred until operational demand justifies them.
 
 ### R4.3 Product/vendor relationship
 - Preferred supplier.
@@ -361,13 +365,10 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Remaining: quantity/weight/manual allocation modes, landed-cost corrections/credit handling, richer profitability recommendations, and historical-cost reconstruction for assembly unbuilds.
 
 ### R4.5 Supplier performance
-- On-time delivery.
-- Fill rate.
-- Price variance.
-- Return/discrepancy rate.
-- Spend.
-- Quote win/loss.
-- Supplier scorecard.
+- Implemented on the existing Suppliers directory rather than a separate dashboard.
+- Evidence-based metrics include first-receipt lead time, on-time rate, due-quantity fulfilment, supplier-return rate, latest received-cost direction, received supplier-cost value, mapped/preferred products and PO/delivery counts.
+- RFQ outcomes now add quotes received, wins, losses, no-response count and win percentage. No arbitrary blended supplier score is generated; managers see the underlying measures separately.
+- Received value is based on physical receipt quantity × supplier unit-cost snapshot; it is not confused with cash paid, landed cost, invoice settlement or full accounting spend.
 
 **UI surfaces:** Requisition inbox, approval screen, RFQ, quotation comparison, supplier product tab, landed-cost allocation, supplier scorecard.
 
