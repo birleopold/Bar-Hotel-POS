@@ -1,0 +1,49 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Supplier quotations{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261022.1">{% endblock %}
+{% block content %}
+<div class="fizo-purchasing">
+  <header class="fizo-purchasing__header">
+    <div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Supplier quotations</h1><p>Request comparable prices and delivery terms before creating a purchase order.</p></div>
+    <div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-rfq-create' %}">New RFQ</a></div>
+  </header>
+  {% include "staff/purchasing/includes/subnav.html" %}
+  <form method="get" class="staff-card mb-3">
+    <label class="staff-label" for="rfq-status">Status</label>
+    <select class="staff-input" id="rfq-status" name="status" onchange="this.form.submit()">
+      <option value="">All RFQs</option>
+      <option value="draft"{% if status_filter == "draft" %} selected{% endif %}>Draft</option>
+      <option value="open"{% if status_filter == "open" %} selected{% endif %}>Open for quotations</option>
+      <option value="awarded"{% if status_filter == "awarded" %} selected{% endif %}>Awarded</option>
+      <option value="cancelled"{% if status_filter == "cancelled" %} selected{% endif %}>Cancelled</option>
+    </select>
+  </form>
+  <section class="staff-card">
+    <h2 class="staff-section-head">Requests for quotation</h2>
+    <div class="staff-table-wrap"><table class="staff-table">
+      <thead><tr><th>RFQ</th><th>Receiving section</th><th>Needed by</th><th>Products</th><th>Suppliers</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for rfq in rfqs %}
+        <tr>
+          <td><strong>{{ rfq.reference }}</strong><div class="staff-muted small">{{ rfq.created_at }}</div></td>
+          <td>{{ rfq.outlet.name }}</td>
+          <td>{{ rfq.needed_by|default:"—" }}</td>
+          <td>{{ rfq.lines.count }}</td>
+          <td>{{ rfq.quotes.count }}</td>
+          <td>{{ rfq.get_status_display }}</td>
+          <td><a href="{% url 'staff-purchasing-rfq-detail' rfq_id=rfq.pk %}">Compare quotes</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="7" class="staff-muted">No RFQs yet. Use an RFQ when you want comparable offers from more than one supplier.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+  {% if is_paginated %}
+  <nav class="staff-pager">
+    {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;status={{ status_filter|urlencode }}">Previous</a>{% endif %}
+    <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;status={{ status_filter|urlencode }}">Next</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}
