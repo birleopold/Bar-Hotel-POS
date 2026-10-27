@@ -25,6 +25,11 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.catalog.models import MenuCategory, MenuItem, MenuItemOutlet, Promotion, RetailProductGroup, ServiceOffering, ServiceOfferingOption
 from apps.pos.models import KdsLineStatus, Order, OrderLine, OrderServiceMode, OrderStatus, PosShift, PosShiftStatus, ShiftHandover, Table, Workstation
+from apps.pos.services.pricing_policy import (
+    pricing_precedence_state,
+    wholesale_combination_block_reason,
+)
+
 from apps.pos.services import (
     adjust_open_order_line_quantity,
     assign_order_line_seat,
@@ -1328,7 +1333,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if can_modify_open and services_enabled
             else None
         )
-        promo_qs = promotions_selectable_for_order(order) if can_modify_open else None
+        pricing_state = pricing_precedence_state(order)
+        ctx["pricing_precedence"] = pricing_state
+        ctx["promotion_block_reason"] = pricing_state.promotion_block_reason
+        promo_qs = (
+            promotions_selectable_for_order(order)
+            if can_modify_open and not pricing_state.promotion_block_reason
+            else None
+        )
         ctx["apply_promotion_form"] = (
             StaffOrderApplyPromotionForm(eligible_queryset=promo_qs)
             if promo_qs is not None
@@ -1620,9 +1632,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             and manager_allowed(self.request.tenant_membership, order.tenant_id, order.outlet_id)
         )
         from apps.pos.services.wholesale import manager_allowed, qualifying_rule
+        ctx["wholesale_pricing_block_reason"] = wholesale_combination_block_reason(order)
         ctx["can_apply_wholesale"] = bool(
             can_modify_open and is_supermarket_outlet and order.customer_id
             and not order.payments.exists()
+            and not ctx["wholesale_pricing_block_reason"]
             and manager_allowed(m, order.tenant_id, order.outlet_id)
         )
         ctx["wholesale_available_lines"] = []
@@ -1638,9 +1652,14 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
             if can_modify_open and is_supermarket_outlet and hardware["barcode_scanner_enabled"]
             else None
         )
+        ctx["line_discount_block_reason"] = (
+            "Remove the order promotion before applying a manual line discount."
+            if pricing_state.has_promotion else ""
+        )
         ctx["line_discount_form"] = (
             StaffOrderLineDiscountForm(approvers=retail_discount_approvers)
             if can_modify_open and is_supermarket_outlet and retail_discount_approvers
+            and not ctx["line_discount_block_reason"]
             else None
         )
         ctx["discount_request_key"] = uuid.uuid4() if ctx["line_discount_form"] is not None else None
