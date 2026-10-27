@@ -13,6 +13,7 @@ from apps.pos.models import (
     Order,
     PriceBook,
     PriceBookRule,
+    WholesalePriceRule,
 )
 from apps.pos.services.orders import (
     add_line_to_open_order,
@@ -21,6 +22,7 @@ from apps.pos.services.orders import (
     apply_supermarket_line_discount,
 )
 from apps.pos.services.price_books import reprice_open_retail_order_for_customer
+from apps.pos.services.wholesale import apply_wholesale_tier
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
 
@@ -185,6 +187,50 @@ class CustomerPriceBookTests(TestCase):
                 user=self.user,
                 discount_percent=Decimal("5"),
             )
+
+    def test_wholesale_override_clears_customer_book_and_lower_quantity_restores_it(self):
+        WholesalePriceRule.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.item,
+            minimum_quantity=Decimal("10"),
+            unit_price=Decimal("7000"),
+            is_active=True,
+            created_by=self.user,
+        )
+        order = self._order(self.customer)
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.item,
+            quantity=Decimal("10"),
+            user=self.user,
+        )
+        self.assertEqual(line.unit_price, Decimal("8000"))
+        self.assertEqual(line.price_book_rule, self.rule_five)
+
+        line, _already = apply_wholesale_tier(
+            order=order,
+            line_id=line.pk,
+            membership=self.membership,
+            user=self.user,
+        )
+        line.refresh_from_db()
+        self.assertEqual(line.unit_price, Decimal("7000"))
+        self.assertEqual(line.pricing_source, "wholesale")
+        self.assertIsNone(line.price_book_rule_id)
+        self.assertIsNone(line.price_book_base_unit_price)
+
+        adjust_open_order_line_quantity(
+            order=order,
+            line=line,
+            quantity=Decimal("4"),
+            user=self.user,
+        )
+        line.refresh_from_db()
+        self.assertEqual(line.pricing_source, "menu")
+        self.assertEqual(line.unit_price, Decimal("9000"))
+        self.assertEqual(line.price_book_rule, self.rule_one)
+        self.assertEqual(line.price_book_base_unit_price, Decimal("10000"))
 
     def test_price_book_outlet_scope_falls_back_to_base_price_elsewhere(self):
         other = Outlet.objects.create(
