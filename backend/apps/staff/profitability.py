@@ -709,4 +709,73 @@ def build_merchandise_profitability(
         (row["margin_shortfall"] for row in margin_breach_sales),
         Decimal("0.00"),
     ))
+
+    # Evidence-based management actions. These are deliberately recommendations
+    # only: they never rewrite historical cost, retail price, refunds or margin
+    # settings. Unknown cost is kept separate from trusted-cost margin evidence.
+    profitability_actions = []
+    if (
+        totals["uncovered_net_revenue"] > 0
+        or totals["incomplete_sale_lines"] > 0
+        or totals["incomplete_restock_return_lines"] > 0
+    ):
+        profitability_actions.append({
+            "priority": "high",
+            "kind": "cost_reconciliation",
+            "title": "Reconcile missing merchandise cost",
+            "detail": (
+                f'{currency} {totals["uncovered_net_revenue"]} of net merchandise '
+                "revenue is outside trusted-cost profit calculations. Reconcile "
+                "cost from approved receiving, transfer or cost-bearing stock "
+                "evidence before using it for margin decisions."
+            ),
+            "exposure_amount": totals["uncovered_net_revenue"],
+            "affected_count": (
+                totals["incomplete_sale_lines"]
+                + totals["incomplete_restock_return_lines"]
+            ),
+        })
+    if totals["margin_breach_sale_count"]:
+        profitability_actions.append({
+            "priority": "high",
+            "kind": "margin_floor_review",
+            "title": "Review sales below the retail margin floor",
+            "detail": (
+                f'{totals["margin_breach_sale_count"]} trusted-cost sale line(s) '
+                f'missed the configured floor by {currency} '
+                f'{totals["margin_breach_shortfall"]} of gross profit. Review '
+                "discount approvals, selling price and supplier cost evidence; "
+                "the report does not change prices automatically."
+            ),
+            "exposure_amount": totals["margin_breach_shortfall"],
+            "affected_count": totals["margin_breach_sale_count"],
+        })
+    if totals["unmapped_refund_count"]:
+        profitability_actions.append({
+            "priority": "medium",
+            "kind": "refund_attribution",
+            "title": "Resolve unattributed merchandise refunds",
+            "detail": (
+                f'{totals["unmapped_refund_count"]} refund(s) worth {currency} '
+                f'{totals["unmapped_refund_amount"]} cannot be tied to an exact '
+                "returned merchandise line, so gross-profit coverage remains "
+                "incomplete."
+            ),
+            "exposure_amount": totals["unmapped_refund_amount"],
+            "affected_count": totals["unmapped_refund_count"],
+        })
+    if totals["foreign_currency_payment_count"]:
+        profitability_actions.append({
+            "priority": "medium",
+            "kind": "currency_scope",
+            "title": "Review historical foreign-currency sales separately",
+            "detail": (
+                f'{totals["foreign_currency_payment_count"]} completed sale(s) '
+                f'are outside this {currency} profitability view. They remain '
+                "excluded rather than being converted with a guessed exchange rate."
+            ),
+            "exposure_amount": Decimal("0.00"),
+            "affected_count": totals["foreign_currency_payment_count"],
+        })
+    totals["profitability_actions"] = profitability_actions
     return totals
