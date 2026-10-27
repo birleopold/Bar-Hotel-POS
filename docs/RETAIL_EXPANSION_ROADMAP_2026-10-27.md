@@ -170,7 +170,7 @@ Still R2 work:
 - arbitrary multi-pool mix-and-match mechanics beyond one product/family/category/brand pool;
 - group/bundle promotional pricing;
 - an explicit multi-offer stacking/precedence contract if simultaneous offers are later allowed;
-- margin-floor controls once verified cost is authoritative for the affected merchandise;
+- margin-floor controls using the new authoritative outlet cost basis; only cost-complete merchandise may be protected automatically, with legacy/incomplete stock surfaced for reconciliation;
 - exact-head CI and deployed browser/till acceptance for this promotion checkpoint.
 
 ## Workstream R2 — Pricing, promotions and merchandising
@@ -274,6 +274,21 @@ Still R2 work:
 - Reward balance on receipt/customer display where enabled.
 
 **UI surfaces:** Customer account tab, credit account dashboard, statements, quotes, sales orders, layaway, exchange screen, gift/store credit, loyalty tiers/segments.
+
+## R4 implementation checkpoint — 27 October 2026
+
+Implemented in source, pending exact-head certification:
+- Outlet stock balances now carry an optional weighted-average unit cost plus an explicit `cost_basis_complete` trust flag. The average is only authoritative when every on-hand unit has known cost evidence.
+- Confirmed purchase receipts snapshot the PO unit cost used for that physical receipt and update the outlet weighted average transactionally after stock is posted.
+- Receiving costed stock into existing legacy/uncosted on-hand inventory deliberately leaves the balance cost-incomplete instead of inventing a blended average.
+- Direct tracked retail sale lines snapshot the authoritative outlet unit cost when inventory posts, so later purchase-price changes do not rewrite historical sale cost evidence.
+- Immediate and staged stock transfers capture the source outlet cost at dispatch and blend it into the destination only when the source basis is complete; uncosted transfers remain untrusted at destination.
+- Manual stock increases, upward physical-count corrections and assembly-created stock invalidate cost trust unless a dedicated known-cost workflow supplies evidence.
+- Legitimate retail and serialized restocks reuse the original sale-line cost snapshot when it was authoritative; historically uncosted returns remain incomplete.
+- The existing Stock balances screen now shows average cost, trusted inventory value and an explicit `Cost incomplete` state instead of hiding cost coverage in the database.
+- This is weighted-average cost by outlet. Landed-cost allocation, supplier freight/duty distribution and assembly cost roll-up remain R4 work.
+
+This checkpoint intentionally does **not** enable automatic margin-floor blocking yet. Margin-floor enforcement will use only balances where `cost_basis_complete=True`; incomplete/legacy stock must first be reconciled through approved cost-bearing workflows.
 
 ## Workstream R4 — Sourcing, purchasing and supplier intelligence
 
