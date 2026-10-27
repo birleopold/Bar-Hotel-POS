@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             name="unit_cost_snapshot",
             field=models.DecimalField(
                 blank=True,
-                help_text="Purchase unit cost captured when this physical receipt was posted.",
+                help_text="Supplier unit cost captured when this physical receipt was posted.",
                 max_digits=12,
                 decimal_places=2,
                 null=True,
