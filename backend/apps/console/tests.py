@@ -52,6 +52,8 @@ class ConsoleAdminRouteOwnershipTests(SimpleTestCase):
         self.assertEqual(reverse("console-org-settings-modules"), "/console/org/settings/modules/")
         self.assertEqual(reverse("console-org-team"), "/console/org/team/")
         self.assertEqual(reverse("console-org-team-create"), "/console/org/team/new/")
+        self.assertEqual(reverse("console-org-workstations"), "/console/org/workstations/")
+        self.assertEqual(reverse("console-org-workstation-create"), "/console/org/workstations/new/")
 
     def test_console_admin_templates_render_from_console_shell(self):
         from pathlib import Path
@@ -559,6 +561,39 @@ class ConsoleAccessTests(TestCase):
         overview = self.client.get(reverse("console-org"))
         self.assertContains(overview, reverse("console-org-workstations"))
         self.assertContains(overview, reverse("console-org-team"))
+
+    def test_org_workstation_admin_routes_keep_console_shell(self) -> None:
+        user = User.objects.create_user(email="org-device-admin@test.local", password="TestPass9!")
+        Membership.objects.create(user=user, tenant=self.tenant, role=MembershipRole.OWNER)
+        site = Site.objects.create(tenant=self.tenant, name="Main branch")
+        outlet = Outlet.objects.create(site=site, name="Main counter", outlet_type=OutletType.BAR)
+        station = Workstation.objects.create(
+            tenant=self.tenant,
+            outlet=outlet,
+            name="Main till",
+            code="main-till",
+        )
+        self._login_with_tenant(user)
+
+        directory = self.client.get(reverse("console-org-workstations"))
+        self.assertEqual(directory.status_code, 200)
+        self.assertContains(directory, reverse("console-org-workstation-edit", args=[station.pk]))
+        self.assertContains(directory, reverse("console-org-workstation-test", args=[station.pk]))
+        self.assertContains(directory, reverse("console-org-workstation-pair", args=[station.pk]))
+
+        equipment = self.client.get(reverse("console-org-workstation-test", args=[station.pk]))
+        self.assertEqual(equipment.status_code, 200)
+        self.assertContains(equipment, "Equipment check")
+        self.assertContains(equipment, 'class="console-sidebar"')
+        self.assertContains(equipment, reverse("console-org-workstations"))
+        self.assertNotContains(equipment, 'href="' + reverse("staff-workstations") + '"', html=False)
+
+        pairing = self.client.get(reverse("console-org-workstation-pair", args=[station.pk]))
+        self.assertEqual(pairing.status_code, 200)
+        self.assertContains(pairing, "Approve workstation browser")
+        self.assertContains(pairing, 'class="console-sidebar"')
+        self.assertContains(pairing, reverse("console-org-workstations"))
+        self.assertNotContains(pairing, 'href="' + reverse("staff-workstations") + '"', html=False)
 
     def test_org_setup_shows_first_step_when_workspace_empty(self) -> None:
         user = User.objects.create_user(email="co-setup-empty@test.local", password="TestPass9!")
