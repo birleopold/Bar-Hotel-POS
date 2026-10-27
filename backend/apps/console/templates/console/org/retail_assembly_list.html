@@ -1,0 +1,21 @@
+{% extends "console/base.html" %}
+{% block title %}Assembly BOM · {{ menu_item.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-setup__eyebrow">Catalogue / {{ menu_item.name }}</p><h1>Retail assembly</h1><p class="staff-muted">Define the tracked component quantities needed to build one finished unit. This is separate from restaurant recipe consumption.</p></div>
+    <div class="grocery-setup__hero-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-edit' menu_item.id %}">Edit product</a><a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-assembly-create' menu_item.id %}">Add component</a></div>
+  </header>
+  <section class="staff-card">
+    <p><strong>Finished product:</strong> {{ menu_item.name }} · {% if menu_item.track_inventory %}stock tracked{% else %}<span class="staff-alert staff-alert--warning">stock tracking is off</span>{% endif %}</p>
+    <p class="staff-muted mb-0">Building consumes the components below and adds finished-product stock atomically. Unbuilding reverses the same quantities. Batch/expiry-tracked items are blocked until lot-aware assembly is added.</p>
+  </section>
+  <div class="staff-table-wrap mt-3"><table class="staff-table">
+    <thead><tr><th>Component</th><th>Quantity per finished unit</th><th>Stock tracking</th><th>Action</th></tr></thead>
+    <tbody>{% for component in components %}
+      <tr><td><strong>{{ component.component_item.name }}</strong><span class="staff-muted small d-block">{{ component.component_item.sku|default:"No SKU" }}</span></td><td>{{ component.quantity_per_unit }} {{ component.component_item.get_unit_of_measure_display }}</td><td>{% if component.component_item.track_inventory %}Tracked{% else %}Not tracked{% endif %}</td><td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-menu-item-assembly-edit' menu_item.id component.id %}">Edit</a><a href="{% url 'console-org-menu-item-assembly-delete' menu_item.id component.id %}">Remove</a></div></td></tr>
+    {% empty %}<tr><td colspan="4" class="staff-muted">No assembly components yet. Add the first component to make this product buildable.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if components %}<p class="mt-3"><a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-assemblies' %}">Build or unbuild stock</a></p>{% endif %}
+</section>
+{% endblock %}
