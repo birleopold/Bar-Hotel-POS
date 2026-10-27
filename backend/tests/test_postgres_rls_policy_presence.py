@@ -18,6 +18,8 @@ class PostgresRlsPolicyPresenceTests(TestCase):
             "catalog_menuitem",
             "customers_customer",
             "finance_cashbookentry",
+            "finance_accountingmapping",
+            "finance_accountingexportbatch",
             "inventory_stockbalance",
             "pos_order",
             "pos_payment",
