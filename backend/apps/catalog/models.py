@@ -481,6 +481,73 @@ class RetailAssemblyComponent(TimeStampedModel):
         return f"{self.parent_item.name}: {self.component_item.name} x {self.quantity_per_unit}"
 
 
+class RetailProductGroup(TimeStampedModel):
+    """Non-stock quick-sale group that expands into ordinary component SKUs."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="retail_product_groups",
+    )
+    name = models.CharField(max_length=128)
+    code = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="Optional cashier lookup code for this group. It does not replace component barcodes.",
+    )
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "name"], name="uniq_retail_group_name_tenant"),
+            models.UniqueConstraint(
+                fields=["tenant", "code"],
+                condition=~models.Q(code=""),
+                name="uniq_retail_group_code_tenant",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class RetailProductGroupLine(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    group = models.ForeignKey(
+        RetailProductGroup,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.PROTECT,
+        related_name="retail_group_lines",
+    )
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "menu_item__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group", "menu_item"],
+                name="uniq_retail_group_component",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.group_id and self.menu_item_id and self.group.tenant_id != self.menu_item.tenant_id:
+            raise ValidationError({"menu_item": "Group components must belong to the same business."})
+
+
 class ServiceOffering(TimeStampedModel):
     """Tenant-defined non-menu services sellable on orders (spa, rides, activities, etc.)."""
 
