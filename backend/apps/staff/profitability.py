@@ -219,15 +219,11 @@ def build_merchandise_profitability(
         row["known_cogs"] = _money(row["known_cogs"])
         row["return_revenue"] = _money(row["return_revenue"])
         row["known_cogs_reversal"] = _money(row["known_cogs_reversal"])
-        # A trusted returned line reverses its sale-time merchandise revenue
-        # from the covered population regardless of whether stock was restocked.
-        covered_return_revenue = Decimal("0.00")
-        if row["incomplete_return_lines"] == 0 and row["covered_revenue"]:
-            covered_return_revenue = min(
-                row["covered_revenue"], row["return_revenue"]
-            )
+        # Physical return revenue is known from the original sale line even
+        # when the sale happened before this reporting period. Cost uncertainty
+        # matters only when a restocked return needs an unknown COGS reversal.
         row["covered_net_revenue"] = _money(
-            row["covered_revenue"] - covered_return_revenue
+            row["covered_revenue"] - row["return_revenue"]
         )
         row["known_net_cogs"] = _money(
             row["known_cogs"] - row["known_cogs_reversal"]
