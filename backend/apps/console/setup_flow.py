@@ -188,7 +188,7 @@ def build_tenant_setup_state(tenant, progress: TenantSetupProgress | None = None
                 description="Name the staff till or workstation and assign it to a section. Browser pairing can be required.",
                 done=has_workstation,
                 cta_label="Set up workstation",
-                cta_url=reverse("console-org-workstations"),
+                cta_url=reverse("console-org-workstation-create"),
                 secondary_cta_label="View devices",
                 secondary_cta_url=reverse("console-org-workstations"),
             )
