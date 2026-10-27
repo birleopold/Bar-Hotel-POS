@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole
 from apps.customers.models import Customer
+from apps.inventory.models import StockBalance
 from apps.pos.models import Order, OrderLine, WholesalePriceRule
 from apps.pos.services.orders import adjust_open_order_line_quantity
 from apps.pos.services.wholesale import apply_wholesale_tier, save_wholesale_tier
@@ -157,3 +158,89 @@ def test_wholesale_staff_screen_shows_tiers_only_in_scoped_retail_workspace():
     page = client.get(reverse("staff-wholesale-pricing"))
     assert page.status_code == 200, page.content
     assert b"Wholesale quantity prices" in page.content
+
+@pytest.mark.django_db
+def test_wholesale_tier_cannot_cross_trusted_margin_floor():
+    env = _seed_tenant_bundle(
+        name="Wholesale Margin", slug="f6-wh-margin",
+        user_email="wh-margin@example.test",
+    )
+    outlet, item, user = env["outlet"], env["item"], env["user"]
+    outlet.outlet_type = OutletType.SUPERMARKET
+    outlet.save(update_fields=["outlet_type"])
+    settings_obj = env["tenant"].settings
+    settings_obj.retail_min_margin_percent = Decimal("20")
+    settings_obj.save(update_fields=["retail_min_margin_percent", "updated_at"])
+    item.track_inventory = True
+    item.save(update_fields=["track_inventory", "updated_at"])
+    StockBalance.objects.create(
+        tenant=env["tenant"], outlet=outlet, menu_item=item,
+        quantity=Decimal("20"), average_unit_cost=Decimal("4"),
+        cost_basis_complete=True,
+    )
+    member = Membership.objects.get(user=user, tenant=env["tenant"])
+    save_wholesale_tier(
+        tenant=env["tenant"], outlet=outlet, item_id=item.pk,
+        quantity="6", price="4.50", user=user, membership=member,
+    )
+    customer = Customer.objects.create(
+        tenant=env["tenant"], name="Trade customer", created_by=user,
+    )
+    sale = Order.objects.create(
+        tenant=env["tenant"], outlet=outlet, customer=customer,
+        currency="USD", created_by=user,
+    )
+    line = OrderLine.objects.create(
+        order=sale, menu_item=item, label=item.name, quantity=Decimal("8"),
+        unit_price=Decimal("5"), line_total=Decimal("40"),
+    )
+    with pytest.raises(ValidationError, match="minimum gross margin"):
+        apply_wholesale_tier(
+            order=sale, line_id=line.pk, membership=member, user=user,
+        )
+    line.refresh_from_db()
+    assert line.unit_price == Decimal("5")
+    assert line.pricing_source != "wholesale"
+
+
+@pytest.mark.django_db
+def test_wholesale_margin_floor_is_warning_only_when_cost_basis_incomplete():
+    env = _seed_tenant_bundle(
+        name="Wholesale Margin Unknown", slug="f6-wh-margin-unknown",
+        user_email="wh-margin-unknown@example.test",
+    )
+    outlet, item, user = env["outlet"], env["item"], env["user"]
+    outlet.outlet_type = OutletType.SUPERMARKET
+    outlet.save(update_fields=["outlet_type"])
+    settings_obj = env["tenant"].settings
+    settings_obj.retail_min_margin_percent = Decimal("20")
+    settings_obj.save(update_fields=["retail_min_margin_percent", "updated_at"])
+    item.track_inventory = True
+    item.save(update_fields=["track_inventory", "updated_at"])
+    StockBalance.objects.create(
+        tenant=env["tenant"], outlet=outlet, menu_item=item,
+        quantity=Decimal("20"), average_unit_cost=None,
+        cost_basis_complete=False,
+    )
+    member = Membership.objects.get(user=user, tenant=env["tenant"])
+    save_wholesale_tier(
+        tenant=env["tenant"], outlet=outlet, item_id=item.pk,
+        quantity="6", price="3.50", user=user, membership=member,
+    )
+    customer = Customer.objects.create(
+        tenant=env["tenant"], name="Trade customer", created_by=user,
+    )
+    sale = Order.objects.create(
+        tenant=env["tenant"], outlet=outlet, customer=customer,
+        currency="USD", created_by=user,
+    )
+    line = OrderLine.objects.create(
+        order=sale, menu_item=item, label=item.name, quantity=Decimal("8"),
+        unit_price=Decimal("5"), line_total=Decimal("40"),
+    )
+    chosen, replay = apply_wholesale_tier(
+        order=sale, line_id=line.pk, membership=member, user=user,
+    )
+    assert not replay
+    assert chosen.unit_price == Decimal("3.50")
+
