@@ -30,6 +30,7 @@ from apps.purchasing.approvals import (
 )
 from apps.purchasing.rfq import (
     award_supplier_quote,
+    cancel_rfq,
     create_rfq,
     invite_supplier_to_rfq,
     quote_comparison_rows,
@@ -235,6 +236,20 @@ class StaffRfqDetailView(StaffTenantRequiredMixin, TemplateView):
 
     def post(self, request, rfq_id):
         action = (request.POST.get("action") or "").strip()
+        if action == "cancel_rfq":
+            try:
+                cancel_rfq(
+                    rfq=self.rfq,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                    reason=(request.POST.get("cancel_reason") or "").strip(),
+                )
+            except DRFValidationError as exc:
+                _flash_drf_validation(request, exc)
+            else:
+                messages.success(request, "RFQ cancelled. Supplier quotations are retained as sourcing evidence.")
+            return redirect("staff-purchasing-rfq-detail", rfq_id=self.rfq.pk)
+
         if action == "invite":
             form = StaffRfqInviteForm(
                 request.POST, tenant=request.tenant, rfq=self.rfq
