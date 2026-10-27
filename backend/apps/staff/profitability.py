@@ -128,23 +128,12 @@ def build_merchandise_profitability(
     products = defaultdict(lambda: {
         "item_name": "",
         "sku": "",
-        "sale_revenue": Decimal("0.00"),
-        "sale_units": Decimal("0"),
-        "covered_revenue": Decimal("0.00"),
-        "covered_units": Decimal("0"),
-        "known_cogs": Decimal("0.00"),
-        "return_revenue": Decimal("0.00"),
-        "covered_return_revenue": Decimal("0.00"),
-        "return_units": Decimal("0"),
-        "known_cogs_reversal": Decimal("0.00"),
-        "incomplete_lines": 0,
-        "incomplete_return_lines": 0,
-    }    categories = defaultdict(lambda: {
+        **_blank_profit_row(),
+    })
+    categories = defaultdict(lambda: {
         "category_name": "",
         **_blank_profit_row(),
     })
-
-)
 
     for line in line_qs.iterator(chunk_size=500):
         revenue = _line_net_revenue(line)
