@@ -10,8 +10,8 @@
 <header class="fizo-inventory__header">
   <div>
     <p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory</p>
-    <h1>Shelf &amp; price labels</h1>
-    <p>Print current outlet prices from the existing product catalog.</p>
+    <h1>Merchandise labels</h1>
+    <p>Print shelf, product, markdown and receiving labels from the existing product catalog.</p>
   </div>
 </header>
 
@@ -33,17 +33,23 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-12 col-md-6">
+    <div class="col-12 col-md-4">
       <label class="staff-label" for="label-filter">Find product</label>
-      <input class="staff-input" id="label-filter" name="q" maxlength="80" value="{{ label_q }}" placeholder="Product, SKU or barcode">
+      <input class="staff-input" id="label-filter" name="q" maxlength="80" value="{{ label_q }}" placeholder="Product, SKU, barcode or metadata">
+    </div>
+    <div class="col-12 col-md-2">
+      <label class="staff-label" for="label-template-filter">Label type</label>
+      <select class="staff-input" id="label-template-filter" name="template">
+        {% for key, label in label_templates.items %}<option value="{{ key }}"{% if key == label_template %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
     </div>
     <div class="col-12 col-md-2">
       <button class="staff-btn staff-btn--primary staff-btn--touch w-100" type="submit">Load</button>
     </div>
     {% if label_outlet %}
     <div class="col-12 d-flex flex-wrap gap-2">
-      <a class="staff-btn {% if not label_queue_only %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?outlet={{ label_outlet.pk }}{% if label_q %}&amp;q={{ label_q|urlencode }}{% endif %}">All products</a>
-      <a class="staff-btn {% if label_queue_only %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?outlet={{ label_outlet.pk }}&amp;queue=1{% if label_q %}&amp;q={{ label_q|urlencode }}{% endif %}">Pending queue · {{ pending_label_count }}</a>
+      <a class="staff-btn {% if not label_queue_only %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?outlet={{ label_outlet.pk }}&amp;template={{ label_template }}{% if label_q %}&amp;q={{ label_q|urlencode }}{% endif %}">All products</a>
+      <a class="staff-btn {% if label_queue_only %}staff-btn--primary{% else %}staff-btn--ghost{% endif %}" href="?outlet={{ label_outlet.pk }}&amp;queue=1&amp;template={{ label_template }}{% if label_q %}&amp;q={{ label_q|urlencode }}{% endif %}">Pending queue · {{ pending_label_count }}</a>
     </div>
     {% endif %}
   </div>
@@ -71,6 +77,7 @@
             <input type="hidden" name="outlet" value="{{ label_outlet.pk }}">
             <input type="hidden" name="return_q" value="{{ label_q }}">
             <input type="hidden" name="return_queue" value="1">
+            <input type="hidden" name="template" value="{{ label_template }}">
             <input type="hidden" name="queue_entry_ids" value="{{ entry.pk }}">
             <input type="hidden" name="dismiss_note" value="Dismissed from shelf-label queue">
             <button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit">Dismiss</button>
@@ -87,6 +94,7 @@
     <input type="hidden" name="outlet" value="{{ label_outlet.pk }}">
     <input type="hidden" name="return_q" value="{{ label_q }}">
     <input type="hidden" name="return_queue" value="1">
+            <input type="hidden" name="template" value="{{ label_template }}">
     <div class="col-12 col-md-5"><label class="staff-label" for="manual-label-item">Manual label request</label><select class="staff-input" id="manual-label-item" name="manual_item_id" required><option value="">Choose a product on this page</option>{% for item in label_items %}<option value="{{ item.pk }}">{{ item.name }}{% if item.sku %} · {{ item.sku }}{% endif %}</option>{% endfor %}</select></div>
     <div class="col-12 col-md-5"><label class="staff-label" for="manual-label-note">Reason / note</label><input class="staff-input" id="manual-label-note" name="queue_note" maxlength="255" placeholder="Shelf moved, damaged label, customer-facing price card"></div>
     <div class="col-12 col-md-2"><button class="staff-btn staff-btn--ghost w-100" type="submit">Queue label</button></div>
@@ -115,9 +123,15 @@
   <input type="hidden" name="outlet" value="{{ label_outlet.pk }}">
   <input type="hidden" name="return_q" value="{{ label_q }}">
   <input type="hidden" name="return_queue" value="{% if label_queue_only %}1{% endif %}">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div><strong>{{ label_outlet.name }}</strong><div class="staff-muted small">Select products and copies, then generate the PDF.</div></div>
-    <button class="staff-btn staff-btn--primary staff-btn--touch" type="submit" name="action" value="print">Generate shelf-label PDF</button>
+  <div class="row g-2 align-items-end mb-3">
+    <div class="col-12 col-md-5"><strong>{{ label_outlet.name }}</strong><div class="staff-muted small">Select products and copies, then generate the PDF.</div></div>
+    <div class="col-12 col-md-4">
+      <label class="staff-label" for="label-template-print">Label type</label>
+      <select class="staff-input" id="label-template-print" name="template">
+        {% for key, label in label_templates.items %}<option value="{{ key }}"{% if key == label_template %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-3"><button class="staff-btn staff-btn--primary staff-btn--touch w-100" type="submit" name="action" value="print">Generate labels PDF</button></div>
   </div>
   <div class="fizo-inventory__tablewrap">
     <table class="fizo-inventory__table">
@@ -142,9 +156,9 @@
 
 {% if is_paginated %}
 <nav class="staff-pager" aria-label="Shelf-label products pagination">
-  {% if page_obj.has_previous %}<a href="?outlet={{ label_outlet.pk }}&amp;q={{ label_q|urlencode }}{% if label_queue_only %}&amp;queue=1{% endif %}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+  {% if page_obj.has_previous %}<a href="?outlet={{ label_outlet.pk }}&amp;q={{ label_q|urlencode }}&amp;template={{ label_template }}{% if label_queue_only %}&amp;queue=1{% endif %}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
   <span>{{ page_obj.number }} of {{ paginator.num_pages }}</span>
-  {% if page_obj.has_next %}<a href="?outlet={{ label_outlet.pk }}&amp;q={{ label_q|urlencode }}{% if label_queue_only %}&amp;queue=1{% endif %}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  {% if page_obj.has_next %}<a href="?outlet={{ label_outlet.pk }}&amp;q={{ label_q|urlencode }}&amp;template={{ label_template }}{% if label_queue_only %}&amp;queue=1{% endif %}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}
 </nav>
 {% endif %}
 </div>
