@@ -84,7 +84,7 @@ class GroceryOwnerConsolePagesTests(TestCase):
         response = self.client.get(
             reverse("console-org-outlets", kwargs={"site_id": self.site.pk})
         )
-        self.assertContains(response, "Sales &amp; stock areas")
+        self.assertContains(response, "Sales & stock areas")
         self.assertContains(response, "Main shop")
         response = self.client.get(
             reverse("console-org-outlet-create", kwargs={"site_id": self.site.pk})
@@ -99,7 +99,7 @@ class GroceryOwnerConsolePagesTests(TestCase):
             self.assertContains(response, self.tenant.name)
             self.assertNotContains(response, "FIZO /")
             self.assertNotContains(response, "Hotel dashboard")
-        self.assertContains(index, "Sales &amp; stock areas")
+        self.assertContains(index, "Sales & stock areas")
         self.assertContains(index, "Manage checkout areas and inventory-only warehouse/storage locations")
         self.assertNotContains(index, "Manage service sections at")
         self.assertContains(index, "Add area")
