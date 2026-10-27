@@ -1,0 +1,57 @@
+{% extends "staff/base.html" %}
+{% block title %}Loss-prevention evidence{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Management · Loss prevention</p>
+    <h1 class="staff-page-title">
+      {% if pattern_detail.dimension == "worker" %}Worker evidence · {{ pattern_detail.summary.worker }}
+      {% elif pattern_detail.dimension == "outlet" %}Section evidence · {{ pattern_detail.summary.outlet }}
+      {% else %}Product evidence · {{ pattern_detail.summary.product }}{% endif %}
+    </h1>
+    <p class="staff-muted">Exact underlying evidence from the last {{ pattern_detail.lookback_days }} days in your authorized scope. This view does not create a second ledger or change transaction state.</p>
+  </div>
+</header>
+
+<section class="staff-card mb-3">
+  <h2 class="staff-card__title">Pattern summary</h2>
+  <div class="staff-tile-grid">
+    {% if pattern_detail.summary.refunds != None %}<article class="staff-tile"><span class="staff-muted small">Refunds</span><strong>{{ pattern_detail.summary.refunds }}</strong></article>{% endif %}
+    {% if pattern_detail.summary.voids != None %}<article class="staff-tile"><span class="staff-muted small">Voids</span><strong>{{ pattern_detail.summary.voids }}</strong></article>{% endif %}
+    {% if pattern_detail.summary.line_discounts != None %}<article class="staff-tile"><span class="staff-muted small">Line discounts</span><strong>{{ pattern_detail.summary.line_discounts }}</strong></article>{% endif %}
+    {% if pattern_detail.summary.margin_overrides != None %}<article class="staff-tile"><span class="staff-muted small">Margin overrides</span><strong>{{ pattern_detail.summary.margin_overrides }}</strong></article>{% endif %}
+    {% if pattern_detail.summary.cash_variances != None %}<article class="staff-tile"><span class="staff-muted small">Cash variances</span><strong>{{ pattern_detail.summary.cash_variances }}</strong></article>{% endif %}
+    {% if pattern_detail.summary.stock_removals != None %}<article class="staff-tile"><span class="staff-muted small">Stock removals</span><strong>{{ pattern_detail.summary.stock_removals }}</strong></article>{% endif %}
+    <article class="staff-tile"><span class="staff-muted small">Total signals</span><strong>{{ pattern_detail.summary.signal_count }}</strong></article>
+  </div>
+</section>
+
+<section class="staff-card">
+  <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+    <div>
+      <h2 class="staff-card__title">Underlying evidence</h2>
+      <p class="staff-muted small">Newest first. Open the source to inspect the original receipt, shift reconciliation or stock exception before recording a case assessment.</p>
+    </div>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-management' %}?view=exceptions">Back to exceptions</a>
+  </div>
+  <div class="staff-table-wrap mt-3">
+    <table class="staff-table">
+      <thead><tr><th>When</th><th>Type</th><th>Section</th><th>Evidence</th><th>Details</th><th>Source</th></tr></thead>
+      <tbody>
+      {% for event in pattern_detail.events %}
+        <tr>
+          <td>{{ event.when }}</td>
+          <td><strong>{{ event.kind }}</strong></td>
+          <td>{{ event.outlet|default:"—" }}</td>
+          <td>{{ event.title }}</td>
+          <td>{{ event.detail }}</td>
+          <td>{% if event.source_url %}<a class="staff-btn staff-btn--ghost staff-btn--sm" href="{{ event.source_url }}">Open source</a>{% else %}<span class="staff-muted">No direct source</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">No underlying evidence remains visible in your current scope.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
