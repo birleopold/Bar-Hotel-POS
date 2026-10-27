@@ -10,7 +10,7 @@ def approve_existing_purchase_orders(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [
         ("purchasing", "0022_supplier_product_planning"),
-        ("accounts", "__latest__"),
+        ("accounts", "0006_passwordrecoveryrequest"),
     ]
 
     operations = [
