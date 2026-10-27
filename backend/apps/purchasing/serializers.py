@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -10,7 +11,7 @@ from apps.catalog.packaging import to_stock_units
 from apps.tenants.models import Outlet
 
 from .models import PurchaseApprovalStatus, PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice
-from .supplier_catalog import suggested_supplier_unit_cost
+from .supplier_catalog import supplier_product_reference, suggested_supplier_unit_cost
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -352,6 +353,7 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
         lines_in = validated_data["lines"]
         seen_items: set = set()
         line_objects = []
+        expected_lead_days = []
 
         for row in lines_in:
             mid = row["menu_item"]
@@ -391,6 +393,27 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                 ordered_units += (Decimal(row["package_count"]) * package.units_per_package).quantize(Decimal("0.001"))
                 if ordered_units > Decimal("99999999999.999"):
                     raise serializers.ValidationError({"lines": f"Ordered quantity for {item.name} exceeds stock limits."})
+            relation = supplier_product_reference(
+                tenant_id=tenant.id,
+                supplier_id=validated_data["_supplier"].id,
+                menu_item_id=item.id,
+                product_package_id=package.id if package else None,
+            )
+            if (
+                relation is not None
+                and relation.minimum_order_quantity is not None
+                and ordered_units < relation.minimum_order_quantity
+            ):
+                raise serializers.ValidationError({
+                    "lines": (
+                        f"{item.name} requires at least "
+                        f"{relation.minimum_order_quantity} base units from "
+                        f"{validated_data['_supplier'].name}."
+                    )
+                })
+            if relation is not None and relation.expected_lead_days is not None:
+                expected_lead_days.append(relation.expected_lead_days)
+
             unit_cost = row.get("unit_cost")
             if unit_cost is None:
                 unit_cost, _cost_source = suggested_supplier_unit_cost(
@@ -415,7 +438,13 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
             supplier=validated_data["_supplier"],
             outlet=validated_data["_outlet"],
             reference=(validated_data.get("reference") or "")[:128],
-            expected_date=validated_data.get("expected_date"),
+            expected_date=(
+                validated_data.get("expected_date")
+                or (
+                    timezone.localdate() + timedelta(days=max(expected_lead_days))
+                    if expected_lead_days else None
+                )
+            ),
             notes=validated_data.get("notes") or "",
             created_by=request.user,
             status=PurchaseOrderStatus.DRAFT,
@@ -464,6 +493,22 @@ class PurchaseOrderStatusUpdateSerializer(serializers.ModelSerializer):
                 )
             if not inst.lines.exists():
                 raise serializers.ValidationError("Add line items before sending.")
+            for line in inst.lines.select_related("menu_item", "product_package").all():
+                relation = supplier_product_reference(
+                    tenant_id=inst.tenant_id,
+                    supplier_id=inst.supplier_id,
+                    menu_item_id=line.menu_item_id,
+                    product_package_id=line.product_package_id,
+                )
+                if (
+                    relation is not None
+                    and relation.minimum_order_quantity is not None
+                    and line.quantity_ordered < relation.minimum_order_quantity
+                ):
+                    raise serializers.ValidationError(
+                        f"{line.menu_item.name} requires at least "
+                        f"{relation.minimum_order_quantity} base units from this supplier."
+                    )
         elif value == PurchaseOrderStatus.CANCELLED:
             if inst.status == PurchaseOrderStatus.RECEIVED:
                 raise serializers.ValidationError("Cannot cancel a fully received order.")
