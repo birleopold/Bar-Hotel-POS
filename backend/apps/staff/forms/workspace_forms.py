@@ -723,6 +723,12 @@ class StaffWorkerCreateForm(forms.Form):
         choices=ROLE_PRESET_CHOICES,
         widget=forms.Select(attrs={"class": "staff-input"}),
     )
+    role_template = forms.ModelChoiceField(
+        queryset=RoleTemplate.objects.none(),
+        required=False,
+        empty_label="Custom / no saved template",
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
     role = forms.ChoiceField(
         choices=[(c.value, c.label) for c in MembershipRole],
         initial=MembershipRole.SERVER,
@@ -746,6 +752,7 @@ class StaffWorkerCreateForm(forms.Form):
         if tenant is not None:
             self.fields["role"].choices = role_choices_for_tenant(tenant, include_admin=False)
             self.fields["role_preset"].choices = role_presets_for_tenant(tenant)
+            self.fields["role_template"].queryset = role_template_queryset(tenant)
         if tenant is not None:
             from apps.tenants.business_lines import normalize_business_lines, outlet_types_for_business_lines
             from apps.tenants.models import OutletType
@@ -776,7 +783,7 @@ class StaffWorkerCreateForm(forms.Form):
         return email
 
     def clean(self):
-        data = apply_role_preset(super().clean())
+        data = apply_tenant_role_template(apply_role_preset(super().clean()))
         if self._tenant is not None and data.get("role") not in permitted_roles(self._tenant):
             raise forms.ValidationError({"role": "This role is not available for the configured business lines."})
         email = data.get("email")
@@ -952,8 +959,6 @@ class StaffMembershipManageForm(forms.ModelForm):
             site_ids = set(selected_sites.values_list("id", flat=True))
             if any(not site.outlets.filter(is_active=True, outlet_type__in=allowed_types).exists() for site in selected_sites):
                 raise forms.ValidationError({"sites": "Each selected branch must have an active outlet in a configured service."})
-            if allowed is not None and any(not site.outlets.filter(is_active=True, outlet_type__in=role_allowed_types).exists() for site in selected_sites):
-                raise forms.ValidationError({"sites": "Each selected branch must have an active outlet compatible with this role."})
             if allowed is not None and any(not site.outlets.filter(is_active=True, outlet_type__in=role_allowed_types).exists() for site in selected_sites):
                 raise forms.ValidationError({"sites": "Each selected branch must have an active outlet compatible with this role."})
             if selected_outlets and any(o.site_id not in site_ids or o.outlet_type not in role_allowed_types for o in selected_outlets):
