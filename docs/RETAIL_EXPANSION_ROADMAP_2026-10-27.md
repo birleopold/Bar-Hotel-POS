@@ -14,6 +14,51 @@
 - Existing generic payment records remain usable for cash/manual methods and future provider adapters.
 - Do not implement a partial accounting system and call it full accounting. Build an operational accounting bridge and export/integration layer first; a true general ledger remains a separate strategic decision.
 
+## Parallel workstream RX — Migration & platform interoperability
+
+**Goal:** make it straightforward for a tenant to move product/catalogue data into or out of this POS without bypassing our canonical product, package, stock, tax, pricing or tenant rules.
+
+**Execution rule:** RX is a standing parallel workstream. Whenever R1–R7 adds a portable business entity (products, packages, customers, suppliers, price books, stock balances, POs, etc.), add/import/export compatibility at the same time where practical instead of returning later.
+
+### RX.1 Canonical migration boundary
+- Keep one stable neutral migration schema owned by this project.
+- External-platform adapters translate into that schema; they do not write directly to stock or checkout tables.
+- Every import supports preview, row validation, all-or-nothing commit where practical, audit evidence and tenant scoping.
+- Never silently overwrite existing SKUs/barcodes/serial identities; require explicit update workflows.
+- Preserve source identifiers in alternate/reference fields where useful for later reconciliation.
+
+### RX.2 Product/catalogue adapters — priority
+- Generic column-mapping importer for arbitrary CSV exports.
+- Shopify product CSV adapter, including variant rows where representable.
+- Square item-library CSV adapter.
+- QuickBooks Online products/services adapter.
+- WooCommerce product CSV adapter.
+- Keep adapter definitions versioned because vendor export formats change.
+- Unsupported vendor-specific fields must be reported as ignored/unmapped before import, never silently dropped.
+
+### RX.3 Outbound compatibility
+- Neutral full catalogue migration export.
+- Platform-oriented export profiles where the target format is stable and supportable.
+- Export products, concrete variants, package/unit relationships, barcodes/SKUs, brand/model/reference, prices, tax metadata and active state where the target supports them.
+- Do not export live stock quantities as product metadata; stock migration uses a separate controlled opening-stock workflow.
+- No claim that a target platform will accept every field until verified against that platform's current importer.
+
+### RX.4 Later entities
+- Customers and customer groups/price levels.
+- Suppliers and supplier-specific product/package codes.
+- Opening stock by branch/outlet, with explicit as-of date and no historical movement fabrication.
+- Purchase orders/open receivables only through dedicated migration workflows.
+- Accounting-ready exports/adapters under R7.
+
+### RX.5 Compatibility acceptance
+- Round-trip tests for our neutral format.
+- Golden-file tests for supported vendor formats.
+- Duplicate/collision, encoding, formula-injection and oversized-file tests.
+- Migration report: imported, skipped, unmapped, rejected and warnings.
+- Exact vendor/version/date recorded in adapter metadata.
+
+**Current official-format notes (27 October 2026):** Shopify currently requires UTF-8 product CSVs; Square's item-library CSV requires Item Name, Variation Name, Description and SKU (plus enabled-location columns for multi-location libraries); QuickBooks Online supports mapped CSV/Excel product/service imports with up to 1,000 rows per import and currently notes that product variants are no longer supported as of 1 June 2026. Vendor schemas must therefore remain adapter/version metadata rather than hard-coded assumptions across the product domain.
+
 ## Workstream R1 — Merchandise master and product structure
 
 **Goal:** make one catalog capable of handling simple groceries, fashion variants, electronics, wholesale packs and assembled/bundled products without duplicating stock logic.
