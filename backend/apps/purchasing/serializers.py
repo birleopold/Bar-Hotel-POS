@@ -63,7 +63,7 @@ class PurchaseReceiptLineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseReceiptLine
-        fields = ("id", "purchase_order_line", "item_name", "quantity_received", "cartons_received")
+        fields = ("id", "purchase_order_line", "item_name", "quantity_received", "cartons_received", "packages_received")
         read_only_fields = fields
 
 
@@ -440,6 +440,8 @@ class ReceiveLineSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs.get("expiry_date") and not (attrs.get("batch_code") or "").strip():
             raise serializers.ValidationError({"batch_code": "A batch code is required for an expiry date."})
+        if attrs.get("cartons") and attrs.get("packages"):
+            raise serializers.ValidationError("Use either packages or cartons on one receiving row, not both.")
         return attrs
 
 
