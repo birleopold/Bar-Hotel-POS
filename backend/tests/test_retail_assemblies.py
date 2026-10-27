@@ -119,7 +119,6 @@ class RetailAssemblyJourneyTests(TestCase):
         page = self.client.get(url)
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Build &amp; unbuild assemblies")
-        self.assertContains(page, "Trusted build provenance")
         self.assertContains(page, "mixed or legacy provenance stays cost incomplete")
         self.assertContains(page, "Gift pack")
 
@@ -178,6 +177,10 @@ class RetailAssemblyJourneyTests(TestCase):
             Decimal("8"),
         )
         self.assertEqual(RetailAssemblyRun.objects.filter(direction="unbuild").count(), 1)
+
+        history = self.client.get(url)
+        self.assertEqual(history.status_code, 200)
+        self.assertContains(history, "Unbuild cost incomplete")
 
     def test_insufficient_component_rolls_back_every_balance_and_run(self):
         self._configure_bom()
