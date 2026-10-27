@@ -168,3 +168,45 @@ class SupplierProductCodeTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse("staff-purchasing-suppliers"))
+
+    def test_only_one_preferred_supplier_can_be_assigned_per_product(self):
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="PREF-ONE",
+            default_unit_cost=Decimal("700"),
+            is_preferred=True,
+        )
+        second = Supplier.objects.create(
+            tenant=self.tenant,
+            name="Second water vendor",
+        )
+        url = reverse("staff-purchasing-supplier-codes", args=[second.pk])
+        response = self.client.post(
+            url,
+            {
+                "action": "save",
+                "menu_item": str(self.item.pk),
+                "product_package": "",
+                "code": "PREF-TWO",
+                "description": "",
+                "default_unit_cost": "680",
+                "is_preferred": "on",
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response,
+            "Another supplier is already preferred for this product",
+            status_code=400,
+        )
+        self.assertFalse(
+            SupplierProductCode.objects.filter(
+                supplier=second,
+                menu_item=self.item,
+                is_preferred=True,
+            ).exists()
+        )
+
