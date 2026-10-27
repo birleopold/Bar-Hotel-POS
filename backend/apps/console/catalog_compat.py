@@ -11,6 +11,8 @@ import io
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
+from apps.catalog.models import MenuItem
+
 from .catalog_import import CatalogImportProblem, HEADERS, MAX_FILE_BYTES, MAX_ITEMS, parse_catalog_csv
 
 
