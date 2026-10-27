@@ -84,4 +84,19 @@ class Migration(migrations.Migration):
                 name="promotion_at_most_one_reward_target",
             ),
         ),
+        migrations.AddConstraint(
+            model_name="promotion",
+            constraint=models.CheckConstraint(
+                condition=(
+                    models.Q(offer_type="buy_x_get_y")
+                    | models.Q(
+                        reward_menu_item__isnull=True,
+                        reward_product_family__isnull=True,
+                        reward_category__isnull=True,
+                        reward_brand="",
+                    )
+                ),
+                name="promotion_reward_target_bogo_only",
+            ),
+        ),
     ]
