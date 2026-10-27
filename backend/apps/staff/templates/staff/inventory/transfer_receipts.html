@@ -21,6 +21,7 @@
 <h2 class="fizo-inventory__heading">{{ receipt.menu_item.name }} · {{ receipt.dispatched_quantity }} units</h2>
 <p class="staff-muted">{{ receipt.from_outlet.name }} → {{ receipt.to_outlet.name }} · {{ receipt.created_at }} · {{ receipt.get_status_display }}</p>
 <p class="staff-muted small">Reference {{ receipt.transfer_batch }} · {% if receipt.mode == "staged" %}In transit {{ receipt.outstanding_quantity }} units{% else %}Historical immediate transfer{% endif %}</p>
+<p class="mb-2"><a class="staff-btn staff-btn--ghost staff-btn--sm" href="{% url 'staff-inventory-transfer-document' receipt_id=receipt.id %}">Transfer document</a></p>
 {% if receipt.status == "in_transit" or receipt.status == "awaiting" %}
 {% if can_verify and receipt.to_outlet_id in accessible_outlet_ids and receipt.dispatched_by_id != request.user.id %}
 <form method="post">{% csrf_token %}<input type="hidden" name="action" value="verify"><input type="hidden" name="receipt_id" value="{{ receipt.id }}">
