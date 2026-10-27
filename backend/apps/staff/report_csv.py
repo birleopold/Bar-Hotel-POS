@@ -51,6 +51,9 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
         writer.writerow([])
         writer.writerow(["merchandise_profitability_metric", "value", "currency_or_unit"])
         writer.writerow(["net_merchandise_revenue", profitability["net_merchandise_revenue"], profitability["currency"]])
+        writer.writerow(["covered_net_revenue", profitability["covered_net_revenue"], profitability["currency"]])
+        writer.writerow(["uncovered_net_revenue", profitability["uncovered_net_revenue"], profitability["currency"]])
+        writer.writerow(["covered_return_revenue", profitability["covered_return_revenue"], profitability["currency"]])
         writer.writerow(["known_net_cogs", profitability["known_net_cogs"], profitability["currency"]])
         writer.writerow(["known_gross_profit", profitability["known_gross_profit"], profitability["currency"]])
         writer.writerow(["known_margin_percent", profitability["known_margin_percent"] if profitability["known_margin_percent"] is not None else "", "%"])
@@ -60,13 +63,16 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
         writer.writerow(["profitability_complete", "yes" if profitability["profitability_complete"] else "no", ""])
         writer.writerow([])
         writer.writerow([
-            "merchandise_product", "sku", "net_revenue", "known_net_cogs",
-            "known_gross_profit", "known_margin_percent", "incomplete_cost_lines",
+            "merchandise_product", "sku", "net_revenue", "covered_net_revenue",
+            "uncovered_net_revenue", "known_net_cogs", "known_gross_profit",
+            "known_margin_percent", "incomplete_cost_lines",
         ])
         for row in profitability["products"]:
             writer.writerow([
                 _spreadsheet_text(row["item_name"]), _spreadsheet_text(row["sku"]),
-                row["net_revenue"], row["known_net_cogs"], row["known_gross_profit"],
+                row["net_revenue"], row["covered_net_revenue"],
+                row["uncovered_net_revenue"], row["known_net_cogs"],
+                row["known_gross_profit"],
                 row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
                 row["incomplete_lines"] + row["incomplete_return_lines"],
             ])
