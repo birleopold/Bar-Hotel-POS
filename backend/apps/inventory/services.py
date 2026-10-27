@@ -10,6 +10,7 @@ from apps.accounts.models import Membership
 from apps.audit.services import log_audit
 from apps.pos.models import Order
 
+from .costing import authoritative_unit_cost
 from .models import (
     StockBalance,
     StockCountLine,
@@ -179,6 +180,24 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
                 )
             })
         balances[item_id] = bal
+
+    # Snapshot authoritative outlet cost onto directly sold inventory lines
+    # before decrementing stock. Historical sales never change if future
+    # receipts alter the weighted average.
+    for line in order.lines.filter(
+        is_voided=False,
+        menu_item__isnull=False,
+        menu_item_id__in=sale_need.keys(),
+    ):
+        balance = balances.get(line.menu_item_id)
+        cost = authoritative_unit_cost(balance) if balance is not None else None
+        line.cost_unit_snapshot = cost
+        line.cost_basis_complete_snapshot = cost is not None
+        line.save(update_fields=[
+            "cost_unit_snapshot",
+            "cost_basis_complete_snapshot",
+            "updated_at",
+        ])
 
     # Keep movement reasons separate for reliable sales and recipe reporting,
     # but validate their *combined* requirement first. All writes are part of
