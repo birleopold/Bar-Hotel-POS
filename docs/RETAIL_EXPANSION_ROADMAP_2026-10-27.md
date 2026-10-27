@@ -320,6 +320,7 @@ Implemented in source, pending exact-head certification:
 - Profitability uses the same authorized outlet/date scope as management reporting and exports CSV with spreadsheet-formula protection.
 - Scheduled owner PDF/CSV reports now include the same merchandise profitability coverage and use the property's operating-day boundary when a property-specific schedule is configured; business-wide schedules retain the existing UTC calendar convention.
 - RFQ sourcing is now implemented end to end: request lines → supplier invitations/responses → side-by-side quote comparison → guarded award → existing approved draft PO → reverse sourcing traceability. Supplier scorecards consume RFQ outcomes without creating a second supplier ledger.
+- Supplier-product ordering terms now include optional minimum base-unit order quantity and expected lead days. These terms are visible during PO planning, enforced server-side at creation/send, and never overwrite an explicitly chosen delivery date.
 
 - Cross-target Buy-X-Get-Y pricing now caps the free discount against the reward pool rather than the qualifying pool, so a more expensive reward can be fully discounted when the configured deal intends it.
 
@@ -350,12 +351,11 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Current rollout intentionally awards one complete supplier quote for the whole RFQ. Split awards/partial-line sourcing, external supplier email delivery and supplier self-service quotation portals remain deferred until operational demand justifies them.
 
 ### R4.3 Product/vendor relationship
-- Preferred supplier.
-- Alternate suppliers.
-- Supplier-specific SKU/barcode.
-- Supplier price list and effective dates.
-- Minimum order quantity and pack size.
-- Lead-time history.
+- Preferred and alternate supplier relationships are implemented on the existing supplier-product/package mapping; supplier codes remain purchasing-only and never become cashier barcodes.
+- Supplier-specific planning cost, supplier/package code, physical receipt cost history and preferred-supplier designation are implemented.
+- Optional minimum order quantity and expected lead days are now stored per supplier-product relationship. MOQ is enforced when a PO is created and rechecked before supplier send; lead time suggests an expected date only when the buyer has not entered one.
+- Product/package purchase sizing continues to use the existing package and base-unit snapshots, so MOQ is evaluated against actual base-stock quantity rather than display pack text.
+- Remaining enhancement: effective-dated supplier price-list records/imports where a tenant needs future/contract pricing. Planning cost remains a simple fallback and received-cost snapshots remain the factual history.
 
 ### R4.4 Landed cost
 - Shipping/freight and duty/clearing are implemented at physical receipt level.
