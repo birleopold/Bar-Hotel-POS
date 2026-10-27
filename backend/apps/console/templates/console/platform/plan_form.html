@@ -2,11 +2,19 @@
 {% block title %}{% if object %}Edit plan{% else %}New plan{% endif %}{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
-  <h1 class="staff-page-title">{% if object %}Edit plan{% else %}New plan{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <form method="post" class="staff-card">
+<div class="platform-page">
+  <div class="staff-toolbar">
+    <div>
+      <p class="platform-page__eyebrow">Platform operations / Plans</p>
+      <h1 class="staff-page-title">{% if object %}Edit plan{% else %}New plan{% endif %}</h1>
+      <p class="platform-page__intro">Keep plan names, pricing and included modules clear enough to administer without tenant-specific assumptions.</p>
+    </div>
+  </div>
+  <form method="post" class="staff-card platform-form">
     {% csrf_token %}
     {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Save</button>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-platform-plans' %}">Cancel</a>
+    <div class="platform-form__actions"><button type="submit" class="staff-btn staff-btn--primary">Save plan</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-platform-plans' %}">Cancel</a></div>
   </form>
+</div>
 {% endblock %}
