@@ -104,6 +104,12 @@ class StaffTenantBrandingForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk:
             self.fields["business_name"].initial = self.instance.tenant.name
+        self.fields["retail_min_margin_percent"].required = False
+        self.fields["retail_min_margin_percent"].label = "Minimum retail gross margin %"
+        self.fields["retail_min_margin_percent"].help_text = (
+            "Optional. Enforced only for Retail/Supermarket items with a complete authoritative cost basis. "
+            "Blank disables the floor."
+        )
 
     def clean_business_name(self):
         name = " ".join(self.cleaned_data["business_name"].split())
@@ -116,6 +122,7 @@ class StaffTenantBrandingForm(forms.ModelForm):
         fields = [
             "default_currency",
             "default_timezone",
+            "retail_min_margin_percent",
             "loyalty_enabled",
             "loyalty_spend_per_point",
             "receipt_footer",
@@ -134,6 +141,10 @@ class StaffTenantBrandingForm(forms.ModelForm):
         widgets = {
             "default_currency": forms.TextInput(attrs={"class": "staff-input", "maxlength": 3}),
             "default_timezone": forms.TextInput(attrs={"class": "staff-input"}),
+            "retail_min_margin_percent": forms.NumberInput(attrs={
+                "class": "staff-input", "min": "0", "max": "99.99", "step": "0.01",
+                "placeholder": "Optional, e.g. 15",
+            }),
             "loyalty_enabled": forms.CheckboxInput(),
             "loyalty_spend_per_point": forms.NumberInput(attrs={
                 "class": "staff-input", "min": "0.01", "step": "0.01"
