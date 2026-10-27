@@ -184,8 +184,17 @@ def build_accounting_preview(
         for line in sale_lines.get(order.pk, []):
             category_id, category_name = _category_identity(line)
             category_totals[(category_id, category_name)] += _line_net_revenue(order, line)
+            inventory_tracked = (
+                line.inventory_tracked_snapshot is True
+                or (
+                    line.inventory_tracked_snapshot is None
+                    and line.menu_item_id
+                    and line.menu_item.track_inventory
+                )
+            )
             if (
-                line.cost_basis_complete_snapshot
+                inventory_tracked
+                and line.cost_basis_complete_snapshot
                 and line.cost_unit_snapshot is not None
             ):
                 category_costs[(category_id, category_name)] += (
@@ -193,14 +202,7 @@ def build_accounting_preview(
                     * Decimal(str(line.quantity))
                 )
                 source_counts["trusted_cost_lines"] += 1
-            elif (
-                line.inventory_tracked_snapshot is True
-                or (
-                    line.inventory_tracked_snapshot is None
-                    and line.menu_item_id
-                    and line.menu_item.track_inventory
-                )
-            ):
+            elif inventory_tracked:
                 source_counts["unknown_cost_lines"] += 1
 
         for (category_id, category_name), amount in category_totals.items():
@@ -442,6 +444,9 @@ def build_accounting_preview(
             f"Journal is not balanced: debits {total_debit} vs credits {total_credit}."
         )
 
+    if not journal_lines:
+        warnings.append("No accounting journal activity exists in the selected period and scope.")
+
     return {
         "currency": currency,
         "date_from": date_from,
@@ -454,7 +459,7 @@ def build_accounting_preview(
         "total_debit": total_debit,
         "total_credit": total_credit,
         "balanced": balanced,
-        "ready": balanced and not missing,
+        "ready": balanced and not missing and bool(journal_lines),
     }
 
 
