@@ -141,9 +141,21 @@ class StaffTimesheetView(StaffTenantRequiredMixin, View):
     def _query(self, request):
         sites, outlets = self._scope(request)
         today = timezone.localdate()
-        date_to = parse_date(request.GET.get("date_to") or "") or today
-        date_from = parse_date(request.GET.get("date_from") or "") or (date_to - timedelta(days=6))
-        if date_from > date_to or (date_to - date_from).days > 31 or date_to > today:
+        raw_to = (request.GET.get("date_to") or "").strip()
+        raw_from = (request.GET.get("date_from") or "").strip()
+        date_to = parse_date(raw_to) if raw_to else today
+        date_from = (
+            parse_date(raw_from)
+            if raw_from
+            else (date_to - timedelta(days=6) if date_to else None)
+        )
+        if (
+            date_from is None
+            or date_to is None
+            or date_from > date_to
+            or (date_to - date_from).days > 31
+            or date_to > today
+        ):
             raise ValidationError("Choose a valid past date range of up to 32 days.")
         start, end = utc_day_range_inclusive(date_from, date_to)
         scope = Q(site_id__in=[site.pk for site in sites])
@@ -175,7 +187,11 @@ class StaffTimesheetView(StaffTenantRequiredMixin, View):
             qs = qs.filter(status=status_filter)
         worker = (request.GET.get("worker") or "").strip()
         if worker:
-            qs = qs.filter(membership_id=worker)
+            try:
+                worker_uuid = uuid.UUID(worker)
+            except (ValueError, TypeError, AttributeError):
+                raise ValidationError("Choose a valid worker filter.")
+            qs = qs.filter(membership_id=worker_uuid)
         return qs, date_from, date_to, status_filter, worker
 
     def _decorate(self, shifts):
