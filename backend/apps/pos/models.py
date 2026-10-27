@@ -1165,6 +1165,11 @@ class WorkstationHardwareCheck(models.Model):
     )
     note = models.CharField(max_length=500, blank=True)
     configured_device = models.CharField(max_length=120, blank=True)
+    evidence = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Structured non-sensitive diagnostic evidence; never raw barcode/payment data.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
