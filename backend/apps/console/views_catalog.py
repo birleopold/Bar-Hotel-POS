@@ -24,6 +24,8 @@ from apps.catalog.models import (
     ProductFamily,
     ProductPackage,
     RetailAssemblyComponent,
+    RetailProductGroup,
+    RetailProductGroupLine,
     ModifierGroup,
     ModifierOption,
     ServiceOffering,
@@ -39,6 +41,8 @@ from .forms import (
     ConsoleProductFamilyForm,
     ConsoleProductPackageForm,
     ConsoleRetailAssemblyComponentForm,
+    ConsoleRetailProductGroupForm,
+    ConsoleRetailProductGroupLineForm,
     ConsoleVariantMatrixForm,
     ConsoleModifierGroupForm,
     ConsoleModifierOptionForm,
@@ -832,6 +836,159 @@ class OrgMenuItemOutletDeleteView(MenuItemScopedMixin, DeleteView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["menu_item"] = self.menu_item
+        return ctx
+
+
+class OrgRetailProductGroupListView(RetailMerchandiseRequiredMixin, ListView):
+    template_name = "console/org/retail_product_group_list.html"
+    context_object_name = "groups"
+
+    def get_queryset(self):
+        return (
+            RetailProductGroup.objects.filter(tenant=self.request.tenant)
+            .prefetch_related("lines__menu_item")
+            .order_by("name")
+        )
+
+
+class OrgRetailProductGroupCreateView(RetailMerchandiseRequiredMixin, CreateView):
+    model = RetailProductGroup
+    form_class = ConsoleRetailProductGroupForm
+    template_name = "console/org/retail_product_group_form.html"
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def form_valid(self, form):
+        obj = form.save(commit=False)
+        obj.tenant = self.request.tenant
+        obj.save()
+        messages.success(self.request, f"Retail group “{obj.name}” created.")
+        return redirect("console-org-retail-groups")
+
+
+class OrgRetailProductGroupUpdateView(RetailMerchandiseRequiredMixin, UpdateView):
+    model = RetailProductGroup
+    form_class = ConsoleRetailProductGroupForm
+    template_name = "console/org/retail_product_group_form.html"
+    pk_url_kwarg = "group_id"
+
+    def get_queryset(self):
+        return RetailProductGroup.objects.filter(tenant=self.request.tenant)
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Retail group “{form.instance.name}” saved.")
+        response = super().form_valid(form)
+        return redirect("console-org-retail-group-lines", group_id=form.instance.pk)
+
+
+class RetailProductGroupScopedMixin(RetailMerchandiseRequiredMixin):
+    retail_group: RetailProductGroup
+
+    def dispatch(self, request, *args, **kwargs):
+        self.retail_group = get_object_or_404(
+            RetailProductGroup,
+            pk=kwargs["group_id"],
+            tenant=request.tenant,
+        )
+        return super().dispatch(request, *args, **kwargs)
+
+
+class OrgRetailProductGroupLineListView(RetailProductGroupScopedMixin, ListView):
+    template_name = "console/org/retail_product_group_line_list.html"
+    context_object_name = "lines"
+
+    def get_queryset(self):
+        return self.retail_group.lines.select_related("menu_item").order_by("sort_order", "menu_item__name")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["retail_group"] = self.retail_group
+        return ctx
+
+
+class OrgRetailProductGroupLineCreateView(RetailProductGroupScopedMixin, CreateView):
+    model = RetailProductGroupLine
+    form_class = ConsoleRetailProductGroupLineForm
+    template_name = "console/org/retail_product_group_line_form.html"
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["group"] = self.retail_group
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def form_valid(self, form):
+        obj = form.save(commit=False)
+        obj.group = self.retail_group
+        if RetailProductGroupLine.objects.filter(group=self.retail_group, menu_item=obj.menu_item).exists():
+            form.add_error("menu_item", "That product is already in this group.")
+            return self.form_invalid(form)
+        obj.save()
+        messages.success(self.request, f"Added “{obj.menu_item.name}” to {self.retail_group.name}.")
+        return redirect("console-org-retail-group-lines", group_id=self.retail_group.pk)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["retail_group"] = self.retail_group
+        ctx["form_title"] = "Add group product"
+        return ctx
+
+
+class OrgRetailProductGroupLineUpdateView(RetailProductGroupScopedMixin, UpdateView):
+    model = RetailProductGroupLine
+    form_class = ConsoleRetailProductGroupLineForm
+    template_name = "console/org/retail_product_group_line_form.html"
+    pk_url_kwarg = "line_id"
+
+    def get_queryset(self):
+        return self.retail_group.lines.all()
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["group"] = self.retail_group
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def form_valid(self, form):
+        obj = form.save(commit=False)
+        if RetailProductGroupLine.objects.filter(
+            group=self.retail_group, menu_item=obj.menu_item
+        ).exclude(pk=obj.pk).exists():
+            form.add_error("menu_item", "That product is already in this group.")
+            return self.form_invalid(form)
+        obj.save()
+        messages.success(self.request, "Group product updated.")
+        return redirect("console-org-retail-group-lines", group_id=self.retail_group.pk)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["retail_group"] = self.retail_group
+        ctx["form_title"] = f"Edit · {self.object.menu_item.name}"
+        return ctx
+
+
+class OrgRetailProductGroupLineDeleteView(RetailProductGroupScopedMixin, DeleteView):
+    model = RetailProductGroupLine
+    template_name = "console/org/retail_product_group_line_confirm_delete.html"
+    pk_url_kwarg = "line_id"
+
+    def get_queryset(self):
+        return self.retail_group.lines.all()
+
+    def get_success_url(self):
+        return reverse("console-org-retail-group-lines", kwargs={"group_id": self.retail_group.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["retail_group"] = self.retail_group
         return ctx
 
 
