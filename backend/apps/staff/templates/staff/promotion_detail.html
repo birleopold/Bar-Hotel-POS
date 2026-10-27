@@ -26,6 +26,8 @@
     <p><strong>Discount</strong>
       {% if promotion.offer_type == "buy_x_get_y" %}
         Buy {{ promotion.buy_quantity }}, get {{ promotion.get_quantity }} free{% if promotion.max_uses_per_order %} · max {{ promotion.max_uses_per_order }} set{{ promotion.max_uses_per_order|pluralize }} per order{% endif %}
+      {% elif promotion.offer_type == "x_for_fixed_amount" %}
+        {{ promotion.fixed_quantity }} for {{ promotion.fixed_bundle_amount }}{% if promotion.max_uses_per_order %} · max {{ promotion.max_uses_per_order }} set{{ promotion.max_uses_per_order|pluralize }} per order{% endif %}
       {% else %}
         {% if promotion.discount_percent %}{{ promotion.discount_percent }}%{% endif %}
         {% if promotion.discount_amount %}{{ promotion.discount_amount }} off{% endif %}
