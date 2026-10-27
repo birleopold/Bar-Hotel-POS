@@ -801,9 +801,20 @@ class ConsolePriceBookForm(forms.ModelForm):
 class ConsolePriceBookRuleForm(forms.ModelForm):
     class Meta:
         model = PriceBookRule
-        fields = ("menu_item", "minimum_quantity", "unit_price", "is_active")
+        fields = (
+            "menu_item",
+            "product_family",
+            "category",
+            "brand",
+            "minimum_quantity",
+            "unit_price",
+            "is_active",
+        )
         widgets = {
             "menu_item": forms.Select(attrs={"class": "staff-input"}),
+            "product_family": forms.Select(attrs={"class": "staff-input"}),
+            "category": forms.Select(attrs={"class": "staff-input"}),
+            "brand": forms.TextInput(attrs={"class": "staff-input", "placeholder": "e.g. Samsung"}),
             "minimum_quantity": forms.NumberInput(attrs={"class": "staff-input", "min": "0.001", "step": "0.001"}),
             "unit_price": forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.01"}),
             "is_active": forms.CheckboxInput(),
@@ -813,10 +824,26 @@ class ConsolePriceBookRuleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.tenant = tenant
         self.price_book = price_book
+        self.fields["menu_item"].required = False
+        self.fields["product_family"].required = False
+        self.fields["category"].required = False
+        self.fields["brand"].required = False
         self.fields["menu_item"].queryset = MenuItem.objects.filter(
             tenant=tenant,
             is_active=True,
         ).order_by("name")
+        self.fields["product_family"].queryset = ProductFamily.objects.filter(
+            tenant=tenant,
+            is_active=True,
+        ).select_related("category").order_by("category__name", "name")
+        self.fields["category"].queryset = MenuCategory.objects.filter(
+            tenant=tenant,
+            is_active=True,
+        ).order_by("sort_order", "name")
+        self.fields["menu_item"].help_text = "Most specific target. Leave blank to target a family, brand or category."
+        self.fields["product_family"].help_text = "Applies to every active variant in this family unless a SKU rule wins."
+        self.fields["category"].help_text = "Broadest target; SKU, family and brand rules take precedence."
+        self.fields["brand"].help_text = "Case-insensitive brand target; product brand must match."
 
     def clean_menu_item(self):
         item = self.cleaned_data.get("menu_item")
@@ -824,20 +851,48 @@ class ConsolePriceBookRuleForm(forms.ModelForm):
             raise forms.ValidationError("Choose a product from this business.")
         return item
 
+    def clean_product_family(self):
+        family = self.cleaned_data.get("product_family")
+        if family and family.tenant_id != self.tenant.pk:
+            raise forms.ValidationError("Choose a product family from this business.")
+        return family
+
+    def clean_category(self):
+        category = self.cleaned_data.get("category")
+        if category and category.tenant_id != self.tenant.pk:
+            raise forms.ValidationError("Choose a category from this business.")
+        return category
+
+    def clean_brand(self):
+        return (self.cleaned_data.get("brand") or "").strip()
+
     def clean(self):
         data = super().clean()
         item = data.get("menu_item")
+        family = data.get("product_family")
+        category = data.get("category")
+        brand = (data.get("brand") or "").strip()
         qty = data.get("minimum_quantity")
-        if item and qty is not None:
-            qs = PriceBookRule.objects.filter(
-                price_book=self.price_book,
-                menu_item=item,
-                minimum_quantity=qty,
-            )
-            if self.instance.pk:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                self.add_error("minimum_quantity", "This product already has a tier at that quantity.")
+        targets = [bool(item), bool(family), bool(category), bool(brand)]
+        if sum(targets) != 1:
+            raise forms.ValidationError("Choose exactly one target: product, product family, category, or brand.")
+        if qty is None:
+            return data
+
+        qs = PriceBookRule.objects.filter(price_book=self.price_book, minimum_quantity=qty)
+        message = "A tier already exists for this target at that quantity."
+        if item:
+            qs = qs.filter(menu_item=item)
+        elif family:
+            qs = qs.filter(product_family=family)
+        elif category:
+            qs = qs.filter(category=category)
+        else:
+            qs = qs.filter(brand__iexact=brand)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            self.add_error("minimum_quantity", message)
         return data
 
 
