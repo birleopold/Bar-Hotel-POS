@@ -21,6 +21,8 @@ from apps.catalog.models import (
     MenuItem,
     MenuItemOutlet,
     MenuItemRecipeLine,
+    ProductAlternateCode,
+    ProductCustomFieldDefinition,
     ProductFamily,
     ProductPackage,
     RetailAssemblyComponent,
@@ -38,6 +40,9 @@ from .forms import (
     ConsoleMenuItemOutletCreateForm,
     ConsoleMenuItemOutletUpdateForm,
     ConsoleMenuItemRecipeLineForm,
+    ConsoleProductAlternateCodeForm,
+    ConsoleProductCustomFieldDefinitionForm,
+    ConsoleProductCustomValuesForm,
     ConsoleProductFamilyForm,
     ConsoleProductPackageForm,
     ConsoleRetailAssemblyComponentForm,
@@ -112,6 +117,174 @@ class OrgMenuCategoryUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f"Category “{form.instance.name}” saved.")
         return super().form_valid(form)
+
+
+class OrgProductCustomFieldListView(RetailMerchandiseRequiredMixin, ListView):
+    template_name = "console/org/product_custom_field_list.html"
+    context_object_name = "definitions"
+
+    def get_queryset(self):
+        return ProductCustomFieldDefinition.objects.filter(
+            tenant=self.request.tenant
+        ).order_by("sort_order", "name")
+
+
+class OrgProductCustomFieldCreateView(RetailMerchandiseRequiredMixin, CreateView):
+    model = ProductCustomFieldDefinition
+    form_class = ConsoleProductCustomFieldDefinitionForm
+    template_name = "console/org/product_custom_field_form.html"
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def form_valid(self, form):
+        form.instance.tenant = self.request.tenant
+        messages.success(self.request, f"Custom field “{form.instance.name}” created.")
+        self.object = form.save()
+        return redirect("console-org-product-custom-fields")
+
+
+class OrgProductCustomFieldUpdateView(RetailMerchandiseRequiredMixin, UpdateView):
+    model = ProductCustomFieldDefinition
+    form_class = ConsoleProductCustomFieldDefinitionForm
+    template_name = "console/org/product_custom_field_form.html"
+    pk_url_kwarg = "definition_id"
+
+    def get_queryset(self):
+        return ProductCustomFieldDefinition.objects.filter(tenant=self.request.tenant)
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Custom field “{form.instance.name}” saved.")
+        self.object = form.save()
+        return redirect("console-org-product-custom-fields")
+
+
+class OrgProductMetadataView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, View):
+    template_name = "console/org/product_metadata.html"
+
+    def _render(self, request, form):
+        from django.shortcuts import render
+        return render(request, self.template_name, {
+            "menu_item": self.menu_item,
+            "form": form,
+            "alternate_codes": ProductAlternateCode.objects.filter(
+                tenant=request.tenant,
+                menu_item=self.menu_item,
+            ).order_by("code_type", "code"),
+        })
+
+    def get(self, request, item_id):
+        return self._render(
+            request,
+            ConsoleProductCustomValuesForm(
+                tenant=request.tenant,
+                menu_item=self.menu_item,
+            ),
+        )
+
+    def post(self, request, item_id):
+        form = ConsoleProductCustomValuesForm(
+            request.POST,
+            tenant=request.tenant,
+            menu_item=self.menu_item,
+        )
+        if not form.is_valid():
+            return self._render(request, form)
+        with transaction.atomic():
+            form.save()
+            log_audit(
+                tenant_id=request.tenant.pk,
+                user_id=request.user.pk,
+                action="catalog.product_metadata_saved",
+                entity_type="menu_item",
+                entity_id=str(self.menu_item.pk),
+                payload={"custom_field_count": len(form.definitions)},
+            )
+        messages.success(request, "Product custom fields saved.")
+        return redirect("console-org-menu-item-metadata", item_id=self.menu_item.pk)
+
+
+class OrgProductAlternateCodeCreateView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, CreateView):
+    model = ProductAlternateCode
+    form_class = ConsoleProductAlternateCodeForm
+    template_name = "console/org/product_alternate_code_form.html"
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        kw["menu_item"] = self.menu_item
+        return kw
+
+    def form_valid(self, form):
+        obj = form.save(commit=False)
+        obj.tenant = self.request.tenant
+        obj.menu_item = self.menu_item
+        obj.save()
+        messages.success(self.request, f"Alternate code “{obj.code}” added.")
+        return redirect("console-org-menu-item-metadata", item_id=self.menu_item.pk)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        ctx["form_title"] = "Add alternate lookup code"
+        return ctx
+
+
+class OrgProductAlternateCodeUpdateView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, UpdateView):
+    model = ProductAlternateCode
+    form_class = ConsoleProductAlternateCodeForm
+    template_name = "console/org/product_alternate_code_form.html"
+    pk_url_kwarg = "code_id"
+
+    def get_queryset(self):
+        return ProductAlternateCode.objects.filter(
+            tenant=self.request.tenant,
+            menu_item=self.menu_item,
+        )
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        kw["menu_item"] = self.menu_item
+        return kw
+
+    def form_valid(self, form):
+        messages.success(self.request, f"Alternate code “{form.instance.code}” saved.")
+        self.object = form.save()
+        return redirect("console-org-menu-item-metadata", item_id=self.menu_item.pk)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        ctx["form_title"] = f"Edit alternate code · {self.object.code}"
+        return ctx
+
+
+class OrgProductAlternateCodeDeleteView(RetailMerchandiseRequiredMixin, MenuItemScopedMixin, DeleteView):
+    model = ProductAlternateCode
+    template_name = "console/org/product_alternate_code_confirm_delete.html"
+    pk_url_kwarg = "code_id"
+
+    def get_queryset(self):
+        return ProductAlternateCode.objects.filter(
+            tenant=self.request.tenant,
+            menu_item=self.menu_item,
+        )
+
+    def get_success_url(self):
+        return reverse("console-org-menu-item-metadata", kwargs={"item_id": self.menu_item.pk})
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["menu_item"] = self.menu_item
+        return ctx
 
 
 class OrgProductFamilyListView(RetailMerchandiseRequiredMixin, ListView):
