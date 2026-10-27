@@ -136,7 +136,7 @@ def promotion_schedule_active(promotion, *, at=None) -> bool:
 
     try:
         timezone_name = promotion.tenant.settings.default_timezone or "UTC"
-    except Exception:
+    except TenantSettings.DoesNotExist:
         timezone_name = (
             TenantSettings.objects.filter(tenant_id=promotion.tenant_id)
             .values_list("default_timezone", flat=True)
