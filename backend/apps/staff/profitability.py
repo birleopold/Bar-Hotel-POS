@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Max
+from django.db.models import Max, Q
 from apps.common.datetime_bounds import utc_day_range_inclusive
 from apps.pos.models import Order, OrderLine, Refund, SupermarketLineReturn
 
@@ -21,6 +21,43 @@ PERCENT = Decimal("0.1")
 
 def _money(value) -> Decimal:
     return Decimal(str(value or 0)).quantize(MONEY, rounding=ROUND_HALF_UP)
+
+
+def _historically_inventory_tracked(line: OrderLine) -> bool:
+    if line.inventory_tracked_snapshot is not None:
+        return bool(line.inventory_tracked_snapshot)
+    return bool(
+        line.menu_item_id
+        and getattr(line.menu_item, "track_inventory", False)
+    )
+
+
+def _historical_item_name(line: OrderLine) -> str:
+    label = (line.label or "").strip()
+    if label:
+        return label
+    if line.menu_item_id:
+        return line.menu_item.name
+    return "Deleted merchandise"
+
+
+def _historical_sku(line: OrderLine) -> str:
+    snap = (line.merchandise_sku_snapshot or "").strip()
+    if snap:
+        return snap
+    if line.menu_item_id:
+        return line.menu_item.sku or ""
+    return ""
+
+
+def _historical_product_key(line: OrderLine):
+    if line.menu_item_id:
+        return ("item", str(line.menu_item_id))
+    return (
+        "snapshot",
+        _historical_sku(line).casefold(),
+        _historical_item_name(line).casefold(),
+    )
 
 
 def _historical_category_name(line: OrderLine) -> str:
@@ -95,8 +132,13 @@ def build_merchandise_profitability(
         OrderLine.objects.filter(
             order_id__in=paid_order_ids,
             is_voided=False,
-            menu_item__isnull=False,
-            menu_item__track_inventory=True,
+        )
+        .filter(
+            Q(inventory_tracked_snapshot=True)
+            | Q(
+                inventory_tracked_snapshot__isnull=True,
+                menu_item__track_inventory=True,
+            )
         )
         .select_related("order", "menu_item", "menu_item__category")
         .order_by("order_id", "sort_order", "created_at")
@@ -150,9 +192,10 @@ def build_merchandise_profitability(
             line.cost_basis_complete_snapshot
             and line.cost_unit_snapshot is not None
         )
-        row = products[line.menu_item_id]
-        row["item_name"] = line.menu_item.name
-        row["sku"] = line.menu_item.sku or ""
+        product_key = _historical_product_key(line)
+        row = products[product_key]
+        row["item_name"] = _historical_item_name(line)
+        row["sku"] = _historical_sku(line)
         category_name = _historical_category_name(line)
         category_key = category_name.casefold()
         category_row = categories[category_key]
@@ -199,7 +242,7 @@ def build_merchandise_profitability(
     mapped_refund_ids = set()
     for returned in returns_qs.iterator(chunk_size=500):
         line = returned.order_line
-        if not line.menu_item_id or not line.menu_item.track_inventory:
+        if not _historically_inventory_tracked(line):
             continue
         if returned.refund_id:
             mapped_refund_ids.add(returned.refund_id)
@@ -214,9 +257,10 @@ def build_merchandise_profitability(
             line.cost_basis_complete_snapshot
             and line.cost_unit_snapshot is not None
         )
-        row = products[line.menu_item_id]
-        row["item_name"] = line.menu_item.name
-        row["sku"] = line.menu_item.sku or ""
+        product_key = _historical_product_key(line)
+        row = products[product_key]
+        row["item_name"] = _historical_item_name(line)
+        row["sku"] = _historical_sku(line)
         category_name = _historical_category_name(line)
         category_key = category_name.casefold()
         category_row = categories[category_key]
@@ -256,8 +300,16 @@ def build_merchandise_profitability(
         OrderLine.objects.filter(
             order_id__in=refund_order_ids,
             is_voided=False,
-            menu_item__track_inventory=True,
-        ).values_list("order_id", flat=True).distinct()
+        )
+        .filter(
+            Q(inventory_tracked_snapshot=True)
+            | Q(
+                inventory_tracked_snapshot__isnull=True,
+                menu_item__track_inventory=True,
+            )
+        )
+        .values_list("order_id", flat=True)
+        .distinct()
     )
     unmapped = refund_qs.filter(
         order_id__in=inventory_refund_order_ids,
