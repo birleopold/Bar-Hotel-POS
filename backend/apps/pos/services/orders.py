@@ -1813,6 +1813,8 @@ def process_supermarket_line_return(
             reason=StockReason.ADJUST_IN,
             user=user,
             note=f"Return {locked_o.bill_reference}"[:512],
+            inbound_unit_cost=locked_ln.cost_unit_snapshot,
+            inbound_cost_complete=locked_ln.cost_basis_complete_snapshot,
         )
     log_audit(
         tenant_id=locked_o.tenant_id,
