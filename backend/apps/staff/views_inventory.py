@@ -17,11 +17,12 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.catalog.packaging import to_stock_units
-from apps.inventory.models import StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason, StockTransferReceipt
+from apps.inventory.models import RetailAssemblyRun, StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason, StockTransferReceipt
 from apps.inventory.services import (
     apply_manual_stock_change, submit_stock_count_for_review,
     approve_stock_count_session, return_stock_count_for_recount, execute_stock_transfer,
     verify_stock_transfer_receipt, review_stock_transfer_discrepancy, resolve_stock_transfer_discrepancy,
+    execute_retail_assembly,
 )
 from apps.pos.services import menu_items_for_outlet_queryset
 from apps.tenants.models import Outlet
@@ -90,6 +91,102 @@ def _normalize_reason(value: str) -> str | None:
         return aliases[token]
     valid = {StockReason.RECEIVE.value, StockReason.ADJUST_IN.value, StockReason.ADJUST_OUT.value, StockReason.WASTE.value}
     return token if token in valid else None
+
+
+class StaffRetailAssemblyView(StaffTenantRequiredMixin, TemplateView):
+    staff_nav_capability = "inventory"
+    template_name = "staff/inventory/assemblies.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        blocked = _inventory_requires_outlets(request)
+        if blocked:
+            return blocked
+        return super().dispatch(request, *args, **kwargs)
+
+    def _outlets(self):
+        return staff_accessible_outlets(self.request.tenant_membership)
+
+    def _assembly_items(self):
+        return (
+            MenuItem.objects.filter(
+                tenant=self.request.tenant,
+                track_inventory=True,
+                assembly_components__isnull=False,
+            )
+            .prefetch_related("assembly_components__component_item")
+            .distinct()
+            .order_by("name")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        outlets = self._outlets()
+        outlet_ids = [o.pk for o in outlets]
+        ctx["outlets"] = outlets
+        ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
+        ctx["assembly_items"] = self._assembly_items()
+        ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
+        ctx["assembly_runs"] = (
+            RetailAssemblyRun.objects.filter(
+                tenant=self.request.tenant,
+                outlet_id__in=outlet_ids,
+            )
+            .select_related("outlet", "assembled_item", "created_by")
+            .prefetch_related("stock_movements__menu_item")
+            .order_by("-created_at")[:50]
+        )
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        if not membership_can_modify_inventory(request.tenant_membership):
+            messages.error(request, "Your role cannot build or unbuild inventory.")
+            return redirect("staff-inventory-assemblies")
+
+        outlets = self._outlets()
+        allowed = {str(o.pk): o for o in outlets}
+        outlet = allowed.get((request.POST.get("outlet") or "").strip())
+        if outlet is None:
+            messages.error(request, "Choose an inventory section you are allowed to manage.")
+            return redirect("staff-inventory-assemblies")
+
+        try:
+            item_id = uuid.UUID((request.POST.get("assembled_item") or "").strip())
+        except (TypeError, ValueError):
+            messages.error(request, "Choose a configured assembly product.")
+            return redirect("staff-inventory-assemblies")
+        item = (
+            MenuItem.objects.filter(
+                pk=item_id,
+                tenant=request.tenant,
+                track_inventory=True,
+                assembly_components__isnull=False,
+            )
+            .distinct()
+            .first()
+        )
+        if item is None:
+            messages.error(request, "Choose a configured tracked assembly product.")
+            return redirect("staff-inventory-assemblies")
+
+        try:
+            run = execute_retail_assembly(
+                tenant_id=request.tenant.pk,
+                outlet=outlet,
+                assembled_item=item,
+                quantity=(request.POST.get("quantity") or "").strip(),
+                direction=(request.POST.get("direction") or "").strip(),
+                user=request.user,
+                membership=request.tenant_membership,
+                note=(request.POST.get("note") or "").strip(),
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(
+                request,
+                f"{run.get_direction_display()} recorded: {run.quantity} × {run.assembled_item.name}.",
+            )
+        return redirect("staff-inventory-assemblies")
 
 
 class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
