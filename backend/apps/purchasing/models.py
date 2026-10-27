@@ -162,7 +162,7 @@ class PurchaseOrder(TimeStampedModel):
     approval_status = models.CharField(
         max_length=16,
         choices=PurchaseApprovalStatus.choices,
-        default=PurchaseApprovalStatus.PENDING,
+        default=PurchaseApprovalStatus.APPROVED,
     )
     reviewed_by = models.ForeignKey(
         "accounts.User",
