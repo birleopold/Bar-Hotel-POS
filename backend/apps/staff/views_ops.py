@@ -1961,6 +1961,11 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 )
             order.customer = customer
             order.save(update_fields=["customer", "updated_at"])
+            from apps.pos.services.price_books import reprice_open_retail_order_for_customer
+            repriced_lines, pricing_frozen = reprice_open_retail_order_for_customer(
+                order=order,
+                user=request.user,
+            )
             log_audit(
                 tenant_id=order.tenant_id,
                 user_id=request.user.pk,
@@ -1973,11 +1978,22 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 },
             )
 
-        message = (
-            "Customer link saved. Transaction amounts and receipt details were not changed."
-            if changed
-            else "Customer link was already current."
-        )
+        if changed and 'pricing_frozen' in locals() and pricing_frozen:
+            message = (
+                "Customer link saved. Existing prices were kept because this basket already has "
+                "a payment, promotion, or protected pricing state."
+            )
+        elif changed and 'repriced_lines' in locals() and repriced_lines:
+            message = (
+                f"Customer link saved. {repriced_lines} basket line"
+                f"{'s' if repriced_lines != 1 else ''} repriced using the assigned customer price book."
+            )
+        else:
+            message = (
+                "Customer link saved. Transaction amounts were unchanged."
+                if changed
+                else "Customer link was already current."
+            )
         if async_retail:
             return JsonResponse({
                 "ok": True,
@@ -1985,6 +2001,8 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 "changed": changed,
                 "customer_id": str(customer.pk) if customer else "",
                 "customer_name": customer.name if customer else "",
+                "repriced_lines": repriced_lines if changed and 'repriced_lines' in locals() else 0,
+                "pricing_frozen": pricing_frozen if changed and 'pricing_frozen' in locals() else False,
             })
         if changed:
             messages.success(request, message)
