@@ -483,6 +483,36 @@ class ManagementWorkspaceTests(TestCase):
         self.assertIn(self.worker.email, manual_price.detail)
         self.assertIn("exact price-entry operator was not historically recorded", manual_price.detail)
 
+        page = self.client.get(reverse("staff-management"), {"view": "exceptions"})
+        patterns = page.context["loss_patterns"]
+        worker_pattern = next(
+            row for row in patterns["workers"]
+            if row["worker"] == self.worker.email
+        )
+        manager_pattern = next(
+            row for row in patterns["workers"]
+            if row["worker"] == self.manager.email
+        )
+        outlet_pattern = next(
+            row for row in patterns["outlets"]
+            if row["outlet"] == self.outlet.name
+        )
+        product_pattern = next(
+            row for row in patterns["products"]
+            if row["product"] == "Manager discount"
+        )
+        self.assertGreaterEqual(worker_pattern["refunds"], 1)
+        self.assertEqual(worker_pattern["line_discounts"], 1)
+        self.assertEqual(worker_pattern["margin_overrides"], 1)
+        self.assertGreaterEqual(manager_pattern["cash_variances"], 1)
+        self.assertGreaterEqual(outlet_pattern["refunds"], 1)
+        self.assertEqual(outlet_pattern["margin_overrides"], 1)
+        self.assertEqual(product_pattern["line_discounts"], 1)
+        self.assertEqual(product_pattern["margin_overrides"], 1)
+        self.assertContains(page, "Repeated loss-prevention patterns")
+        self.assertContains(page, self.worker.email)
+        self.assertContains(page, "Manager discount")
+
     def test_approved_discount_is_not_duplicated_as_manual_price_exception(self):
         from apps.pos.models import OrderLine
         self.login()
