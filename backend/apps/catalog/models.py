@@ -230,6 +230,16 @@ class MenuItem(TimeStampedModel):
                 condition=~models.Q(variant_key=""),
                 name="uniq_product_family_variant_key",
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(serial_tracking=False)
+                    | (
+                        models.Q(track_inventory=True)
+                        & models.Q(unit_of_measure=UnitOfMeasure.EACH)
+                    )
+                ),
+                name="serialized_item_requires_piece_stock",
+            ),
         ]
 
     def __str__(self) -> str:
