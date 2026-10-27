@@ -11,7 +11,7 @@
   </header>
   {% if object %}
     <div class="grocery-form-links">
-      <a href="{% url 'console-org-menu-item-outlets' item_id=object.id %}">{% if grocery_console_shell %}Branch pricing{% else %}Outlet pricing{% endif %}</a>{% if console_has_retail %} · <a href="{% url 'console-org-menu-item-packages' item_id=object.id %}">Packages &amp; barcodes</a>{% endif %}
+      <a href="{% url 'console-org-menu-item-outlets' item_id=object.id %}">{% if grocery_console_shell %}Branch pricing{% else %}Outlet pricing{% endif %}</a>{% if console_has_retail %} · <a href="{% url 'console-org-menu-item-packages' item_id=object.id %}">Packages &amp; barcodes</a> · <a href="{% url 'console-org-menu-item-assembly' item_id=object.id %}">Retail assembly</a>{% endif %}
       {% if not grocery_console_shell %} · <a href="{% url 'console-org-menu-item-recipe' item_id=object.id %}">Recipe / bill of materials</a>{% endif %}
     </div>
   {% endif %}
