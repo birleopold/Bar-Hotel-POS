@@ -103,20 +103,23 @@ class StaffWorkstationEditView(StaffTenantRequiredMixin, View):
             return HttpResponseForbidden("Sign in with your account password to administer workstation devices.")
         return super().dispatch(request, *args, **kwargs)
 
+    def workstation_outlets(self, request):
+        return staff_accessible_outlets(request.tenant_membership)
+
     def _instance(self, request, workstation_id=None, lock=False):
-        qs = Workstation.objects.filter(tenant=request.tenant, outlet__in=staff_accessible_outlets(request.tenant_membership))
+        qs = Workstation.objects.filter(tenant=request.tenant, outlet__in=self.workstation_outlets(request))
         if lock:
             qs = qs.select_for_update()
         return get_object_or_404(qs, pk=workstation_id) if workstation_id else Workstation(tenant=request.tenant)
 
     def get(self, request, workstation_id=None):
-        form = WorkstationForm(instance=self._instance(request, workstation_id), tenant=request.tenant, outlets=staff_accessible_outlets(request.tenant_membership))
+        form = WorkstationForm(instance=self._instance(request, workstation_id), tenant=request.tenant, outlets=self.workstation_outlets(request))
         return render(request, self.template_name, {"form": form})
 
     @transaction.atomic
     def post(self, request, workstation_id=None):
         # Same outlet → workstation lock order as shift opening.
-        outlets = staff_accessible_outlets(request.tenant_membership)
+        outlets = self.workstation_outlets(request)
         list(Outlet.objects.select_for_update().filter(pk__in=[o.pk for o in outlets]).order_by("pk"))
         form = WorkstationForm(request.POST, instance=self._instance(request, workstation_id, lock=True), tenant=request.tenant, outlets=outlets)
         if form.is_valid():
@@ -204,8 +207,11 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
     edit_url_name = "staff-workstation-edit"
     success_url_name = "staff-workstation-test"
 
+    def workstation_outlets(self, request):
+        return staff_accessible_outlets(request.tenant_membership)
+
     def _station(self, request, workstation_id):
-        outlets = staff_accessible_outlets(request.tenant_membership)
+        outlets = self.workstation_outlets(request)
         station = get_object_or_404(
             Workstation.objects.select_related("outlet"),
             tenant=request.tenant, outlet__in=outlets, pk=workstation_id,
