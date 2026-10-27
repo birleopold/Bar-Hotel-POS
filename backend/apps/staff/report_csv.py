@@ -42,6 +42,38 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
     for row in summary["by_outlet"]:
         writer.writerow([_spreadsheet_text(row["outlet_name"]), row["count"], row["amount"]])
     writer.writerow([])
+    writer.writerow([
+        "register", "register_code", "payments_count", "refunds_count",
+        "gross_sales", "refunds_total", "net_sales",
+    ])
+    for row in summary.get("by_register", []):
+        writer.writerow([
+            _spreadsheet_text(row["register_name"]),
+            _spreadsheet_text(row["register_code"]),
+            row["payments_count"],
+            row["refunds_count"],
+            row["gross_sales"],
+            row["refunds_total"],
+            row["net_sales"],
+        ])
+    writer.writerow([])
+    writer.writerow([
+        "hour", "hour_label", "payments_count", "refunds_count",
+        "gross_sales", "refunds_total", "net_sales",
+    ])
+    for row in summary.get("hourly_sales", []):
+        if not row["payments_count"] and not row["refunds_count"]:
+            continue
+        writer.writerow([
+            row["hour"],
+            row["label"],
+            row["payments_count"],
+            row["refunds_count"],
+            row["gross_sales"],
+            row["refunds_total"],
+            row["net_sales"],
+        ])
+    writer.writerow([])
     writer.writerow(["item", "quantity_sold", "revenue"])
     for it in summary["top_items"]:
         writer.writerow([_spreadsheet_text(it["item_name"]), it["quantity_sold"], it["revenue"]])
