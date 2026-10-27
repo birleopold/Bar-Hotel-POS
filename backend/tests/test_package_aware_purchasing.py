@@ -598,3 +598,55 @@ class PackageAwarePurchasingTests(TestCase):
         self.assertEqual(
             row["serial_numbers"], ["IMEI-EXAMPLE-1", "IMEI-EXAMPLE-2"],
         )
+
+    def test_small_landed_charge_distributes_without_negative_remainder(self):
+        items = [self.item]
+        for i in range(2):
+            items.append(MenuItem.objects.create(
+                tenant=self.tenant,
+                category=self.category,
+                name=f"Small cost product {i}",
+                sku=f"SMALL-COST-{i}",
+                unit_price=Decimal("200"),
+                track_inventory=True,
+            ))
+        po = PurchaseOrder.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            outlet=self.outlet,
+            status=PurchaseOrderStatus.SENT,
+            reference="LAND-SMALL",
+            created_by=self.user,
+        )
+        lines = [
+            PurchaseOrderLine.objects.create(
+                purchase_order=po,
+                menu_item=item,
+                quantity_ordered=Decimal("1"),
+                unit_cost=Decimal("1.00"),
+            )
+            for item in items
+        ]
+        membership = Membership.objects.get(
+            tenant=self.tenant, user=self.user,
+        )
+        receive_purchase_order_goods(
+            po=po,
+            lines_payload=[
+                {"line_id": line.pk, "quantity": "1"}
+                for line in lines
+            ],
+            user=self.user,
+            membership=membership,
+            delivery_reference="DN-LAND-SMALL",
+            shipping_cost=Decimal("0.01"),
+            landed_cost_allocation="by_cost",
+        )
+        allocated = list(
+            po.receipts.get().lines.values_list("landed_cost_allocated", flat=True)
+        )
+        self.assertEqual(sum(allocated, Decimal("0.00")), Decimal("0.01"))
+        self.assertTrue(all(value >= 0 for value in allocated))
+        self.assertEqual(sorted(allocated), [
+            Decimal("0.00"), Decimal("0.00"), Decimal("0.01"),
+        ])
