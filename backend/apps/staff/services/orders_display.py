@@ -18,6 +18,8 @@ from apps.catalog.promotion_rules import (
     promotion_target_q_for_items,
 )
 from apps.pos.models import Order
+from apps.pos.services.margin_floor import promotion_margin_floor_result
+from apps.pos.services.pricing import promotion_discount_for_order
 from apps.pos.services.pricing_policy import promotion_combination_block_reason
 
 
@@ -124,6 +126,18 @@ def promotions_selectable_for_order(order: Order):
             if qualifying_quantity < required:
                 continue
         if promotion_redemption_block_reason(promotion, order):
+            continue
+        discount = promotion_discount_for_order(
+            order,
+            subtotal=order.subtotal,
+            tax_total=order.tax_total,
+            promotion_override=promotion,
+        )
+        margin_breach, _margin_reason = promotion_margin_floor_result(
+            order=order,
+            discount_amount=discount,
+        )
+        if margin_breach:
             continue
         eligible_ids.append(promotion.pk)
     return Promotion.objects.filter(pk__in=eligible_ids).order_by("name")
