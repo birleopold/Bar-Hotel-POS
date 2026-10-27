@@ -736,6 +736,9 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
                 allowed_diagnostics.add(
                     WorkstationDeviceCommandType.READ_SCALE
                 )
+                allowed_diagnostics.add(
+                    WorkstationDeviceCommandType.TARE_SCALE
+                )
             if command_type not in allowed_diagnostics:
                 return HttpResponseBadRequest(
                     "That device command is not available on the diagnostics page."
