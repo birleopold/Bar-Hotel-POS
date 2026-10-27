@@ -62,17 +62,24 @@ def receive_purchase_order_goods(
         ).first()
         if line is None:
             raise ValidationError({"lines": f"Unknown line: {line_id}."})
-        qty = to_stock_units(
-            units=row.get("quantity", 0), cartons=row.get("cartons", 0),
-            units_per_carton=line.units_per_carton_snapshot, allow_zero=True,
-        )
-        # to_stock_units already verifies that cartons are a nonnegative
-        # integer. Normalize through Decimal as well: "1.0" and 1.0 are
-        # accepted there but Python's int("1.0") would otherwise fail here.
+        package_count = int(Decimal(str(row.get("packages") or 0)))
         carton_count = int(Decimal(str(row.get("cartons") or 0)))
+        if package_count and carton_count:
+            raise ValidationError({"lines": f"Use packages or cartons for {line.menu_item.name}, not both."})
+        if package_count and not line.package_units_snapshot:
+            raise ValidationError({"lines": f"{line.menu_item.name} was not ordered with a package snapshot."})
+        qty = to_stock_units(
+            units=row.get("quantity", 0), cartons=carton_count,
+            units_per_carton=line.units_per_carton_snapshot,
+            allow_zero=bool(package_count),
+        )
+        if package_count:
+            qty += (Decimal(package_count) * line.package_units_snapshot).quantize(Decimal("0.001"))
+            if qty > Decimal("99999999999.999"):
+                raise ValidationError({"lines": f"Received quantity for {line.menu_item.name} exceeds stock limits."})
         normalized.append({
             **row, "line_id": line.pk, "quantity": qty,
-            "cartons": carton_count, "_line": line,
+            "cartons": carton_count, "packages": package_count, "_line": line,
         })
     lines_payload = normalized
     positive_ids = [row["line_id"] for row in lines_payload if row["quantity"] > 0]
@@ -156,6 +163,7 @@ def receive_purchase_order_goods(
             purchase_order_line=line,
             quantity_received=qty,
             cartons_received=row["cartons"],
+            packages_received=row["packages"],
             inventory_batch=batch,
         )
 
@@ -175,7 +183,8 @@ def receive_purchase_order_goods(
             "lines": [
                 {"purchase_order_line_id": str(line.purchase_order_line_id),
                  "quantity_received": format(line.quantity_received.normalize(), "f"),
-                 "cartons_received": line.cartons_received}
+                 "cartons_received": line.cartons_received,
+                 "packages_received": line.packages_received}
                 for line in receipt.lines.all()
             ],
         },
