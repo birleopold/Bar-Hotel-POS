@@ -822,8 +822,11 @@ def add_retail_group_to_open_order(
     ):
         raise ValidationError({"quantity": "Group quantity must be a positive whole number."})
 
+    if retail_group.lines.exclude(tenant_id=locked.tenant_id).exists():
+        raise ValidationError({"group": "Retail group component scope is inconsistent. Ask an administrator to review it."})
     lines = list(
-        retail_group.lines.select_related("menu_item")
+        retail_group.lines.filter(tenant_id=locked.tenant_id)
+        .select_related("menu_item")
         .order_by("sort_order", "menu_item__name")
     )
     if not lines:
