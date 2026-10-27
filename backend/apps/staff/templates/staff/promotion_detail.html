@@ -21,6 +21,7 @@
   <h2 class="staff-section-head">Details</h2>
   <div class="staff-card">
     <p><strong>Schedule</strong> {{ promotion.starts_at }} → {{ promotion.ends_at|default:"open" }}</p>
+    <p><strong>Target</strong> {{ promotion.target_label }}</p>
     <p><strong>Discount</strong>
       {% if promotion.discount_percent %}{{ promotion.discount_percent }}%{% endif %}
       {% if promotion.discount_amount %}{{ promotion.discount_amount }} off{% endif %}
