@@ -29,19 +29,20 @@
   <h2 class="fizo-purchasing__section-heading">Orders</h2>
   <div class="fizo-purchasing__tablewrap">
     <table class="fizo-purchasing__table">
-      <thead><tr><th>Reference</th><th>Supplier</th><th>Section</th><th>Approval</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <thead><tr><th>Reference</th><th>Supplier</th><th>Section</th><th>Needed by / reason</th><th>Approval</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for po in purchase_orders %}
           <tr>
             <td><a href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{{ po.reference|default:po.id }}</a></td>
             <td>{{ po.supplier.name }}</td>
             <td>{{ po.outlet.name }}</td>
+            <td>{% if po.needed_by %}<strong>{{ po.needed_by }}</strong>{% else %}<span class="staff-muted">No date</span>{% endif %}{% if po.request_reason %}<span class="staff-muted small d-block">{{ po.request_reason|truncatechars:70 }}</span>{% endif %}</td>
             <td>{{ po.get_approval_status_display }}</td>
             <td>{{ po.get_status_display }}</td>
             <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{% if receiving_lane and can_receive_stock %}Receive delivery{% else %}View{% endif %}</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="staff-muted">{% if receiving_lane %}No purchase orders are awaiting delivery for this scope and status.{% else %}No purchase orders match this scope and status.{% endif %}</td></tr>
+          <tr><td colspan="7" class="staff-muted">{% if receiving_lane %}No purchase orders are awaiting delivery for this scope and status.{% else %}No purchase orders match this scope and status.{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
