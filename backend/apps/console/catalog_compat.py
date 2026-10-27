@@ -40,6 +40,10 @@ ADAPTERS = {
         "label": "This POS neutral CSV",
         "version": "2026-10-27",
     },
+    "generic": {
+        "label": "Other platform / generic CSV",
+        "version": "2026-10-27",
+    },
     "shopify": {
         "label": "Shopify product CSV",
         "version": "2026-10-27",
@@ -129,6 +133,78 @@ def _canonical_row(*, category, name, price, sku="", barcode="", track="no",
         "tax_rate_percent": str(tax or "").strip(),
         "description": (description or "").strip()[:5000],
     }
+
+
+GENERIC_ALIASES = {
+    "category": ("category", "categories", "department", "product category", "item category", "type"),
+    "name": ("name", "product name", "item name", "title", "product", "item", "description name"),
+    "unit_price": (
+        "unit_price", "unit price", "price", "selling price", "sale price",
+        "retail price", "sales price", "sales price/rate", "rate", "price/rate",
+    ),
+    "sku": ("sku", "item code", "product code", "stock code", "item sku", "product sku"),
+    "barcode": ("barcode", "bar code", "upc", "ean", "gtin", "isbn", "upc/ean"),
+    "track_inventory": (
+        "track_inventory", "track inventory", "inventory tracking",
+        "track stock", "manage stock", "manage stock?",
+    ),
+    "reorder_level": (
+        "reorder_level", "reorder level", "reorder point", "minimum stock",
+        "min stock", "low stock threshold",
+    ),
+    "unit_of_measure": ("unit_of_measure", "unit of measure", "uom", "unit"),
+    "tax_rate_percent": (
+        "tax_rate_percent", "tax rate percent", "tax rate", "tax %", "vat rate", "vat %",
+    ),
+    "description": (
+        "description", "product description", "item description", "sales description",
+        "short description",
+    ),
+}
+
+
+def _generic(records, headers):
+    folded_headers = {header.casefold(): header for header in headers}
+    selected = {}
+    for target, aliases in GENERIC_ALIASES.items():
+        for alias in aliases:
+            if alias.casefold() in folded_headers:
+                selected[target] = folded_headers[alias.casefold()]
+                break
+
+    missing = [field for field in ("name", "unit_price") if field not in selected]
+    if missing:
+        raise CatalogImportProblem([
+            "Generic mapping could not find required fields: "
+            + ", ".join(missing)
+            + ". Rename columns to common names such as Product Name and Selling Price, "
+              "or use one of the named platform adapters."
+        ])
+
+    rows = []
+    for row in records:
+        def value(target):
+            header = selected.get(target)
+            return str(row.get(header, "") or "").strip() if header else ""
+
+        track_raw = value("track_inventory")
+        rows.append(_canonical_row(
+            category=value("category") or "Imported",
+            name=value("name"),
+            price=value("unit_price"),
+            sku=value("sku"),
+            barcode=value("barcode"),
+            track=_bool_text(track_raw, default="no") if track_raw else "no",
+            reorder=value("reorder_level"),
+            uom=(value("unit_of_measure") or "each").casefold(),
+            tax=value("tax_rate_percent"),
+            description=value("description"),
+        ))
+    mappings = tuple(
+        f"{source} → {target}"
+        for target, source in selected.items()
+    )
+    return rows, list(mappings), set(selected.values())
 
 
 def _shopify(records):
@@ -252,6 +328,22 @@ def parse_compatible_catalog_csv(*, tenant, uploaded, source):
         "quickbooks_online": _quickbooks,
         "woocommerce": _woocommerce,
     }
+    if source == "generic":
+        canonical, mappings, used_headers = _generic(records, headers)
+        ignored = tuple(header for header in headers if header not in used_headers)
+        rows = parse_catalog_csv(
+            tenant=tenant,
+            uploaded=_MemoryUpload(_emit_canonical_bytes(canonical)),
+        )
+        return rows, CompatibilityReport(
+            source=source,
+            adapter_version=ADAPTERS[source]["version"],
+            input_rows=len(records),
+            canonical_rows=len(rows),
+            ignored_columns=ignored,
+            warnings=tuple(["Auto-mapped columns: " + "; ".join(mappings)]),
+        )
+
     canonical, warnings = normalizers[source](records)
     recognized = {
         "shopify": {
