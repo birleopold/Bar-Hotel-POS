@@ -22,9 +22,14 @@
   <div class="staff-card">
     <p><strong>Schedule</strong> {{ promotion.starts_at }} → {{ promotion.ends_at|default:"open" }}</p>
     <p><strong>Target</strong> {{ promotion.target_label }}</p>
+    <p><strong>Offer type</strong> {{ promotion.get_offer_type_display }}</p>
     <p><strong>Discount</strong>
-      {% if promotion.discount_percent %}{{ promotion.discount_percent }}%{% endif %}
-      {% if promotion.discount_amount %}{{ promotion.discount_amount }} off{% endif %}
+      {% if promotion.offer_type == "buy_x_get_y" %}
+        Buy {{ promotion.buy_quantity }}, get {{ promotion.get_quantity }} free{% if promotion.max_uses_per_order %} · max {{ promotion.max_uses_per_order }} set{{ promotion.max_uses_per_order|pluralize }} per order{% endif %}
+      {% else %}
+        {% if promotion.discount_percent %}{{ promotion.discount_percent }}%{% endif %}
+        {% if promotion.discount_amount %}{{ promotion.discount_amount }} off{% endif %}
+      {% endif %}
     </p>
     <p><strong>Minimum basket subtotal</strong> {{ promotion.min_order_subtotal|default:"—" }}</p>
     <p><strong>Minimum qualifying quantity</strong> {{ promotion.min_target_quantity|default:"—" }}</p>
