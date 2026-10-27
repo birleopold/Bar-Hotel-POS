@@ -377,8 +377,9 @@ class ManagementWorkspaceTests(TestCase):
         self.login()
         self.refund.recorded_by = self.worker
         self.refund.save(update_fields=["recorded_by", "updated_at"])
+        self.shift.opened_by = self.manager
         self.shift.closed_by = self.manager
-        self.shift.save(update_fields=["closed_by", "updated_at"])
+        self.shift.save(update_fields=["opened_by", "closed_by", "updated_at"])
 
         self.order.discount_amount = Decimal("8")
         self.order.save(update_fields=["discount_amount", "updated_at"])
