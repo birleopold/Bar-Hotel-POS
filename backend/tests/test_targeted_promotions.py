@@ -1824,3 +1824,36 @@ class TargetedPromotionTests(TestCase):
         )
         self.assertEqual(changed.line_total, Decimal("9000.00"))
 
+    def test_cross_target_bogo_can_discount_reward_worth_more_than_buy_pool(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.soap,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = Promotion.objects.create(
+            tenant=self.tenant,
+            name="Buy oil get soap",
+            offer_type=Promotion.OfferType.BUY_X_GET_Y,
+            menu_item=self.oil,
+            reward_menu_item=self.soap,
+            buy_quantity=1,
+            get_quantity=1,
+            starts_at=timezone.now() - timedelta(minutes=1),
+            ends_at=timezone.now() + timedelta(days=1),
+            is_active=True,
+        )
+
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.subtotal, Decimal("30000.00"))
+        self.assertEqual(order.discount_amount, Decimal("20000.00"))
+        self.assertEqual(order.total, Decimal("10000.00"))
+
