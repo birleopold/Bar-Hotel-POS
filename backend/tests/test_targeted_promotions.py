@@ -1,5 +1,7 @@
 from types import SimpleNamespace
-from datetime import timedelta
+from datetime import datetime, time, timedelta
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -12,6 +14,7 @@ from apps.accounts.models import Membership, MembershipRole, User
 from apps.audit.models import AuditEvent
 from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, ProductLabelQueueEntry, Promotion
 from apps.catalog.recipe_promo_serializers import PromotionSerializer
+from apps.catalog.promotion_rules import promotion_schedule_active
 from apps.customers.models import Customer
 from apps.pos.models import Order, Payment, PaymentMethod
 from apps.pos.services.orders import (
@@ -1570,4 +1573,107 @@ class TargetedPromotionTests(TestCase):
         body = response.content.decode("utf-8")
         self.assertIn("All accessible outlets", body)
         self.assertNotIn("Restricted checkout", body)
+
+    def test_recurring_schedule_uses_tenant_timezone_for_selector_and_apply(self):
+        settings_obj = self.tenant.settings
+        settings_obj.default_timezone = "Africa/Kampala"
+        settings_obj.save(update_fields=["default_timezone", "updated_at"])
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Tuesday happy hour",
+            menu_item=self.oil,
+            starts_at=datetime(2026, 10, 1, tzinfo=ZoneInfo("UTC")),
+            ends_at=datetime(2026, 11, 30, tzinfo=ZoneInfo("UTC")),
+            schedule_weekdays=[2],
+            schedule_start_time=time(17, 0),
+            schedule_end_time=time(19, 0),
+        )
+        inside = datetime(2026, 10, 27, 17, 30, tzinfo=ZoneInfo("Africa/Kampala")).astimezone(
+            ZoneInfo("UTC")
+        )
+        outside = datetime(2026, 10, 27, 19, 30, tzinfo=ZoneInfo("Africa/Kampala")).astimezone(
+            ZoneInfo("UTC")
+        )
+
+        self.assertTrue(promotion_schedule_active(promo, at=inside))
+        with patch("django.utils.timezone.now", return_value=inside):
+            self.assertTrue(
+                promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+            )
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        remove_promotion_from_order(order=order, user=self.user)
+
+        self.assertFalse(promotion_schedule_active(promo, at=outside))
+        with patch("django.utils.timezone.now", return_value=outside):
+            self.assertFalse(
+                promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+            )
+            with self.assertRaises(ValidationError):
+                apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+    def test_recurring_schedule_excludes_wrong_weekday(self):
+        settings_obj = self.tenant.settings
+        settings_obj.default_timezone = "Africa/Kampala"
+        settings_obj.save(update_fields=["default_timezone", "updated_at"])
+        promo = self._promotion(
+            name="Weekend only",
+            starts_at=datetime(2026, 10, 1, tzinfo=ZoneInfo("UTC")),
+            ends_at=datetime(2026, 11, 30, tzinfo=ZoneInfo("UTC")),
+            schedule_weekdays=[6, 7],
+        )
+        tuesday = datetime(2026, 10, 27, 12, 0, tzinfo=ZoneInfo("Africa/Kampala")).astimezone(
+            ZoneInfo("UTC")
+        )
+        saturday = datetime(2026, 10, 31, 12, 0, tzinfo=ZoneInfo("Africa/Kampala")).astimezone(
+            ZoneInfo("UTC")
+        )
+        self.assertFalse(promotion_schedule_active(promo, at=tuesday))
+        self.assertTrue(promotion_schedule_active(promo, at=saturday))
+        self.assertEqual(promo.schedule_label, "Sat, Sun · all day")
+
+    def test_recurring_schedule_model_rejects_overnight_window(self):
+        promo = Promotion(
+            tenant=self.tenant,
+            name="Bad overnight",
+            discount_percent=Decimal("10"),
+            starts_at=timezone.now() - timedelta(days=1),
+            ends_at=timezone.now() + timedelta(days=1),
+            schedule_weekdays=[1, 2, 3, 4, 5],
+            schedule_start_time=time(22, 0),
+            schedule_end_time=time(2, 0),
+        )
+        with self.assertRaises(DjangoValidationError):
+            promo.full_clean()
+
+    def test_promotion_api_accepts_recurring_schedule_contract(self):
+        payload = {
+            "name": "API happy hour",
+            "offer_type": Promotion.OfferType.STANDARD,
+            "menu_item": str(self.oil.pk),
+            "brand": "",
+            "discount_percent": "10",
+            "discount_amount": None,
+            "schedule_weekdays": [1, 3, 5],
+            "schedule_start_time": "16:00:00",
+            "schedule_end_time": "19:00:00",
+            "starts_at": (timezone.now() - timedelta(minutes=1)).isoformat(),
+            "ends_at": (timezone.now() + timedelta(days=30)).isoformat(),
+            "is_active": True,
+        }
+        serializer = PromotionSerializer(
+            data=payload,
+            context={"request": SimpleNamespace(tenant=self.tenant)},
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        promo = serializer.save()
+        self.assertEqual(promo.schedule_weekdays, [1, 3, 5])
+        self.assertEqual(promo.schedule_start_time, time(16, 0))
+        self.assertEqual(promo.schedule_end_time, time(19, 0))
+        self.assertEqual(promo.schedule_label, "Mon, Wed, Fri · 16:00–19:00")
 
