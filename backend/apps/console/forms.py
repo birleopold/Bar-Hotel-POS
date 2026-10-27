@@ -558,6 +558,10 @@ class ConsoleMenuItemForm(forms.ModelForm):
             tenant=self.tenant, code__iexact=barcode
         ).exists():
             self.add_error("barcode", "This code is already assigned to a retail product group.")
+        if barcode and ProductAlternateCode.objects.filter(
+            tenant=self.tenant, code__iexact=barcode
+        ).exists():
+            self.add_error("barcode", "This code is already assigned as an alternate product code.")
         sku = (values.get("sku") or "").strip()
         if sku and ProductPackage.objects.filter(tenant=self.tenant).filter(
             Q(sku_alias__iexact=sku) | Q(barcode__iexact=sku)
@@ -567,6 +571,10 @@ class ConsoleMenuItemForm(forms.ModelForm):
             tenant=self.tenant, code__iexact=sku
         ).exists():
             self.add_error("sku", "This code is already assigned to a retail product group.")
+        if sku and ProductAlternateCode.objects.filter(
+            tenant=self.tenant, code__iexact=sku
+        ).exists():
+            self.add_error("sku", "This code is already assigned as an alternate product code.")
         return values
 
 
@@ -896,6 +904,8 @@ class ConsoleProductPackageForm(forms.ModelForm):
             raise forms.ValidationError("This code is already registered to a product barcode or SKU.")
         if RetailProductGroup.objects.filter(tenant=self.tenant, code__iexact=barcode).exists():
             raise forms.ValidationError("This code is already used by a retail product group.")
+        if ProductAlternateCode.objects.filter(tenant=self.tenant, code__iexact=barcode).exists():
+            raise forms.ValidationError("This code is already used as an alternate product code.")
         qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
             Q(barcode__iexact=barcode) | Q(sku_alias__iexact=barcode)
         )
@@ -915,6 +925,8 @@ class ConsoleProductPackageForm(forms.ModelForm):
             raise forms.ValidationError("This package code is already used by a product SKU or barcode.")
         if RetailProductGroup.objects.filter(tenant=self.tenant, code__iexact=code).exists():
             raise forms.ValidationError("This package code is already used by a retail product group.")
+        if ProductAlternateCode.objects.filter(tenant=self.tenant, code__iexact=code).exists():
+            raise forms.ValidationError("This package code is already used as an alternate product code.")
         qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
             Q(sku_alias__iexact=code) | Q(barcode__iexact=code)
         )
@@ -1046,6 +1058,10 @@ class ConsoleRetailProductGroupForm(forms.ModelForm):
             serial_number__iexact=code,
         ).exists():
             raise forms.ValidationError("This code already belongs to a serial / IMEI unit.")
+        if ProductAlternateCode.objects.filter(
+            tenant=self.tenant, code__iexact=code
+        ).exists():
+            raise forms.ValidationError("This code already belongs to an alternate product code.")
         qs = RetailProductGroup.objects.filter(tenant=self.tenant, code__iexact=code)
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
