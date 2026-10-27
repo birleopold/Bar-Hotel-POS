@@ -18,7 +18,7 @@ from apps.pos.services import default_currency_for_tenant
 from apps.purchasing.models import (
     PurchaseApprovalStatus, PurchaseOrder, PurchaseOrderStatus,
     PurchaseRfq, PurchaseRfqStatus, Supplier, SupplierPaymentMethod,
-    SupplierProductCode, SupplierQuote, SupplierQuoteStatus,
+    SupplierPriceRecord, SupplierProductCode, SupplierQuote, SupplierQuoteStatus,
 )
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
@@ -40,7 +40,8 @@ from apps.tenants.models import Outlet, TenantSettings
 
 from .forms import (
     StaffPOHeaderForm, StaffRfqForm, StaffRfqInviteForm,
-    StaffSupplierForm, StaffSupplierProductCodeForm, StaffSupplierQuoteForm,
+    StaffSupplierForm, StaffSupplierPriceRecordForm,
+    StaffSupplierProductCodeForm, StaffSupplierQuoteForm,
 )
 from .middleware import STAFF_SESSION_OUTLET_ALL, STAFF_SESSION_OUTLET_KEY
 from .mixins import StaffTenantRequiredMixin
@@ -558,6 +559,33 @@ class StaffSupplierProductCodeView(StaffTenantRequiredMixin, TemplateView):
             row.cost_change_percent = history.change_percent if history else None
             row.latest_cost_received_at = history.latest_received_at if history else None
         ctx["supplier_codes"] = supplier_codes
+        price_edit_id = (self.request.GET.get("price_edit") or "").strip()
+        price_instance = None
+        if price_edit_id:
+            try:
+                parsed_price_id = uuid.UUID(price_edit_id)
+            except ValueError:
+                parsed_price_id = None
+            if parsed_price_id is not None:
+                price_instance = SupplierPriceRecord.objects.filter(
+                    tenant=self.request.tenant,
+                    supplier=self.supplier,
+                    pk=parsed_price_id,
+                ).select_related("menu_item", "product_package").first()
+        ctx["supplier_prices"] = (
+            SupplierPriceRecord.objects.filter(
+                tenant=self.request.tenant,
+                supplier=self.supplier,
+            )
+            .select_related("menu_item", "product_package")
+            .order_by("menu_item__name", "-minimum_quantity", "-valid_from", "-created_at")
+        )
+        ctx["price_form"] = StaffSupplierPriceRecordForm(
+            tenant=self.request.tenant,
+            supplier=self.supplier,
+            instance=price_instance,
+        )
+        ctx["editing_price"] = price_instance
         ctx["code_form"] = StaffSupplierProductCodeForm(
             tenant=self.request.tenant,
             supplier=self.supplier,
@@ -568,6 +596,60 @@ class StaffSupplierProductCodeView(StaffTenantRequiredMixin, TemplateView):
 
     def post(self, request, *args, **kwargs):
         action = (request.POST.get("action") or "save").strip()
+        if action in {"price_save", "price_delete"}:
+            price_instance = None
+            raw_price_id = (request.POST.get("price_id") or "").strip()
+            if raw_price_id:
+                try:
+                    parsed_price_id = uuid.UUID(raw_price_id)
+                except ValueError:
+                    parsed_price_id = None
+                if parsed_price_id is not None:
+                    price_instance = SupplierPriceRecord.objects.filter(
+                        tenant=request.tenant,
+                        supplier=self.supplier,
+                        pk=parsed_price_id,
+                    ).first()
+            if action == "price_delete":
+                if price_instance is None:
+                    messages.error(request, "Supplier price record was not found.")
+                else:
+                    price_instance.delete()
+                    messages.success(request, "Supplier price record removed.")
+                return redirect(
+                    "staff-purchasing-supplier-codes",
+                    supplier_id=self.supplier.pk,
+                )
+            if price_instance is None:
+                price_instance = SupplierPriceRecord(
+                    tenant=request.tenant,
+                    supplier=self.supplier,
+                )
+            else:
+                price_instance.tenant = request.tenant
+                price_instance.supplier = self.supplier
+            price_form = StaffSupplierPriceRecordForm(
+                request.POST,
+                tenant=request.tenant,
+                supplier=self.supplier,
+                instance=price_instance,
+            )
+            if not price_form.is_valid():
+                ctx = self.get_context_data()
+                ctx["price_form"] = price_form
+                ctx["editing_price"] = price_instance
+                return render(request, self.template_name, ctx, status=400)
+            price = price_form.save(commit=False)
+            price.tenant = request.tenant
+            price.supplier = self.supplier
+            price.full_clean()
+            price.save()
+            messages.success(request, "Supplier price record saved.")
+            return redirect(
+                "staff-purchasing-supplier-codes",
+                supplier_id=self.supplier.pk,
+            )
+
         if action == "delete":
             try:
                 code_id = uuid.UUID((request.POST.get("code_id") or "").strip())
