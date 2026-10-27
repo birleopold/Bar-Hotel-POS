@@ -127,6 +127,26 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
                     row["incomplete_lines"],
                 ])
 
+        if profitability.get("margin_exceptions"):
+            writer.writerow([])
+            writer.writerow([
+                "margin_exception_outlet", "product", "sku",
+                "covered_net_revenue", "known_net_cogs",
+                "known_gross_profit", "known_margin_percent",
+                "configured_margin_floor_percent",
+            ])
+            for row in profitability["margin_exceptions"]:
+                writer.writerow([
+                    _spreadsheet_text(row["outlet_name"]),
+                    _spreadsheet_text(row["item_name"]),
+                    _spreadsheet_text(row["sku"]),
+                    row["covered_net_revenue"],
+                    row["known_net_cogs"],
+                    row["known_gross_profit"],
+                    row["known_margin_percent"],
+                    row["margin_floor_percent"],
+                ])
+
 
 def format_sales_summary_csv(
     tenant_id: UUID,
