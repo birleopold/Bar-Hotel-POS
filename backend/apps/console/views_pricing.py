@@ -232,7 +232,11 @@ class OrgPriceBookRuleUpdateView(PriceBookScopedMixin, UpdateView):
             entity_id=str(self.object.pk),
             payload={
                 "price_book_id": str(self.price_book.pk),
-                "menu_item_id": str(self.object.menu_item_id),
+                "menu_item_id": str(self.object.menu_item_id) if self.object.menu_item_id else None,
+                "product_family_id": str(self.object.product_family_id) if self.object.product_family_id else None,
+                "category_id": str(self.object.category_id) if self.object.category_id else None,
+                "brand": self.object.brand or "",
+                "target": self.object.target_label,
                 "minimum_quantity": str(self.object.minimum_quantity),
                 "unit_price": str(self.object.unit_price),
                 "is_active": self.object.is_active,
