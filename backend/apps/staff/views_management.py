@@ -113,6 +113,9 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                 loss_patterns=patterns,
             )
             if request.GET.get("loss_export") == "csv":
+                patterns = management_loss_patterns(
+                    request, policy=policy, limit=None
+                )
                 out = io.StringIO()
                 writer = csv.writer(out)
 
