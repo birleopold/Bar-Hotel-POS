@@ -15,6 +15,7 @@ from apps.catalog.models import (
     MenuItemRecipeLine,
     ProductFamily,
     ProductPackage,
+    RetailAssemblyComponent,
     ModifierGroup,
     ModifierOption,
     ServiceOffering,
@@ -794,6 +795,34 @@ class ConsoleMenuItemOutletUpdateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["price_override"].required = False
         self.fields["price_override"].help_text = "Leave blank to use the item’s default unit price at this outlet."
+
+
+class ConsoleRetailAssemblyComponentForm(forms.ModelForm):
+    class Meta:
+        model = RetailAssemblyComponent
+        fields = ("component_item", "quantity_per_unit")
+        widgets = {
+            "component_item": forms.Select(attrs={"class": "staff-input"}),
+            "quantity_per_unit": forms.NumberInput(attrs={"class": "staff-input", "step": "0.001", "min": "0.001"}),
+        }
+
+    def __init__(self, *args, parent_item: MenuItem, tenant, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.parent_item = parent_item
+        self.tenant = tenant
+        self.fields["component_item"].queryset = MenuItem.objects.filter(
+            tenant=tenant,
+            is_active=True,
+            track_inventory=True,
+        ).exclude(pk=parent_item.pk).order_by("name")
+
+    def clean_component_item(self):
+        component = self.cleaned_data.get("component_item")
+        if component and component.pk == self.parent_item.pk:
+            raise forms.ValidationError("A finished product cannot be its own component.")
+        if component and component.tenant_id != self.tenant.pk:
+            raise forms.ValidationError("Choose a component from this business.")
+        return component
 
 
 class ConsoleMenuItemRecipeLineForm(forms.ModelForm):
