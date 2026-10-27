@@ -73,6 +73,8 @@ class StaffPromotionForm(forms.ModelForm):
 
     def __init__(self, *args, tenant=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["offer_type"].required = False
+        self.fields["offer_type"].initial = Promotion.OfferType.STANDARD
         self.fields["menu_item"].required = False
         self.fields["product_family"].required = False
         self.fields["category"].required = False
@@ -154,6 +156,7 @@ class StaffPromotionForm(forms.ModelForm):
     def clean(self):
         data = super().clean()
         offer_type = data.get("offer_type") or Promotion.OfferType.STANDARD
+        data["offer_type"] = offer_type
         pct = data.get("discount_percent")
         amt = data.get("discount_amount")
         has_pct = pct is not None
