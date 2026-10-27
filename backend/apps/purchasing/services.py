@@ -1,4 +1,4 @@
-from decimal import Decimal, InvalidOperation, ROUND_DOWN
+from decimal import Decimal, InvalidOperation, ROUND_DOWN, ROUND_HALF_UP
 
 from django.db import transaction
 from django.db.models import Sum
@@ -11,7 +11,7 @@ from apps.catalog.label_queue import queue_product_label
 from apps.catalog.packaging import to_stock_units
 from apps.finance.models import FinancePostingLink, FinancePostingSource
 from apps.finance.services import post_supplier_payment_expense
-from apps.inventory.models import StockMovement, StockReason
+from apps.inventory.models import StockBalance, StockMovement, StockReason
 from apps.inventory.costing import apply_receipt_cost_basis
 from apps.inventory.services import apply_manual_stock_change
 from apps.inventory.services_batches import receive_tracked_batch
@@ -19,7 +19,7 @@ from apps.inventory.services_serials import create_received_serial_units, valida
 from apps.inventory.batches import InventoryBatch
 from django.utils import timezone
 
-from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice, SupplierInvoiceLine, SupplierReturn, SupplierCreditNote
+from .models import PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus, PurchaseReceipt, PurchaseReceiptLine, PurchaseReceiptCostAdjustment, PurchaseReceiptCostAdjustmentLine, Supplier, SupplierPayment, SupplierPaymentMethod, SupplierInvoice, SupplierInvoiceLine, SupplierReturn, SupplierCreditNote
 
 
 @transaction.atomic
@@ -398,6 +398,308 @@ def receive_purchase_order_goods(
         },
     )
     return po_locked
+
+
+@transaction.atomic
+def record_receipt_landed_cost_adjustment(
+    *,
+    receipt: PurchaseReceipt,
+    amount,
+    allocation_method: str,
+    reference: str,
+    reason: str,
+    user,
+    membership,
+    manual_allocations: dict | None = None,
+) -> PurchaseReceiptCostAdjustment:
+    """Append a landed-cost correction without rewriting receipt/sale history.
+
+    Revaluation is allowed only while all units represented by the original
+    receipt are still provably in inventory: any negative stock movement for an
+    affected item after the receipt blocks correction because some cost may
+    already belong to historical COGS.
+    """
+    receipt = (
+        PurchaseReceipt.objects.select_for_update()
+        .select_related("purchase_order", "purchase_order__outlet")
+        .get(pk=receipt.pk)
+    )
+    po = receipt.purchase_order
+    if (
+        membership is None
+        or not membership.is_active
+        or membership.tenant_id != receipt.tenant_id
+        or not outlet_belongs_to_membership(membership, po.outlet_id)
+    ):
+        raise ValidationError({
+            "detail": "You cannot adjust landed cost for this receiving outlet."
+        })
+
+    reference = (reference or "").strip()
+    reason = (reason or "").strip()
+    if not reference or len(reference) > 128:
+        raise ValidationError({
+            "reference": "Enter an adjustment/credit reference of up to 128 characters."
+        })
+    if len(reason) < 12 or len(reason) > 512:
+        raise ValidationError({
+            "reason": "Explain the landed-cost correction in 12–512 characters."
+        })
+    try:
+        signed_amount = Decimal(str(amount)).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValidationError({
+            "amount": "Enter a valid non-zero landed-cost adjustment."
+        }) from exc
+    if (
+        not signed_amount.is_finite()
+        or signed_amount == 0
+        or abs(signed_amount) > Decimal("999999999999.99")
+    ):
+        raise ValidationError({
+            "amount": "Enter a valid non-zero landed-cost adjustment."
+        })
+    allowed_methods = {
+        PurchaseReceipt.LandedCostAllocation.BY_COST,
+        PurchaseReceipt.LandedCostAllocation.BY_QUANTITY,
+        PurchaseReceipt.LandedCostAllocation.MANUAL,
+    }
+    if allocation_method not in allowed_methods:
+        raise ValidationError({
+            "allocation_method": "Choose cost, quantity or manual allocation."
+        })
+    if PurchaseReceiptCostAdjustment.objects.filter(
+        tenant_id=receipt.tenant_id,
+        receipt=receipt,
+        reference__iexact=reference,
+    ).exists():
+        raise ValidationError({
+            "reference": "This landed-cost adjustment reference is already recorded."
+        })
+
+    receipt_lines = list(
+        PurchaseReceiptLine.objects.select_for_update()
+        .filter(receipt=receipt)
+        .select_related("purchase_order_line__menu_item")
+        .order_by("created_at", "pk")
+    )
+    if not receipt_lines:
+        raise ValidationError({"receipt": "This receipt has no posted stock lines."})
+
+    balances = {}
+    before_after = {}
+    for line in receipt_lines:
+        item = line.purchase_order_line.menu_item
+        if StockMovement.objects.filter(
+            tenant_id=receipt.tenant_id,
+            outlet=po.outlet,
+            menu_item=item,
+            created_at__gt=receipt.created_at,
+            quantity_change__lt=0,
+        ).exists():
+            raise ValidationError({
+                "stock": (
+                    f"{item.name} has outbound stock activity after this receipt. "
+                    "Its landed cost can no longer be safely revalued without "
+                    "reconstructing historical COGS."
+                )
+            })
+        balance = StockBalance.objects.select_for_update().filter(
+            tenant_id=receipt.tenant_id,
+            outlet=po.outlet,
+            menu_item=item,
+        ).first()
+        if (
+            balance is None
+            or balance.quantity <= 0
+            or not balance.cost_basis_complete
+            or balance.average_unit_cost is None
+        ):
+            raise ValidationError({
+                "stock": (
+                    f"{item.name} does not have a complete positive on-hand cost "
+                    "basis, so this receipt cannot be safely revalued."
+                )
+            })
+        balances[line.pk] = balance
+
+    magnitude = abs(signed_amount)
+    allocations = {}
+    if allocation_method == PurchaseReceipt.LandedCostAllocation.BY_COST:
+        bases = []
+        for line in receipt_lines:
+            if line.unit_cost_snapshot is None:
+                raise ValidationError({
+                    "allocation_method": (
+                        f"{line.purchase_order_line.menu_item.name} has no supplier "
+                        "unit-cost snapshot; cost-based correction is unavailable."
+                    )
+                })
+            bases.append(
+                (line.quantity_received * line.unit_cost_snapshot).quantize(
+                    Decimal("0.01")
+                )
+            )
+        total_base = sum(bases, Decimal("0.00"))
+        if total_base <= 0:
+            raise ValidationError({
+                "allocation_method": "Receipt supplier-cost value must be positive."
+            })
+        allocated = Decimal("0.00")
+        for index, (line, base) in enumerate(zip(receipt_lines, bases)):
+            share = (
+                magnitude - allocated
+                if index == len(receipt_lines) - 1
+                else (magnitude * base / total_base).quantize(
+                    Decimal("0.01"), rounding=ROUND_DOWN
+                )
+            )
+            if index != len(receipt_lines) - 1:
+                allocated += share
+            allocations[line.pk] = share
+    elif allocation_method == PurchaseReceipt.LandedCostAllocation.BY_QUANTITY:
+        total_qty = sum(
+            (line.quantity_received for line in receipt_lines),
+            Decimal("0.000"),
+        )
+        if total_qty <= 0:
+            raise ValidationError({
+                "allocation_method": "Receipt quantity must be positive."
+            })
+        allocated = Decimal("0.00")
+        for index, line in enumerate(receipt_lines):
+            share = (
+                magnitude - allocated
+                if index == len(receipt_lines) - 1
+                else (magnitude * line.quantity_received / total_qty).quantize(
+                    Decimal("0.01"), rounding=ROUND_DOWN
+                )
+            )
+            if index != len(receipt_lines) - 1:
+                allocated += share
+            allocations[line.pk] = share
+    else:
+        manual_allocations = manual_allocations or {}
+        manual_total = Decimal("0.00")
+        for line in receipt_lines:
+            raw = manual_allocations.get(str(line.pk), manual_allocations.get(line.pk, 0))
+            try:
+                share = Decimal(str(raw or 0)).quantize(Decimal("0.01"))
+            except (InvalidOperation, TypeError, ValueError) as exc:
+                raise ValidationError({
+                    "manual_allocations": (
+                        f"Enter a valid allocation for "
+                        f"{line.purchase_order_line.menu_item.name}."
+                    )
+                }) from exc
+            if not share.is_finite() or share < 0:
+                raise ValidationError({
+                    "manual_allocations": "Manual allocations must be non-negative."
+                })
+            allocations[line.pk] = share
+            manual_total += share
+        manual_total = manual_total.quantize(Decimal("0.01"))
+        if manual_total != magnitude:
+            raise ValidationError({
+                "manual_allocations": (
+                    f"Manual allocations must total {magnitude:.2f}; "
+                    f"entered {manual_total:.2f}."
+                )
+            })
+
+    sign = Decimal("1") if signed_amount > 0 else Decimal("-1")
+    signed_allocations = {
+        line_id: (share * sign).quantize(Decimal("0.01"))
+        for line_id, share in allocations.items()
+    }
+
+    # A credit cannot reverse more landed cost than was ever attached to a line.
+    for line in receipt_lines:
+        prior_adjustment = (
+            PurchaseReceiptCostAdjustmentLine.objects.filter(
+                receipt_line=line
+            ).aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+        cumulative = (
+            line.landed_cost_allocated
+            + prior_adjustment
+            + signed_allocations[line.pk]
+        ).quantize(Decimal("0.01"))
+        if cumulative < 0:
+            raise ValidationError({
+                "amount": (
+                    f"Credit allocated to {line.purchase_order_line.menu_item.name} "
+                    "would reduce cumulative landed cost below zero."
+                )
+            })
+
+    # Pre-compute every new average before writing anything.
+    new_averages = {}
+    for line in receipt_lines:
+        delta = signed_allocations[line.pk]
+        balance = balances[line.pk]
+        current_value = balance.quantity * balance.average_unit_cost
+        new_value = current_value + delta
+        if new_value < 0:
+            raise ValidationError({
+                "amount": (
+                    f"Adjustment would make {line.purchase_order_line.menu_item.name} "
+                    "inventory value negative."
+                )
+            })
+        new_averages[line.pk] = (
+            new_value / balance.quantity
+        ).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+        before_after[str(line.pk)] = {
+            "menu_item_id": str(line.purchase_order_line.menu_item_id),
+            "quantity": str(balance.quantity),
+            "average_unit_cost_before": str(balance.average_unit_cost),
+            "allocated_adjustment": str(delta),
+            "average_unit_cost_after": str(new_averages[line.pk]),
+        }
+
+    adjustment = PurchaseReceiptCostAdjustment.objects.create(
+        tenant_id=receipt.tenant_id,
+        receipt=receipt,
+        reference=reference,
+        amount=signed_amount,
+        allocation_method=allocation_method,
+        reason=reason,
+        created_by=user,
+    )
+    for line in receipt_lines:
+        delta = signed_allocations[line.pk]
+        if delta != 0:
+            PurchaseReceiptCostAdjustmentLine.objects.create(
+                adjustment=adjustment,
+                receipt_line=line,
+                amount=delta,
+            )
+        balance = balances[line.pk]
+        balance.average_unit_cost = new_averages[line.pk]
+        balance.save(update_fields=["average_unit_cost", "updated_at"])
+
+    log_audit(
+        tenant_id=receipt.tenant_id,
+        user_id=user.pk if user else None,
+        action="purchase.landed_cost_adjusted",
+        entity_type="purchase_receipt_cost_adjustment",
+        entity_id=str(adjustment.pk),
+        payload={
+            "purchase_order_id": str(po.pk),
+            "receipt_id": str(receipt.pk),
+            "reference": reference,
+            "amount": str(signed_amount),
+            "allocation_method": allocation_method,
+            "reason": reason,
+            "lines": before_after,
+            "receipt_snapshots_rewritten": False,
+            "historical_sales_rewritten": False,
+            "quantity_changed": False,
+        },
+    )
+    return adjustment
 
 
 def received_goods_value(po: PurchaseOrder) -> Decimal:
