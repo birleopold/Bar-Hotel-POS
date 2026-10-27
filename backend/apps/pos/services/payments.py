@@ -208,6 +208,8 @@ def charge_order_to_folio(*, order: Order, membership, user) -> FolioLine:
         )
     locked.status = OrderStatus.CLOSED
     locked.save(update_fields=["status", "updated_at"])
+    from .commissions import snapshot_order_commissions
+    snapshot_order_commissions(order=locked)
     log_audit(
         tenant_id=locked.tenant_id, user_id=user.id if user else None,
         action="order.charged_to_folio", entity_type="order", entity_id=str(locked.id),
