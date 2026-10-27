@@ -1241,6 +1241,7 @@ def process_supermarket_line_return(
     restock: bool,
     user,
     idempotency_key: str = "",
+    serial_numbers=None,
 ) -> SupermarketLineReturn:
     locked_o = Order.objects.select_for_update().get(pk=order.pk)
     if locked_o.status != OrderStatus.CLOSED or not locked_o.is_paid:
@@ -1275,6 +1276,19 @@ def process_supermarket_line_return(
                 raise ValidationError({
                     "Idempotency-Key": "This physical return key was already used for different details."
                 })
+            if locked_ln.menu_item_id and locked_ln.menu_item.serial_tracking:
+                from apps.inventory.services_serials import normalize_serial_numbers
+                supplied = {value.casefold() for value in normalize_serial_numbers(serial_numbers)}
+                linked = {
+                    value.casefold()
+                    for value in existing.serialized_unit_links.values_list(
+                        "serial_unit__serial_number", flat=True
+                    )
+                }
+                if supplied != linked:
+                    raise ValidationError({
+                        "Idempotency-Key": "This return key was already used with different serial / IMEI values."
+                    })
             existing.idempotent_replay = True
             return existing
 
@@ -1300,6 +1314,15 @@ def process_supermarket_line_return(
         )
         if sold <= 0 or quantity > sold - restored:
             raise ValidationError({"restock": "Only stock consumed by this sale can be put back on hand."})
+    serial_units = []
+    if locked_ln.menu_item_id:
+        from apps.inventory.services_serials import lock_serial_units_for_return
+        serial_units = lock_serial_units_for_return(
+            order=locked_o,
+            order_line=locked_ln,
+            quantity=quantity,
+            serial_numbers=serial_numbers,
+        )
     try:
         with transaction.atomic():
             ret = SupermarketLineReturn.objects.create(
@@ -1332,7 +1355,15 @@ def process_supermarket_line_return(
         ret.idempotent_replay = True
         return ret
 
-    if restock:
+    if serial_units:
+        from apps.inventory.services_serials import complete_serialized_return
+        complete_serialized_return(
+            return_record=ret,
+            units=serial_units,
+            restock=restock,
+            user=user,
+        )
+    elif restock:
         if not locked_ln.menu_item_id:
             raise ValidationError({"restock": "This line has no direct-sale stock to return."})
         apply_manual_stock_change(
