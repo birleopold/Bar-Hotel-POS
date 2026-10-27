@@ -6,7 +6,7 @@ import hashlib
 import secrets
 import uuid
 
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
