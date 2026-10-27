@@ -1566,6 +1566,105 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
         return ctx
 
 
+class StaffStockTransferRequestListView(StaffTenantRequiredMixin, ListView):
+    staff_nav_capability = "inventory"
+    template_name = "staff/inventory/transfer_requests.html"
+    context_object_name = "transfer_requests"
+    paginate_by = 30
+
+    def get_queryset(self):
+        ids = [o.id for o in staff_accessible_outlets(self.request.tenant_membership)]
+        qs = (
+            StockTransferRequest.objects.filter(tenant=self.request.tenant)
+            .filter(Q(to_outlet_id__in=ids) | Q(from_outlet_id__in=ids))
+            .select_related(
+                "from_outlet", "to_outlet", "menu_item",
+                "requested_by", "reviewed_by", "transfer_receipt",
+            )
+        )
+        status = (self.request.GET.get("status") or "").strip()
+        if status in StockTransferRequestStatus.values:
+            qs = qs.filter(status=status)
+        return qs.order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["status_filter"] = (
+            self.request.GET.get("status", "")
+            if self.request.GET.get("status") in StockTransferRequestStatus.values
+            else ""
+        )
+        ctx["accessible_outlet_ids"] = [
+            o.id for o in staff_accessible_outlets(self.request.tenant_membership)
+        ]
+        ctx["can_approve_transfer"] = membership_has_inventory_capability(
+            self.request.tenant_membership, "approve_transfer"
+        )
+        ctx["can_dispatch_transfer"] = membership_has_inventory_capability(
+            self.request.tenant_membership, "transfer"
+        )
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        try:
+            request_id = uuid.UUID(str(request.POST.get("request_id", "")))
+        except (TypeError, ValueError):
+            from django.http import Http404
+            raise Http404
+        row = self.get_queryset().filter(pk=request_id).first()
+        if row is None:
+            from django.http import Http404
+            raise Http404
+
+        action = (request.POST.get("action") or "").strip()
+        try:
+            if action == "approve":
+                review_stock_transfer_request(
+                    transfer_request=row,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                    decision=StockTransferRequestStatus.APPROVED,
+                    approved_quantity=request.POST.get("approved_quantity"),
+                    note=request.POST.get("review_note", ""),
+                )
+                messages.success(
+                    request,
+                    "Transfer request approved. Stock is still at source until dispatch.",
+                )
+            elif action == "reject":
+                review_stock_transfer_request(
+                    transfer_request=row,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                    decision=StockTransferRequestStatus.REJECTED,
+                    note=request.POST.get("review_note", ""),
+                )
+                messages.success(request, "Transfer request rejected. No stock moved.")
+            elif action == "dispatch":
+                _request_row, receipt = dispatch_stock_transfer_request(
+                    transfer_request=row,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                )
+                messages.success(
+                    request,
+                    f"Stock dispatched under transfer {receipt.transfer_batch}. "
+                    "Destination inventory remains unchanged until physical receiving.",
+                )
+            elif action == "cancel":
+                cancel_stock_transfer_request(
+                    transfer_request=row,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                )
+                messages.success(request, "Pending transfer request cancelled.")
+            else:
+                messages.error(request, "Unknown transfer request action.")
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        return redirect("staff-inventory-transfer-requests")
+
+
 class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
     staff_nav_capability = "inventory"
     template_name = "staff/inventory/transfer_receipts.html"
