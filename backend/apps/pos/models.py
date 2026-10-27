@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models.functions import Lower
 
 from apps.common.models import TimeStampedModel
 
@@ -385,7 +386,9 @@ class PriceBookRule(TimeStampedModel):
                 name="uniq_price_book_category_tier",
             ),
             models.UniqueConstraint(
-                fields=["price_book", "brand", "minimum_quantity"],
+                Lower("brand"),
+                "price_book",
+                "minimum_quantity",
                 condition=~models.Q(brand=""),
                 name="uniq_price_book_brand_tier",
             ),
