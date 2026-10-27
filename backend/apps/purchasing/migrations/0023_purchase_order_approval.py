@@ -2,11 +2,6 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
-def approve_existing_purchase_orders(apps, schema_editor):
-    PurchaseOrder = apps.get_model("purchasing", "PurchaseOrder")
-    PurchaseOrder.objects.all().update(approval_status="approved")
-
-
 class Migration(migrations.Migration):
     dependencies = [
         ("purchasing", "0022_supplier_product_planning"),
@@ -23,7 +18,7 @@ class Migration(migrations.Migration):
                     ("approved", "Approved"),
                     ("rejected", "Rejected"),
                 ],
-                default="pending",
+                default="approved",
                 max_length=16,
             ),
         ),
@@ -48,5 +43,4 @@ class Migration(migrations.Migration):
                 to="accounts.user",
             ),
         ),
-        migrations.RunPython(approve_existing_purchase_orders, migrations.RunPython.noop),
     ]
