@@ -9,7 +9,7 @@ from django.db import connection
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.catalog.models import MenuCategory, MenuItem, Promotion, SupermarketSkuProfile
+from apps.catalog.models import MenuCategory, MenuItem, ProductPackage, Promotion, SupermarketSkuProfile
 from apps.pos.models import Order
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
@@ -875,6 +875,93 @@ class SupermarketCashierLaneTests(TestCase):
         self.assertEqual(second.pricing_source, "barcode")
         self.assertEqual(order.total, Decimal("8400.00"))
         self.assertEqual(order.lines.filter(is_voided=False).count(), 1)
+
+    def test_package_barcode_scan_converts_to_base_units_and_merges(self):
+        from apps.pos.services import add_supermarket_line_by_code
+
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Packages")
+        item = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=category,
+            name="Mineral water",
+            sku="WATER-500",
+            barcode="BASE-WATER",
+            unit_price=Decimal("1000"),
+            track_inventory=False,
+        )
+        ProductPackage.objects.create(
+            tenant=self.tenant,
+            menu_item=item,
+            name="Case of 24",
+            units_per_package=Decimal("24"),
+            barcode="CASE-WATER-24",
+            sku_alias="WATER-24",
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user, currency="UGX",
+        )
+        first = add_supermarket_line_by_code(
+            order=order, code="CASE-WATER-24", quantity=Decimal("1"), user=self.user,
+        )
+        self.assertEqual(first.quantity, Decimal("24"))
+        self.assertEqual(first.pricing_source, "package")
+        second = add_supermarket_line_by_code(
+            order=order, code="BASE-WATER", quantity=Decimal("1"), user=self.user,
+        )
+        self.assertEqual(first.pk, second.pk)
+        second.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(second.quantity, Decimal("25"))
+        self.assertEqual(order.total, Decimal("25000.00"))
+        self.assertEqual(order.lines.filter(is_voided=False).count(), 1)
+
+    def test_exact_package_price_uses_existing_two_decimal_line_pricing(self):
+        from apps.pos.services import add_supermarket_line_by_code
+
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Pack prices")
+        item = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Juice",
+            sku="JUICE-1", unit_price=Decimal("1200"), track_inventory=False,
+        )
+        ProductPackage.objects.create(
+            tenant=self.tenant, menu_item=item, name="Six pack",
+            units_per_package=Decimal("6"), barcode="JUICE-SIX",
+            sell_price=Decimal("6000"),
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user, currency="UGX",
+        )
+        line = add_supermarket_line_by_code(
+            order=order, code="JUICE-SIX", quantity=Decimal("2"), user=self.user,
+        )
+        order.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal("12"))
+        self.assertEqual(line.unit_price, Decimal("1000.00"))
+        self.assertEqual(line.pricing_source, "package")
+        self.assertEqual(order.total, Decimal("12000.00"))
+
+    def test_nonrepresentable_package_price_fails_without_adding_line(self):
+        from rest_framework.exceptions import ValidationError
+        from apps.pos.services import add_supermarket_line_by_code
+
+        category = MenuCategory.objects.create(tenant=self.tenant, name="Pack rounding")
+        item = MenuItem.objects.create(
+            tenant=self.tenant, category=category, name="Water",
+            sku="WATER-R", unit_price=Decimal("1000"), track_inventory=False,
+        )
+        ProductPackage.objects.create(
+            tenant=self.tenant, menu_item=item, name="Case of 24",
+            units_per_package=Decimal("24"), barcode="WATER-ROUND",
+            sell_price=Decimal("22000"),
+        )
+        order = Order.objects.create(
+            tenant=self.tenant, outlet=self.outlet, created_by=self.user, currency="UGX",
+        )
+        with self.assertRaises(ValidationError):
+            add_supermarket_line_by_code(
+                order=order, code="WATER-ROUND", quantity=Decimal("1"), user=self.user,
+            )
+        self.assertEqual(order.lines.count(), 0)
 
     def test_retail_weighted_scan_keeps_separate_lines_and_source(self):
         from apps.pos.services import add_supermarket_line_by_code
