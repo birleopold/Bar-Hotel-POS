@@ -101,7 +101,6 @@ def create_received_serial_units(
     )
     if not serials:
         return []
-    warranty_expires = _add_months(received_at, menu_item.warranty_months)
     units = []
     for identifier in serials:
         unit = InventorySerialUnit.objects.create(
@@ -112,7 +111,6 @@ def create_received_serial_units(
             status=SerializedUnitStatus.AVAILABLE,
             purchase_receipt_line=receipt_line,
             received_at=received_at,
-            warranty_expires_at=warranty_expires,
         )
         InventorySerialEvent.objects.create(
             tenant_id=tenant_id,
@@ -404,8 +402,13 @@ def mark_serial_assignments_sold(*, order, assignments: dict, user) -> None:
             unit.sold_order_line = line
             unit.reserved_order_line = None
             unit.sold_at = now
+            unit.warranty_started_at = now.date() if line.menu_item.warranty_months else None
+            unit.warranty_expires_at = _add_months(
+                now.date(), line.menu_item.warranty_months
+            )
             unit.save(update_fields=[
-                "status", "sold_order_line", "reserved_order_line", "sold_at", "updated_at"
+                "status", "sold_order_line", "reserved_order_line", "sold_at",
+                "warranty_started_at", "warranty_expires_at", "updated_at"
             ])
             InventorySerialEvent.objects.create(
                 tenant_id=order.tenant_id,
