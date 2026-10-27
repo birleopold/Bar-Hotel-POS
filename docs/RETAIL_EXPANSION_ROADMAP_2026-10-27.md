@@ -381,7 +381,11 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Supplier-specific planning cost, supplier/package code, physical receipt cost history and preferred-supplier designation are implemented.
 - Optional minimum order quantity and expected lead days are now stored per supplier-product relationship. MOQ is enforced when a PO is created and rechecked before supplier send; lead time suggests an expected date only when the buyer has not entered one.
 - Product/package purchase sizing continues to use the existing package and base-unit snapshots, so MOQ is evaluated against actual base-stock quantity rather than display pack text.
-- Remaining enhancement: effective-dated supplier price-list records/imports where a tenant needs future/contract pricing. Planning cost remains a simple fallback and received-cost snapshots remain the factual history.
+- Effective-dated supplier price records are now exposed in the supplier product-catalog UI and can be maintained individually or imported in bulk from a validated UTF-8 CSV. Imports match only existing tenant stock by supplier code or SKU, including package-specific supplier codes; they never create products.
+- Supplier price-list import is preview-first and all-or-nothing: row/file limits, numeric/date validation, duplicate target detection and tenant-safe identifier resolution run before a signed server-generated preview is produced. Apply accepts only that signed preview and rechecks that the matched product/package is still active.
+- Re-importing the same supplier/product/package/minimum/effective/source key updates that planning record rather than multiplying duplicates. Import audit evidence records file name, row count and create/update counts.
+- Planning supplier prices remain separate from received-cost evidence, weighted-average inventory cost, historical COGS and retail price. A price-list import cannot rewrite any of those facts.
+- Remaining enhancement: richer automated supplier-price recommendations/comparisons where useful; received-cost snapshots remain the factual cost history.
 
 ### R4.4 Landed cost
 - Shipping/freight and duty/clearing are implemented at physical receipt level.
