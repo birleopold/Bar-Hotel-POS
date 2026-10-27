@@ -63,7 +63,11 @@ class OrgOverviewView(ConsoleOrgAdminRequiredMixin, TemplateView):
         return ctx
 
 
-from apps.staff.views_workstations import StaffWorkstationEditView
+from apps.staff.views_workstations import (
+    StaffWorkstationDeviceTestView,
+    StaffWorkstationEditView,
+    StaffWorkstationPairView,
+)
 
 
 class OrgWorkstationEditView(ConsoleOrgAdminRequiredMixin, StaffWorkstationEditView):
@@ -71,6 +75,24 @@ class OrgWorkstationEditView(ConsoleOrgAdminRequiredMixin, StaffWorkstationEditV
 
     template_name = "console/org/workstation_form.html"
     success_url_name = "console-org-workstations"
+
+
+class OrgWorkstationPairView(ConsoleOrgAdminRequiredMixin, StaffWorkstationPairView):
+    """Browser approval administration rendered inside the organization shell."""
+
+    shell_template_name = "console/base.html"
+    pair_success_url_name = "console-org-workstations"
+    pair_self_url_name = "console-org-workstation-pair"
+    edit_url_name = "console-org-workstation-edit"
+
+
+class OrgWorkstationDeviceTestView(ConsoleOrgAdminRequiredMixin, StaffWorkstationDeviceTestView):
+    """Equipment observations remain non-financial while using the organization shell."""
+
+    shell_template_name = "console/base.html"
+    list_url_name = "console-org-workstations"
+    edit_url_name = "console-org-workstation-edit"
+    success_url_name = "console-org-workstation-test"
 
 
 class OrgWorkstationListView(ConsoleOrgAdminRequiredMixin, TemplateView):
