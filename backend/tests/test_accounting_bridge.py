@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem
+from apps.finance.accounting_adapters import accounting_export_adapter
 from apps.finance.accounting_bridge import (
     build_accounting_preview,
     create_accounting_export,
@@ -14,6 +15,10 @@ from apps.finance.models import (
     AccountingExportBatch,
     AccountingMapping,
     AccountingMappingKind,
+    CashbookEntry,
+    FinanceCategory,
+    FinancePostingLink,
+    FinancePostingSource,
 )
 from apps.lodging.models import Folio, FolioLine, FolioPayment
 from apps.pos.models import Order, OrderLine, OrderStatus, Payment, Refund
@@ -209,6 +214,26 @@ class AccountingBridgeTests(TestCase):
     def test_balanced_sale_tax_tender_cogs_and_refund_preview(self):
         self._complete_mappings()
         order, line = self._sale()
+        cash_payment = order.payments.get(method="cash")
+        category = FinanceCategory.objects.create(
+            tenant=self.tenant,
+            name="POS Sales evidence",
+            kind="income",
+        )
+        cashbook = CashbookEntry.objects.create(
+            tenant=self.tenant,
+            site=self.site,
+            category=category,
+            amount=Decimal("60.00"),
+            transaction_date=timezone.localdate(),
+            reference=order.bill_reference,
+        )
+        FinancePostingLink.objects.create(
+            tenant=self.tenant,
+            source_type=FinancePostingSource.POS_PAYMENT,
+            source_id=str(cash_payment.pk),
+            cashbook_entry=cashbook,
+        )
         card_payment = order.payments.get(method="card")
         Refund.objects.create(
             tenant=self.tenant,
@@ -236,6 +261,13 @@ class AccountingBridgeTests(TestCase):
         self.assertEqual(preview["source_summary"]["completed_sales"], 1)
         self.assertEqual(preview["source_summary"]["refunds"], 1)
         self.assertEqual(preview["source_summary"]["trusted_cost_lines"], 1)
+        self.assertEqual(preview["source_summary"]["linked_cashbook_entries"], 1)
+        self.assertTrue(
+            any(
+                f"cashbook:{cashbook.pk}" in row["source_refs"]
+                for row in preview["journal_lines"]
+            )
+        )
 
         by_code = {}
         for row in preview["journal_lines"]:
@@ -670,6 +702,12 @@ class AccountingBridgeTests(TestCase):
             ).status_code,
             404,
         )
+
+    def test_provider_adapter_boundary_rejects_unknown_provider(self):
+        adapter = accounting_export_adapter("journal_csv")
+        self.assertEqual(adapter.key, "journal_csv")
+        with self.assertRaisesRegex(ValueError, "Unsupported accounting export adapter"):
+            accounting_export_adapter("quickbooks_unconfigured")
 
     def test_mapping_form_is_tenant_scoped(self):
         foreign = Tenant.objects.create(name="Foreign", slug="accounting-foreign")
