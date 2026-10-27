@@ -299,6 +299,11 @@ class ProductCustomFieldDefinition(TimeStampedModel):
         ordering = ["sort_order", "name"]
         constraints = [
             models.UniqueConstraint(fields=["tenant", "key"], name="uniq_product_custom_field_key_tenant"),
+            models.UniqueConstraint(
+                Lower("key"),
+                "tenant",
+                name="uniq_product_custom_field_key_ci_tenant",
+            ),
             models.UniqueConstraint(Lower("name"), "tenant", name="uniq_product_custom_field_name_ci_tenant"),
         ]
 
