@@ -1,14 +1,20 @@
 {% extends "console/base.html" %}
 {% block title %}{% if object %}Edit workspace{% else %}New workspace{% endif %}{% endblock %}
 {% block content %}
-  <h1 class="staff-page-title">{% if object %}Edit workspace{% else %}New workspace{% endif %}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  {% if object %}
-    <p class="staff-muted"><a href="{% url 'console-platform-tenant-control-plane' tenant_id=object.id %}">Open control plane</a></p>
-  {% endif %}
-  <form method="post" class="staff-card">
+<div class="platform-page">
+  <div class="staff-toolbar">
+    <div>
+      <p class="platform-page__eyebrow">Platform operations / Workspaces</p>
+      <h1 class="staff-page-title">{% if object %}Edit workspace{% else %}Create workspace{% endif %}</h1>
+      <p class="platform-page__intro">{% if object %}Update this customer workspace identity and access state.{% else %}Create a neutral customer workspace first; tenant branding and operating setup are configured inside that workspace later.{% endif %}</p>
+    </div>
+    {% if object %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-platform-tenant-control-plane' tenant_id=object.id %}">Open control plane</a>{% endif %}
+  </div>
+  <form method="post" class="staff-card platform-form">
     {% csrf_token %}
     {% for field in form %}<div class="mb-3">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
-    <button type="submit" class="staff-btn staff-btn--primary">Save</button>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-platform-tenants' %}">Cancel</a>
+    <div class="platform-form__actions"><button type="submit" class="staff-btn staff-btn--primary">{% if object %}Save workspace{% else %}Create workspace{% endif %}</button>
+    <a class="staff-btn staff-btn--ghost" href="{% url 'console-platform-tenants' %}">Cancel</a></div>
   </form>
+</div>
 {% endblock %}
