@@ -1,4 +1,4 @@
-{% extends workstation_shell_template %}
+{% extends workstation_shell_template|default:"staff/base.html" %}
 {% load static %}
 {% load static %}
 {% block title %}Equipment check · {{ station.name }}{% endblock %}
