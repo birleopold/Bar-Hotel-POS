@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Max, Q, Sum
 from django.utils import timezone
 
 from apps.accounts.models import CommissionRule, Membership, SalesTarget
@@ -174,22 +174,28 @@ def build_commission_report(
 ) -> dict:
     """Commission report from frozen sale snapshots plus refund evidence."""
     start, end = utc_day_range_inclusive(date_from, date_to)
+    completed_order_ids = (
+        Order.objects.filter(
+            tenant_id=tenant_id,
+            outlet_id__in=allowed_outlet_ids,
+            is_paid=True,
+        )
+        .annotate(final_payment_at=Max("payments__created_at"))
+        .filter(final_payment_at__gte=start, final_payment_at__lte=end)
+        .values_list("id", flat=True)
+    )
     lines = list(
         OrderLine.objects.filter(
-            order__tenant_id=tenant_id,
-            order__outlet_id__in=allowed_outlet_ids,
-            order__is_paid=True,
+            order_id__in=completed_order_ids,
             is_voided=False,
             commission_base_snapshot__isnull=False,
             sales_attributed_membership__isnull=False,
         )
-        .filter(order__payments__created_at__gte=start, order__payments__created_at__lte=end)
         .select_related(
             "order",
             "order__outlet",
             "sales_attributed_membership__user",
         )
-        .distinct()
         .order_by("sales_attributed_membership_id", "order_id", "sort_order")
     )
 
