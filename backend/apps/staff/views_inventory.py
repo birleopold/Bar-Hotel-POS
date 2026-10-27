@@ -1052,6 +1052,7 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
     """Advisory-only stock planning, shown for permitted outlets only."""
     staff_nav_capability = "inventory"
     template_name = "staff/inventory/intelligence.html"
+    export_limit = 2000
 
     def dispatch(self, request, *args, **kwargs):
         blocked = _inventory_requires_outlets(request)
@@ -1059,31 +1060,96 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
             return blocked
         return super().dispatch(request, *args, **kwargs)
 
-    def get_context_data(self, **kwargs):
-        from django.core.paginator import Paginator
-        from apps.inventory.insights import build_stock_intelligence
-        from .services.modules import get_tenant_staff_modules
-        ctx = super().get_context_data(**kwargs)
+    def _planning_state(self):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ids = _outlet_filter_ids(self.request, outlets)
         raw_safety = self.request.GET.get("safety_days", "3")
+        warning = ""
         try:
             safety_days = int(raw_safety)
             if not 0 <= safety_days <= 30:
                 raise ValueError()
         except ValueError:
             safety_days = 3
-            ctx["planning_warning"] = "The stock buffer must be between 0 and 30 days; using 3."
+            warning = "The stock buffer must be between 0 and 30 days; using 3."
         low_only = self.request.GET.get("low") == "1"
         qs = StockBalance.objects.filter(
             tenant=self.request.tenant, outlet_id__in=ids,
             menu_item__track_inventory=True,
         ).select_related("menu_item", "outlet__site")
         if low_only:
-            from django.db.models import Q
-            qs = qs.filter(menu_item__reorder_level__isnull=False,
-                           quantity__lte=F("menu_item__reorder_level"))
-        qs = qs.order_by("outlet__name", "menu_item__name", "pk")
+            qs = qs.filter(
+                menu_item__reorder_level__isnull=False,
+                quantity__lte=F("menu_item__reorder_level"),
+            )
+        return ids, safety_days, low_only, warning, qs.order_by(
+            "outlet__name", "menu_item__name", "pk",
+        )
+
+    @staticmethod
+    def _csv_safe(value):
+        cell = str(value or "")
+        return "'" + cell if cell.lstrip().startswith(("=", "+", "-", "@")) else cell
+
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("format") != "csv":
+            return super().get(request, *args, **kwargs)
+
+        from apps.inventory.insights import build_stock_intelligence
+
+        _ids, safety_days, _low_only, _warning, qs = self._planning_state()
+        balances = list(qs[: self.export_limit])
+        rows = build_stock_intelligence(
+            tenant=request.tenant,
+            balances=balances,
+            safety_days=safety_days,
+        )
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="stock-planning.csv"'
+        response["Cache-Control"] = "private, no-store"
+        writer = csv.writer(response)
+        writer.writerow([
+            "Section", "Product", "On hand", "Unit", "Reorder level",
+            "Used in last 30 days", "Daily usage", "Days of cover",
+            "Supplier lead time days", "Delivery samples",
+            "Indicative movement ratio %", "Age 0-30 days", "Age 31-60 days",
+            "Age 61-90 days", "Age over 90 days", "Age unknown",
+            "Batch discrepancy", "Low stock", "Possibly idle",
+            "Suggested order", "Planning basis", "Last stock receipt",
+            "Buffer days",
+        ])
+        for row in rows:
+            writer.writerow([
+                self._csv_safe(row["outlet"]),
+                self._csv_safe(row["item"]),
+                row["qty"],
+                self._csv_safe(row["unit"]),
+                row["reorder_level"] if row["reorder_level"] is not None else "",
+                row["units_consumed_30d"],
+                row["daily_usage"],
+                row["days_cover"] if row["days_cover"] is not None else "",
+                row["lead_days"] if row["lead_days"] is not None else "",
+                row["lead_samples"],
+                row["movement_ratio"] if row["movement_ratio"] is not None else "",
+                row["age_0_30"], row["age_31_60"], row["age_61_90"],
+                row["age_over_90"], row["unbatched_qty"],
+                "Yes" if row["batch_discrepancy"] else "No",
+                "Yes" if row["low_stock"] else "No",
+                "Yes" if row["inactive"] else "No",
+                row["suggested_order"] if row["suggested_order"] is not None else "",
+                self._csv_safe(row["planning_basis"]),
+                row["last_received"].date().isoformat() if row["last_received"] else "",
+                row["safety_days"],
+            ])
+        return response
+
+    def get_context_data(self, **kwargs):
+        from django.core.paginator import Paginator
+        from apps.inventory.insights import build_stock_intelligence
+        from .services.modules import get_tenant_staff_modules
+
+        ctx = super().get_context_data(**kwargs)
+        ids, safety_days, low_only, warning, qs = self._planning_state()
         page = Paginator(qs, 24).get_page(self.request.GET.get("page", "1"))
         summaries = build_stock_intelligence(
             tenant=self.request.tenant,
@@ -1094,6 +1160,8 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
             "stock_rows": summaries, "page_obj": page,
             "safety_days": safety_days, "low_only": low_only,
             "outlet_count": len(ids),
+            "planning_warning": warning,
+            "planning_export_limit": self.export_limit,
             "can_create_purchasing": (
                 membership_can_modify_lodging(self.request.tenant_membership)
                 and "purchasing" in get_tenant_staff_modules(self.request.tenant)
@@ -1103,7 +1171,6 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
             "unknown_age_page_count": sum(int(row["unbatched_qty"] > 0) for row in summaries),
         })
         return ctx
-
 
 
 class StaffStockTransferReceiptListView(StaffTenantRequiredMixin, ListView):
