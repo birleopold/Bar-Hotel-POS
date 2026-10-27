@@ -11,7 +11,9 @@ from uuid import UUID
 from django.db.models import QuerySet
 
 from apps.finance.models import CashbookEntry
+from apps.tenants.models import TenantSettings
 
+from .profitability import build_merchandise_profitability
 from .sales_summary import build_sales_summary
 
 
@@ -89,6 +91,26 @@ def format_sales_summary_csv(
         outlet_ids=outlet_ids,
         business_date_site=business_date_site,
     )
+    effective_outlet_ids = allowed_outlet_ids
+    if effective_outlet_ids is None:
+        effective_outlet_ids = outlet_ids
+    if effective_outlet_ids is None and outlet_id is not None:
+        effective_outlet_ids = [outlet_id]
+    if effective_outlet_ids is not None:
+        currency = (
+            TenantSettings.objects.filter(tenant_id=tenant_id)
+            .values_list("default_currency", flat=True)
+            .first()
+            or "UGX"
+        )
+        summary["merchandise_profitability"] = build_merchandise_profitability(
+            tenant_id=tenant_id,
+            date_from=d0,
+            date_to=d1,
+            allowed_outlet_ids=effective_outlet_ids,
+            currency=currency,
+            business_date_site=business_date_site,
+        )
     return format_sales_summary_csv_from_summary(summary)
 
 
