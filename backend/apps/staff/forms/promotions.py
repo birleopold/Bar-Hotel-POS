@@ -12,6 +12,7 @@ class StaffPromotionForm(forms.ModelForm):
         model = Promotion
         fields = [
             "name",
+            "offer_type",
             "menu_item",
             "product_family",
             "category",
@@ -23,6 +24,9 @@ class StaffPromotionForm(forms.ModelForm):
             "coupon_code",
             "max_redemptions",
             "max_redemptions_per_customer",
+            "buy_quantity",
+            "get_quantity",
+            "max_uses_per_order",
             "starts_at",
             "ends_at",
             "is_active",
@@ -30,6 +34,7 @@ class StaffPromotionForm(forms.ModelForm):
         ]
         widgets = {
             "name": forms.TextInput(attrs={"class": "staff-input", "maxlength": 128}),
+            "offer_type": forms.Select(attrs={"class": "staff-input"}),
             "menu_item": forms.Select(attrs={"class": "staff-input"}),
             "product_family": forms.Select(attrs={"class": "staff-input"}),
             "category": forms.Select(attrs={"class": "staff-input"}),
@@ -53,6 +58,15 @@ class StaffPromotionForm(forms.ModelForm):
             "max_redemptions_per_customer": forms.NumberInput(
                 attrs={"class": "staff-input", "min": 1, "step": 1},
             ),
+            "buy_quantity": forms.NumberInput(
+                attrs={"class": "staff-input", "min": 1, "step": 1},
+            ),
+            "get_quantity": forms.NumberInput(
+                attrs={"class": "staff-input", "min": 1, "step": 1},
+            ),
+            "max_uses_per_order": forms.NumberInput(
+                attrs={"class": "staff-input", "min": 1, "step": 1},
+            ),
             "is_active": forms.CheckboxInput(),
             "outlets": forms.SelectMultiple(attrs={"class": "staff-input", "size": 6}),
         }
@@ -70,6 +84,9 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["coupon_code"].required = False
         self.fields["max_redemptions"].required = False
         self.fields["max_redemptions_per_customer"].required = False
+        self.fields["buy_quantity"].required = False
+        self.fields["get_quantity"].required = False
+        self.fields["max_uses_per_order"].required = False
         self.fields["ends_at"].required = False
         self.fields["outlets"].required = False
         self.fields["outlets"].label = "Limit to sections"
@@ -115,6 +132,9 @@ class StaffPromotionForm(forms.ModelForm):
         self.fields["coupon_code"].help_text = "Optional. Coupon offers are not shown in the normal checkout offer list; the cashier must enter the code."
         self.fields["max_redemptions"].help_text = "Optional global limit counted only after orders are fully paid."
         self.fields["max_redemptions_per_customer"].help_text = "Optional limit for identified customers; anonymous sales do not consume a customer-specific allowance."
+        self.fields["buy_quantity"].help_text = "Buy X Get Y only: whole qualifying units the customer pays for in each set."
+        self.fields["get_quantity"].help_text = "Buy X Get Y only: whole additional qualifying units made free in each set."
+        self.fields["max_uses_per_order"].help_text = "Buy X Get Y only: optional cap on qualifying sets per order."
         if self.instance.pk:
             if self.instance.starts_at:
                 st = self.instance.starts_at
@@ -133,14 +153,29 @@ class StaffPromotionForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        offer_type = data.get("offer_type") or Promotion.OfferType.STANDARD
         pct = data.get("discount_percent")
         amt = data.get("discount_amount")
         has_pct = pct is not None
         has_amt = amt is not None
-        if has_pct == has_amt:
-            raise forms.ValidationError(
-                "Set either a percent discount or a fixed amount — exactly one.",
-            )
+        if offer_type == Promotion.OfferType.BUY_X_GET_Y:
+            if has_pct or has_amt:
+                raise forms.ValidationError(
+                    "Buy X Get Y uses buy/get quantities; leave percent and amount discount blank.",
+                )
+            if not data.get("buy_quantity") or not data.get("get_quantity"):
+                raise forms.ValidationError(
+                    "Buy X Get Y requires both buy quantity and get quantity.",
+                )
+        else:
+            if has_pct == has_amt:
+                raise forms.ValidationError(
+                    "Set either a percent discount or a fixed amount — exactly one.",
+                )
+            if data.get("buy_quantity") or data.get("get_quantity") or data.get("max_uses_per_order"):
+                raise forms.ValidationError(
+                    "Buy/get quantities are only available for Buy X Get Y offers.",
+                )
         targets = [
             bool(data.get("menu_item")),
             bool(data.get("product_family")),
@@ -150,6 +185,10 @@ class StaffPromotionForm(forms.ModelForm):
         if sum(targets) > 1:
             raise forms.ValidationError(
                 "Choose only one promotion target: product, product family, category, or brand.",
+            )
+        if offer_type == Promotion.OfferType.BUY_X_GET_Y and sum(targets) != 1:
+            raise forms.ValidationError(
+                "Buy X Get Y requires exactly one product, product family, category, or brand target.",
             )
         if data.get("brand") is not None:
             data["brand"] = (data.get("brand") or "").strip()
