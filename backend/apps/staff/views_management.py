@@ -1,11 +1,14 @@
+import csv
+import io
 from datetime import timedelta
 
 from django import forms
 from django.utils.dateparse import parse_date
 from apps.staff.sales_summary import build_sales_summary
+from apps.staff.profitability import build_merchandise_profitability
 from django.contrib import messages
 from django.db import transaction
-from django.http import HttpResponseForbidden, Http404
+from django.http import HttpResponse, HttpResponseForbidden, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -165,10 +168,84 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
             if not ctx.get("executive_error"):
                 ctx["executive_start"] = start.isoformat()
                 ctx["executive_end"] = end.isoformat()
+                outlet_ids = [o.pk for o in outlets]
                 ctx["executive_sales"] = build_sales_summary(
                     request.tenant.pk, start, end,
-                    allowed_outlet_ids=[o.pk for o in outlets],
+                    allowed_outlet_ids=outlet_ids,
                 )
+                ctx["executive_profitability"] = build_merchandise_profitability(
+                    tenant_id=request.tenant.pk,
+                    date_from=start,
+                    date_to=end,
+                    allowed_outlet_ids=outlet_ids,
+                    currency=request.tenant.settings.default_currency,
+                )
+                if request.GET.get("profit_export") == "csv":
+                    out = io.StringIO()
+                    writer = csv.writer(out)
+
+                    def csv_safe(value):
+                        token = str(value or "")
+                        return "'" + token if token.startswith(
+                            ("=", "+", "-", "@", "\t", "\r")
+                        ) else token
+
+                    p = ctx["executive_profitability"]
+                    writer.writerow([
+                        "Metric", "Value", "Currency",
+                    ])
+                    writer.writerow([
+                        "Merchandise sale revenue", p["sale_revenue"], p["currency"],
+                    ])
+                    writer.writerow([
+                        "Physical return revenue reversal", p["return_revenue"], p["currency"],
+                    ])
+                    writer.writerow([
+                        "Net merchandise revenue", p["net_merchandise_revenue"], p["currency"],
+                    ])
+                    writer.writerow([
+                        "Known net COGS", p["known_net_cogs"], p["currency"],
+                    ])
+                    writer.writerow([
+                        "Known gross profit", p["known_gross_profit"], p["currency"],
+                    ])
+                    writer.writerow([
+                        "Known margin percent",
+                        p["known_margin_percent"] if p["known_margin_percent"] is not None else "",
+                        "%",
+                    ])
+                    writer.writerow([
+                        "Cost coverage percent", p["cost_coverage_percent"], "%",
+                    ])
+                    writer.writerow([
+                        "Incomplete sale lines", p["incomplete_sale_lines"], "",
+                    ])
+                    writer.writerow([
+                        "Unmapped refund amount", p["unmapped_refund_amount"], p["currency"],
+                    ])
+                    writer.writerow([])
+                    writer.writerow([
+                        "Product", "SKU", "Sale revenue", "Return revenue",
+                        "Net revenue", "Known net COGS", "Known gross profit",
+                        "Known margin %", "Incomplete cost lines",
+                    ])
+                    for row in p["products"]:
+                        writer.writerow([
+                            csv_safe(row["item_name"]), csv_safe(row["sku"]),
+                            row["sale_revenue"], row["return_revenue"],
+                            row["net_revenue"], row["known_net_cogs"],
+                            row["known_gross_profit"],
+                            row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
+                            row["incomplete_lines"] + row["incomplete_return_lines"],
+                        ])
+                    response = HttpResponse(
+                        out.getvalue(), content_type="text/csv; charset=utf-8"
+                    )
+                    response["Content-Disposition"] = (
+                        f'attachment; filename="merchandise-profitability-{start}-{end}.csv"'
+                    )
+                    response["Cache-Control"] = "private, no-store"
+                    return response
 
         return render(request, "staff/management.html", ctx, status=status)
 
