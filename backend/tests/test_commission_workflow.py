@@ -402,6 +402,29 @@ class CommissionWorkflowTests(TestCase):
         self.assertContains(page, "10.00")
         self.assertContains(page, "50.0%")
 
+        future_start = today + timedelta(days=7)
+        future_end = today + timedelta(days=37)
+        target_post = client.post(
+            reverse("staff-management-commissions"),
+            {
+                "membership": str(self.manager_membership.pk),
+                "period_start": future_start.isoformat(),
+                "period_end": future_end.isoformat(),
+                "target_amount": "500.00",
+                "note": "Next month",
+            },
+        )
+        self.assertEqual(target_post.status_code, 302)
+        self.assertTrue(
+            SalesTarget.objects.filter(
+                tenant=self.tenant,
+                membership=self.manager_membership,
+                period_start=future_start,
+                period_end=future_end,
+                target_amount=Decimal("500.00"),
+            ).exists()
+        )
+
         exported = client.get(
             reverse("staff-management-commissions"),
             {
