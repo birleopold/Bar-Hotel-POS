@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
- from apps.accounts.models import SalesTarget
+from apps.accounts.models import SalesTarget
 from apps.common.datetime_bounds import utc_day_range_inclusive
 from apps.pos.models import Order, OrderLine, Refund, SupermarketLineReturn
 
