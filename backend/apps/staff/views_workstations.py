@@ -9,6 +9,7 @@ from apps.audit.services import log_audit
 from apps.pos.models import (
     PosShiftStatus,
     Workstation,
+    WorkstationBridgeCredential,
     WorkstationDevice,
     WorkstationDeviceAdapter,
     WorkstationDeviceType,
@@ -17,6 +18,10 @@ from apps.pos.services.device_adapters import (
     ALLOWED_ADAPTERS,
     device_status_summary,
     validate_device_adapter,
+)
+from apps.pos.services.hardware_bridge import (
+    provision_bridge_credential,
+    revoke_bridge_credential,
 )
 from apps.tenants.models import Outlet
 
@@ -261,6 +266,180 @@ class StaffWorkstationDeviceEditView(StaffTenantRequiredMixin, View):
         )
         messages.success(request, "Workstation device saved.")
         return redirect("staff-workstation-test", workstation_id=station.pk)
+
+
+class BridgeCredentialForm(forms.Form):
+    label = forms.CharField(
+        max_length=80,
+        label="Bridge name",
+        widget=forms.TextInput(
+            attrs={
+                "class": "staff-input",
+                "placeholder": "Front till hardware bridge",
+            }
+        ),
+    )
+    expires_days = forms.ChoiceField(
+        choices=[
+            ("30", "30 days"),
+            ("90", "90 days"),
+            ("180", "180 days"),
+            ("365", "365 days"),
+        ],
+        initial="90",
+        widget=forms.Select(attrs={"class": "staff-input"}),
+    )
+    password = forms.CharField(
+        label="Your account password",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": "staff-input",
+                "autocomplete": "current-password",
+            }
+        ),
+    )
+
+
+class BridgeCredentialRevokeForm(forms.Form):
+    credential_id = forms.UUIDField(widget=forms.HiddenInput())
+    reason = forms.CharField(
+        max_length=255,
+        widget=forms.TextInput(
+            attrs={
+                "class": "staff-input",
+                "placeholder": "Why is this bridge being revoked?",
+            }
+        ),
+    )
+    password = forms.CharField(
+        label="Your account password",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": "staff-input",
+                "autocomplete": "current-password",
+            }
+        ),
+    )
+
+
+class StaffWorkstationBridgeView(StaffTenantRequiredMixin, View):
+    staff_nav_capability = "orders"
+    template_name = "staff/workstation_bridge.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if (
+            getattr(request, "tenant_membership", None)
+            and not membership_can_manage_workspace_settings(
+                request.tenant_membership
+            )
+        ):
+            return HttpResponseForbidden(
+                "Only workspace owners and administrators can provision hardware bridges."
+            )
+        if request.session.get("staff_pin_authenticated"):
+            return HttpResponseForbidden(
+                "Sign in with your account password to administer hardware bridges."
+            )
+        return super().dispatch(request, *args, **kwargs)
+
+    def _station(self, request, workstation_id):
+        outlets = staff_accessible_outlets(request.tenant_membership)
+        return get_object_or_404(
+            Workstation.objects.select_related("outlet"),
+            pk=workstation_id,
+            tenant=request.tenant,
+            outlet__in=outlets,
+        )
+
+    def _render(
+        self,
+        request,
+        station,
+        *,
+        form=None,
+        revoke_form=None,
+        one_time_token="",
+        status=200,
+    ):
+        credentials = station.bridge_credentials.filter(
+            tenant=request.tenant
+        ).select_related("approved_by", "revoked_by").order_by("-created_at")
+        response = render(
+            request,
+            self.template_name,
+            {
+                "station": station,
+                "form": form or BridgeCredentialForm(),
+                "revoke_form": revoke_form or BridgeCredentialRevokeForm(),
+                "bridge_credentials": credentials,
+                "one_time_token": one_time_token,
+            },
+            status=status,
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    def get(self, request, workstation_id):
+        station = self._station(request, workstation_id)
+        return self._render(request, station)
+
+    def post(self, request, workstation_id):
+        station = self._station(request, workstation_id)
+        revoking = request.POST.get("action") == "revoke"
+        form = (
+            BridgeCredentialRevokeForm(request.POST)
+            if revoking
+            else BridgeCredentialForm(request.POST)
+        )
+        if form.is_valid() and not request.user.check_password(
+            form.cleaned_data["password"]
+        ):
+            form.add_error(
+                "password",
+                "Confirm your account password to approve this action.",
+            )
+        if not form.is_valid():
+            return self._render(
+                request,
+                station,
+                form=None if revoking else form,
+                revoke_form=form if revoking else None,
+                status=400,
+            )
+        if revoking:
+            credential = get_object_or_404(
+                WorkstationBridgeCredential,
+                pk=form.cleaned_data["credential_id"],
+                tenant=request.tenant,
+                workstation=station,
+            )
+            revoke_bridge_credential(
+                credential=credential,
+                user=request.user,
+                reason=form.cleaned_data["reason"],
+            )
+            messages.success(request, "Hardware bridge credential revoked.")
+            return redirect(
+                "staff-workstation-bridge",
+                workstation_id=station.pk,
+            )
+
+        credential, token = provision_bridge_credential(
+            tenant=request.tenant,
+            workstation=station,
+            user=request.user,
+            label=form.cleaned_data["label"],
+            expires_days=int(form.cleaned_data["expires_days"]),
+        )
+        messages.success(
+            request,
+            "Hardware bridge credential created. Copy the token now; it will not be shown again.",
+        )
+        return self._render(
+            request,
+            station,
+            one_time_token=token,
+        )
 
 
 class StaffWorkstationListView(StaffTenantRequiredMixin, View):
