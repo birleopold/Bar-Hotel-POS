@@ -739,6 +739,7 @@ def add_line_to_open_order(
     retail_checkout = locked.outlet.outlet_type in {OutletType.SUPERMARKET, OutletType.RETAIL}
     price_book_allowed = bool(
         retail_checkout
+        and unit_price_override is None
         and locked.customer_id
         and not locked.applied_promotion_id
         and not locked.discount_amount
