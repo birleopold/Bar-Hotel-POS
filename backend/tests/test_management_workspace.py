@@ -399,13 +399,47 @@ class ManagementWorkspaceTests(TestCase):
             line_discount_amount=2,
             pricing_source="manual",
         )
-        AuditEvent.objects.create(
+        worker_membership = Membership.objects.get(
+            tenant=self.tenant,
+            user=self.worker,
+        )
+        manager_membership = Membership.objects.get(
             tenant=self.tenant,
             user=self.manager,
+        )
+        approval = SensitiveActionApproval.objects.create(
+            tenant=self.tenant,
+            requester=worker_membership,
+            approver=manager_membership,
+            scope_outlet=self.outlet,
+            action="discount",
+            entity_type="order",
+            entity_id=str(self.order.pk),
+            request_key="management-margin-override",
+            intent_hash="management-margin-override-intent",
+            intent_payload={
+                "line_id": str(discounted.pk),
+                "margin_override_reason": "Clearance item approved",
+            },
+            expires_at=timezone.now() + timedelta(minutes=2),
+            used_at=timezone.now(),
+        )
+        AuditEvent.objects.create(
+            tenant=self.tenant,
+            user=self.worker,
             action="order.line_discount_applied",
             entity_type="order_line",
             entity_id=str(discounted.pk),
-            payload={"order_id": str(self.order.pk), "line_discount_amount": "2.00"},
+            payload={
+                "order_id": str(self.order.pk),
+                "line_discount_amount": "2.00",
+                "margin_floor_overridden": True,
+                "margin_floor_percent": "30",
+                "minimum_unit_price": "9.00",
+                "proposed_unit_price": "8.00",
+                "margin_override_reason": "Clearance item approved",
+                "approval_id": str(approval.pk),
+            },
         )
 
         historical_order = Order.objects.create(
@@ -429,12 +463,23 @@ class ManagementWorkspaceTests(TestCase):
         variance = next(r for r in rows if r.kind == "cash_variance" and r.entity_id == str(self.shift.pk))
         order_discount = next(r for r in rows if r.kind == "discount" and r.entity_id == str(self.order.pk))
         line_discount = next(r for r in rows if r.kind == "line_discount" and r.entity_id == str(discounted.pk))
+        margin_override = next(
+            r for r in rows
+            if r.kind == "margin_override"
+            and "Clearance item approved" in r.detail
+        )
         manual_price = next(r for r in rows if r.kind == "manual_price" and r.entity_id == str(manual.pk))
 
         self.assertIn(self.worker.email, refund.detail)
         self.assertIn(self.manager.email, variance.detail)
         self.assertIn(self.worker.email, order_discount.detail)
-        self.assertIn(self.manager.email, line_discount.detail)
+        self.assertIn(self.worker.email, line_discount.detail)
+        self.assertIn(self.worker.email, margin_override.detail)
+        self.assertIn(self.manager.email, margin_override.detail)
+        self.assertIn("floor 30%", margin_override.detail)
+        self.assertIn("minimum 9.00", margin_override.detail)
+        self.assertIn("sold at 8.00 UGX", margin_override.detail)
+        self.assertIn("Clearance item approved", margin_override.detail)
         self.assertIn(self.worker.email, manual_price.detail)
         self.assertIn("exact price-entry operator was not historically recorded", manual_price.detail)
 
