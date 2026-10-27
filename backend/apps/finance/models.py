@@ -127,6 +127,8 @@ class AccountingMappingKind(models.TextChoices):
     RETURNS = "returns", "Sales returns"
     TENDER = "tender", "Tender clearing"
     TAX_LIABILITY = "tax_liability", "Tax / VAT liability"
+    ACCOUNTS_RECEIVABLE = "accounts_receivable", "Accounts receivable"
+    ACCOUNTS_PAYABLE = "accounts_payable", "Accounts payable"
     INVENTORY_DEFAULT = "inventory_default", "Inventory asset default"
     INVENTORY_CATEGORY = "inventory_category", "Inventory asset category"
     COGS_DEFAULT = "cogs_default", "COGS default"
