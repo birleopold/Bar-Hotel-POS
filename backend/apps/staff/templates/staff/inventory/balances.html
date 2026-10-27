@@ -6,7 +6,7 @@
 {% block content %}
 <div class="fizo-stock">
   <header class="fizo-stock__head">
-    <div><p class="fizo-stock__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Stock balances</h1><p>Track quantities in each section, identify low stock, and manage replenishment.</p></div>
+    <div><p class="fizo-stock__eyebrow">{{ request.tenant.name|default:"Business" }} / {{ staff_product.workspace_label|default:"Business" }} / Inventory</p><h1>Stock balances</h1><p>Track quantities, trusted cost basis, low stock and replenishment by section.</p></div>
     <div class="fizo-stock__actions">
       {% if can_modify_inventory %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-movement-create' %}"><i class="bi bi-plus-lg"></i> Record stock</a><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer' %}">Transfer</a>{% endif %}
       <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-batches' %}">Batches &amp; expiry</a>
@@ -49,7 +49,28 @@
                 <td class="fizo-stock__quantity">{{ b.quantity }}</td>
                 <td>{% if b.cost_basis_complete and b.average_unit_cost != None %}{{ request.tenant.settings.default_currency }} {{ b.average_unit_cost }}{% else %}—{% endif %}</td>
                 <td>{% if b.inventory_cost_value != None %}{{ request.tenant.settings.default_currency }} {{ b.inventory_cost_value }}{% else %}—{% endif %}</td>
-                <td>{% if b.cost_basis_complete %}<span class="fizo-stock__state">Trusted</span>{% else %}<span class="fizo-stock__state fizo-stock__state--low">Cost incomplete</span>{% endif %}</td>
+                <td>
+                  {% if b.cost_basis_complete %}
+                    <span class="fizo-stock__state">Trusted</span>
+                  {% else %}
+                    <span class="fizo-stock__state fizo-stock__state--low">Cost incomplete</span>
+                    {% if can_reconcile_cost and b.quantity > 0 %}
+                    <details class="mt-2">
+                      <summary>Reconcile cost</summary>
+                      <form method="post" class="mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reconcile_cost">
+                        <input type="hidden" name="balance_id" value="{{ b.id }}">
+                        <label class="staff-label" for="cost-{{ b.id }}">Verified cost / base unit</label>
+                        <input class="staff-input" id="cost-{{ b.id }}" name="unit_cost" type="number" min="0" step="0.0001" required>
+                        <label class="staff-label mt-2" for="cost-reason-{{ b.id }}">Evidence / reason</label>
+                        <input class="staff-input" id="cost-reason-{{ b.id }}" name="reason" minlength="12" maxlength="512" placeholder="Supplier invoice, opening stock valuation…" required>
+                        <button class="staff-btn staff-btn--ghost staff-btn--sm mt-2" type="submit">Set trusted cost</button>
+                      </form>
+                    </details>
+                    {% endif %}
+                  {% endif %}
+                </td>
                 <td>{{ b.menu_item.reorder_level|default:"—" }}</td>
                 <td>{% if b.menu_item.reorder_level and b.quantity <= b.menu_item.reorder_level %}<span class="fizo-stock__state fizo-stock__state--low">Low stock</span>{% else %}<span class="fizo-stock__state">Recorded</span>{% endif %}</td>
               </tr>
