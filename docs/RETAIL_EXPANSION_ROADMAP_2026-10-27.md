@@ -76,14 +76,18 @@ Implemented in source, pending exact-head CI/browser certification:
 - Retail assembly BOM configuration under each tracked product, separate from hospitality recipes.
 - Staff Inventory Build/Unbuild operation with outlet scope, atomic component/finished-stock posting, run history and linked stock movements.
 - Assembly operations block any involved item with batch/expiry history until lot-aware assembly output allocation is implemented.
+- Non-stock retail quick-sale groups with tenant/RLS-scoped component rows, atomic expansion into ordinary basket lines, scan-code fallback and lossless async quick-group buttons.
+- Serialized/IMEI product configuration, exact-unit receipt custody, cashier reservation/fast IMEI scan, payment settlement, warranty-from-sale, returns/quarantine, exact transfers and trace register with RLS.
+- Standard merchandise identity fields (brand, model/style, reference and MSRP), tenant-defined typed custom fields and active alternate supplier/manufacturer/internal lookup codes.
+- Alternate-code scanner/catalogue search integration with a shared collision-safe product/package/group/PLU/serial namespace.
+- Product label queue for new products, price changes, imports and receiving; existing Shelf labels UI now filters pending work, prints current outlet prices, records printed completion, supports manual requests, audited dismissal and recent completion history.
 
 Still R1 work:
 - richer variant option editing after generation;
-- package-aware catalog import/export and supplier-specific package codes;
-- non-stock retail groups/bundles;
-- serialized/IMEI stock lifecycle;
-- product custom fields and richer label queues;
-- exact-head CI, PostgreSQL/RLS evidence and browser acceptance.
+- package-aware catalog import/export and supplier-specific package codes/cost relationships;
+- combined lot+serial allocation where a business genuinely needs both trace dimensions on one product;
+- richer thermal/physical label layouts and printer/media/scanner read-back certification;
+- exact-head CI, PostgreSQL/RLS evidence and deployed desktop/tablet/mobile browser acceptance.
 
 ## Workstream R2 — Pricing, promotions and merchandising
 
