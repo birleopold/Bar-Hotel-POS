@@ -421,3 +421,140 @@ class SupplierProductCodeTests(TestCase):
                 supplier=self.supplier,
             ).exists()
         )
+
+
+    def test_purchase_planning_compares_supplier_evidence_without_auto_selecting(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="WATER-A",
+            default_unit_cost=Decimal("700"),
+            minimum_order_quantity=Decimal("1"),
+            expected_lead_days=4,
+            is_preferred=True,
+        )
+        SupplierPriceRecord.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            unit_cost=Decimal("680"),
+            minimum_quantity=Decimal("1"),
+            valid_from=timezone.localdate() - timedelta(days=1),
+            valid_until=timezone.localdate() + timedelta(days=10),
+            source_reference="ACTIVE-A",
+        )
+        cheaper = Supplier.objects.create(
+            tenant=self.tenant,
+            name="Cheap but bulk vendor",
+        )
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=cheaper,
+            menu_item=self.item,
+            code="WATER-B",
+            default_unit_cost=Decimal("600"),
+            minimum_order_quantity=Decimal("24"),
+            expected_lead_days=2,
+        )
+        expired = Supplier.objects.create(
+            tenant=self.tenant,
+            name="Expired price vendor",
+        )
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=expired,
+            menu_item=self.item,
+            code="WATER-C",
+            default_unit_cost=Decimal("690"),
+            minimum_order_quantity=Decimal("1"),
+        )
+        SupplierPriceRecord.objects.create(
+            tenant=self.tenant,
+            supplier=expired,
+            menu_item=self.item,
+            unit_cost=Decimal("500"),
+            minimum_quantity=Decimal("1"),
+            valid_until=timezone.localdate() - timedelta(days=1),
+            source_reference="EXPIRED-C",
+        )
+
+        response = self.client.get(
+            reverse("staff-purchasing-order-create"),
+            {
+                "menu_item": str(self.item.pk),
+                "quantity": "12",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        options = response.context["supplier_purchase_options"]
+        by_name = {row["supplier"].name: row for row in options}
+
+        main = by_name[self.supplier.name]
+        self.assertEqual(main["current_cost"], Decimal("680.00"))
+        self.assertEqual(main["cost_source"], "Effective price list")
+        self.assertTrue(main["preferred"])
+        self.assertTrue(main["eligible"])
+        self.assertTrue(main["is_lowest_cost"])
+
+        bulk = by_name[cheaper.name]
+        self.assertEqual(bulk["current_cost"], Decimal("600.00"))
+        self.assertFalse(bulk["eligible"])
+        self.assertFalse(bulk["is_lowest_cost"])
+
+        fallback = by_name[expired.name]
+        self.assertEqual(fallback["current_cost"], Decimal("690.00"))
+        self.assertEqual(fallback["cost_source"], "Supplier planning cost")
+        self.assertNotEqual(fallback["source_reference"], "EXPIRED-C")
+
+        self.assertContains(response, "Lowest eligible planning cost")
+        self.assertContains(response, "Below MOQ")
+        self.assertNotContains(
+            response,
+            f'supplier={cheaper.pk}&amp;menu_item={self.item.pk}',
+        )
+
+    def test_supplier_comparison_is_tenant_scoped(self):
+        other = Tenant.objects.create(
+            name="Other supplier comparison",
+            slug="other-supplier-comparison",
+        )
+        TenantSettings.objects.create(
+            tenant=other,
+            business_lines=["supermarket"],
+        )
+        other_category = MenuCategory.objects.create(
+            tenant=other,
+            name="Other goods",
+        )
+        other_item = MenuItem.objects.create(
+            tenant=other,
+            category=other_category,
+            name="Foreign water",
+            sku="FOREIGN-WATER",
+            unit_price=Decimal("1"),
+            track_inventory=True,
+        )
+        other_supplier = Supplier.objects.create(
+            tenant=other,
+            name="Foreign vendor",
+        )
+        SupplierProductCode.objects.create(
+            tenant=other,
+            supplier=other_supplier,
+            menu_item=other_item,
+            code="FOREIGN-CODE",
+            default_unit_cost=Decimal("1"),
+        )
+        response = self.client.get(
+            reverse("staff-purchasing-order-create"),
+            {
+                "menu_item": str(self.item.pk),
+                "quantity": "12",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Foreign vendor")
