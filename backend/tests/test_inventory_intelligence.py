@@ -1,5 +1,6 @@
 """Explainable inventory planning calculations using recorded stock movements."""
 from datetime import timedelta
+import uuid
 from types import SimpleNamespace
 from decimal import Decimal
 
@@ -363,6 +364,48 @@ class WarehouseReplenishmentPlanningTests(TestCase):
             sum((row["proposed_quantity"] for row in proposals), Decimal("0")),
             Decimal("6.000"),
         )
+
+    def test_fully_received_dispatched_transfer_is_not_counted_as_open_inbound(self):
+        from apps.inventory.models import StockTransferReceipt
+
+        receipt = StockTransferReceipt.objects.create(
+            tenant=self.tenant,
+            transfer_batch=uuid.uuid4(),
+            from_outlet=self.warehouse,
+            to_outlet=self.branch_a,
+            menu_item=self.item,
+            dispatched_quantity=Decimal("5"),
+            posted_quantity=Decimal("5"),
+            received_quantity=Decimal("5"),
+            status="matched",
+        )
+        StockTransferRequest.objects.create(
+            tenant=self.tenant,
+            from_outlet=self.warehouse,
+            to_outlet=self.branch_a,
+            menu_item=self.item,
+            requested_quantity=Decimal("5"),
+            approved_quantity=Decimal("5"),
+            status=StockTransferRequestStatus.DISPATCHED,
+            transfer_receipt=receipt,
+        )
+        # Reflect the completed receipt in destination on-hand stock.
+        self.branch_a_balance.quantity = Decimal("7")
+        self.branch_a_balance.save(update_fields=["quantity", "updated_at"])
+
+        rows = build_stock_intelligence(
+            tenant=self.tenant,
+            balances=[self.branch_a_balance],
+            safety_days=3,
+        )
+        proposals = build_warehouse_replenishment_proposals(
+            tenant=self.tenant,
+            planning_rows=rows,
+            warehouse_balances=[self.warehouse_balance],
+        )
+        self.assertEqual(len(proposals), 1)
+        self.assertEqual(proposals[0]["open_inbound"], Decimal("0.000"))
+        self.assertEqual(proposals[0]["proposed_quantity"], Decimal("3.000"))
 
     def test_stock_planning_ui_creates_pending_request_without_moving_stock(self):
         user = get_user_model().objects.create_user(
