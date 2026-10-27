@@ -14,6 +14,7 @@ from apps.purchasing.models import (
     PurchaseOrderStatus,
     PurchaseReceiptLine,
     Supplier,
+    SupplierProductCode,
 )
 from apps.purchasing.services import receive_purchase_order_goods
 from apps.pos.models import Order
@@ -442,4 +443,87 @@ class PackageAwarePurchasingTests(TestCase):
         self.assertFalse(
             StockBalance.objects.filter(outlet=self.outlet, menu_item=self.item).exists()
         )
+
+    def test_blank_po_cost_uses_selected_supplier_default_without_rewriting_evidence(self):
+        SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="SUP-WATER",
+            default_unit_cost=Decimal("825"),
+            is_preferred=True,
+        )
+        response = self.client.post(
+            reverse("staff-purchasing-order-create"),
+            {
+                "supplier": str(self.supplier.pk),
+                "outlet": str(self.outlet.pk),
+                "reference": "SUP-DEFAULT-001",
+                "expected_date": "",
+                "notes": "",
+                "line_0_menu_item": str(self.item.pk),
+                "line_0_quantity_ordered": "10",
+                "line_0_product_package": "",
+                "line_0_package_count": "",
+                "line_0_cartons": "",
+                "line_0_unit_cost": "",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        po = PurchaseOrder.objects.get(reference="SUP-DEFAULT-001")
+        line = po.lines.get(menu_item=self.item)
+        self.assertEqual(line.unit_cost, Decimal("825.00"))
+        self.assertFalse(po.receipts.exists())
+
+    def test_blank_po_cost_falls_back_to_latest_received_supplier_cost(self):
+        first_po, _first_line = self._receive_costed_po(
+            reference="SUP-HIST-001", quantity="5", unit_cost="700",
+        )
+        second_po, _second_line = self._receive_costed_po(
+            reference="SUP-HIST-002", quantity="5", unit_cost="760",
+        )
+        response = self.client.post(
+            reverse("staff-purchasing-order-create"),
+            {
+                "supplier": str(self.supplier.pk),
+                "outlet": str(self.outlet.pk),
+                "reference": "SUP-HIST-NEXT",
+                "expected_date": "",
+                "notes": "",
+                "line_0_menu_item": str(self.item.pk),
+                "line_0_quantity_ordered": "4",
+                "line_0_product_package": "",
+                "line_0_package_count": "",
+                "line_0_cartons": "",
+                "line_0_unit_cost": "",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        po = PurchaseOrder.objects.get(reference="SUP-HIST-NEXT")
+        self.assertEqual(po.lines.get().unit_cost, Decimal("760.00"))
+
+    def test_supplier_catalog_shows_planning_latest_previous_and_cost_change(self):
+        relation = SupplierProductCode.objects.create(
+            tenant=self.tenant,
+            supplier=self.supplier,
+            menu_item=self.item,
+            code="SUP-COST-HISTORY",
+            default_unit_cost=Decimal("780"),
+            is_preferred=True,
+        )
+        self._receive_costed_po(
+            reference="SUP-COST-H1", quantity="5", unit_cost="700",
+        )
+        self._receive_costed_po(
+            reference="SUP-COST-H2", quantity="5", unit_cost="770",
+        )
+        response = self.client.get(
+            reverse("staff-purchasing-supplier-codes", args=[self.supplier.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SUP-COST-HISTORY")
+        self.assertContains(response, "780.00")
+        self.assertContains(response, "770.00")
+        self.assertContains(response, "10.00%")
+        self.assertContains(response, "Preferred")
 
