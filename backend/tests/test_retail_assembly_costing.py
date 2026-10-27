@@ -178,3 +178,101 @@ class RetailAssemblyCostingTests(TestCase):
         self.assertIsNone(soap.average_unit_cost)
         self.assertFalse(towel.cost_basis_complete)
         self.assertIsNone(towel.average_unit_cost)
+
+
+    def test_unbuild_recovers_component_cost_from_exact_build_provenance(self):
+        self._balance(self.soap, "20", "1000", True)
+        self._balance(self.towel, "10", "500", True)
+        self._balance(self.box, "0", None, False)
+
+        build = execute_retail_assembly(
+            tenant_id=self.tenant.pk,
+            outlet=self.outlet,
+            assembled_item=self.box,
+            quantity="2",
+            direction="build",
+            user=self.user,
+            membership=self.membership,
+            note="Traceable build",
+        )
+        self.assertTrue(build.cost_basis_complete_snapshot)
+
+        run = execute_retail_assembly(
+            tenant_id=self.tenant.pk,
+            outlet=self.outlet,
+            assembled_item=self.box,
+            quantity="1",
+            direction="unbuild",
+            user=self.user,
+            membership=self.membership,
+            note="Reverse one traceable box",
+        )
+
+        self.assertTrue(run.cost_basis_complete_snapshot)
+        self.assertEqual(run.finished_unit_cost_snapshot, Decimal("2500.0000"))
+        self.assertEqual(
+            run.component_cost_snapshot[str(self.soap.pk)]["unit_cost"],
+            "1000.0000",
+        )
+        self.assertEqual(
+            run.component_cost_snapshot[str(self.towel.pk)]["unit_cost"],
+            "500.0000",
+        )
+
+        soap = StockBalance.objects.get(outlet=self.outlet, menu_item=self.soap)
+        towel = StockBalance.objects.get(outlet=self.outlet, menu_item=self.towel)
+        finished = StockBalance.objects.get(outlet=self.outlet, menu_item=self.box)
+        self.assertEqual(soap.quantity, Decimal("18"))
+        self.assertEqual(towel.quantity, Decimal("9"))
+        self.assertEqual(finished.quantity, Decimal("1"))
+        self.assertTrue(soap.cost_basis_complete)
+        self.assertEqual(soap.average_unit_cost, Decimal("1000.0000"))
+        self.assertTrue(towel.cost_basis_complete)
+        self.assertEqual(towel.average_unit_cost, Decimal("500.0000"))
+
+    def test_unbuild_stays_conservative_when_build_cost_snapshots_differ(self):
+        self._balance(self.soap, "30", "1000", True)
+        self._balance(self.towel, "15", "500", True)
+        self._balance(self.box, "0", None, False)
+
+        execute_retail_assembly(
+            tenant_id=self.tenant.pk,
+            outlet=self.outlet,
+            assembled_item=self.box,
+            quantity="1",
+            direction="build",
+            user=self.user,
+            membership=self.membership,
+        )
+
+        soap = StockBalance.objects.get(outlet=self.outlet, menu_item=self.soap)
+        soap.average_unit_cost = Decimal("1200")
+        soap.save(update_fields=["average_unit_cost", "updated_at"])
+
+        execute_retail_assembly(
+            tenant_id=self.tenant.pk,
+            outlet=self.outlet,
+            assembled_item=self.box,
+            quantity="1",
+            direction="build",
+            user=self.user,
+            membership=self.membership,
+        )
+
+        run = execute_retail_assembly(
+            tenant_id=self.tenant.pk,
+            outlet=self.outlet,
+            assembled_item=self.box,
+            quantity="1",
+            direction="unbuild",
+            user=self.user,
+            membership=self.membership,
+        )
+
+        self.assertFalse(run.cost_basis_complete_snapshot)
+        soap.refresh_from_db()
+        towel = StockBalance.objects.get(outlet=self.outlet, menu_item=self.towel)
+        self.assertFalse(soap.cost_basis_complete)
+        self.assertIsNone(soap.average_unit_cost)
+        self.assertFalse(towel.cost_basis_complete)
+        self.assertIsNone(towel.average_unit_cost)
