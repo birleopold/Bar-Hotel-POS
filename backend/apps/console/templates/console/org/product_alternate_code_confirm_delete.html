@@ -1,0 +1,6 @@
+{% extends "console/base.html" %}
+{% block title %}Remove alternate code{% endblock %}
+{% block content %}
+<section class="fizo-entity"><header class="fizo-entity__header"><div><p class="grocery-setup__eyebrow">Catalogue / {{ menu_item.name }} / Metadata</p><h1>Remove alternate code</h1></div></header>
+<form method="post" class="staff-card">{% csrf_token %}<p>Remove lookup code <strong>{{ object.code }}</strong> from <strong>{{ menu_item.name }}</strong>?</p><p class="staff-muted">The product, stock and sale history are unchanged.</p><div class="d-flex gap-2"><button class="staff-btn staff-btn--primary" type="submit">Remove code</button><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-metadata' menu_item.id %}">Cancel</a></div></form></section>
+{% endblock %}
