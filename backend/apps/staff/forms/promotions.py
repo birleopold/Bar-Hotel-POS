@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
 
-from apps.catalog.models import Promotion
+from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, Promotion
 from apps.tenants.models import Outlet
 
 
@@ -12,6 +12,10 @@ class StaffPromotionForm(forms.ModelForm):
         model = Promotion
         fields = [
             "name",
+            "menu_item",
+            "product_family",
+            "category",
+            "brand",
             "discount_percent",
             "discount_amount",
             "min_order_subtotal",
@@ -22,6 +26,10 @@ class StaffPromotionForm(forms.ModelForm):
         ]
         widgets = {
             "name": forms.TextInput(attrs={"class": "staff-input", "maxlength": 128}),
+            "menu_item": forms.Select(attrs={"class": "staff-input"}),
+            "product_family": forms.Select(attrs={"class": "staff-input"}),
+            "category": forms.Select(attrs={"class": "staff-input"}),
+            "brand": forms.TextInput(attrs={"class": "staff-input", "placeholder": "e.g. Samsung"}),
             "discount_percent": forms.NumberInput(
                 attrs={"class": "staff-input", "step": "0.01", "min": 0, "max": 100}
             ),
@@ -35,6 +43,10 @@ class StaffPromotionForm(forms.ModelForm):
 
     def __init__(self, *args, tenant=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["menu_item"].required = False
+        self.fields["product_family"].required = False
+        self.fields["category"].required = False
+        self.fields["brand"].required = False
         self.fields["discount_percent"].required = False
         self.fields["discount_amount"].required = False
         self.fields["min_order_subtotal"].required = False
@@ -63,6 +75,22 @@ class StaffPromotionForm(forms.ModelForm):
                 site__tenant=tenant,
                 is_active=True,
             ).select_related("site").order_by("site__name", "name")
+            self.fields["menu_item"].queryset = MenuItem.objects.filter(
+                tenant=tenant,
+                is_active=True,
+            ).order_by("name")
+            self.fields["product_family"].queryset = ProductFamily.objects.filter(
+                tenant=tenant,
+                is_active=True,
+            ).select_related("category").order_by("category__name", "name")
+            self.fields["category"].queryset = MenuCategory.objects.filter(
+                tenant=tenant,
+                is_active=True,
+            ).order_by("sort_order", "name")
+        self.fields["menu_item"].help_text = "Optional. Most specific target."
+        self.fields["product_family"].help_text = "Optional. Applies to all matching variants."
+        self.fields["category"].help_text = "Optional. Applies to all products in this category."
+        self.fields["brand"].help_text = "Optional case-insensitive brand target. Leave all targets blank for the whole basket."
         if self.instance.pk:
             if self.instance.starts_at:
                 st = self.instance.starts_at
@@ -89,6 +117,18 @@ class StaffPromotionForm(forms.ModelForm):
             raise forms.ValidationError(
                 "Set either a percent discount or a fixed amount — exactly one.",
             )
+        targets = [
+            bool(data.get("menu_item")),
+            bool(data.get("product_family")),
+            bool(data.get("category")),
+            bool((data.get("brand") or "").strip()),
+        ]
+        if sum(targets) > 1:
+            raise forms.ValidationError(
+                "Choose only one promotion target: product, product family, category, or brand.",
+            )
+        if data.get("brand") is not None:
+            data["brand"] = (data.get("brand") or "").strip()
         raw_end = self.data.get("ends_at")
         if raw_end is not None and str(raw_end).strip() == "":
             data["ends_at"] = None
