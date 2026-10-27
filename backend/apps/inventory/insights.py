@@ -10,8 +10,11 @@ from decimal import Decimal, ROUND_CEILING
 from django.utils import timezone
 
 from .batches import InventoryBatch
-from .models import StockMovement, StockReason
+from .models import (
+    StockMovement, StockReason, StockTransferRequest, StockTransferRequestStatus,
+)
 from apps.purchasing.models import PurchaseReceiptLine, SupplierProductCode
+from apps.tenants.models import OutletType
 
 
 def build_stock_intelligence(*, tenant, balances, safety_days=3, at=None):
@@ -168,3 +171,146 @@ def build_stock_intelligence(*, tenant, balances, safety_days=3, at=None):
             "inactive": inactive,
         })
     return results
+
+
+
+def build_warehouse_replenishment_proposals(
+    *,
+    tenant,
+    planning_rows,
+    warehouse_balances,
+):
+    """Suggest warehouse-to-branch replenishment without posting stock.
+
+    Existing inbound transfer requests reduce destination need. Approved
+    warehouse requests that have not yet dispatched reserve source availability;
+    dispatched stock is already absent from the warehouse StockBalance.
+    """
+    rows = list(planning_rows)
+    warehouses = [
+        balance for balance in warehouse_balances
+        if balance.tenant_id == tenant.pk
+        and balance.outlet.site.tenant_id == tenant.pk
+        and balance.outlet.outlet_type == OutletType.WAREHOUSE
+        and balance.quantity > 0
+    ]
+    if any(
+        row.get("outlet_id") is None or row.get("menu_item_id") is None
+        for row in rows
+    ):
+        raise ValueError("Planning rows must include outlet and product identity.")
+
+    destination_ids = {
+        row["outlet_id"] for row in rows
+        if row.get("suggested_order") is not None
+        and row["suggested_order"] > 0
+    }
+    product_ids = {row["menu_item_id"] for row in rows}
+    warehouse_ids = {balance.outlet_id for balance in warehouses}
+
+    inbound_open = defaultdict(lambda: Decimal("0"))
+    source_reserved = defaultdict(lambda: Decimal("0"))
+    if destination_ids and product_ids:
+        open_requests = (
+            StockTransferRequest.objects.filter(
+                tenant=tenant,
+                menu_item_id__in=product_ids,
+                status__in=[
+                    StockTransferRequestStatus.PENDING,
+                    StockTransferRequestStatus.APPROVED,
+                    StockTransferRequestStatus.DISPATCHED,
+                ],
+            )
+            .filter(
+                to_outlet_id__in=destination_ids
+                | warehouse_ids
+            )
+            .only(
+                "from_outlet_id", "to_outlet_id", "menu_item_id",
+                "status", "requested_quantity", "approved_quantity",
+            )
+        )
+        for request in open_requests.iterator():
+            if request.to_outlet_id in destination_ids:
+                quantity = (
+                    request.approved_quantity
+                    if request.status in {
+                        StockTransferRequestStatus.APPROVED,
+                        StockTransferRequestStatus.DISPATCHED,
+                    }
+                    and request.approved_quantity is not None
+                    else request.requested_quantity
+                )
+                inbound_open[(request.to_outlet_id, request.menu_item_id)] += quantity
+            if (
+                request.from_outlet_id in warehouse_ids
+                and request.status == StockTransferRequestStatus.APPROVED
+                and request.approved_quantity is not None
+            ):
+                source_reserved[
+                    (request.from_outlet_id, request.menu_item_id)
+                ] += request.approved_quantity
+
+    warehouse_by_product = defaultdict(list)
+    for balance in warehouses:
+        available = max(
+            Decimal("0"),
+            balance.quantity - source_reserved[
+                (balance.outlet_id, balance.menu_item_id)
+            ],
+        )
+        if available <= 0:
+            continue
+        warehouse_by_product[balance.menu_item_id].append((balance, available))
+
+    proposals = []
+    for row in rows:
+        suggested = row.get("suggested_order")
+        if suggested is None or suggested <= 0:
+            continue
+        destination_id = row["outlet_id"]
+        item_id = row["menu_item_id"]
+        inbound = inbound_open[(destination_id, item_id)]
+        remaining_need = max(Decimal("0"), suggested - inbound).quantize(
+            Decimal("0.001"), rounding=ROUND_CEILING
+        )
+        if remaining_need <= 0:
+            continue
+
+        candidates = sorted(
+            warehouse_by_product.get(item_id, []),
+            key=lambda pair: (
+                -pair[1],
+                pair[0].outlet.name.casefold(),
+                str(pair[0].outlet_id),
+            ),
+        )
+        if not candidates:
+            continue
+        source_balance, source_available = candidates[0]
+        proposed = min(remaining_need, source_available).quantize(
+            Decimal("0.001"), rounding=ROUND_CEILING
+        )
+        if proposed <= 0:
+            continue
+        proposals.append({
+            "from_outlet_id": source_balance.outlet_id,
+            "from_outlet": source_balance.outlet.name,
+            "to_outlet_id": destination_id,
+            "to_outlet": row["outlet"],
+            "menu_item_id": item_id,
+            "item": row["item"],
+            "unit": row["unit"],
+            "branch_on_hand": row["qty"],
+            "suggested_need": suggested,
+            "open_inbound": inbound.quantize(Decimal("0.001")),
+            "remaining_need": remaining_need,
+            "warehouse_on_hand": source_balance.quantity,
+            "warehouse_available": source_available.quantize(Decimal("0.001")),
+            "proposed_quantity": proposed,
+            "unfilled_after_proposal": max(
+                Decimal("0"), remaining_need - proposed
+            ).quantize(Decimal("0.001")),
+            "planning_basis": row["planning_basis"],
+        })
+    return proposals
