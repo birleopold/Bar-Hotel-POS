@@ -634,3 +634,30 @@ class SalesProfitabilityTests(TestCase):
         self.assertIn("Clearance stock approved", csv_body)
         self.assertNotIn("HIGH-MARGIN-SALE", csv_body)
 
+        client = Client()
+        self.assertTrue(
+            client.login(username=self.user.email, password="Password9!")
+        )
+        session = client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
+        session.save()
+        management_export = client.get(
+            reverse("staff-management"),
+            {
+                "view": "reports",
+                "date_from": self.today.isoformat(),
+                "date_to": self.today.isoformat(),
+                "profit_export": "csv",
+            },
+        )
+        self.assertEqual(management_export.status_code, 200)
+        management_body = management_export.content.decode()
+        self.assertIn(
+            "Target gross profit,Margin shortfall,Cashier,Margin override linked",
+            management_body,
+        )
+        self.assertIn(self.user.email, management_body)
+        self.assertIn(manager_user.email, management_body)
+        self.assertIn("Clearance stock approved", management_body)
+
