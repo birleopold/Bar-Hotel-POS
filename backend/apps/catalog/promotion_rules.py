@@ -1,0 +1,52 @@
+"""Shared promotion target matching for checkout and staff selectors."""
+from __future__ import annotations
+
+from django.db.models import Q
+
+
+def promotion_matches_item(promotion, item) -> bool:
+    """Return whether one promotion target includes one concrete sellable item."""
+    if promotion.menu_item_id:
+        return promotion.menu_item_id == item.pk
+    if promotion.product_family_id:
+        return promotion.product_family_id == item.product_family_id
+    if promotion.category_id:
+        return promotion.category_id == item.category_id
+    brand = (promotion.brand or "").strip()
+    if brand:
+        return bool(item.brand and item.brand.casefold() == brand.casefold())
+    return True
+
+
+def promotion_target_q_for_items(items) -> Q:
+    """Build a queryset predicate for promotions matching at least one basket item."""
+    item_ids = set()
+    family_ids = set()
+    category_ids = set()
+    brands = set()
+    for item in items:
+        if item is None:
+            continue
+        item_ids.add(item.pk)
+        if item.product_family_id:
+            family_ids.add(item.product_family_id)
+        if item.category_id:
+            category_ids.add(item.category_id)
+        if item.brand:
+            brands.add(item.brand)
+
+    q = Q(
+        menu_item__isnull=True,
+        product_family__isnull=True,
+        category__isnull=True,
+        brand="",
+    )
+    if item_ids:
+        q |= Q(menu_item_id__in=item_ids)
+    if family_ids:
+        q |= Q(product_family_id__in=family_ids)
+    if category_ids:
+        q |= Q(category_id__in=category_ids)
+    for brand in brands:
+        q |= Q(brand__iexact=brand)
+    return q
