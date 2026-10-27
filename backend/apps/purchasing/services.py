@@ -1,4 +1,4 @@
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_DOWN
 
 from django.db import transaction
 from django.db.models import Sum
@@ -208,7 +208,7 @@ def receive_purchase_order_goods(
             else:
                 allocated = (
                     total_extra_cost * base_value / total_base_value
-                ).quantize(Decimal("0.01"))
+                ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
                 allocated_so_far += allocated
             row["_allocated_landed_cost"] = allocated
             row["_landed_unit_cost"] = (
