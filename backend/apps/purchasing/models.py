@@ -457,6 +457,14 @@ class PurchaseOrder(TimeStampedModel):
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
     review_note = models.CharField(max_length=512, blank=True)
+    consolidated_into = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="consolidated_source_requests",
+        help_text="Approved source request folded into one consolidated supplier draft.",
+    )
 
     class Meta:
         ordering = ["-created_at"]
