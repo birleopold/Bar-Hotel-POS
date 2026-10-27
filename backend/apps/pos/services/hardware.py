@@ -55,7 +55,7 @@ def browser_device_capabilities(station):
 
 @transaction.atomic
 def record_hardware_check(*, tenant, workstation_id, membership, user,
-                          test_type, result, note=""):
+                          test_type, result, note="", evidence=None):
     if (
         membership is None or not membership.is_active
         or membership.tenant_id != tenant.pk or membership.user_id != user.pk
@@ -82,12 +82,26 @@ def record_hardware_check(*, tenant, workstation_id, membership, user,
         raise ValidationError({"note": "Use a note of up to 500 characters."})
     if result == "fail" and not note:
         raise ValidationError({"note": "Describe the observed problem before saving a failure."})
+    evidence = dict(evidence or {})
+    allowed_evidence = {}
+    if test_type == "barcode_scanner":
+        for key in (
+            "character_count",
+            "duration_ms",
+            "average_gap_ms",
+            "max_gap_ms",
+            "enter_terminated",
+        ):
+            if key in evidence:
+                allowed_evidence[key] = evidence[key]
+    evidence = allowed_evidence
     label_field = DEVICE_TYPES[test_type]
     observed_label = (getattr(station, label_field, "") if label_field else "") or ""
     recorded = WorkstationHardwareCheck.objects.create(
         tenant=tenant, workstation=station, checked_by=user,
         test_type=test_type, result=result, note=note,
         configured_device=observed_label[:120],
+        evidence=evidence,
     )
     log_audit(
         tenant_id=tenant.pk, user_id=user.pk,
@@ -97,6 +111,7 @@ def record_hardware_check(*, tenant, workstation_id, membership, user,
             "outlet_id": str(station.outlet_id),
             "workstation_id": str(station.pk),
             "type": test_type, "result": result,
+            "evidence": evidence,
         },
     )
     return recorded
