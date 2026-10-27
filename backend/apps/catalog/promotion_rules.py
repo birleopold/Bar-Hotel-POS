@@ -84,3 +84,35 @@ def promotion_redemption_block_reason(promotion, order) -> str:
     ):
         return "This customer has reached the redemption limit for this offer."
     return ""
+
+
+def promotion_reward_matches_item(promotion, item) -> bool:
+    """Return whether one concrete item belongs to the Buy X Get Y reward pool.
+
+    When no separate reward target is configured, reward items come from the
+    same target pool as the qualifying items for backwards-compatible BOGO.
+    """
+    if promotion.reward_menu_item_id:
+        return promotion.reward_menu_item_id == item.pk
+    if promotion.reward_product_family_id:
+        return promotion.reward_product_family_id == item.product_family_id
+    if promotion.reward_category_id:
+        return promotion.reward_category_id == item.category_id
+    reward_brand = (promotion.reward_brand or "").strip()
+    if reward_brand:
+        return bool(item.brand and item.brand.casefold() == reward_brand.casefold())
+    return promotion_matches_item(promotion, item)
+
+
+def promotion_reward_quantity(promotion, order):
+    """Return whole/decimal basket quantity available in the configured reward pool."""
+    from decimal import Decimal
+
+    quantity = Decimal("0")
+    for line in order.lines.select_related("menu_item").filter(
+        is_voided=False,
+        menu_item__isnull=False,
+    ):
+        if promotion_reward_matches_item(promotion, line.menu_item):
+            quantity += line.quantity
+    return quantity
