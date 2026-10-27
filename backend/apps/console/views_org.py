@@ -80,6 +80,8 @@ class OrgWorkstationOutletScopeMixin:
 
 
 class OrgWorkstationEditView(ConsoleOrgAdminRequiredMixin, OrgWorkstationOutletScopeMixin, StaffWorkstationEditView):
+    allow_tenant_scope_without_membership = True
+    staff_nav_capability = None
     """Reuse the validated workstation editor with an organization-native shell."""
 
     template_name = "console/org/workstation_form.html"
@@ -87,6 +89,8 @@ class OrgWorkstationEditView(ConsoleOrgAdminRequiredMixin, OrgWorkstationOutletS
 
 
 class OrgWorkstationPairView(ConsoleOrgAdminRequiredMixin, OrgWorkstationOutletScopeMixin, StaffWorkstationPairView):
+    allow_tenant_scope_without_membership = True
+    staff_nav_capability = None
     """Browser approval administration rendered inside the organization shell."""
 
     shell_template_name = "console/base.html"
@@ -96,6 +100,8 @@ class OrgWorkstationPairView(ConsoleOrgAdminRequiredMixin, OrgWorkstationOutletS
 
 
 class OrgWorkstationDeviceTestView(ConsoleOrgAdminRequiredMixin, OrgWorkstationOutletScopeMixin, StaffWorkstationDeviceTestView):
+    allow_tenant_scope_without_membership = True
+    staff_nav_capability = None
     """Equipment observations remain non-financial while using the organization shell."""
 
     shell_template_name = "console/base.html"
