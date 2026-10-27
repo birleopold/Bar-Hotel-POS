@@ -236,6 +236,7 @@ def management_loss_patterns(request, *, policy, limit=10):
     outlet_names = {str(outlet.pk): outlet.name for outlet in outlets}
 
     workers = defaultdict(lambda: {
+        "pattern_key": "",
         "worker_id": "",
         "worker": "",
         "refunds": 0,
@@ -247,6 +248,7 @@ def management_loss_patterns(request, *, policy, limit=10):
         "last_seen": None,
     })
     outlet_rows = defaultdict(lambda: {
+        "pattern_key": "",
         "outlet_id": "",
         "outlet": "",
         "refunds": 0,
@@ -258,6 +260,7 @@ def management_loss_patterns(request, *, policy, limit=10):
         "last_seen": None,
     })
     products = defaultdict(lambda: {
+        "pattern_key": "",
         "product_id": "",
         "product": "",
         "voids": 0,
@@ -279,6 +282,7 @@ def management_loss_patterns(request, *, policy, limit=10):
             key = str(user.pk)
             label = user.get_full_name() or user.email
         row = workers[key]
+        row["pattern_key"] = "unknown" if key == "__unknown__" else key
         row["worker_id"] = "" if key == "__unknown__" else key
         row["worker"] = label
         return row
@@ -286,6 +290,7 @@ def management_loss_patterns(request, *, policy, limit=10):
     def outlet_row(outlet_id):
         key = str(outlet_id)
         row = outlet_rows[key]
+        row["pattern_key"] = key
         row["outlet_id"] = key
         row["outlet"] = outlet_names.get(key, "Section")
         return row
@@ -317,8 +322,12 @@ def management_loss_patterns(request, *, policy, limit=10):
             orow = outlet_row(line.order.outlet_id)
             orow["voids"] += 1
             stamp(orow, line.voided_at)
-            pkey = str(line.menu_item_id or line.pk)
+            pkey = (
+                f"item-{line.menu_item_id}"
+                if line.menu_item_id else f"line-{line.pk}"
+            )
             prow = products[pkey]
+            prow["pattern_key"] = pkey
             prow["product_id"] = str(line.menu_item_id or "")
             prow["product"] = line.label or (
                 line.menu_item.name if line.menu_item_id else "Deleted merchandise"
@@ -355,8 +364,12 @@ def management_loss_patterns(request, *, policy, limit=10):
             if payload.get("margin_floor_overridden"):
                 orow["margin_overrides"] += 1
             stamp(orow, event.created_at)
-            pkey = str(line.menu_item_id or line.pk)
+            pkey = (
+                f"item-{line.menu_item_id}"
+                if line.menu_item_id else f"line-{line.pk}"
+            )
             prow = products[pkey]
+            prow["pattern_key"] = pkey
             prow["product_id"] = str(line.menu_item_id or "")
             prow["product"] = line.label or (
                 line.menu_item.name if line.menu_item_id else "Deleted merchandise"
@@ -400,9 +413,10 @@ def management_loss_patterns(request, *, policy, limit=10):
             orow = outlet_row(movement.outlet_id)
             orow["stock_removals"] += 1
             stamp(orow, movement.created_at)
-            pkey = str(movement.menu_item_id)
+            pkey = f"item-{movement.menu_item_id}"
             prow = products[pkey]
-            prow["product_id"] = pkey
+            prow["pattern_key"] = pkey
+            prow["product_id"] = str(movement.menu_item_id)
             prow["product"] = movement.menu_item.name
             prow["stock_removals"] += 1
             stamp(prow, movement.created_at)
@@ -428,6 +442,251 @@ def management_loss_patterns(request, *, policy, limit=10):
         "workers": worker_list[:limit],
         "outlets": outlet_list[:limit],
         "products": product_list[:limit],
+    }
+
+
+def management_loss_pattern_detail(
+    request, *, dimension, entity_key, policy, limit=200
+):
+    """Return source evidence behind one visible loss-prevention pattern."""
+    if dimension not in {"worker", "outlet", "product"}:
+        return None
+    patterns = management_loss_patterns(request, policy=policy, limit=500)
+    collection = {
+        "worker": patterns["workers"],
+        "outlet": patterns["outlets"],
+        "product": patterns["products"],
+    }[dimension]
+    summary = next(
+        (row for row in collection if row.get("pattern_key") == entity_key),
+        None,
+    )
+    if summary is None:
+        return None
+
+    outlets, modules, vis = management_scope(request)
+    outlet_ids = [outlet.pk for outlet in outlets]
+    cutoff = timezone.now() - timedelta(days=policy.lookback_days)
+    events = []
+
+    def matches_worker(user):
+        if dimension != "worker":
+            return True
+        if entity_key == "unknown":
+            return user is None
+        return bool(user and str(user.pk) == entity_key)
+
+    def matches_outlet(outlet_id):
+        return dimension != "outlet" or str(outlet_id) == entity_key
+
+    def product_key(*, menu_item_id=None, line_id=None):
+        if menu_item_id:
+            return f"item-{menu_item_id}"
+        return f"line-{line_id}"
+
+    def matches_product(*, menu_item_id=None, line_id=None):
+        return (
+            dimension != "product"
+            or product_key(menu_item_id=menu_item_id, line_id=line_id)
+            == entity_key
+        )
+
+    def add_event(kind, when, title, detail, source_url, outlet_name=""):
+        events.append({
+            "kind": kind,
+            "when": when,
+            "title": title,
+            "detail": detail,
+            "source_url": source_url,
+            "outlet": outlet_name,
+        })
+
+    if "pos" in modules and vis.orders:
+        if dimension != "product":
+            refunds = Refund.objects.filter(
+                tenant=request.tenant,
+                order__outlet_id__in=outlet_ids,
+                created_at__gte=cutoff,
+            ).select_related("recorded_by", "order", "order__outlet")
+            for refund in refunds.iterator(chunk_size=500):
+                if not matches_worker(refund.recorded_by):
+                    continue
+                if not matches_outlet(refund.order.outlet_id):
+                    continue
+                actor = (
+                    refund.recorded_by.get_full_name() or refund.recorded_by.email
+                    if refund.recorded_by_id else "Unknown worker"
+                )
+                add_event(
+                    "Refund",
+                    refund.created_at,
+                    f"Refund {refund.amount} {refund.order.currency}",
+                    f"{refund.reason or 'No reason recorded'} · recorded by {actor}",
+                    reverse("staff-order-detail", kwargs={"order_id": refund.order_id}),
+                    refund.order.outlet.name,
+                )
+
+        voids = OrderLine.objects.filter(
+            order__tenant=request.tenant,
+            order__outlet_id__in=outlet_ids,
+            is_voided=True,
+            voided_at__gte=cutoff,
+        ).select_related("voided_by", "order", "order__outlet", "menu_item")
+        for line in voids.iterator(chunk_size=500):
+            if not matches_worker(line.voided_by):
+                continue
+            if not matches_outlet(line.order.outlet_id):
+                continue
+            if not matches_product(menu_item_id=line.menu_item_id, line_id=line.pk):
+                continue
+            actor = (
+                line.voided_by.get_full_name() or line.voided_by.email
+                if line.voided_by_id else "Unknown worker"
+            )
+            add_event(
+                "Void",
+                line.voided_at,
+                f"Voided {line.label}",
+                f"{line.void_reason or 'No reason recorded'} · voided by {actor}",
+                reverse("staff-order-detail", kwargs={"order_id": line.order_id}),
+                line.order.outlet.name,
+            )
+
+        discount_events = list(
+            AuditEvent.objects.filter(
+                tenant=request.tenant,
+                action="order.line_discount_applied",
+                created_at__gte=cutoff,
+            ).select_related("user").order_by("-created_at")
+        )
+        discount_lines = {
+            str(line.pk): line
+            for line in OrderLine.objects.filter(
+                pk__in=[event.entity_id for event in discount_events],
+                order__tenant=request.tenant,
+                order__outlet_id__in=outlet_ids,
+            ).select_related("order", "order__outlet", "order__created_by", "menu_item")
+        }
+        for event in discount_events:
+            line = discount_lines.get(str(event.entity_id))
+            if line is None:
+                continue
+            actor = event.user or line.order.created_by
+            if not matches_worker(actor):
+                continue
+            if not matches_outlet(line.order.outlet_id):
+                continue
+            if not matches_product(menu_item_id=line.menu_item_id, line_id=line.pk):
+                continue
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            is_override = bool(payload.get("margin_floor_overridden"))
+            actor_label = (
+                actor.get_full_name() or actor.email if actor else "Unknown worker"
+            )
+            detail = (
+                f"Discount {payload.get('line_discount_amount') or line.line_discount_amount} "
+                f"{line.order.currency} · applied by {actor_label}"
+            )
+            if is_override:
+                detail += (
+                    f" · floor {payload.get('margin_floor_percent') or '?'}%"
+                    f" · minimum {payload.get('minimum_unit_price') or '?'}"
+                    f" · approved sale price {payload.get('proposed_unit_price') or '?'}"
+                )
+                reason = str(payload.get("margin_override_reason") or "").strip()
+                if reason:
+                    detail += f" · {reason}"
+            add_event(
+                "Margin override" if is_override else "Line discount",
+                event.created_at,
+                f"{'Margin override' if is_override else 'Line discount'} · {line.label}",
+                detail,
+                reverse("staff-order-detail", kwargs={"order_id": line.order_id}),
+                line.order.outlet.name,
+            )
+
+        if dimension != "product":
+            shifts = PosShift.objects.filter(
+                tenant=request.tenant,
+                outlet_id__in=outlet_ids,
+                status=PosShiftStatus.CLOSED,
+                closed_at__gte=cutoff,
+                counted_cash__isnull=False,
+            ).exclude(counted_cash=F("expected_cash")).select_related(
+                "closed_by", "outlet"
+            )
+            for shift in shifts.iterator(chunk_size=500):
+                if not matches_worker(shift.closed_by):
+                    continue
+                if not matches_outlet(shift.outlet_id):
+                    continue
+                actor = (
+                    shift.closed_by.get_full_name() or shift.closed_by.email
+                    if shift.closed_by_id else "Unknown worker"
+                )
+                variance = shift.counted_cash - shift.expected_cash
+                add_event(
+                    "Cash variance",
+                    shift.closed_at,
+                    f"Cash variance {variance:+.2f}",
+                    f"Expected {shift.expected_cash:.2f}; counted {shift.counted_cash:.2f} · closed by {actor}",
+                    reverse("staff-management-shift", kwargs={"shift_id": shift.pk}),
+                    shift.outlet.name,
+                )
+
+    if "inventory" in modules and vis.inventory:
+        movements = StockMovement.objects.filter(
+            tenant=request.tenant,
+            outlet_id__in=outlet_ids,
+            created_at__gte=cutoff,
+            quantity_change__lt=0,
+            reason__in=[
+                StockReason.WASTE,
+                StockReason.ADJUST_OUT,
+                StockReason.PHYSICAL_COUNT,
+            ],
+        ).select_related("created_by", "menu_item", "outlet")
+        for movement in movements.iterator(chunk_size=500):
+            if not matches_worker(movement.created_by):
+                continue
+            if not matches_outlet(movement.outlet_id):
+                continue
+            if not matches_product(menu_item_id=movement.menu_item_id):
+                continue
+            actor = (
+                movement.created_by.get_full_name() or movement.created_by.email
+                if movement.created_by_id else "Unknown worker"
+            )
+            detail = (
+                f"{movement.quantity_change:+} {movement.menu_item.unit_of_measure}"
+                f" · {movement.get_reason_display()} · recorded by {actor}"
+            )
+            if movement.note:
+                detail += f" · {movement.note}"
+            add_event(
+                "Stock removal",
+                movement.created_at,
+                f"Stock removal · {movement.menu_item.name}",
+                detail,
+                reverse(
+                    "staff-management-source",
+                    kwargs={"kind": "stock_adjustment", "entity_id": movement.pk},
+                ),
+                movement.outlet.name,
+            )
+
+    events.sort(
+        key=lambda row: row["when"] or timezone.make_aware(
+            timezone.datetime.min
+        ),
+        reverse=True,
+    )
+    return {
+        "dimension": dimension,
+        "entity_key": entity_key,
+        "summary": summary,
+        "events": events[:limit],
+        "lookback_days": policy.lookback_days,
     }
 
 
