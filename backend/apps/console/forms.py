@@ -566,7 +566,7 @@ class ConsoleVariantMatrixForm(forms.Form):
         help_text="Separate values with commas.",
     )
     option_2_name = forms.CharField(
-        max_length=40, label="Option 2", required=False, initial="Size",
+        max_length=40, label="Option 2", required=False,
         widget=forms.TextInput(attrs={"class": "staff-input", "placeholder": "Size"}),
     )
     option_2_values = forms.CharField(
