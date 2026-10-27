@@ -421,10 +421,12 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 **Maps to:** phases 07, 09, 15, 16, 18, 25; SM-24, SM-27, SM-28, SM-32.
 
 ### R5.1 Warehouse/location model
-- Allow non-selling warehouse/storage outlets.
+- Non-selling warehouse/storage outlets are now implemented inside the existing tenant → site → outlet architecture through an explicit Warehouse / storage outlet type; no parallel warehouse ledger or location hierarchy was introduced.
+- Retail/Supermarket owners can create warehouse locations from the normal branch area setup. Warehouse module presets expose inventory, purchasing and workspace operations without advertising checkout.
+- Warehouse locations remain valid inventory/purchasing/transfer scopes but are explicitly blocked from retail checkout, generic quick-order creation and the POS order-creation service/API boundary, preventing a storage location from becoming a backdoor sales outlet.
 - Central warehouse replenishment.
 - Branch allocation proposals.
-- Keep existing tenant/site/outlet architecture.
+- Benchmark check (Lightspeed Retail and Shopify multi-location inventory patterns, 2026-10-27): keep stock locations in the same location model while distinguishing sellable retail locations from inventory/fulfillment-only locations. This implementation follows that simpler model and keeps transfer stock as the authoritative movement ledger.
 
 ### R5.2 Transfer lifecycle
 - Request → approve/reject → dispatch → in transit → receive/dispute → resolve is now implemented around the existing staged transfer ledger.
