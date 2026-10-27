@@ -13,6 +13,9 @@ from apps.catalog.models import (
     MenuItemModifierGroup,
     MenuItemOutlet,
     MenuItemRecipeLine,
+    ProductAlternateCode,
+    ProductCustomFieldDefinition,
+    ProductCustomFieldValue,
     ProductFamily,
     ProductPackage,
     RetailAssemblyComponent,
@@ -431,6 +434,10 @@ class ConsoleMenuItemForm(forms.ModelForm):
             "product_family",
             "name",
             "description",
+            "brand",
+            "model_number",
+            "reference_code",
+            "msrp",
             "product_image",
             "display_image_url",
             "sku",
@@ -453,6 +460,10 @@ class ConsoleMenuItemForm(forms.ModelForm):
             "product_family": forms.Select(attrs={"class": "staff-input"}),
             "name": forms.TextInput(attrs={"class": "staff-input"}),
             "description": forms.Textarea(attrs={"class": "staff-input", "rows": 3}),
+            "brand": forms.TextInput(attrs={"class": "staff-input"}),
+            "model_number": forms.TextInput(attrs={"class": "staff-input"}),
+            "reference_code": forms.TextInput(attrs={"class": "staff-input"}),
+            "msrp": forms.NumberInput(attrs={"class": "staff-input", "step": "0.01", "min": "0"}),
             "sku": forms.TextInput(attrs={"class": "staff-input"}),
             "barcode": forms.TextInput(attrs={"class": "staff-input"}),
             "unit_of_measure": forms.Select(attrs={"class": "staff-input"}),
@@ -493,6 +504,10 @@ class ConsoleMenuItemForm(forms.ModelForm):
             )
             self.fields["modifier_groups"].initial = ordered_group_ids
         self.fields["description"].required = False
+        self.fields["brand"].required = False
+        self.fields["model_number"].required = False
+        self.fields["reference_code"].required = False
+        self.fields["msrp"].required = False
         self.fields["tax_rate_percent"].required = False
         self.fields["reorder_level"].required = False
         self.fields["warranty_months"].required = False
@@ -553,6 +568,167 @@ class ConsoleMenuItemForm(forms.ModelForm):
         ).exists():
             self.add_error("sku", "This code is already assigned to a retail product group.")
         return values
+
+
+class ConsoleProductCustomFieldDefinitionForm(forms.ModelForm):
+    class Meta:
+        model = ProductCustomFieldDefinition
+        fields = ("name", "key", "field_type", "help_text", "sort_order", "is_active")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "staff-input"}),
+            "key": forms.TextInput(attrs={"class": "staff-input"}),
+            "field_type": forms.Select(attrs={"class": "staff-input"}),
+            "help_text": forms.TextInput(attrs={"class": "staff-input"}),
+            "sort_order": forms.NumberInput(attrs={"class": "staff-input", "min": "0"}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        qs = ProductCustomFieldDefinition.objects.filter(tenant=self.tenant, name__iexact=name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A product custom field with this name already exists.")
+        return name
+
+    def clean_key(self):
+        key = slugify((self.cleaned_data.get("key") or "").strip()).replace("-", "_")[:96]
+        if not key:
+            raise forms.ValidationError("Enter a key using letters or numbers.")
+        qs = ProductCustomFieldDefinition.objects.filter(tenant=self.tenant, key__iexact=key)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("This custom-field key is already in use.")
+        return key
+
+
+class ConsoleProductAlternateCodeForm(forms.ModelForm):
+    class Meta:
+        model = ProductAlternateCode
+        fields = ("code", "code_type", "label", "is_active")
+        widgets = {
+            "code": forms.TextInput(attrs={"class": "staff-input"}),
+            "code_type": forms.Select(attrs={"class": "staff-input"}),
+            "label": forms.TextInput(attrs={"class": "staff-input"}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant, menu_item, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        self.menu_item = menu_item
+
+    def clean_code(self):
+        code = (self.cleaned_data.get("code") or "").strip()
+        if not code:
+            raise forms.ValidationError("Enter an alternate lookup code.")
+        if MenuItem.objects.filter(tenant=self.tenant).filter(
+            Q(barcode__iexact=code) | Q(sku__iexact=code)
+        ).exists():
+            raise forms.ValidationError("This code already belongs to a product barcode or SKU.")
+        if ProductPackage.objects.filter(tenant=self.tenant).filter(
+            Q(barcode__iexact=code) | Q(sku_alias__iexact=code)
+        ).exists():
+            raise forms.ValidationError("This code already belongs to a product package.")
+        if RetailProductGroup.objects.filter(tenant=self.tenant, code__iexact=code).exists():
+            raise forms.ValidationError("This code already belongs to a retail product group.")
+        if SupermarketSkuProfile.objects.filter(
+            tenant=self.tenant, plu_code__iexact=code, is_active=True
+        ).exists():
+            raise forms.ValidationError("This code already belongs to an active PLU.")
+        from apps.inventory.models import InventorySerialUnit
+        if InventorySerialUnit.objects.filter(
+            tenant=self.tenant, serial_number__iexact=code
+        ).exists():
+            raise forms.ValidationError("This code already belongs to a serial / IMEI unit.")
+        qs = ProductAlternateCode.objects.filter(tenant=self.tenant, code__iexact=code)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("This alternate code is already in use.")
+        return code
+
+
+class ConsoleProductCustomValuesForm(forms.Form):
+    def __init__(self, *args, tenant, menu_item, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        self.menu_item = menu_item
+        self.definitions = list(
+            ProductCustomFieldDefinition.objects.filter(
+                tenant=tenant, is_active=True
+            ).order_by("sort_order", "name")
+        )
+        existing = {
+            row.definition_id: row.value_text
+            for row in ProductCustomFieldValue.objects.filter(
+                tenant=tenant, menu_item=menu_item
+            )
+        }
+        for definition in self.definitions:
+            key = f"custom_{definition.pk}"
+            common = {
+                "label": definition.name,
+                "required": False,
+                "help_text": definition.help_text,
+            }
+            initial = existing.get(definition.pk, "")
+            if definition.field_type == ProductCustomFieldDefinition.FieldType.NUMBER:
+                self.fields[key] = forms.DecimalField(
+                    **common,
+                    initial=initial or None,
+                    widget=forms.NumberInput(attrs={"class": "staff-input", "step": "any"}),
+                )
+            elif definition.field_type == ProductCustomFieldDefinition.FieldType.BOOLEAN:
+                self.fields[key] = forms.BooleanField(
+                    label=definition.name,
+                    required=False,
+                    help_text=definition.help_text,
+                    initial=str(initial).strip().lower() in {"1", "true", "yes", "on"},
+                    widget=forms.CheckboxInput(),
+                )
+            else:
+                self.fields[key] = forms.CharField(
+                    **common,
+                    initial=initial,
+                    max_length=1000,
+                    widget=forms.TextInput(attrs={"class": "staff-input"}),
+                )
+
+    def save(self):
+        definition_ids = {definition.pk for definition in self.definitions}
+        ProductCustomFieldValue.objects.filter(
+            tenant=self.tenant,
+            menu_item=self.menu_item,
+        ).exclude(definition_id__in=definition_ids).delete()
+        for definition in self.definitions:
+            key = f"custom_{definition.pk}"
+            value = self.cleaned_data.get(key)
+            if definition.field_type == ProductCustomFieldDefinition.FieldType.BOOLEAN:
+                text = "true" if bool(value) else "false"
+            elif value in (None, ""):
+                text = ""
+            else:
+                text = str(value)
+            if text == "":
+                ProductCustomFieldValue.objects.filter(
+                    tenant=self.tenant,
+                    menu_item=self.menu_item,
+                    definition=definition,
+                ).delete()
+                continue
+            ProductCustomFieldValue.objects.update_or_create(
+                tenant=self.tenant,
+                menu_item=self.menu_item,
+                definition=definition,
+                defaults={"value_text": text},
+            )
 
 
 class ConsoleProductFamilyForm(forms.ModelForm):
