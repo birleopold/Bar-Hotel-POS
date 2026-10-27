@@ -60,6 +60,9 @@ def queue_markdown_labels_for_promotion(*, promotion: Promotion, user=None) -> i
         or promotion.coupon_code
         or promotion.min_order_subtotal is not None
         or promotion.min_target_quantity is not None
+        or bool(promotion.schedule_weekdays)
+        or promotion.schedule_start_time is not None
+        or promotion.schedule_end_time is not None
     ):
         return 0
     if promotion.discount_percent is None and (
