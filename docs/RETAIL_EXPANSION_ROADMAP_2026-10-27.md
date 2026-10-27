@@ -363,7 +363,10 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Pending requests require a different authorized manager to approve or reject before supplier send; rejection requires a note and requester withdrawal is supported.
 - A dedicated Needs approval lane surfaces pending requests to managers; approval state is also exposed through the API and audited.
 - Optional requester context is now implemented on the existing draft-PO request: Needed by is stored separately from supplier expected delivery, Request reason is visible to approvers and captured in approval audit evidence, and the Needs approval lane prioritizes the earliest stated need date with undated requests last.
-- Remaining enhancement: consolidation of multiple approved requests when a business genuinely needs centralized procurement; do not add that complexity until there is a real multi-request buying workflow to justify it.
+- Approved-request consolidation is now implemented as an optional manager lane for centralized procurement. Two or more approved unsent drafts may be combined only when they share the same supplier and receiving section; duplicate SKU quantities are summed only when unit costs agree exactly.
+- The resulting PO is a new approved draft using base-stock quantities. Original requests are not deleted or rewritten: each source is linked through `consolidated_into`, retains requester/needed-by/reason/package/approval evidence and is closed from supplier-send flow. The consolidated PO links back to every source request.
+- Consolidation locks source PO and line rows transactionally, rejects mixed suppliers/sections, previously consolidated requests, financial/receiving evidence and conflicting SKU costs, and caps one action at 50 source requests.
+- Benchmark check (Lightspeed Retail master orders and purchase orders, 2026-10-27): centralized purchasing may assign multiple stock needs into vendor/location purchase orders, while the purchasing document remains the commercial order and source requirements remain traceable. Our implementation follows that pattern without introducing a separate requisition ledger.
 
 ### R4.2 RFQ and quotation comparison
 - Implemented as a manager-only, tenant/outlet-scoped sourcing workflow under Purchasing → Supplier quotes.
