@@ -1290,6 +1290,25 @@ class Promotion(TimeStampedModel):
             })
 
     @property
+    def schedule_label(self):
+        weekday_names = {
+            1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu",
+            5: "Fri", 6: "Sat", 7: "Sun",
+        }
+        weekdays = self.schedule_weekdays or []
+        day_label = (
+            ", ".join(weekday_names.get(int(day), str(day)) for day in weekdays)
+            if weekdays else "Every day"
+        )
+        if self.schedule_start_time is not None and self.schedule_end_time is not None:
+            return (
+                f"{day_label} · "
+                f"{self.schedule_start_time.strftime('%H:%M')}–"
+                f"{self.schedule_end_time.strftime('%H:%M')}"
+            )
+        return f"{day_label} · all day"
+
+    @property
     def target_label(self):
         if self.menu_item_id:
             return self.menu_item.name
