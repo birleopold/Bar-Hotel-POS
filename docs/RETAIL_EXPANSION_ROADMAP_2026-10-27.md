@@ -141,6 +141,27 @@ Exact-head software evidence:
 - `cb4cff105e9c7774f9605f828a0f91e0b540e7fb` — 1,262 tests passed, 7 skipped, 1,317 subtests; Django checks, migration drift and PostgreSQL integration green with package CSV import/export and package identity guards.
 - These are software checkpoints only; they do not claim deployed browser/device/printer certification.
 
+## R2 implementation checkpoint — 27 October 2026
+
+Implemented in source, pending exact-head software/browser certification:
+- Fixed-amount and percentage offers continue to use the existing order promotion engine; no second checkout discount path was introduced.
+- Offers can target one concrete product, product family, category, case-insensitive brand, or the whole basket.
+- Targeted offers calculate their discount basis only from matching basket lines and remain removable before payment starts.
+- Apply/remove promotion actions are asynchronous at checkout and are frozen once tendering begins.
+- Unsupported stacking is blocked against wholesale pricing, customer price-book rules and manual line discounts.
+- Minimum order subtotal and minimum qualifying target quantity are supported.
+- Optional coupon codes are tenant-unique and hidden from the normal offer dropdown; cashiers must enter the code explicitly.
+- Optional global and per-identified-customer redemption limits count fully paid orders, so apply/remove/reapply clicks do not consume redemptions.
+- Staff management and API serializers expose the same target, coupon, quantity and redemption controls.
+
+Still R2 work:
+- buy-X-get-Y, X-for-fixed-amount and mix-and-match mechanics;
+- group/bundle promotional pricing;
+- richer markdown scheduling and price/promotion performance reporting;
+- an explicit multi-offer stacking/precedence contract if simultaneous offers are later allowed;
+- margin-floor controls once verified cost is authoritative for the affected merchandise;
+- exact-head CI and deployed browser/till acceptance for this promotion checkpoint.
+
 ## Workstream R2 — Pricing, promotions and merchandising
 
 **Goal:** centralize all non-base-price behavior in one pricing engine instead of scattered checkout conditions.
