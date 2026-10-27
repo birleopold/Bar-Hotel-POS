@@ -133,8 +133,14 @@ def _parse_supplier_price_import(*, tenant, supplier, upload):
             unit_cost = Decimal(values.get("unit_cost", ""))
         except InvalidOperation:
             unit_cost = Decimal("-1")
-        if not unit_cost.is_finite() or unit_cost < 0:
-            errors.append(f"Row {row_number}: unit_cost must be a non-negative number.")
+        if (
+            not unit_cost.is_finite()
+            or unit_cost < 0
+            or unit_cost > Decimal("9999999999.99")
+        ):
+            errors.append(
+                f"Row {row_number}: unit_cost must be between 0 and 9999999999.99."
+            )
             continue
         min_raw = values.get("minimum_quantity", "") or "0.001"
         try:
@@ -144,9 +150,10 @@ def _parse_supplier_price_import(*, tenant, supplier, upload):
         if (
             not minimum_quantity.is_finite()
             or minimum_quantity < Decimal("0.001")
+            or minimum_quantity > Decimal("99999999999.999")
         ):
             errors.append(
-                f"Row {row_number}: minimum_quantity must be at least 0.001."
+                f"Row {row_number}: minimum_quantity must be between 0.001 and 99999999999.999."
             )
             continue
         valid_from = parse_date(values.get("valid_from", "")) if values.get("valid_from") else None
@@ -160,8 +167,14 @@ def _parse_supplier_price_import(*, tenant, supplier, upload):
         if valid_from and valid_until and valid_until < valid_from:
             errors.append(f"Row {row_number}: valid_until cannot be before valid_from.")
             continue
-        source_reference = values.get("source_reference", "")[:128]
-        note = values.get("note", "")[:255]
+        source_reference = values.get("source_reference", "")
+        note = values.get("note", "")
+        if len(source_reference) > 128:
+            errors.append(f"Row {row_number}: source_reference exceeds 128 characters.")
+            continue
+        if len(note) > 255:
+            errors.append(f"Row {row_number}: note exceeds 255 characters.")
+            continue
         target_key = (
             str(item.pk),
             str(package.pk) if package else "",
