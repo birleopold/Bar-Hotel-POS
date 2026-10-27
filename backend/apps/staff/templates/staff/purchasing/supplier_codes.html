@@ -1,0 +1,73 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Supplier product codes{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261022.1">{% endblock %}
+{% block content %}
+<div class="fizo-purchasing fizo-purchasing--supplier-codes">
+  <header class="fizo-purchasing__header">
+    <div>
+      <p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p>
+      <h1>{{ supplier.name }} · product codes</h1>
+      <p>Map this supplier's own product or package references to existing stock items. These codes are for purchasing only and do not become cashier barcodes.</p>
+    </div>
+    <div class="fizo-purchasing__head-actions">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-supplier-edit' supplier.id %}">Supplier details</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-suppliers' %}">All suppliers</a>
+    </div>
+  </header>
+  {% include "staff/purchasing/includes/subnav.html" %}
+
+  <section class="staff-card mb-3">
+    <h2 class="staff-card__title">{% if editing_code %}Edit supplier code{% else %}Add supplier code{% endif %}</h2>
+    <form method="post" class="grocery-admin-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      {% if editing_code %}<input type="hidden" name="code_id" value="{{ editing_code.id }}">{% endif %}
+      <div class="grocery-admin-fields">
+        {% for field in code_form %}
+        <div class="mb-3">
+          {{ field.label_tag }}{{ field }}
+          {% if field.help_text %}<p class="staff-muted small">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<div class="grocery-form-errors">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <button class="staff-btn staff-btn--primary" type="submit">Save supplier code</button>
+      {% if editing_code %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-supplier-codes' supplier.id %}">Cancel edit</a>{% endif %}
+    </form>
+  </section>
+
+  <section class="staff-card">
+    <h2 class="staff-card__title">Mapped supplier codes</h2>
+    {% if supplier_codes %}
+    <div class="staff-table-wrap">
+      <table class="fizo-purchasing__table">
+        <thead><tr><th>Supplier code</th><th>Product</th><th>Package</th><th>Description</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for row in supplier_codes %}
+          <tr>
+            <td><strong>{{ row.code }}</strong></td>
+            <td>{{ row.menu_item.name }}</td>
+            <td>{% if row.product_package %}{{ row.product_package.name }} · {{ row.product_package.units_per_package }} base units{% else %}Base product{% endif %}</td>
+            <td>{{ row.description|default:"—" }}</td>
+            <td>{% if row.is_active %}Active{% else %}Inactive{% endif %}</td>
+            <td>
+              <a href="?edit={{ row.id }}">Edit</a>
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="code_id" value="{{ row.id }}">
+                <button class="staff-link-button" type="submit">Remove</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="staff-muted mb-0">No supplier-specific product or package codes yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
