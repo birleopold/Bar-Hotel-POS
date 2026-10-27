@@ -267,6 +267,44 @@ class OrderLine(TimeStampedModel):
         blank=True,
         help_text="Whether this merchandise line was inventory tracked at sale time; null means legacy/unknown.",
     )
+    sales_attributed_membership = models.ForeignKey(
+        "accounts.Membership",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attributed_order_lines",
+        help_text="Worker credited with this line when the sale was fully settled.",
+    )
+    commission_rule_name_snapshot = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Commission rule name captured at final settlement.",
+    )
+    commission_base_snapshot = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Net line revenue used to calculate commission at final settlement.",
+    )
+    commission_rate_percent_snapshot = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Commission percentage captured at final settlement.",
+    )
+    commission_amount_snapshot = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Commission earned on this line before later return/refund reversals.",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     seat_number = models.PositiveSmallIntegerField(
         null=True,
