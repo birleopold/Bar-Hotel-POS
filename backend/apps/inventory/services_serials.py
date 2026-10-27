@@ -185,8 +185,11 @@ def assign_serial_to_order_line(*, order_line, serial_number: str, user) -> Inve
     # links. Clear the current sold pointer only when it is reserved for resale.
     unit.sold_order_line = None
     unit.sold_at = None
+    unit.warranty_started_at = None
+    unit.warranty_expires_at = None
     unit.save(update_fields=[
-        "status", "reserved_order_line", "sold_order_line", "sold_at", "updated_at"
+        "status", "reserved_order_line", "sold_order_line", "sold_at",
+        "warranty_started_at", "warranty_expires_at", "updated_at"
     ])
     InventorySerialEvent.objects.create(
         tenant_id=line.order.tenant_id,
