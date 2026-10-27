@@ -338,7 +338,7 @@ def management_loss_patterns(request, *, policy, limit=10):
                 pk__in=[event.entity_id for event in discount_events],
                 order__tenant=request.tenant,
                 order__outlet_id__in=outlet_ids,
-            ).select_related("order", "menu_item")
+            ).select_related("order", "order__created_by", "menu_item")
         }
         for event in discount_events:
             line = line_map.get(str(event.entity_id))
