@@ -581,3 +581,20 @@ class PackageAwarePurchasingTests(TestCase):
         })
         self.assertFalse(invalid_method.is_valid())
         self.assertIn("landed_cost_allocation", invalid_method.errors)
+
+    def test_receiving_api_serializer_preserves_packages_and_serial_identifiers(self):
+        serializer = ReceivePurchaseOrderSerializer(data={
+            "lines": [{
+                "line_id": str(self.item.pk),
+                "quantity": "0",
+                "packages": 2,
+                "serial_numbers": ["IMEI-EXAMPLE-1", "IMEI-EXAMPLE-2"],
+            }],
+            "delivery_reference": "DN-API-PKG",
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        row = serializer.validated_data["lines"][0]
+        self.assertEqual(row["packages"], 2)
+        self.assertEqual(
+            row["serial_numbers"], ["IMEI-EXAMPLE-1", "IMEI-EXAMPLE-2"],
+        )
