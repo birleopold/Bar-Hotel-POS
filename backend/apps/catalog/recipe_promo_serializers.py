@@ -92,6 +92,8 @@ class PromotionSerializer(serializers.ModelSerializer):
             "max_redemptions_per_customer",
             "buy_quantity",
             "get_quantity",
+            "fixed_quantity",
+            "fixed_bundle_amount",
             "max_uses_per_order",
             "starts_at",
             "ends_at",
@@ -117,6 +119,14 @@ class PromotionSerializer(serializers.ModelSerializer):
         )
         buy_quantity = attrs.get("buy_quantity", inst.buy_quantity if inst else None)
         get_quantity = attrs.get("get_quantity", inst.get_quantity if inst else None)
+        fixed_quantity = attrs.get(
+            "fixed_quantity",
+            inst.fixed_quantity if inst else None,
+        )
+        fixed_bundle_amount = attrs.get(
+            "fixed_bundle_amount",
+            inst.fixed_bundle_amount if inst else None,
+        )
         max_uses_per_order = attrs.get(
             "max_uses_per_order",
             inst.max_uses_per_order if inst else None,
@@ -132,14 +142,31 @@ class PromotionSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "Buy X Get Y requires both buy quantity and get quantity."
                 )
+            if fixed_quantity or fixed_bundle_amount:
+                raise serializers.ValidationError(
+                    "Fixed-set fields are only valid for X for fixed amount offers."
+                )
+        elif offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT:
+            if has_pct or has_amt:
+                raise serializers.ValidationError(
+                    "X for fixed amount uses set quantity and set price; leave amount and percent blank."
+                )
+            if not fixed_quantity or fixed_bundle_amount is None:
+                raise serializers.ValidationError(
+                    "X for fixed amount requires both set quantity and set price."
+                )
+            if buy_quantity or get_quantity:
+                raise serializers.ValidationError(
+                    "Buy/get quantities are only valid for Buy X Get Y offers."
+                )
         else:
             if has_pct == has_amt:
                 raise serializers.ValidationError(
                     "Set exactly one of discount_percent or discount_amount."
                 )
-            if buy_quantity or get_quantity or max_uses_per_order:
+            if buy_quantity or get_quantity or fixed_quantity or fixed_bundle_amount or max_uses_per_order:
                 raise serializers.ValidationError(
-                    "Buy/get quantities are only valid for Buy X Get Y offers."
+                    "Quantity-deal fields are only valid for Buy X Get Y or X for fixed amount offers."
                 )
 
         tenant = self.context["request"].tenant
@@ -152,11 +179,14 @@ class PromotionSerializer(serializers.ModelSerializer):
                 "Choose only one promotion target: product, product family, category, or brand."
             )
         if (
-            offer_type == Promotion.OfferType.BUY_X_GET_Y
+            offer_type in {
+                Promotion.OfferType.BUY_X_GET_Y,
+                Promotion.OfferType.X_FOR_FIXED_AMOUNT,
+            }
             and sum(bool(value) for value in (menu_item, product_family, category, brand)) != 1
         ):
             raise serializers.ValidationError(
-                "Buy X Get Y requires exactly one product, product family, category, or brand target."
+                "Quantity deals require exactly one product, product family, category, or brand target."
             )
         if menu_item is not None and menu_item.tenant_id != tenant.pk:
             raise serializers.ValidationError({"menu_item": "Choose a product from this business."})
