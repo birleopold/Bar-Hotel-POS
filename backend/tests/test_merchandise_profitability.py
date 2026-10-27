@@ -45,6 +45,8 @@ def _sale(env, *, cost="60.00", cost_complete=True, reference="PROFIT-1"):
         cost_unit_snapshot=Decimal(cost) if cost is not None else None,
         cost_basis_complete_snapshot=cost_complete,
         merchandise_category_snapshot=env["item"].category.name,
+        merchandise_sku_snapshot=env["item"].sku or "",
+        inventory_tracked_snapshot=bool(env["item"].track_inventory),
     )
     payment = Payment.objects.create(
         tenant=env["tenant"],
@@ -299,4 +301,39 @@ def test_category_profitability_uses_sale_time_category_snapshot_after_product_m
     assert row["net_revenue"] == Decimal("90.00")
     assert row["known_net_cogs"] == Decimal("60.00")
     assert row["known_gross_profit"] == Decimal("30.00")
+
+@pytest.mark.django_db
+def test_profitability_survives_product_tracking_change_and_deleted_relation():
+    env = _seed_tenant_bundle(
+        name="Profit Deleted Product",
+        slug="profit-deleted-product",
+        user_email="profit-deleted-product@test.local",
+    )
+    original_name = env["item"].name
+    original_sku = env["item"].sku
+    original_category = env["item"].category.name
+    _order, line, _payment = _sale(
+        env,
+        reference="PROFIT-DELETED-PRODUCT",
+    )
+
+    env["item"].track_inventory = False
+    env["item"].name = "Renamed after sale"
+    env["item"].sku = "NEW-SKU-AFTER-SALE"
+    env["item"].save(update_fields=[
+        "track_inventory", "name", "sku", "updated_at",
+    ])
+    line.menu_item = None
+    line.save(update_fields=["menu_item", "updated_at"])
+
+    result = _report(env)
+    assert result["sale_revenue"] == Decimal("90.00")
+    assert result["known_net_cogs"] == Decimal("60.00")
+    assert result["known_gross_profit"] == Decimal("30.00")
+    assert result["profitability_complete"] is True
+    assert len(result["products"]) == 1
+    product = result["products"][0]
+    assert product["item_name"] == original_name
+    assert product["sku"] == original_sku
+    assert result["categories"][0]["category_name"] == original_category
 
