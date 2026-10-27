@@ -410,3 +410,51 @@ class ProductLabelQueueTests(TestCase):
         self.assertFalse(
             ProductLabelQueueEntry.objects.filter(outlet=hotel_outlet, menu_item=item).exists()
         )
+
+    def test_markdown_print_completes_only_markdown_queue_work(self):
+        item = self._item(name="Markdown label item", price="3000")
+        queue_product_label(
+            tenant_id=self.tenant.pk,
+            outlet=self.outlet,
+            menu_item=item,
+            reason=ProductLabelQueueEntry.Reason.PRICE_CHANGE,
+            user=self.user,
+            note="Regular price changed",
+        )
+        queue_product_label(
+            tenant_id=self.tenant.pk,
+            outlet=self.outlet,
+            menu_item=item,
+            reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+            user=self.user,
+            note="[promotion:test] Scheduled markdown",
+            price_snapshot=Decimal("2500"),
+        )
+
+        response = self.client.post(
+            reverse("staff-inventory-shelf-labels"),
+            {
+                "action": "print",
+                "outlet": str(self.outlet.pk),
+                "template": "markdown",
+                "item_ids": [str(item.pk)],
+                f"copies_{item.pk}": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+
+        markdown = ProductLabelQueueEntry.objects.get(
+            menu_item=item,
+            outlet=self.outlet,
+            reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+        )
+        price_change = ProductLabelQueueEntry.objects.get(
+            menu_item=item,
+            outlet=self.outlet,
+            reason=ProductLabelQueueEntry.Reason.PRICE_CHANGE,
+        )
+        self.assertEqual(markdown.status, ProductLabelQueueEntry.Status.PRINTED)
+        self.assertEqual(markdown.price_snapshot, Decimal("2500.00"))
+        self.assertEqual(price_change.status, ProductLabelQueueEntry.Status.PENDING)
+
