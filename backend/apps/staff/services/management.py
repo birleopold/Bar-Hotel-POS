@@ -668,10 +668,8 @@ def management_loss_pattern_detail(
                 movement.created_at,
                 f"Stock removal · {movement.menu_item.name}",
                 detail,
-                reverse(
-                    "staff-management-source",
-                    kwargs={"kind": "stock_adjustment", "entity_id": movement.pk},
-                ),
+                reverse("staff-inventory-movements")
+                + f"?movement={movement.pk}",
                 movement.outlet.name,
             )
 
