@@ -123,7 +123,10 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         ser.is_valid(raise_exception=True)
         lines_payload = [
             {key: value for key, value in x.items()
-             if key in ("line_id", "quantity", "batch_code", "expiry_date", "received_at")}
+             if key in (
+                 "line_id", "quantity", "cartons", "packages", "serial_numbers",
+                 "batch_code", "expiry_date", "received_at",
+             )}
             for x in ser.validated_data["lines"]
         ]
         receive_purchase_order_goods(
