@@ -10,6 +10,8 @@ from apps.pos.models import (
     WorkstationDeviceCommand,
     WorkstationDeviceHealth,
     WorkstationDeviceType,
+    WorkstationHardwareCheck,
+    Order,
 )
 from apps.pos.services.device_adapters import (
     device_status_summary,
@@ -333,3 +335,77 @@ def test_equipment_diagnostics_can_queue_safe_commands_but_not_open_drawer():
         command_type="tare_scale",
         payload__diagnostic=True,
     ).exists()
+
+
+@pytest.mark.django_db
+def test_scanner_burst_diagnostic_records_metrics_without_barcode_or_basket_side_effects():
+    a = _seed_tenant_bundle(
+        name="Scanner Diagnostics",
+        slug="scanner-diagnostics",
+        user_email="scanner-diagnostics@test.local",
+    )
+    station = Workstation.objects.create(
+        tenant=a["tenant"],
+        outlet=a["outlet"],
+        name="Rapid Scan Till",
+        code="rapid-scan-till",
+    )
+    client = Client()
+    _login(client, a)
+    before_orders = Order.objects.filter(tenant=a["tenant"]).count()
+    before_commands = WorkstationDeviceCommand.objects.filter(
+        tenant=a["tenant"],
+        workstation=station,
+    ).count()
+
+    response = client.post(
+        reverse("staff-workstation-test", kwargs={"workstation_id": station.pk}),
+        {
+            "action": "record_scanner_diagnostic",
+            "character_count": "13",
+            "duration_ms": "84",
+            "average_gap_ms": "6",
+            "max_gap_ms": "11",
+            "enter_terminated": "1",
+            "barcode_value": "SHOULD-NOT-BE-STORED",
+        },
+    )
+    assert response.status_code == 302
+    check = WorkstationHardwareCheck.objects.get(
+        tenant=a["tenant"],
+        workstation=station,
+        test_type="barcode_scanner",
+    )
+    assert check.result == "pass"
+    assert check.evidence == {
+        "character_count": 13,
+        "duration_ms": 84,
+        "average_gap_ms": 6,
+        "max_gap_ms": 11,
+        "enter_terminated": True,
+    }
+    assert "SHOULD-NOT-BE-STORED" not in check.note
+    assert "SHOULD-NOT-BE-STORED" not in str(check.evidence)
+    assert Order.objects.filter(tenant=a["tenant"]).count() == before_orders
+    assert WorkstationDeviceCommand.objects.filter(
+        tenant=a["tenant"],
+        workstation=station,
+    ).count() == before_commands
+
+    invalid = client.post(
+        reverse("staff-workstation-test", kwargs={"workstation_id": station.pk}),
+        {
+            "action": "record_scanner_diagnostic",
+            "character_count": "500",
+            "duration_ms": "-1",
+            "average_gap_ms": "0",
+            "max_gap_ms": "0",
+            "enter_terminated": "1",
+        },
+    )
+    assert invalid.status_code == 400
+    assert WorkstationHardwareCheck.objects.filter(
+        tenant=a["tenant"],
+        workstation=station,
+        test_type="barcode_scanner",
+    ).count() == 1
