@@ -314,11 +314,18 @@ class PackageAwarePurchasingTests(TestCase):
             quantity=Decimal("2"),
             user=self.user,
         )
+        self.assertEqual(line.merchandise_category_snapshot, "Drinks")
+        self.category.name = "Beverages at payment"
+        self.category.save(update_fields=["name", "updated_at"])
         validate_and_consume_stock_for_paid_order(order, self.user)
         line.refresh_from_db()
         balance = StockBalance.objects.get(outlet=self.outlet, menu_item=self.item)
         self.assertEqual(line.cost_unit_snapshot, Decimal("750.0000"))
         self.assertTrue(line.cost_basis_complete_snapshot)
+        self.assertEqual(
+            line.merchandise_category_snapshot,
+            "Beverages at payment",
+        )
         self.assertEqual(balance.quantity, Decimal("8"))
         self.assertEqual(balance.average_unit_cost, Decimal("750.0000"))
         self.assertTrue(balance.cost_basis_complete)
