@@ -157,6 +157,12 @@ class StaffPromotionForm(forms.ModelForm):
             "%Y-%m-%d %H:%M",
         ]
         if tenant is not None:
+            if not self.instance.pk:
+                # Promotion.clean() validates every selected target against the
+                # owning tenant during ModelForm._post_clean. Attach tenant
+                # context before is_valid() so create and update enforce the
+                # same tenant-bound invariants.
+                self.instance.tenant = tenant
             self.fields["outlets"].queryset = Outlet.objects.filter(
                 site__tenant=tenant,
                 is_active=True,
