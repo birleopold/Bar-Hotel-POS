@@ -36,6 +36,8 @@ def _make_training_bundle():
     tenant = bundle["tenant"]
     tenant.is_training = True
     tenant.save(update_fields=["is_training", "updated_at"])
+    bundle["outlet"].outlet_type = "supermarket"
+    bundle["outlet"].save(update_fields=["outlet_type", "updated_at"])
     settings_obj = tenant.settings
     settings_obj.business_lines = ["supermarket"]
     settings_obj.default_currency = "UGX"
@@ -215,7 +217,7 @@ def test_training_workspace_page_banner_seed_and_password_reset():
     client = Client()
     assert client.login(
         username=bundle["user"].email,
-        password="Password9!",
+        password="TestPass9!",
     )
     session = client.session
     session["staff_tenant_id"] = str(bundle["tenant"].pk)
@@ -253,7 +255,7 @@ def test_training_workspace_page_banner_seed_and_password_reset():
         {
             "action": "reset",
             "confirmation": "RESET TRAINING",
-            "password": "Password9!",
+            "password": "TestPass9!",
         },
         follow=True,
     )
@@ -271,7 +273,7 @@ def test_live_workspace_cannot_open_training_controller():
     client = Client()
     assert client.login(
         username=bundle["user"].email,
-        password="Password9!",
+        password="TestPass9!",
     )
     session = client.session
     session["staff_tenant_id"] = str(bundle["tenant"].pk)
