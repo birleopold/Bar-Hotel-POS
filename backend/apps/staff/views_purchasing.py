@@ -473,6 +473,9 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
+        ctx["can_approve_purchasing"] = membership_has_purchasing_capability(
+            self.request.tenant_membership, "approve"
+        )
         return ctx
 
     def post(self, request, *args, **kwargs):
