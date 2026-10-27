@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models.functions import Lower
 
 from apps.common.models import TimeStampedModel
 
@@ -144,6 +145,11 @@ class InventorySerialUnit(TimeStampedModel):
             models.UniqueConstraint(
                 fields=["tenant", "serial_number"],
                 name="uniq_tenant_serial_number",
+            ),
+            models.UniqueConstraint(
+                Lower("serial_number"),
+                "tenant",
+                name="uniq_tenant_serial_number_ci",
             ),
         ]
         indexes = [
