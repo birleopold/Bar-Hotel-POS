@@ -18,6 +18,7 @@ from apps.purchasing.models import PurchaseApprovalStatus, PurchaseOrder, Purcha
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
 from apps.purchasing.supplier_catalog import supplier_cost_histories
+from apps.purchasing.supplier_performance import supplier_performance_rows
 from apps.purchasing.approvals import (
     review_purchase_order_request,
     withdraw_purchase_order_request,
@@ -107,6 +108,17 @@ class StaffSupplierListView(StaffTenantRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["can_modify_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "manage")
         ctx["supplier_search_q"] = self.request.GET.get("q", "").strip()[:80]
+        days = 90 if self.request.GET.get("days") == "90" else 365
+        suppliers = list(ctx["suppliers"])
+        performance = supplier_performance_rows(
+            tenant=self.request.tenant,
+            suppliers=suppliers,
+            days=days,
+        )
+        for supplier in suppliers:
+            supplier.performance = performance.get(supplier.pk, {})
+        ctx["suppliers"] = suppliers
+        ctx["supplier_performance_days"] = days
         return ctx
 
 
