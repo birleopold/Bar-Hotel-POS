@@ -12,6 +12,7 @@ from apps.catalog.packaging import to_stock_units
 from apps.finance.models import FinancePostingLink, FinancePostingSource
 from apps.finance.services import post_supplier_payment_expense
 from apps.inventory.models import StockMovement, StockReason
+from apps.inventory.costing import apply_receipt_cost_basis
 from apps.inventory.services import apply_manual_stock_change
 from apps.inventory.services_batches import receive_tracked_batch
 from apps.inventory.services_serials import create_received_serial_units, validate_serial_receipt
@@ -190,6 +191,13 @@ def receive_purchase_order_goods(
                 purchase_order=po_locked,
                 allow_serialized=line.menu_item.serial_tracking,
             )
+        cost_balance = apply_receipt_cost_basis(
+            tenant_id=po_locked.tenant_id,
+            outlet=po_locked.outlet,
+            menu_item=line.menu_item,
+            quantity_received=qty,
+            unit_cost=line.unit_cost,
+        )
         line.quantity_received += qty
         line.save(update_fields=["quantity_received", "updated_at"])
         receipt_line = PurchaseReceiptLine.objects.create(
@@ -198,6 +206,7 @@ def receive_purchase_order_goods(
             quantity_received=qty,
             cartons_received=row["cartons"],
             packages_received=row["packages"],
+            unit_cost_snapshot=line.unit_cost,
             inventory_batch=batch,
         )
         queue_product_label(
@@ -236,7 +245,11 @@ def receive_purchase_order_goods(
                 {"purchase_order_line_id": str(line.purchase_order_line_id),
                  "quantity_received": format(line.quantity_received.normalize(), "f"),
                  "cartons_received": line.cartons_received,
-                 "packages_received": line.packages_received}
+                 "packages_received": line.packages_received,
+                 "unit_cost_snapshot": (
+                     str(line.unit_cost_snapshot)
+                     if line.unit_cost_snapshot is not None else None
+                 )}
                 for line in receipt.lines.all()
             ],
         },
