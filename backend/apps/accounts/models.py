@@ -164,6 +164,96 @@ class RoleTemplate(TimeStampedModel):
         return f"{self.name} ({self.get_base_role_display()})"
 
 
+class AttendanceShiftStatus(models.TextChoices):
+    OPEN = "open", "Clocked in"
+    PENDING = "pending", "Pending review"
+    APPROVED = "approved", "Approved"
+
+
+class AttendanceShift(TimeStampedModel):
+    """Employee work-time record; deliberately separate from POS cash shifts."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="attendance_shifts",
+    )
+    membership = models.ForeignKey(
+        Membership,
+        on_delete=models.PROTECT,
+        related_name="attendance_shifts",
+    )
+    site = models.ForeignKey(
+        "tenants.Site",
+        on_delete=models.PROTECT,
+        related_name="attendance_shifts",
+    )
+    outlet = models.ForeignKey(
+        "tenants.Outlet",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="attendance_shifts",
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=AttendanceShiftStatus.choices,
+        default=AttendanceShiftStatus.OPEN,
+    )
+    clock_in_at = models.DateTimeField()
+    clock_out_at = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=255, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance_shifts_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-clock_in_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["membership"],
+                condition=models.Q(status=AttendanceShiftStatus.OPEN),
+                name="uniq_open_attendance_shift_per_membership",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.membership.user.email} {self.clock_in_at:%Y-%m-%d %H:%M}"
+
+
+class AttendanceBreak(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    shift = models.ForeignKey(
+        AttendanceShift,
+        on_delete=models.CASCADE,
+        related_name="breaks",
+    )
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField(null=True, blank=True)
+    is_paid = models.BooleanField(default=False)
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["started_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["shift"],
+                condition=models.Q(ended_at__isnull=True),
+                name="uniq_open_attendance_break_per_shift",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Break {self.shift_id} {self.started_at:%Y-%m-%d %H:%M}"
+
+
 class UserInvite(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
