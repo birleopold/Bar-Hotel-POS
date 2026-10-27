@@ -33,6 +33,7 @@ urlpatterns = [
     path("notifications/status/", views_notifications.StaffNotificationsStatusView.as_view(), name="staff-notifications-status"),
     path("search/", views_search.StaffGlobalSearchView.as_view(), name="staff-search"),
     path("inventory/intelligence/", views_inventory.StaffStockIntelligenceView.as_view(), name="staff-inventory-intelligence"),
+    path("inventory/assemblies/", views_inventory.StaffRetailAssemblyView.as_view(), name="staff-inventory-assemblies"),
     path("inventory/shelves/", views_shelves.StaffShelfLocationView.as_view(), name="staff-inventory-shelves"),
     path("inventory/scale-labels/", views_scale_labels.StaffScaleLabelView.as_view(), name="staff-inventory-scale-labels"),
     path("inventory/shelf-labels/", views_labels.StaffShelfLabelView.as_view(), name="staff-inventory-shelf-labels"),
