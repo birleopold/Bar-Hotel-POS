@@ -171,13 +171,35 @@ class StaffOrderAddServiceForm(forms.Form):
 class StaffOrderApplyPromotionForm(forms.Form):
     promotion = forms.ModelChoiceField(
         queryset=Promotion.objects.none(),
+        required=False,
         empty_label="Select promotion",
         widget=forms.Select(attrs={"class": "staff-input"}),
+    )
+    coupon_code = forms.CharField(
+        required=False,
+        max_length=64,
+        widget=forms.TextInput(
+            attrs={
+                "class": "staff-input",
+                "maxlength": 64,
+                "placeholder": "Or enter coupon code",
+                "autocomplete": "off",
+            }
+        ),
     )
 
     def __init__(self, *args, eligible_queryset, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["promotion"].queryset = eligible_queryset
+
+    def clean(self):
+        data = super().clean()
+        promotion = data.get("promotion")
+        coupon = (data.get("coupon_code") or "").strip()
+        data["coupon_code"] = coupon
+        if bool(promotion) == bool(coupon):
+            raise forms.ValidationError("Choose one visible offer or enter one coupon code.")
+        return data
 
 
 class StaffOrderPaymentForm(forms.Form):
