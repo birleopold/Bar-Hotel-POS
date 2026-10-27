@@ -17,6 +17,7 @@ from apps.pos.models import KdsLineStatus, Order, OrderStatus, Payment, Refund, 
 from apps.tenants.models import OutletType
 
 
+from .hardware_bridge import queue_cash_drawer_for_payment_best_effort
 from .registers import resolve_settlement_shift, check_replay_register
 from .orders import require_active_retail_basket
 
@@ -122,6 +123,12 @@ def record_order_payment(
         shift=shift,
     )
     post_pos_payment_income(payment=payment, order=locked, user=user)
+    if payment.method == "cash" and payment.shift_id:
+        transaction.on_commit(
+            lambda payment_id=payment.pk: queue_cash_drawer_for_payment_best_effort(
+                payment_id=payment_id
+            )
+        )
     new_paid = (paid_so_far + amount).quantize(Decimal("0.01"))
     if new_paid >= locked.total:
         # Guard close-out until kitchen/food lines have been prepared.
