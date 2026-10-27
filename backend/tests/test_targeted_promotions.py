@@ -242,6 +242,72 @@ class TargetedPromotionTests(TestCase):
         with self.assertRaises(ValidationError):
             apply_promotion_to_order(order=order, promotion=promo, user=self.user)
 
+    def test_applied_targeted_percent_recalculates_when_matching_quantity_changes(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="Live target", menu_item=self.oil)
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("1000.00"))
+
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        order.refresh_from_db()
+        line.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal("2"))
+        self.assertEqual(order.subtotal, Decimal("20000.00"))
+        self.assertEqual(order.discount_amount, Decimal("2000.00"))
+        self.assertEqual(order.total, Decimal("18000.00"))
+
+    def test_applied_targeted_offer_drops_to_zero_when_target_is_voided(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="Target removed", menu_item=self.oil)
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        from apps.pos.services.orders import void_open_order_line
+        void_open_order_line(
+            order=order,
+            line=line,
+            reason="Customer changed mind",
+            user=self.user,
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.discount_amount, Decimal("0.00"))
+        self.assertEqual(order.total, Decimal("0.00"))
+        self.assertEqual(order.applied_promotion, promo)
+
+    def test_manual_discount_cannot_be_added_after_promotion(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="Promo first")
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        with self.assertRaises(ValidationError):
+            apply_supermarket_line_discount(
+                order=order,
+                line=line,
+                user=self.user,
+                discount_percent=Decimal("5"),
+            )
+
     def test_offer_can_be_removed_and_reapplied_before_payment(self):
         order = self._order()
         add_line_to_open_order(
