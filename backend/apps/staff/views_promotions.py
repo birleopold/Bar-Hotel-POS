@@ -7,6 +7,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from apps.audit.services import log_audit
 from apps.catalog.models import Promotion
+from apps.pos.models import Order
 
 from .forms import StaffPromotionForm
 from .mixins import StaffTenantRequiredMixin
@@ -57,6 +58,15 @@ class StaffPromotionDetailView(StaffTenantRequiredMixin, DetailView):
         ctx["can_manage_promotions"] = membership_can_manage_workspace_settings(
             self.request.tenant_membership
         )
+        paid_redemptions = Order.objects.filter(
+            tenant=self.request.tenant,
+            applied_promotion=self.object,
+            is_paid=True,
+        )
+        ctx["paid_redemption_count"] = paid_redemptions.count()
+        ctx["identified_customer_redemption_count"] = paid_redemptions.exclude(
+            customer_id__isnull=True
+        ).count()
         return ctx
 
 
