@@ -14,6 +14,9 @@
     <a href="{% url 'console-org-menu-items' %}"{% if u == 'console-org-menu-items' or u == 'console-org-menu-item-create' or u == 'console-org-menu-item-edit' or u == 'console-org-catalog-import' %} aria-current="page"{% endif %}><i class="bi bi-box-seam" aria-hidden="true"></i>{% if grocery_console_shell %}Products{% else %}Menu items{% endif %}</a>
     <a href="{% url 'console-org-menu-categories' %}"{% if u == 'console-org-menu-categories' or u == 'console-org-menu-category-create' or u == 'console-org-menu-category-edit' %} aria-current="page"{% endif %}><i class="bi bi-tags" aria-hidden="true"></i>Categories</a>
     {% endif %}
+    {% if console_has_retail %}
+    <a href="{% url 'console-org-price-books' %}"{% if u == 'console-org-price-books' or u == 'console-org-price-book-create' or u == 'console-org-price-book-detail' or u == 'console-org-price-book-edit' or u == 'console-org-price-book-rule-create' or u == 'console-org-price-book-rule-edit' or u == 'console-org-price-book-rule-delete' %} aria-current="page"{% endif %}><i class="bi bi-cash-coin" aria-hidden="true"></i>Price books</a>
+    {% endif %}
     {% if console_has_fnb %}
     <a href="{% url 'console-org-modifier-groups' %}"><i class="bi bi-sliders2" aria-hidden="true"></i>Modifiers</a>
     {% endif %}
