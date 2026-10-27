@@ -22,6 +22,7 @@ from apps.catalog.models import (
     ModifierOption,
     ServiceOffering,
     ServiceOfferingOption,
+    SupermarketSkuProfile,
 )
 from apps.lodging.models import Room, RoomRateWindow, RoomType
 from apps.tenants.models import (
@@ -838,6 +839,15 @@ class ConsoleRetailProductGroupForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.tenant = tenant
 
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        qs = RetailProductGroup.objects.filter(tenant=self.tenant, name__iexact=name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A retail group with this name already exists.")
+        return name
+
     def clean_code(self):
         code = (self.cleaned_data.get("code") or "").strip()
         if not code:
@@ -850,6 +860,18 @@ class ConsoleRetailProductGroupForm(forms.ModelForm):
             Q(barcode__iexact=code) | Q(sku_alias__iexact=code)
         ).exists():
             raise forms.ValidationError("This code already belongs to a product package.")
+        if SupermarketSkuProfile.objects.filter(
+            tenant=self.tenant,
+            plu_code__iexact=code,
+            is_active=True,
+        ).exists():
+            raise forms.ValidationError("This code already belongs to an active product PLU.")
+        from apps.inventory.models import InventorySerialUnit
+        if InventorySerialUnit.objects.filter(
+            tenant=self.tenant,
+            serial_number__iexact=code,
+        ).exists():
+            raise forms.ValidationError("This code already belongs to a serial / IMEI unit.")
         qs = RetailProductGroup.objects.filter(tenant=self.tenant, code__iexact=code)
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
@@ -881,6 +903,25 @@ class ConsoleRetailProductGroupLineForm(forms.ModelForm):
         if item and item.tenant_id != self.tenant.pk:
             raise forms.ValidationError("Choose a product from this business.")
         return item
+
+    def clean(self):
+        data = super().clean()
+        item = data.get("menu_item")
+        quantity = data.get("quantity")
+        if item and quantity and item.serial_tracking and quantity != quantity.to_integral_value():
+            self.add_error(
+                "quantity",
+                "Serialized products must use a whole-unit quantity inside a retail group.",
+            )
+        if item and quantity and item.unit_of_measure == "each":
+            profile = getattr(item, "supermarket_profile", None)
+            allow_fractional = bool(profile and profile.allow_fractional_quantity)
+            if not allow_fractional and quantity != quantity.to_integral_value():
+                self.add_error(
+                    "quantity",
+                    "Piece-based products must use a whole-unit quantity unless fractional selling is enabled.",
+                )
+        return data
 
 
 class ConsoleRetailAssemblyComponentForm(forms.ModelForm):
