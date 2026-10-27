@@ -79,6 +79,8 @@ def _batch_csv(batch: AccountingExportBatch) -> str:
         "cashier",
         "tender",
         "category",
+        "folio",
+        "supplier",
         "source_references",
     ])
     for line in batch.journal_lines:
@@ -100,6 +102,8 @@ def _batch_csv(batch: AccountingExportBatch) -> str:
             _safe_csv(dims.get("cashier")),
             _safe_csv(dims.get("tender")),
             _safe_csv(dims.get("category")),
+            _safe_csv(dims.get("folio")),
+            _safe_csv(dims.get("supplier")),
             _safe_csv(";".join(line.get("source_refs") or [])),
         ])
     return out.getvalue()
