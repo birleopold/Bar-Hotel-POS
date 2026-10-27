@@ -25,8 +25,8 @@
           <td>{% if station.is_active %}Enabled{% else %}Disabled{% endif %}{% if station.requires_pairing %}<span class="staff-muted small d-block">Browser approval required</span>{% endif %}</td>
           <td>
             <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-workstation-edit' station.id %}">Configure</a>
-            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-test' station.id %}">Equipment check</a>
-            <a class="staff-btn staff-btn--ghost" href="{% url 'staff-workstation-pair' station.id %}">Browser approvals</a>
+            <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-workstation-test' station.id %}">Equipment check</a>
+            <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-workstation-pair' station.id %}">Browser approvals</a>
           </td>
         </tr>
         {% empty %}
