@@ -1035,6 +1035,21 @@ class Promotion(TimeStampedModel):
     )
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField(null=True, blank=True)
+    schedule_weekdays = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Optional ISO weekdays 1=Monday through 7=Sunday. Empty means every day.",
+    )
+    schedule_start_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Optional local start time in the business timezone.",
+    )
+    schedule_end_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Optional local end time in the business timezone. Overnight windows are not supported.",
+    )
     is_active = models.BooleanField(default=True)
     outlets = models.ManyToManyField(
         "tenants.Outlet",
@@ -1114,6 +1129,13 @@ class Promotion(TimeStampedModel):
                     | models.Q(max_redemptions_per_customer__lte=models.F("max_redemptions"))
                 ),
                 name="promotion_customer_limit_within_total",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(schedule_start_time__isnull=True, schedule_end_time__isnull=True)
+                    | models.Q(schedule_start_time__isnull=False, schedule_end_time__isnull=False)
+                ),
+                name="promotion_schedule_time_pair",
             ),
             models.CheckConstraint(
                 condition=(
@@ -1232,6 +1254,32 @@ class Promotion(TimeStampedModel):
                 or self.max_uses_per_order is not None
             ):
                 raise ValidationError("Quantity-deal fields are only valid for Buy X Get Y or X for fixed amount offers.")
+        weekdays = self.schedule_weekdays or []
+        if not isinstance(weekdays, list):
+            raise ValidationError({"schedule_weekdays": "Choose weekdays as a list."})
+        normalized_weekdays = []
+        for value in weekdays:
+            try:
+                day = int(value)
+            except (TypeError, ValueError) as exc:
+                raise ValidationError({"schedule_weekdays": "Weekdays must be numbers from 1 to 7."}) from exc
+            if day < 1 or day > 7:
+                raise ValidationError({"schedule_weekdays": "Weekdays must be numbers from 1 to 7."})
+            if day not in normalized_weekdays:
+                normalized_weekdays.append(day)
+        self.schedule_weekdays = sorted(normalized_weekdays)
+        if (self.schedule_start_time is None) != (self.schedule_end_time is None):
+            raise ValidationError("Set both recurring start and end times, or leave both blank.")
+        if (
+            self.schedule_start_time is not None
+            and self.schedule_end_time is not None
+            and self.schedule_end_time <= self.schedule_start_time
+        ):
+            raise ValidationError({
+                "schedule_end_time": "Recurring end time must be later than start time. Split overnight offers into two schedules."
+            })
+        if self.ends_at is not None and self.ends_at <= self.starts_at:
+            raise ValidationError({"ends_at": "Offer end must be later than its start."})
         if (
             self.max_redemptions is not None
             and self.max_redemptions_per_customer is not None
