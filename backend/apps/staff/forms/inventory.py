@@ -123,22 +123,52 @@ class StaffStockTransferForm(forms.Form):
         label="Whole cartons (optional)", min_value=1, required=False,
         widget=forms.NumberInput(attrs={"class": "staff-input", "step": "1", "min": "1"}),
     )
+    needed_by = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": "staff-input", "type": "date"}),
+        help_text="Optional date the receiving section needs this stock.",
+    )
     note = forms.CharField(
         required=False,
         max_length=512,
         widget=forms.TextInput(attrs={"class": "staff-input"}),
     )
 
-    def __init__(self, *args, outlets: list | None = None, menu_items_qs: QuerySet | None = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        outlets: list | None = None,
+        from_outlets: list | None = None,
+        to_outlets: list | None = None,
+        menu_items_qs: QuerySet | None = None,
+        request_mode: bool = False,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         if outlets is not None:
-            oq = Outlet.objects.filter(pk__in=[o.id for o in outlets], is_active=True).select_related("site")
-            self.fields["from_outlet"].queryset = oq
-            self.fields["to_outlet"].queryset = oq
+            from_outlets = from_outlets if from_outlets is not None else outlets
+            to_outlets = to_outlets if to_outlets is not None else outlets
+        if from_outlets is not None:
+            self.fields["from_outlet"].queryset = Outlet.objects.filter(
+                pk__in=[o.id for o in from_outlets], is_active=True
+            ).select_related("site")
+        if to_outlets is not None:
+            self.fields["to_outlet"].queryset = Outlet.objects.filter(
+                pk__in=[o.id for o in to_outlets], is_active=True
+            ).select_related("site")
         if menu_items_qs is not None:
             self.fields["menu_item"].queryset = menu_items_qs
-        self.fields["from_outlet"].label = "From section"
-        self.fields["to_outlet"].label = "To section"
+        self.fields["from_outlet"].label = (
+            "Request stock from" if request_mode else "From section"
+        )
+        self.fields["to_outlet"].label = (
+            "Receiving section" if request_mode else "To section"
+        )
+        if request_mode:
+            self.fields["note"].label = "Request note"
+            self.fields["note"].widget.attrs["placeholder"] = (
+                "Why this stock is needed or any transfer instructions"
+            )
 
     def clean(self):
         data = super().clean()
