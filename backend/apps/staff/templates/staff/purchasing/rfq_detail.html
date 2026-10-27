@@ -11,6 +11,16 @@
   {% include "staff/purchasing/includes/subnav.html" %}
 
   {% if rfq.notes %}<div class="staff-card mb-3"><strong>Specification / note</strong><p class="mb-0">{{ rfq.notes }}</p></div>{% endif %}
+  {% if rfq.status != "awarded" and rfq.status != "cancelled" %}
+  <details class="staff-card mb-3">
+    <summary>Cancel this RFQ</summary>
+    <form method="post" class="row g-2 align-items-end mt-2">{% csrf_token %}
+      <input type="hidden" name="action" value="cancel_rfq">
+      <div class="col-12 col-md-9"><label class="staff-label" for="rfq-cancel-reason">Cancellation reason</label><input class="staff-input" id="rfq-cancel-reason" name="cancel_reason" minlength="8" maxlength="512" required placeholder="Why this sourcing request is no longer needed"></div>
+      <div class="col-12 col-md-3"><button class="staff-btn staff-btn--ghost w-100" type="submit">Cancel RFQ</button></div>
+    </form>
+  </details>
+  {% endif %}
 
   <section class="staff-card mb-3">
     <h2 class="staff-section-head">Requested products</h2>
