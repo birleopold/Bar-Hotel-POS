@@ -390,11 +390,13 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Keep existing tenant/site/outlet architecture.
 
 ### R5.2 Transfer lifecycle
-- Requested → approved → picked → dispatched → in transit → received/disputed → resolved.
-- Custody and timestamps.
-- Short/damaged receipt.
-- Transfer document/packing slip.
-- Existing stock transfer ledger remains authoritative.
+- Request → approve/reject → dispatch → in transit → receive/dispute → resolve is now implemented around the existing staged transfer ledger.
+- A transfer request is explicitly non-ledger: creating or approving it changes no stock. Source stock moves only at dispatch; destination stock moves only after physical receiving.
+- Storekeepers can request stock for a destination they operate even when the source is another branch. A different source-side manager must approve/reject; approved quantity cannot exceed the request or current source stock.
+- Approved requests dispatch through the existing staged-transfer service, preserving source cost snapshots, batch identity, in-transit custody, independent receiving, discrepancy handling and resolution.
+- Requester cancellation, rejection reasons, approval/dispatch audit events, tenant RLS and role-specific request/approval permissions are implemented.
+- Manager direct dispatch remains available as a fast path for simple businesses; direct transfers retain the stricter rule that the actor must be authorized for both source and destination.
+- Remaining: optional picked/packed state, packing slip/transfer document, multi-line transfer requests, damaged-in-transit classification and richer custody timestamps.
 
 ### R5.3 Customer fulfillment
 - Pickup.
