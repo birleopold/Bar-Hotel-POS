@@ -16,6 +16,8 @@ from apps.catalog.models import (
     ProductFamily,
     ProductPackage,
     RetailAssemblyComponent,
+    RetailProductGroup,
+    RetailProductGroupLine,
     ModifierGroup,
     ModifierOption,
     ServiceOffering,
@@ -807,6 +809,66 @@ class ConsoleMenuItemOutletUpdateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["price_override"].required = False
         self.fields["price_override"].help_text = "Leave blank to use the item’s default unit price at this outlet."
+
+
+class ConsoleRetailProductGroupForm(forms.ModelForm):
+    class Meta:
+        model = RetailProductGroup
+        fields = ("name", "code", "description", "is_active")
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "staff-input"}),
+            "code": forms.TextInput(attrs={"class": "staff-input", "maxlength": 64}),
+            "description": forms.Textarea(attrs={"class": "staff-input", "rows": 3}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+
+    def clean_code(self):
+        code = (self.cleaned_data.get("code") or "").strip()
+        if not code:
+            return ""
+        if MenuItem.objects.filter(tenant=self.tenant).filter(
+            Q(barcode__iexact=code) | Q(sku__iexact=code)
+        ).exists():
+            raise forms.ValidationError("This code already belongs to a product barcode or SKU.")
+        if ProductPackage.objects.filter(tenant=self.tenant).filter(
+            Q(barcode__iexact=code) | Q(sku_alias__iexact=code)
+        ).exists():
+            raise forms.ValidationError("This code already belongs to a product package.")
+        qs = RetailProductGroup.objects.filter(tenant=self.tenant, code__iexact=code)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("This group code is already in use.")
+        return code
+
+
+class ConsoleRetailProductGroupLineForm(forms.ModelForm):
+    class Meta:
+        model = RetailProductGroupLine
+        fields = ("menu_item", "quantity", "sort_order")
+        widgets = {
+            "menu_item": forms.Select(attrs={"class": "staff-input"}),
+            "quantity": forms.NumberInput(attrs={"class": "staff-input", "min": "0.001", "step": "0.001"}),
+            "sort_order": forms.NumberInput(attrs={"class": "staff-input", "min": "0"}),
+        }
+
+    def __init__(self, *args, group: RetailProductGroup, tenant, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.group = group
+        self.tenant = tenant
+        self.fields["menu_item"].queryset = MenuItem.objects.filter(
+            tenant=tenant, is_active=True
+        ).order_by("name")
+
+    def clean_menu_item(self):
+        item = self.cleaned_data.get("menu_item")
+        if item and item.tenant_id != self.tenant.pk:
+            raise forms.ValidationError("Choose a product from this business.")
+        return item
 
 
 class ConsoleRetailAssemblyComponentForm(forms.ModelForm):
