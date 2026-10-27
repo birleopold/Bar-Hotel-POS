@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import csv
 from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
 from django.db.models import Count, Sum
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -18,7 +20,7 @@ from apps.pos.models import Order
 
 from .forms import StaffPromotionForm
 from .mixins import StaffTenantRequiredMixin
-from .services import membership_can_manage_workspace_settings
+from .services import membership_can_manage_workspace_settings, staff_accessible_outlets
 
 
 
@@ -34,15 +36,18 @@ def _report_window_days(request) -> int:
     return value if value in REPORT_WINDOWS else 30
 
 
-def _promotion_stats(*, tenant, promotion_ids, days: int):
+def _promotion_stats(*, tenant, promotion_ids, days: int, outlet_id=None):
     since = timezone.now() - timedelta(days=days)
+    orders = Order.objects.filter(
+        tenant=tenant,
+        applied_promotion_id__in=list(promotion_ids),
+        is_paid=True,
+        created_at__gte=since,
+    )
+    if outlet_id is not None:
+        orders = orders.filter(outlet_id=outlet_id)
     rows = (
-        Order.objects.filter(
-            tenant=tenant,
-            applied_promotion_id__in=list(promotion_ids),
-            is_paid=True,
-            created_at__gte=since,
-        )
+        orders
         .values("applied_promotion_id")
         .annotate(
             uses=Count("id"),
@@ -55,7 +60,7 @@ def _promotion_stats(*, tenant, promotion_ids, days: int):
     return {row["applied_promotion_id"]: row for row in rows}
 
 
-def _recent_price_history(*, tenant, days: int, limit: int = 30):
+def _recent_price_history(*, tenant, days: int, limit: int = 30, outlet_id=None):
     since = timezone.now() - timedelta(days=days)
     events = list(
         AuditEvent.objects.filter(
@@ -82,6 +87,8 @@ def _recent_price_history(*, tenant, days: int, limit: int = 30):
                 continue
         if before is None or after is None or str(before) == str(after):
             continue
+        if outlet_id is not None and str(payload.get("outlet_id") or "") != str(outlet_id):
+            continue
         rows.append({
             "created_at": event.created_at,
             "item_name": payload.get("item_name") or payload.get("sku") or "Product",
@@ -96,7 +103,59 @@ def _recent_price_history(*, tenant, days: int, limit: int = 30):
 
 
 class StaffPromotionListView(StaffTenantRequiredMixin, ListView):
-    """Promotions schedule; workspace managers may add or edit in staff."""
+    """Promotions schedule plus compact paid-order performance reporting."""
+
+    def _report_outlets(self):
+        return list(staff_accessible_outlets(self.request.tenant_membership))
+
+    def _report_outlet(self):
+        token = (self.request.GET.get("outlet") or "").strip()
+        if not token:
+            return None
+        return next((outlet for outlet in self._report_outlets() if str(outlet.pk) == token), None)
+
+    def get(self, request, *args, **kwargs):
+        if (request.GET.get("export") or "").strip().lower() == "csv":
+            return self._export_csv()
+        return super().get(request, *args, **kwargs)
+
+    def _export_csv(self):
+        days = _report_window_days(self.request)
+        outlet = self._report_outlet()
+        promotions = list(self.get_queryset())
+        stats = _promotion_stats(
+            tenant=self.request.tenant,
+            promotion_ids=[promotion.pk for promotion in promotions],
+            days=days,
+            outlet_id=outlet.pk if outlet else None,
+        )
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="promotion-performance-{days}d.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow([
+            "Promotion", "Offer type", "Target", "Uses", "Gross sales",
+            "Discount value", "Net sales", "Identified customers", "Currency",
+            "Window days", "Outlet",
+        ])
+        currency = getattr(getattr(self.request.tenant, "settings", None), "default_currency", "USD")
+        for promotion in promotions:
+            row = stats.get(promotion.pk, {})
+            writer.writerow([
+                promotion.name,
+                promotion.get_offer_type_display(),
+                promotion.target_label,
+                row.get("uses", 0),
+                row.get("gross_sales") or Decimal("0.00"),
+                row.get("discount_total") or Decimal("0.00"),
+                row.get("net_sales") or Decimal("0.00"),
+                row.get("customers", 0),
+                currency,
+                days,
+                outlet.name if outlet else "All accessible outlets",
+            ])
+        return response
 
     staff_nav_capability = "promotions"
     model = Promotion
@@ -118,11 +177,14 @@ class StaffPromotionListView(StaffTenantRequiredMixin, ListView):
             self.request.tenant_membership
         )
         days = _report_window_days(self.request)
+        report_outlets = self._report_outlets()
+        report_outlet = self._report_outlet()
         promotions = list(ctx["promotions"])
         stats = _promotion_stats(
             tenant=self.request.tenant,
             promotion_ids=[promotion.pk for promotion in promotions],
             days=days,
+            outlet_id=report_outlet.pk if report_outlet else None,
         )
         for promotion in promotions:
             row = stats.get(promotion.pk, {})
@@ -133,9 +195,12 @@ class StaffPromotionListView(StaffTenantRequiredMixin, ListView):
             promotion.report_customers = row.get("customers", 0)
         ctx["promotions"] = promotions
         ctx["promotion_report_days"] = days
+        ctx["promotion_report_outlets"] = report_outlets
+        ctx["promotion_report_outlet"] = report_outlet
         ctx["price_history_rows"] = _recent_price_history(
             tenant=self.request.tenant,
             days=days,
+            outlet_id=report_outlet.pk if report_outlet else None,
         )
         return ctx
 
