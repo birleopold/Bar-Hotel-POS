@@ -5,7 +5,7 @@
 {% block content %}
 <div class="fizo-purchasing fizo-purchasing--purchase-orders-list">
 
-  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Purchase orders</h1><p>Manage stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-order-create' %}">New PO</a></div></header>
+  <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Purchase orders</h1><p>Manage requests, approvals, stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions">{% if can_request_purchasing %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-order-create' %}">{% if can_approve_purchasing %}New PO{% else %}New purchase request{% endif %}</a>{% endif %}</div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   <nav class="staff-chip-row mb-3" aria-label="Purchasing tasks">
     <a class="staff-btn staff-btn--ghost" href="?lane=receiving"{% if receiving_lane %} aria-current="page"{% endif %}>Awaiting delivery</a>
@@ -28,18 +28,19 @@
   <h2 class="fizo-purchasing__section-heading">Orders</h2>
   <div class="fizo-purchasing__tablewrap">
     <table class="fizo-purchasing__table">
-      <thead><tr><th>Reference</th><th>Supplier</th><th>Section</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
+      <thead><tr><th>Reference</th><th>Supplier</th><th>Section</th><th>Approval</th><th>Status</th><th class="staff-table__actions-head">Actions</th></tr></thead>
       <tbody>
         {% for po in purchase_orders %}
           <tr>
             <td><a href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{{ po.reference|default:po.id }}</a></td>
             <td>{{ po.supplier.name }}</td>
             <td>{{ po.outlet.name }}</td>
+            <td>{{ po.get_approval_status_display }}</td>
             <td>{{ po.get_status_display }}</td>
             <td class="staff-table__actions-cell"><a class="staff-table__action-link" href="{% url 'staff-purchasing-order-detail' po_id=po.id %}">{% if receiving_lane and can_receive_stock %}Receive delivery{% else %}View{% endif %}</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="5" class="staff-muted">{% if receiving_lane %}No purchase orders are awaiting delivery for this scope and status.{% else %}No purchase orders match this scope and status.{% endif %}</td></tr>
+          <tr><td colspan="6" class="staff-muted">{% if receiving_lane %}No purchase orders are awaiting delivery for this scope and status.{% else %}No purchase orders match this scope and status.{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
