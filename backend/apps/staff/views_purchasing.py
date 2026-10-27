@@ -760,6 +760,12 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     discrepancy_note=(request.POST.get("discrepancy_note") or "").strip(),
                     delivery_reference=delivery_reference,
                     note=(request.POST.get("receipt_note") or "").strip(),
+                    shipping_cost=request.POST.get("shipping_cost") or "0",
+                    duty_cost=request.POST.get("duty_cost") or "0",
+                    landed_cost_allocation=(
+                        request.POST.get("landed_cost_allocation")
+                        or "exclude"
+                    ),
                 )
             except DRFValidationError as e:
                 _flash_drf_validation(request, e)
@@ -838,6 +844,12 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                     discrepancy_note=(request.POST.get("discrepancy_note") or "").strip(),
                     delivery_reference=(request.POST.get("delivery_reference") or "").strip(),
                     note=(request.POST.get("receipt_note") or "").strip(),
+                    shipping_cost=request.POST.get("shipping_cost") or "0",
+                    duty_cost=request.POST.get("duty_cost") or "0",
+                    landed_cost_allocation=(
+                        request.POST.get("landed_cost_allocation")
+                        or "exclude"
+                    ),
                 )
             except DRFValidationError as e:
                 _flash_drf_validation(request, e)
