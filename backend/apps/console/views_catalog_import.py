@@ -14,6 +14,13 @@ from django.views.generic import FormView
 from apps.audit.services import log_audit
 from apps.catalog.models import MenuItem, ProductPackage
 
+from .catalog_compat import (
+    ADAPTERS,
+    EXPORT_PROFILES,
+    compatibility_export_headers,
+    compatibility_export_rows,
+    parse_compatible_catalog_csv,
+)
 from .catalog_import import (
     CatalogImportProblem,
     apply_price_updates,
@@ -35,6 +42,13 @@ def _spreadsheet_safe(value):
 
 
 class CatalogUploadForm(forms.Form):
+    source_platform = forms.ChoiceField(
+        label="Source format",
+        choices=[(key, value["label"]) for key, value in ADAPTERS.items()],
+        initial="neutral",
+        widget=forms.Select(attrs={"class": "staff-input"}),
+        help_text="Choose the platform that produced this CSV. The file is normalized into this POS's canonical catalogue rules before import.",
+    )
     file = forms.FileField(
         label="CSV file",
         widget=forms.ClearableFileInput(attrs={"class": "staff-input", "accept": ".csv,text/csv"}),
@@ -91,6 +105,38 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
         return kwargs
 
     def get(self, request, *args, **kwargs):
+        export_target = (request.GET.get("compat_export") or "").strip()
+        if export_target:
+            if export_target not in EXPORT_PROFILES:
+                raise Http404("Unsupported catalogue export target.")
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = (
+                f'attachment; filename="catalog-{export_target}-migration.csv"'
+            )
+            response["Cache-Control"] = "private, no-store"
+            writer = csv.DictWriter(
+                response,
+                fieldnames=list(compatibility_export_headers(export_target)),
+                extrasaction="ignore",
+            )
+            writer.writeheader()
+            for row in compatibility_export_rows(
+                tenant=request.tenant,
+                target=export_target,
+            ):
+                writer.writerow({
+                    key: _spreadsheet_safe(value)
+                    for key, value in row.items()
+                })
+            log_audit(
+                tenant_id=request.tenant.pk,
+                user_id=request.user.pk,
+                action="catalog.compatibility_exported",
+                entity_type="menu_items",
+                entity_id=str(request.tenant.pk),
+                payload={"target": export_target},
+            )
+            return response
         if request.GET.get("packages_sample") == "1":
             if not self._retail_packages_enabled():
                 raise Http404("Product packages are available only for Retail or Supermarket workspaces.")
@@ -271,16 +317,21 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
             )
             return redirect("console-org-menu-items")
         try:
-            rows = parse_catalog_csv(
-                tenant=self.request.tenant, uploaded=form.cleaned_data["file"],
+            rows, compatibility = parse_compatible_catalog_csv(
+                tenant=self.request.tenant,
+                uploaded=form.cleaned_data["file"],
+                source=form.cleaned_data.get("source_platform") or "neutral",
             )
             action = (self.request.POST.get("action") or "").strip()
             if action == "preview":
                 return self.render_to_response(self.get_context_data(
-                    form=CatalogUploadForm(),
+                    form=CatalogUploadForm(initial={
+                        "source_platform": compatibility.source,
+                    }),
                     preview_count=len(rows),
                     preview_rows=rows[:15],
                     preview_more=max(0, len(rows)-15),
+                    compatibility_report=compatibility,
                 ))
             if action != "import":
                 form.add_error(None, "Choose Check file or Import items.")
@@ -299,7 +350,13 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
             user_id=self.request.user.pk,
             action="catalog.csv_items_imported",
             entity_type="menu_items", entity_id=str(self.request.tenant.pk),
-            payload={"count": count, "source": "setup_csv"},
+            payload={
+                "count": count,
+                "source": compatibility.source,
+                "adapter_version": compatibility.adapter_version,
+                "ignored_columns": list(compatibility.ignored_columns),
+                "warnings": list(compatibility.warnings),
+            },
         )
         missing_photo_count = MenuItem.objects.filter(
             tenant=self.request.tenant,
@@ -312,5 +369,9 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
                 f"Imported {count} items. {missing_photo_count} products still need photos; stock quantities were not changed.",
             )
             return redirect(reverse("console-org-menu-items") + "?photo=missing")
-        messages.success(self.request, f"Imported {count} items. Stock quantities have not been changed.")
+        messages.success(
+            self.request,
+            f"Imported {count} items from {ADAPTERS[compatibility.source]['label']}. "
+            "Stock quantities have not been changed.",
+        )
         return redirect("console-org-menu-items")
