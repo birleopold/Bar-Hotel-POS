@@ -1,0 +1,40 @@
+{% extends "staff/base.html" %}
+{% block title %}Accounting mappings{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Workspace · Accounting</p>
+    <div class="staff-page-hero__head">
+      <div>
+        <h1 class="staff-page-title mb-0">Accounting mappings<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+        <p class="staff-muted mb-0">Map operational POS dimensions to provider-neutral account codes before journal export.</p>
+      </div>
+      <div class="staff-page-hero__actions">
+        <a class="staff-btn staff-btn--primary" href="{% url 'staff-workspace-accounting-mapping-create' %}">New mapping</a>
+        <a class="staff-btn staff-btn--ghost" href="{% url 'staff-accounting-export' %}">Preview export</a>
+      </div>
+    </div>
+  </div>
+</header>
+{% include "staff/settings/includes/subnav.html" %}
+<section class="staff-card mb-3">
+  <h2 class="staff-card__title">Mapping rules</h2>
+  <p class="staff-muted mb-0">Category-specific revenue/COGS/inventory mappings override their defaults. Each tender method needs its own clearing account. Tax/VAT and returns use dedicated mappings. These are export mappings only; they do not change your POS cashbook or historical export batches.</p>
+</section>
+<div class="staff-table-wrap">
+<table class="staff-table">
+<thead><tr><th>Type</th><th>Source</th><th>Account</th><th>Status</th><th></th></tr></thead>
+<tbody>
+{% for row in accounting_mappings %}
+<tr>
+<td>{{ row.get_kind_display }}</td>
+<td>{{ row.source_label|default:"Default" }}</td>
+<td><strong>{{ row.account_code }}</strong> · {{ row.account_name }}</td>
+<td>{% if row.is_active %}<span class="staff-tag">Active</span>{% else %}<span class="staff-muted">Inactive</span>{% endif %}</td>
+<td><a href="{% url 'staff-workspace-accounting-mapping-edit' mapping_id=row.id %}">Edit</a></td>
+</tr>
+{% empty %}<tr><td colspan="5" class="staff-muted">No mappings yet. Add the defaults and tender accounts needed by your accounting export.</td></tr>{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}
