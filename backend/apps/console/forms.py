@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django import forms
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -688,11 +689,11 @@ class ConsoleProductPackageForm(forms.ModelForm):
         if not barcode:
             return ""
         if MenuItem.objects.filter(tenant=self.tenant).filter(
-            forms.models.Q(barcode__iexact=barcode) | forms.models.Q(sku__iexact=barcode)
+            Q(barcode__iexact=barcode) | Q(sku__iexact=barcode)
         ).exists():
             raise forms.ValidationError("This code is already registered to a product barcode or SKU.")
         qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
-            forms.models.Q(barcode__iexact=barcode) | forms.models.Q(sku_alias__iexact=barcode)
+            Q(barcode__iexact=barcode) | Q(sku_alias__iexact=barcode)
         )
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
@@ -705,11 +706,11 @@ class ConsoleProductPackageForm(forms.ModelForm):
         if not code:
             return ""
         if MenuItem.objects.filter(tenant=self.tenant).filter(
-            forms.models.Q(sku__iexact=code) | forms.models.Q(barcode__iexact=code)
+            Q(sku__iexact=code) | Q(barcode__iexact=code)
         ).exists():
             raise forms.ValidationError("This package code is already used by a product SKU or barcode.")
         qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
-            forms.models.Q(sku_alias__iexact=code) | forms.models.Q(barcode__iexact=code)
+            Q(sku_alias__iexact=code) | Q(barcode__iexact=code)
         )
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
