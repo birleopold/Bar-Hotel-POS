@@ -260,18 +260,35 @@ class OrgPriceBookRuleDeleteView(PriceBookScopedMixin, DeleteView):
 
     def form_valid(self, form):
         rule = self.object
+        payload = {
+            "price_book_id": str(self.price_book.pk),
+            "menu_item_id": str(rule.menu_item_id),
+            "minimum_quantity": str(rule.minimum_quantity),
+            "unit_price": str(rule.unit_price),
+        }
+        if rule.order_lines.exists():
+            rule.is_active = False
+            rule.save(update_fields=["is_active", "updated_at"])
+            log_audit(
+                tenant_id=self.request.tenant.pk,
+                user_id=self.request.user.pk,
+                action="pricing.price_book_rule_deactivated",
+                entity_type="price_book_rule",
+                entity_id=str(rule.pk),
+                payload={**payload, "reason": "historical_sale_reference"},
+            )
+            messages.success(
+                self.request,
+                "This tier has historical sales, so it was deactivated instead of deleted.",
+            )
+            return redirect(self.get_success_url())
         log_audit(
             tenant_id=self.request.tenant.pk,
             user_id=self.request.user.pk,
             action="pricing.price_book_rule_deleted",
             entity_type="price_book_rule",
             entity_id=str(rule.pk),
-            payload={
-                "price_book_id": str(self.price_book.pk),
-                "menu_item_id": str(rule.menu_item_id),
-                "minimum_quantity": str(rule.minimum_quantity),
-                "unit_price": str(rule.unit_price),
-            },
+            payload=payload,
         )
         messages.success(self.request, "Price tier removed.")
         return super().form_valid(form)
