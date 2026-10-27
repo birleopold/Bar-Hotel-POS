@@ -110,13 +110,22 @@
         <div class="staff-table-wrap staff-table-wrap--pos mt-3">
           <table class="staff-table staff-table--pos">
             <caption>Individual retail margin breaches</caption>
-            <thead><tr><th>Sale</th><th>Section</th><th>Product</th><th class="text-end">Revenue</th><th class="text-end">Margin</th><th class="text-end">Floor</th><th class="text-end">Shortfall</th></tr></thead>
+            <thead><tr><th>Sale</th><th>Section</th><th>Product</th><th>Cashier</th><th>Approval</th><th class="text-end">Revenue</th><th class="text-end">Margin</th><th class="text-end">Floor</th><th class="text-end">Shortfall</th></tr></thead>
             <tbody>
               {% for row in p.margin_breach_sales|slice:":10" %}
                 <tr>
                   <td><a href="{% url 'staff-order-detail' row.order_id %}">{{ row.bill_reference }}</a></td>
                   <td>{{ row.outlet_name }}</td>
                   <td class="fw-bold">{{ row.item_name }}{% if row.sku %}<div class="staff-muted small">{{ row.sku }}</div>{% endif %}</td>
+                  <td>{% if row.cashier_email %}{{ row.cashier_email }}{% else %}<span class="staff-muted">Unknown</span>{% endif %}</td>
+                  <td>
+                    {% if row.has_linked_margin_override %}
+                      <strong>{{ row.override_approver_email }}</strong>
+                      {% if row.override_reason %}<div class="staff-muted small">{{ row.override_reason }}</div>{% endif %}
+                    {% else %}
+                      <span class="staff-muted">No linked override</span>
+                    {% endif %}
+                  </td>
                   <td class="text-end">{{ p.currency }} {{ row.net_revenue }}</td>
                   <td class="text-end">{% if row.known_margin_percent != None %}{{ row.known_margin_percent }}%{% else %}No revenue{% endif %}</td>
                   <td class="text-end">{{ row.margin_floor_percent }}%</td>
