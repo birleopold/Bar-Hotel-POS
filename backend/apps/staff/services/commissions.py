@@ -4,9 +4,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Max
-
-from apps.accounts.models import SalesTarget
+ from apps.accounts.models import SalesTarget
 from apps.common.datetime_bounds import utc_day_range_inclusive
 from apps.pos.models import Order, OrderLine, Refund, SupermarketLineReturn
 
@@ -56,20 +54,13 @@ def build_commission_report(
         "line_count": 0,
     })
 
-    completed_order_ids = (
-        Order.objects.filter(
-            tenant_id=tenant_id,
-            outlet_id__in=allowed_outlet_ids,
-            is_paid=True,
-        )
-        .annotate(final_payment_at=Max("payments__created_at"))
-        .filter(final_payment_at__gte=start, final_payment_at__lte=end)
-        .values_list("id", flat=True)
-    )
     sale_lines = list(
         OrderLine.objects.filter(
-            order_id__in=completed_order_ids,
+            order__tenant_id=tenant_id,
+            order__outlet_id__in=allowed_outlet_ids,
             is_voided=False,
+            commission_settled_at_snapshot__gte=start,
+            commission_settled_at_snapshot__lte=end,
             commission_base_snapshot__isnull=False,
             sales_attributed_membership__isnull=False,
         )
