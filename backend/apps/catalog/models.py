@@ -516,6 +516,11 @@ class RetailProductGroup(TimeStampedModel):
 
 class RetailProductGroupLine(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="retail_product_group_lines",
+    )
     group = models.ForeignKey(
         RetailProductGroup,
         on_delete=models.CASCADE,
@@ -544,6 +549,10 @@ class RetailProductGroupLine(TimeStampedModel):
 
     def clean(self):
         from django.core.exceptions import ValidationError
+        if self.group_id and self.tenant_id and self.group.tenant_id != self.tenant_id:
+            raise ValidationError({"group": "Group must belong to this business."})
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Group components must belong to the same business."})
         if self.group_id and self.menu_item_id and self.group.tenant_id != self.menu_item.tenant_id:
             raise ValidationError({"menu_item": "Group components must belong to the same business."})
 
