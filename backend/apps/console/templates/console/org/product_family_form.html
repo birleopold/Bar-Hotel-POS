@@ -1,0 +1,12 @@
+{% extends "console/base.html" %}
+{% block title %}{% if object %}Edit product family{% else %}New product family{% endif %}{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header"><div><p class="grocery-setup__eyebrow">Catalogue / Merchandise</p><h1>{% if object %}Edit product family{% else %}New product family{% endif %}</h1><p class="staff-muted">A family is the parent record; each sellable size, colour or style remains its own SKU and stock item.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-families' %}">Product families</a></header>
+  <form method="post" class="staff-card grocery-guided-form">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grocery-form-fields">{% for field in form %}<div class="grocery-form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<div class="grocery-form-errors">{{ field.errors }}</div>{% endif %}</div>{% endfor %}</div>
+    <div class="grocery-form-footer"><span>Families do not hold stock themselves.</span><div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-families' %}">Cancel</a><button class="staff-btn staff-btn--primary" type="submit">Save family</button></div></div>
+  </form>
+</section>
+{% endblock %}
