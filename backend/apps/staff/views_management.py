@@ -82,7 +82,7 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
             grouped = {
                 "Money": {"refund", "cash_variance"},
                 "Cashier actions": {"void", "drawer_no_sale"},
-                "Pricing": {"discount", "line_discount", "manual_price", "price_change"},
+                "Pricing": {"discount", "line_discount", "margin_override", "manual_price", "price_change"},
                 "Stock": {"stock_adjustment", "low_stock", "delivery_discrepancy"},
                 "Security & sync": {"pin_failure", "offline_conflict", "efris_failure"},
             }
