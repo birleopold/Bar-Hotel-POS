@@ -11,6 +11,7 @@ from apps.audit.services import log_audit
 from apps.catalog.models import (
     MenuItem,
     ProductPackage,
+    RetailProductGroup,
     Promotion,
     ServiceOffering,
     ServiceOfferingOption,
@@ -785,6 +786,94 @@ def add_line_to_open_order(
         },
     )
     return line
+
+
+@transaction.atomic
+def add_retail_group_to_open_order(
+    *,
+    order: Order,
+    retail_group: RetailProductGroup,
+    quantity: Decimal,
+    user,
+) -> list[OrderLine]:
+    """Expand a non-stock retail group into ordinary basket lines atomically."""
+
+    locked = (
+        Order.objects.select_for_update()
+        .select_related("outlet")
+        .get(pk=order.pk)
+    )
+    if locked.outlet.outlet_type not in {OutletType.SUPERMARKET, OutletType.RETAIL}:
+        raise ValidationError({"group": "Retail product groups are available only at retail checkout."})
+    if locked.status != OrderStatus.OPEN or locked.is_paid:
+        raise ValidationError({"group": "Groups can be added only to an open unpaid basket."})
+    require_active_retail_basket(locked)
+    if retail_group.tenant_id != locked.tenant_id or not retail_group.is_active:
+        raise ValidationError({"group": "Choose an active retail group for this business."})
+    try:
+        group_qty = Decimal(str(quantity))
+    except (TypeError, ValueError, ArithmeticError) as exc:
+        raise ValidationError({"quantity": "Enter a valid whole group quantity."}) from exc
+    if (
+        not group_qty.is_finite()
+        or group_qty <= 0
+        or group_qty != group_qty.to_integral_value()
+        or group_qty > Decimal("999999")
+    ):
+        raise ValidationError({"quantity": "Group quantity must be a positive whole number."})
+
+    lines = list(
+        retail_group.lines.select_related("menu_item")
+        .order_by("sort_order", "menu_item__name")
+    )
+    if not lines:
+        raise ValidationError({"group": "This retail group has no products."})
+
+    for component in lines:
+        item = component.menu_item
+        if item.tenant_id != locked.tenant_id or not item.is_active:
+            raise ValidationError({"group": f'Product "{item.name}" is inactive or outside this business.'})
+        if not menu_item_available_at_outlet(item, locked.outlet_id):
+            raise ValidationError({"group": f'Product "{item.name}" is not available at this checkout section.'})
+        expanded = (component.quantity * group_qty).quantize(Decimal("0.001"))
+        if expanded <= 0 or expanded > Decimal("99999999999.999"):
+            raise ValidationError({"group": f'Expanded quantity for "{item.name}" is outside checkout limits.'})
+        if item.serial_tracking and expanded != expanded.to_integral_value():
+            raise ValidationError({"group": f'Serialized product "{item.name}" must expand to whole units.'})
+
+    added: list[OrderLine] = []
+    for component in lines:
+        expanded = (component.quantity * group_qty).quantize(Decimal("0.001"))
+        added.append(
+            add_line_to_open_order(
+                order=locked,
+                menu_item=component.menu_item,
+                quantity=expanded,
+                user=user,
+                pricing_source="menu",
+            )
+        )
+
+    log_audit(
+        tenant_id=locked.tenant_id,
+        user_id=user.pk if user else None,
+        action="order.retail_group_added",
+        entity_type="order",
+        entity_id=str(locked.pk),
+        payload={
+            "retail_group_id": str(retail_group.pk),
+            "retail_group_name": retail_group.name,
+            "group_quantity": str(group_qty),
+            "components": [
+                {
+                    "menu_item_id": str(component.menu_item_id),
+                    "quantity_per_group": str(component.quantity),
+                }
+                for component in lines
+            ],
+        },
+    )
+    return added
 
 
 @transaction.atomic
