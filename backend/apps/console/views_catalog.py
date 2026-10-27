@@ -878,12 +878,14 @@ class OrgRetailAssemblyCreateView(RetailMerchandiseRequiredMixin, MenuItemScoped
         obj = form.save(commit=False)
         obj.tenant = self.request.tenant
         obj.parent_item = self.menu_item
-        try:
-            obj.full_clean()
-            obj.save()
-        except IntegrityError:
+        if RetailAssemblyComponent.objects.filter(
+            tenant=self.request.tenant,
+            parent_item=self.menu_item,
+            component_item=obj.component_item,
+        ).exists():
             form.add_error("component_item", "That component is already in this assembly.")
             return self.form_invalid(form)
+        obj.save()
         messages.success(self.request, f"Component “{obj.component_item.name}” added.")
         return redirect(self.get_success_url())
 
@@ -919,7 +921,13 @@ class OrgRetailAssemblyUpdateView(RetailMerchandiseRequiredMixin, MenuItemScoped
         obj = form.save(commit=False)
         obj.tenant = self.request.tenant
         obj.parent_item = self.menu_item
-        obj.full_clean()
+        if RetailAssemblyComponent.objects.filter(
+            tenant=self.request.tenant,
+            parent_item=self.menu_item,
+            component_item=obj.component_item,
+        ).exclude(pk=obj.pk).exists():
+            form.add_error("component_item", "That component is already in this assembly.")
+            return self.form_invalid(form)
         obj.save()
         messages.success(self.request, "Assembly component updated.")
         return redirect(self.get_success_url())
