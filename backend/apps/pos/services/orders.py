@@ -13,6 +13,7 @@ from apps.catalog.promotion_rules import (
     promotion_qualifying_quantity,
     promotion_redemption_block_reason,
     promotion_reward_matches_item,
+    promotion_schedule_active,
 )
 from apps.catalog.models import (
     MenuItem,
@@ -611,8 +612,8 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
     if not expected_coupon and supplied_coupon:
         raise ValidationError({"coupon_code": "This offer does not use a coupon code."})
     now = dj_tz.now()
-    if promotion.starts_at > now or (promotion.ends_at and promotion.ends_at < now):
-        raise ValidationError("Promotion is not valid at this time.")
+    if not promotion_schedule_active(promotion, at=now):
+        raise ValidationError("Promotion is not valid at this date, day, or time.")
     if promotion.outlets.exists() and not promotion.outlets.filter(pk=locked.outlet_id).exists():
         raise ValidationError("Promotion does not apply to this outlet.")
     if promotion.min_order_subtotal is not None and locked.subtotal < promotion.min_order_subtotal:
