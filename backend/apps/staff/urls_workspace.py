@@ -2,9 +2,24 @@
 
 from django.urls import path
 
-from . import views_audit, views_invites, views_workspace, views_owner_reports
+from . import views_audit, views_commissions, views_invites, views_workspace, views_owner_reports
 
 urlpatterns = [
+    path(
+        "commissions/",
+        views_commissions.StaffCommissionRuleListView.as_view(),
+        name="staff-workspace-commission-rules",
+    ),
+    path(
+        "commissions/new/",
+        views_commissions.StaffCommissionRuleCreateView.as_view(),
+        name="staff-workspace-commission-rule-create",
+    ),
+    path(
+        "commissions/<uuid:rule_id>/edit/",
+        views_commissions.StaffCommissionRuleUpdateView.as_view(),
+        name="staff-workspace-commission-rule-edit",
+    ),
     path(
         "owner-reports/",
         views_owner_reports.StaffOwnerReportSettingsView.as_view(),
