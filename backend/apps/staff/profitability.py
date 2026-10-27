@@ -51,10 +51,11 @@ def _historical_sku(line: OrderLine) -> str:
 
 
 def _historical_product_key(line: OrderLine):
-    if line.menu_item_id:
-        return ("item", str(line.menu_item_id))
+    # Keep historical merchandise identities separate when a product is renamed
+    # or its SKU changes. Current catalog edits must not rewrite old report rows.
     return (
-        "snapshot",
+        "item" if line.menu_item_id else "snapshot",
+        str(line.menu_item_id or ""),
         _historical_sku(line).casefold(),
         _historical_item_name(line).casefold(),
     )
