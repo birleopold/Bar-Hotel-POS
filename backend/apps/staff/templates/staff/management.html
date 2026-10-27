@@ -27,8 +27,13 @@
   </section>
   {% if loss_patterns.workers or loss_patterns.outlets or loss_patterns.products %}
   <section class="staff-card mb-3" aria-labelledby="loss-patterns-title">
-    <h2 class="staff-card__title" id="loss-patterns-title">Repeated loss-prevention patterns</h2>
-    <p class="staff-muted small">Counts use the same selected sections and {{ exception_policy.lookback_days }}-day review window. They are separate operational signals, not a fraud score. Refund, void, discount, margin-override, cash-variance and stock-removal counts remain distinct so managers can inspect the underlying source evidence.</p>
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+      <div>
+        <h2 class="staff-card__title" id="loss-patterns-title">Repeated loss-prevention patterns</h2>
+        <p class="staff-muted small">Counts use the same selected sections and {{ exception_policy.lookback_days }}-day review window. They are separate operational signals, not a fraud score. Refund, void, discount, margin-override, cash-variance and stock-removal counts remain distinct so managers can inspect the underlying source evidence.</p>
+      </div>
+      <a class="staff-btn staff-btn--ghost" href="?view=exceptions&amp;loss_export=csv">Export pattern CSV</a>
+    </div>
     {% if loss_patterns.workers %}
     <div class="staff-table-wrap mb-3">
       <table class="staff-table">
