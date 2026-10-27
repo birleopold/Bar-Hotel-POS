@@ -116,6 +116,12 @@ class PurchaseOrderStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class PurchaseApprovalStatus(models.TextChoices):
+    PENDING = "pending", "Pending approval"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+
 class PurchaseOrder(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
@@ -153,6 +159,20 @@ class PurchaseOrder(TimeStampedModel):
         blank=True,
         related_name="purchase_orders_created",
     )
+    approval_status = models.CharField(
+        max_length=16,
+        choices=PurchaseApprovalStatus.choices,
+        default=PurchaseApprovalStatus.PENDING,
+    )
+    reviewed_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_orders_reviewed",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=512, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
