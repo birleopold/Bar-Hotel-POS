@@ -1,5 +1,6 @@
 """Scheduled owner reports: local dates, opt-in delivery, recipient scope and replay."""
 from datetime import datetime, timedelta, timezone as dt_timezone
+from decimal import Decimal
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -8,8 +9,11 @@ from django.test import Client, override_settings
 from django.urls import reverse
 
 from apps.accounts.models import Membership, MembershipRole, User
+from apps.pos.models import Order, OrderLine, OrderStatus, Payment
+from apps.staff.report_csv import format_sales_summary_csv_from_summary
 from apps.api.owner_reports import (
-    deliver_owner_report, eligible_recipients, scheduled_period,
+    _summary_for_schedule, deliver_owner_report, eligible_recipients,
+    scheduled_period,
 )
 from apps.staff.middleware import STAFF_SESSION_TENANT_KEY
 from apps.tenants.models import (
@@ -139,3 +143,53 @@ def test_report_preferences_page_uses_authenticated_workspace():
     page = client.get(reverse("staff-owner-report-settings"))
     assert page.status_code == 200, page.content[:400]
     assert b"Scheduled owner reports" in page.content
+
+@pytest.mark.django_db
+def test_owner_summary_includes_historical_cost_coverage_without_guessing():
+    a, schedule = schedule_fixture("owner-profitability")
+    period_day = datetime(2026, 10, 15).date()
+    order = Order.objects.create(
+        tenant=a["tenant"],
+        outlet=a["outlet"],
+        status=OrderStatus.CLOSED,
+        subtotal=Decimal("100.00"),
+        tax_total=Decimal("0.00"),
+        discount_amount=Decimal("0.00"),
+        total=Decimal("100.00"),
+        is_paid=True,
+        created_by=a["user"],
+    )
+    OrderLine.objects.create(
+        order=order,
+        menu_item=a["item"],
+        label=a["item"].name,
+        quantity=Decimal("1"),
+        unit_price=Decimal("100.00"),
+        line_total=Decimal("100.00"),
+        cost_unit_snapshot=None,
+        cost_basis_complete_snapshot=False,
+    )
+    payment = Payment.objects.create(
+        tenant=a["tenant"],
+        order=order,
+        amount=Decimal("100.00"),
+        method="cash",
+        idempotency_key="owner-profitability-payment",
+        recorded_by=a["user"],
+    )
+    Payment.objects.filter(pk=payment.pk).update(
+        created_at=datetime(2026, 10, 15, 12, 0, tzinfo=dt_timezone.utc),
+    )
+
+    summary = _summary_for_schedule(schedule, (period_day, period_day))
+    profitability = summary["merchandise_profitability"]
+    assert profitability["sale_revenue"] == Decimal("100.00")
+    assert profitability["cost_coverage_percent"] == Decimal("0.0")
+    assert profitability["profitability_complete"] is False
+    assert profitability["known_net_cogs"] == Decimal("0.00")
+
+    csv_body = format_sales_summary_csv_from_summary(summary)
+    assert "merchandise_profitability_metric" in csv_body
+    assert "cost_coverage_percent,0.0,%" in csv_body
+    assert "profitability_complete,no," in csv_body
+
