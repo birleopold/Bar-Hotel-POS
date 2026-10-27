@@ -8,6 +8,7 @@ from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from apps.catalog.models import Promotion
+from apps.catalog.promotion_rules import promotion_target_q_for_items
 from apps.pos.models import Order
 
 
@@ -27,7 +28,24 @@ def order_refundable_remaining(order: Order) -> Decimal:
 
 
 def promotions_selectable_for_order(order: Order):
-    """Active promotions that may apply to this order's outlet (same rules as ``apply_promotion_to_order``)."""
+    """Active promotions whose schedule, outlet, basket state and target currently qualify."""
+    if order.lines.filter(
+        Q(pricing_source="wholesale")
+        | Q(price_book_rule__isnull=False)
+        | Q(line_discount_amount__gt=0)
+        | Q(line_discount_percent__isnull=False),
+        is_voided=False,
+    ).exists():
+        return Promotion.objects.none()
+
+    items = [
+        line.menu_item
+        for line in order.lines.select_related("menu_item").filter(
+            is_voided=False,
+            menu_item__isnull=False,
+        )
+    ]
+    target_q = promotion_target_q_for_items(items)
     now = timezone.now()
     return (
         Promotion.objects.filter(
@@ -37,6 +55,8 @@ def promotions_selectable_for_order(order: Order):
         )
         .filter(Q(ends_at__isnull=True) | Q(ends_at__gte=now))
         .filter(Q(discount_percent__isnull=False) | Q(discount_amount__isnull=False))
+        .filter(Q(min_order_subtotal__isnull=True) | Q(min_order_subtotal__lte=order.subtotal))
+        .filter(target_q)
         .annotate(_outlet_count=Count("outlets", distinct=True))
         .filter(Q(_outlet_count=0) | Q(outlets__id=order.outlet_id))
         .distinct()
