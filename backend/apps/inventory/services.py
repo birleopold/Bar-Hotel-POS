@@ -378,6 +378,86 @@ def execute_retail_assembly(
     finished_unit_cost = None
     component_cost_snapshot = {}
     assembly_cost_complete = False
+
+    def _trusted_unbuild_snapshot():
+        """Return one exact build-cost snapshot when current finished stock has safe provenance.
+
+        Safe means the movement ledger fully reconciles to current on-hand stock,
+        every positive inflow is a cost-complete assembly build, and every such
+        build used the same frozen component quantities and unit costs. Outflows
+        (sales/transfers/write-offs) may have happened after those builds.
+        """
+        movements = list(
+            StockMovement.objects.filter(
+                tenant_id=tenant_id,
+                outlet=outlet,
+                menu_item=assembled_item,
+            )
+            .select_related("assembly_run")
+            .order_by("created_at", "id")
+        )
+        ledger_quantity = sum(
+            (movement.quantity_change for movement in movements),
+            Decimal("0"),
+        ).quantize(Decimal("0.001"))
+        if ledger_quantity != balances[assembled_item.pk].quantity:
+            return None
+        positive = [movement for movement in movements if movement.quantity_change > 0]
+        if not positive:
+            return None
+
+        canonical_finished_cost = None
+        canonical_components = None
+        expected_component_ids = {str(item_id) for item_id in component_need}
+        expected_quantities = {
+            str(line.component_item_id): str(line.quantity_per_unit)
+            for line in components
+        }
+
+        for movement in positive:
+            run = movement.assembly_run
+            if (
+                movement.reason != StockReason.ASSEMBLY_BUILD
+                or run is None
+                or run.direction != RetailAssemblyRun.Direction.BUILD
+                or run.assembled_item_id != assembled_item.pk
+                or not run.cost_basis_complete_snapshot
+                or run.finished_unit_cost_snapshot is None
+            ):
+                return None
+
+            snapshot = run.component_cost_snapshot or {}
+            if set(snapshot.keys()) != expected_component_ids:
+                return None
+
+            normalized = {}
+            for component_id, evidence in snapshot.items():
+                if not isinstance(evidence, dict):
+                    return None
+                qty_per = str(evidence.get("quantity_per_finished_unit") or "")
+                unit_cost = evidence.get("unit_cost")
+                if qty_per != expected_quantities.get(component_id) or unit_cost is None:
+                    return None
+                normalized[component_id] = {
+                    "quantity_per_finished_unit": qty_per,
+                    "unit_cost": str(unit_cost),
+                }
+
+            finished_cost = str(run.finished_unit_cost_snapshot)
+            if canonical_finished_cost is None:
+                canonical_finished_cost = finished_cost
+                canonical_components = normalized
+            elif (
+                finished_cost != canonical_finished_cost
+                or normalized != canonical_components
+            ):
+                return None
+
+        return (
+            Decimal(canonical_finished_cost),
+            canonical_components,
+        )
+
     if direction == RetailAssemblyRun.Direction.BUILD:
         assembly_cost_complete = all(
             balances[item_id].cost_basis_complete
@@ -404,6 +484,11 @@ def execute_retail_assembly(
                 ),
                 Decimal("0"),
             ).quantize(Decimal("0.0001"))
+    else:
+        trusted_unbuild = _trusted_unbuild_snapshot()
+        if trusted_unbuild is not None:
+            finished_unit_cost, component_cost_snapshot = trusted_unbuild
+            assembly_cost_complete = True
 
     run = RetailAssemblyRun.objects.create(
         tenant_id=tenant_id,
@@ -480,7 +565,19 @@ def execute_retail_assembly(
     else:
         post(assembled_item.pk, -qty)
         for item_id, need in sorted(component_need.items(), key=lambda row: str(row[0])):
-            post(item_id, need)
+            component_snapshot = component_cost_snapshot.get(str(item_id), {})
+            recovered_unit_cost = (
+                Decimal(str(component_snapshot["unit_cost"]))
+                if assembly_cost_complete
+                and component_snapshot.get("unit_cost") is not None
+                else None
+            )
+            post(
+                item_id,
+                need,
+                inbound_unit_cost=recovered_unit_cost,
+                inbound_cost_complete=assembly_cost_complete,
+            )
 
     log_audit(
         tenant_id=tenant_id,
