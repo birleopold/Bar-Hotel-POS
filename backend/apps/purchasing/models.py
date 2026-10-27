@@ -237,6 +237,14 @@ class PurchaseReceiptLine(TimeStampedModel):
     )
     cartons_received = models.PositiveIntegerField(default=0)
     packages_received = models.PositiveIntegerField(default=0)
+    unit_cost_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Purchase unit cost captured when this physical receipt was posted.",
+    )
     inventory_batch = models.ForeignKey(
         "inventory.InventoryBatch", on_delete=models.PROTECT,
         null=True, blank=True, related_name="purchase_receipt_lines",
