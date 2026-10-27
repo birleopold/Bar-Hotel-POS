@@ -1223,6 +1223,8 @@ def apply_supermarket_line_discount(
     )
     if locked_ln.is_voided:
         raise ValidationError("Cannot discount a voided line.")
+    if locked_o.applied_promotion_id:
+        raise ValidationError({"discount": "Manual line discounts cannot be stacked with an order promotion."})
     if locked_ln.pricing_source == "wholesale":
         raise ValidationError({"discount": "Wholesale price tiers cannot be stacked with manual discounts."})
     if locked_ln.price_book_rule_id:
