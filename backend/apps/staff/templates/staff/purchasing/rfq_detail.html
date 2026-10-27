@@ -58,8 +58,8 @@
   {% for row in comparison_rows %}
   <details class="staff-card mb-3"{% if row.quote.status == "invited" %} open{% endif %}>
     <summary><strong>{{ row.supplier.name }}</strong> · record / review quotation</summary>
-    {% if row.quote.status == "accepted" %}
-      <p class="staff-muted mt-3">Accepted quotation is locked as sourcing evidence.{% if row.quote.converted_purchase_order_id %} <a href="{% url 'staff-purchasing-order-detail' po_id=row.quote.converted_purchase_order_id %}">Open resulting purchase order</a>.{% endif %}</p>
+    {% if rfq.status == "awarded" or rfq.status == "cancelled" or row.quote.status == "accepted" %}
+      <p class="staff-muted mt-3">This quotation is locked as sourcing evidence because the RFQ is closed.{% if row.quote.converted_purchase_order_id %} <a href="{% url 'staff-purchasing-order-detail' po_id=row.quote.converted_purchase_order_id %}">Open resulting purchase order</a>.{% endif %}</p>
     {% else %}
     <form method="post" class="mt-3">{% csrf_token %}
       <input type="hidden" name="action" value="record_quote"><input type="hidden" name="quote_id" value="{{ row.quote.pk }}">
