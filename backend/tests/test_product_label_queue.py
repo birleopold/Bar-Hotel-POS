@@ -235,7 +235,7 @@ class ProductLabelQueueTests(TestCase):
 
     def test_hospitality_outlet_does_not_receive_retail_label_queue_entry(self):
         hotel_outlet = Outlet.objects.create(
-            site=self.site, name="Hotel desk", outlet_type=OutletType.HOTEL,
+            site=self.site, name="Hotel desk", outlet_type=OutletType.LODGING_FRONT_DESK,
         )
         item = self._item()
         result = queue_product_label(
