@@ -7,6 +7,7 @@ from apps.pos.models import (
     Workstation,
     WorkstationDevice,
     WorkstationDeviceAdapter,
+    WorkstationDeviceCommand,
     WorkstationDeviceHealth,
     WorkstationDeviceType,
 )
@@ -248,3 +249,64 @@ def test_device_registry_appears_in_equipment_status_ui():
     assert b"Counter scanner" in page.content
     assert b"Keyboard-wedge input" in page.content
     assert b"Browser capability" in page.content
+
+
+@pytest.mark.django_db
+def test_equipment_diagnostics_can_queue_safe_commands_but_not_open_drawer():
+    a = _seed_tenant_bundle(
+        name="Safe Device Commands",
+        slug="safe-device-commands",
+        user_email="safe-device@test.local",
+    )
+    station = Workstation.objects.create(
+        tenant=a["tenant"],
+        outlet=a["outlet"],
+        name="Checkout",
+        code="safe-command-till",
+    )
+    printer = WorkstationDevice.objects.create(
+        tenant=a["tenant"],
+        workstation=station,
+        device_type=WorkstationDeviceType.RECEIPT_PRINTER,
+        adapter=WorkstationDeviceAdapter.LOCAL_BRIDGE,
+        label="Receipt printer",
+        created_by=a["user"],
+    )
+    drawer = WorkstationDevice.objects.create(
+        tenant=a["tenant"],
+        workstation=station,
+        device_type=WorkstationDeviceType.CASH_DRAWER,
+        adapter=WorkstationDeviceAdapter.LOCAL_BRIDGE,
+        label="Cash drawer",
+        created_by=a["user"],
+    )
+    client = Client()
+    _login(client, a)
+
+    queued = client.post(
+        reverse("staff-workstation-test", kwargs={"workstation_id": station.pk}),
+        {
+            "action": "queue_device_command",
+            "device_id": str(printer.pk),
+            "command_type": "print_receipt",
+        },
+    )
+    assert queued.status_code == 302
+    command = WorkstationDeviceCommand.objects.get(device=printer)
+    assert command.command_type == "print_receipt"
+    assert command.payload["diagnostic"] is True
+    assert command.payload["document_type"] == "device_test"
+
+    denied = client.post(
+        reverse("staff-workstation-test", kwargs={"workstation_id": station.pk}),
+        {
+            "action": "queue_device_command",
+            "device_id": str(drawer.pk),
+            "command_type": "open_drawer",
+        },
+    )
+    assert denied.status_code == 400
+    assert not WorkstationDeviceCommand.objects.filter(
+        device=drawer,
+        command_type="open_drawer",
+    ).exists()
