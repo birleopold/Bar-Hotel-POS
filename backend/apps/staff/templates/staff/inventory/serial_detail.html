@@ -1,0 +1,33 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}{{ serial_unit.serial_number }} · Serial trace{% endblock %}
+{% block main_class %}staff-main--wide fizo-stock-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.1">{% endblock %}
+{% block content %}
+<div class="fizo-stock">
+  <header class="fizo-stock__head">
+    <div><p class="fizo-stock__eyebrow">Inventory / Serial trace</p><h1>{{ serial_unit.serial_number }}</h1><p>{{ serial_unit.menu_item.name }} · {{ serial_unit.menu_item.get_serial_identifier_type_display }} · {{ serial_unit.get_status_display }}</p></div>
+    <div class="fizo-stock__actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-serials' %}">All serials</a>{% if serial_unit.sold_order_line %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-order-detail' serial_unit.sold_order_line.order_id %}">Open sale</a>{% endif %}</div>
+  </header>
+  <section class="staff-card mb-3">
+    <div class="staff-metric-row staff-metric-row--folio">
+      <span><strong>{{ serial_unit.get_status_display }}</strong><small>Current status</small></span>
+      <span><strong>{{ serial_unit.outlet.name }}</strong><small>Current section</small></span>
+      <span><strong>{{ serial_unit.received_at }}</strong><small>Received</small></span>
+      <span><strong>{{ serial_unit.warranty_expires_at|default:"—" }}</strong><small>Warranty expiry</small></span>
+    </div>
+    {% if serial_unit.purchase_receipt_line %}<p class="staff-muted mt-3 mb-0">Received from PO <strong>{{ serial_unit.purchase_receipt_line.receipt.purchase_order.reference|default:serial_unit.purchase_receipt_line.receipt.purchase_order.id }}</strong> · delivery {{ serial_unit.purchase_receipt_line.receipt.delivery_reference|default:"unreferenced" }}.</p>{% endif %}
+  </section>
+  <section class="fizo-stock__panel">
+    <h2>Custody history</h2>
+    {% if serial_unit.events.all %}
+    <div class="fizo-stock__tablewrap"><table class="fizo-stock__table">
+      <thead><tr><th>When</th><th>Event</th><th>Section</th><th>Order</th><th>Worker</th><th>Note</th></tr></thead>
+      <tbody>{% for event in serial_unit.events.all %}
+        <tr><td>{{ event.created_at }}</td><td>{{ event.get_event_type_display }}</td><td>{{ event.outlet.name }}</td><td>{% if event.order_line %}<a href="{% url 'staff-order-detail' event.order_line.order_id %}">{{ event.order_line.order.bill_reference }}</a>{% else %}—{% endif %}</td><td>{% if event.created_by %}{{ event.created_by.email }}{% else %}System{% endif %}</td><td>{{ event.note|default:"—" }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="staff-muted">No serial events recorded.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}
