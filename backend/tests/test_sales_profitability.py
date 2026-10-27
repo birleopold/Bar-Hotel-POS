@@ -507,3 +507,68 @@ class SalesProfitabilityTests(TestCase):
         self.assertIn(self.known_item.name, csv_body)
         self.assertNotIn("Bar counter,Known cost soap", csv_body)
 
+    def test_individual_margin_breach_is_not_hidden_by_profitable_sales(self):
+        settings_obj = self.tenant.settings
+        settings_obj.retail_min_margin_percent = Decimal("30")
+        settings_obj.save(update_fields=[
+            "retail_min_margin_percent", "updated_at",
+        ])
+
+        low_order, _low_line, _low_payment = self._paid_order(
+            outlet=self.outlet,
+            item=self.known_item,
+            price="100.00",
+            cost="80.00",
+            trusted=True,
+            key="profit-individual-low",
+        )
+        high_order, _high_line, _high_payment = self._paid_order(
+            outlet=self.outlet,
+            item=self.known_item,
+            price="200.00",
+            cost="60.00",
+            trusted=True,
+            key="profit-individual-high",
+        )
+        low_order.bill_reference = "LOW-MARGIN-SALE"
+        low_order.save(update_fields=["bill_reference", "updated_at"])
+        high_order.bill_reference = "HIGH-MARGIN-SALE"
+        high_order.save(update_fields=["bill_reference", "updated_at"])
+
+        result = build_merchandise_profitability(
+            tenant_id=self.tenant.pk,
+            date_from=self.today,
+            date_to=self.today,
+            allowed_outlet_ids=[self.outlet.pk],
+            currency="UGX",
+        )
+
+        # Aggregate product margin is healthy: 300 revenue - 140 COGS = 160 GP.
+        product = next(
+            row for row in result["products"]
+            if row["sku"] == self.known_item.sku
+        )
+        self.assertEqual(product["known_margin_percent"], Decimal("53.3"))
+        self.assertEqual(result["margin_exceptions"], [])
+
+        # The individual 20% sale is still preserved as an exception.
+        self.assertEqual(result["margin_breach_sale_count"], 1)
+        self.assertEqual(len(result["margin_breach_sales"]), 1)
+        breach = result["margin_breach_sales"][0]
+        self.assertEqual(breach["bill_reference"], "LOW-MARGIN-SALE")
+        self.assertEqual(breach["net_revenue"], Decimal("100.00"))
+        self.assertEqual(breach["known_cogs"], Decimal("80.00"))
+        self.assertEqual(breach["known_gross_profit"], Decimal("20.00"))
+        self.assertEqual(breach["known_margin_percent"], Decimal("20.0"))
+        self.assertEqual(breach["margin_floor_percent"], Decimal("30"))
+
+        csv_body = format_sales_summary_csv(
+            self.tenant.pk,
+            self.today,
+            self.today,
+            allowed_outlet_ids=[self.outlet.pk],
+        )
+        self.assertIn("below_floor_sale", csv_body)
+        self.assertIn("LOW-MARGIN-SALE", csv_body)
+        self.assertNotIn("HIGH-MARGIN-SALE", csv_body)
+
