@@ -2,11 +2,21 @@
 {% block title %}Control plane · {{ tenant_obj.name }}{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
-  <p class="staff-muted"><a href="{% url 'console-platform-tenants' %}">Workspaces</a> · <a href="{% url 'console-platform-tenant-edit' tenant_id=tenant_obj.id %}">Edit workspace</a></p>
-  <h1 class="staff-page-title">{{ tenant_obj.name }}<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
-  <p class="staff-muted">Slug <code>{{ tenant_obj.slug }}</code> · {% if tenant_obj.is_active %}Workspace access is active{% else %}Workspace access is paused{% endif %}</p>
+<div class="platform-control">
+  <header class="platform-control__head">
+    <div>
+      <p class="platform-page__eyebrow">Platform operations / Workspace control</p>
+      <h1 class="staff-page-title">{{ tenant_obj.name }}</h1>
+      <p class="platform-control__meta">Slug <code>{{ tenant_obj.slug }}</code> · {% if tenant_obj.is_active %}Workspace access is active{% else %}Workspace access is paused{% endif %}</p>
+    </div>
+    <div class="platform-form__actions">
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-platform-tenants' %}">Back to workspaces</a>
+      <a class="staff-btn staff-btn--primary" href="{% url 'console-platform-tenant-edit' tenant_id=tenant_obj.id %}">Edit workspace</a>
+    </div>
+  </header>
+  <div class="platform-control__grid">
 
-  <section class="staff-card mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+  <section class="staff-card d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div>
       <h2 class="h5 mb-1">Workspace access</h2>
       <p class="staff-muted small mb-0">{% if tenant_obj.is_active %}Pausing blocks this workspace while keeping its records available for later restoration.{% else %}Restore access to let this workspace sign in and resume operations.{% endif %}</p>
@@ -21,7 +31,7 @@
     </form>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card">
     <h2 class="h5 mb-2">Tenant owner login</h2>
     <p class="staff-muted small">Create the first owner's email and password for this business. Credentials work only with workspaces where that account has membership. Existing emails must be invited, never overwritten.</p>
     <form method="post" autocomplete="off">
@@ -34,7 +44,7 @@
     </form>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card platform-control__wide">
     <h2 class="h5 mb-2">Workspace domains</h2>
     <p class="staff-muted small">Domains choose the workspace and its branding. Staff still need an account with membership in this workspace. A custom domain is only activated after ownership verification, DNS routing, and HTTPS are ready.</p>
     {% if platform_domain %}
@@ -95,12 +105,12 @@
   </section>
 
   {% if has_past_due_invoice %}
-    <div class="staff-card mb-3" style="border-left: 4px solid #c45c3e;">
+    <div class="staff-alert staff-alert--warning platform-control__wide">
       <strong>Past-due invoice</strong> — this workspace has at least one invoice marked past due.
     </div>
   {% endif %}
 
-  <section class="staff-card mb-4">
+  <section class="staff-card">
     <h2 class="h5 mb-3">Provisioning</h2>
     <p class="staff-muted small">Apply supermarket baseline: plan, module entitlements, default site/outlet, and setup seed.</p>
     <form method="post">
@@ -109,7 +119,7 @@
     </form>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card">
     <h2 class="h5 mb-3">Subscription</h2>
     {% if subscription %}
       <p class="staff-muted small">Current status: {{ subscription.get_status_display }}</p>
@@ -123,7 +133,7 @@
     </form>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card">
     <h2 class="h5 mb-3">Module entitlements (tenant)</h2>
     <p class="staff-muted small">Per-workspace overrides for staff modules.</p>
     <form method="post">
@@ -133,7 +143,7 @@
     </form>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card">
     <h2 class="h5 mb-3">Outlet module policy</h2>
     <p class="staff-muted small">Choose outlet type, optionally apply a template, then adjust modules and save. Use one form for both actions.</p>
     <form method="post">
@@ -163,7 +173,7 @@
     {% endif %}
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card">
     <h2 class="h5 mb-3">New invoice</h2>
     <form method="post">
       {% csrf_token %}
@@ -172,7 +182,7 @@
     </form>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card platform-control__wide">
     <h2 class="h5 mb-3">Recent invoices</h2>
     <div class="staff-table-wrap">
       <table class="staff-table">
@@ -215,7 +225,7 @@
     </div>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card">
     <h2 class="h5 mb-3">Subscription transition</h2>
     <form method="post">
       {% csrf_token %}
@@ -224,7 +234,7 @@
     </form>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card">
     <h2 class="h5 mb-3">Billing note</h2>
     <form method="post">
       {% csrf_token %}
@@ -233,7 +243,7 @@
     </form>
   </section>
 
-  <section class="staff-card mb-4">
+  <section class="staff-card platform-control__wide">
     <h2 class="h5 mb-3">Billing event log</h2>
     <div class="staff-table-wrap">
       <table class="staff-table">
@@ -253,4 +263,6 @@
       </table>
     </div>
   </section>
+  </div>
+</div>
 {% endblock %}
