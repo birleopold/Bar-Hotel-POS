@@ -767,6 +767,54 @@ class StaffWorkstationDeviceTestView(StaffTenantRequiredMixin, View):
                 self.success_url_name,
                 workstation_id=station.pk,
             )
+        if action == "record_scanner_diagnostic":
+            try:
+                character_count = forms.IntegerField(min_value=1, max_value=128).clean(
+                    request.POST.get("character_count")
+                )
+                duration_ms = forms.IntegerField(min_value=0, max_value=120000).clean(
+                    request.POST.get("duration_ms")
+                )
+                average_gap_ms = forms.IntegerField(min_value=0, max_value=120000).clean(
+                    request.POST.get("average_gap_ms")
+                )
+                max_gap_ms = forms.IntegerField(min_value=0, max_value=120000).clean(
+                    request.POST.get("max_gap_ms")
+                )
+            except forms.ValidationError:
+                return HttpResponseBadRequest("Scanner diagnostic metrics are invalid.")
+            enter_terminated = request.POST.get("enter_terminated") == "1"
+            note = (
+                f"Browser scanner diagnostic: {character_count} characters in "
+                f"{duration_ms} ms; average gap {average_gap_ms} ms; "
+                f"max gap {max_gap_ms} ms; Enter terminator "
+                f"{'received' if enter_terminated else 'not received'}."
+            )
+            try:
+                record_hardware_check(
+                    tenant=request.tenant,
+                    workstation_id=station.pk,
+                    membership=request.tenant_membership,
+                    user=request.user,
+                    test_type="barcode_scanner",
+                    result="pass" if enter_terminated else "not_tested",
+                    note=note,
+                    evidence={
+                        "character_count": character_count,
+                        "duration_ms": duration_ms,
+                        "average_gap_ms": average_gap_ms,
+                        "max_gap_ms": max_gap_ms,
+                        "enter_terminated": enter_terminated,
+                    },
+                )
+            except DRFValidationError as exc:
+                messages.error(request, str(exc.detail))
+            else:
+                messages.success(
+                    request,
+                    "Scanner burst recorded. The barcode value itself was not stored.",
+                )
+            return redirect(self.success_url_name, workstation_id=station.pk)
         if action != "record_hardware_check":
             return HttpResponseBadRequest("Choose a device check action.")
         try:
