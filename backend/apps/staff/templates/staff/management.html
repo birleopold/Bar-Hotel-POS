@@ -377,6 +377,35 @@
     {% endif %}
   </section>
   {% endif %}
+  {% if receivable_aging %}
+  <section class="staff-card mb-3">
+    <div class="d-flex flex-wrap justify-content-between gap-2">
+      <div>
+        <h2 class="staff-section-head">Customer / guest receivable charge age</h2>
+        <p class="staff-muted small mb-0">FIFO age of outstanding folio charges as of {{ receivable_aging.as_of }}. This is not contractual overdue ageing because folios do not currently store invoice due dates.</p>
+      </div>
+      {% if receivable_aging.foreign_currency_folio_count %}<span class="staff-tag">{{ receivable_aging.foreign_currency_folio_count }} foreign-currency folio{{ receivable_aging.foreign_currency_folio_count|pluralize }} excluded</span>{% endif %}
+    </div>
+    <div class="staff-tile-grid mt-3">
+      <article class="staff-tile"><span class="staff-muted small">0–30 days</span><strong>{{ receivable_aging.currency }} {{ receivable_aging.totals.current_0_30 }}</strong></article>
+      <article class="staff-tile"><span class="staff-muted small">31–60 days</span><strong>{{ receivable_aging.currency }} {{ receivable_aging.totals.days_31_60 }}</strong></article>
+      <article class="staff-tile"><span class="staff-muted small">61–90 days</span><strong>{{ receivable_aging.currency }} {{ receivable_aging.totals.days_61_90 }}</strong></article>
+      <article class="staff-tile"><span class="staff-muted small">91+ days</span><strong>{{ receivable_aging.currency }} {{ receivable_aging.totals.days_91_plus }}</strong></article>
+      <article class="staff-tile"><span class="staff-muted small">Outstanding</span><strong>{{ receivable_aging.currency }} {{ receivable_aging.totals.outstanding }}</strong></article>
+    </div>
+    {% if receivable_aging.folios %}
+    <div class="staff-table-wrap mt-3">
+      <table class="staff-table">
+        <caption>Largest outstanding folios</caption>
+        <thead><tr><th>Customer / guest</th><th>Branch</th><th>Outstanding</th><th>0–30</th><th>31–60</th><th>61–90</th><th>91+</th></tr></thead>
+        <tbody>{% for row in receivable_aging.folios %}
+          <tr><td><strong>{{ row.customer_name }}</strong></td><td>{{ row.site_name }}</td><td>{{ receivable_aging.currency }} {{ row.outstanding }}</td><td>{{ row.current_0_30 }}</td><td>{{ row.days_31_60 }}</td><td>{{ row.days_61_90 }}</td><td>{{ row.days_91_plus }}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
   {% if management_recent_shifts %}
   <section class="staff-card mb-3">
     <h2 class="staff-section-head">Register reconciliations</h2>
