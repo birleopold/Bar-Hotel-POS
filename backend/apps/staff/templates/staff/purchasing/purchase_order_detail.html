@@ -8,6 +8,18 @@
 
   <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Purchase order details</h1><p>Review ordered and received quantities, invoices and authorized actions.</p></div><div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All orders</a></div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
+  {% if po.source_supplier_quote %}
+  <section class="staff-card mb-3" aria-label="Sourcing evidence">
+    <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+      <div>
+        <p class="staff-muted small mb-1">Sourcing evidence</p>
+        <h2 class="staff-card__title mb-1">Awarded from {{ po.source_supplier_quote.rfq.reference }}</h2>
+        <p class="staff-muted small mb-0">{{ po.source_supplier_quote.supplier.name }} · quote {{ po.source_supplier_quote.reference|default:"without supplier reference" }} · freight {{ purchase_currency }} {{ po.source_supplier_quote.shipping_cost }} · other quoted charges {{ purchase_currency }} {{ po.source_supplier_quote.other_cost }}</p>
+      </div>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-rfq-detail' rfq_id=po.source_supplier_quote.rfq_id %}">Open quote comparison</a>
+    </div>
+  </section>
+  {% endif %}
   <section class="staff-card mb-3" aria-label="Purchase approval">
     <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
       <div>
