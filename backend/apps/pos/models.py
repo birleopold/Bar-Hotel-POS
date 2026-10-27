@@ -885,6 +885,125 @@ class WorkstationDevice(TimeStampedModel):
         return f"{self.workstation.code} · {self.get_device_type_display()} · {self.label}"
 
 
+class WorkstationBridgeCredential(TimeStampedModel):
+    """Revocable credential for a locally installed hardware bridge.
+
+    The raw secret is shown once at provisioning and never stored.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="workstation_bridge_credentials",
+    )
+    workstation = models.ForeignKey(
+        Workstation,
+        on_delete=models.CASCADE,
+        related_name="bridge_credentials",
+    )
+    label = models.CharField(max_length=80)
+    token_hash = models.CharField(max_length=64, editable=False)
+    approved_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="workstation_bridges_approved",
+    )
+    expires_at = models.DateTimeField()
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workstation_bridges_revoked",
+    )
+    revocation_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.workstation.code} bridge · {self.label}"
+
+
+class WorkstationDeviceCommandStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    CLAIMED = "claimed", "Claimed"
+    SUCCEEDED = "succeeded", "Succeeded"
+    FAILED = "failed", "Failed"
+    EXPIRED = "expired", "Expired"
+
+
+class WorkstationDeviceCommandType(models.TextChoices):
+    PING = "ping", "Ping device"
+    PRINT_RECEIPT = "print_receipt", "Print receipt"
+    PRINT_KITCHEN = "print_kitchen", "Print kitchen ticket"
+    OPEN_DRAWER = "open_drawer", "Open cash drawer"
+    READ_SCALE = "read_scale", "Read scale"
+
+
+class WorkstationDeviceCommand(TimeStampedModel):
+    """Idempotent command envelope for an authenticated local bridge."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="workstation_device_commands",
+    )
+    workstation = models.ForeignKey(
+        Workstation,
+        on_delete=models.CASCADE,
+        related_name="device_commands",
+    )
+    device = models.ForeignKey(
+        WorkstationDevice,
+        on_delete=models.PROTECT,
+        related_name="commands",
+    )
+    command_type = models.CharField(
+        max_length=24,
+        choices=WorkstationDeviceCommandType.choices,
+    )
+    idempotency_key = models.CharField(max_length=128)
+    payload = models.JSONField(default=dict, blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=WorkstationDeviceCommandStatus.choices,
+        default=WorkstationDeviceCommandStatus.PENDING,
+    )
+    attempts = models.PositiveSmallIntegerField(default=0)
+    max_attempts = models.PositiveSmallIntegerField(default=3)
+    not_before = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    result = models.JSONField(default=dict, blank=True)
+    error = models.CharField(max_length=500, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workstation_device_commands_created",
+    )
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "idempotency_key"],
+                name="uniq_device_command_idempotency_per_tenant",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.command_type} · {self.device.label} · {self.status}"
+
+
 class WorkstationPairing(TimeStampedModel):
     """Revocable browser credential. Never stores the raw 256-bit secret."""
 
