@@ -951,7 +951,7 @@ def add_supermarket_line_by_code(
     code: str,
     quantity: Decimal,
     user,
-) -> OrderLine:
+) -> OrderLine | list[OrderLine]:
     from apps.catalog.scale_labels import decode_scale_weight_label
     from apps.inventory.models import InventorySerialUnit, SerializedUnitStatus
 
@@ -989,7 +989,19 @@ def add_supermarket_line_by_code(
             tenant_id=order.tenant_id, outlet_id=order.outlet_id, code=code,
         )
         if item is None:
-            raise ValidationError({"code": "No active SKU found for this barcode/PLU/package at this outlet."})
+            retail_group = RetailProductGroup.objects.filter(
+                tenant_id=order.tenant_id,
+                is_active=True,
+                code__iexact=token,
+            ).first()
+            if retail_group is not None:
+                return add_retail_group_to_open_order(
+                    order=order,
+                    retail_group=retail_group,
+                    quantity=quantity,
+                    user=user,
+                )
+            raise ValidationError({"code": "No active SKU, barcode, PLU, package or retail group found at this outlet."})
         if package is not None:
             try:
                 package_count = Decimal(str(quantity))
