@@ -733,6 +733,7 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon
     margin_breach, margin_reason = promotion_margin_floor_result(
         order=locked,
         discount_amount=disc,
+        promotion=promotion,
     )
     if margin_breach:
         raise ValidationError({"margin_floor": margin_reason})
