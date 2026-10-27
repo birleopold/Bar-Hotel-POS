@@ -428,15 +428,15 @@ def _save_catalog_item_safely(view, form, *, creating):
             form.add_error("barcode", "This barcode is already registered to another product.")
             return view.form_invalid(form)
         if barcode and ProductPackage.objects.filter(
-            tenant=view.request.tenant, barcode=barcode,
-        ).exists():
-            form.add_error("barcode", "This barcode is already registered to a product package.")
+            tenant=view.request.tenant,
+        ).filter(Q(barcode__iexact=barcode) | Q(sku_alias__iexact=barcode)).exists():
+            form.add_error("barcode", "This code is already registered to a product package.")
             return view.form_invalid(form)
         sku = (form.cleaned_data.get("sku") or "").strip()
         if sku and ProductPackage.objects.filter(
-            tenant=view.request.tenant, sku_alias__iexact=sku,
-        ).exists():
-            form.add_error("sku", "This SKU is already registered as a product package code.")
+            tenant=view.request.tenant,
+        ).filter(Q(sku_alias__iexact=sku) | Q(barcode__iexact=sku)).exists():
+            form.add_error("sku", "This code is already registered to a product package.")
             return view.form_invalid(form)
         instance = form.save(commit=False)
         if creating:
