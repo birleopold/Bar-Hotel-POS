@@ -705,7 +705,7 @@ class TargetedPromotionTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Buy X Get Y requires exactly one")
+        self.assertContains(response, "Quantity deals require exactly one")
         self.assertFalse(
             Promotion.objects.filter(tenant=self.tenant, name="Bad BOGO").exists()
         )
@@ -960,10 +960,11 @@ class TargetedPromotionTests(TestCase):
 
         from apps.pos.services.orders import adjust_open_order_line_quantity
         line.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal("6"))
         adjust_open_order_line_quantity(
             order=order,
             line=line,
-            quantity=Decimal("2"),
+            quantity=Decimal("5"),
             user=self.user,
         )
         order.refresh_from_db()
