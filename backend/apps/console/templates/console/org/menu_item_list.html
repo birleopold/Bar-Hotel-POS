@@ -14,7 +14,7 @@
   </header>
   <div class="d-flex flex-wrap gap-2 mb-3">
     <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-categories' %}"><i class="bi bi-tags"></i> Categories</a>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-families' %}"><i class="bi bi-diagram-3"></i> Product families</a>
+    {% if console_has_retail %}<a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-families' %}"><i class="bi bi-diagram-3"></i> Product families</a>{% endif %}
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}"><i class="bi bi-boxes"></i> View stock levels</a>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-movement-upload' %}"><i class="bi bi-file-earmark-arrow-up"></i> Import opening stock</a>
     {% if missing_photo_count %}
@@ -39,7 +39,7 @@
                 <a href="{% url 'console-org-menu-item-edit' item_id=it.id %}">Edit</a>
                 <a href="{% url 'console-org-menu-item-photo' item_id=it.id %}">{% if it.product_image_render_src %}Change photo{% else %}Add photo{% endif %}</a>
                 <a href="{% url 'console-org-menu-item-outlets' item_id=it.id %}">Area pricing</a>
-                <a href="{% url 'console-org-menu-item-packages' item_id=it.id %}">Packages</a>
+                {% if console_has_retail %}<a href="{% url 'console-org-menu-item-packages' item_id=it.id %}">Packages</a>{% endif %}
                 {% if console_has_fnb %}<a href="{% url 'console-org-menu-item-recipe' item_id=it.id %}">Recipe</a>{% endif %}
               </div></td></tr>
           {% endfor %}</tbody>
