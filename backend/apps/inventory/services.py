@@ -34,6 +34,8 @@ def apply_manual_stock_change(
     note: str = "",
     purchase_order=None,
     allow_serialized: bool = False,
+    inbound_unit_cost=None,
+    inbound_cost_complete: bool = False,
 ) -> StockMovement:
     """Apply a non-sale movement and update ``StockBalance``.
 
@@ -82,13 +84,28 @@ def apply_manual_stock_change(
         )
     bal.quantity = new_qty
     update_fields = ["quantity", "updated_at"]
-    if quantity_change > 0 and reason != StockReason.RECEIVE:
+    known_inbound_cost = bool(
+        quantity_change > 0
+        and reason != StockReason.RECEIVE
+        and inbound_cost_complete
+        and inbound_unit_cost is not None
+    )
+    if quantity_change > 0 and reason != StockReason.RECEIVE and not known_inbound_cost:
         # Uncosted manual additions/count-like corrections make the full
         # balance unsafe for margin enforcement until it is reconciled.
         bal.average_unit_cost = None
         bal.cost_basis_complete = False
         update_fields.extend(["average_unit_cost", "cost_basis_complete"])
     bal.save(update_fields=update_fields)
+    if known_inbound_cost:
+        apply_inbound_cost_basis(
+            tenant_id=tenant_id,
+            outlet=outlet,
+            menu_item=menu_item,
+            quantity_received=quantity_change,
+            unit_cost=inbound_unit_cost,
+            incoming_cost_complete=True,
+        )
 
     movement = StockMovement.objects.create(
         tenant_id=tenant_id,
