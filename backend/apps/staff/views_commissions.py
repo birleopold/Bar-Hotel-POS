@@ -315,10 +315,7 @@ class StaffCommissionReportView(StaffTenantRequiredMixin, View):
             source="staff",
         )
         messages.success(request, "Sales target saved.")
-        return redirect(
-            reverse("staff-management-commissions")
-            + f"?date_from={target.period_start}&date_to={target.period_end}"
-        )
+        return redirect("staff-management-commissions")
 
 
 class StaffSalesTargetUpdateView(StaffTenantRequiredMixin, UpdateView):
@@ -376,7 +373,4 @@ class StaffSalesTargetUpdateView(StaffTenantRequiredMixin, UpdateView):
         return response
 
     def get_success_url(self):
-        return (
-            reverse("staff-management-commissions")
-            + f"?date_from={self.object.period_start}&date_to={self.object.period_end}"
-        )
+        return reverse("staff-management-commissions")
