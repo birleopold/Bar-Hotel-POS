@@ -238,6 +238,18 @@ class OrderLine(TimeStampedModel):
         validators=[MinValueValidator(Decimal("0"))],
         help_text="Original unit price before customer price-book override.",
     )
+    cost_unit_snapshot = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Authoritative weighted-average inventory unit cost captured when the sale posts stock.",
+    )
+    cost_basis_complete_snapshot = models.BooleanField(
+        default=False,
+        help_text="Whether the captured cost represented the full outlet stock basis at sale time.",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     seat_number = models.PositiveSmallIntegerField(
         null=True,
