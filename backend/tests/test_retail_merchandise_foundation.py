@@ -204,7 +204,7 @@ class RetailMerchandiseFoundationTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "already registered to another product")
+        self.assertContains(response, "already registered to a product barcode or SKU")
         self.assertFalse(ProductPackage.objects.filter(menu_item=self.item).exists())
 
     def test_base_product_code_cannot_reuse_package_code(self):
