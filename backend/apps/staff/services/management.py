@@ -508,6 +508,7 @@ def management_loss_pattern_detail(
     def add_event(kind, when, title, detail, source_url, outlet_name=""):
         events.append({
             "kind": kind,
+            "kind_key": kind.lower().replace(" ", "_"),
             "when": when,
             "title": title,
             "detail": detail,
@@ -700,7 +701,7 @@ def management_loss_pattern_detail(
         "dimension": dimension,
         "entity_key": entity_key,
         "summary": summary,
-        "events": events[:limit],
+        "events": events if limit is None else events[:limit],
         "lookback_days": policy.lookback_days,
     }
 
