@@ -80,10 +80,12 @@
         <span class="staff-tag">{{ p.cost_coverage_percent }}% cost coverage</span>
       </div>
       <div class="row g-3 mt-1">
-        <div class="col-6 col-lg-3"><div class="staff-card h-100"><p class="staff-muted small mb-1">Net merchandise revenue</p><strong>{{ p.currency }} {{ p.net_merchandise_revenue }}</strong></div></div>
-        <div class="col-6 col-lg-3"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known net COGS</p><strong>{{ p.currency }} {{ p.known_net_cogs }}</strong></div></div>
-        <div class="col-6 col-lg-3"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known gross profit</p><strong>{{ p.currency }} {{ p.known_gross_profit }}</strong></div></div>
-        <div class="col-6 col-lg-3"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known gross margin</p><strong>{% if p.known_margin_percent != None %}{{ p.known_margin_percent }}%{% else %}—{% endif %}</strong></div></div>
+        <div class="col-6 col-lg-2"><div class="staff-card h-100"><p class="staff-muted small mb-1">Net merchandise revenue</p><strong>{{ p.currency }} {{ p.net_merchandise_revenue }}</strong></div></div>
+        <div class="col-6 col-lg-2"><div class="staff-card h-100"><p class="staff-muted small mb-1">Revenue with trusted cost</p><strong>{{ p.currency }} {{ p.covered_net_revenue }}</strong></div></div>
+        <div class="col-6 col-lg-2"><div class="staff-card h-100"><p class="staff-muted small mb-1">Revenue without trusted cost</p><strong>{{ p.currency }} {{ p.uncovered_net_revenue }}</strong></div></div>
+        <div class="col-6 col-lg-2"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known net COGS</p><strong>{{ p.currency }} {{ p.known_net_cogs }}</strong></div></div>
+        <div class="col-6 col-lg-2"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known gross profit</p><strong>{{ p.currency }} {{ p.known_gross_profit }}</strong></div></div>
+        <div class="col-6 col-lg-2"><div class="staff-card h-100"><p class="staff-muted small mb-1">Known gross margin</p><strong>{% if p.known_margin_percent != None %}{{ p.known_margin_percent }}%{% else %}—{% endif %}</strong></div></div>
       </div>
 
       {% if p.profitability_complete %}
@@ -119,7 +121,7 @@
           </table>
         </div>
       {% endif %}
-      <p class="staff-muted small mt-2 mb-0">A restocked line-level return reverses the original sale’s cost on the return date. Any refund that cannot be tied to a returned merchandise line is surfaced as an attribution gap rather than guessed.</p>
+      <p class="staff-muted small mt-2 mb-0">Known gross profit is calculated only from revenue movements whose sale-time cost is trusted. A restocked line-level return reverses the original sale’s cost on the return date. Any refund that cannot be tied to a returned merchandise line is surfaced as an attribution gap rather than guessed.</p>
     </div>
     {% endwith %}
 
