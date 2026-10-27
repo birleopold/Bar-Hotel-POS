@@ -11,6 +11,49 @@
   {% if prefill_menu_item %}
   <p class="staff-alert staff-alert--info">Item and quantity were suggested from stock planning. Check the supplier, actual need, current stock and price before saving this draft.</p>
   {% endif %}
+  {% if supplier_purchase_options %}
+  <section class="staff-card mb-3" aria-label="Supplier comparison">
+    <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+      <div>
+        <p class="staff-muted small mb-1">Supplier evidence for {{ prefill_qty }} base units</p>
+        <h2 class="staff-card__title mb-1">Compare before choosing a supplier</h2>
+        <p class="staff-muted small mb-0">Lowest cost is highlighted only among currently eligible suppliers with known planning cost. Preferred status, MOQ, lead time and latest received cost remain separate evidence; no supplier is auto-selected.</p>
+      </div>
+    </div>
+    <div class="staff-table-wrap mt-3">
+      <table class="fizo-purchasing__table">
+        <thead><tr><th>Supplier</th><th>Current planning cost</th><th>MOQ</th><th>Lead time</th><th>Last received cost</th><th>Relationship</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for option in supplier_purchase_options %}
+          <tr>
+            <td><strong>{{ option.supplier.name }}</strong>{% if option.supplier_code %}<span class="staff-muted small d-block">Code {{ option.supplier_code }}</span>{% endif %}</td>
+            <td>
+              {% if option.current_cost != None %}
+                <strong>{{ request.tenant.settings.default_currency }} {{ option.current_cost }}</strong>
+                {% if option.is_lowest_cost %}<span class="staff-tag d-block mt-1">Lowest eligible planning cost</span>{% endif %}
+                <span class="staff-muted small d-block">{{ option.cost_source }}{% if option.source_reference %} · {{ option.source_reference }}{% endif %}</span>
+              {% else %}
+                <span class="staff-muted">Unknown</span>
+              {% endif %}
+            </td>
+            <td>{% if option.minimum_order_quantity != None %}{{ option.minimum_order_quantity }}{% if not option.eligible %}<span class="staff-tag d-block mt-1">Below MOQ</span>{% endif %}{% else %}—{% endif %}</td>
+            <td>{% if option.expected_lead_days != None %}{{ option.expected_lead_days }} day{{ option.expected_lead_days|pluralize }}{% else %}—{% endif %}</td>
+            <td>{% if option.latest_received_cost != None %}{{ request.tenant.settings.default_currency }} {{ option.latest_received_cost }}{% if option.latest_received_at %}<span class="staff-muted small d-block">{{ option.latest_received_at }}</span>{% endif %}{% else %}—{% endif %}</td>
+            <td>{% if option.preferred %}<strong>Preferred</strong>{% else %}Alternative{% endif %}</td>
+            <td>
+              {% if option.eligible %}
+              <a class="staff-btn staff-btn--ghost" href="?supplier={{ option.supplier.id }}&menu_item={{ prefill_menu_item }}&quantity={{ prefill_qty|urlencode }}{% if current_outlet %}&outlet={{ current_outlet.id }}{% endif %}">Use supplier</a>
+              {% else %}
+              <span class="staff-muted small">Increase quantity or choose another supplier</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
   <h2 class="fizo-purchasing__section-heading">Order details</h2>
   <form method="post" class="staff-card{% if grocery_owner_shell %} grocery-admin-form{% endif %}">
     {% csrf_token %}
