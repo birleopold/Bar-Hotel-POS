@@ -11,6 +11,7 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db.models import Max, Q
+from apps.audit.models import AuditEvent, SensitiveActionApproval
 from apps.common.datetime_bounds import utc_day_range_inclusive
 from apps.pos.models import Order, OrderLine, Refund, SupermarketLineReturn
 from apps.tenants.models import OutletType, TenantSettings
@@ -142,7 +143,10 @@ def build_merchandise_profitability(
                 menu_item__track_inventory=True,
             )
         )
-        .select_related("order", "order__outlet", "menu_item", "menu_item__category")
+        .select_related(
+            "order", "order__outlet", "order__created_by",
+            "menu_item", "menu_item__category",
+        )
         .order_by("order_id", "sort_order", "created_at")
     )
 
@@ -281,6 +285,7 @@ def build_merchandise_profitability(
                     )
                     margin_breach_sales.append({
                         "order_id": str(line.order_id),
+                        "order_line_id": str(line.id),
                         "bill_reference": line.order.bill_reference or str(line.order_id),
                         "outlet_id": str(line.order.outlet_id),
                         "outlet_name": line.order.outlet.name,
@@ -294,6 +299,15 @@ def build_merchandise_profitability(
                         "margin_floor_percent": configured_margin_floor,
                         "target_gross_profit": target_gross_profit,
                         "margin_shortfall": margin_shortfall,
+                        "cashier_email": (
+                            line.order.created_by.email
+                            if line.order.created_by_id else ""
+                        ),
+                        "override_requester_email": "",
+                        "override_approver_email": "",
+                        "override_reason": "",
+                        "override_approved_at": None,
+                        "has_linked_margin_override": False,
                     })
             row["covered_revenue"] += revenue
             row["covered_units"] += line.quantity
@@ -629,6 +643,56 @@ def build_merchandise_profitability(
             row["item_name"].lower(),
         )
     )
+    breach_line_ids = [
+        row["order_line_id"] for row in margin_breach_sales
+    ]
+    if breach_line_ids:
+        approval_by_line = {}
+        approvals = (
+            SensitiveActionApproval.objects.filter(
+                tenant_id=tenant_id,
+                action="discount",
+                entity_type="order",
+                entity_id__in=[row["order_id"] for row in margin_breach_sales],
+                used_at__isnull=False,
+            )
+            .select_related("requester__user", "approver__user")
+            .order_by("created_at")
+        )
+        breach_line_id_set = set(breach_line_ids)
+        for approval in approvals:
+            line_id = str((approval.intent_payload or {}).get("line_id") or "")
+            if line_id in breach_line_id_set:
+                approval_by_line[line_id] = approval
+
+        override_event_by_line = {}
+        events = (
+            AuditEvent.objects.filter(
+                tenant_id=tenant_id,
+                action="order.line_discount_applied",
+                entity_type="order_line",
+                entity_id__in=breach_line_ids,
+            )
+            .order_by("created_at")
+        )
+        for event in events:
+            payload = event.payload or {}
+            if payload.get("margin_floor_overridden"):
+                override_event_by_line[str(event.entity_id)] = event
+
+        for row in margin_breach_sales:
+            line_id = row["order_line_id"]
+            approval = approval_by_line.get(line_id)
+            event = override_event_by_line.get(line_id)
+            if approval is not None and event is not None:
+                row["has_linked_margin_override"] = True
+                row["override_requester_email"] = approval.requester.user.email
+                row["override_approver_email"] = approval.approver.user.email
+                row["override_approved_at"] = approval.used_at
+                row["override_reason"] = str(
+                    (event.payload or {}).get("margin_override_reason") or ""
+                ).strip()
+
     totals["unknown_cost_exposure"] = unknown_cost_exposure[:25]
     totals["margin_exceptions"] = margin_exceptions[:25]
     totals["margin_breach_sales"] = margin_breach_sales[:50]
