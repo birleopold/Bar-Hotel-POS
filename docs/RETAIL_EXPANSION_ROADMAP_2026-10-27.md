@@ -456,12 +456,14 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Benchmark check (Lightspeed Retail employee roles/access and Shopify POS staff roles/location access, 2026-10-27): use named reusable roles, explicit task permissions, location assignment and individual worker identity; our implementation keeps the same understandable model while preserving the stricter tenant/business-line/outlet scope already enforced by this POS.
 
 ### R6.2 Time and attendance
-- Clock in/out.
-- Breaks.
-- Shift attendance.
-- Late/absence notes.
-- Timesheet review/approval.
-- POS shift remains financially separate from attendance shift.
+- Worker self-service attendance is implemented at /staff/attendance/: clock in, start/end break and clock out are explicit state transitions with audit events and one-open-shift / one-open-break database constraints.
+- Attendance is a separate workforce ledger from POS cash/register shifts. Clocking in/out never creates, closes or reconciles a PosShift; register accounting remains independent.
+- Each attendance shift records the worker membership, branch, optional sales area, clock-in/out timestamps, notes, breaks and review state. Gross, break and worked hours are calculated from the attendance record rather than inferred from POS activity.
+- Managers have a scoped Timesheets screen with date/status/worker filters and CSV export. Only owner, tenant-admin, site-manager and outlet-manager roles can review timesheets, and they only see workers in their authorized branch/outlet scope.
+- Clocked-out shifts enter Pending review. Managers can approve them or correct clock-in/out times with an explicit correction note; corrections are audit logged with before/after values.
+- Corrections fail closed if they would overlap another attendance shift for the worker or place an existing break outside the corrected work interval. Open shifts cannot be approved/corrected, and workers must end an active break before clocking out.
+- Late/absence notes remain a scheduling-stage enhancement because the system does not yet have a published work schedule against which lateness/absence can be determined truthfully.
+- Benchmark check (Lightspeed Retail employee hours and Square Shifts/timecards, 2026-10-27): separate work-time tracking from register operations, support worker clock in/out and breaks, provide manager review/edit controls, and retain location/worker filters and export. Our implementation follows that model while preserving tenant/site/outlet scope and audited correction evidence.
 
 ### R6.3 Commissions and targets
 - Commission rules by employee/product/category.
