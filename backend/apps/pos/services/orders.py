@@ -8,7 +8,11 @@ from rest_framework.exceptions import ValidationError
 from apps.access.outlets import outlet_belongs_to_membership
 from apps.accounts.models import Membership, MembershipRole
 from apps.audit.services import log_audit
-from apps.catalog.promotion_rules import promotion_matches_item
+from apps.catalog.promotion_rules import (
+    promotion_matches_item,
+    promotion_qualifying_quantity,
+    promotion_redemption_block_reason,
+)
 from apps.catalog.models import (
     MenuItem,
     ProductAlternateCode,
@@ -582,7 +586,7 @@ def create_order_with_lines(
 
 
 @transaction.atomic
-def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Order:
+def apply_promotion_to_order(*, order: Order, promotion: Promotion, user, coupon_code: str = "") -> Order:
     from django.utils import timezone as dj_tz
 
     locked = Order.objects.select_for_update().get(pk=order.pk)
@@ -597,6 +601,12 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
         raise ValidationError({"promotion": "Customer price-book rates cannot be combined with order promotions yet."})
     if promotion.tenant_id != locked.tenant_id or not promotion.is_active:
         raise ValidationError("Invalid promotion.")
+    expected_coupon = (promotion.coupon_code or "").strip()
+    supplied_coupon = (coupon_code or "").strip()
+    if expected_coupon and expected_coupon.casefold() != supplied_coupon.casefold():
+        raise ValidationError({"coupon_code": "Enter the valid coupon code for this offer."})
+    if not expected_coupon and supplied_coupon:
+        raise ValidationError({"coupon_code": "This offer does not use a coupon code."})
     now = dj_tz.now()
     if promotion.starts_at > now or (promotion.ends_at and promotion.ends_at < now):
         raise ValidationError("Promotion is not valid at this time.")
@@ -604,6 +614,14 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
         raise ValidationError("Promotion does not apply to this outlet.")
     if promotion.min_order_subtotal is not None and locked.subtotal < promotion.min_order_subtotal:
         raise ValidationError({"promotion": "Order subtotal is below the minimum for this promotion."})
+    if (
+        promotion.min_target_quantity is not None
+        and promotion_qualifying_quantity(promotion, locked) < promotion.min_target_quantity
+    ):
+        raise ValidationError({"promotion": "Basket quantity is below the minimum for this offer."})
+    redemption_reason = promotion_redemption_block_reason(promotion, locked)
+    if redemption_reason:
+        raise ValidationError({"promotion": redemption_reason})
     if locked.lines.filter(is_voided=False).filter(
         Q(line_discount_amount__gt=0) | Q(line_discount_percent__isnull=False)
     ).exists():
@@ -658,6 +676,8 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
             "promotion_target": promotion.target_label,
             "discount_basis": str(discount_basis),
             "discount_amount": str(disc),
+            "coupon_used": bool(expected_coupon),
+            "min_target_quantity": str(promotion.min_target_quantity) if promotion.min_target_quantity is not None else None,
         },
     )
     return locked
