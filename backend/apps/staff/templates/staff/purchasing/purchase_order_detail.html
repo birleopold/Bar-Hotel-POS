@@ -171,6 +171,80 @@
     {% else %}<p class="staff-muted mb-0">No deliveries have been received against this purchase order.</p>{% endif %}
   </section>
 
+  {% if can_modify_purchasing and po.receipts.all %}
+  <h2 class="fizo-purchasing__section-heading">Landed-cost corrections</h2>
+  <section class="staff-card mb-3" aria-label="Landed-cost corrections">
+    <p class="staff-muted">Use this only for a later freight/duty correction or credit tied to an already posted delivery. The original receipt remains immutable. The correction changes current weighted-average inventory cost only when no affected item has had any outbound stock movement since that receipt.</p>
+    <p class="staff-alert staff-alert--info">This is inventory-cost evidence only. It does not pay a supplier, create a supplier credit note, change stock quantity, or rewrite historical sale COGS.</p>
+    {% for receipt in po.receipts.all %}
+      <details class="staff-card staff-card--flat mb-3">
+        <summary><strong>{{ receipt.delivery_reference|default:"Unreferenced delivery" }}</strong> · {{ receipt.created_at }}{% if receipt.cost_adjustments.all %} · {{ receipt.cost_adjustments.all|length }} adjustment{{ receipt.cost_adjustments.all|length|pluralize }}{% endif %}</summary>
+        {% if receipt.cost_adjustments.all %}
+        <div class="staff-table-wrap mt-3">
+          <table class="staff-table">
+            <thead><tr><th>Reference</th><th>Amount</th><th>Allocation</th><th>Reason</th><th>Recorded</th></tr></thead>
+            <tbody>
+            {% for adjustment in receipt.cost_adjustments.all %}
+              <tr>
+                <td>{{ adjustment.reference }}</td>
+                <td>{{ purchase_currency }} {{ adjustment.amount }}</td>
+                <td>{{ adjustment.get_allocation_method_display }}</td>
+                <td>{{ adjustment.reason }}{% if adjustment.lines.all %}<div class="staff-muted small">{% for line in adjustment.lines.all %}{{ line.receipt_line.purchase_order_line.menu_item.name }}: {{ purchase_currency }} {{ line.amount }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>{% endif %}</td>
+                <td>{{ adjustment.created_at }}{% if adjustment.created_by %}<span class="staff-muted small d-block">{{ adjustment.created_by.email }}</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        <form method="post" class="row g-2 align-items-end mt-3" data-landed-adjustment-form>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="landed_cost_adjustment">
+          <input type="hidden" name="receipt_id" value="{{ receipt.id }}">
+          <div class="col-12 col-md-2">
+            <label class="staff-label" for="landed-direction-{{ receipt.id }}">Change</label>
+            <select class="staff-input" id="landed-direction-{{ receipt.id }}" name="adjustment_direction" required>
+              <option value="additional">Additional landed cost</option>
+              <option value="credit">Landed-cost credit</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-2">
+            <label class="staff-label" for="landed-amount-{{ receipt.id }}">Amount</label>
+            <input class="staff-input" id="landed-amount-{{ receipt.id }}" name="amount" type="number" step="0.01" min="0.01" required>
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="staff-label" for="landed-method-{{ receipt.id }}">Allocation</label>
+            <select class="staff-input" id="landed-method-{{ receipt.id }}" name="allocation_method" data-adjustment-allocation-mode required>
+              <option value="by_cost">By received supplier-cost value</option>
+              <option value="by_quantity">By received quantity</option>
+              <option value="manual">Manual per line</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-5">
+            <label class="staff-label" for="landed-reference-{{ receipt.id }}">Adjustment / credit reference</label>
+            <input class="staff-input" id="landed-reference-{{ receipt.id }}" name="reference" maxlength="128" required>
+          </div>
+          <div class="col-12">
+            <label class="staff-label" for="landed-reason-{{ receipt.id }}">Evidence / reason</label>
+            <textarea class="staff-input" id="landed-reason-{{ receipt.id }}" name="reason" minlength="12" maxlength="512" rows="2" required placeholder="Freight invoice correction, customs credit, supplier freight rebate…"></textarea>
+          </div>
+          <div class="col-12" data-adjustment-manual-block hidden>
+            <p class="staff-muted small mb-2">Manual line amounts are entered as positive shares of the total above. For a credit, the server applies the negative sign. Shares must total the adjustment amount exactly.</p>
+            <div class="staff-grid staff-grid--2">
+            {% for line in receipt.lines.all %}
+              <label class="staff-label">{{ line.purchase_order_line.menu_item.name }}
+                <input class="staff-input" type="number" step="0.01" min="0" name="adjust_landed_{{ line.id }}" value="0" data-adjustment-manual-input>
+              </label>
+            {% endfor %}
+            </div>
+          </div>
+          <div class="col-12"><button class="staff-btn staff-btn--ghost" type="submit">Record landed-cost adjustment</button></div>
+        </form>
+      </details>
+    {% endfor %}
+  </section>
+  {% endif %}
+
   <h2 class="fizo-purchasing__section-heading">Return goods to supplier</h2>
   <section class="fizo-purchasing__panel mb-3" aria-label="Supplier goods returns">
     <p class="staff-muted">Physically send accepted goods back to a supplier. This removes those units from stock; it never automatically issues a credit note or refunds cash. Batch-tracked goods must still be in their original received lot.</p>
@@ -336,6 +410,27 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+(function(){
+  "use strict";
+  document.querySelectorAll("[data-landed-adjustment-form]").forEach(function(form){
+    var mode=form.querySelector("[data-adjustment-allocation-mode]");
+    var block=form.querySelector("[data-adjustment-manual-block]");
+    var inputs=Array.prototype.slice.call(form.querySelectorAll("[data-adjustment-manual-input]"));
+    function sync(){
+      var manual=mode && mode.value==="manual";
+      if(block)block.hidden=!manual;
+      inputs.forEach(function(input){
+        input.disabled=!manual;
+        if(!manual)input.value="0";
+      });
+    }
+    if(mode){
+      mode.addEventListener("change",sync);
+      sync();
+    }
+  });
+}());
+
 (function(){
   "use strict";
   var mode=document.getElementById("landed-cost-allocation");
