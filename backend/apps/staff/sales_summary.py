@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.db.models import Count, Sum
 
 from apps.common.datetime_bounds import utc_day_range_inclusive
-from apps.pos.models import Order, OrderLine, Payment, Refund
+from apps.pos.models import OrderLine, Payment, Refund
 
 
 WEEKDAY_LABELS = {
@@ -139,188 +139,6 @@ def build_sales_summary(
     ]
 
     paid_order_ids = list(payments_qs.values_list("order_id", flat=True).distinct())
-    refund_order_ids = list(refunds_qs.values_list("order_id", flat=True).distinct())
-    profitability_order_ids = sorted(
-        set(paid_order_ids) | set(refund_order_ids),
-        key=str,
-    )
-
-    # Profitability is intentionally based on historical cost snapshots captured
-    # when stock posted for each sale. Current StockBalance cost must never be
-    # back-applied to historical sales.
-    payment_by_order: dict[uuid.UUID, Decimal] = defaultdict(lambda: Decimal("0.00"))
-    for order_id, amount in payments_qs.values_list("order_id", "amount"):
-        payment_by_order[order_id] += amount or Decimal("0.00")
-    refund_by_order: dict[uuid.UUID, Decimal] = defaultdict(lambda: Decimal("0.00"))
-    for order_id, amount in refunds_qs.values_list("order_id", "amount"):
-        refund_by_order[order_id] += amount or Decimal("0.00")
-
-    profitability_orders = {
-        row["id"]: row
-        for row in Order.objects.filter(
-            tenant_id=tenant_id,
-            pk__in=profitability_order_ids,
-        ).values("id", "subtotal", "tax_total", "total", "discount_amount")
-    }
-    profitability_lines = list(
-        OrderLine.objects.filter(
-            order_id__in=profitability_order_ids,
-            is_voided=False,
-            menu_item__isnull=False,
-        )
-        .select_related("menu_item")
-        .values(
-            "order_id",
-            "menu_item_id",
-            "menu_item__track_inventory",
-            "label",
-            "quantity",
-            "line_total",
-            "cost_unit_snapshot",
-            "cost_basis_complete_snapshot",
-        )
-    )
-
-    profitability_lines_by_order: dict[uuid.UUID, list[dict]] = defaultdict(list)
-    for row in profitability_lines:
-        profitability_lines_by_order[row["order_id"]].append(row)
-
-    profit_known_revenue = Decimal("0.00")
-    profit_unknown_revenue = Decimal("0.00")
-    profit_known_cogs = Decimal("0.00")
-    coverage_known_activity = Decimal("0.00")
-    coverage_total_activity = Decimal("0.00")
-    profit_complete_lines = 0
-    profit_incomplete_lines = 0
-    refund_allocation_used = False
-    incomplete_items: dict[tuple[uuid.UUID | None, str], dict] = {}
-
-    for order_id in profitability_order_ids:
-        order_row = profitability_orders.get(order_id)
-        if not order_row:
-            continue
-        order_total = (order_row["total"] or Decimal("0.00")).quantize(Decimal("0.01"))
-        order_pre_tax_total = (
-            (order_row["subtotal"] or Decimal("0.00"))
-            - (order_row["discount_amount"] or Decimal("0.00"))
-        ).quantize(Decimal("0.01"))
-        if order_total <= 0 or order_pre_tax_total <= 0:
-            continue
-
-        payment_amount = payment_by_order.get(order_id, Decimal("0.00"))
-        refund_amount = refund_by_order.get(order_id, Decimal("0.00"))
-        if refund_amount > 0:
-            refund_allocation_used = True
-
-        # Keep the profitability period aligned with this report's payment/refund
-        # date basis, while removing tax proportionally.
-        pre_tax_ratio = order_pre_tax_total / order_total
-        period_pre_tax_net = (
-            (payment_amount - refund_amount) * pre_tax_ratio
-        ).quantize(Decimal("0.01"))
-        activity_pre_tax = (
-            (payment_amount + refund_amount) * pre_tax_ratio
-        ).copy_abs().quantize(Decimal("0.01"))
-        period_factor = period_pre_tax_net / order_pre_tax_total
-        activity_factor = activity_pre_tax / order_pre_tax_total
-
-        rows = profitability_lines_by_order.get(order_id, [])
-        merchandise_total = sum(
-            (
-                row["line_total"] or Decimal("0.00")
-                for row in rows
-                if row["menu_item__track_inventory"]
-            ),
-            Decimal("0.00"),
-        )
-        if merchandise_total <= 0:
-            continue
-
-        known_line_revenue = Decimal("0.00")
-        unknown_line_revenue = Decimal("0.00")
-        known_order_cogs = Decimal("0.00")
-        for row in rows:
-            if not row["menu_item__track_inventory"]:
-                continue
-            line_revenue = row["line_total"] or Decimal("0.00")
-            cost_complete = bool(
-                row["cost_basis_complete_snapshot"]
-                and row["cost_unit_snapshot"] is not None
-            )
-            if cost_complete:
-                profit_complete_lines += 1
-                known_line_revenue += line_revenue
-                known_order_cogs += (
-                    row["quantity"] * row["cost_unit_snapshot"]
-                )
-            else:
-                profit_incomplete_lines += 1
-                unknown_line_revenue += line_revenue
-                key = (row["menu_item_id"], row["label"] or "Unknown item")
-                item = incomplete_items.setdefault(
-                    key,
-                    {
-                        "item_id": row["menu_item_id"],
-                        "item_name": row["label"] or "Unknown item",
-                        "lines_count": 0,
-                        "revenue": Decimal("0.00"),
-                    },
-                )
-                item["lines_count"] += 1
-                item["revenue"] += line_revenue * activity_factor
-
-        # Order-level discounts and order/payment-level refunds are allocated
-        # proportionally across merchandise. We expose this assumption in UI.
-        merchandise_share = merchandise_total / (
-            sum((row["line_total"] or Decimal("0.00") for row in rows), Decimal("0.00"))
-            or merchandise_total
-        )
-        merchandise_period_net = period_pre_tax_net * merchandise_share
-        merchandise_activity = activity_pre_tax * merchandise_share
-        known_share = known_line_revenue / merchandise_total
-        unknown_share = unknown_line_revenue / merchandise_total
-
-        profit_known_revenue += merchandise_period_net * known_share
-        profit_unknown_revenue += merchandise_period_net * unknown_share
-        profit_known_cogs += known_order_cogs * period_factor
-        coverage_known_activity += merchandise_activity * known_share
-        coverage_total_activity += merchandise_activity
-
-    profit_known_revenue = profit_known_revenue.quantize(Decimal("0.01"))
-    profit_unknown_revenue = profit_unknown_revenue.quantize(Decimal("0.01"))
-    profit_known_cogs = profit_known_cogs.quantize(Decimal("0.01"))
-    profit_gross = (profit_known_revenue - profit_known_cogs).quantize(Decimal("0.01"))
-    profit_margin = (
-        (profit_gross / profit_known_revenue * Decimal("100")).quantize(Decimal("0.01"))
-        if profit_known_revenue > 0 else None
-    )
-    cost_coverage_percent = (
-        (coverage_known_activity / coverage_total_activity * Decimal("100")).quantize(Decimal("0.01"))
-        if coverage_total_activity > 0 else None
-    )
-    incomplete_items_rows = sorted(
-        (
-            {
-                **item,
-                "revenue": item["revenue"].copy_abs().quantize(Decimal("0.01")),
-            }
-            for item in incomplete_items.values()
-        ),
-        key=lambda row: (-row["revenue"], row["item_name"].lower()),
-    )[:10]
-
-    profitability = {
-        "known_net_revenue": profit_known_revenue,
-        "unknown_net_revenue": profit_unknown_revenue,
-        "known_cogs": profit_known_cogs,
-        "known_gross_profit": profit_gross,
-        "known_margin_percent": profit_margin,
-        "cost_coverage_percent": cost_coverage_percent,
-        "complete_lines": profit_complete_lines,
-        "incomplete_lines": profit_incomplete_lines,
-        "incomplete_items": incomplete_items_rows,
-        "refund_allocation_used": refund_allocation_used,
-    }
 
     line_by_order_rows = list(
         OrderLine.objects.filter(order_id__in=paid_order_ids, is_voided=False)
@@ -487,7 +305,6 @@ def build_sales_summary(
         "refunds_count": ref_count,
         "refunds_total": ref_total,
         "net_sales": net,
-        "profitability": profitability,
         "by_payment_method": by_method,
         "by_outlet": by_outlet,
         "by_section": by_section,
