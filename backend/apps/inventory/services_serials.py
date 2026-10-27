@@ -559,6 +559,7 @@ def complete_serialized_return(*, return_record, units, restock: bool, user) -> 
 
 def mark_serial_assignments_sold(*, order, assignments: dict, user) -> None:
     now = timezone.now()
+    sold_date = timezone.localdate(now)
     for line_id, units in assignments.items():
         line = order.lines.get(pk=line_id)
         for unit in units:
@@ -566,9 +567,9 @@ def mark_serial_assignments_sold(*, order, assignments: dict, user) -> None:
             unit.sold_order_line = line
             unit.reserved_order_line = None
             unit.sold_at = now
-            unit.warranty_started_at = now.date() if line.menu_item.warranty_months else None
+            unit.warranty_started_at = sold_date if line.menu_item.warranty_months else None
             unit.warranty_expires_at = _add_months(
-                now.date(), line.menu_item.warranty_months
+                sold_date, line.menu_item.warranty_months
             )
             unit.save(update_fields=[
                 "status", "sold_order_line", "reserved_order_line", "sold_at",
