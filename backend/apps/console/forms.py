@@ -876,6 +876,29 @@ class ConsoleVariantMatrixForm(forms.Form):
         return data
 
 
+class ConsoleVariantMaintenanceForm(forms.Form):
+    unit_price = forms.DecimalField(
+        min_value=0,
+        max_digits=12,
+        decimal_places=2,
+        label="Selling price",
+        widget=forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.01"}),
+    )
+    reorder_level = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=14,
+        decimal_places=3,
+        label="Reorder level",
+        widget=forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.001"}),
+    )
+    is_active = forms.BooleanField(
+        required=False,
+        label="Active",
+        widget=forms.CheckboxInput(),
+    )
+
+
 class ConsoleProductPackageForm(forms.ModelForm):
     class Meta:
         model = ProductPackage
