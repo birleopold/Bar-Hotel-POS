@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, Promotion
 from apps.customers.models import Customer
+from apps.inventory.models import StockBalance
 from apps.pos.models import (
     CustomerPriceBookAssignment,
     Order,
@@ -472,3 +473,53 @@ class CustomerPriceBookTests(TestCase):
         session.save()
         response = self.client.get(reverse("console-org-price-books"))
         self.assertEqual(response.status_code, 404)
+
+    def test_customer_price_book_falls_back_when_trusted_margin_floor_would_be_breached(self):
+        settings_obj = self.tenant.settings
+        settings_obj.retail_min_margin_percent = Decimal("20")
+        settings_obj.save(update_fields=["retail_min_margin_percent", "updated_at"])
+        self.item.track_inventory = True
+        self.item.save(update_fields=["track_inventory", "updated_at"])
+        StockBalance.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.item,
+            quantity=Decimal("10"),
+            average_unit_cost=Decimal("7500"),
+            cost_basis_complete=True,
+        )
+        order = self._order(self.customer)
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.item,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertEqual(line.unit_price, Decimal("10000"))
+        self.assertIsNone(line.price_book_rule_id)
+        self.assertIsNone(line.price_book_base_unit_price)
+
+    def test_customer_price_book_is_not_blocked_by_incomplete_cost_basis(self):
+        settings_obj = self.tenant.settings
+        settings_obj.retail_min_margin_percent = Decimal("20")
+        settings_obj.save(update_fields=["retail_min_margin_percent", "updated_at"])
+        self.item.track_inventory = True
+        self.item.save(update_fields=["track_inventory", "updated_at"])
+        StockBalance.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.item,
+            quantity=Decimal("10"),
+            average_unit_cost=None,
+            cost_basis_complete=False,
+        )
+        order = self._order(self.customer)
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.item,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        self.assertEqual(line.unit_price, Decimal("9000"))
+        self.assertEqual(line.price_book_rule, self.rule_one)
+
