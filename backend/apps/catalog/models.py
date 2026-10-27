@@ -34,6 +34,32 @@ class UnitOfMeasure(models.TextChoices):
     LITER = "liter", "Liter"
 
 
+class ProductFamily(TimeStampedModel):
+    """Optional parent merchandise record for related sellable variants."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="product_families",
+    )
+    category = models.ForeignKey(
+        MenuCategory,
+        on_delete=models.PROTECT,
+        related_name="product_families",
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["category__sort_order", "category__name", "name"]
+        unique_together = [["tenant", "name"]]
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class MenuItem(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
@@ -45,6 +71,14 @@ class MenuItem(TimeStampedModel):
         MenuCategory,
         on_delete=models.PROTECT,
         related_name="items",
+    )
+    product_family = models.ForeignKey(
+        ProductFamily,
+        on_delete=models.SET_NULL,
+        related_name="variants",
+        null=True,
+        blank=True,
+        help_text="Optional parent product used to group concrete size/colour/style variants.",
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -163,6 +197,80 @@ class MenuItem(TimeStampedModel):
         if link and link.price_override is not None:
             return link.price_override
         return self.unit_price
+
+
+class ProductPackage(TimeStampedModel):
+    """Alternative scannable sell/purchase pack that converts into base stock units."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="product_packages",
+    )
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name="packages",
+    )
+    name = models.CharField(max_length=96, help_text="For example 6-pack, case of 24, or carton.")
+    units_per_package = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        validators=[MinValueValidator(Decimal("0.001"))],
+        help_text="Number of base stock units represented by one package.",
+    )
+    barcode = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="Optional barcode that identifies this package size.",
+    )
+    sku_alias = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="Optional supplier/internal code for this package.",
+    )
+    sell_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Optional package selling price. Blank means base unit price × package quantity.",
+    )
+    is_sellable = models.BooleanField(default=True)
+    is_purchasable = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["menu_item__name", "units_per_package", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "barcode"],
+                condition=~models.Q(barcode=""),
+                name="uniq_tenant_product_package_barcode",
+            ),
+            models.UniqueConstraint(
+                fields=["tenant", "sku_alias"],
+                condition=~models.Q(sku_alias=""),
+                name="uniq_tenant_product_package_sku_alias",
+            ),
+            models.UniqueConstraint(
+                fields=["menu_item", "name"],
+                name="uniq_product_package_name_per_item",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Package and product must belong to the same business."})
+        if self.units_per_package and self.units_per_package <= 0:
+            raise ValidationError({"units_per_package": "Package quantity must be greater than zero."})
+
+    def __str__(self) -> str:
+        return f"{self.menu_item.name} · {self.name}"
 
 
 class MenuItemOutlet(models.Model):
