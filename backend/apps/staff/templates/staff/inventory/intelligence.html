@@ -54,6 +54,7 @@
       <div class="col-6"><dt class="staff-muted small">Supplier lead time</dt><dd>{% if row.lead_days != None %}{{ row.lead_days }} days ({{ row.lead_samples }} delivery samples){% else %}Not recorded{% endif %}</dd></div>
       <div class="col-6"><dt class="staff-muted small">Indicative movement ratio</dt><dd>{% if row.movement_ratio != None %}{{ row.movement_ratio }}%{% else %}Not enough data{% endif %}</dd></div>
       <div class="col-6"><dt class="staff-muted small">Latest stock receipt</dt><dd>{{ row.last_received|date:"j M Y"|default:"Unknown" }}</dd></div>
+      <div class="col-12"><dt class="staff-muted small">Preferred supplier</dt><dd>{% if row.preferred_supplier %}<strong>{{ row.preferred_supplier }}</strong>{% if row.preferred_supplier_code %} · {{ row.preferred_supplier_code }}{% endif %}{% if row.preferred_supplier_cost != None %} · planning cost {{ request.tenant.settings.default_currency }} {{ row.preferred_supplier_cost }}{% endif %}{% else %}Not assigned{% endif %}</dd></div>
     </dl>
     <details class="mb-3"><summary>Recorded batch ages</summary>
       <div class="row g-2 mt-2">
@@ -74,7 +75,7 @@
         <p class="staff-muted mb-0">Not enough information. Set a reorder level or record supplier deliveries.</p>
       {% endif %}
       {% if can_create_purchasing and row.suggested_order > 0 %}
-      <a class="staff-btn staff-btn--ghost mt-3" href="{% url 'staff-purchasing-order-create' %}?outlet={{ row.outlet_id }}&amp;menu_item={{ row.menu_item_id }}&amp;quantity={{ row.suggested_order }}">Prepare purchase order</a>
+      <a class="staff-btn staff-btn--ghost mt-3" href="{% url 'staff-purchasing-order-create' %}?outlet={{ row.outlet_id }}&amp;menu_item={{ row.menu_item_id }}&amp;quantity={{ row.suggested_order }}{% if row.preferred_supplier_id %}&amp;supplier={{ row.preferred_supplier_id }}{% endif %}">Prepare purchase order</a>
       {% endif %}
     </section>
   </article>
