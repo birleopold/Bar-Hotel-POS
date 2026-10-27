@@ -130,6 +130,8 @@ def record_order_payment(
         locked.status = OrderStatus.CLOSED
         locked.save(update_fields=["is_paid", "status", "updated_at"])
         validate_and_consume_stock_for_paid_order(locked, user)
+        from .commissions import snapshot_order_commissions
+        snapshot_order_commissions(order=locked, settled_at=payment.created_at)
 
         if locked.folio_id:
             folio = Folio.objects.select_for_update().get(pk=locked.folio_id)
