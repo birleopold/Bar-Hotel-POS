@@ -1,0 +1,20 @@
+{% extends "console/base.html" %}
+{% block title %}Product families{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-setup__eyebrow">Catalogue / Merchandise</p><h1>Product families</h1><p class="staff-muted">Group concrete sellable variants such as size, colour or style under one parent product. Ordinary products can stay ungrouped.</p></div>
+    <div class="grocery-setup__hero-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Products</a><a class="staff-btn staff-btn--primary" href="{% url 'console-org-product-family-create' %}">New product family</a></div>
+  </header>
+  <div class="staff-table-wrap"><table class="staff-table">
+    <thead><tr><th>Family</th><th>Category</th><th>Variants</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for family in families %}
+      <tr><td><strong>{{ family.name }}</strong>{% if family.description %}<span class="staff-muted small d-block">{{ family.description|truncatechars:120 }}</span>{% endif %}</td><td>{{ family.category.name }}</td><td>{{ family.variants.count }}</td><td>{% if family.is_active %}Active{% else %}Inactive{% endif %}</td><td><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-family-edit' family.id %}">Edit</a></td></tr>
+    {% empty %}
+      <tr><td colspan="5" class="staff-muted">No product families yet. Use these only when several concrete SKUs belong to one parent product.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}
