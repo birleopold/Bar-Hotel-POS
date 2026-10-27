@@ -23,12 +23,20 @@ class StaffSupplierForm(forms.ModelForm):
 class StaffSupplierProductCodeForm(forms.ModelForm):
     class Meta:
         model = SupplierProductCode
-        fields = ["menu_item", "product_package", "code", "description", "is_active"]
+        fields = [
+            "menu_item", "product_package", "code", "description",
+            "default_unit_cost", "is_preferred", "is_active",
+        ]
         widgets = {
             "menu_item": forms.Select(attrs={"class": "staff-input"}),
             "product_package": forms.Select(attrs={"class": "staff-input"}),
             "code": forms.TextInput(attrs={"class": "staff-input"}),
             "description": forms.TextInput(attrs={"class": "staff-input"}),
+            "default_unit_cost": forms.NumberInput(attrs={
+                "class": "staff-input", "min": "0", "step": "0.01",
+                "placeholder": "Optional cost per base unit",
+            }),
+            "is_preferred": forms.CheckboxInput(),
             "is_active": forms.CheckboxInput(),
         }
 
@@ -61,6 +69,24 @@ class StaffSupplierProductCodeForm(forms.ModelForm):
         package = data.get("product_package")
         if item and item.tenant_id != self.tenant.pk:
             self.add_error("menu_item", "Choose a product from this business.")
+        if data.get("is_preferred") and package:
+            self.add_error(
+                "is_preferred",
+                "Set preferred supplier on the base product relationship, not a package-specific code.",
+            )
+        if data.get("is_preferred") and item:
+            existing = SupplierProductCode.objects.filter(
+                tenant=self.tenant,
+                menu_item=item,
+                is_preferred=True,
+            )
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                self.add_error(
+                    "is_preferred",
+                    "Another supplier is already preferred for this product. Clear it there first.",
+                )
         if package:
             if package.tenant_id != self.tenant.pk:
                 self.add_error("product_package", "Choose a package from this business.")
