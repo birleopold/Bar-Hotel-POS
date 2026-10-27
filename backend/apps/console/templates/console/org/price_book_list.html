@@ -1,0 +1,16 @@
+{% extends "console/base.html" %}
+{% block title %}Price books{% endblock %}
+{% block content %}
+<section class="fizo-entity fizo-entity--list">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-setup__eyebrow">Pricing</p><h1>Customer price books</h1><p class="staff-muted">Define tenant-controlled customer price levels with outlet scope and quantity tiers. Base catalogue prices remain the fallback.</p></div>
+    <div class="grocery-setup__hero-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-items' %}">Products</a><a class="staff-btn staff-btn--primary" href="{% url 'console-org-price-book-create' %}">New price book</a></div>
+  </header>
+  <div class="staff-table-wrap"><table class="staff-table">
+    <thead><tr><th>Price book</th><th>Code</th><th>Effective</th><th>Sections</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>{% for book in price_books %}
+      <tr><td><strong>{{ book.name }}</strong></td><td>{{ book.code }}</td><td>{{ book.starts_at|default:"Now" }} – {{ book.ends_at|default:"No expiry" }}</td><td>{% if book.outlets.all %}{{ book.outlets.all|length }} selected{% else %}All retail sections{% endif %}</td><td>{% if book.is_active %}Active{% else %}Inactive{% endif %}</td><td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-price-book-detail' book.id %}">Manage</a><a href="{% url 'console-org-price-book-edit' book.id %}">Edit</a></div></td></tr>
+    {% empty %}<tr><td colspan="6" class="staff-muted">No customer price books yet.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}
