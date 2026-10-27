@@ -10,6 +10,8 @@ from apps.catalog.models import (
     MenuItemModifierGroup,
     MenuItemOutlet,
     MenuItemRecipeLine,
+    ProductFamily,
+    ProductPackage,
     ModifierGroup,
     ModifierOption,
     ServiceOffering,
@@ -419,6 +421,7 @@ class ConsoleMenuItemForm(forms.ModelForm):
         model = MenuItem
         fields = (
             "category",
+            "product_family",
             "name",
             "description",
             "product_image",
@@ -437,6 +440,7 @@ class ConsoleMenuItemForm(forms.ModelForm):
         )
         widgets = {
             "category": forms.Select(attrs={"class": "staff-input"}),
+            "product_family": forms.Select(attrs={"class": "staff-input"}),
             "name": forms.TextInput(attrs={"class": "staff-input"}),
             "description": forms.Textarea(attrs={"class": "staff-input", "rows": 3}),
             "sku": forms.TextInput(attrs={"class": "staff-input"}),
@@ -458,6 +462,11 @@ class ConsoleMenuItemForm(forms.ModelForm):
             "sort_order",
             "name",
         )
+        self.fields["product_family"].queryset = ProductFamily.objects.filter(
+            tenant=tenant, is_active=True,
+        ).select_related("category").order_by("category__name", "name")
+        self.fields["product_family"].required = False
+        self.fields["product_family"].help_text = "Optional. Group concrete size/colour/style variants under one parent product."
         oq = Outlet.objects.filter(site__tenant=tenant).order_by("site__name", "name")
         self.fields["outlets"].queryset = oq
         self.fields["modifier_groups"].queryset = ModifierGroup.objects.filter(tenant=tenant).order_by("name")
@@ -501,7 +510,90 @@ class ConsoleMenuItemForm(forms.ModelForm):
                 self.add_error("units_per_carton", "Carton quantities require an item stocked by the piece.")
             if not values.get("track_inventory"):
                 self.add_error("units_per_carton", "Turn on stock tracking before configuring cartons.")
+        family = values.get("product_family")
+        category = values.get("category")
+        if family and category and family.category_id != category.id:
+            self.add_error("product_family", "Choose a product family in the same category as this sellable variant.")
         return values
+
+
+class ConsoleProductFamilyForm(forms.ModelForm):
+    class Meta:
+        model = ProductFamily
+        fields = ("category", "name", "description", "is_active")
+        widgets = {
+            "category": forms.Select(attrs={"class": "staff-input"}),
+            "name": forms.TextInput(attrs={"class": "staff-input"}),
+            "description": forms.Textarea(attrs={"class": "staff-input", "rows": 3}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        self.fields["category"].queryset = MenuCategory.objects.filter(
+            tenant=tenant,
+        ).order_by("sort_order", "name")
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        qs = ProductFamily.objects.filter(tenant=self.tenant, name__iexact=name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A product family with this name already exists.")
+        return name
+
+
+class ConsoleProductPackageForm(forms.ModelForm):
+    class Meta:
+        model = ProductPackage
+        fields = (
+            "name", "units_per_package", "barcode", "sku_alias", "sell_price",
+            "is_sellable", "is_purchasable", "is_active",
+        )
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "staff-input"}),
+            "units_per_package": forms.NumberInput(attrs={"class": "staff-input", "min": "0.001", "step": "0.001"}),
+            "barcode": forms.TextInput(attrs={"class": "staff-input"}),
+            "sku_alias": forms.TextInput(attrs={"class": "staff-input"}),
+            "sell_price": forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.01"}),
+            "is_sellable": forms.CheckboxInput(),
+            "is_purchasable": forms.CheckboxInput(),
+            "is_active": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, tenant, menu_item, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        self.menu_item = menu_item
+        self.fields["sell_price"].required = False
+
+    def clean_barcode(self):
+        barcode = (self.cleaned_data.get("barcode") or "").strip()
+        if not barcode:
+            return ""
+        if MenuItem.objects.filter(tenant=self.tenant, barcode=barcode).exclude(pk=self.menu_item.pk).exists():
+            raise forms.ValidationError("This barcode is already registered to another product.")
+        qs = ProductPackage.objects.filter(tenant=self.tenant, barcode=barcode)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("This barcode is already registered to another package.")
+        return barcode
+
+    def clean_sku_alias(self):
+        code = (self.cleaned_data.get("sku_alias") or "").strip()
+        if not code:
+            return ""
+        if MenuItem.objects.filter(tenant=self.tenant, sku__iexact=code).exclude(pk=self.menu_item.pk).exists():
+            raise forms.ValidationError("This package code is already used by another product SKU.")
+        qs = ProductPackage.objects.filter(tenant=self.tenant, sku_alias__iexact=code)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("This package code is already in use.")
+        return code
 
 
 class ConsoleModifierGroupForm(forms.ModelForm):
