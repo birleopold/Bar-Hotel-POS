@@ -1677,3 +1677,33 @@ class TargetedPromotionTests(TestCase):
         self.assertEqual(promo.schedule_end_time, time(19, 0))
         self.assertEqual(promo.schedule_label, "Mon, Wed, Fri · 16:00–19:00")
 
+    def test_recurring_promotion_does_not_auto_queue_plain_markdown_label(self):
+        response = self.client.post(
+            reverse("staff-promotion-create"),
+            {
+                "name": "Happy hour shelf unsafe",
+                "offer_type": Promotion.OfferType.STANDARD,
+                "menu_item": str(self.oil.pk),
+                "discount_percent": "10",
+                "discount_amount": "",
+                "schedule_weekdays": ["1", "2", "3", "4", "5"],
+                "schedule_start_time": "17:00",
+                "schedule_end_time": "19:00",
+                "starts_at": (timezone.localtime() - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M"),
+                "ends_at": (timezone.localtime() + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M"),
+                "is_active": "on",
+                "outlets": [str(self.outlet.pk)],
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        promo = Promotion.objects.get(tenant=self.tenant, name="Happy hour shelf unsafe")
+        self.assertEqual(promo.schedule_weekdays, [1, 2, 3, 4, 5])
+        self.assertFalse(
+            ProductLabelQueueEntry.objects.filter(
+                tenant=self.tenant,
+                menu_item=self.oil,
+                reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+                status=ProductLabelQueueEntry.Status.PENDING,
+            ).exists()
+        )
+
