@@ -8,13 +8,14 @@
   <header class="fizo-purchasing__header"><div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>Purchase orders</h1><p>Manage requests, approvals, stock ordering, receiving and supplier records.</p></div><div class="fizo-purchasing__head-actions">{% if can_request_purchasing %}<a class="staff-btn staff-btn--primary" href="{% url 'staff-purchasing-order-create' %}">{% if can_approve_purchasing %}New PO{% else %}New purchase request{% endif %}</a>{% endif %}</div></header>
   {% include "staff/purchasing/includes/subnav.html" %}
   <nav class="staff-chip-row mb-3" aria-label="Purchasing tasks">
+    {% if can_approve_purchasing %}<a class="staff-btn staff-btn--ghost" href="?lane=approval"{% if approval_lane %} aria-current="page"{% endif %}>Needs approval</a>{% endif %}
     <a class="staff-btn staff-btn--ghost" href="?lane=receiving"{% if receiving_lane %} aria-current="page"{% endif %}>Awaiting delivery</a>
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-orders' %}">All purchase orders</a>
   </nav>
-  {% if receiving_lane %}<p class="staff-muted">Open a sent or partially received order to record the quantities delivered.</p>{% endif %}
+  {% if receiving_lane %}<p class="staff-muted">Open a sent or partially received order to record the quantities delivered.</p>{% elif approval_lane %}<p class="staff-muted">Review pending purchase requests before anything is sent to a supplier.</p>{% endif %}
   <h2 class="fizo-purchasing__section-heading">Status</h2>
   <form class="mb-3" method="get">
-    {% if receiving_lane %}<input type="hidden" name="lane" value="receiving">{% endif %}
+    {% if receiving_lane %}<input type="hidden" name="lane" value="receiving">{% elif approval_lane %}<input type="hidden" name="lane" value="approval">{% endif %}
     <label class="staff-label" for="purchase-order-status">Order status</label>
     <select id="purchase-order-status" class="staff-input" name="status" onchange="this.form.submit()">
       <option value="">All statuses</option>
@@ -47,9 +48,9 @@
   </div>
   {% if is_paginated %}
     <nav class="staff-pager">
-      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% endif %}">Previous</a>{% endif %}
+      {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% elif approval_lane %}&lane=approval{% endif %}">Previous</a>{% endif %}
       <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% endif %}">Next</a>{% endif %}
+      {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&status={{ status_filter|urlencode }}{% if receiving_lane %}&lane=receiving{% elif approval_lane %}&lane=approval{% endif %}">Next</a>{% endif %}
     </nav>
   {% endif %}
 </div>
