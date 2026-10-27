@@ -906,7 +906,7 @@ class OrgRetailProductGroupLineListView(RetailProductGroupScopedMixin, ListView)
     context_object_name = "lines"
 
     def get_queryset(self):
-        return self.retail_group.lines.select_related("menu_item").order_by("sort_order", "menu_item__name")
+        return self.retail_group.lines.filter(tenant=self.request.tenant).select_related("menu_item").order_by("sort_order", "menu_item__name")
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -927,8 +927,13 @@ class OrgRetailProductGroupLineCreateView(RetailProductGroupScopedMixin, CreateV
 
     def form_valid(self, form):
         obj = form.save(commit=False)
+        obj.tenant = self.request.tenant
         obj.group = self.retail_group
-        if RetailProductGroupLine.objects.filter(group=self.retail_group, menu_item=obj.menu_item).exists():
+        if RetailProductGroupLine.objects.filter(
+            tenant=self.request.tenant,
+            group=self.retail_group,
+            menu_item=obj.menu_item,
+        ).exists():
             form.add_error("menu_item", "That product is already in this group.")
             return self.form_invalid(form)
         obj.save()
@@ -949,7 +954,7 @@ class OrgRetailProductGroupLineUpdateView(RetailProductGroupScopedMixin, UpdateV
     pk_url_kwarg = "line_id"
 
     def get_queryset(self):
-        return self.retail_group.lines.all()
+        return self.retail_group.lines.filter(tenant=self.request.tenant)
 
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
@@ -959,8 +964,11 @@ class OrgRetailProductGroupLineUpdateView(RetailProductGroupScopedMixin, UpdateV
 
     def form_valid(self, form):
         obj = form.save(commit=False)
+        obj.tenant = self.request.tenant
         if RetailProductGroupLine.objects.filter(
-            group=self.retail_group, menu_item=obj.menu_item
+            tenant=self.request.tenant,
+            group=self.retail_group,
+            menu_item=obj.menu_item,
         ).exclude(pk=obj.pk).exists():
             form.add_error("menu_item", "That product is already in this group.")
             return self.form_invalid(form)
