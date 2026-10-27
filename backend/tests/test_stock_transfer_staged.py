@@ -17,11 +17,17 @@ from apps.tenants.models import Outlet, OutletType
 from tests.test_phase1_isolation_and_idempotency import _seed_tenant_bundle
 
 
-def start(slug, batches=False):
+def start(slug, batches=False, unit_cost=None):
     data = _seed_tenant_bundle(name=slug, slug=slug, user_email=slug + "@example.test")
     dest = Outlet.objects.create(site=data["site"], name="Receiving", outlet_type=OutletType.RETAIL)
-    StockBalance.objects.create(tenant=data["tenant"], outlet=data["outlet"],
-                                menu_item=data["item"], quantity=Decimal("10"))
+    StockBalance.objects.create(
+        tenant=data["tenant"],
+        outlet=data["outlet"],
+        menu_item=data["item"],
+        quantity=Decimal("10"),
+        average_unit_cost=Decimal(str(unit_cost)) if unit_cost is not None else None,
+        cost_basis_complete=unit_cost is not None,
+    )
     if batches:
         InventoryBatch.objects.create(
             tenant=data["tenant"], outlet=data["outlet"], menu_item=data["item"],
@@ -181,3 +187,44 @@ def test_conflicting_destination_batch_rolls_back_receipt():
     assert receipt.status == "in_transit" and receipt.outstanding_quantity == 4
     assert not StockBalance.objects.filter(outlet=dest, menu_item=data["item"]).exists()
     assert StockMovement.objects.filter(transfer_batch=receipt.transfer_batch).count() == 1
+
+@pytest.mark.django_db
+def test_staged_transfer_carries_authoritative_source_cost_to_destination():
+    data, dest, user, role, reviewer, manager, receipt = start(
+        "staged-cost", unit_cost="625.50",
+    )
+    assert receipt.unit_cost_snapshot == Decimal("625.5000")
+    assert receipt.cost_basis_complete_snapshot is True
+
+    verify_stock_transfer_receipt(
+        receipt=receipt,
+        membership=role,
+        user=user,
+        received_quantity="4",
+    )
+    destination = StockBalance.objects.get(outlet=dest, menu_item=data["item"])
+    source = StockBalance.objects.get(outlet=data["outlet"], menu_item=data["item"])
+    assert destination.quantity == Decimal("4")
+    assert destination.average_unit_cost == Decimal("625.5000")
+    assert destination.cost_basis_complete is True
+    assert source.quantity == Decimal("6")
+    assert source.average_unit_cost == Decimal("625.5000")
+    assert source.cost_basis_complete is True
+
+
+@pytest.mark.django_db
+def test_uncosted_transfer_never_marks_destination_cost_as_trusted():
+    data, dest, user, role, reviewer, manager, receipt = start("staged-uncosted")
+    assert receipt.unit_cost_snapshot is None
+    assert receipt.cost_basis_complete_snapshot is False
+    verify_stock_transfer_receipt(
+        receipt=receipt,
+        membership=role,
+        user=user,
+        received_quantity="4",
+    )
+    destination = StockBalance.objects.get(outlet=dest, menu_item=data["item"])
+    assert destination.quantity == Decimal("4")
+    assert destination.average_unit_cost is None
+    assert destination.cost_basis_complete is False
+
