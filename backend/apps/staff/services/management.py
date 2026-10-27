@@ -675,12 +675,7 @@ def management_loss_pattern_detail(
                 movement.outlet.name,
             )
 
-    events.sort(
-        key=lambda row: row["when"] or timezone.make_aware(
-            timezone.datetime.min
-        ),
-        reverse=True,
-    )
+    events.sort(key=lambda row: row["when"], reverse=True)
     return {
         "dimension": dimension,
         "entity_key": entity_key,
