@@ -134,6 +134,11 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             discrepancy_note=ser.validated_data.get("discrepancy_note", ""),
             delivery_reference=ser.validated_data.get("delivery_reference", ""),
             note=ser.validated_data.get("note", ""),
+            shipping_cost=ser.validated_data.get("shipping_cost", 0),
+            duty_cost=ser.validated_data.get("duty_cost", 0),
+            landed_cost_allocation=ser.validated_data.get(
+                "landed_cost_allocation", "exclude"
+            ),
         )
         po = (
             PurchaseOrder.objects.filter(pk=po.pk)
