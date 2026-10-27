@@ -6,6 +6,7 @@
   {% if request.tenant_membership.role == "owner" or request.tenant_membership.role == "tenant_admin" or request.tenant_membership.role == "site_manager" %}
   <a class="staff-btn staff-btn--ghost" href="{% url 'staff-business-date' %}">Operating dates</a>
   {% endif %}
+  <a class="staff-btn staff-btn--ghost" href="{% url 'staff-timesheets' %}">Timesheets</a>
   <a class="staff-btn staff-btn--ghost" href="?view=cases">Follow-up and history</a>
   <a class="staff-btn staff-btn--ghost" href="?view=today"{% if management_view == 'today' %} aria-current="page"{% endif %}>Today</a><a class="staff-btn staff-btn--ghost" href="?view=exceptions"{% if management_view == 'exceptions' %} aria-current="page"{% endif %}>Exceptions</a><a class="staff-btn staff-btn--ghost" href="?view=approvals"{% if management_view == 'approvals' %} aria-current="page"{% endif %}>Approvals</a><a class="staff-btn staff-btn--ghost" href="?view=team"{% if management_view == 'team' %} aria-current="page"{% endif %}>Team</a><a class="staff-btn staff-btn--ghost" href="?view=reports"{% if management_view == 'reports' %} aria-current="page"{% endif %}>Reports</a>
 </nav>
