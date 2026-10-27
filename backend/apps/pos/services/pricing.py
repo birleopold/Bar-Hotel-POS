@@ -3,7 +3,12 @@ from decimal import Decimal
 from django.db.models import Sum
 
 from apps.catalog.models import Promotion
-from apps.catalog.promotion_rules import promotion_matches_item, promotion_qualifying_quantity
+from apps.catalog.promotion_rules import (
+    promotion_matches_item,
+    promotion_qualifying_quantity,
+    promotion_reward_matches_item,
+    promotion_reward_quantity,
+)
 from apps.pos.models import Order
 
 
@@ -71,15 +76,36 @@ def promotion_discount_for_order(
     if promotion.offer_type == Promotion.OfferType.BUY_X_GET_Y:
         if not scoped or not eligible_lines:
             return Decimal("0.00")
-        if any(line.quantity != line.quantity.to_integral_value() for line in eligible_lines):
+        reward_is_separate = bool(
+            promotion.reward_menu_item_id
+            or promotion.reward_product_family_id
+            or promotion.reward_category_id
+            or (promotion.reward_brand or "").strip()
+        )
+        reward_lines = [
+            line for line in active_lines
+            if promotion_reward_matches_item(promotion, line.menu_item)
+        ]
+        if not reward_lines:
+            return Decimal("0.00")
+        if any(
+            line.quantity != line.quantity.to_integral_value()
+            for line in {*eligible_lines, *reward_lines}
+        ):
             return Decimal("0.00")
         buy_qty = int(promotion.buy_quantity or 0)
         get_qty = int(promotion.get_quantity or 0)
-        set_size = buy_qty + get_qty
-        if buy_qty <= 0 or get_qty <= 0 or set_size <= 1:
+        if buy_qty <= 0 or get_qty <= 0:
             return Decimal("0.00")
-        total_units = sum(int(line.quantity) for line in eligible_lines)
-        uses = total_units // set_size
+        buy_units = sum(int(line.quantity) for line in eligible_lines)
+        reward_units = sum(int(line.quantity) for line in reward_lines)
+        if reward_is_separate:
+            uses = min(buy_units // buy_qty, reward_units // get_qty)
+        else:
+            set_size = buy_qty + get_qty
+            if set_size <= 1:
+                return Decimal("0.00")
+            uses = buy_units // set_size
         if promotion.max_uses_per_order is not None:
             uses = min(uses, promotion.max_uses_per_order)
         if uses <= 0:
@@ -89,7 +115,7 @@ def promotion_discount_for_order(
         priced = sorted(
             (
                 ((line.line_total / line.quantity).quantize(Decimal("0.01")), int(line.quantity))
-                for line in eligible_lines
+                for line in reward_lines
                 if line.quantity > 0
             ),
             key=lambda row: row[0],
