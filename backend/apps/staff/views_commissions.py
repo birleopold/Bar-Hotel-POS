@@ -14,7 +14,7 @@ from django.utils.dateparse import parse_date
 from django.views import View
 from django.views.generic import CreateView, ListView, UpdateView
 
-from apps.accounts.models import CommissionRule, MembershipRole, SalesTarget
+from apps.accounts.models import CommissionRule, Membership, MembershipRole, SalesTarget
 from apps.audit.services import log_audit
 
 from .forms import StaffCommissionRuleForm, StaffSalesTargetForm
@@ -26,6 +26,16 @@ from .services.management import (
     management_team,
 )
 from .services.permissions import membership_can_manage_workspace_settings
+
+
+def _scoped_team_queryset(request):
+    visible = list(management_team(request))
+    ids = [membership.pk for membership in visible]
+    return (
+        Membership.objects.filter(pk__in=ids)
+        .select_related("user")
+        .order_by("user__email")
+    )
 
 
 class StaffCommissionRuleListView(StaffTenantRequiredMixin, ListView):
@@ -170,14 +180,14 @@ class StaffCommissionReportView(StaffTenantRequiredMixin, View):
             date_from is None
             or date_to is None
             or date_from > date_to
-            or (date_to - date_from).days > 31
+            or (date_to - date_from).days > 366
             or date_to > today
         ):
-            raise ValueError("Choose valid past dates, up to 32 days per report.")
+            raise ValueError("Choose valid past dates, up to 367 days per report.")
         return date_from, date_to
 
     def _team(self, request):
-        return management_team(request)
+        return _scoped_team_queryset(request)
 
     def _context(self, request, *, target_form=None, error=""):
         outlets, _, _ = management_scope(request)
@@ -323,7 +333,7 @@ class StaffSalesTargetUpdateView(StaffTenantRequiredMixin, UpdateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        team = management_team(self.request)
+        team = _scoped_team_queryset(self.request)
         return SalesTarget.objects.filter(
             tenant=self.request.tenant,
             membership__in=team,
@@ -332,7 +342,7 @@ class StaffSalesTargetUpdateView(StaffTenantRequiredMixin, UpdateView):
     def get_form_kwargs(self):
         kw = super().get_form_kwargs()
         kw["tenant"] = self.request.tenant
-        kw["memberships"] = management_team(self.request)
+        kw["memberships"] = _scoped_team_queryset(self.request)
         return kw
 
     def form_valid(self, form):
