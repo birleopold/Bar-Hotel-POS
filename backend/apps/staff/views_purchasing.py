@@ -12,7 +12,7 @@ from django.views.generic import DetailView, FormView, ListView, UpdateView, Tem
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from apps.catalog.models import MenuItem
+from apps.catalog.models import MenuItem, ProductPackage
 from apps.pos.services import default_currency_for_tenant
 from apps.purchasing.models import PurchaseOrder, PurchaseOrderStatus, Supplier, SupplierPaymentMethod
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
@@ -245,6 +245,13 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
             is_active=True,
             track_inventory=True,
         ).order_by("name")
+        ctx["product_packages"] = ProductPackage.objects.filter(
+            tenant=self.request.tenant,
+            is_active=True,
+            is_purchasable=True,
+            menu_item__is_active=True,
+            menu_item__track_inventory=True,
+        ).select_related("menu_item").order_by("menu_item__name", "units_per_package", "name")
         outlets = staff_accessible_outlets(self.request.tenant_membership)
         ctx["current_outlet"] = resolve_staff_outlet(self.request, outlets)
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
@@ -261,11 +268,19 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
             mid_raw = (request.POST.get(f"line_{i}_menu_item") or "").strip()
             qty_raw = (request.POST.get(f"line_{i}_quantity_ordered") or "").strip()
             cartons_raw = (request.POST.get(f"line_{i}_cartons") or "").strip()
+            package_raw = (request.POST.get(f"line_{i}_product_package") or "").strip()
+            package_count_raw = (request.POST.get(f"line_{i}_package_count") or "").strip()
             cost_raw = (request.POST.get(f"line_{i}_unit_cost") or "").strip()
-            if not mid_raw and not qty_raw and not cartons_raw and not cost_raw:
+            if not mid_raw and not qty_raw and not cartons_raw and not package_raw and not package_count_raw and not cost_raw:
                 continue
-            if not mid_raw or not (qty_raw or cartons_raw):
-                line_errors.append(f"Row {i + 1}: choose an item and units or cartons.")
+            if not mid_raw or not (qty_raw or cartons_raw or package_count_raw):
+                line_errors.append(f"Row {i + 1}: choose an item and enter loose units, cartons or packages.")
+                continue
+            if cartons_raw and package_count_raw:
+                line_errors.append(f"Row {i + 1}: use either the selected package or legacy cartons, not both.")
+                continue
+            if bool(package_raw) != bool(package_count_raw):
+                line_errors.append(f"Row {i + 1}: choose a package and enter its package count together.")
                 continue
             try:
                 mid = uuid.UUID(mid_raw)
@@ -297,6 +312,14 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
             row: dict = {"menu_item": str(mid), "quantity_ordered": str(qty)}
             if cartons_raw:
                 row["cartons"] = cartons_raw
+            if package_raw:
+                try:
+                    package_id = uuid.UUID(package_raw)
+                except ValueError:
+                    line_errors.append(f"Row {i + 1}: invalid package.")
+                    continue
+                row["product_package"] = str(package_id)
+                row["package_count"] = package_count_raw
             if unit_cost is not None:
                 row["unit_cost"] = str(unit_cost)
             lines_payload.append(row)
@@ -599,8 +622,15 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
             for line in po.lines.all():
                 raw = (request.POST.get(f"recv_{line.id}") or "").strip()
                 cartons_raw = (request.POST.get(f"recv_cartons_{line.id}") or "").strip()
-                if not raw and not cartons_raw:
+                packages_raw = (request.POST.get(f"recv_packages_{line.id}") or "").strip()
+                if not raw and not cartons_raw and not packages_raw:
                     continue
+                if cartons_raw and packages_raw:
+                    messages.error(request, f"Use packages or cartons for {line.menu_item.name}, not both.")
+                    return redirect("staff-purchasing-order-detail", po_id=po.id)
+                if packages_raw and not line.package_units_snapshot:
+                    messages.error(request, f"{line.menu_item.name} was not ordered with a package definition.")
+                    return redirect("staff-purchasing-order-detail", po_id=po.id)
                 try:
                     qty = Decimal(raw) if raw else Decimal("0")
                 except InvalidOperation:
@@ -609,10 +639,12 @@ class StaffPurchaseOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 if not qty.is_finite() or qty < 0:
                     messages.error(request, f"Enter a valid positive quantity for {line.menu_item.name}.")
                     return redirect("staff-purchasing-order-detail", po_id=po.id)
-                if qty > 0 or cartons_raw:
+                if qty > 0 or cartons_raw or packages_raw:
                     entry = {"line_id": line.id, "quantity": qty}
                     if cartons_raw:
                         entry["cartons"] = cartons_raw
+                    if packages_raw:
+                        entry["packages"] = packages_raw
                     code = (request.POST.get(f"batch_{line.id}") or "").strip()
                     expiry_raw = (request.POST.get(f"expiry_{line.id}") or "").strip()
                     if code:
