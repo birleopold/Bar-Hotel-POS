@@ -203,6 +203,21 @@ urlpatterns = [
         name="console-org-retail-group-line-delete",
     ),
     path(
+        "org/menu/custom-fields/",
+        views_catalog.OrgProductCustomFieldListView.as_view(),
+        name="console-org-product-custom-fields",
+    ),
+    path(
+        "org/menu/custom-fields/new/",
+        views_catalog.OrgProductCustomFieldCreateView.as_view(),
+        name="console-org-product-custom-field-create",
+    ),
+    path(
+        "org/menu/custom-fields/<uuid:definition_id>/edit/",
+        views_catalog.OrgProductCustomFieldUpdateView.as_view(),
+        name="console-org-product-custom-field-edit",
+    ),
+    path(
         "org/menu/product-families/",
         views_catalog.OrgProductFamilyListView.as_view(),
         name="console-org-product-families",
@@ -241,7 +256,27 @@ urlpatterns = [
         "org/menu/items/<uuid:item_id>/edit/",
         views_catalog.OrgMenuItemUpdateView.as_view(),
         name="console-org-menu-item-edit",
+    ),    path(
+        "org/menu/items/<uuid:item_id>/metadata/",
+        views_catalog.OrgProductMetadataView.as_view(),
+        name="console-org-menu-item-metadata",
     ),
+    path(
+        "org/menu/items/<uuid:item_id>/metadata/codes/new/",
+        views_catalog.OrgProductAlternateCodeCreateView.as_view(),
+        name="console-org-menu-item-alternate-code-create",
+    ),
+    path(
+        "org/menu/items/<uuid:item_id>/metadata/codes/<uuid:code_id>/edit/",
+        views_catalog.OrgProductAlternateCodeUpdateView.as_view(),
+        name="console-org-menu-item-alternate-code-edit",
+    ),
+    path(
+        "org/menu/items/<uuid:item_id>/metadata/codes/<uuid:code_id>/delete/",
+        views_catalog.OrgProductAlternateCodeDeleteView.as_view(),
+        name="console-org-menu-item-alternate-code-delete",
+    ),
+
     path(
         "org/menu/items/<uuid:item_id>/packages/",
         views_catalog.OrgProductPackageListView.as_view(),
