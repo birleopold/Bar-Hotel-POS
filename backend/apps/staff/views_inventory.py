@@ -1353,8 +1353,9 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
             "Indicative movement ratio %", "Age 0-30 days", "Age 31-60 days",
             "Age 61-90 days", "Age over 90 days", "Age unknown",
             "Batch discrepancy", "Low stock", "Possibly idle",
-            "Suggested order", "Planning basis", "Last stock receipt",
-            "Buffer days",
+            "Suggested order", "Planning basis", "Preferred supplier",
+            "Preferred supplier code", "Preferred supplier planning cost",
+            "Last stock receipt", "Buffer days",
         ])
         for row in rows:
             writer.writerow([
@@ -1376,6 +1377,9 @@ class StaffStockIntelligenceView(StaffTenantRequiredMixin, TemplateView):
                 "Yes" if row["inactive"] else "No",
                 row["suggested_order"] if row["suggested_order"] is not None else "",
                 self._csv_safe(row["planning_basis"]),
+                self._csv_safe(row["preferred_supplier"]),
+                self._csv_safe(row["preferred_supplier_code"]),
+                row["preferred_supplier_cost"] if row["preferred_supplier_cost"] is not None else "",
                 row["last_received"].date().isoformat() if row["last_received"] else "",
                 row["safety_days"],
             ])
