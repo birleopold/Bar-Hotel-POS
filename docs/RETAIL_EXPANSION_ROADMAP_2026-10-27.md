@@ -307,6 +307,9 @@ Implemented in source, pending exact-head certification:
 - Automatic promotions that would breach the trusted-cost margin floor are hidden and rejected server-side; automatic customer price-book rates fall back to ordinary price; wholesale tiers are rejected rather than silently selling below the configured floor.
 - Manager-approved manual line discounts may cross the floor only when the approval intent includes an explicit margin-override reason of at least eight characters. The override, configured floor, computed minimum unit price and proposed unit price are written to the existing audit ledger.
 - Cost-incomplete merchandise remains intentionally non-blocking: the Stock screen exposes incomplete cost coverage for reconciliation instead of pretending a margin floor is reliable.
+- Retail assembly builds now roll authoritative component outlet average costs through the configured BOM into a finished-unit cost. The build run snapshots each component quantity/unit cost plus the finished rolled-up unit cost for audit.
+- Finished assembly stock uses the same weighted-average inbound costing engine as purchase receipts and transfers. If any BOM component cost is incomplete, the finished SKU remains explicitly cost-incomplete instead of inventing COGS.
+- Assembly unbuild remains deliberately conservative: the finished SKU can be reduced without changing its average cost, but positive component recovery invalidates component cost trust because historical component-cost provenance is not yet sufficient for a safe reverse allocation.
 - Cross-target Buy-X-Get-Y pricing now caps the free discount against the reward pool rather than the qualifying pool, so a more expensive reward can be fully discounted when the configured deal intends it.
 
 This checkpoint intentionally does **not** enable automatic margin-floor blocking yet. Margin-floor enforcement will use only balances where `cost_basis_complete=True`; incomplete/legacy stock must first be reconciled through approved cost-bearing workflows.
@@ -345,7 +348,7 @@ This checkpoint intentionally does **not** enable automatic margin-floor blockin
 - Current allocation methods: exclude from inventory cost, or distribute proportionally by received supplier-cost value.
 - Original supplier unit cost and landed unit cost are preserved separately on receipt lines.
 - Landed unit cost feeds the authoritative outlet weighted-average inventory cost and therefore future sale COGS/margin snapshots.
-- Remaining: quantity/weight/manual allocation modes, landed-cost corrections/credit handling, richer profitability recommendations and assembly cost roll-up.
+- Remaining: quantity/weight/manual allocation modes, landed-cost corrections/credit handling, richer profitability recommendations, and historical-cost reconstruction for assembly unbuilds.
 
 ### R4.5 Supplier performance
 - On-time delivery.
