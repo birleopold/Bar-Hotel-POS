@@ -1,0 +1,89 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Transfer requests{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.2">{% endblock %}
+{% block content %}
+<div class="fizo-inventory fizo-inventory--transfer-requests">
+  {% include "staff/inventory/includes/subnav.html" %}
+  <header class="fizo-inventory__header">
+    <div>
+      <p class="fizo-inventory__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory / Transfers</p>
+      <h1>Transfer requests</h1>
+      <p>Request stock, review source availability, approve quantities and dispatch into the existing in-transit receiving workflow.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="staff-btn staff-btn--primary" href="{% url 'staff-inventory-transfer' %}">New transfer / request</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer-receipts' %}">Transfer deliveries</a>
+    </div>
+  </header>
+
+  <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Transfer request filters">
+    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-transfer-requests' %}">All</a>
+    <a class="staff-btn staff-btn--ghost" href="?status=pending">Pending approval</a>
+    <a class="staff-btn staff-btn--ghost" href="?status=approved">Approved</a>
+    <a class="staff-btn staff-btn--ghost" href="?status=dispatched">Dispatched</a>
+    <a class="staff-btn staff-btn--ghost" href="?status=rejected">Rejected</a>
+    <a class="staff-btn staff-btn--ghost" href="?status=cancelled">Cancelled</a>
+  </nav>
+
+  {% for row in transfer_requests %}
+  <section class="fizo-inventory__panel mb-3" aria-label="Transfer request {{ row.id }}">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div>
+        <h2 class="fizo-inventory__heading mb-1">{{ row.menu_item.name }} · {{ row.requested_quantity }} requested</h2>
+        <p class="staff-muted mb-1">{{ row.from_outlet.name }} → {{ row.to_outlet.name }} · {{ row.get_status_display }}</p>
+        <p class="staff-muted small mb-0">Requested {{ row.created_at }} by {{ row.requested_by|default:"Former staff" }}{% if row.needed_by %} · needed by {{ row.needed_by }}{% endif %}</p>
+      </div>
+      {% if row.approved_quantity != None %}<span class="staff-tag">{{ row.approved_quantity }} approved</span>{% endif %}
+    </div>
+
+    {% if row.request_note %}<p class="mt-2 mb-1"><strong>Request note:</strong> {{ row.request_note }}</p>{% endif %}
+    {% if row.reviewed_at %}
+      <p class="staff-muted small mb-1">Reviewed by {{ row.reviewed_by|default:"Former staff" }} · {{ row.reviewed_at }}</p>
+      {% if row.review_note %}<p class="mb-2"><strong>Review note:</strong> {{ row.review_note }}</p>{% endif %}
+    {% endif %}
+
+    {% if row.status == "pending" %}
+      {% if can_approve_transfer and row.from_outlet_id in accessible_outlet_ids and row.requested_by_id != request.user.id %}
+      <form method="post" class="row g-2 align-items-end mt-2">
+        {% csrf_token %}
+        <input type="hidden" name="request_id" value="{{ row.id }}">
+        <div class="col-12 col-md-3">
+          <label class="staff-label" for="approved-{{ row.id }}">Quantity source can send</label>
+          <input class="staff-input" id="approved-{{ row.id }}" name="approved_quantity" type="number" min="0.001" step="0.001" max="{{ row.requested_quantity }}" value="{{ row.requested_quantity }}">
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="staff-label" for="review-{{ row.id }}">Review note</label>
+          <input class="staff-input" id="review-{{ row.id }}" name="review_note" maxlength="512" placeholder="Optional for approval; required for rejection">
+        </div>
+        <div class="col-6 col-md-2"><button class="staff-btn staff-btn--primary w-100" type="submit" name="action" value="approve">Approve</button></div>
+        <div class="col-6 col-md-2"><button class="staff-btn staff-btn--ghost w-100" type="submit" name="action" value="reject">Reject</button></div>
+      </form>
+      {% elif row.requested_by_id == request.user.id %}
+      <form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="request_id" value="{{ row.id }}"><button class="staff-btn staff-btn--ghost" type="submit" name="action" value="cancel">Cancel my request</button></form>
+      {% else %}
+      <p class="staff-muted small mt-2 mb-0">Awaiting a different authorized manager at the sending section.</p>
+      {% endif %}
+    {% elif row.status == "approved" %}
+      {% if can_dispatch_transfer and row.from_outlet_id in accessible_outlet_ids %}
+      <form method="post" class="mt-2">{% csrf_token %}<input type="hidden" name="request_id" value="{{ row.id }}"><button class="staff-btn staff-btn--primary" type="submit" name="action" value="dispatch">Dispatch approved stock</button></form>
+      {% else %}
+      <p class="staff-muted small mt-2 mb-0">Approved; awaiting an authorized worker at the sending section to dispatch.</p>
+      {% endif %}
+    {% elif row.status == "dispatched" and row.transfer_receipt %}
+      <p class="staff-muted small mt-2 mb-0">In transfer workflow: {{ row.transfer_receipt.transfer_batch }} · {{ row.transfer_receipt.get_status_display }}. Destination stock is posted only after physical receiving.</p>
+    {% endif %}
+  </section>
+  {% empty %}
+  <div class="staff-card"><p class="mb-0">No transfer requests match this filter.</p></div>
+  {% endfor %}
+
+  {% if is_paginated %}
+  <nav class="staff-pager">
+    {% if page_obj.has_previous %}<a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    <span>{{ page_obj.number }} / {{ paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?{% if status_filter %}status={{ status_filter }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}
