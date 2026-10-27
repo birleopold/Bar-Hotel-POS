@@ -519,9 +519,60 @@ class StaffManagementLossPatternView(StaffManagementView):
             dimension=dimension,
             entity_key=entity_key,
             policy=policy,
+            limit=None if request.GET.get("export") == "csv" else 200,
         )
         if detail is None:
             raise Http404
+
+        kind = (request.GET.get("kind") or "").strip()
+        available_kinds = []
+        seen = set()
+        for event in detail["events"]:
+            key = event["kind_key"]
+            if key not in seen:
+                seen.add(key)
+                available_kinds.append({"key": key, "label": event["kind"]})
+        if kind:
+            if kind not in seen:
+                raise Http404
+            detail["events"] = [
+                event for event in detail["events"]
+                if event["kind_key"] == kind
+            ]
+        detail["selected_kind"] = kind
+        detail["available_kinds"] = available_kinds
+
+        if request.GET.get("export") == "csv":
+            out = io.StringIO()
+            writer = csv.writer(out)
+
+            def csv_safe(value):
+                token = str(value or "")
+                return "'" + token if token.startswith(
+                    ("=", "+", "-", "@", "\t", "\r")
+                ) else token
+
+            writer.writerow([
+                "when", "type", "section", "evidence", "details", "source",
+            ])
+            for event in detail["events"]:
+                writer.writerow([
+                    event["when"].isoformat(),
+                    csv_safe(event["kind"]),
+                    csv_safe(event["outlet"]),
+                    csv_safe(event["title"]),
+                    csv_safe(event["detail"]),
+                    csv_safe(event["source_url"]),
+                ])
+            response = HttpResponse(
+                out.getvalue(), content_type="text/csv; charset=utf-8"
+            )
+            response["Content-Disposition"] = (
+                f'attachment; filename="loss-evidence-{dimension}-{entity_key}.csv"'
+            )
+            response["Cache-Control"] = "private, no-store"
+            return response
+
         return render(
             request,
             "staff/management_loss_pattern.html",
