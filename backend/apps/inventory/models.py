@@ -49,6 +49,23 @@ class RetailAssemblyRun(TimeStampedModel):
         decimal_places=3,
         validators=[MinValueValidator(Decimal("0.001"))],
     )
+    finished_unit_cost_snapshot = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Authoritative component-cost roll-up per finished base unit when available.",
+    )
+    cost_basis_complete_snapshot = models.BooleanField(
+        default=False,
+        help_text="Whether every component used by this assembly run had a complete authoritative cost basis.",
+    )
+    component_cost_snapshot = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Component quantities and authoritative unit costs captured for audit at assembly time.",
+    )
     note = models.CharField(max_length=512, blank=True)
     created_by = models.ForeignKey(
         "accounts.User",
