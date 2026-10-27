@@ -75,7 +75,7 @@
       <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
         <div>
           <h3 class="staff-card__title staff-card__title--pos mb-1">Historical merchandise profitability</h3>
-          <p class="staff-muted mb-0">Uses inventory cost captured at the time each sale posted. Missing historical cost is never replaced with today’s stock cost.</p>
+          <p class="staff-muted mb-0">Completed merchandise sales are recognized once on their final POS payment date and use inventory cost captured when stock posted. Missing historical cost is never replaced with today’s stock cost.</p>
         </div>
         <span class="staff-tag">{{ p.cost_coverage_percent }}% cost coverage</span>
       </div>
@@ -119,7 +119,7 @@
           </table>
         </div>
       {% endif %}
-      <p class="staff-muted small mt-2 mb-0">A line-level return uses the original sale’s cost. Any refund that cannot be tied to a returned merchandise line is surfaced as an attribution gap rather than guessed.</p>
+      <p class="staff-muted small mt-2 mb-0">A restocked line-level return reverses the original sale’s cost on the return date. Any refund that cannot be tied to a returned merchandise line is surfaced as an attribution gap rather than guessed.</p>
     </div>
     {% endwith %}
 
