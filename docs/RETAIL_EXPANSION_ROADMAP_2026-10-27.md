@@ -296,6 +296,10 @@ Implemented in source, pending exact-head certification:
 - Supplier management now shows latest and previous received supplier cost plus cost movement, while receipt snapshots remain the immutable evidence source. Planning/default cost never rewrites historical receipts or outlet weighted-average cost by itself.
 - Stock planning and CSV exports include preferred supplier, supplier code and planning cost. The PO handoff carries supplier, outlet, product and suggested quantity without auto-ordering.
 - Supplier cost-history reads are batched per supplier screen to avoid per-SKU query growth on large catalogs.
+- Purchase approval now reuses the existing draft PO instead of introducing a duplicate requisition ledger: storekeepers may prepare a pending purchase request, managers approve/reject it, and only an approved draft may be marked sent to the supplier.
+- Manager-created PO drafts are auto-approved to keep small-business administration fast; pending requests require a different authorized manager, and rejection requires a reason.
+- Requesters can withdraw their own pending request. Managers have a dedicated Needs approval lane, and approval/rejection/withdrawal actions are audit logged.
+- Approval state is exposed through the PO API/read model and the same send transition fails closed outside the staff UI.
 - Optional tenant-wide minimum retail gross margin is now configurable in Business settings. Enforcement activates only for Retail/Supermarket products whose outlet cost basis is complete.
 - Automatic promotions that would breach the trusted-cost margin floor are hidden and rejected server-side; automatic customer price-book rates fall back to ordinary price; wholesale tiers are rejected rather than silently selling below the configured floor.
 - Manager-approved manual line discounts may cross the floor only when the approval intent includes an explicit margin-override reason of at least eight characters. The override, configured floor, computed minimum unit price and proposed unit price are written to the existing audit ledger.
