@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import json
+import re
+from itertools import product
 from io import BytesIO
 
 from django.contrib import messages
@@ -33,6 +37,7 @@ from .forms import (
     ConsoleMenuItemRecipeLineForm,
     ConsoleProductFamilyForm,
     ConsoleProductPackageForm,
+    ConsoleVariantMatrixForm,
     ConsoleModifierGroupForm,
     ConsoleModifierOptionForm,
     ConsoleServiceOfferingForm,
@@ -139,6 +144,174 @@ class OrgProductFamilyUpdateView(ConsoleOrgAdminRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, f"Product family “{form.instance.name}” saved.")
         return super().form_valid(form)
+
+
+class OrgProductVariantMatrixView(ConsoleOrgAdminRequiredMixin, View):
+    template_name = "console/org/product_variant_matrix.html"
+
+    def _family(self, request, family_id):
+        return get_object_or_404(
+            ProductFamily.objects.select_related("category"),
+            pk=family_id,
+            tenant=request.tenant,
+        )
+
+    @staticmethod
+    def _initial_from_family(family):
+        initial = {}
+        for index, row in enumerate((family.variant_schema or [])[:3], start=1):
+            initial[f"option_{index}_name"] = row.get("name", "")
+            initial[f"option_{index}_values"] = ", ".join(row.get("values", []))
+        initial.setdefault("option_1_name", "Colour")
+        initial.setdefault("option_2_name", "Size")
+        first = family.variants.order_by("created_at").first()
+        initial["sku_prefix"] = (
+            (first.sku.split("-", 1)[0] if first and first.sku else "")
+            or re.sub(r"[^A-Z0-9]+", "-", family.name.upper()).strip("-")[:24]
+            or "ITEM"
+        )
+        initial["unit_price"] = first.unit_price if first else 0
+        initial["tax_rate_percent"] = first.tax_rate_percent if first else None
+        initial["reorder_level"] = first.reorder_level if first else None
+        initial["track_inventory"] = first.track_inventory if first else True
+        initial["is_active"] = first.is_active if first else True
+        return initial
+
+    @staticmethod
+    def _variant_payload(schema, values):
+        pairs = [{"name": row["name"], "value": value} for row, value in zip(schema, values)]
+        snapshot = {row["name"]: value for row, value in zip(schema, values)}
+        raw = json.dumps(
+            [{"name": p["name"].casefold(), "value": p["value"].casefold()} for p in pairs],
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        return snapshot, hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _sku(prefix, values, key):
+        pieces = [re.sub(r"[^A-Z0-9]+", "-", value.upper()).strip("-")[:14] or "VAR" for value in values]
+        candidate = "-".join([prefix, *pieces])
+        if len(candidate) <= 64:
+            return candidate
+        return f"{candidate[:55].rstrip('-')}-{key[:8]}"
+
+    def _combinations(self, schema):
+        return list(product(*(row["values"] for row in schema)))
+
+    def _render(self, request, family, form, *, preview=None, created_count=0):
+        from django.shortcuts import render
+        return render(request, self.template_name, {
+            "family": family,
+            "form": form,
+            "preview_rows": preview or [],
+            "created_count": created_count,
+            "variants": family.variants.order_by("name"),
+        })
+
+    def get(self, request, family_id):
+        family = self._family(request, family_id)
+        return self._render(
+            request,
+            family,
+            ConsoleVariantMatrixForm(initial=self._initial_from_family(family)),
+        )
+
+    def post(self, request, family_id):
+        family = self._family(request, family_id)
+        form = ConsoleVariantMatrixForm(request.POST)
+        if not form.is_valid():
+            return self._render(request, family, form)
+
+        schema = form.cleaned_data["variant_schema"]
+        combinations = self._combinations(schema)
+        preview = []
+        for values in combinations:
+            snapshot, key = self._variant_payload(schema, values)
+            preview.append({
+                "values": " / ".join(values),
+                "sku": self._sku(form.cleaned_data["sku_prefix"], values, key),
+                "exists": family.variants.filter(variant_key=key).exists(),
+                "snapshot": snapshot,
+            })
+        if request.POST.get("action") != "generate":
+            return self._render(request, family, form, preview=preview)
+
+        with transaction.atomic():
+            family = ProductFamily.objects.select_for_update().get(
+                pk=family.pk, tenant=request.tenant,
+            )
+            planned = []
+            seen_skus = set()
+            for values in combinations:
+                snapshot, key = self._variant_payload(schema, values)
+                if MenuItem.objects.filter(product_family=family, variant_key=key).exists():
+                    continue
+                sku = self._sku(form.cleaned_data["sku_prefix"], values, key)
+                sku_fold = sku.casefold()
+                if sku_fold in seen_skus:
+                    form.add_error(None, f"Generated SKU collision for {' / '.join(values)}. Adjust the values or prefix.")
+                    return self._render(request, family, form, preview=preview)
+                seen_skus.add(sku_fold)
+                if MenuItem.objects.filter(tenant=request.tenant, sku__iexact=sku).exists():
+                    form.add_error(None, f"SKU {sku} already belongs to another product.")
+                    return self._render(request, family, form, preview=preview)
+                if ProductPackage.objects.filter(tenant=request.tenant, sku_alias__iexact=sku).exists():
+                    form.add_error(None, f"SKU {sku} is already used by a product package.")
+                    return self._render(request, family, form, preview=preview)
+                name = f"{family.name} · {' / '.join(values)}"[:255]
+                if MenuItem.objects.filter(tenant=request.tenant, name__iexact=name).exists():
+                    form.add_error(None, f"Product name {name} already exists.")
+                    return self._render(request, family, form, preview=preview)
+                planned.append((name, sku, snapshot, key))
+
+            family.variant_schema = schema
+            family.save(update_fields=["variant_schema", "updated_at"])
+            for name, sku, snapshot, key in planned:
+                MenuItem.objects.create(
+                    tenant=request.tenant,
+                    category=family.category,
+                    product_family=family,
+                    variant_key=key,
+                    variant_values=snapshot,
+                    name=name,
+                    sku=sku,
+                    barcode="",
+                    unit_of_measure="each",
+                    track_inventory=form.cleaned_data["track_inventory"],
+                    reorder_level=form.cleaned_data.get("reorder_level"),
+                    unit_price=form.cleaned_data["unit_price"],
+                    tax_rate_percent=form.cleaned_data.get("tax_rate_percent"),
+                    is_active=form.cleaned_data["is_active"],
+                )
+            log_audit(
+                tenant_id=request.tenant.pk,
+                user_id=request.user.pk,
+                action="catalog.variant_matrix_generated",
+                entity_type="product_family",
+                entity_id=str(family.pk),
+                payload={
+                    "schema": schema,
+                    "created_count": len(planned),
+                    "sku_prefix": form.cleaned_data["sku_prefix"],
+                },
+            )
+        messages.success(request, f"Created {len(planned)} new variant SKU(s). Existing combinations were left unchanged.")
+        family.refresh_from_db()
+        return self._render(
+            request,
+            family,
+            ConsoleVariantMatrixForm(initial={
+                **self._initial_from_family(family),
+                "sku_prefix": form.cleaned_data["sku_prefix"],
+                "unit_price": form.cleaned_data["unit_price"],
+                "tax_rate_percent": form.cleaned_data.get("tax_rate_percent"),
+                "reorder_level": form.cleaned_data.get("reorder_level"),
+                "track_inventory": form.cleaned_data["track_inventory"],
+                "is_active": form.cleaned_data["is_active"],
+            }),
+            created_count=len(planned),
+        )
 
 
 class OrgProductPackageListView(MenuItemScopedMixin, ListView):
