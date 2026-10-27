@@ -99,7 +99,7 @@
           <div class="row g-2 mb-2">
             <div class="col-6 col-md-3"><label class="staff-label" for="receive-all-shipping">Shipping / freight</label><input class="staff-input" id="receive-all-shipping" name="shipping_cost" type="number" step="0.01" min="0" value="0"></div>
             <div class="col-6 col-md-3"><label class="staff-label" for="receive-all-duty">Duty / clearing</label><input class="staff-input" id="receive-all-duty" name="duty_cost" type="number" step="0.01" min="0" value="0"></div>
-            <div class="col-12 col-md-6"><label class="staff-label" for="receive-all-landed-allocation">Landed-cost treatment</label><select class="staff-input" id="receive-all-landed-allocation" name="landed_cost_allocation"><option value="exclude">Record charges only — do not add to inventory cost</option><option value="by_cost">Distribute by received supplier-cost value</option></select></div>
+            <div class="col-12 col-md-6"><label class="staff-label" for="receive-all-landed-allocation">Landed-cost treatment</label><select class="staff-input" id="receive-all-landed-allocation" name="landed_cost_allocation"><option value="exclude">Record charges only — do not add to inventory cost</option><option value="by_cost">Distribute by received supplier-cost value</option><option value="by_quantity">Distribute by received quantity</option></select></div>
           </div>
           <p class="staff-muted small mb-2">Only use this when everything outstanding was delivered. The supplier reference prevents the same delivery being recorded twice. If freight/duty should affect profitability, distribute them into landed cost; otherwise they remain receipt evidence only.</p>
           <button type="submit" class="staff-btn staff-btn--primary staff-btn--touch">Receive verified outstanding</button>
@@ -118,11 +118,11 @@
             <div class="col-12 col-md-7"><label class="staff-label" for="receipt-note">Receiving note</label><input class="staff-input" id="receipt-note" name="receipt_note" maxlength="512" placeholder="Receiving notes"></div>
             <div class="col-6 col-md-3"><label class="staff-label" for="shipping-cost">Shipping / freight</label><input class="staff-input" id="shipping-cost" name="shipping_cost" type="number" step="0.01" min="0" value="0"></div>
             <div class="col-6 col-md-3"><label class="staff-label" for="duty-cost">Duty / clearing</label><input class="staff-input" id="duty-cost" name="duty_cost" type="number" step="0.01" min="0" value="0"></div>
-            <div class="col-12 col-md-6"><label class="staff-label" for="landed-cost-allocation">Landed-cost treatment</label><select class="staff-input" id="landed-cost-allocation" name="landed_cost_allocation"><option value="exclude">Record charges only — do not add to inventory cost</option><option value="by_cost">Distribute by received supplier-cost value</option></select><small class="staff-muted d-block">Distribution requires a supplier unit cost on every received line.</small></div>
+            <div class="col-12 col-md-6"><label class="staff-label" for="landed-cost-allocation">Landed-cost treatment</label><select class="staff-input" id="landed-cost-allocation" name="landed_cost_allocation"><option value="exclude">Record charges only — do not add to inventory cost</option><option value="by_cost">Distribute by received supplier-cost value</option><option value="by_quantity">Distribute by received quantity</option><option value="manual">Manual amount per received line</option></select><small class="staff-muted d-block">Any allocating mode requires a supplier unit cost on every received line. Manual amounts must total freight + duty exactly.</small></div>
           </div>
           <div class="fizo-purchasing__tablewrap">
             <table class="fizo-purchasing__table">
-              <thead><tr><th>Item</th><th>Remaining base units</th><th>Loose units</th><th>Packages</th><th>Legacy cartons</th><th>Serial / IMEI values</th><th>Batch code</th><th>Expiry date</th></tr></thead>
+              <thead><tr><th>Item</th><th>Remaining base units</th><th>Loose units</th><th>Packages</th><th>Legacy cartons</th><th>Serial / IMEI values</th><th>Batch code</th><th>Expiry date</th><th>Manual landed cost</th></tr></thead>
               <tbody>
                 {% for line in po.lines.all %}
                   {% if line.quantity_remaining > 0 %}
@@ -134,7 +134,7 @@
                       <td>{% if not line.package_units_snapshot and line.units_per_carton_snapshot > 1 %}<label class="visually-hidden" for="recv-cartons-{{ line.id }}">Full cartons for {{ line.menu_item.name }}</label><input id="recv-cartons-{{ line.id }}" class="staff-input" type="number" step="1" min="1" name="recv_cartons_{{ line.id }}" placeholder="{{ line.units_per_carton_snapshot }} units each">{% else %}<span class="staff-muted">—</span>{% endif %}</td>
                       <td>{% if line.menu_item.serial_tracking %}<label class="visually-hidden" for="recv-serials-{{ line.id }}">{{ line.menu_item.get_serial_identifier_type_display }} values for {{ line.menu_item.name }}</label><textarea id="recv-serials-{{ line.id }}" class="staff-input" name="recv_serials_{{ line.id }}" rows="4" placeholder="One {{ line.menu_item.get_serial_identifier_type_display|lower }} per line"></textarea><small class="staff-muted d-block">Exactly one unique identifier per base unit.</small>{% else %}<span class="staff-muted">—</span>{% endif %}</td>
                       <td><label class="visually-hidden" for="batch-{{ line.id }}">Batch code for {{ line.menu_item.name }}</label><input id="batch-{{ line.id }}" class="staff-input" name="batch_{{ line.id }}" maxlength="128" placeholder="Optional for new stock"></td>
-                      <td><label class="visually-hidden" for="expiry-{{ line.id }}">Expiry for {{ line.menu_item.name }}</label><input id="expiry-{{ line.id }}" class="staff-input" name="expiry_{{ line.id }}" type="date"></td>
+                      <td><label class="visually-hidden" for="expiry-{{ line.id }}">Expiry for {{ line.menu_item.name }}</label><input id="expiry-{{ line.id }}" class="staff-input" name="expiry_{{ line.id }}" type="date"></td><td><label class="visually-hidden" for="landed-cost-{{ line.id }}">Manual landed cost for {{ line.menu_item.name }}</label><input id="landed-cost-{{ line.id }}" class="staff-input" name="landed_cost_{{ line.id }}" type="number" step="0.01" min="0" placeholder="Manual only" data-manual-landed-cost disabled></td>
                     </tr>
                   {% endif %}
                 {% endfor %}
@@ -142,7 +142,7 @@
             </table>
           </div>
           <label class="staff-label mt-3" for="delivery-discrepancy">Delivery discrepancy (optional)</label><textarea class="staff-input" name="discrepancy_note" id="delivery-discrepancy" maxlength="512" placeholder="Describe damaged, missing or incorrect goods requiring manager follow-up."></textarea>
-          <p class="staff-muted small mt-2 mb-1">Only record goods physically checked and accepted. Leave missing or damaged items out of the received quantity and document discrepancies for supplier follow-up.</p>
+          <p class="staff-muted small mt-2 mb-1">Only record goods physically checked and accepted. Leave missing or damaged items out of the received quantity and document discrepancies for supplier follow-up.</p><p class="staff-muted small mb-1">When Manual landed cost is selected, enter the freight/duty amount assigned to each received row. The server requires the manual allocations to total freight + duty exactly before any receipt or stock movement is posted.</p>
           <button type="submit" class="staff-btn staff-btn--primary mt-2" data-goods-receive-submit>Receive entered quantities</button>
           <p class="staff-muted small mt-2" aria-live="polite" role="status" data-goods-receive-status></p>
         </form>
@@ -335,6 +335,24 @@
   </section>
 {% endblock %}
 {% block extra_js %}
+<script>
+(function(){
+  "use strict";
+  var mode=document.getElementById("landed-cost-allocation");
+  var manual=Array.prototype.slice.call(document.querySelectorAll("[data-manual-landed-cost]"));
+  function syncManual(){
+    var enabled=!!mode && mode.value==="manual";
+    manual.forEach(function(input){
+      input.disabled=!enabled;
+      if(!enabled)input.value="";
+    });
+  }
+  if(mode){
+    mode.addEventListener("change",syncManual);
+    syncManual();
+  }
+}());
+</script>
   {{ block.super }}
   <script>
   (function () {
