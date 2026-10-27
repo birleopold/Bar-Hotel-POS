@@ -16,6 +16,7 @@
     {% endfor %}
     {% if grocery_owner_shell %}</div>{% endif %}
     <button type="submit" class="staff-btn staff-btn--primary">{% if grocery_owner_shell %}Save supplier{% else %}Save{% endif %}</button>
+    {% if object %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-supplier-codes' supplier_id=object.id %}">Product codes</a>{% endif %}
     <a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-suppliers' %}">Cancel</a>
   </form>
 </div>
