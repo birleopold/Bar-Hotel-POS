@@ -362,6 +362,14 @@ class PurchaseRequestApprovalTests(TestCase):
         self.assertEqual(second.consolidated_into, target)
         self.assertEqual(first.status, PurchaseOrderStatus.CANCELLED)
         self.assertEqual(second.status, PurchaseOrderStatus.CANCELLED)
+        self.assertEqual(
+            first.review_note,
+            "Approved for consolidated supplier order",
+        )
+        self.assertEqual(
+            second.review_note,
+            "Approved for consolidated supplier order",
+        )
         self.assertEqual(target.consolidated_source_requests.count(), 2)
 
         event = AuditEvent.objects.filter(
