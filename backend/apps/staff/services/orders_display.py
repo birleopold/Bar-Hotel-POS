@@ -14,6 +14,7 @@ from apps.catalog.promotion_rules import (
     promotion_redemption_block_reason,
     promotion_reward_matches_item,
     promotion_reward_quantity,
+    promotion_schedule_active,
     promotion_target_q_for_items,
 )
 from apps.pos.models import Order
@@ -74,6 +75,8 @@ def promotions_selectable_for_order(order: Order):
     )
     eligible_ids = []
     for promotion in base:
+        if not promotion_schedule_active(promotion, at=now):
+            continue
         qualifying_quantity = promotion_qualifying_quantity(promotion, order)
         if (
             promotion.min_target_quantity is not None
