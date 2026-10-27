@@ -19,7 +19,7 @@ from apps.audit.models import AuditEvent, ExceptionPolicy
 from apps.audit.services import log_audit
 from .mixins import StaffTenantRequiredMixin
 from .services.permissions import membership_can_manage_workspace_settings
-from .services.management import EXCEPTION_KINDS, MANAGER_ROLES, exception_assignees, update_exception_case, visible_cases, exception_rows, management_approval_evidence, management_orders, management_scope, management_team, management_shrink_watch, review_exception
+from .services.management import EXCEPTION_KINDS, MANAGER_ROLES, exception_assignees, update_exception_case, visible_cases, exception_rows, management_approval_evidence, management_orders, management_scope, management_team, management_shrink_watch, management_loss_patterns, review_exception
 from .services.dashboard_insights import dashboard_operations_snapshot
 
 
@@ -109,6 +109,7 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                 exception_assignees=exception_assignees(request),
                 exception_summary=summary,
                 shrink_watch=management_shrink_watch(request, policy=policy),
+                loss_patterns=management_loss_patterns(request, policy=policy),
             )
             can_configure = membership_can_manage_workspace_settings(request.tenant_membership) and not request.session.get("staff_pin_authenticated")
             ctx["can_configure_exceptions"] = can_configure
