@@ -32,6 +32,7 @@ def apply_manual_stock_change(
     user,
     note: str = "",
     purchase_order=None,
+    allow_serialized: bool = False,
 ) -> StockMovement:
     """Apply a non-sale movement and update ``StockBalance``.
 
@@ -48,6 +49,13 @@ def apply_manual_stock_change(
         raise ValidationError({"quantity_change": "Enter a non-zero quantity with up to three decimal places."})
     if outlet.site.tenant_id != tenant_id or menu_item.tenant_id != tenant_id:
         raise ValidationError({"stock": "Section and product must belong to this business."})
+    if menu_item.serial_tracking and not allow_serialized:
+        raise ValidationError({
+            "stock": (
+                f'"{menu_item.name}" is serial / IMEI tracked. '
+                "Use a serialized receiving, sale, return or transfer workflow so physical identifiers stay in sync."
+            )
+        })
 
     if reason in (StockReason.RECEIVE, StockReason.ADJUST_IN) and quantity_change < 0:
         raise ValidationError({"quantity_change": "Must be positive for receive / adjust-in."})
@@ -120,8 +128,14 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
     from apps.catalog.models import MenuItem
     from .services_batches import consume_for_outflow_if_batched, record_batch_allocations
 
+    from .services_serials import (
+        mark_serial_assignments_sold,
+        validate_serial_assignments_for_order,
+    )
+
     tenant_id = order.tenant_id
     outlet_id = order.outlet_id
+    serial_assignments = validate_serial_assignments_for_order(order=order)
     sale_need: dict = {}
     recipe_need: dict = {}
     item_names: dict = {}
@@ -193,6 +207,12 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
                     tenant_id=tenant_id, movement=movement, allocations=allocations,
                 )
 
+    mark_serial_assignments_sold(
+        order=order,
+        assignments=serial_assignments,
+        user=user,
+    )
+
 
 @transaction.atomic
 def execute_retail_assembly(
@@ -218,6 +238,8 @@ def execute_retail_assembly(
         raise ValidationError({"direction": "Choose build or unbuild."})
     if not assembled_item.track_inventory:
         raise ValidationError({"assembly": "Enable stock tracking on the finished product first."})
+    if assembled_item.serial_tracking:
+        raise ValidationError({"assembly": "Serialized finished products require a dedicated serial-aware assembly workflow."})
     try:
         qty = Decimal(str(quantity))
     except (InvalidOperation, TypeError, ValueError) as exc:
@@ -247,6 +269,8 @@ def execute_retail_assembly(
             raise ValidationError({"assembly": "Assembly contains a component from another business."})
         if not component.track_inventory:
             raise ValidationError({"assembly": f'Enable stock tracking on component "{component.name}".'})
+        if component.serial_tracking:
+            raise ValidationError({"assembly": f'Serialized component "{component.name}" requires serial-aware assembly allocation.'})
         need = (qty * line.quantity_per_unit).quantize(Decimal("0.001"))
         if need <= 0 or need > Decimal("99999999999.999"):
             raise ValidationError({"assembly": f'Invalid component requirement for "{component.name}".'})
