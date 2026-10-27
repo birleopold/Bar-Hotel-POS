@@ -44,6 +44,31 @@ def write_sales_summary_csv(writer: csv.writer, summary: dict) -> None:
     for it in summary["top_items"]:
         writer.writerow([_spreadsheet_text(it["item_name"]), it["quantity_sold"], it["revenue"]])
 
+    profitability = summary.get("merchandise_profitability")
+    if profitability:
+        writer.writerow([])
+        writer.writerow(["merchandise_profitability_metric", "value", "currency_or_unit"])
+        writer.writerow(["net_merchandise_revenue", profitability["net_merchandise_revenue"], profitability["currency"]])
+        writer.writerow(["known_net_cogs", profitability["known_net_cogs"], profitability["currency"]])
+        writer.writerow(["known_gross_profit", profitability["known_gross_profit"], profitability["currency"]])
+        writer.writerow(["known_margin_percent", profitability["known_margin_percent"] if profitability["known_margin_percent"] is not None else "", "%"])
+        writer.writerow(["cost_coverage_percent", profitability["cost_coverage_percent"], "%"])
+        writer.writerow(["incomplete_sale_lines", profitability["incomplete_sale_lines"], "count"])
+        writer.writerow(["unmapped_refund_amount", profitability["unmapped_refund_amount"], profitability["currency"]])
+        writer.writerow(["profitability_complete", "yes" if profitability["profitability_complete"] else "no", ""])
+        writer.writerow([])
+        writer.writerow([
+            "merchandise_product", "sku", "net_revenue", "known_net_cogs",
+            "known_gross_profit", "known_margin_percent", "incomplete_cost_lines",
+        ])
+        for row in profitability["products"]:
+            writer.writerow([
+                _spreadsheet_text(row["item_name"]), _spreadsheet_text(row["sku"]),
+                row["net_revenue"], row["known_net_cogs"], row["known_gross_profit"],
+                row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
+                row["incomplete_lines"] + row["incomplete_return_lines"],
+            ])
+
 
 def format_sales_summary_csv(
     tenant_id: UUID,
