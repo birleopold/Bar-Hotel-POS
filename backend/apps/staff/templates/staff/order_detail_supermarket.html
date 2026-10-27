@@ -43,6 +43,42 @@
       <p class="staff-muted small mt-2 mb-0" role="status" data-retail-scan-status aria-live="polite">Scanner ready. Each successful scan updates the basket using the existing stock and pricing rules.</p>
     </div>
   {% endif %}
+  {% if serialized_sale_lines %}
+  <section class="staff-card mb-3" aria-label="Serialized products in this basket">
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+      <div><h2 class="staff-card__title">Serial / IMEI assignment</h2><p class="staff-muted small mb-0">Assign the exact physical unit before final payment. Partial tenders can still be recorded; the sale cannot close until every serialized unit is identified.</p></div>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-serials' %}">Serial register</a>
+    </div>
+    {% for line in serialized_sale_lines %}
+      <div class="border-top pt-3 mt-3">
+        <div class="d-flex justify-content-between gap-2 flex-wrap">
+          <div><strong>{{ line.label }}</strong><span class="staff-muted small d-block">{{ line.menu_item.get_serial_identifier_type_display }} · required {{ line.serial_required_count }} · assigned {{ line.serial_reserved_units|length }}</span></div>
+          {% if line.serial_missing_count %}<span class="staff-tag">{{ line.serial_missing_count }} still required</span>{% else %}<span class="staff-tag">Ready for final payment</span>{% endif %}
+        </div>
+        {% if line.serial_reserved_units %}
+          <div class="d-flex flex-wrap gap-2 mt-2">
+          {% for unit in line.serial_reserved_units %}
+            <form method="post" class="d-inline">{% csrf_token %}
+              <input type="hidden" name="action" value="release_serial">
+              <input type="hidden" name="line_id" value="{{ line.id }}">
+              <input type="hidden" name="serial_unit_id" value="{{ unit.id }}">
+              <button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit" title="Release this identifier">{{ unit.serial_number }} ×</button>
+            </form>
+          {% endfor %}
+          </div>
+        {% endif %}
+        {% if can_modify_open_order and line.serial_missing_count %}
+          <form method="post" class="row g-2 align-items-end mt-2" autocomplete="off">{% csrf_token %}
+            <input type="hidden" name="action" value="assign_serial">
+            <input type="hidden" name="line_id" value="{{ line.id }}">
+            <div class="col-12 col-md-8"><label class="staff-label" for="serial-{{ line.id }}">Scan / enter {{ line.menu_item.get_serial_identifier_type_display }}</label><input id="serial-{{ line.id }}" class="staff-input" name="serial_number" maxlength="128" required autofocus placeholder="{{ line.menu_item.get_serial_identifier_type_display }}"></div>
+            <div class="col-12 col-md-4"><button class="staff-btn staff-btn--primary w-100" type="submit">Assign unit</button></div>
+          </form>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </section>
+  {% endif %}
   {% if can_record_payment and payment_form %}
     <section class="staff-card" aria-label="Cash and change" data-retail-cash-panel data-balance-due="{{ balance_due }}">
       <h2 class="staff-card__title">Cash &amp; change</h2>
