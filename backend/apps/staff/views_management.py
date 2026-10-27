@@ -307,6 +307,20 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                     writer.writerow([
                         "Unmapped refund amount", p["unmapped_refund_amount"], p["currency"],
                     ])
+                    if p.get("profitability_actions"):
+                        writer.writerow([])
+                        writer.writerow([
+                            "Management action priority", "Action",
+                            "Evidence", "Exposure amount", "Affected records",
+                        ])
+                        for action in p["profitability_actions"]:
+                            writer.writerow([
+                                csv_safe(action["priority"]),
+                                csv_safe(action["title"]),
+                                csv_safe(action["detail"]),
+                                action["exposure_amount"],
+                                action["affected_count"],
+                            ])
                     writer.writerow([])
                     writer.writerow([
                         "Product", "SKU", "Sale revenue", "Return revenue",
