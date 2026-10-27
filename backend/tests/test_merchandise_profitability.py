@@ -44,6 +44,7 @@ def _sale(env, *, cost="60.00", cost_complete=True, reference="PROFIT-1"):
         line_total=Decimal("100.00"),
         cost_unit_snapshot=Decimal(cost) if cost is not None else None,
         cost_basis_complete_snapshot=cost_complete,
+        merchandise_category_snapshot=env["item"].category.name,
     )
     payment = Payment.objects.create(
         tenant=env["tenant"],
@@ -275,4 +276,27 @@ def test_unknown_cost_return_does_not_reduce_covered_profit_pool():
     assert result["known_margin_percent"] == Decimal("33.3")
     assert result["incomplete_restock_return_lines"] == 1
     assert result["profitability_complete"] is False
+
+@pytest.mark.django_db
+def test_category_profitability_uses_sale_time_category_snapshot_after_product_move():
+    env = _seed_tenant_bundle(
+        name="Profit Category Snapshot",
+        slug="profit-category-snapshot",
+        user_email="profit-category-snapshot@test.local",
+    )
+    original_name = env["item"].category.name
+    _sale(env, reference="PROFIT-CATEGORY-SNAPSHOT")
+
+    category = env["item"].category
+    category.name = "Moved after sale"
+    category.save(update_fields=["name", "updated_at"])
+
+    result = _report(env)
+    names = [row["category_name"] for row in result["categories"]]
+    assert original_name in names
+    assert "Moved after sale" not in names
+    row = next(row for row in result["categories"] if row["category_name"] == original_name)
+    assert row["net_revenue"] == Decimal("90.00")
+    assert row["known_net_cogs"] == Decimal("60.00")
+    assert row["known_gross_profit"] == Decimal("30.00")
 
