@@ -687,22 +687,30 @@ class ConsoleProductPackageForm(forms.ModelForm):
         barcode = (self.cleaned_data.get("barcode") or "").strip()
         if not barcode:
             return ""
-        if MenuItem.objects.filter(tenant=self.tenant, barcode=barcode).exists():
-            raise forms.ValidationError("This barcode is already registered to another product.")
-        qs = ProductPackage.objects.filter(tenant=self.tenant, barcode=barcode)
+        if MenuItem.objects.filter(tenant=self.tenant).filter(
+            forms.models.Q(barcode__iexact=barcode) | forms.models.Q(sku__iexact=barcode)
+        ).exists():
+            raise forms.ValidationError("This code is already registered to a product barcode or SKU.")
+        qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
+            forms.models.Q(barcode__iexact=barcode) | forms.models.Q(sku_alias__iexact=barcode)
+        )
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise forms.ValidationError("This barcode is already registered to another package.")
+            raise forms.ValidationError("This code is already registered to another package.")
         return barcode
 
     def clean_sku_alias(self):
         code = (self.cleaned_data.get("sku_alias") or "").strip()
         if not code:
             return ""
-        if MenuItem.objects.filter(tenant=self.tenant, sku__iexact=code).exists():
-            raise forms.ValidationError("This package code is already used by another product SKU.")
-        qs = ProductPackage.objects.filter(tenant=self.tenant, sku_alias__iexact=code)
+        if MenuItem.objects.filter(tenant=self.tenant).filter(
+            forms.models.Q(sku__iexact=code) | forms.models.Q(barcode__iexact=code)
+        ).exists():
+            raise forms.ValidationError("This package code is already used by a product SKU or barcode.")
+        qs = ProductPackage.objects.filter(tenant=self.tenant).filter(
+            forms.models.Q(sku_alias__iexact=code) | forms.models.Q(barcode__iexact=code)
+        )
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
