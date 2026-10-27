@@ -43,6 +43,23 @@
       <p class="staff-muted small mt-2 mb-0" role="status" data-retail-scan-status aria-live="polite">Scanner ready. Each successful scan updates the basket using the existing stock and pricing rules.</p>
     </div>
   {% endif %}
+  {% if can_modify_open_order and retail_product_groups %}
+  <section class="staff-card mb-3" aria-label="Retail product groups">
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+      <div><h2 class="staff-card__title">Quick-sale groups</h2><p class="staff-muted small mb-0">Add several normal products in one action. Stock and prices still belong to the component SKUs.</p></div>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'console-org-retail-groups' %}">Manage groups</a>
+    </div>
+    <form method="post" class="row g-2 align-items-end mt-2" data-retail-group-form>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_retail_group">
+      <div class="col-12 col-md-7"><label class="staff-label" for="retail-group-choice">Group</label><select id="retail-group-choice" class="staff-input" name="retail_group_id" required><option value="">Choose group</option>{% for group in retail_product_groups %}<option value="{{ group.id }}">{{ group.name }}{% if group.code %} · {{ group.code }}{% endif %} · {{ group.lines.count }} products</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-2"><label class="staff-label" for="retail-group-qty">Qty</label><input id="retail-group-qty" class="staff-input" name="quantity" type="number" min="1" step="1" value="1" required></div>
+      <div class="col-6 col-md-3"><button class="staff-btn staff-btn--primary w-100" type="submit">Add group</button></div>
+      <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-retail-group-status>Ready.</p></div>
+    </form>
+  </section>
+  {% endif %}
+
   {% if serialized_sale_lines %}
   <section class="staff-card mb-3" aria-label="Serialized products in this basket">
     <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
