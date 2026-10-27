@@ -55,13 +55,13 @@ class OrgTrainingWorkspaceView(ConsoleOrgAdminRequiredMixin, View):
         progress = state.exercise_progress if state else {}
         rows = []
         route_map = {
-            'cashier_scan': ('staff-pos-checkout', 'Open checkout'),
+            'cashier_scan': ('staff-retail-pos-entry', 'Open checkout'),
             'cashier_hold': ('staff-pos-checkout', 'Open checkout'),
             'cashier_split': ('staff-pos-checkout', 'Open checkout'),
-            'cashier_return': ('staff-sales-summary', 'Open Sales Summary'),
+            'cashier_return': ('staff-sales', 'Open Sales Summary'),
             'stock_review': ('staff-inventory-balances', 'Open stock balances'),
             'po_receive': ('staff-purchasing-orders', 'Open purchase orders'),
-            'stock_count': ('staff-stock-counts', 'Open stock counts'),
+            'stock_count': ('staff-inventory-counts', 'Open stock counts'),
             'manager_sales': ('staff-sales-summary', 'Open Sales Summary'),
             'manager_exception': ('staff-management', 'Open Management'),
             'manager_accounting': ('staff-accounting-export', 'Open accounting export'),
