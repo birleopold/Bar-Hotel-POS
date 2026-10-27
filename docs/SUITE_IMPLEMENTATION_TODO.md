@@ -319,7 +319,7 @@ Verification deferred at owner's direction. Status is implementation-in-progress
 - New responsive **Inventory → Stock planning** page with 24-item pagination, low-stock filter, adjustable stock buffer (0–30 days), batch-age breakdown, supplier delivery sample count and explanation of what data is missing. Tenant/outlet filtering respects the active staff section selection.
 - Regression tests authored for recorded rolling usage, batch aging, supplier delivery timing, permissions and invalid planning parameters.
 - Research: https://stockoutinventory.com/guides/reorder-point-safety-stock (Sept 2026) and https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum .
-- Remains in progress until formal sell-through can be reconciled from opening, receipt and return inventories, seasonality and stockout biases are addressed, accessible reporting exports/aggregates are integrated, and owner-deferred verification is completed.
+- Stock Planning now provides a bounded 2,000-row CSV export using the same outlet, low-stock and buffer filters as the UI. Exported text cells are spreadsheet-formula escaped and responses are private/no-store. Aggregated reporting and browser/accessibility acceptance remain outstanding.\n- Remains in progress until formal sell-through can be reconciled from opening, receipt and return inventories, seasonality and stockout biases are addressed, aggregated reporting is integrated, and owner-deferred verification is completed.
 
 
 ### 2026-10-16 — direct implementation batch: staff discovery, UI, audit, alerts, release evidence
