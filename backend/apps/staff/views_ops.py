@@ -2817,49 +2817,13 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 for err in err_list:
                     messages.error(request, f"{fld}: {err}")
             return redirect("staff-order-detail", order_id=order.id)
-        group_code = (form.cleaned_data["code"] or "").strip()
-        # Existing/legacy data may predate the shared code-namespace guards.
-        # Always prefer a real physical/product identity over a convenience
-        # group shortcut so an IMEI, barcode, package code, PLU or scale label
-        # can never expand an unrelated group.
-        from apps.inventory.models import InventorySerialUnit
-        from apps.catalog.scale_labels import decode_scale_weight_label
-        normal_item, _normal_source = lookup_supermarket_item_for_code(
-            tenant_id=order.tenant_id,
-            outlet_id=order.outlet_id,
-            code=group_code,
-        )
-        serial_identity = InventorySerialUnit.objects.filter(
-            tenant_id=order.tenant_id,
-            serial_number__iexact=group_code,
-        ).exists()
-        scale_identity = decode_scale_weight_label(
-            tenant_id=order.tenant_id,
-            outlet_id=order.outlet_id,
-            code=group_code,
-        ) is not None
-        retail_group = None
-        if normal_item is None and not serial_identity and not scale_identity:
-            retail_group = RetailProductGroup.objects.filter(
-                tenant_id=order.tenant_id,
-                is_active=True,
-                code__iexact=group_code,
-            ).first()
         try:
-            if retail_group is not None:
-                add_retail_group_to_open_order(
-                    order=order,
-                    retail_group=retail_group,
-                    quantity=form.cleaned_data["quantity"],
-                    user=request.user,
-                )
-            else:
-                add_supermarket_line_by_code(
-                    order=order,
-                    code=group_code,
-                    quantity=form.cleaned_data["quantity"],
-                    user=request.user,
-                )
+            add_supermarket_line_by_code(
+                order=order,
+                code=form.cleaned_data["code"],
+                quantity=form.cleaned_data["quantity"],
+                user=request.user,
+            )
         except DRFValidationError as exc:
             if async_scan:
                 return reject(exc.detail)
@@ -2869,10 +2833,7 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                 order.refresh_from_db(fields=["subtotal", "tax_total", "total", "currency"])
                 return JsonResponse({"ok": True, "order_id": str(order.pk),
                     "currency": order.currency, "total": str(order.total)})
-            messages.success(
-                request,
-                f"{retail_group.name} added." if retail_group is not None else "SKU added.",
-            )
+            messages.success(request, "Item or group added.")
         return redirect("staff-order-detail", order_id=order.id)
 
     def _post_line_discount(self, request: HttpRequest, order: Order) -> HttpResponse:
