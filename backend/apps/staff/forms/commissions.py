@@ -63,6 +63,12 @@ class StaffCommissionRuleForm(forms.ModelForm):
         self.fields["menu_item"].empty_label = "Any product"
         self.fields["category"].empty_label = "Any category"
 
+    def clean_rate_percent(self):
+        rate = self.cleaned_data.get("rate_percent")
+        if rate is None or rate < 0 or rate > 100:
+            raise forms.ValidationError("Commission rate must be between 0% and 100%.")
+        return rate
+
     def clean_name(self):
         name = " ".join((self.cleaned_data.get("name") or "").split())
         qs = CommissionRule.objects.filter(tenant=self._tenant, name__iexact=name)
