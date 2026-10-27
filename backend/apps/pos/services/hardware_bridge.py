@@ -41,6 +41,7 @@ COMMANDS_BY_DEVICE = {
     WorkstationDeviceType.WEIGHING_SCALE: {
         WorkstationDeviceCommandType.PING,
         WorkstationDeviceCommandType.READ_SCALE,
+        WorkstationDeviceCommandType.TARE_SCALE,
     },
     WorkstationDeviceType.BARCODE_SCANNER: {
         WorkstationDeviceCommandType.PING,
@@ -394,3 +395,64 @@ def report_bridge_command(
             error=message,
         )
     return command
+
+
+def queue_cash_drawer_for_payment_best_effort(*, payment_id):
+    """Queue drawer opening after a committed cash payment without risking the sale.
+
+    Hardware failure must never roll back or duplicate a financial transaction.
+    """
+    from apps.pos.models import Payment
+    try:
+        payment = (
+            Payment.objects.select_related(
+                "shift",
+                "shift__workstation",
+                "order",
+            )
+            .get(pk=payment_id)
+        )
+    except Payment.DoesNotExist:
+        return []
+    if payment.method != "cash" or not payment.shift_id or not payment.shift.workstation_id:
+        return []
+    devices = list(
+        WorkstationDevice.objects.filter(
+            tenant_id=payment.tenant_id,
+            workstation_id=payment.shift.workstation_id,
+            device_type=WorkstationDeviceType.CASH_DRAWER,
+            adapter=WorkstationDeviceAdapter.LOCAL_BRIDGE,
+            is_active=True,
+        )
+    )
+    queued = []
+    for device in devices:
+        try:
+            command, _replay = enqueue_device_command(
+                tenant=payment.order.tenant,
+                device=device,
+                user=payment.recorded_by,
+                command_type=WorkstationDeviceCommandType.OPEN_DRAWER,
+                idempotency_key=f"cash-payment:{payment.pk}:drawer:{device.pk}",
+                payload={
+                    "payment_id": str(payment.pk),
+                    "order_id": str(payment.order_id),
+                    "reason": "cash_payment_recorded",
+                },
+                ttl_seconds=90,
+            )
+            queued.append(command)
+        except Exception as exc:
+            log_audit(
+                tenant_id=payment.tenant_id,
+                user_id=payment.recorded_by_id,
+                action="workstation.drawer_command_queue_failed",
+                entity_type="payment",
+                entity_id=str(payment.pk),
+                payload={
+                    "device_id": str(device.pk),
+                    "error": str(exc)[:300],
+                },
+                source="pos",
+            )
+    return queued
