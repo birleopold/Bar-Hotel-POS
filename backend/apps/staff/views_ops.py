@@ -47,7 +47,6 @@ from apps.pos.services import (
     hold_open_order,
     resume_held_retail_order,
     menu_items_for_outlet_queryset,
-    lookup_supermarket_item_for_code,
     open_pos_shift,
     open_or_resume_table_order,
     transfer_table_order,
