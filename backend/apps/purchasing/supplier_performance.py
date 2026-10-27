@@ -14,6 +14,9 @@ from .models import (
     PurchaseReceipt,
     PurchaseReceiptLine,
     SupplierProductCode,
+    SupplierQuote,
+    SupplierQuoteLine,
+    SupplierQuoteStatus,
     SupplierReturn,
 )
 
@@ -55,6 +58,12 @@ def supplier_performance_rows(*, tenant, suppliers, days=365, at=None) -> dict:
             "cost_increases": 0,
             "cost_decreases": 0,
             "cost_unchanged": 0,
+            "received_goods_value": Decimal("0.00"),
+            "quotes_received": 0,
+            "quote_wins": 0,
+            "quote_losses": 0,
+            "quote_no_response": 0,
+            "quote_win_percent": None,
         }
         for supplier_id in supplier_ids
     }
@@ -157,12 +166,17 @@ def supplier_performance_rows(*, tenant, suppliers, days=365, at=None) -> dict:
             .values(
                 "receipt__purchase_order__supplier_id",
                 "quantity_received",
+                "unit_cost_snapshot",
             )
             .iterator()
         ):
-            rows[receipt_line["receipt__purchase_order__supplier_id"]][
-                "received_units"
-            ] += receipt_line["quantity_received"]
+            summary = rows[receipt_line["receipt__purchase_order__supplier_id"]]
+            summary["received_units"] += receipt_line["quantity_received"]
+            if receipt_line["unit_cost_snapshot"] is not None:
+                summary["received_goods_value"] += (
+                    receipt_line["quantity_received"]
+                    * receipt_line["unit_cost_snapshot"]
+                ).quantize(Decimal("0.01"))
 
     returns = (
         SupplierReturn.objects.filter(
@@ -175,6 +189,31 @@ def supplier_performance_rows(*, tenant, suppliers, days=365, at=None) -> dict:
     )
     for returned in returns.iterator():
         rows[returned["purchase_order__supplier_id"]]["returned_units"] += returned["quantity"]
+
+    quote_rows = list(
+        SupplierQuote.objects.filter(
+            tenant=tenant,
+            supplier_id__in=supplier_ids,
+            created_at__gte=since,
+        ).values("id", "supplier_id", "status")
+    )
+    quote_ids_with_lines = set(
+        SupplierQuoteLine.objects.filter(
+            quote_id__in=[row["id"] for row in quote_rows]
+        ).values_list("quote_id", flat=True).distinct()
+    )
+    for quote in quote_rows:
+        summary = rows[quote["supplier_id"]]
+        has_response = quote["id"] in quote_ids_with_lines
+        if has_response:
+            summary["quotes_received"] += 1
+        if quote["status"] == SupplierQuoteStatus.ACCEPTED:
+            summary["quote_wins"] += 1
+        elif quote["status"] == SupplierQuoteStatus.REJECTED:
+            if has_response:
+                summary["quote_losses"] += 1
+            else:
+                summary["quote_no_response"] += 1
 
     # Latest two received supplier costs per supplier/product, queried once.
     cost_buckets = defaultdict(list)
@@ -233,5 +272,13 @@ def supplier_performance_rows(*, tenant, suppliers, days=365, at=None) -> dict:
         summary["return_rate_percent"] = _percent(
             summary["returned_units"],
             summary["received_units"],
+        )
+        decisions = summary["quote_wins"] + summary["quote_losses"]
+        summary["quote_win_percent"] = _percent(
+            Decimal(summary["quote_wins"]),
+            Decimal(decisions),
+        )
+        summary["received_goods_value"] = summary["received_goods_value"].quantize(
+            Decimal("0.01")
         )
     return rows
