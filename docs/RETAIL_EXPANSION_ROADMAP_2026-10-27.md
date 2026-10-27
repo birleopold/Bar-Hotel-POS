@@ -466,12 +466,15 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Benchmark check (Lightspeed Retail employee hours and Square Shifts/timecards, 2026-10-27): separate work-time tracking from register operations, support worker clock in/out and breaks, provide manager review/edit controls, and retain location/worker filters and export. Our implementation follows that model while preserving tenant/site/outlet scope and audited correction evidence.
 
 ### R6.3 Commissions and targets
-- Commission rules by employee/product/category.
-- Immutable sale attribution.
-- Refund reversals.
-- Commission report.
-- Sales targets and progress.
-- Payroll payment itself is out of scope.
+- Tenant commission rules are implemented for worker, product, category, tenant-wide default, and worker + product/category combinations. Owner/tenant-admin manage the rules from Workspace → Commissions; rate, target objects and effective dates are tenant-scoped and audit logged.
+- At final sale completion the POS freezes the credited worker, rule name, net commission base, rate, amount and commission settlement timestamp onto each non-void sale line. Partial payments earn nothing until the final settlement; folio-charged completed sales use the same snapshot path even without a POS payment row.
+- Rule matching is deterministic: the most specific matching active rule wins, with worker-specific scope taking precedence before product/category when specificity ties. The UI rejects overlapping active rules with the same worker/product/category scope and effective period so administrators cannot create ambiguous same-scope rules.
+- Settled history is immutable. Editing a commission rule never recalculates previously settled sale lines; reports use the frozen snapshots rather than today's commission configuration or catalog state.
+- Return/refund adjustments are recognized in the period when the return/refund occurs, even when the original sale belongs to an earlier period. Exact retail line returns reverse the corresponding frozen line sales/commission proportionally by returned quantity. General order refunds that do not identify an item are explicitly allocated proportionally across that sale's frozen attributed lines; refunds with no commissionable attributed lines remain visible as unallocated refund exposure rather than being guessed onto a worker.
+- A current period may therefore show negative net commission when it contains clawback evidence from earlier sales. This is a reporting adjustment only: the POS does not automatically deduct employee pay.
+- Management → Commissions & targets is implemented for owner/tenant-admin/site-manager/outlet-manager within their existing branch/outlet scope. It reports gross attributed sales, sales reversals, net sales, gross commission, exact return reversals, allocated general-refund reversals and net commission, with CSV export.
+- Sales targets are manager-scoped, non-overlapping per worker, support future planning periods and can be edited with audit evidence. Target progress uses net attributed sales after return/refund adjustments and is shown only when one target covers the complete selected report period; payroll payment remains out of scope.
+- Benchmark check (Lightspeed Retail line-employee/commission reporting and Shopify POS staff attribution/net-sales reporting, 2026-10-27): preserve employee attribution at the sale line/transaction boundary, report employee performance from explicit sale attribution, and include returns/refunds in net performance rather than reporting gross-only commission. The implementation follows that model while adding immutable settlement snapshots and explicit cross-period reversal evidence.
 
 ### R6.4 Loss prevention
 - No-sale drawer-open evidence once hardware exists.
