@@ -433,6 +433,11 @@ class ReceiveLineSerializer(serializers.Serializer):
     )
     cartons = serializers.IntegerField(required=False, min_value=1)
     packages = serializers.IntegerField(required=False, min_value=1)
+    serial_numbers = serializers.ListField(
+        child=serializers.CharField(max_length=128, trim_whitespace=True),
+        required=False,
+        default=list,
+    )
     batch_code = serializers.CharField(required=False, allow_blank=True, max_length=128)
     expiry_date = serializers.DateField(required=False, allow_null=True)
     received_at = serializers.DateField(required=False)
