@@ -25,7 +25,13 @@
     <p><strong>Offer type</strong> {{ promotion.get_offer_type_display }}</p>
     <p><strong>Discount</strong>
       {% if promotion.offer_type == "buy_x_get_y" %}
-        Buy {{ promotion.buy_quantity }}, get {{ promotion.get_quantity }} free{% if promotion.max_uses_per_order %} · max {{ promotion.max_uses_per_order }} set{{ promotion.max_uses_per_order|pluralize }} per order{% endif %}
+        Buy {{ promotion.buy_quantity }} from {{ promotion.target_label }}, get {{ promotion.get_quantity }} free from
+        {% if promotion.reward_menu_item %}{{ promotion.reward_menu_item.name }}
+        {% elif promotion.reward_product_family %}Family · {{ promotion.reward_product_family.name }}
+        {% elif promotion.reward_category %}Category · {{ promotion.reward_category.name }}
+        {% elif promotion.reward_brand %}Brand · {{ promotion.reward_brand }}
+        {% else %}the same qualifying pool{% endif %}
+        {% if promotion.max_uses_per_order %} · max {{ promotion.max_uses_per_order }} set{{ promotion.max_uses_per_order|pluralize }} per order{% endif %}
       {% elif promotion.offer_type == "x_for_fixed_amount" %}
         {{ promotion.fixed_quantity }} for {{ promotion.fixed_bundle_amount }}{% if promotion.max_uses_per_order %} · max {{ promotion.max_uses_per_order }} set{{ promotion.max_uses_per_order|pluralize }} per order{% endif %}
       {% else %}
