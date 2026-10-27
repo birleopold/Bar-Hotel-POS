@@ -102,6 +102,32 @@
         </div>
       {% endif %}
 
+      {% if p.margin_breach_sales %}
+        <div class="staff-alert staff-alert--warning mt-3 mb-0">
+          <strong>{{ p.margin_breach_sale_count }} below-floor sale line{{ p.margin_breach_sale_count|pluralize }} found.</strong>
+          <span>Revenue exposed: {{ p.currency }} {{ p.margin_breach_revenue }}. Additional gross profit required to reach the configured floor: {{ p.currency }} {{ p.margin_breach_shortfall }}.</span>
+        </div>
+        <div class="staff-table-wrap staff-table-wrap--pos mt-3">
+          <table class="staff-table staff-table--pos">
+            <caption>Individual retail margin breaches</caption>
+            <thead><tr><th>Sale</th><th>Section</th><th>Product</th><th class="text-end">Revenue</th><th class="text-end">Margin</th><th class="text-end">Floor</th><th class="text-end">Shortfall</th></tr></thead>
+            <tbody>
+              {% for row in p.margin_breach_sales|slice:":10" %}
+                <tr>
+                  <td><a href="{% url 'staff-order-detail' row.order_id %}">{{ row.bill_reference }}</a></td>
+                  <td>{{ row.outlet_name }}</td>
+                  <td class="fw-bold">{{ row.item_name }}{% if row.sku %}<div class="staff-muted small">{{ row.sku }}</div>{% endif %}</td>
+                  <td class="text-end">{{ p.currency }} {{ row.net_revenue }}</td>
+                  <td class="text-end">{% if row.known_margin_percent != None %}{{ row.known_margin_percent }}%{% else %}No revenue{% endif %}</td>
+                  <td class="text-end">{{ row.margin_floor_percent }}%</td>
+                  <td class="text-end"><strong>{{ p.currency }} {{ row.margin_shortfall }}</strong></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+
       {% if p.products %}
         <div class="staff-table-wrap staff-table-wrap--pos mt-3">
           <table class="staff-table staff-table--pos">
