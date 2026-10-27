@@ -315,6 +315,8 @@ def execute_retail_assembly(
         new_qty = balance.quantity + change
         if new_qty < 0:
             raise ValidationError({"stock": f'Assembly would make "{item_names[item_id]}" negative.'})
+        if new_qty > Decimal("99999999999.999"):
+            raise ValidationError({"stock": f'Assembly would exceed the stock limit for "{item_names[item_id]}".'})
         balance.quantity = new_qty
         balance.save(update_fields=["quantity", "updated_at"])
         StockMovement.objects.create(
