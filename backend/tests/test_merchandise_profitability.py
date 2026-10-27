@@ -83,6 +83,13 @@ def test_profitability_uses_sale_time_cost_and_order_discount():
     assert result["known_gross_profit"] == Decimal("30.00")
     assert result["known_margin_percent"] == Decimal("33.3")
     assert result["cost_coverage_percent"] == Decimal("100.0")
+    assert len(result["categories"]) == 1
+    category = result["categories"][0]
+    assert category["category_name"] == env["item"].category.name
+    assert category["net_revenue"] == Decimal("90.00")
+    assert category["covered_net_revenue"] == Decimal("90.00")
+    assert category["known_net_cogs"] == Decimal("60.00")
+    assert category["known_gross_profit"] == Decimal("30.00")
     assert result["profitability_complete"] is True
 
 
@@ -215,6 +222,8 @@ def test_management_profitability_respects_scope_and_csv_export():
     assert "Known gross profit,30.00,UGX" in body
     assert "Covered net revenue,90.00,UGX" in body
     assert "Revenue without trusted cost,0.00,UGX" in body
+    assert "Category,Net revenue,Covered net revenue" in body
+    assert env["item"].category.name in body
     assert env["item"].name in body
 
 @pytest.mark.django_db
