@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import Membership, MembershipRole, User
 from apps.catalog.models import MenuCategory, MenuItem
@@ -260,3 +261,69 @@ class SalesProfitabilityTests(TestCase):
         self.assertIn("net_merchandise_revenue,100.00,UGX", csv_body)
         self.assertIn("known_net_cogs,60.00,UGX", csv_body)
         self.assertNotIn("900.00", csv_body)
+
+    def test_installment_sale_is_recognized_once_on_final_payment_date(self):
+        previous = self.today - timedelta(days=1)
+        order = Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            status=OrderStatus.CLOSED,
+            subtotal=Decimal("100.00"),
+            tax_total=Decimal("0.00"),
+            discount_amount=Decimal("0.00"),
+            total=Decimal("100.00"),
+            is_paid=True,
+            created_by=self.user,
+        )
+        OrderLine.objects.create(
+            order=order,
+            menu_item=self.known_item,
+            label=self.known_item.name,
+            quantity=Decimal("1"),
+            unit_price=Decimal("100.00"),
+            line_total=Decimal("100.00"),
+            cost_unit_snapshot=Decimal("60.00"),
+            cost_basis_complete_snapshot=True,
+        )
+        first = Payment.objects.create(
+            tenant=self.tenant,
+            order=order,
+            amount=Decimal("40.00"),
+            method="cash",
+            idempotency_key="profit-partial-first",
+            recorded_by=self.user,
+        )
+        final = Payment.objects.create(
+            tenant=self.tenant,
+            order=order,
+            amount=Decimal("60.00"),
+            method="cash",
+            idempotency_key="profit-partial-final",
+            recorded_by=self.user,
+        )
+        Payment.objects.filter(pk=first.pk).update(
+            created_at=timezone.make_aware(datetime.combine(previous, time(12, 0)))
+        )
+        Payment.objects.filter(pk=final.pk).update(
+            created_at=timezone.make_aware(datetime.combine(self.today, time(12, 0)))
+        )
+
+        previous_report = build_merchandise_profitability(
+            tenant_id=self.tenant.pk,
+            date_from=previous,
+            date_to=previous,
+            allowed_outlet_ids=[self.outlet.pk],
+            currency="UGX",
+        )
+        current_report = build_merchandise_profitability(
+            tenant_id=self.tenant.pk,
+            date_from=self.today,
+            date_to=self.today,
+            allowed_outlet_ids=[self.outlet.pk],
+            currency="UGX",
+        )
+        self.assertEqual(previous_report["sale_revenue"], Decimal("0.00"))
+        self.assertEqual(previous_report["known_net_cogs"], Decimal("0.00"))
+        self.assertEqual(current_report["sale_revenue"], Decimal("100.00"))
+        self.assertEqual(current_report["known_net_cogs"], Decimal("60.00"))
+        self.assertEqual(current_report["known_gross_profit"], Decimal("40.00"))
