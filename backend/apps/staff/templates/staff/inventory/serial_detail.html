@@ -14,6 +14,7 @@
       <span><strong>{{ serial_unit.get_status_display }}</strong><small>Current status</small></span>
       <span><strong>{{ serial_unit.outlet.name }}</strong><small>Current section</small></span>
       <span><strong>{{ serial_unit.received_at }}</strong><small>Received</small></span>
+      <span><strong>{{ serial_unit.warranty_started_at|default:"—" }}</strong><small>Warranty started</small></span>
       <span><strong>{{ serial_unit.warranty_expires_at|default:"—" }}</strong><small>Warranty expiry</small></span>
     </div>
     {% if serial_unit.purchase_receipt_line %}<p class="staff-muted mt-3 mb-0">Received from PO <strong>{{ serial_unit.purchase_receipt_line.receipt.purchase_order.reference|default:serial_unit.purchase_receipt_line.receipt.purchase_order.id }}</strong> · delivery {{ serial_unit.purchase_receipt_line.receipt.delivery_reference|default:"unreferenced" }}.</p>{% endif %}
