@@ -121,6 +121,82 @@ class SupplierProductCode(TimeStampedModel):
         return f"{self.supplier.name} · {self.code} · {self.menu_item.name}"
 
 
+class SupplierPriceRecord(TimeStampedModel):
+    """Effective-dated supplier purchase price evidence used for PO suggestions."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="supplier_price_records",
+    )
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.CASCADE,
+        related_name="price_records",
+    )
+    menu_item = models.ForeignKey(
+        "catalog.MenuItem",
+        on_delete=models.CASCADE,
+        related_name="supplier_price_records",
+    )
+    product_package = models.ForeignKey(
+        "catalog.ProductPackage",
+        on_delete=models.CASCADE,
+        related_name="supplier_price_records",
+        null=True,
+        blank=True,
+        help_text="Optional purchasing package this supplier price applies to.",
+    )
+    unit_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    minimum_quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        default=Decimal("0.001"),
+        validators=[MinValueValidator(Decimal("0.001"))],
+        help_text="Minimum base-stock quantity required for this price.",
+    )
+    valid_from = models.DateField(null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    source_reference = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Supplier contract, price-list or quotation reference.",
+    )
+    note = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = [
+            "supplier__name", "menu_item__name",
+            "-minimum_quantity", "-valid_from", "-created_at",
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.supplier_id and self.tenant_id and self.supplier.tenant_id != self.tenant_id:
+            raise ValidationError({"supplier": "Supplier must belong to this business."})
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Product must belong to this business."})
+        if self.product_package_id:
+            if self.product_package.tenant_id != self.tenant_id:
+                raise ValidationError({"product_package": "Package must belong to this business."})
+            if self.product_package.menu_item_id != self.menu_item_id:
+                raise ValidationError({"product_package": "Package must belong to the selected product."})
+        if self.valid_from and self.valid_until and self.valid_until < self.valid_from:
+            raise ValidationError({"valid_until": "End date cannot be earlier than start date."})
+
+    def __str__(self) -> str:
+        return (
+            f"{self.supplier.name} · {self.menu_item.name} · "
+            f"{self.minimum_quantity}+ @ {self.unit_cost}"
+        )
+
+
 class PurchaseRfqStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     OPEN = "open", "Open for quotations"
