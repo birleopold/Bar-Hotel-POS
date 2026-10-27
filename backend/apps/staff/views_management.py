@@ -21,6 +21,7 @@ from .mixins import StaffTenantRequiredMixin
 from .services.permissions import membership_can_manage_workspace_settings
 from .services.management import EXCEPTION_KINDS, MANAGER_ROLES, exception_assignees, update_exception_case, visible_cases, exception_rows, management_approval_evidence, management_orders, management_scope, management_team, management_shrink_watch, management_loss_patterns, management_loss_pattern_detail, review_exception
 from .services.dashboard_insights import dashboard_operations_snapshot
+from .services.customer_finance import customer_receivable_aging
 
 
 class ExceptionPolicyForm(forms.ModelForm):
@@ -208,10 +209,22 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
             reports.append(("Sales report", reverse("staff-sales")))
             today = timezone.localdate().isoformat()
             ctx["today_sales_url"] = reverse("staff-sales") + f"?date_from={today}&date_to={today}"
-        for enabled, route, label in [(vis.finance, "staff-finance-entries", "Income and expenses"), (vis.inventory, "staff-inventory-balances", "Stock balances"), (vis.lodging, "staff-lodging-reservations", "Stays")]:
+        for enabled, route, label in [
+            (vis.finance, "staff-finance-entries", "Income and expenses"),
+            (vis.inventory, "staff-inventory-balances", "Stock balances"),
+            (vis.purchasing, "staff-purchasing-balances", "Supplier payables"),
+            (vis.lodging, "staff-lodging-reservations", "Stays"),
+        ]:
             if enabled:
                 reports.append((label, reverse(route)))
         ctx["management_reports"] = reports
+        if mode == "reports" and outlets and (vis.finance or vis.lodging):
+            site_ids = sorted({outlet.site_id for outlet in outlets})
+            ctx["receivable_aging"] = customer_receivable_aging(
+                tenant=request.tenant,
+                site_ids=site_ids,
+                currency=request.tenant.settings.default_currency,
+            )
         if mode == "reports" and vis.sales and outlets:
             # Always respect the same section scope as the current management view.
             # Reject malformed/oversized ranges rather than executing expensive reports.
