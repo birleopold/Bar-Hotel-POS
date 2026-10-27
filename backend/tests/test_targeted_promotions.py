@@ -21,6 +21,11 @@ from apps.pos.services.orders import (
     remove_promotion_from_order,
 )
 from apps.pos.services.payments import record_order_payment
+from apps.pos.services.pricing_policy import (
+    manual_discount_combination_block_reason,
+    pricing_precedence_state,
+    promotion_combination_block_reason,
+)
 from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
 from apps.staff.services import promotions_selectable_for_order
 from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
@@ -1402,4 +1407,78 @@ class TargetedPromotionTests(TestCase):
                 entity_id=str(second.pk),
             ).exists()
         )
+
+    def test_shared_pricing_precedence_blocks_wholesale_basket_promotions(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        line.pricing_source = "wholesale"
+        line.save(update_fields=["pricing_source", "updated_at"])
+        promo = self._promotion(name="Blocked by wholesale")
+
+        state = pricing_precedence_state(order)
+        self.assertTrue(state.has_wholesale)
+        self.assertEqual(state.active_labels, ("Wholesale",))
+        self.assertIn("Wholesale pricing is active", state.promotion_block_reason)
+        self.assertEqual(
+            promotion_combination_block_reason(order),
+            state.promotion_block_reason,
+        )
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError) as exc:
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        self.assertIn("Wholesale pricing is active", str(exc.exception.detail))
+
+    def test_shared_pricing_precedence_reports_manual_discount_and_promotion_conflict(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="Policy promo")
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+        line.refresh_from_db()
+        self.assertIn(
+            "Remove the order promotion",
+            manual_discount_combination_block_reason(order, line),
+        )
+
+        remove_promotion_from_order(order=order, user=self.user)
+        apply_supermarket_line_discount(
+            order=order,
+            line=line,
+            user=self.user,
+            discount_percent=Decimal("5"),
+        )
+        order.refresh_from_db()
+        state = pricing_precedence_state(order)
+        self.assertTrue(state.has_manual_discount)
+        self.assertIn("manual line discount", state.promotion_block_reason.lower())
+
+    def test_checkout_explains_pricing_precedence_when_offer_is_blocked(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("2"),
+            user=self.user,
+        )
+        line.pricing_source = "wholesale"
+        line.save(update_fields=["pricing_source", "updated_at"])
+
+        response = self.client.get(reverse("staff-order-detail", args=[order.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pricing rules")
+        self.assertContains(response, "Active pricing: Wholesale.")
+        self.assertContains(response, "Wholesale pricing is active")
+        self.assertNotContains(response, "Or enter coupon code")
 
