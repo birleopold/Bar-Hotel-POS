@@ -27,7 +27,10 @@ from apps.purchasing.models import (
 )
 from apps.purchasing.serializers import PurchaseOrderCreateSerializer, PurchaseOrderStatusUpdateSerializer, RecordSupplierPaymentSerializer, LinkSupplierPaymentInvoiceSerializer, ConfirmMissingUnitCostSerializer, RecordSupplierInvoiceSerializer, RecordSupplierReturnSerializer, RecordSupplierCreditNoteSerializer, ReceivePurchaseOrderSerializer
 from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase_order_goods, record_receipt_landed_cost_adjustment, record_supplier_payment, link_existing_supplier_payment_to_invoice, record_supplier_invoice, return_received_goods_to_supplier, record_supplier_credit_note, received_goods_value, has_legacy_receipt_expenses
-from apps.purchasing.supplier_catalog import supplier_cost_histories
+from apps.purchasing.supplier_catalog import (
+    supplier_cost_histories,
+    supplier_purchase_options,
+)
 from apps.purchasing.supplier_performance import supplier_performance_rows
 from apps.purchasing.approvals import (
     consolidate_purchase_order_requests,
@@ -1166,6 +1169,7 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
         ctx["line_slots"] = range(PO_LINE_SLOTS)
         ctx["prefill_menu_item"] = None
         ctx["prefill_qty"] = ""
+        ctx["supplier_purchase_options"] = []
         if self.request.method == "GET":
             try:
                 item_id = uuid.UUID(self.request.GET.get("menu_item", ""))
@@ -1181,6 +1185,11 @@ class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
                 if item is not None:
                     ctx["prefill_menu_item"] = item.pk
                     ctx["prefill_qty"] = str(quantity)
+                    ctx["supplier_purchase_options"] = supplier_purchase_options(
+                        tenant_id=self.request.tenant.pk,
+                        menu_item_id=item.pk,
+                        ordered_quantity=quantity,
+                    )
         menu_items = list(
             MenuItem.objects.filter(
                 tenant=self.request.tenant,
