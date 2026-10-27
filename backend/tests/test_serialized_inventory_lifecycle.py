@@ -197,7 +197,7 @@ class SerializedInventoryLifecycleTests(TestCase):
 
         response = self.client.get(reverse("staff-inventory-serial-detail", args=[self.item.pk]))
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("staff-inventory-balances"))
+        self.assertEqual(response.url, reverse("staff-dashboard"))
 
     def test_serialized_po_receipt_creates_stock_and_identifiers_together(self):
         po, line = self._receive_two()
