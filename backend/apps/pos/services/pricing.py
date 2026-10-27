@@ -103,6 +103,32 @@ def promotion_discount_for_order(
         if remaining_free:
             return Decimal("0.00")
         discount = discount.quantize(Decimal("0.01"))
+    elif promotion.offer_type == Promotion.OfferType.X_FOR_FIXED_AMOUNT:
+        if not scoped or not eligible_lines:
+            return Decimal("0.00")
+        if any(line.quantity != line.quantity.to_integral_value() for line in eligible_lines):
+            return Decimal("0.00")
+        fixed_quantity = int(promotion.fixed_quantity or 0)
+        fixed_amount = promotion.fixed_bundle_amount
+        if fixed_quantity <= 0 or fixed_amount is None or fixed_amount <= 0:
+            return Decimal("0.00")
+        total_units = sum(int(line.quantity) for line in eligible_lines)
+        uses = total_units // fixed_quantity
+        if promotion.max_uses_per_order is not None:
+            uses = min(uses, promotion.max_uses_per_order)
+        if uses <= 0:
+            return Decimal("0.00")
+        units_needed = uses * fixed_quantity
+        priced_units = []
+        for line in eligible_lines:
+            if line.quantity <= 0:
+                continue
+            per_unit = (line.line_total / line.quantity).quantize(Decimal("0.01"))
+            priced_units.extend([per_unit] * int(line.quantity))
+        priced_units.sort()
+        qualifying_value = sum(priced_units[:units_needed], Decimal("0.00")).quantize(Decimal("0.01"))
+        deal_value = (fixed_amount * uses).quantize(Decimal("0.01"))
+        discount = max(Decimal("0.00"), qualifying_value - deal_value).quantize(Decimal("0.01"))
     elif promotion.discount_percent is not None:
         discount = (
             basis * promotion.discount_percent / Decimal("100")
