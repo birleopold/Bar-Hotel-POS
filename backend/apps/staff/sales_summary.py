@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Sum
+from django.utils import timezone
 
 from apps.common.datetime_bounds import utc_day_range_inclusive
 from apps.pos.models import OrderLine, Payment, Refund
@@ -76,7 +77,7 @@ def build_sales_summary(
         tenant_id=tenant_id,
         created_at__gte=start,
         created_at__lte=end,
-    ).select_related("order", "order__outlet")
+    ).select_related("order", "order__outlet", "shift", "shift__workstation")
 
     if allowed_outlet_ids is not None:
         payments_qs = payments_qs.filter(order__outlet_id__in=allowed_outlet_ids)
@@ -96,7 +97,7 @@ def build_sales_summary(
         tenant_id=tenant_id,
         created_at__gte=start,
         created_at__lte=end,
-    ).select_related("order")
+    ).select_related("order", "shift", "shift__workstation")
     if allowed_outlet_ids is not None:
         refunds_qs = refunds_qs.filter(order__outlet_id__in=allowed_outlet_ids)
     if outlet_id is not None:
@@ -137,6 +138,113 @@ def build_sales_summary(
         }
         for r in by_outlet_raw
     ]
+
+    register_gross = defaultdict(lambda: {"count": 0, "amount": Decimal("0.00")})
+    for payment in payments_qs:
+        if payment.shift_id and payment.shift.workstation_id:
+            key = str(payment.shift.workstation_id)
+            label = payment.shift.workstation.name
+            code = payment.shift.workstation.code
+        elif payment.shift_id:
+            key = f"section:{payment.order.outlet_id}"
+            label = f"{payment.order.outlet.name} · Section register"
+            code = ""
+        else:
+            key = "legacy"
+            label = "Unattributed / legacy"
+            code = ""
+        bucket = register_gross[key]
+        bucket["label"] = label
+        bucket["code"] = code
+        bucket["count"] += 1
+        bucket["amount"] += payment.amount or Decimal("0.00")
+
+    register_refunds = defaultdict(lambda: {"count": 0, "amount": Decimal("0.00")})
+    for refund in refunds_qs:
+        if refund.shift_id and refund.shift.workstation_id:
+            key = str(refund.shift.workstation_id)
+            label = refund.shift.workstation.name
+            code = refund.shift.workstation.code
+        elif refund.shift_id:
+            key = f"section:{refund.order.outlet_id}"
+            label = f"{refund.order.outlet.name} · Section register"
+            code = ""
+        else:
+            key = "legacy"
+            label = "Unattributed / legacy"
+            code = ""
+        bucket = register_refunds[key]
+        bucket["label"] = label
+        bucket["code"] = code
+        bucket["count"] += 1
+        bucket["amount"] += refund.amount or Decimal("0.00")
+
+    by_register = []
+    for key in sorted(
+        set(register_gross) | set(register_refunds),
+        key=lambda item: (
+            register_gross.get(item, register_refunds.get(item, {})).get("label", "")
+        ).lower(),
+    ):
+        gross_row = register_gross.get(key, {})
+        refund_row = register_refunds.get(key, {})
+        gross_amount = (gross_row.get("amount") or Decimal("0.00")).quantize(Decimal("0.01"))
+        refund_amount = (refund_row.get("amount") or Decimal("0.00")).quantize(Decimal("0.01"))
+        by_register.append({
+            "register_key": key,
+            "register_name": gross_row.get("label") or refund_row.get("label") or "Register",
+            "register_code": gross_row.get("code") or refund_row.get("code") or "",
+            "payments_count": gross_row.get("count", 0),
+            "refunds_count": refund_row.get("count", 0),
+            "gross_sales": gross_amount,
+            "refunds_total": refund_amount,
+            "net_sales": (gross_amount - refund_amount).quantize(Decimal("0.01")),
+        })
+    by_register.sort(
+        key=lambda row: (-row["net_sales"], -row["gross_sales"], row["register_name"].lower())
+    )
+
+    hour_buckets = defaultdict(
+        lambda: {
+            "payments_count": 0,
+            "refunds_count": 0,
+            "gross_sales": Decimal("0.00"),
+            "refunds_total": Decimal("0.00"),
+        }
+    )
+    for created_at, amount in payments_qs.values_list("created_at", "amount"):
+        local = (
+            created_at.astimezone(business_zone)
+            if business_zone is not None
+            else timezone.localtime(created_at)
+        )
+        bucket = hour_buckets[local.hour]
+        bucket["payments_count"] += 1
+        bucket["gross_sales"] += amount or Decimal("0.00")
+    for created_at, amount in refunds_qs.values_list("created_at", "amount"):
+        local = (
+            created_at.astimezone(business_zone)
+            if business_zone is not None
+            else timezone.localtime(created_at)
+        )
+        bucket = hour_buckets[local.hour]
+        bucket["refunds_count"] += 1
+        bucket["refunds_total"] += amount or Decimal("0.00")
+
+    hourly_sales = []
+    for hour in range(24):
+        bucket = hour_buckets[hour]
+        gross_amount = (bucket["gross_sales"] or Decimal("0.00")).quantize(Decimal("0.01"))
+        refund_amount = (bucket["refunds_total"] or Decimal("0.00")).quantize(Decimal("0.01"))
+        hourly_sales.append({
+            "hour": hour,
+            "label": f"{hour:02d}:00–{hour:02d}:59",
+            "payments_count": bucket["payments_count"],
+            "refunds_count": bucket["refunds_count"],
+            "gross_sales": gross_amount,
+            "refunds_total": refund_amount,
+            "net_sales": (gross_amount - refund_amount).quantize(Decimal("0.01")),
+        })
 
     paid_order_ids = list(payments_qs.values_list("order_id", flat=True).distinct())
 
@@ -307,6 +415,8 @@ def build_sales_summary(
         "net_sales": net,
         "by_payment_method": by_method,
         "by_outlet": by_outlet,
+        "by_register": by_register,
+        "hourly_sales": hourly_sales,
         "by_section": by_section,
         "leaderboard": leaderboard,
         "top_seller": top_seller,
