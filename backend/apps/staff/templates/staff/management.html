@@ -25,6 +25,79 @@
       {% endfor %}
     </div>
   </section>
+  {% if loss_patterns.workers or loss_patterns.outlets or loss_patterns.products %}
+  <section class="staff-card mb-3" aria-labelledby="loss-patterns-title">
+    <h2 class="staff-card__title" id="loss-patterns-title">Repeated loss-prevention patterns</h2>
+    <p class="staff-muted small">Counts use the same selected sections and {{ exception_policy.lookback_days }}-day review window. They are separate operational signals, not a fraud score. Refund, void, discount, margin-override, cash-variance and stock-removal counts remain distinct so managers can inspect the underlying source evidence.</p>
+    {% if loss_patterns.workers %}
+    <div class="staff-table-wrap mb-3">
+      <table class="staff-table">
+        <caption>Workers with repeated review signals</caption>
+        <thead><tr><th>Worker</th><th>Refunds</th><th>Voids</th><th>Line discounts</th><th>Margin overrides</th><th>Cash variances</th><th>Stock removals</th><th>Total signals</th><th>Last activity</th></tr></thead>
+        <tbody>
+        {% for item in loss_patterns.workers %}
+          <tr>
+            <td><strong>{{ item.worker }}</strong></td>
+            <td>{{ item.refunds }}</td>
+            <td>{{ item.voids }}</td>
+            <td>{{ item.line_discounts }}</td>
+            <td>{{ item.margin_overrides }}</td>
+            <td>{{ item.cash_variances }}</td>
+            <td>{{ item.stock_removals }}</td>
+            <td><strong>{{ item.signal_count }}</strong></td>
+            <td>{{ item.last_seen }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% if loss_patterns.outlets %}
+    <div class="staff-table-wrap mb-3">
+      <table class="staff-table">
+        <caption>Sections with repeated review signals</caption>
+        <thead><tr><th>Section</th><th>Refunds</th><th>Voids</th><th>Line discounts</th><th>Margin overrides</th><th>Cash variances</th><th>Stock removals</th><th>Total signals</th><th>Last activity</th></tr></thead>
+        <tbody>
+        {% for item in loss_patterns.outlets %}
+          <tr>
+            <td><strong>{{ item.outlet }}</strong></td>
+            <td>{{ item.refunds }}</td>
+            <td>{{ item.voids }}</td>
+            <td>{{ item.line_discounts }}</td>
+            <td>{{ item.margin_overrides }}</td>
+            <td>{{ item.cash_variances }}</td>
+            <td>{{ item.stock_removals }}</td>
+            <td><strong>{{ item.signal_count }}</strong></td>
+            <td>{{ item.last_seen }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% if loss_patterns.products %}
+    <div class="staff-table-wrap">
+      <table class="staff-table">
+        <caption>Products with repeated review signals</caption>
+        <thead><tr><th>Product</th><th>Voids</th><th>Line discounts</th><th>Margin overrides</th><th>Stock removals</th><th>Total signals</th><th>Last activity</th></tr></thead>
+        <tbody>
+        {% for item in loss_patterns.products %}
+          <tr>
+            <td><strong>{{ item.product }}</strong></td>
+            <td>{{ item.voids }}</td>
+            <td>{{ item.line_discounts }}</td>
+            <td>{{ item.margin_overrides }}</td>
+            <td>{{ item.stock_removals }}</td>
+            <td><strong>{{ item.signal_count }}</strong></td>
+            <td>{{ item.last_seen }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
   {% if shrink_watch %}
   <section class="staff-card mb-3" aria-labelledby="shrink-watch-title">
     <h2 class="staff-card__title" id="shrink-watch-title">Shrink watch</h2>
