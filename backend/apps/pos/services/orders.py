@@ -1304,10 +1304,28 @@ def adjust_open_order_line_quantity(
         tier = qualifying_rule(tenant_id=locked_o.tenant_id, outlet_id=locked_o.outlet_id,
                                menu_item_id=locked_ln.menu_item_id, quantity=quantity)
         if tier is None:
-            locked_ln.unit_price = locked_ln.menu_item.unit_price_for_outlet(locked_o.outlet_id)
+            base_price = locked_ln.menu_item.unit_price_for_outlet(locked_o.outlet_id)
+            customer_rule = (
+                qualifying_customer_price_rule(
+                    tenant_id=locked_o.tenant_id,
+                    outlet_id=locked_o.outlet_id,
+                    customer_id=locked_o.customer_id,
+                    menu_item_id=locked_ln.menu_item_id,
+                    quantity=quantity,
+                )
+                if locked_o.customer_id
+                and not locked_o.applied_promotion_id
+                and not locked_o.discount_amount
+                else None
+            )
+            locked_ln.unit_price = customer_rule.unit_price if customer_rule else base_price
             locked_ln.pricing_source = "menu"
+            locked_ln.price_book_rule = customer_rule
+            locked_ln.price_book_base_unit_price = base_price if customer_rule else None
         else:
             locked_ln.unit_price = tier.unit_price
+            locked_ln.price_book_rule = None
+            locked_ln.price_book_base_unit_price = None
         locked_ln.line_discount_amount = Decimal("0")
         locked_ln.line_discount_percent = None
     elif (
