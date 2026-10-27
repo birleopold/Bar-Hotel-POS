@@ -390,6 +390,61 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
             )
         return qs
 
+    def _valuation_summary(self, queryset):
+        summary = {
+            "stock_rows": 0,
+            "trusted_rows": 0,
+            "incomplete_rows": 0,
+            "trusted_value": Decimal("0.00"),
+            "incomplete_units": Decimal("0"),
+        }
+        for row in queryset.iterator(chunk_size=500):
+            if row.quantity <= 0:
+                continue
+            summary["stock_rows"] += 1
+            if row.cost_basis_complete and row.average_unit_cost is not None:
+                summary["trusted_rows"] += 1
+                summary["trusted_value"] += row.quantity * row.average_unit_cost
+            else:
+                summary["incomplete_rows"] += 1
+                summary["incomplete_units"] += row.quantity
+        summary["trusted_value"] = summary["trusted_value"].quantize(Decimal("0.01"))
+        return summary
+
+    def get(self, request, *args, **kwargs):
+        if request.GET.get("export") != "csv":
+            return super().get(request, *args, **kwargs)
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="stock-valuation.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            "Outlet", "Product", "SKU", "On hand", "Cost status",
+            "Average unit cost", "Trusted inventory value", "Currency",
+        ])
+        for balance in self.get_queryset().iterator(chunk_size=500):
+            trusted = (
+                balance.cost_basis_complete
+                and balance.average_unit_cost is not None
+            )
+            value = (
+                (balance.quantity * balance.average_unit_cost).quantize(Decimal("0.01"))
+                if trusted else None
+            )
+            # Spreadsheet formula injection protection for free-text names.
+            def safe(value):
+                token = str(value or "")
+                return "'" + token if token.startswith(("=", "+", "-", "@", "\t", "\r")) else token
+            writer.writerow([
+                safe(balance.outlet.name), safe(balance.menu_item.name),
+                safe(balance.menu_item.sku),
+                balance.quantity,
+                "Trusted" if trusted else "Cost incomplete",
+                balance.average_unit_cost if trusted else "",
+                value if value is not None else "",
+                request.tenant.settings.default_currency,
+            ])
+        return response
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["outlets"] = staff_accessible_outlets(self.request.tenant_membership)
@@ -397,6 +452,7 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
         ctx["all_outlets_mode"] = self.request.session.get(STAFF_SESSION_OUTLET_KEY) == STAFF_SESSION_OUTLET_ALL
         ctx["low_stock"] = self.request.GET.get("low_stock", "").lower() in ("1", "true", "yes")
         ctx["stock_q"] = self.request.GET.get("q", "").strip()[:80]
+        ctx["valuation_summary"] = self._valuation_summary(self.get_queryset())
         ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
         ctx["can_reconcile_cost"] = membership_has_inventory_capability(
             self.request.tenant_membership, "approve_count"
