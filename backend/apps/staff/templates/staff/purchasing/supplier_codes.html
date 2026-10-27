@@ -42,14 +42,17 @@
     {% if supplier_codes %}
     <div class="staff-table-wrap">
       <table class="fizo-purchasing__table">
-        <thead><tr><th>Supplier code</th><th>Product</th><th>Package</th><th>Description</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Supplier code</th><th>Product</th><th>Package</th><th>Planning cost</th><th>Last received cost</th><th>Cost movement</th><th>Preferred</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
         {% for row in supplier_codes %}
           <tr>
             <td><strong>{{ row.code }}</strong></td>
             <td>{{ row.menu_item.name }}</td>
             <td>{% if row.product_package %}{{ row.product_package.name }} · {{ row.product_package.units_per_package }} base units{% else %}Base product{% endif %}</td>
-            <td>{{ row.description|default:"—" }}</td>
+            <td>{% if row.default_unit_cost != None %}{{ request.tenant.settings.default_currency }} {{ row.default_unit_cost }}{% else %}—{% endif %}</td>
+            <td>{% if row.latest_received_unit_cost != None %}{{ request.tenant.settings.default_currency }} {{ row.latest_received_unit_cost }}{% if row.latest_cost_received_at %}<div class="staff-muted small">{{ row.latest_cost_received_at }}</div>{% endif %}{% else %}—{% endif %}</td>
+            <td>{% if row.cost_change_percent != None %}{{ row.cost_change_percent }}%{% if row.cost_change_amount != None %}<div class="staff-muted small">{{ request.tenant.settings.default_currency }} {{ row.cost_change_amount }}</div>{% endif %}{% else %}—{% endif %}</td>
+            <td>{% if row.is_preferred %}<strong>Preferred</strong>{% else %}—{% endif %}</td>
             <td>{% if row.is_active %}Active{% else %}Inactive{% endif %}</td>
             <td>
               <a href="?edit={{ row.id }}">Edit</a>
