@@ -89,6 +89,8 @@ def review_purchase_order_request(
             "supplier_id": str(locked.supplier_id),
             "outlet_id": str(locked.outlet_id),
             "requester_id": str(locked.created_by_id or ""),
+            "needed_by": str(locked.needed_by or ""),
+            "request_reason": locked.request_reason,
             "review_note": locked.review_note,
         },
     )
