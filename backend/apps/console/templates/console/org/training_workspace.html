@@ -1,0 +1,83 @@
+{% extends "console/base.html" %}
+{% block title %}Training workspace{% endblock %}
+{% block main_class %}staff-main--wide{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Workspace · Training</p>
+    <div class="staff-page-hero__head">
+      <div>
+        <h1 class="staff-page-title mb-0">Retail training workspace<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+        <p class="staff-muted mb-0">Practice real internal POS, stock, purchasing and reporting workflows inside this isolated tenant. Live fiscal and hardware side effects remain blocked.</p>
+      </div>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-dashboard' %}">Open staff workspace</a>
+    </div>
+  </div>
+</header>
+
+<section class="staff-card mb-3">
+  <div class="d-flex flex-wrap justify-content-between gap-3">
+    <div>
+      <h2 class="staff-section-head">Sample pack</h2>
+      {% if training_seeded %}
+        <p class="mb-1"><strong>Generation {{ training_state.generation }}</strong> · seeded {{ training_state.seeded_at }}{% if training_state.seeded_by %} by {{ training_state.seeded_by.email }}{% endif %}</p>
+        <p class="staff-muted small mb-0">{{ training_sample_counts.products }} products · {{ training_sample_counts.customers }} customer · {{ training_sample_counts.suppliers }} supplier · {{ training_sample_counts.purchase_orders }} PO · {{ training_sample_counts.sales }} sale · {{ training_sample_counts.returns }} return.</p>
+      {% else %}
+        <p class="staff-muted mb-0">No managed sample pack has been seeded yet.</p>
+      {% endif %}
+    </div>
+    {% if not training_seeded %}
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="action" value="seed">
+      <button class="staff-btn staff-btn--primary" type="submit">Create retail sample pack</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+{% if training_seeded %}
+<section class="staff-card mb-4">
+  <h2 class="staff-section-head">Guided exercises</h2>
+  <p class="staff-muted">These checklists do not fake completion. Open the real staff workflow, perform the exercise, then mark it complete for this training generation.</p>
+  <div class="staff-grid staff-grid--3">
+  {% for group in training_exercises %}
+    <article class="staff-tile">
+      <h3 class="staff-card__title text-capitalize">{{ group.role }}</h3>
+      {% for item in group.items %}
+      <div class="py-2 border-top">
+        <div class="d-flex justify-content-between gap-2 align-items-start">
+          <div>
+            <strong>{{ item.title }}</strong>
+            {% if item.completed %}<span class="staff-team-state staff-team-state--ready d-block mt-1">Completed</span>{% endif %}
+          </div>
+          <a class="staff-table__action-link" href="{{ item.action_url }}">{{ item.action_label }}</a>
+        </div>
+        <form method="post" class="mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="exercise">
+          <input type="hidden" name="exercise_key" value="{{ item.key }}">
+          <input type="hidden" name="completed" value="{% if item.completed %}0{% else %}1{% endif %}">
+          <button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit">{% if item.completed %}Mark not done{% else %}Mark complete{% endif %}</button>
+        </form>
+      </div>
+      {% endfor %}
+    </article>
+  {% endfor %}
+  </div>
+</section>
+
+<section class="staff-card">
+  <h2 class="staff-section-head">Reset managed training sample</h2>
+  <p class="staff-muted">Reset deletes and recreates only the objects managed by this sample pack. Tenant identity, users, memberships, domains, branches, sections, workstations, browser approvals and hardware configuration are preserved. Exercise progress is cleared.</p>
+  <div class="staff-alert staff-alert--warning">Do not use reset as a cleanup tool for a live business. This action is unavailable outside an isolated training tenant.</div>
+  <form method="post" class="row g-3">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="reset">
+    <div class="col-12 col-md-6">{{ reset_form.confirmation.label_tag }}{{ reset_form.confirmation }}{{ reset_form.confirmation.errors }}</div>
+    <div class="col-12 col-md-6">{{ reset_form.password.label_tag }}{{ reset_form.password }}{{ reset_form.password.errors }}</div>
+    {% if reset_form.non_field_errors %}<div class="col-12 staff-alert staff-alert--warning">{{ reset_form.non_field_errors }}</div>{% endif %}
+    <div class="col-12"><button class="staff-btn staff-btn--secondary" type="submit">Reset sample pack</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
