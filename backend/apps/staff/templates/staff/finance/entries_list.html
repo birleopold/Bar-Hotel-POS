@@ -12,6 +12,7 @@
         <div class="staff-page-hero__actions">
           <a class="staff-btn staff-btn--primary" href="{% url 'staff-finance-entry-create' %}">New entry</a>
           <a class="staff-btn staff-btn--ghost" href="{% url 'staff-finance-categories-new' %}">New category</a>
+          {% if request.tenant_membership.role == "owner" or request.tenant_membership.role == "tenant_admin" or request.tenant_membership.role == "accountant" %}<a class="staff-btn staff-btn--ghost" href="{% url 'staff-accounting-export' %}">Accounting export</a>{% endif %}
         </div>
       </div>
     </div>
