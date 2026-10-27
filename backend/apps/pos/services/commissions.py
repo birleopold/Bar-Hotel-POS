@@ -89,7 +89,7 @@ def snapshot_order_commissions(*, order: Order, settled_at=None) -> int:
         .select_related("membership", "menu_item", "category")
     )
     lines = list(
-        OrderLine.objects.select_for_update()
+        OrderLine.objects.select_for_update(of=("self",))
         .filter(order=locked, is_voided=False)
         .select_related("menu_item", "menu_item__category")
         .order_by("sort_order", "created_at")
