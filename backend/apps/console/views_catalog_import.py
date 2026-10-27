@@ -12,10 +12,17 @@ from django.urls import reverse
 from django.views.generic import FormView
 
 from apps.audit.services import log_audit
-from apps.catalog.models import MenuItem
+from apps.catalog.models import MenuItem, ProductPackage
 
-from .catalog_import import (CatalogImportProblem, import_catalog_items, parse_catalog_csv,
-    parse_price_update_csv, apply_price_updates)
+from .catalog_import import (
+    CatalogImportProblem,
+    apply_price_updates,
+    import_catalog_items,
+    import_product_packages,
+    parse_catalog_csv,
+    parse_package_csv,
+    parse_price_update_csv,
+)
 from .mixins import ConsoleOrgAdminRequiredMixin
 
 
@@ -39,6 +46,13 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
     template_name = "console/org/catalog_import.html"
     form_class = CatalogUploadForm
 
+    def _retail_packages_enabled(self):
+        try:
+            lines = normalize_business_lines(self.request.tenant.settings.business_lines)
+        except Exception:
+            lines = []
+        return bool(set(lines) & {"retail", "supermarket"})
+
     def dispatch(self, request, *args, **kwargs):
         from apps.tenants.models import TenantSettings
         try:
@@ -61,7 +75,12 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
         kwargs = super().get_form_kwargs()
         if self.request.method == "POST":
             action = (self.request.POST.get("action") or "").strip()
-            expected = "price_file" if action in {"preview_prices", "apply_prices"} else "file"
+            if action in {"preview_prices", "apply_prices"}:
+                expected = "price_file"
+            elif action in {"preview_packages", "import_packages"}:
+                expected = "package_file"
+            else:
+                expected = "file"
             uploads = self.request.FILES
             # Never silently use the other workflow's CSV as a fallback.
             bound = uploads.copy()
@@ -72,6 +91,54 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
         return kwargs
 
     def get(self, request, *args, **kwargs):
+        if request.GET.get("packages_sample") == "1":
+            if not self._retail_packages_enabled():
+                raise Http404("Product packages are available only for Retail or Supermarket workspaces.")
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = 'attachment; filename="product-packages-example.csv"'
+            response["Cache-Control"] = "private, no-store"
+            writer = csv.writer(response)
+            writer.writerow([
+                "product_sku", "product_name", "package_name", "units_per_package",
+                "barcode", "sku_alias", "sell_price", "is_sellable",
+                "is_purchasable", "is_active",
+            ])
+            writer.writerow([
+                "WATER-500", "Bottled Water 500ml", "Case of 24", "24",
+                "6001234567000", "WATER-500-24", "", "yes", "yes", "yes",
+            ])
+            return response
+        if request.GET.get("packages_export") == "1":
+            if not self._retail_packages_enabled():
+                raise Http404("Product packages are available only for Retail or Supermarket workspaces.")
+            response = HttpResponse(content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = 'attachment; filename="product-packages-current.csv"'
+            response["Cache-Control"] = "private, no-store"
+            writer = csv.writer(response)
+            writer.writerow([
+                "product_sku", "product_name", "package_name", "units_per_package",
+                "barcode", "sku_alias", "sell_price", "is_sellable",
+                "is_purchasable", "is_active",
+            ])
+            for package in (
+                ProductPackage.objects.filter(tenant=request.tenant)
+                .select_related("menu_item")
+                .order_by("menu_item__sku", "menu_item__name", "units_per_package", "name")
+                .iterator(chunk_size=500)
+            ):
+                writer.writerow([
+                    _spreadsheet_safe(package.menu_item.sku),
+                    _spreadsheet_safe(package.menu_item.name),
+                    _spreadsheet_safe(package.name),
+                    package.units_per_package,
+                    _spreadsheet_safe(package.barcode),
+                    _spreadsheet_safe(package.sku_alias),
+                    package.sell_price if package.sell_price is not None else "",
+                    "yes" if package.is_sellable else "no",
+                    "yes" if package.is_purchasable else "no",
+                    "yes" if package.is_active else "no",
+                ])
+            return response
         if request.GET.get("price_template") == "1":
             response = HttpResponse(content_type="text/csv; charset=utf-8")
             response["Content-Disposition"] = 'attachment; filename="price-updates.csv"'
@@ -133,6 +200,50 @@ class OrgCatalogImportView(ConsoleOrgAdminRequiredMixin, FormView):
 
     def form_valid(self, form):
         action = (self.request.POST.get("action") or "").strip()
+        if action in {"preview_packages", "import_packages"}:
+            if not self._retail_packages_enabled():
+                raise Http404("Product packages are available only for Retail or Supermarket workspaces.")
+            try:
+                rows = parse_package_csv(
+                    tenant=self.request.tenant,
+                    uploaded=form.cleaned_data["file"],
+                )
+                if action == "preview_packages":
+                    return self.render_to_response(self.get_context_data(
+                        form=CatalogUploadForm(),
+                        package_preview_count=len(rows),
+                        package_preview_rows=rows[:25],
+                        package_preview_more=max(0, len(rows) - 25),
+                    ))
+                created = import_product_packages(
+                    tenant=self.request.tenant,
+                    rows=rows,
+                )
+            except CatalogImportProblem as exc:
+                return self.render_to_response(self.get_context_data(
+                    form=CatalogUploadForm(),
+                    package_import_issues=exc.issues,
+                ))
+            except IntegrityError:
+                return self.render_to_response(self.get_context_data(
+                    form=CatalogUploadForm(),
+                    package_import_issues=[
+                        "Another package or scanner identity was saved. Export a fresh package file and retry."
+                    ],
+                ))
+            log_audit(
+                tenant_id=self.request.tenant.pk,
+                user_id=self.request.user.pk,
+                action="catalog.csv_packages_imported",
+                entity_type="product_packages",
+                entity_id=str(self.request.tenant.pk),
+                payload={"count": created, "source": "package_csv"},
+            )
+            messages.success(
+                self.request,
+                f"Imported {created} product packages. Stock quantities and past sales were not changed.",
+            )
+            return redirect("console-org-catalog-import")
         if action in {"preview_prices", "apply_prices"}:
             try:
                 rows = parse_price_update_csv(
