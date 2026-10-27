@@ -19,7 +19,7 @@ from apps.audit.models import AuditEvent, ExceptionPolicy
 from apps.audit.services import log_audit
 from .mixins import StaffTenantRequiredMixin
 from .services.permissions import membership_can_manage_workspace_settings
-from .services.management import EXCEPTION_KINDS, MANAGER_ROLES, exception_assignees, update_exception_case, visible_cases, exception_rows, management_approval_evidence, management_orders, management_scope, management_team, management_shrink_watch, management_loss_patterns, review_exception
+from .services.management import EXCEPTION_KINDS, MANAGER_ROLES, exception_assignees, update_exception_case, visible_cases, exception_rows, management_approval_evidence, management_orders, management_scope, management_team, management_shrink_watch, management_loss_patterns, management_loss_pattern_detail, review_exception
 from .services.dashboard_insights import dashboard_operations_snapshot
 
 
@@ -499,6 +499,31 @@ class StaffManagementShiftView(StaffManagementView):
             ),
             "shift_currency": default_currency_for_tenant(request.tenant),
         })
+
+
+class StaffManagementLossPatternView(StaffManagementView):
+    http_method_names = ["get", "head", "options"]
+
+    def get(self, request, dimension, entity_key):
+        if dimension not in {"worker", "outlet", "product"}:
+            raise Http404
+        policy = (
+            ExceptionPolicy.objects.filter(tenant=request.tenant).first()
+            or ExceptionPolicy()
+        )
+        detail = management_loss_pattern_detail(
+            request,
+            dimension=dimension,
+            entity_key=entity_key,
+            policy=policy,
+        )
+        if detail is None:
+            raise Http404
+        return render(
+            request,
+            "staff/management_loss_pattern.html",
+            {"pattern_detail": detail},
+        )
 
 
 class StaffManagementSourceView(StaffManagementView):
