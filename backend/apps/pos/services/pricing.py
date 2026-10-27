@@ -90,7 +90,7 @@ def promotion_discount_for_order(
             return Decimal("0.00")
         if any(
             line.quantity != line.quantity.to_integral_value()
-            for line in {*eligible_lines, *reward_lines}
+            for line in eligible_lines + reward_lines
         ):
             return Decimal("0.00")
         buy_qty = int(promotion.buy_quantity or 0)
