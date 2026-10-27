@@ -171,3 +171,27 @@ textarea.staff-input:focus-visible {
 @media(max-width:480px) {
   .fizo-dash__roomgrid>div {min-height:75px;padding:11px}
 }
+
+
+/* Console/platform shell primitives — shared core, no legacy dependency. */
+.fz-nav__group{display:grid;gap:4px}
+.fz-nav__group+.fz-nav__group{margin-top:10px;padding-top:10px;border-top:1px solid var(--fz-border)}
+.fz-nav__label{display:block;padding:0 12px 4px;color:#819198;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.staff-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 18px}
+.staff-toolbar>div{min-width:0}
+.staff-toolbar .staff-page-title{margin:0}
+.staff-table-wrap{background:#fff;border:1px solid var(--fz-border);border-radius:var(--fz-radius);overflow:auto;box-shadow:var(--fz-shadow)}
+.staff-table{background:#fff}
+.staff-table thead th{background:#f6faf8}
+.staff-btn--sm{min-height:34px;padding:6px 11px;font-size:12px}
+.console-main{background:var(--fz-bg)}
+.console-body:not(.grocery-console-body):not(.hospitality-console-body) .staff-main{padding-top:28px}
+@media(max-width:900px){
+  .fz-nav__label{display:none}
+  .fz-nav__group+.fz-nav__group{margin-top:4px;padding-top:4px;border-top:0}
+}
+@media(max-width:600px){
+  .staff-toolbar{align-items:stretch}
+  .staff-toolbar>.staff-btn{width:100%}
+  .fz-nav__group{display:contents}
+}
