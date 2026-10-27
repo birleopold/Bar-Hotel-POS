@@ -16,12 +16,17 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen.canvas import Canvas
 
-from apps.catalog.label_queue import mark_product_labels_printed
+from apps.catalog.label_queue import (
+    dismiss_product_label_entries,
+    mark_product_labels_printed,
+    queue_product_label,
+)
 from apps.catalog.models import MenuItem, ProductLabelQueueEntry
 from apps.pos.services.menu import menu_items_for_outlet_queryset
 from apps.tenants.models import OutletType
 from .mixins import StaffTenantRequiredMixin
 from .services import staff_accessible_outlets
+from .services.permissions import membership_has_inventory_capability
 
 
 MAX_LABELS_PER_PDF = 120
@@ -94,6 +99,11 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
         ctx["label_q"] = (self.request.GET.get("q") or "").strip()[:80]
         ctx["label_queue_only"] = (self.request.GET.get("queue") or "").strip() in {"1", "true", "yes"}
         ctx["pending_label_count"] = 0
+        ctx["pending_label_entries"] = []
+        ctx["recent_label_history"] = []
+        ctx["can_manage_label_queue"] = membership_has_inventory_capability(
+            self.request.tenant_membership, "adjust"
+        )
         if outlet:
             pending = list(
                 ProductLabelQueueEntry.objects.filter(
@@ -103,6 +113,19 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
                 ).select_related("menu_item").order_by("-created_at")
             )
             ctx["pending_label_count"] = len(pending)
+            ctx["pending_label_entries"] = pending
+            ctx["recent_label_history"] = list(
+                ProductLabelQueueEntry.objects.filter(
+                    tenant=self.request.tenant,
+                    outlet=outlet,
+                    status__in=[
+                        ProductLabelQueueEntry.Status.PRINTED,
+                        ProductLabelQueueEntry.Status.DISMISSED,
+                    ],
+                )
+                .select_related("menu_item", "completed_by")
+                .order_by("-completed_at", "-updated_at")[:20]
+            )
             reasons_by_item = {}
             for entry in pending:
                 reasons_by_item.setdefault(entry.menu_item_id, []).append(entry.get_reason_display())
@@ -116,6 +139,59 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
         if outlet is None:
             messages.error(request, "Choose the retail outlet whose prices should be printed.")
             return redirect(reverse("staff-inventory-shelf-labels"))
+
+        action = (request.POST.get("action") or "print").strip()
+        if action in {"manual_queue", "dismiss_queue"} and not membership_has_inventory_capability(
+            request.tenant_membership, "adjust"
+        ):
+            messages.error(request, "Your role cannot manage the merchandise label queue.")
+            return self._return_to_list(request, outlet)
+
+        if action == "manual_queue":
+            item_id = (request.POST.get("manual_item_id") or "").strip()
+            item = (
+                menu_items_for_outlet_queryset(request.tenant.pk, outlet.pk)
+                .filter(pk=item_id, is_active=True)
+                .first()
+            )
+            if item is None:
+                messages.error(request, "Choose an active product available at this outlet.")
+                return self._return_to_list(request, outlet)
+            entry = queue_product_label(
+                tenant_id=request.tenant.pk,
+                outlet=outlet,
+                menu_item=item,
+                reason=ProductLabelQueueEntry.Reason.MANUAL,
+                user=request.user,
+                note=(request.POST.get("queue_note") or "Manual shelf-label request").strip(),
+            )
+            if entry is None:
+                messages.error(request, "This outlet does not support retail merchandise labels.")
+            else:
+                messages.success(request, f"Queued a shelf label for {item.name}.")
+            return self._return_to_list(request, outlet)
+
+        if action == "dismiss_queue":
+            entry_ids = request.POST.getlist("queue_entry_ids")
+            changed = dismiss_product_label_entries(
+                tenant_id=request.tenant.pk,
+                outlet=outlet,
+                entry_ids=entry_ids,
+                user=request.user,
+                note=(request.POST.get("dismiss_note") or "Dismissed from shelf-label queue").strip(),
+            )
+            if changed:
+                messages.success(
+                    request,
+                    f"Dismissed {changed} label task{'s' if changed != 1 else ''}.",
+                )
+            else:
+                messages.info(request, "No pending label tasks were changed.")
+            return self._return_to_list(request, outlet)
+
+        if action != "print":
+            messages.error(request, "Unknown label action.")
+            return self._return_to_list(request, outlet)
 
         selected_ids = request.POST.getlist("item_ids")
         allowed = {
