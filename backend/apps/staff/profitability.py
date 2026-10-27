@@ -273,6 +273,12 @@ def build_merchandise_profitability(
                     (margin_percent is not None and margin_percent < configured_margin_floor)
                     or (revenue <= 0 and cogs > 0)
                 ):
+                    target_gross_profit = _money(
+                        revenue * configured_margin_floor / Decimal("100")
+                    )
+                    margin_shortfall = _money(
+                        max(Decimal("0.00"), target_gross_profit - gross_profit)
+                    )
                     margin_breach_sales.append({
                         "order_id": str(line.order_id),
                         "bill_reference": line.order.bill_reference or str(line.order_id),
@@ -286,6 +292,8 @@ def build_merchandise_profitability(
                         "known_gross_profit": gross_profit,
                         "known_margin_percent": margin_percent,
                         "margin_floor_percent": configured_margin_floor,
+                        "target_gross_profit": target_gross_profit,
+                        "margin_shortfall": margin_shortfall,
                     })
             row["covered_revenue"] += revenue
             row["covered_units"] += line.quantity
@@ -625,4 +633,16 @@ def build_merchandise_profitability(
     totals["margin_exceptions"] = margin_exceptions[:25]
     totals["margin_breach_sales"] = margin_breach_sales[:50]
     totals["margin_breach_sale_count"] = len(margin_breach_sales)
+    totals["margin_breach_revenue"] = _money(sum(
+        (row["net_revenue"] for row in margin_breach_sales),
+        Decimal("0.00"),
+    ))
+    totals["margin_breach_gross_profit"] = _money(sum(
+        (row["known_gross_profit"] for row in margin_breach_sales),
+        Decimal("0.00"),
+    ))
+    totals["margin_breach_shortfall"] = _money(sum(
+        (row["margin_shortfall"] for row in margin_breach_sales),
+        Decimal("0.00"),
+    ))
     return totals
