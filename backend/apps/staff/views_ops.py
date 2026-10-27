@@ -1402,10 +1402,22 @@ class StaffOrderDetailView(StaffTenantRequiredMixin, DetailView):
                         Q(name__icontains=catalogue_search)
                         | Q(sku__icontains=catalogue_search)
                         | Q(barcode__icontains=catalogue_search)
+                        | Q(
+                            packages__barcode__icontains=catalogue_search,
+                            packages__tenant_id=order.tenant_id,
+                            packages__is_active=True,
+                            packages__is_sellable=True,
+                        )
+                        | Q(
+                            packages__sku_alias__icontains=catalogue_search,
+                            packages__tenant_id=order.tenant_id,
+                            packages__is_active=True,
+                            packages__is_sellable=True,
+                        )
                         | Q(supermarket_profile__plu_code__icontains=catalogue_search,
                             supermarket_profile__tenant_id=order.tenant_id,
                             supermarket_profile__is_active=True)
-                    )
+                    ).distinct()
                 menu_qs = list(menu_qs[:81])
                 ctx["retail_catalogue_has_more"] = len(menu_qs) > 80
                 menu_qs = menu_qs[:80]
