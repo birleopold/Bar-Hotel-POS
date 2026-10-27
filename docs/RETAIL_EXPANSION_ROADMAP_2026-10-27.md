@@ -163,11 +163,12 @@ Implemented in source, pending exact-head software/browser certification:
 - Retail pricing precedence is now centralized in one service and reused by offer selection, offer application, manual line discounts, wholesale pricing and checkout presentation. The current safe contract keeps order promotions exclusive from wholesale, customer price-book and manual line-discount pricing, while manager-approved wholesale can replace a customer price-book rate on the same line.
 - The cashier now sees the active pricing layer and the reason an offer or wholesale action is blocked instead of seeing a control that the backend will later reject.
 - Promotion performance can now be filtered to an accessible outlet and exported as CSV with offer, type, target, paid uses, gross sales, discount value, net sales, identified customers, currency, time window and outlet scope.
+- Recurring offer schedules now support optional ISO weekdays plus business-local start/end times on top of the existing date range. Checkout selection and apply-time validation use the tenant's configured timezone; overnight windows fail closed and should be split into two simple schedules.
+- Recurring day/time promotions are deliberately excluded from automatic plain markdown shelf labels because a static “Now” price would be misleading outside the active window; date-range-only unconditional markdowns continue to use the existing queue.
 
 Still R2 work:
 - arbitrary multi-pool mix-and-match mechanics beyond one product/family/category/brand pool;
 - group/bundle promotional pricing;
-- richer recurring day/time markdown scheduling;
 - an explicit multi-offer stacking/precedence contract if simultaneous offers are later allowed;
 - margin-floor controls once verified cost is authoritative for the affected merchandise;
 - exact-head CI and deployed browser/till acceptance for this promotion checkpoint.
