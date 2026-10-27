@@ -10,6 +10,19 @@
     <div class="fizo-stock__actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></div>
   </header>
   {% include "staff/inventory/includes/subnav.html" %}
+  {% if can_transfer_serials and outlets|length > 1 %}
+  <section class="staff-card mb-3">
+    <h2>Transfer serialized units</h2>
+    <p class="staff-muted">Enter the exact available serials / IMEIs to move. Aggregate stock and physical custody move together in one transaction.</p>
+    <form method="post" class="row g-3 align-items-end">{% csrf_token %}
+      <div class="col-12 col-md-3"><label class="staff-label" for="serial-transfer-from">From section</label><select id="serial-transfer-from" name="from_outlet" class="staff-input" required><option value="">Choose source</option>{% for outlet in outlets %}<option value="{{ outlet.id }}"{% if current_outlet and current_outlet.id == outlet.id %} selected{% endif %}>{{ outlet.site.name }} / {{ outlet.name }}</option>{% endfor %}</select></div>
+      <div class="col-12 col-md-3"><label class="staff-label" for="serial-transfer-to">To section</label><select id="serial-transfer-to" name="to_outlet" class="staff-input" required><option value="">Choose destination</option>{% for outlet in outlets %}<option value="{{ outlet.id }}">{{ outlet.site.name }} / {{ outlet.name }}</option>{% endfor %}</select></div>
+      <div class="col-12 col-md-4"><label class="staff-label" for="serial-transfer-values">Serials / IMEIs</label><textarea id="serial-transfer-values" name="serial_numbers" class="staff-input" rows="3" required placeholder="One identifier per line"></textarea></div>
+      <div class="col-12 col-md-2"><button type="submit" class="staff-btn staff-btn--primary w-100">Transfer units</button></div>
+      <div class="col-12"><label class="staff-label" for="serial-transfer-note">Note (optional)</label><input id="serial-transfer-note" name="note" class="staff-input" maxlength="400" placeholder="Transfer reference or reason"></div>
+    </form>
+  </section>
+  {% endif %}
   <section class="fizo-stock__panel">
     <div class="fizo-stock__toolbar">
       <form method="get" class="fizo-stock__search" role="search">
