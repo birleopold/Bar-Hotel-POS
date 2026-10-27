@@ -590,6 +590,8 @@ def apply_promotion_to_order(*, order: Order, promotion: Promotion, user) -> Ord
         raise ValidationError("Promotion can only be applied to open, unpaid orders.")
     if locked.lines.filter(pricing_source="wholesale", is_voided=False).exists():
         raise ValidationError({"promotion": "Wholesale price tiers cannot be combined with order promotions."})
+    if locked.lines.filter(price_book_rule__isnull=False, is_voided=False).exists():
+        raise ValidationError({"promotion": "Customer price-book rates cannot be combined with order promotions yet."})
     if promotion.tenant_id != locked.tenant_id or not promotion.is_active:
         raise ValidationError("Invalid promotion.")
     now = dj_tz.now()
@@ -1150,6 +1152,8 @@ def apply_supermarket_line_discount(
         raise ValidationError("Cannot discount a voided line.")
     if locked_ln.pricing_source == "wholesale":
         raise ValidationError({"discount": "Wholesale price tiers cannot be stacked with manual discounts."})
+    if locked_ln.price_book_rule_id:
+        raise ValidationError({"discount": "Customer price-book rates cannot be stacked with manual discounts yet."})
     if discount_amount is not None and discount_percent is not None:
         raise ValidationError({"discount": "Use either discount amount or discount percent."})
     gross = line_total(locked_ln.quantity, locked_ln.unit_price)
@@ -1305,10 +1309,51 @@ def adjust_open_order_line_quantity(
             locked_ln.unit_price = tier.unit_price
         locked_ln.line_discount_amount = Decimal("0")
         locked_ln.line_discount_percent = None
+    elif (
+        locked_ln.menu_item_id
+        and locked_ln.pricing_source in {"menu", "barcode", "plu", "weighted", "package", "serial", "alternate"}
+        and locked_ln.line_discount_amount == Decimal("0")
+        and locked_ln.line_discount_percent is None
+    ):
+        base_price = (
+            locked_ln.price_book_base_unit_price
+            if locked_ln.price_book_rule_id and locked_ln.price_book_base_unit_price is not None
+            else locked_ln.menu_item.unit_price_for_outlet(locked_o.outlet_id)
+        )
+        can_reprice = bool(
+            locked_o.customer_id
+            and not locked_o.payments.exists()
+            and not locked_o.applied_promotion_id
+            and not locked_o.discount_amount
+        )
+        rule = (
+            qualifying_customer_price_rule(
+                tenant_id=locked_o.tenant_id,
+                outlet_id=locked_o.outlet_id,
+                customer_id=locked_o.customer_id,
+                menu_item_id=locked_ln.menu_item_id,
+                quantity=quantity,
+            )
+            if can_reprice
+            else None
+        )
+        locked_ln.unit_price = rule.unit_price if rule else base_price
+        locked_ln.price_book_rule = rule
+        locked_ln.price_book_base_unit_price = base_price if rule else None
     locked_ln.quantity = quantity
-    locked_ln.line_total = line_total(quantity, locked_ln.unit_price)
+    modifier_delta = Decimal("0")
+    for snapshot in locked_ln.modifiers_snapshot or []:
+        try:
+            modifier_delta += Decimal(str(snapshot.get("price_delta") or "0"))
+        except (InvalidOperation, TypeError, ValueError, AttributeError):
+            continue
+    locked_ln.line_total = line_total(quantity, locked_ln.unit_price + modifier_delta)
     locked_ln.tax_amount = line_tax(locked_ln.line_total, tax_rate)
-    locked_ln.save(update_fields=["quantity", "unit_price", "pricing_source", "line_discount_amount", "line_discount_percent", "line_total", "tax_amount", "updated_at"])
+    locked_ln.save(update_fields=[
+        "quantity", "unit_price", "pricing_source", "price_book_rule",
+        "price_book_base_unit_price", "line_discount_amount", "line_discount_percent",
+        "line_total", "tax_amount", "updated_at",
+    ])
     recalculate_order_totals(locked_o)
     # Open orders may already have partial tenders. A quantity reduction
     # cannot reduce the sale below money already received. The atomic
