@@ -62,7 +62,17 @@ def receive_purchase_order_goods(
         ).first()
         if line is None:
             raise ValidationError({"lines": f"Unknown line: {line_id}."})
-        package_count = int(Decimal(str(row.get("packages") or 0)))
+        try:
+            package_value = Decimal(str(row.get("packages") or 0))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValidationError({"lines": f"Enter a valid whole package count for {line.menu_item.name}."}) from exc
+        if (
+            not package_value.is_finite()
+            or package_value < 0
+            or package_value != package_value.to_integral_value()
+        ):
+            raise ValidationError({"lines": f"Package count for {line.menu_item.name} must be a non-negative whole number."})
+        package_count = int(package_value)
         carton_count = int(Decimal(str(row.get("cartons") or 0)))
         if package_count and carton_count:
             raise ValidationError({"lines": f"Use packages or cartons for {line.menu_item.name}, not both."})
