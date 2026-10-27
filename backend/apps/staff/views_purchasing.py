@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
+from django.core import signing
+from django.db import transaction
 from django.db.models import F, Q, QuerySet, Sum
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
@@ -13,6 +17,7 @@ from django.views.generic import DetailView, FormView, ListView, UpdateView, Tem
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from apps.audit.services import log_audit
 from apps.catalog.models import MenuItem, ProductPackage
 from apps.pos.services import default_currency_for_tenant
 from apps.purchasing.models import (
@@ -50,6 +55,130 @@ from .services.permissions import membership_has_purchasing_capability
 
 PO_LINE_SLOTS = 8
 RFQ_LINE_SLOTS = 8
+SUPPLIER_PRICE_IMPORT_SALT = "supplier-price-import-v1"
+SUPPLIER_PRICE_IMPORT_MAX_ROWS = 500
+SUPPLIER_PRICE_IMPORT_MAX_BYTES = 1024 * 1024
+
+
+def _parse_supplier_price_import(*, tenant, supplier, upload):
+    if upload is None:
+        return [], ["Choose a CSV file."], ""
+    if getattr(upload, "size", 0) > SUPPLIER_PRICE_IMPORT_MAX_BYTES:
+        return [], ["CSV file must be 1 MB or smaller."], ""
+    try:
+        text = upload.read().decode("utf-8-sig")
+    except (UnicodeDecodeError, AttributeError):
+        return [], ["CSV must be UTF-8 encoded."], ""
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        return [], ["CSV needs a header row."], ""
+    headers = {
+        str(name or "").strip().lower(): name
+        for name in reader.fieldnames
+    }
+    if "unit_cost" not in headers:
+        return [], ["CSV needs a unit_cost column."], ""
+    if "sku" not in headers and "supplier_code" not in headers:
+        return [], ["CSV needs supplier_code or sku."], ""
+
+    code_rows = list(
+        SupplierProductCode.objects.filter(
+            tenant=tenant, supplier=supplier, is_active=True
+        ).select_related("menu_item", "product_package")
+    )
+    by_code = {row.code.strip().casefold(): row for row in code_rows}
+    sku_items = list(
+        MenuItem.objects.filter(
+            tenant=tenant, is_active=True, track_inventory=True
+        ).only("id", "sku", "name")
+    )
+    by_sku = {
+        (item.sku or "").strip().casefold(): item
+        for item in sku_items
+        if (item.sku or "").strip()
+    }
+
+    rows = []
+    errors = []
+    for row_number, raw in enumerate(reader, start=2):
+        if row_number > SUPPLIER_PRICE_IMPORT_MAX_ROWS + 1:
+            errors.append(
+                f"CSV exceeds {SUPPLIER_PRICE_IMPORT_MAX_ROWS} data rows."
+            )
+            break
+        values = {
+            key: str(raw.get(original) or "").strip()
+            for key, original in headers.items()
+        }
+        if not any(values.values()):
+            continue
+        supplier_code = values.get("supplier_code", "")
+        sku = values.get("sku", "")
+        code_match = by_code.get(supplier_code.casefold()) if supplier_code else None
+        sku_match = by_sku.get(sku.casefold()) if sku else None
+        if code_match is None and sku_match is None:
+            errors.append(
+                f"Row {row_number}: no active product matches the supplier code/SKU."
+            )
+            continue
+        item = code_match.menu_item if code_match is not None else sku_match
+        package = code_match.product_package if code_match is not None else None
+        if code_match is not None and sku_match is not None and code_match.menu_item_id != sku_match.pk:
+            errors.append(
+                f"Row {row_number}: supplier_code and sku resolve to different products."
+            )
+            continue
+        try:
+            unit_cost = Decimal(values.get("unit_cost", ""))
+        except InvalidOperation:
+            unit_cost = Decimal("-1")
+        if not unit_cost.is_finite() or unit_cost < 0:
+            errors.append(f"Row {row_number}: unit_cost must be a non-negative number.")
+            continue
+        min_raw = values.get("minimum_quantity", "") or "0.001"
+        try:
+            minimum_quantity = Decimal(min_raw)
+        except InvalidOperation:
+            minimum_quantity = Decimal("0")
+        if (
+            not minimum_quantity.is_finite()
+            or minimum_quantity < Decimal("0.001")
+        ):
+            errors.append(
+                f"Row {row_number}: minimum_quantity must be at least 0.001."
+            )
+            continue
+        valid_from = parse_date(values.get("valid_from", "")) if values.get("valid_from") else None
+        valid_until = parse_date(values.get("valid_until", "")) if values.get("valid_until") else None
+        if values.get("valid_from") and valid_from is None:
+            errors.append(f"Row {row_number}: valid_from must be YYYY-MM-DD.")
+            continue
+        if values.get("valid_until") and valid_until is None:
+            errors.append(f"Row {row_number}: valid_until must be YYYY-MM-DD.")
+            continue
+        if valid_from and valid_until and valid_until < valid_from:
+            errors.append(f"Row {row_number}: valid_until cannot be before valid_from.")
+            continue
+        source_reference = values.get("source_reference", "")[:128]
+        note = values.get("note", "")[:255]
+        rows.append({
+            "row_number": row_number,
+            "menu_item_id": str(item.pk),
+            "menu_item_name": item.name,
+            "product_package_id": str(package.pk) if package else "",
+            "product_package_name": package.name if package else "",
+            "supplier_code": supplier_code,
+            "sku": sku,
+            "unit_cost": str(unit_cost.quantize(Decimal("0.01"))),
+            "minimum_quantity": str(minimum_quantity.quantize(Decimal("0.001"))),
+            "valid_from": str(valid_from or ""),
+            "valid_until": str(valid_until or ""),
+            "source_reference": source_reference,
+            "note": note,
+        })
+    if not rows and not errors:
+        errors.append("CSV contains no price rows.")
+    return rows, errors, (getattr(upload, "name", "") or "supplier-prices.csv")[:128]
 
 
 class StaffRfqListView(StaffTenantRequiredMixin, ListView):
