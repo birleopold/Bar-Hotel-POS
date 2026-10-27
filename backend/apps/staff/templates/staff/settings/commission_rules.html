@@ -1,0 +1,38 @@
+{% extends "staff/base.html" %}
+{% block title %}Commission rules{% endblock %}
+{% block content %}
+<header class="staff-page-hero">
+  <div class="staff-dash-hero__panel">
+    <p class="staff-dash-hero__eyebrow">Workspace · Workforce</p>
+    <div class="staff-page-hero__head">
+      <div>
+        <h1 class="staff-page-title mb-0">Commission rules<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+        <p class="staff-muted mb-0">Rules are snapshotted when a sale is fully settled. Editing a rule never rewrites historical commission.</p>
+      </div>
+      <a class="staff-btn staff-btn--primary" href="{% url 'staff-workspace-commission-rule-create' %}">New rule</a>
+    </div>
+  </div>
+</header>
+{% include "staff/settings/includes/subnav.html" %}
+<section class="staff-card mb-3">
+  <p class="staff-muted mb-0">A rule may target a worker, a product, a category, or a worker plus one product/category. The most specific matching active rule wins. Leave all three targets blank for a tenant-wide default. Payroll payment is not handled here.</p>
+</section>
+<div class="staff-table-wrap">
+<table class="staff-table">
+<thead><tr><th>Rule</th><th>Worker</th><th>Product / category</th><th>Rate</th><th>Effective</th><th>Status</th><th></th></tr></thead>
+<tbody>
+{% for rule in commission_rules %}
+<tr>
+<td><strong>{{ rule.name }}</strong></td>
+<td>{% if rule.membership_id %}{{ rule.membership.user.get_full_name|default:rule.membership.user.email }}{% else %}<span class="staff-muted">Any worker</span>{% endif %}</td>
+<td>{% if rule.menu_item_id %}{{ rule.menu_item.name }}{% elif rule.category_id %}Category: {{ rule.category.name }}{% else %}<span class="staff-muted">Any product</span>{% endif %}</td>
+<td>{{ rule.rate_percent }}%</td>
+<td>{{ rule.effective_from|default:"Any date" }} → {{ rule.effective_to|default:"No end date" }}</td>
+<td>{% if rule.is_active %}<span class="staff-tag">Active</span>{% else %}<span class="staff-muted">Inactive</span>{% endif %}</td>
+<td><a href="{% url 'staff-workspace-commission-rule-edit' rule_id=rule.id %}">Edit</a></td>
+</tr>
+{% empty %}<tr><td colspan="7" class="staff-muted">No commission rules yet.</td></tr>{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}
