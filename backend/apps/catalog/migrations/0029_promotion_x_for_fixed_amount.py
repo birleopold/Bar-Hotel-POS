@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import migrations, models
 import django.core.validators
 
@@ -25,7 +27,7 @@ class Migration(migrations.Migration):
                 max_digits=14,
                 null=True,
                 help_text="For X for fixed amount, total selling price for each qualifying set.",
-                validators=[django.core.validators.MinValueValidator(0.01)],
+                validators=[django.core.validators.MinValueValidator(Decimal("0.01"))],
             ),
         ),
         migrations.AddField(
