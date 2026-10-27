@@ -24,7 +24,7 @@
   {% endif %}
   {% block extra_css %}{% endblock %}
 </head>
-<body class="staff-body{% if grocery_owner_shell %} grocery-owner-body{% endif %} {% block body_class %}{% endblock %}">
+<body class="staff-body{% if grocery_owner_shell %} grocery-owner-body{% endif %}{% if request.tenant.is_training %} staff-body--training{% endif %} {% block body_class %}{% endblock %}">
   <a class="staff-skip-link" href="#staff-main-content">Skip to content</a>
   {% block body %}
     {% if not hide_staff_nav %}
@@ -34,6 +34,11 @@
           {% include "staff/includes/nav.html" %}
     {% endif %}
     <main id="staff-main-content" class="staff-main {% block main_class %}{% endblock %}" tabindex="-1">
+      {% if request.tenant.is_training %}
+      <div class="staff-alert staff-alert--warning mb-3" role="status" data-training-banner>
+        <strong>TRAINING WORKSPACE</strong> · Practice data only. Live fiscal/provider/hardware side effects are blocked. Do not use this tenant for real customer transactions.
+      </div>
+      {% endif %}
       {% include "staff/includes/messages.html" %}
       {% block content %}{% endblock %}
     </main>
