@@ -570,13 +570,15 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Retail/Supermarket is the first production training pack. Hospitality training will reuse the same isolated-tenant boundary rather than mixing hospitality sample data into this retail reset pack.
 
 ### R8.3 Acceptance
-- Desktop/laptop/tablet/phone.
-- Keyboard/scanner/touch.
-- Multi-register concurrency.
-- PostgreSQL/RLS.
-- Restore/rollback.
-- Real printer/scanner/scale/customer-display trials.
-- Exact-head CI and release evidence.
+- The existing exact-commit release certificate is now the R8 acceptance gate; it already runs deployment checks, migration drift/applied checks, the full automated suite and static collection, then requires independent evidence files for PostgreSQL, browsers, restore and rollback.
+- External evidence can no longer be a generic passing JSON. The certificate requires explicit coverage tokens: desktop/laptop/tablet/phone, keyboard/touch/scanner input; PostgreSQL tenant RLS, multi-register concurrency, settlement idempotency and inventory concurrency; backup/restore/data consistency; and git/migration/static/service rollback evidence.
+- When retail hardware is advertised, `--require-hardware` now requires explicit receipt-printer, barcode-scanner, cash-drawer, weighing-scale and customer-display coverage on the exact commit. Queue success, browser capability or a configured device label is not accepted as physical proof.
+- `docs/RETAIL_R8_ACCEPTANCE_REGISTER_2026-10-27.md` records SOURCE IMPLEMENTED vs AUTOMATED VERIFIED vs STAGING VERIFIED vs PHYSICAL VERIFIED so rollout status cannot be overstated.
+- Desktop/laptop/tablet/phone and keyboard/scanner/touch remain staging/browser evidence requirements, not source-code claims.
+- PostgreSQL/RLS and multi-register concurrency remain exact-commit staging evidence requirements in addition to CI policy/integration checks.
+- Restore and rollback remain independently rehearsed evidence requirements; the release tool never performs destructive restore/rollback operations itself.
+- Real printer/scanner/drawer/scale/customer-display trials remain PENDING until actual named devices are tested. R8.1 source implementation does not change that status.
+- Exact-head CI must finish successfully and all required exact-commit evidence must pass before the release may be described as certified.
 
 ## Execution sequence
 
