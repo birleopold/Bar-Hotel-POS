@@ -396,7 +396,8 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Approved requests dispatch through the existing staged-transfer service, preserving source cost snapshots, batch identity, in-transit custody, independent receiving, discrepancy handling and resolution.
 - Requester cancellation, rejection reasons, approval/dispatch audit events, tenant RLS and role-specific request/approval permissions are implemented.
 - Manager direct dispatch remains available as a fast path for simple businesses; direct transfers retain the stricter rule that the actor must be authorized for both source and destination.
-- Remaining: optional picked/packed state, packing slip/transfer document, multi-line transfer requests, damaged-in-transit classification and richer custody timestamps.
+- Printable transfer documents/packing slips are implemented from the authoritative transfer receipt, showing source/destination custody, product/quantity, dispatch/receive staff, source request and discrepancies. Access is limited to staff authorized for the source or destination section.
+- Remaining: optional picked/packed state, multi-line transfer requests, damaged-in-transit classification and richer custody timestamps.
 
 ### R5.3 Customer fulfillment
 - Pickup.
