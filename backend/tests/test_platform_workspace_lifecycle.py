@@ -55,6 +55,44 @@ class PlatformWorkspaceLifecycleTests(TestCase):
             ).exists()
         )
 
+    def test_training_status_is_chosen_at_creation_and_immutable_on_edit(self):
+        create_url = reverse("console-platform-tenant-create")
+        response = self.client.post(
+            create_url,
+            {
+                "name": "Training Store",
+                "slug": "training-store-platform",
+                "is_active": "on",
+                "is_training": "on",
+            },
+        )
+        self.assertRedirects(response, reverse("console-platform-tenants"))
+        tenant = Tenant.objects.get(slug="training-store-platform")
+        self.assertTrue(tenant.is_training)
+
+        edit_url = reverse(
+            "console-platform-tenant-edit",
+            kwargs={"tenant_id": tenant.pk},
+        )
+        page = self.client.get(edit_url)
+        self.assertEqual(page.status_code, 200)
+        self.assertTrue(page.context["form"].fields["is_training"].disabled)
+
+        # Even a crafted edit POST cannot convert training to live.
+        response = self.client.post(
+            edit_url,
+            {
+                "name": "Training Store Renamed",
+                "slug": tenant.slug,
+                "is_active": "on",
+                "is_training": "",
+            },
+        )
+        self.assertRedirects(response, reverse("console-platform-tenants"))
+        tenant.refresh_from_db()
+        self.assertTrue(tenant.is_training)
+        self.assertEqual(tenant.name, "Training Store Renamed")
+
     def test_workspace_pause_requires_reason_and_preserves_state_when_missing(self):
         tenant = Tenant.objects.create(name="Pause reason", slug="pause-reason")
         TenantSettings.objects.create(tenant=tenant)
