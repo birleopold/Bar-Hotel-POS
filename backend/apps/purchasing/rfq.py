@@ -346,6 +346,45 @@ def quote_comparison_rows(rfq: PurchaseRfq) -> list[dict]:
 
 
 @transaction.atomic
+def cancel_rfq(*, rfq, membership, user, reason: str) -> PurchaseRfq:
+    locked = (
+        PurchaseRfq.objects.select_for_update()
+        .select_related("outlet")
+        .get(pk=rfq.pk)
+    )
+    if not outlet_belongs_to_membership(membership, locked.outlet_id):
+        raise ValidationError({"outlet": "You cannot cancel purchasing for this outlet."})
+    if locked.status == PurchaseRfqStatus.AWARDED:
+        raise ValidationError({"rfq": "An awarded RFQ cannot be cancelled."})
+    if locked.status == PurchaseRfqStatus.CANCELLED:
+        return locked
+    note = (reason or "").strip()
+    if len(note) < 8:
+        raise ValidationError({"reason": "Explain the RFQ cancellation in at least 8 characters."})
+    locked.status = PurchaseRfqStatus.CANCELLED
+    locked.notes = (
+        ((locked.notes or "").strip() + "\n" if (locked.notes or "").strip() else "")
+        + f"Cancelled: {note}"
+    )[:2000]
+    locked.save(update_fields=["status", "notes", "updated_at"])
+    SupplierQuote.objects.filter(rfq=locked).exclude(
+        status=SupplierQuoteStatus.ACCEPTED
+    ).update(status=SupplierQuoteStatus.REJECTED)
+    log_audit(
+        tenant_id=locked.tenant_id,
+        user_id=user.pk if user else None,
+        action="purchasing.rfq_cancelled",
+        entity_type="purchase_rfq",
+        entity_id=str(locked.pk),
+        payload={
+            "outlet_id": str(locked.outlet_id),
+            "reason": note[:512],
+        },
+    )
+    return locked
+
+
+@transaction.atomic
 def award_supplier_quote(*, quote, membership, user) -> PurchaseOrder:
     locked = (
         SupplierQuote.objects.select_for_update()
