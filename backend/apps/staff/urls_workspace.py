@@ -16,6 +16,21 @@ urlpatterns = [
         name="staff-workspace-audit",
     ),
     path(
+        "roles/",
+        views_workspace.StaffRoleTemplateListView.as_view(),
+        name="staff-workspace-role-templates",
+    ),
+    path(
+        "roles/new/",
+        views_workspace.StaffRoleTemplateCreateView.as_view(),
+        name="staff-workspace-role-template-create",
+    ),
+    path(
+        "roles/<uuid:template_id>/edit/",
+        views_workspace.StaffRoleTemplateUpdateView.as_view(),
+        name="staff-workspace-role-template-edit",
+    ),
+    path(
         "members/",
         views_invites.StaffMembershipListView.as_view(),
         name="staff-workspace-members",
