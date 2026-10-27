@@ -1,0 +1,266 @@
+from datetime import timedelta
+from decimal import Decimal
+
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+from rest_framework.exceptions import ValidationError
+
+from apps.accounts.models import Membership, MembershipRole, User
+from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, Promotion
+from apps.pos.models import Order
+from apps.pos.services.orders import (
+    add_line_to_open_order,
+    apply_promotion_to_order,
+    apply_supermarket_line_discount,
+)
+from apps.staff.middleware import STAFF_SESSION_OUTLET_KEY, STAFF_SESSION_TENANT_KEY
+from apps.staff.services import promotions_selectable_for_order
+from apps.tenants.models import Outlet, OutletType, Site, Tenant, TenantSettings
+
+
+class TargetedPromotionTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Targeted promos", slug="targeted-promos")
+        TenantSettings.objects.create(
+            tenant=self.tenant,
+            business_lines=["supermarket"],
+            enabled_staff_modules=["pos", "promotions", "workspace"],
+            default_currency="UGX",
+        )
+        self.site = Site.objects.create(tenant=self.tenant, name="Main")
+        self.outlet = Outlet.objects.create(
+            site=self.site,
+            name="Checkout",
+            outlet_type=OutletType.SUPERMARKET,
+        )
+        self.user = User.objects.create_user(
+            email="targeted-promos@test.local",
+            password="Password9!",
+        )
+        self.membership = Membership.objects.create(
+            user=self.user,
+            tenant=self.tenant,
+            role=MembershipRole.OWNER,
+        )
+        self.membership.sites.add(self.site)
+        self.membership.outlets.add(self.outlet)
+        self.food = MenuCategory.objects.create(
+            tenant=self.tenant,
+            name="Food",
+        )
+        self.home = MenuCategory.objects.create(
+            tenant=self.tenant,
+            name="Home",
+        )
+        self.family = ProductFamily.objects.create(
+            tenant=self.tenant,
+            category=self.food,
+            name="Cooking oils",
+        )
+        self.oil = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=self.food,
+            product_family=self.family,
+            name="Cooking Oil",
+            brand="Acme",
+            sku="OIL-1",
+            unit_price=Decimal("10000"),
+            track_inventory=False,
+        )
+        self.soap = MenuItem.objects.create(
+            tenant=self.tenant,
+            category=self.home,
+            name="Soap",
+            brand="CleanCo",
+            sku="SOAP-1",
+            unit_price=Decimal("20000"),
+            track_inventory=False,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[STAFF_SESSION_TENANT_KEY] = str(self.tenant.pk)
+        session[STAFF_SESSION_OUTLET_KEY] = str(self.outlet.pk)
+        session.save()
+
+    def _order(self):
+        return Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.user,
+            currency="UGX",
+        )
+
+    def _promotion(self, **kwargs):
+        defaults = {
+            "tenant": self.tenant,
+            "name": "Offer",
+            "discount_percent": Decimal("10"),
+            "starts_at": timezone.now() - timedelta(minutes=1),
+            "ends_at": timezone.now() + timedelta(days=1),
+            "is_active": True,
+        }
+        defaults.update(kwargs)
+        return Promotion.objects.create(**defaults)
+
+    def test_product_percent_promotion_discounts_only_matching_line_subtotal(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.soap,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(menu_item=self.oil)
+
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+
+        self.assertEqual(order.subtotal, Decimal("30000.00"))
+        self.assertEqual(order.discount_amount, Decimal("1000.00"))
+        self.assertEqual(order.total, Decimal("29000.00"))
+
+    def test_category_fixed_promotion_caps_discount_to_matching_lines(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.soap,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Food fixed",
+            discount_percent=None,
+            discount_amount=Decimal("15000"),
+            category=self.food,
+        )
+
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+
+        self.assertEqual(order.discount_amount, Decimal("10000.00"))
+        self.assertEqual(order.total, Decimal("20000.00"))
+
+    def test_family_and_brand_targets_match_case_insensitively(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        family_offer = self._promotion(
+            name="Family",
+            product_family=self.family,
+            discount_percent=Decimal("5"),
+        )
+        brand_offer = self._promotion(
+            name="Brand",
+            brand="acme",
+            discount_percent=Decimal("7"),
+        )
+
+        selectable_ids = set(
+            promotions_selectable_for_order(order).values_list("id", flat=True)
+        )
+        self.assertIn(family_offer.pk, selectable_ids)
+        self.assertIn(brand_offer.pk, selectable_ids)
+
+    def test_nonmatching_target_is_not_selectable_and_fails_closed_at_apply_time(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(
+            name="Soap only",
+            menu_item=self.soap,
+        )
+
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+    def test_whole_basket_promotion_keeps_existing_behavior(self):
+        order = self._order()
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        add_line_to_open_order(
+            order=order,
+            menu_item=self.soap,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="Whole basket")
+
+        apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+        order.refresh_from_db()
+
+        self.assertEqual(order.discount_amount, Decimal("3000.00"))
+        self.assertEqual(order.total, Decimal("27000.00"))
+
+    def test_manual_line_discount_blocks_order_promotion_and_hides_it_from_selector(self):
+        order = self._order()
+        line = add_line_to_open_order(
+            order=order,
+            menu_item=self.oil,
+            quantity=Decimal("1"),
+            user=self.user,
+        )
+        promo = self._promotion(name="No stacking")
+        apply_supermarket_line_discount(
+            order=order,
+            line=line,
+            user=self.user,
+            discount_percent=Decimal("5"),
+        )
+
+        self.assertFalse(
+            promotions_selectable_for_order(order).filter(pk=promo.pk).exists()
+        )
+        with self.assertRaises(ValidationError):
+            apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+    def test_manager_form_rejects_multiple_targets(self):
+        response = self.client.post(
+            reverse("staff-promotion-create"),
+            {
+                "name": "Bad scope",
+                "menu_item": str(self.oil.pk),
+                "product_family": "",
+                "category": str(self.food.pk),
+                "brand": "",
+                "discount_percent": "10",
+                "discount_amount": "",
+                "min_order_subtotal": "",
+                "starts_at": (timezone.localtime() - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M"),
+                "ends_at": (timezone.localtime() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+                "is_active": "on",
+                "outlets": [str(self.outlet.pk)],
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Choose only one promotion target")
+        self.assertFalse(
+            Promotion.objects.filter(tenant=self.tenant, name="Bad scope").exists()
+        )
