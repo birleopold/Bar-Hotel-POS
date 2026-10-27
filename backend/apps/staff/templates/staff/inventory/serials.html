@@ -1,0 +1,40 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}Serials &amp; IMEIs · {{ request.tenant.name|default:"Business" }}{% endblock %}
+{% block main_class %}staff-main--wide fizo-stock-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/fizo-inventory-workflows.css' %}?v=20261022.1">{% endblock %}
+{% block content %}
+<div class="fizo-stock">
+  <header class="fizo-stock__head">
+    <div><p class="fizo-stock__eyebrow">{{ request.tenant.name|default:"Business" }} / Inventory</p><h1>Serials &amp; IMEIs</h1><p>Trace each serialized unit from supplier receipt through basket reservation and sale.</p></div>
+    <div class="fizo-stock__actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-inventory-balances' %}">Stock balances</a></div>
+  </header>
+  {% include "staff/inventory/includes/subnav.html" %}
+  <section class="fizo-stock__panel">
+    <div class="fizo-stock__toolbar">
+      <form method="get" class="fizo-stock__search" role="search">
+        <label for="serial-search">Search serial / IMEI</label>
+        <div class="fizo-stock__searchrow"><i class="bi bi-search" aria-hidden="true"></i><input id="serial-search" name="q" value="{{ serial_q }}" maxlength="128" placeholder="Serial, IMEI, product or SKU"><select class="staff-input" name="status"><option value="">All statuses</option>{% for value, label in serial_status_choices %}<option value="{{ value }}"{% if serial_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select><button type="submit">Search</button></div>
+      </form>
+    </div>
+    {% if serial_units %}
+    <div class="fizo-stock__tablewrap"><table class="fizo-stock__table">
+      <thead><tr><th>Identifier</th><th>Product</th><th>Section</th><th>Status</th><th>Received</th><th>Sale / reservation</th><th>Warranty</th><th></th></tr></thead>
+      <tbody>{% for unit in serial_units %}
+        <tr>
+          <td><strong>{{ unit.serial_number }}</strong>{% if unit.secondary_identifier %}<span class="staff-muted small d-block">{{ unit.secondary_identifier }}</span>{% endif %}</td>
+          <td>{{ unit.menu_item.name }}{% if unit.menu_item.sku %}<span class="staff-muted small d-block">{{ unit.menu_item.sku }}</span>{% endif %}</td>
+          <td>{{ unit.outlet.name }}</td>
+          <td>{{ unit.get_status_display }}</td>
+          <td>{{ unit.received_at }}</td>
+          <td>{% if unit.sold_order_line %}<a href="{% url 'staff-order-detail' unit.sold_order_line.order_id %}">{{ unit.sold_order_line.order.bill_reference }}</a>{% elif unit.reserved_order_line %}<a href="{% url 'staff-order-detail' unit.reserved_order_line.order_id %}">Reserved · {{ unit.reserved_order_line.order.bill_reference }}</a>{% else %}—{% endif %}</td>
+          <td>{{ unit.warranty_expires_at|default:"—" }}</td>
+          <td><a href="{% url 'staff-inventory-serial-detail' unit.id %}">Trace</a></td>
+        </tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<div class="fizo-stock__empty"><i class="bi bi-upc-scan"></i><h2>No serialized units found</h2><p>Serial / IMEI records appear after a serialized product is received through purchasing.</p></div>{% endif %}
+    {% if is_paginated %}<nav class="fizo-stock__pager" aria-label="Serial pages">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&amp;q={{ serial_q|urlencode }}&amp;status={{ serial_status|urlencode }}">Previous</a>{% endif %}<span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&amp;q={{ serial_q|urlencode }}&amp;status={{ serial_status|urlencode }}">Next</a>{% endif %}</nav>{% endif %}
+  </section>
+</div>
+{% endblock %}
