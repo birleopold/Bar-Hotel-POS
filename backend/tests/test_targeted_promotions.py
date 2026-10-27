@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from datetime import timedelta
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -1008,7 +1009,7 @@ class TargetedPromotionTests(TestCase):
             fixed_bundle_amount=Decimal("25000"),
             starts_at=timezone.now() - timedelta(minutes=1),
         )
-        with self.assertRaises(Exception):
+        with self.assertRaises(DjangoValidationError):
             invalid.full_clean()
 
         order = self._order()
