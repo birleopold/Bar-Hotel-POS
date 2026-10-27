@@ -865,6 +865,7 @@ def add_supermarket_line_by_code(
     decoded = decode_scale_weight_label(
         tenant_id=order.tenant_id, outlet_id=order.outlet_id, code=(code or "").strip(),
     )
+    package = None
     if decoded is not None:
         if Decimal(str(quantity)) != Decimal("1"):
             raise ValidationError({"quantity": "Scale labels contain their weight. Leave scan quantity at 1."})
