@@ -1,0 +1,39 @@
+{% extends "console/base.html" %}
+{% block title %}Metadata · {{ menu_item.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header">
+    <div><p class="grocery-setup__eyebrow">Catalogue / {{ menu_item.name }}</p><h1>Metadata &amp; alternate codes</h1><p class="staff-muted">Add business-specific product details and extra lookup codes while keeping the base SKU and barcode authoritative.</p></div>
+    <div class="grocery-setup__hero-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-edit' menu_item.id %}">Edit product</a><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-custom-fields' %}">Custom field definitions</a></div>
+  </header>
+
+  <section class="staff-card mb-3">
+    <h2>Standard merchandise details</h2>
+    <div class="staff-table-wrap"><table class="staff-table"><tbody>
+      <tr><th>Brand</th><td>{{ menu_item.brand|default:"—" }}</td></tr>
+      <tr><th>Model / style</th><td>{{ menu_item.model_number|default:"—" }}</td></tr>
+      <tr><th>Reference</th><td>{{ menu_item.reference_code|default:"—" }}</td></tr>
+      <tr><th>MSRP</th><td>{% if menu_item.msrp != None %}{{ menu_item.msrp }}{% else %}—{% endif %}</td></tr>
+    </tbody></table></div>
+    <p class="staff-muted small mb-0">Edit these standard fields from the main product editor. MSRP is informational and never overrides the selling price.</p>
+  </section>
+
+  <section class="staff-card mb-3">
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap"><div><h2>Tenant custom fields</h2><p class="staff-muted small mb-0">Values apply only to this product.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-product-custom-fields' %}">Manage field definitions</a></div>
+    {% if form.fields %}
+    <form method="post" class="grocery-guided-form mt-3">{% csrf_token %}
+      {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="grocery-form-fields">{% for field in form %}<div class="grocery-form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<p class="grocery-form-help">{{ field.help_text }}</p>{% endif %}{% if field.errors %}<div class="grocery-form-errors">{{ field.errors }}</div>{% endif %}</div>{% endfor %}</div>
+      <div class="grocery-form-footer"><span>Blank values are removed from this product.</span><button class="staff-btn staff-btn--primary" type="submit">Save custom fields</button></div>
+    </form>
+    {% else %}<p class="staff-muted mt-3 mb-0">No active custom fields are configured yet.</p>{% endif %}
+  </section>
+
+  <section class="staff-card">
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap"><div><h2>Alternate lookup codes</h2><p class="staff-muted small mb-0">Supplier, manufacturer or internal codes can find this same concrete SKU. They do not create another product.</p></div><a class="staff-btn staff-btn--primary" href="{% url 'console-org-menu-item-alternate-code-create' menu_item.id %}">Add code</a></div>
+    {% if alternate_codes %}<div class="staff-table-wrap mt-3"><table class="staff-table"><thead><tr><th>Code</th><th>Type</th><th>Label</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      {% for code in alternate_codes %}<tr><td><strong>{{ code.code }}</strong></td><td>{{ code.get_code_type_display }}</td><td>{{ code.label|default:"—" }}</td><td>{% if code.is_active %}Active{% else %}Inactive{% endif %}</td><td><div class="grocery-setup__table-actions"><a href="{% url 'console-org-menu-item-alternate-code-edit' menu_item.id code.id %}">Edit</a><a href="{% url 'console-org-menu-item-alternate-code-delete' menu_item.id code.id %}">Remove</a></div></td></tr>{% endfor %}
+    </tbody></table></div>{% else %}<p class="staff-muted mt-3 mb-0">No alternate lookup codes yet.</p>{% endif %}
+  </section>
+</section>
+{% endblock %}
