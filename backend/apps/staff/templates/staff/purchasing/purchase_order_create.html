@@ -20,8 +20,8 @@
     {% endfor %}
     {% if grocery_owner_shell %}</div>{% endif %}
     <h2 class="fizo-purchasing__section-heading">{% if grocery_owner_shell %}Step 2: Products to order{% else %}Lines (tracked items){% endif %}</h2>
-    <p class="staff-muted">Enter loose units plus either a configured package count or the legacy carton count. The purchase order always stores the actual base stock quantity; cost remains per base unit.</p>
-    {% if selected_supplier %}<p class="staff-muted small">Supplier-specific product/package codes for <strong>{{ selected_supplier.name }}</strong> are shown in package choices where configured. These codes are purchasing references only.</p>{% endif %}
+    <p class="staff-muted">Enter loose units plus either a configured package count or the legacy carton count. The purchase order always stores the actual base stock quantity; cost remains per base unit. If unit cost is left blank, the server uses the selected supplier's configured planning cost, then the latest received supplier cost as fallback. You can always type the supplier's current quoted cost instead.</p>
+    {% if selected_supplier %}<p class="staff-alert staff-alert--info"><strong>{{ selected_supplier.name }}</strong> supplier catalog loaded. Supplier-specific codes and available planning/latest received costs are shown with products. Blank PO costs will use those server-side suggestions; receipt history remains the authoritative cost evidence.</p>{% endif %}
     <div class="staff-table-wrap mb-3">
       <table class="fizo-purchasing__table">
         <thead><tr><th>Product</th><th>Loose units</th><th>Configured package</th><th>Package count</th><th>Legacy cartons</th><th>Cost per base unit (optional)</th></tr></thead>
@@ -32,7 +32,7 @@
                 <select class="staff-input" name="line_{{ i }}_menu_item">
                   <option value="">—</option>
                   {% for mi in menu_items %}
-                    <option value="{{ mi.id }}"{% if forloop.parentloop.first and prefill_menu_item == mi.id %} selected{% endif %}>{{ mi.name }}{% if mi.units_per_carton > 1 %} · {{ mi.units_per_carton }} per carton{% endif %}</option>
+                    <option value="{{ mi.id }}"{% if forloop.parentloop.first and prefill_menu_item == mi.id %} selected{% endif %}>{{ mi.name }}{% if mi.units_per_carton > 1 %} · {{ mi.units_per_carton }} per carton{% endif %}{% if selected_supplier %}{% if mi.supplier_reference_display %} · supplier {{ mi.supplier_reference_display }}{% endif %}{% if mi.supplier_default_cost_display != None %} · default {{ request.tenant.settings.default_currency }} {{ mi.supplier_default_cost_display }}{% elif mi.supplier_latest_cost_display != None %} · last received {{ request.tenant.settings.default_currency }} {{ mi.supplier_latest_cost_display }}{% endif %}{% endif %}</option>
                   {% endfor %}
                 </select>
               </td>
