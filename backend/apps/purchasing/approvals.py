@@ -161,6 +161,10 @@ def consolidate_purchase_order_requests(
         raise ValidationError({
             "requests": "Choose at least two approved purchase requests to consolidate."
         })
+    if len(ids) > 50:
+        raise ValidationError({
+            "requests": "Consolidate at most 50 approved requests at a time."
+        })
     if (
         membership is None
         or not membership.is_active
@@ -175,7 +179,6 @@ def consolidate_purchase_order_requests(
         PurchaseOrder.objects.select_for_update()
         .filter(pk__in=ids, tenant_id=membership.tenant_id)
         .select_related("supplier", "outlet", "created_by")
-        .prefetch_related("lines__menu_item")
         .order_by("created_at", "pk")
     )
     if len(sources) != len(ids):
@@ -213,9 +216,19 @@ def consolidate_purchase_order_requests(
                 "requests": "A request with receipt, payment or invoice evidence cannot be consolidated."
             })
 
+    locked_lines = list(
+        PurchaseOrderLine.objects.select_for_update()
+        .filter(purchase_order_id__in=[po.pk for po in sources])
+        .select_related("menu_item")
+        .order_by("purchase_order_id", "created_at", "pk")
+    )
+    source_line_map = {}
+    for line in locked_lines:
+        source_line_map.setdefault(line.purchase_order_id, []).append(line)
+
     aggregated = {}
     for po in sources:
-        for line in po.lines.all():
+        for line in source_line_map.get(po.pk, []):
             key = line.menu_item_id
             existing = aggregated.get(key)
             normalized_cost = (
@@ -238,6 +251,12 @@ def consolidate_purchase_order_requests(
                     )
                 })
             existing["quantity"] += line.quantity_ordered
+            if existing["quantity"] > Decimal("99999999999.999"):
+                raise ValidationError({
+                    "requests": (
+                        f"Combined quantity for {line.menu_item.name} exceeds stock limits."
+                    )
+                })
             if existing["units_per_carton_snapshot"] != line.units_per_carton_snapshot:
                 existing["units_per_carton_snapshot"] = 1
 
@@ -282,13 +301,11 @@ def consolidate_purchase_order_requests(
             package_quantity_ordered=0,
         )
 
-    link_note = f"Consolidated into {target.reference or target.pk}"
     for source in sources:
         source.consolidated_into = target
         source.status = PurchaseOrderStatus.CANCELLED
-        source.review_note = link_note[:512]
         source.save(update_fields=[
-            "consolidated_into", "status", "review_note", "updated_at",
+            "consolidated_into", "status", "updated_at",
         ])
 
     log_audit(
