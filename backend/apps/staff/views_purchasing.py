@@ -30,6 +30,7 @@ from apps.purchasing.services import confirm_missing_unit_cost, receive_purchase
 from apps.purchasing.supplier_catalog import supplier_cost_histories
 from apps.purchasing.supplier_performance import supplier_performance_rows
 from apps.purchasing.approvals import (
+    consolidate_purchase_order_requests,
     review_purchase_order_request,
     withdraw_purchase_order_request,
 )
@@ -1052,7 +1053,18 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
             ).order_by(
                 F("needed_by").asc(nulls_last=True),
                 "created_at",
-            ).order_by("created_at")
+            )
+        elif lane == "consolidate":
+            qs = qs.filter(
+                status=PurchaseOrderStatus.DRAFT,
+                approval_status=PurchaseApprovalStatus.APPROVED,
+                consolidated_into__isnull=True,
+            ).order_by(
+                "supplier__name",
+                "outlet__name",
+                F("needed_by").asc(nulls_last=True),
+                "created_at",
+            )
         st = self.request.GET.get("status")
         if st and st in {c[0] for c in PurchaseOrderStatus.choices}:
             qs = qs.filter(status=st)
@@ -1067,11 +1079,42 @@ class StaffPurchaseOrderListView(StaffTenantRequiredMixin, ListView):
         ctx["status_filter"] = self.request.GET.get("status") or ""
         ctx["receiving_lane"] = self.request.GET.get("lane") == "receiving"
         ctx["approval_lane"] = self.request.GET.get("lane") == "approval"
+        ctx["consolidate_lane"] = self.request.GET.get("lane") == "consolidate"
         ctx["can_receive_stock"] = membership_has_purchasing_capability(self.request.tenant_membership, "receive")
         ctx["can_request_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "request")
         ctx["can_modify_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "manage")
         ctx["can_approve_purchasing"] = membership_has_purchasing_capability(self.request.tenant_membership, "approve")
         return ctx
+
+    def post(self, request, *args, **kwargs):
+        if not membership_has_purchasing_capability(
+            request.tenant_membership, "approve"
+        ):
+            messages.error(
+                request,
+                "Only an authorized purchasing manager can consolidate approved requests.",
+            )
+            return redirect("staff-purchasing-orders")
+        action = (request.POST.get("action") or "").strip()
+        if action != "consolidate_requests":
+            messages.error(request, "Choose a valid purchase-order action.")
+            return redirect("staff-purchasing-orders")
+        source_ids = request.POST.getlist("source_request")
+        try:
+            target = consolidate_purchase_order_requests(
+                source_ids=source_ids,
+                membership=request.tenant_membership,
+                user=request.user,
+                reference=(request.POST.get("reference") or "").strip(),
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+            return redirect("staff-purchasing-orders")
+        messages.success(
+            request,
+            f"Combined {len(set(source_ids))} approved requests into {target.reference or target.pk}. Review the draft before sending it to the supplier.",
+        )
+        return redirect("staff-purchasing-order-detail", po_id=target.pk)
 
 
 class StaffPurchaseOrderCreateView(StaffTenantRequiredMixin, FormView):
