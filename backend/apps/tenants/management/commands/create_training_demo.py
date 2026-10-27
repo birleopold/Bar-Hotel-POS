@@ -42,7 +42,11 @@ class Command(BaseCommand):
             raise CommandError("The slug already exists. Refusing to alter an existing business.")
         business_type = options["type"]
         profile = BUSINESS_LINES[business_type]
-        tenant = Tenant.objects.create(slug=slug, name=f"TRAINING — {profile.label}")
+        tenant = Tenant.objects.create(
+            slug=slug,
+            name=f"TRAINING — {profile.label}",
+            is_training=True,
+        )
         TenantSettings.objects.create(
             tenant=tenant, business_lines=[business_type],
             default_currency="UGX", default_timezone="Africa/Kampala",
