@@ -12,6 +12,8 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, FormView, ListView, UpdateView
 
+from apps.accounts.models import MembershipRole, RoleTemplate
+from apps.accounts.role_policy import permitted_roles
 from apps.audit.services import log_audit
 from apps.integrations.efris import EFRIS_PROVIDER_KEY, get_efris_adapter
 from apps.integrations.models import EfrisSubmission, IntegrationLink
@@ -20,6 +22,7 @@ from apps.tenants.models import TenantSettings
 from .forms import (
     StaffEfrisSettingsForm,
     StaffIntegrationLinkForm,
+    StaffRoleTemplateForm,
     StaffTenantBrandingForm,
     StaffTenantModulesForm,
 )
@@ -30,6 +33,132 @@ from .services import (
     membership_can_manage_workspace_settings,
     STAFF_MODULE_CHOICES,
 )
+from .services.role_templates import role_access_preview
+
+
+class StaffRoleTemplateListView(StaffTenantRequiredMixin, ListView):
+    staff_nav_capability = "workspace"
+    template_name = "staff/settings/role_templates.html"
+    context_object_name = "role_templates"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not membership_can_manage_workspace_settings(request.tenant_membership):
+            messages.error(request, "Only an owner or tenant admin can manage role templates.")
+            return redirect("staff-dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return (
+            RoleTemplate.objects.filter(tenant=self.request.tenant)
+            .prefetch_related("sites", "outlets")
+            .order_by("-is_active", "name")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        allowed = permitted_roles(self.request.tenant)
+        ctx["built_in_role_previews"] = [
+            role_access_preview(role)
+            for role in MembershipRole.values
+            if role in allowed
+        ]
+        for template in ctx["role_templates"]:
+            template.access_preview = role_access_preview(template.base_role)
+            template.applied_member_count = template.memberships.count()
+        return ctx
+
+
+class _RoleTemplateEditorMixin:
+    staff_nav_capability = "workspace"
+    model = RoleTemplate
+    form_class = StaffRoleTemplateForm
+    template_name = "staff/settings/role_template_form.html"
+    success_url = reverse_lazy("staff-workspace-role-templates")
+
+    def dispatch(self, request, *args, **kwargs):
+        if not membership_can_manage_workspace_settings(request.tenant_membership):
+            messages.error(request, "Only an owner or tenant admin can manage role templates.")
+            return redirect("staff-workspace-role-templates")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return RoleTemplate.objects.filter(tenant=self.request.tenant)
+
+    def get_form_kwargs(self):
+        kw = super().get_form_kwargs()
+        kw["tenant"] = self.request.tenant
+        return kw
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        role = None
+        if getattr(self, "object", None) is not None:
+            role = self.object.base_role
+        role = self.request.POST.get("base_role") or role
+        ctx["access_preview"] = role_access_preview(role) if role else None
+        return ctx
+
+
+class StaffRoleTemplateCreateView(_RoleTemplateEditorMixin, CreateView):
+    def form_valid(self, form):
+        form.instance.tenant = self.request.tenant
+        form.instance.created_by = self.request.user
+        response = super().form_valid(form)
+        log_audit(
+            tenant_id=self.request.tenant.pk,
+            user_id=self.request.user.pk,
+            action="workspace.role_template.created",
+            entity_type="role_template",
+            entity_id=str(self.object.pk),
+            payload={
+                "name": self.object.name,
+                "base_role": self.object.base_role,
+                "site_ids": [str(pk) for pk in self.object.sites.values_list("pk", flat=True)],
+                "outlet_ids": [str(pk) for pk in self.object.outlets.values_list("pk", flat=True)],
+            },
+            source="staff",
+        )
+        messages.success(self.request, "Role template created.")
+        return response
+
+
+class StaffRoleTemplateUpdateView(_RoleTemplateEditorMixin, UpdateView):
+    pk_url_kwarg = "template_id"
+
+    def form_valid(self, form):
+        before = {
+            "name": self.object.name,
+            "base_role": self.object.base_role,
+            "is_active": self.object.is_active,
+            "site_ids": [str(pk) for pk in self.object.sites.values_list("pk", flat=True)],
+            "outlet_ids": [str(pk) for pk in self.object.outlets.values_list("pk", flat=True)],
+        }
+        response = super().form_valid(form)
+        log_audit(
+            tenant_id=self.request.tenant.pk,
+            user_id=self.request.user.pk,
+            action="workspace.role_template.updated",
+            entity_type="role_template",
+            entity_id=str(self.object.pk),
+            payload={
+                "before": before,
+                "after": {
+                    "name": self.object.name,
+                    "base_role": self.object.base_role,
+                    "is_active": self.object.is_active,
+                    "site_ids": [str(pk) for pk in self.object.sites.values_list("pk", flat=True)],
+                    "outlet_ids": [str(pk) for pk in self.object.outlets.values_list("pk", flat=True)],
+                },
+                "applied_members": self.object.memberships.count(),
+                "retroactive": False,
+            },
+            source="staff",
+        )
+        messages.success(
+            self.request,
+            "Role template updated. Existing workers were not changed; re-apply the template deliberately if needed.",
+        )
+        return response
 
 
 class StaffWorkspaceModulesView(StaffTenantRequiredMixin, FormView):
