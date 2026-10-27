@@ -53,3 +53,15 @@ The four columns in the reference show supermarket, restaurant, bar, and hotel. 
 - [ ] Compare screenshot against approved reference at target viewport; still blocked by unauthenticated browser profile.
 - [ ] Confirm responsive regressions, style precedence, and automated tests in a full repo checkout.
 - [ ] Finish bar, restaurant and hotel management/transaction screen parity; common class adoption does not mean pixel-perfect rendering.
+
+
+## Platform-owner shell recovery — 2026-10-28
+- The central platform at `pos.leosoftug.com` is platform-neutral and must never inherit a tenant name, logo, color identity, or selected workspace merely because a stale tenant session exists.
+- Root cause of the October regression: the neutral Console sidebar/top-bar templates still rendered retired `.staff-sidebar__*` and `.wb-*` class contracts after the shared fresh stylesheet had moved to the `.fz-*` shell. Content panels therefore remained styled while navigation collapsed into raw links/lists.
+- The obsolete platform/Console shell markup has been replaced with the current `.fz-brand`, `.fz-scope`, `.fz-nav`, `.fz-top-*` and shared button/table/card primitives. No compatibility stylesheet was added.
+- Platform-wide routes now suppress the tenant selector when there is no explicit tenant context. A platform operator sees **Platform administration**, Workspaces, Plans, Console home and their operator identity—not the first tenant in the database.
+- Workspaces, Plans, workspace/plan forms and the tenant control plane now share the same neutral platform component layer in `fizo-fresh.css`; the Workspaces page inline CSS was removed.
+- The tenant control plane is organized as a responsive two-column management grid with table-heavy/domain/history sections spanning the full width. Existing forms, permissions, audit behavior and POST endpoints remain unchanged.
+- The shared stylesheet URL is version-bumped so browsers do not retain the broken shell after deployment.
+- Regression tests now assert the fresh shell contract, platform neutrality under a stale tenant session, absence of retired shell classes, absence of inline Workspaces CSS, and consistent platform component use across Workspaces, Plans, create/edit forms and tenant control plane.
+- This recovery does **not** claim screenshot parity until the deployed central host is captured and compared after static collection/deployment.
