@@ -63,7 +63,7 @@
 
 ## R1 implementation checkpoint — 27 October 2026
 
-Implemented in source, pending exact-head CI/browser certification:
+Implemented in source. Exact-head software checkpoint is recorded below; deployed browser/hardware certification remains separate:
 - Product families with tenant scope and PostgreSQL RLS.
 - Variant matrix preview/generation for up to three dimensions and 120 combinations per batch; generated rows remain normal sellable `MenuItem` SKUs.
 - Product packages with base-unit conversion, package barcode/code, sell/purchase flags and optional exactly representable package price.
@@ -81,13 +81,20 @@ Implemented in source, pending exact-head CI/browser certification:
 - Standard merchandise identity fields (brand, model/style, reference and MSRP), tenant-defined typed custom fields and active alternate supplier/manufacturer/internal lookup codes.
 - Alternate-code scanner/catalogue search integration with a shared collision-safe product/package/group/PLU/serial namespace.
 - Product label queue for new products, price changes, imports and receiving; existing Shelf labels UI now filters pending work, prints current outlet prices, records printed completion, supports manual requests, audited dismissal and recent completion history.
+- Four current-PDF merchandise label modes on the same queue/workflow: shelf/price, product identity, markdown and receiving.
+- Package-aware catalogue CSV workflow separated from simple-product import: sample/export, preview, create-only atomic import by concrete product SKU, scanner-namespace validation, exactly representable package pricing and stock-neutral writes.
 
 Still R1 work:
 - richer variant option editing after generation;
-- package-aware catalog import/export and supplier-specific package codes/cost relationships;
+- supplier-specific package codes/cost relationships belong primarily to R4 product/vendor sourcing rather than the generic package master;
 - combined lot+serial allocation where a business genuinely needs both trace dimensions on one product;
 - richer thermal/physical label layouts and printer/media/scanner read-back certification;
-- exact-head CI, PostgreSQL/RLS evidence and deployed desktop/tablet/mobile browser acceptance.
+- deployed desktop/tablet/mobile browser acceptance and production RLS-role certification.
+
+Exact-head software evidence:
+- `8b4788aadc4be3e75db9e77719179f36bf0f208b` — 1,253 tests passed, 7 skipped, 1,317 subtests; PostgreSQL integration green after metadata/group/serial/label-queue recovery.
+- `cb4cff105e9c7774f9605f828a0f91e0b540e7fb` — 1,262 tests passed, 7 skipped, 1,317 subtests; Django checks, migration drift and PostgreSQL integration green with package CSV import/export and package identity guards.
+- These are software checkpoints only; they do not claim deployed browser/device/printer certification.
 
 ## Workstream R2 — Pricing, promotions and merchandising
 
