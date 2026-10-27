@@ -249,6 +249,24 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                             row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
                             row["incomplete_lines"] + row["incomplete_return_lines"],
                         ])
+
+                    if p.get("categories"):
+                        writer.writerow([])
+                        writer.writerow([
+                            "Category", "Net revenue", "Covered net revenue",
+                            "Revenue without trusted cost", "Known net COGS",
+                            "Known gross profit", "Known margin %",
+                            "Incomplete cost lines",
+                        ])
+                        for row in p["categories"]:
+                            writer.writerow([
+                                csv_safe(row["category_name"]),
+                                row["net_revenue"], row["covered_net_revenue"],
+                                row["uncovered_net_revenue"], row["known_net_cogs"],
+                                row["known_gross_profit"],
+                                row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
+                                row["incomplete_lines"] + row["incomplete_return_lines"],
+                            ])
                     response = HttpResponse(
                         out.getvalue(), content_type="text/csv; charset=utf-8"
                     )
