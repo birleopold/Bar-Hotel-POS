@@ -30,10 +30,21 @@
   <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
     <div>
       <h2 class="staff-card__title">Underlying evidence</h2>
-      <p class="staff-muted small">Newest first. Open the source to inspect the original receipt, shift reconciliation or stock exception before recording a case assessment.</p>
+      <p class="staff-muted small">Newest first. Open the source to inspect the original receipt, shift reconciliation or stock movement before recording a case assessment.</p>
     </div>
-    <a class="staff-btn staff-btn--ghost" href="{% url 'staff-management' %}?view=exceptions">Back to exceptions</a>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="staff-btn staff-btn--ghost" href="?{% if pattern_detail.selected_kind %}kind={{ pattern_detail.selected_kind }}&amp;{% endif %}export=csv">Export evidence CSV</a>
+      <a class="staff-btn staff-btn--ghost" href="{% url 'staff-management' %}?view=exceptions">Back to exceptions</a>
+    </div>
   </div>
+  {% if pattern_detail.available_kinds %}
+  <nav class="staff-chip-row mt-3" aria-label="Evidence type filter">
+    <a class="staff-btn staff-btn--ghost" href="?">All evidence</a>
+    {% for option in pattern_detail.available_kinds %}
+      <a class="staff-btn staff-btn--ghost" href="?kind={{ option.key }}"{% if pattern_detail.selected_kind == option.key %} aria-current="page"{% endif %}>{{ option.label }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
   <div class="staff-table-wrap mt-3">
     <table class="staff-table">
       <thead><tr><th>When</th><th>Type</th><th>Section</th><th>Evidence</th><th>Details</th><th>Source</th></tr></thead>
