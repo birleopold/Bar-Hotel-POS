@@ -421,6 +421,7 @@ class PurchaseOrderCreateSerializer(serializers.Serializer):
                     supplier_id=validated_data["_supplier"].id,
                     menu_item_id=item.id,
                     product_package_id=package.id if package else None,
+                    ordered_quantity=ordered_units,
                 )
             line_objects.append({
                 "menu_item": item, "quantity_ordered": ordered_units,
