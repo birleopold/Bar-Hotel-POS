@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import csv
-import io
 from datetime import timedelta
 
 from django.contrib import messages
@@ -15,6 +13,7 @@ from django.views.generic import CreateView, ListView, UpdateView
 
 from apps.accounts.models import MembershipRole
 from apps.audit.services import log_audit
+from apps.finance.accounting_adapters import accounting_export_adapter
 from apps.finance.accounting_bridge import (
     build_accounting_preview,
     create_accounting_export,
@@ -52,61 +51,6 @@ def _accounting_period(request):
     ):
         raise ValueError("Choose valid past dates, up to 367 days per accounting export.")
     return date_from, date_to
-
-
-def _safe_csv(value):
-    token = str(value or "")
-    return "'" + token if token.startswith(("=", "+", "-", "@", "\t", "\r")) else token
-
-
-def _batch_csv(batch: AccountingExportBatch) -> str:
-    out = io.StringIO()
-    writer = csv.writer(out)
-    writer.writerow([
-        "date_from",
-        "date_to",
-        "currency",
-        "account_code",
-        "account_name",
-        "debit",
-        "credit",
-        "memo",
-        "site",
-        "site_id",
-        "outlet",
-        "outlet_id",
-        "register",
-        "cashier",
-        "tender",
-        "category",
-        "folio",
-        "supplier",
-        "source_references",
-    ])
-    for line in batch.journal_lines:
-        dims = line.get("dimensions") or {}
-        writer.writerow([
-            batch.date_from,
-            batch.date_to,
-            _safe_csv(batch.currency),
-            _safe_csv(line.get("account_code")),
-            _safe_csv(line.get("account_name")),
-            line.get("debit", "0.00"),
-            line.get("credit", "0.00"),
-            _safe_csv(line.get("memo")),
-            _safe_csv(dims.get("site")),
-            _safe_csv(dims.get("site_id")),
-            _safe_csv(dims.get("outlet")),
-            _safe_csv(dims.get("outlet_id")),
-            _safe_csv(dims.get("register")),
-            _safe_csv(dims.get("cashier")),
-            _safe_csv(dims.get("tender")),
-            _safe_csv(dims.get("category")),
-            _safe_csv(dims.get("folio")),
-            _safe_csv(dims.get("supplier")),
-            _safe_csv(";".join(line.get("source_refs") or [])),
-        ])
-    return out.getvalue()
 
 
 class StaffAccountingMappingListView(StaffTenantRequiredMixin, ListView):
@@ -350,10 +294,11 @@ class StaffAccountingExportDownloadView(StaffAccountingExportView):
         allowed = {str(outlet.pk) for outlet in self._outlets(request)}
         if not set(batch.scope_outlet_ids or []).issubset(allowed):
             raise Http404
-        body = _batch_csv(batch)
-        response = HttpResponse(body, content_type="text/csv; charset=utf-8")
+        adapter = accounting_export_adapter("journal_csv")
+        body = adapter.render(batch)
+        response = HttpResponse(body, content_type=adapter.content_type)
         response["Content-Disposition"] = (
-            f'attachment; filename="accounting-journal-{batch.date_from}-{batch.date_to}-{str(batch.pk)[:8]}.csv"'
+            f'attachment; filename="accounting-journal-{batch.date_from}-{batch.date_to}-{str(batch.pk)[:8]}.{adapter.file_extension}"'
         )
         response["Cache-Control"] = "private, no-store"
         return response
