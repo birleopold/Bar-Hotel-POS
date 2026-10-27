@@ -51,7 +51,15 @@
       <p class="staff-muted small mb-2">Automatic control: {% if device.automatic_control %}Yes, through an authenticated local bridge{% else %}No{% endif %} · Live health: {% if device.live_health %}Supported{% else %}Not available{% endif %} · Retry limit: {{ device.retry_attempts }}</p>
       {% if device.last_seen_at %}<p class="staff-muted small mb-1">Last telemetry: {{ device.last_seen_at }}</p>{% endif %}
       {% if device.last_error %}<p class="staff-field-error small mb-2">Last error: {{ device.last_error }}</p>{% endif %}
-      {% if can_manage %}<a class="staff-btn staff-btn--secondary staff-btn--sm" href="{% url 'staff-workstation-device-edit' station.pk device.device_id %}">Edit</a>{% endif %}
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        {% if device.adapter == "local_bridge" and can_record_check %}
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="queue_device_command"><input type="hidden" name="device_id" value="{{ device.device_id }}"><input type="hidden" name="command_type" value="ping"><button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit">Ping</button></form>
+        {% if device.device_type == "receipt_printer" %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="queue_device_command"><input type="hidden" name="device_id" value="{{ device.device_id }}"><input type="hidden" name="command_type" value="print_receipt"><button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit">Print test slip</button></form>{% endif %}
+        {% if device.device_type == "kitchen_printer" %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="queue_device_command"><input type="hidden" name="device_id" value="{{ device.device_id }}"><input type="hidden" name="command_type" value="print_kitchen"><button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit">Print kitchen test</button></form>{% endif %}
+        {% if device.device_type == "weighing_scale" %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="queue_device_command"><input type="hidden" name="device_id" value="{{ device.device_id }}"><input type="hidden" name="command_type" value="read_scale"><button class="staff-btn staff-btn--ghost staff-btn--sm" type="submit">Read scale</button></form>{% endif %}
+        {% endif %}
+        {% if can_manage %}<a class="staff-btn staff-btn--secondary staff-btn--sm" href="{% url 'staff-workstation-device-edit' station.pk device.device_id %}">Edit</a>{% endif %}
+      </div>
     </article>
   {% endfor %}
   </div>
@@ -148,6 +156,25 @@
   {% else %}
   <p class="staff-muted mb-0">To record equipment checks, sign in with your administrator account password rather than a shared terminal PIN.</p>
   {% endif %}
+</section>
+{% endif %}
+{% if device_commands %}
+<section class="staff-card my-4">
+  <h2 class="staff-section-head">Recent bridge commands</h2>
+  <p class="staff-muted small">These are local-bridge command envelopes. Queued or claimed does not mean the physical action succeeded.</p>
+  <div class="fizo-register__tablewrap"><table class="fizo-register__table">
+    <thead><tr><th>Queued</th><th>Device</th><th>Command</th><th>Status</th><th>Attempts</th><th>Error / result</th></tr></thead>
+    <tbody>{% for command in device_commands %}
+      <tr>
+        <td>{{ command.created_at|date:"j M Y, H:i" }}</td>
+        <td>{{ command.device.label }}</td>
+        <td>{{ command.get_command_type_display }}</td>
+        <td>{{ command.get_status_display }}</td>
+        <td>{{ command.attempts }} / {{ command.max_attempts }}</td>
+        <td>{% if command.error %}{{ command.error }}{% elif command.result %}{{ command.result }}{% else %}—{% endif %}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
 </section>
 {% endif %}
 <section class="staff-card my-4">
