@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.audit.services import log_audit
+from apps.access.outlets import outlet_belongs_to_membership
 
 from .models import (
     InventorySerialEvent,
@@ -288,6 +289,158 @@ def validate_serial_assignments_for_order(*, order) -> dict:
             })
         assignments[line.pk] = units
     return assignments
+
+
+@transaction.atomic
+def execute_serialized_transfer(
+    *,
+    tenant_id,
+    membership,
+    from_outlet,
+    to_outlet,
+    serial_numbers,
+    user,
+    note="",
+):
+    from .models import StockBalance, StockMovement, StockReason
+    import uuid
+
+    if from_outlet.pk == to_outlet.pk:
+        raise ValidationError({"to_outlet": "Destination must differ from source."})
+    if from_outlet.site.tenant_id != tenant_id or to_outlet.site.tenant_id != tenant_id:
+        raise ValidationError({"outlet": "Both sections must belong to this business."})
+    if not outlet_belongs_to_membership(membership, from_outlet.pk):
+        raise ValidationError({"from_outlet": "You cannot transfer from this section."})
+    if not outlet_belongs_to_membership(membership, to_outlet.pk):
+        raise ValidationError({"to_outlet": "You cannot transfer to this section."})
+
+    identifiers = normalize_serial_numbers(serial_numbers)
+    if not identifiers:
+        raise ValidationError({"serial_numbers": "Enter at least one serial / IMEI to transfer."})
+
+    units = []
+    seen_ids = set()
+    for identifier in identifiers:
+        unit = (
+            InventorySerialUnit.objects.select_for_update()
+            .select_related("menu_item")
+            .filter(
+                tenant_id=tenant_id,
+                outlet=from_outlet,
+                serial_number__iexact=identifier,
+                status__in=[SerializedUnitStatus.AVAILABLE, SerializedUnitStatus.RETURNED],
+                reserved_order_line__isnull=True,
+            )
+            .first()
+        )
+        if unit is None:
+            raise ValidationError({
+                "serial_numbers": (
+                    f'"{identifier}" is not an available serialized unit in {from_outlet.name}.'
+                )
+            })
+        if not unit.menu_item.serial_tracking or not unit.menu_item.track_inventory:
+            raise ValidationError({"serial_numbers": f'"{identifier}" has invalid serialized product configuration.'})
+        if unit.pk in seen_ids:
+            raise ValidationError({"serial_numbers": f'Duplicate serialized unit "{identifier}".'})
+        seen_ids.add(unit.pk)
+        units.append(unit)
+
+    counts = {}
+    names = {}
+    for unit in units:
+        counts[unit.menu_item_id] = counts.get(unit.menu_item_id, Decimal("0")) + Decimal("1")
+        names[unit.menu_item_id] = unit.menu_item.name
+
+    source_balances = {}
+    destination_balances = {}
+    for item_id in sorted(counts, key=str):
+        source, _ = StockBalance.objects.select_for_update().get_or_create(
+            tenant_id=tenant_id,
+            outlet=from_outlet,
+            menu_item_id=item_id,
+            defaults={"quantity": Decimal("0")},
+        )
+        destination, _ = StockBalance.objects.select_for_update().get_or_create(
+            tenant_id=tenant_id,
+            outlet=to_outlet,
+            menu_item_id=item_id,
+            defaults={"quantity": Decimal("0")},
+        )
+        needed = counts[item_id]
+        if source.quantity < needed:
+            raise ValidationError({
+                "stock": (
+                    f'Aggregate stock for "{names[item_id]}" is below the serialized units selected '
+                    f"(have {source.quantity}, need {needed}). Reconcile before transferring."
+                )
+            })
+        if destination.quantity + needed > Decimal("99999999999.999"):
+            raise ValidationError({"stock": f'Destination stock limit would be exceeded for "{names[item_id]}".'})
+        source_balances[item_id] = source
+        destination_balances[item_id] = destination
+
+    transfer_batch = uuid.uuid4()
+    note_text = (note or "").strip()[:400]
+    for item_id in sorted(counts, key=str):
+        qty = counts[item_id]
+        source = source_balances[item_id]
+        destination = destination_balances[item_id]
+        source.quantity -= qty
+        destination.quantity += qty
+        source.save(update_fields=["quantity", "updated_at"])
+        destination.save(update_fields=["quantity", "updated_at"])
+        StockMovement.objects.create(
+            tenant_id=tenant_id,
+            outlet=from_outlet,
+            menu_item_id=item_id,
+            quantity_change=-qty,
+            reason=StockReason.TRANSFER_OUT,
+            transfer_batch=transfer_batch,
+            created_by=user,
+            note=(f"Serialized transfer to {to_outlet.name}. {note_text}")[:512],
+        )
+        StockMovement.objects.create(
+            tenant_id=tenant_id,
+            outlet=to_outlet,
+            menu_item_id=item_id,
+            quantity_change=qty,
+            reason=StockReason.TRANSFER_IN,
+            transfer_batch=transfer_batch,
+            created_by=user,
+            note=(f"Serialized transfer from {from_outlet.name}. {note_text}")[:512],
+        )
+
+    for unit in units:
+        old_outlet = unit.outlet
+        unit.outlet = to_outlet
+        unit.save(update_fields=["outlet", "updated_at"])
+        InventorySerialEvent.objects.create(
+            tenant_id=tenant_id,
+            serial_unit=unit,
+            event_type=SerializedUnitEventType.TRANSFERRED,
+            outlet=to_outlet,
+            created_by=user,
+            note=(
+                f"Transferred from {old_outlet.name} to {to_outlet.name}"
+                + (f" · {note_text}" if note_text else "")
+            )[:512],
+        )
+
+    log_audit(
+        tenant_id=tenant_id,
+        user_id=user.pk if user else None,
+        action="inventory.serials_transferred",
+        entity_type="serialized_transfer",
+        entity_id=str(transfer_batch),
+        payload={
+            "from_outlet_id": str(from_outlet.pk),
+            "to_outlet_id": str(to_outlet.pk),
+            "serial_unit_ids": [str(unit.pk) for unit in units],
+            "counts": {str(item_id): str(qty) for item_id, qty in counts.items()},
+        },
+    )
+    return transfer_batch, units
 
 
 def lock_serial_units_for_return(*, order, order_line, quantity, serial_numbers) -> list[InventorySerialUnit]:
