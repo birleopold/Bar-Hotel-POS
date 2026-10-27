@@ -40,13 +40,16 @@
       <div class="fizo-stock__tablewrap">
         <table class="fizo-stock__table">
           <caption class="visually-hidden">Current stock quantities by outlet</caption>
-          <thead><tr><th>Product</th><th>Section</th><th>On hand</th><th>Reorder level</th><th>Stock state</th></tr></thead>
+          <thead><tr><th>Product</th><th>Section</th><th>On hand</th><th>Avg cost</th><th>Inventory value</th><th>Cost basis</th><th>Reorder level</th><th>Stock state</th></tr></thead>
           <tbody>
             {% for b in balances %}
               <tr>
                 <td><div class="fizo-stock__product"><span class="fizo-stock__producticon"><i class="bi bi-box-seam"></i></span><strong>{{ b.menu_item.name }}</strong></div></td>
                 <td>{{ b.outlet.name }}</td>
                 <td class="fizo-stock__quantity">{{ b.quantity }}</td>
+                <td>{% if b.cost_basis_complete and b.average_unit_cost != None %}{{ request.tenant.settings.default_currency }} {{ b.average_unit_cost }}{% else %}—{% endif %}</td>
+                <td>{% if b.inventory_cost_value != None %}{{ request.tenant.settings.default_currency }} {{ b.inventory_cost_value }}{% else %}—{% endif %}</td>
+                <td>{% if b.cost_basis_complete %}<span class="fizo-stock__state">Trusted</span>{% else %}<span class="fizo-stock__state fizo-stock__state--low">Cost incomplete</span>{% endif %}</td>
                 <td>{{ b.menu_item.reorder_level|default:"—" }}</td>
                 <td>{% if b.menu_item.reorder_level and b.quantity <= b.menu_item.reorder_level %}<span class="fizo-stock__state fizo-stock__state--low">Low stock</span>{% else %}<span class="fizo-stock__state">Recorded</span>{% endif %}</td>
               </tr>
