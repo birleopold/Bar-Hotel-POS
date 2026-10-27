@@ -107,6 +107,55 @@ class Membership(TimeStampedModel):
         return f"{self.user.email} @ {self.tenant.slug} ({self.role})"
 
 
+class RoleTemplate(TimeStampedModel):
+    """Tenant-scoped reusable staff role and location profile.
+
+    Templates never create new permission primitives. The base role must remain
+    one of the tenant's permitted built-in roles; optional site/outlet defaults
+    only narrow where that role is usable.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="role_templates",
+    )
+    name = models.CharField(max_length=80)
+    description = models.CharField(max_length=255, blank=True)
+    base_role = models.CharField(max_length=32, choices=MembershipRole.choices)
+    sites = models.ManyToManyField(
+        "tenants.Site",
+        blank=True,
+        related_name="role_templates",
+    )
+    outlets = models.ManyToManyField(
+        "tenants.Outlet",
+        blank=True,
+        related_name="role_templates",
+    )
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="role_templates_created",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "name"],
+                name="uniq_role_template_name_per_tenant",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.get_base_role_display()})"
+
+
 class UserInvite(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tenant = models.ForeignKey(
