@@ -27,7 +27,7 @@ This is the practical progress index, **not a claim of production certification*
 | 04 Shift handover | [x] | Counted cash, variances, manager handoff | Real till reconciliation drills | SM-07 |
 | 05 Unified customers/guests | [-] | Tenant-scoped profiles, guest/order/event links, merges, financial summary, read-only API work | Exact-head CI for new API/finance/UI; customer acceptance, privacy and PostgreSQL/browser evidence | SM-22, SM-23 |
 | 06 Loyalty/accounts | [-] | Points earning, refund reversal, ledger and staff review | Redemptions, coupons, tiers, benefit rules and liability policy | SM-22, SM-30 |
-| 07 Inventory intelligence | [-] | Planning views, movement-based analysis | Reorder lead times, costing, counting and multi-pack accuracy | SM-08, SM-17, SM-19, SM-26 |
+| 07 Inventory intelligence | [-] | Planning views, movement-based analysis, bounded filtered CSV export | Reorder lead times, costing, counting and multi-pack accuracy; browser acceptance | SM-08, SM-17, SM-19, SM-26 |
 | 08 Batch/expiry/FEFO | [-] | Batch visibility, holds and waste | Atomic FEFO, recalls, expiry sale-block and legacy handling | SM-09, SM-18 |
 | 09 Purchasing journey | [-] | PO, receiving, supplier exposure | Requisition, quote comparison, 3-way match, credits, vendor lead time | SM-10, SM-16, SM-31, SM-36 |
 | 10 Business date | [-] | Business-day/timezone infrastructure | Consistent boundaries in all reports, shifts and DST tests | SM-29 |
