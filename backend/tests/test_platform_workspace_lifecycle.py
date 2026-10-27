@@ -62,6 +62,33 @@ class PlatformWorkspaceLifecycleTests(TestCase):
         )
         self.client.force_login(self.user)
 
+    def test_platform_pages_share_one_fresh_component_system(self):
+        tenant = Tenant.objects.create(name="Shell tenant", slug="shell-tenant")
+        TenantSettings.objects.create(tenant=tenant)
+
+        workspace_list = self.client.get(reverse("console-platform-tenants"))
+        self.assertEqual(workspace_list.status_code, 200)
+        self.assertContains(workspace_list, 'class="platform-page"')
+        self.assertContains(workspace_list, 'class="platform-overview"')
+        self.assertNotContains(workspace_list, "<style>")
+
+        plan_list = self.client.get(reverse("console-platform-plans"))
+        self.assertEqual(plan_list.status_code, 200)
+        self.assertContains(plan_list, "Plans &amp; modules")
+        self.assertContains(plan_list, 'class="platform-page"')
+
+        create_workspace = self.client.get(reverse("console-platform-tenant-create"))
+        self.assertEqual(create_workspace.status_code, 200)
+        self.assertContains(create_workspace, 'class="staff-card platform-form"')
+
+        control = self.client.get(
+            reverse("console-platform-tenant-control-plane", kwargs={"tenant_id": tenant.pk})
+        )
+        self.assertEqual(control.status_code, 200)
+        self.assertContains(control, 'class="platform-control"')
+        self.assertContains(control, 'class="platform-control__grid"')
+        self.assertContains(control, "Back to workspaces")
+
     def test_create_workspace_initializes_settings_and_platform_domain(self):
         url = reverse("console-platform-tenant-create")
         response = self.client.post(
