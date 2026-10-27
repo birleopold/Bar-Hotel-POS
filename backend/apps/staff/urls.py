@@ -2,6 +2,7 @@ from django.urls import include, path
 
 from . import (
     views,
+    views_accounting,
     views_attendance,
     views_commissions,
     views_events,
@@ -47,6 +48,8 @@ urlpatterns = [
     path("pos/deliveries/<uuid:delivery_id>/packing-slip/", views_delivery.StaffDeliveryPackingSlipView.as_view(), name="staff-delivery-packing-slip"),
     path("orders/<uuid:order_id>/display/", views_customer_display.StaffCustomerDisplayView.as_view(), name="staff-retail-customer-display"),
     path("lodging/night-audit/", views_lodging.StaffPropertyNightAuditView.as_view(), name="staff-lodging-night-audit"),
+    path("accounting/export/", views_accounting.StaffAccountingExportView.as_view(), name="staff-accounting-export"),
+    path("accounting/export/<uuid:batch_id>/download/", views_accounting.StaffAccountingExportDownloadView.as_view(), name="staff-accounting-export-download"),
     path("attendance/", views_attendance.StaffAttendanceView.as_view(), name="staff-attendance"),
     path("attendance/timesheets/", views_attendance.StaffTimesheetView.as_view(), name="staff-timesheets"),
     path("management/commissions/", views_commissions.StaffCommissionReportView.as_view(), name="staff-management-commissions"),
