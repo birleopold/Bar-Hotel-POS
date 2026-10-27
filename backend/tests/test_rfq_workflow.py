@@ -16,8 +16,10 @@ from apps.purchasing.models import (
     Supplier,
     SupplierQuoteStatus,
 )
+from apps.purchasing.serializers import PurchaseOrderSerializer
 from apps.purchasing.rfq import (
     award_supplier_quote,
+    cancel_rfq,
     create_rfq,
     invite_supplier_to_rfq,
     quote_comparison_rows,
@@ -282,3 +284,73 @@ def test_rfq_staff_ui_create_invite_record_compare_and_award():
         "staff-purchasing-order-detail",
         kwargs={"po_id": quote.converted_purchase_order_id},
     )
+
+@pytest.mark.django_db
+def test_cancelled_rfq_locks_quotes_and_cannot_be_awarded():
+    env = _env("rfq-cancel")
+    rfq = _rfq(env)
+    quote = invite_supplier_to_rfq(
+        rfq=rfq, supplier=env["supplier_a"], user=env["user"],
+    )
+    _record(
+        quote, env,
+        first_cost=Decimal("4.00"), second_cost=Decimal("8.00"),
+        shipping=Decimal("10.00"),
+    )
+    cancelled = cancel_rfq(
+        rfq=rfq,
+        membership=env["member"],
+        user=env["user"],
+        reason="Requirement withdrawn by stock manager",
+    )
+    assert cancelled.status == PurchaseRfqStatus.CANCELLED
+    quote.refresh_from_db()
+    assert quote.status == SupplierQuoteStatus.REJECTED
+    with pytest.raises(ValidationError, match="cancelled"):
+        award_supplier_quote(
+            quote=quote,
+            membership=env["member"],
+            user=env["user"],
+        )
+    assert not PurchaseOrder.objects.filter(
+        source_supplier_quote=quote,
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_awarded_purchase_order_api_serializer_exposes_rfq_provenance():
+    env = _env("rfq-api-source")
+    rfq = _rfq(env)
+    quote = invite_supplier_to_rfq(
+        rfq=rfq, supplier=env["supplier_a"], user=env["user"],
+    )
+    _record(
+        quote, env,
+        first_cost=Decimal("4.00"), second_cost=Decimal("8.00"),
+        shipping=Decimal("10.00"),
+    )
+    po = award_supplier_quote(
+        quote=quote,
+        membership=env["member"],
+        user=env["user"],
+    )
+    po = PurchaseOrder.objects.select_related(
+        "source_supplier_quote__rfq",
+        "supplier",
+        "outlet",
+    ).get(pk=po.pk)
+    data = PurchaseOrderSerializer(po).data
+    assert data["sourcing"]["supplier_quote_id"] == str(quote.pk)
+    assert data["sourcing"]["rfq_id"] == str(rfq.pk)
+    assert data["sourcing"]["rfq_reference"] == rfq.reference
+    assert data["sourcing"]["quoted_shipping_cost"] == "10.00"
+
+    ordinary = PurchaseOrder.objects.create(
+        tenant=env["tenant"],
+        supplier=env["supplier_b"],
+        outlet=env["outlet"],
+        created_by=env["user"],
+    )
+    ordinary_data = PurchaseOrderSerializer(ordinary).data
+    assert ordinary_data["sourcing"] is None
+
