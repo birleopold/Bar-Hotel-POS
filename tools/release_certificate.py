@@ -36,28 +36,47 @@ def command(args, *, cwd=ROOT, env=None, timeout=1800):
         return {"passed": False, "error": type(exc).__name__ + ": " + str(exc)[:400]}
 
 
-def evidence_file(path, commit, requirement):
+def evidence_file(path, commit, requirement, required_coverage=()):
     if not path:
         return {"passed": False, "requirement": requirement, "reason": "Evidence file was not supplied"}
     try:
         evidence = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         return {"passed": False, "requirement": requirement, "reason": str(exc)[:400]}
+    coverage = {
+        str(item).strip().lower()
+        for item in (evidence.get("coverage") or [])
+        if str(item).strip()
+    } if isinstance(evidence, dict) else set()
+    required = {str(item).strip().lower() for item in required_coverage}
+    missing = sorted(required - coverage)
     valid = (
         isinstance(evidence, dict)
         and evidence.get("commit") == commit
         and evidence.get("passed") is True
         and bool(evidence.get("tested_at"))
         and bool(evidence.get("environment"))
+        and isinstance(evidence.get("steps"), list)
+        and bool(evidence.get("steps"))
+        and not missing
     )
+    reason = None
+    if not valid:
+        if missing:
+            reason = "Missing required coverage: " + ", ".join(missing)
+        else:
+            reason = (
+                "Require a successful evidence JSON with this exact commit, "
+                "tested_at, environment, non-empty steps and required coverage."
+            )
     return {
         "passed": valid,
         "requirement": requirement,
         "source": str(path),
-        "reason": None if valid else (
-            "Require a successful evidence JSON with this exact commit, "
-            "tested_at, and environment"
-        ),
+        "coverage": sorted(coverage),
+        "required_coverage": sorted(required),
+        "missing_coverage": missing,
+        "reason": reason,
     }
 
 
@@ -123,17 +142,62 @@ def main():
     )
 
     # These are not guessed from SQLite or claims in a Markdown report.
-    for name, value in (
-        ("postgres_rls_concurrency", args.postgres_evidence),
-        ("browser_responsiveness_accessibility", args.browser_evidence),
-        ("backup_restore_drill", args.restore_evidence),
-        ("deployment_rollback_review", args.rollback_evidence),
-    ):
-        summary["checks"][name] = evidence_file(value, commit, name)
+    evidence_requirements = (
+        (
+            "postgres_rls_concurrency",
+            args.postgres_evidence,
+            (
+                "postgresql",
+                "tenant_rls",
+                "multi_register_concurrency",
+                "settlement_idempotency",
+                "inventory_concurrency",
+            ),
+        ),
+        (
+            "browser_responsiveness_accessibility",
+            args.browser_evidence,
+            (
+                "desktop",
+                "laptop",
+                "tablet",
+                "phone",
+                "keyboard",
+                "touch",
+                "scanner_input",
+            ),
+        ),
+        (
+            "backup_restore_drill",
+            args.restore_evidence,
+            ("backup", "restore", "data_consistency"),
+        ),
+        (
+            "deployment_rollback_review",
+            args.rollback_evidence,
+            ("git_revision", "migrations", "static_assets", "service_restart"),
+        ),
+    )
+    for name, value, coverage in evidence_requirements:
+        summary["checks"][name] = evidence_file(
+            value,
+            commit,
+            name,
+            required_coverage=coverage,
+        )
 
     if args.require_hardware:
         summary["checks"]["physical_hardware"] = evidence_file(
-            args.hardware_evidence, commit, "physical_hardware",
+            args.hardware_evidence,
+            commit,
+            "physical_hardware",
+            required_coverage=(
+                "receipt_printer",
+                "barcode_scanner",
+                "cash_drawer",
+                "weighing_scale",
+                "customer_display",
+            ),
         )
     else:
         summary["checks"]["physical_hardware"] = {
