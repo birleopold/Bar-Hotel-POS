@@ -84,8 +84,22 @@
 <p>Most basic USB/Bluetooth scanners act like a keyboard. Place the cursor here and scan a test barcode. It stays on this device and is not added to a sale.</p>
 <label for="hardware-scan-input" class="staff-label">Scan result</label>
 <input class="staff-input" id="hardware-scan-input" type="text" maxlength="128" autocomplete="off" placeholder="Tap here, then scan">
-<button id="hardware-scan-clear" class="staff-btn staff-btn--ghost mt-2" type="button">Clear scan</button>
+<div class="d-flex flex-wrap gap-2 mt-2">
+  <button id="hardware-scan-clear" class="staff-btn staff-btn--ghost" type="button">Clear scan</button>
+  {% if can_record_check %}
+  <form method="post" id="hardware-scan-record-form" class="d-inline">{% csrf_token %}
+    <input type="hidden" name="action" value="record_scanner_diagnostic">
+    <input type="hidden" name="character_count" id="hardware-scan-character-count" value="">
+    <input type="hidden" name="duration_ms" id="hardware-scan-duration-ms" value="">
+    <input type="hidden" name="average_gap_ms" id="hardware-scan-average-gap-ms" value="">
+    <input type="hidden" name="max_gap_ms" id="hardware-scan-max-gap-ms" value="">
+    <input type="hidden" name="enter_terminated" id="hardware-scan-enter-terminated" value="0">
+    <button id="hardware-scan-record" class="staff-btn staff-btn--secondary" type="submit" disabled>Record scan burst</button>
+  </form>
+  {% endif %}
+</div>
 <p id="hardware-scan-feedback" class="staff-muted mt-2" role="status" aria-live="polite">No test barcode received.</p>
+<p class="staff-muted small mb-0">The diagnostic stores timing/count evidence only. The scanned barcode value is never saved.</p>
 </section>
 {% if has_kitchen %}
 <section class="staff-card hardware-check-card">
@@ -189,7 +203,7 @@
         <td>{{ check.get_test_type_display }}{% if check.configured_device %}<div class="staff-muted small">{{ check.configured_device }}</div>{% endif %}</td>
         <td>{{ check.get_result_display }}</td>
         <td>{{ check.checked_by.email|default:"Former worker" }}</td>
-        <td>{{ check.note|default:"—" }}</td>
+        <td>{{ check.note|default:"—" }}{% if check.evidence %}<div class="staff-muted small">Diagnostic evidence: {{ check.evidence }}</div>{% endif %}</td>
       </tr>
       {% empty %}
       <tr><td colspan="5" class="staff-muted">No recorded checks yet. Browser printing and scanner input above are available without saving a record.</td></tr>
@@ -212,23 +226,62 @@
   var scanner=document.getElementById("hardware-scan-input");
   var info=document.getElementById("hardware-scan-feedback");
   var clear=document.getElementById("hardware-scan-clear");
+  var record=document.getElementById("hardware-scan-record");
+  var countField=document.getElementById("hardware-scan-character-count");
+  var durationField=document.getElementById("hardware-scan-duration-ms");
+  var averageField=document.getElementById("hardware-scan-average-gap-ms");
+  var maxField=document.getElementById("hardware-scan-max-gap-ms");
+  var enterField=document.getElementById("hardware-scan-enter-terminated");
+  var firstAt=null,lastAt=null,gaps=[],completed=false;
+  function resetScanMetrics(){
+    firstAt=null;lastAt=null;gaps=[];completed=false;
+    if(record)record.disabled=true;
+    if(countField)countField.value="";
+    if(durationField)durationField.value="";
+    if(averageField)averageField.value="";
+    if(maxField)maxField.value="";
+    if(enterField)enterField.value="0";
+  }
+  function finalizeScan(terminated){
+    var value=scanner.value.trim();
+    if(!value){info.textContent="No barcode detected; check focus and scanner settings.";return;}
+    var endAt=performance.now();
+    var duration=Math.max(0,Math.round(endAt-(firstAt===null?endAt:firstAt)));
+    var totalGap=gaps.reduce(function(sum,value){return sum+value;},0);
+    var average=gaps.length?Math.round(totalGap/gaps.length):0;
+    var maxGap=gaps.length?Math.round(Math.max.apply(null,gaps)):0;
+    if(countField)countField.value=String(value.length);
+    if(durationField)durationField.value=String(duration);
+    if(averageField)averageField.value=String(average);
+    if(maxField)maxField.value=String(maxGap);
+    if(enterField)enterField.value=terminated?"1":"0";
+    completed=true;
+    if(record)record.disabled=false;
+    info.textContent="Scan complete: "+value.length+" characters in "+duration+" ms; average gap "+average+" ms; max gap "+maxGap+" ms"+(terminated?" with Enter terminator.":" without Enter terminator.");
+  }
   if(scanner){
-    scanner.addEventListener("input",function(){
-      var value=scanner.value.trim();
-      info.textContent=value?"Characters received: "+value.length+" (scanner connection not yet certified)":"No test barcode received.";
-    });
     scanner.addEventListener("keydown",function(event){
+      var now=performance.now();
       if(event.key==="Enter"){
         event.preventDefault();
-        var value=scanner.value.trim();
-        info.textContent=value?
-          "Scan complete. "+value.length+" characters received; compare with your printed barcode.":
-          "No barcode detected; check focus and scanner settings.";
+        finalizeScan(true);
+        return;
       }
+      if(firstAt===null)firstAt=now;
+      if(lastAt!==null)gaps.push(Math.max(0,now-lastAt));
+      lastAt=now;
+      if(completed)resetScanMetrics();
+    });
+    scanner.addEventListener("input",function(){
+      var value=scanner.value.trim();
+      if(!completed)info.textContent=value?"Receiving scan burst… "+value.length+" characters so far.":"No test barcode received.";
+    });
+    scanner.addEventListener("blur",function(){
+      if(scanner.value.trim()&&!completed)finalizeScan(false);
     });
   }
   if(clear)clear.addEventListener("click",function(){
-    scanner.value="";info.textContent="Cleared. Scan a new test barcode.";scanner.focus();
+    scanner.value="";resetScanMetrics();info.textContent="Cleared. Scan a new test barcode.";scanner.focus();
   });
 }());
 </script>
