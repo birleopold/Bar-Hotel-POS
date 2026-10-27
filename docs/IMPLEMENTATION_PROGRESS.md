@@ -28,7 +28,7 @@ This is the practical progress index, **not a claim of production certification*
 | 04 Shift handover | [x] | Counted cash, variances, manager handoff | Real till reconciliation drills | SM-07 |
 | 05 Unified customers/guests | [-] | Tenant-scoped profiles, guest/order/event links, merges, financial summary, read-only API work | Exact-head CI for new API/finance/UI; customer acceptance, privacy and PostgreSQL/browser evidence | SM-22, SM-23 |
 | 06 Loyalty/accounts | [-] | Points earning, refund reversal, ledger and staff review | Redemptions, coupons, tiers, benefit rules and liability policy | SM-22, SM-30 |
-| 07 Inventory intelligence | [-] | Planning views, movement analysis, filtered CSV export; package conversion through checkout/PO receiving; retail assembly BOM with atomic build/unbuild stock runs | Reorder lead times, costing, counting, supplier-specific pack costing, lot-aware assembly handling and concurrency/browser acceptance | SM-08, SM-17, SM-19, SM-26 |
+| 07 Inventory intelligence | [-] | Planning views, movement analysis, filtered CSV export; package conversion through checkout/PO receiving; retail assembly build/unbuild; exact serialized/IMEI custody, returns and transfers | Reorder lead times, costing, counting, supplier-specific pack costing, combined lot+serial handling and concurrency/browser acceptance | SM-08, SM-17, SM-19, SM-26 |
 | 08 Batch/expiry/FEFO | [-] | Batch visibility, holds and waste | Atomic FEFO, recalls, expiry sale-block and legacy handling | SM-09, SM-18 |
 | 09 Purchasing journey | [-] | PO, receiving, supplier exposure | Requisition, quote comparison, 3-way match, credits, vendor lead time | SM-10, SM-16, SM-31, SM-36 |
 | 10 Business date | [-] | Business-day/timezone infrastructure | Consistent boundaries in all reports, shifts and DST tests | SM-29 |
@@ -36,7 +36,7 @@ This is the practical progress index, **not a claim of production certification*
 | 12 Housekeeping | [-] | Housekeeping board and staff actions | Mobile and cross-role real workflow certification | — |
 | 13 Kitchen display | [-] | KDS state/service UI | Routing and device-level timing/interaction evidence | — |
 | 14 Events journey | [-] | Bookings, quotes, payments | Full package, settlement and invoice workflow | — |
-| 15 Hardware | [-] | Workstation configuration, receipt/scanner hooks, outlet-scoped shelf-label PDF output | Physical barcode/shelf-label printer alignment, scale and customer-display adapters | SM-03, SM-12, SM-15, SM-28 |
+| 15 Hardware | [-] | Workstation configuration, receipt/scanner hooks, outlet-scoped shelf-label PDF output plus automatic/manual merchandise label queue with audited print/dismiss history | Physical barcode/shelf-label printer alignment and read-back, richer thermal layouts, scale and customer-display adapters | SM-03, SM-12, SM-15, SM-28 |
 | 16 Offline | [-] | Offline queue, replay and conflict basics | Retail till offline safety policy and privacy | SM-21 |
 | 17 EFRIS | [-] | Fiscal outbox, status and bounded retries | Provider-certified format, reference checks and URA sandbox proof | SM-13 |
 | 18 Analytics | [-] | Sales overview, management reports | Real cost/margin, shift drilldowns, supplier and basket analytics | SM-19, SM-29, SM-35 |
