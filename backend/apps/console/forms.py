@@ -552,6 +552,111 @@ class ConsoleProductFamilyForm(forms.ModelForm):
         return name
 
 
+class ConsoleVariantMatrixForm(forms.Form):
+    option_1_name = forms.CharField(
+        max_length=40, label="Option 1", initial="Colour",
+        widget=forms.TextInput(attrs={"class": "staff-input", "placeholder": "Colour"}),
+    )
+    option_1_values = forms.CharField(
+        max_length=500, label="Option 1 values",
+        widget=forms.TextInput(attrs={"class": "staff-input", "placeholder": "Black, White, Blue"}),
+        help_text="Separate values with commas.",
+    )
+    option_2_name = forms.CharField(
+        max_length=40, label="Option 2", required=False, initial="Size",
+        widget=forms.TextInput(attrs={"class": "staff-input", "placeholder": "Size"}),
+    )
+    option_2_values = forms.CharField(
+        max_length=500, label="Option 2 values", required=False,
+        widget=forms.TextInput(attrs={"class": "staff-input", "placeholder": "S, M, L, XL"}),
+        help_text="Leave both option 2 fields blank if this family has one dimension.",
+    )
+    option_3_name = forms.CharField(
+        max_length=40, label="Option 3", required=False,
+        widget=forms.TextInput(attrs={"class": "staff-input", "placeholder": "Material"}),
+    )
+    option_3_values = forms.CharField(
+        max_length=500, label="Option 3 values", required=False,
+        widget=forms.TextInput(attrs={"class": "staff-input", "placeholder": "Cotton, Polyester"}),
+    )
+    sku_prefix = forms.CharField(
+        max_length=32, label="SKU prefix",
+        widget=forms.TextInput(attrs={"class": "staff-input", "placeholder": "POLO"}),
+        help_text="Generated SKUs append normalized variant values to this prefix.",
+    )
+    unit_price = forms.DecimalField(
+        min_value=0, max_digits=12, decimal_places=2, label="Default selling price",
+        widget=forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.01"}),
+    )
+    tax_rate_percent = forms.DecimalField(
+        required=False, min_value=0, max_value=100, max_digits=5, decimal_places=2,
+        label="Tax rate %",
+        widget=forms.NumberInput(attrs={"class": "staff-input", "min": "0", "max": "100", "step": "0.01"}),
+    )
+    reorder_level = forms.DecimalField(
+        required=False, min_value=0, max_digits=14, decimal_places=3,
+        widget=forms.NumberInput(attrs={"class": "staff-input", "min": "0", "step": "0.001"}),
+    )
+    track_inventory = forms.BooleanField(required=False, initial=True, label="Track stock for generated variants")
+    is_active = forms.BooleanField(required=False, initial=True, label="Generated variants are active")
+
+    def _split_values(self, raw):
+        result = []
+        seen = set()
+        for value in (raw or "").split(","):
+            value = value.strip()
+            key = value.casefold()
+            if value and key not in seen:
+                seen.add(key)
+                result.append(value)
+        return result
+
+    def clean_sku_prefix(self):
+        import re
+        prefix = (self.cleaned_data.get("sku_prefix") or "").strip().upper()
+        prefix = re.sub(r"[^A-Z0-9_-]+", "-", prefix).strip("-_")
+        if not prefix:
+            raise forms.ValidationError("Enter a SKU prefix using letters or numbers.")
+        return prefix[:32]
+
+    def clean(self):
+        data = super().clean()
+        schema = []
+        names = set()
+        for index in (1, 2, 3):
+            name = (data.get(f"option_{index}_name") or "").strip()
+            values = self._split_values(data.get(f"option_{index}_values"))
+            if bool(name) != bool(values):
+                self.add_error(
+                    f"option_{index}_values" if name else f"option_{index}_name",
+                    "Enter both the option name and its values.",
+                )
+                continue
+            if not name:
+                continue
+            key = name.casefold()
+            if key in names:
+                self.add_error(f"option_{index}_name", "Variant option names must be unique.")
+                continue
+            names.add(key)
+            if len(values) > 20:
+                self.add_error(f"option_{index}_values", "Use no more than 20 values per option.")
+                continue
+            schema.append({"name": name, "values": values})
+        if not schema:
+            self.add_error("option_1_values", "Add at least one variant option and value.")
+        combinations = 1
+        for row in schema:
+            combinations *= len(row["values"])
+        if combinations > 120:
+            raise forms.ValidationError(
+                f"This matrix would create {combinations} combinations. Keep one batch to 120 or fewer."
+            )
+        data["variant_schema"] = schema
+        data["combination_count"] = combinations
+        return data
+
+
 class ConsoleProductPackageForm(forms.ModelForm):
     class Meta:
         model = ProductPackage
