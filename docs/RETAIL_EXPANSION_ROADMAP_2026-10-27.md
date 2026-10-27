@@ -385,10 +385,12 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 
 ### R4.4 Landed cost
 - Shipping/freight and duty/clearing are implemented at physical receipt level.
-- Current allocation methods: exclude from inventory cost, or distribute proportionally by received supplier-cost value.
-- Original supplier unit cost and landed unit cost are preserved separately on receipt lines.
-- Landed unit cost feeds the authoritative outlet weighted-average inventory cost and therefore future sale COGS/margin snapshots.
-- Remaining: quantity/weight/manual allocation modes, landed-cost corrections/credit handling, richer profitability recommendations, and historical-cost reconstruction for assembly unbuilds.
+- Allocation methods now include: exclude from inventory cost, distribute proportionally by received supplier-cost value, distribute proportionally by received base quantity, or enter an explicit manual amount per received line.
+- Manual allocations are fail-closed: every received line still needs a real supplier unit cost, each manual amount must be finite/non-negative, and the line allocations must total freight + duty exactly before any receipt, stock movement or weighted-average cost update is posted.
+- Automatic by-cost and by-quantity modes allocate rounding residual to the final received line so the stored per-line allocation always reconciles exactly to the receipt-level landed-cost total.
+- Original supplier unit cost, line allocated landed cost and landed unit cost remain separate immutable receipt-line snapshots. Landed unit cost feeds the authoritative outlet weighted-average inventory cost and therefore future sale COGS/margin snapshots.
+- A separate generic “allocate by weight” mode is deliberately not implemented because the catalog does not have one trustworthy physical weight-per-base-unit attribute across all merchandise. Weight-UOM products already express received quantity in their stock unit; adding a second guessed weight basis would create false precision.
+- Remaining: controlled landed-cost correction/credit handling after a posted receipt, richer profitability recommendations, and historical-cost reconstruction for assembly unbuilds.
 
 ### R4.5 Supplier performance
 - Implemented on the existing Suppliers directory rather than a separate dashboard.
