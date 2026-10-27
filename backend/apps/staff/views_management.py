@@ -317,6 +317,27 @@ class StaffManagementView(StaffTenantRequiredMixin, View):
                                 row["known_margin_percent"],
                                 row["margin_floor_percent"],
                             ])
+                    if p.get("margin_breach_sales"):
+                        writer.writerow([])
+                        writer.writerow([
+                            "Below-floor sale", "Section", "Product", "SKU",
+                            "Quantity", "Net revenue", "Known COGS",
+                            "Known gross profit", "Known margin %",
+                            "Configured floor %",
+                        ])
+                        for row in p["margin_breach_sales"]:
+                            writer.writerow([
+                                csv_safe(row["bill_reference"]),
+                                csv_safe(row["outlet_name"]),
+                                csv_safe(row["item_name"]),
+                                csv_safe(row["sku"]),
+                                row["quantity"],
+                                row["net_revenue"],
+                                row["known_cogs"],
+                                row["known_gross_profit"],
+                                row["known_margin_percent"] if row["known_margin_percent"] is not None else "",
+                                row["margin_floor_percent"],
+                            ])
                     response = HttpResponse(
                         out.getvalue(), content_type="text/csv; charset=utf-8"
                     )
