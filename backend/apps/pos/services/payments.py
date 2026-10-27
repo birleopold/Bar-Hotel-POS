@@ -7,7 +7,8 @@ from rest_framework.exceptions import ValidationError
 from apps.audit.services import log_audit
 from apps.customers.loyalty import award_paid_order_points, reverse_refunded_order_points
 from apps.access.outlets import outlet_belongs_to_membership
-from apps.catalog.models import MenuItem
+from apps.catalog.models import MenuItem, Promotion
+from apps.catalog.promotion_rules import promotion_redemption_block_reason
 from apps.finance.services import post_pos_payment_income, post_pos_refund_expense
 from apps.inventory.models import StockMovement, StockReason
 from apps.inventory.services import apply_manual_stock_change, validate_and_consume_stock_for_paid_order
@@ -99,6 +100,16 @@ def record_order_payment(
                 )
             }
         )
+
+    prospective_paid = (paid_so_far + amount).quantize(Decimal("0.01"))
+    if prospective_paid >= locked.total and locked.applied_promotion_id:
+        promotion = Promotion.objects.select_for_update().get(
+            pk=locked.applied_promotion_id,
+            tenant_id=locked.tenant_id,
+        )
+        redemption_reason = promotion_redemption_block_reason(promotion, locked)
+        if redemption_reason:
+            raise ValidationError({"promotion": redemption_reason})
 
     shift = resolve_settlement_shift(order=locked, workstation_id=workstation_id, shift_id=shift_id)
     payment = Payment.objects.create(
