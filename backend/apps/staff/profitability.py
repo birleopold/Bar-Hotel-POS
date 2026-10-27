@@ -210,6 +210,7 @@ def build_merchandise_profitability(
         "sku": "",
         **_blank_profit_row(),
     })
+    margin_breach_sales = []
 
     for line in line_qs.iterator(chunk_size=500):
         revenue = _line_net_revenue(line)
@@ -255,6 +256,37 @@ def build_merchandise_profitability(
             cogs = (line.quantity * line.cost_unit_snapshot).quantize(
                 MONEY, rounding=ROUND_HALF_UP
             )
+            if (
+                configured_margin_floor is not None
+                and line.order.outlet.outlet_type in {
+                    OutletType.RETAIL, OutletType.SUPERMARKET,
+                }
+            ):
+                gross_profit = _money(revenue - cogs)
+                margin_percent = (
+                    (
+                        gross_profit / revenue * Decimal("100")
+                    ).quantize(PERCENT, rounding=ROUND_HALF_UP)
+                    if revenue > 0 else None
+                )
+                if (
+                    (margin_percent is not None and margin_percent < configured_margin_floor)
+                    or (revenue <= 0 and cogs > 0)
+                ):
+                    margin_breach_sales.append({
+                        "order_id": str(line.order_id),
+                        "bill_reference": line.order.bill_reference or str(line.order_id),
+                        "outlet_id": str(line.order.outlet_id),
+                        "outlet_name": line.order.outlet.name,
+                        "item_name": _historical_item_name(line),
+                        "sku": _historical_sku(line),
+                        "quantity": line.quantity,
+                        "net_revenue": revenue,
+                        "known_cogs": cogs,
+                        "known_gross_profit": gross_profit,
+                        "known_margin_percent": margin_percent,
+                        "margin_floor_percent": configured_margin_floor,
+                    })
             row["covered_revenue"] += revenue
             row["covered_units"] += line.quantity
             row["known_cogs"] += cogs
@@ -578,6 +610,19 @@ def build_merchandise_profitability(
     totals["products"] = product_rows[:25]
     totals["categories"] = category_rows[:25]
     totals["outlets"] = outlet_rows
+    margin_breach_sales.sort(
+        key=lambda row: (
+            row["known_margin_percent"]
+            if row["known_margin_percent"] is not None
+            else Decimal("-999999"),
+            row["known_gross_profit"],
+            -row["net_revenue"],
+            row["outlet_name"].lower(),
+            row["item_name"].lower(),
+        )
+    )
     totals["unknown_cost_exposure"] = unknown_cost_exposure[:25]
     totals["margin_exceptions"] = margin_exceptions[:25]
+    totals["margin_breach_sales"] = margin_breach_sales[:50]
+    totals["margin_breach_sale_count"] = len(margin_breach_sales)
     return totals
