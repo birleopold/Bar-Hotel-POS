@@ -419,8 +419,9 @@
           <form method="post" class="row g-2 align-items-end" data-retail-promotion-form data-hospitality-promotion-form>
             {% csrf_token %}
             <input type="hidden" name="action" value="apply_promotion">
-            <div class="col-12 col-md-8">{{ apply_promotion_form.promotion.label_tag }}{{ apply_promotion_form.promotion }}</div>
-            <div class="col-12 col-md-4"><button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch w-100">Apply</button></div>
+            <div class="col-12 col-md-5">{{ apply_promotion_form.promotion.label_tag }}{{ apply_promotion_form.promotion }}</div>
+            <div class="col-12 col-md-4">{{ apply_promotion_form.coupon_code.label_tag }}{{ apply_promotion_form.coupon_code }}</div>
+            <div class="col-12 col-md-3"><button type="submit" class="staff-btn staff-btn--ghost staff-btn--touch w-100">Apply</button></div>
             <div class="col-12"><p class="staff-muted small mb-0" role="status" aria-live="polite" data-hospitality-promotion-status></p></div>
           </form>
         </div>
