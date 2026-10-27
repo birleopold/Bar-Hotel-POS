@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import uuid
 from datetime import timedelta
 
 from django.contrib import messages
@@ -243,6 +244,12 @@ class StaffTimesheetView(StaffTenantRequiredMixin, View):
             )
             response["Cache-Control"] = "private, no-store"
             return response
+        worker_options = {}
+        for shift in rows:
+            worker_options[str(shift.membership_id)] = (
+                shift.membership.user.get_full_name()
+                or shift.membership.user.email
+            )
         return render(
             request,
             self.template_name,
@@ -252,10 +259,18 @@ class StaffTimesheetView(StaffTenantRequiredMixin, View):
                 "date_to": date_to.isoformat(),
                 "status_filter": status_filter,
                 "worker_filter": worker,
+                "worker_options": sorted(
+                    worker_options.items(),
+                    key=lambda item: item[1].lower(),
+                ),
             },
         )
 
     def _scoped_shift(self, request, shift_id):
+        try:
+            shift_uuid = uuid.UUID(str(shift_id))
+        except (ValueError, TypeError, AttributeError):
+            raise Http404
         sites, outlets = self._scope(request)
         outlet_ids = [outlet.pk for outlet in outlets]
         scope = Q(site_id__in=[site.pk for site in sites])
@@ -263,7 +278,7 @@ class StaffTimesheetView(StaffTenantRequiredMixin, View):
             scope &= Q(outlet__isnull=True) | Q(outlet_id__in=outlet_ids)
         shift = (
             AttendanceShift.objects.select_for_update()
-            .filter(scope, tenant=request.tenant, pk=shift_id)
+            .filter(scope, tenant=request.tenant, pk=shift_uuid)
             .select_related("membership__user")
             .prefetch_related("breaks")
             .first()
@@ -275,10 +290,7 @@ class StaffTimesheetView(StaffTenantRequiredMixin, View):
     @transaction.atomic
     def post(self, request):
         shift_id = request.POST.get("shift_id")
-        try:
-            shift = self._scoped_shift(request, shift_id)
-        except (ValueError, TypeError):
-            raise Http404
+        shift = self._scoped_shift(request, shift_id)
         if shift.status == AttendanceShiftStatus.OPEN or shift.clock_out_at is None:
             messages.error(request, "Clocked-in shifts cannot be approved or corrected.")
             return redirect(reverse("staff-timesheets"))
