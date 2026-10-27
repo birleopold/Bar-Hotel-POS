@@ -1,0 +1,36 @@
+{% extends "staff/base.html" %}
+{% load static %}
+{% block title %}New RFQ{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'staff/management-workflows.css' %}?v=20261022.1">{% endblock %}
+{% block content %}
+<div class="fizo-purchasing">
+  <header class="fizo-purchasing__header">
+    <div><p class="fizo-purchasing__eyebrow">{{ request.tenant.name|default:"Business" }} / Purchasing</p><h1>New request for quotation</h1><p>Define what you need once, then compare supplier responses against the same quantities.</p></div>
+    <div class="fizo-purchasing__head-actions"><a class="staff-btn staff-btn--ghost" href="{% url 'staff-purchasing-rfqs' %}">Back to quotations</a></div>
+  </header>
+  {% include "staff/purchasing/includes/subnav.html" %}
+  <form method="post" class="staff-card">{% csrf_token %}
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-md-4"><label class="staff-label" for="{{ form.outlet.id_for_label }}">Receiving section</label>{{ form.outlet }}{% if form.outlet.errors %}<p class="staff-field-error">{{ form.outlet.errors }}</p>{% endif %}</div>
+      <div class="col-12 col-md-4"><label class="staff-label" for="{{ form.reference.id_for_label }}">RFQ reference</label>{{ form.reference }}{% if form.reference.errors %}<p class="staff-field-error">{{ form.reference.errors }}</p>{% endif %}</div>
+      <div class="col-12 col-md-4"><label class="staff-label" for="{{ form.needed_by.id_for_label }}">Needed by</label>{{ form.needed_by }}{% if form.needed_by.errors %}<p class="staff-field-error">{{ form.needed_by.errors }}</p>{% endif %}</div>
+      <div class="col-12"><label class="staff-label" for="{{ form.notes.id_for_label }}">Notes / specification</label>{{ form.notes }}</div>
+    </div>
+    <h2 class="staff-section-head">Products requested</h2>
+    <p class="staff-muted small">Enter base stock quantities. Supplier quotations will be compared against these exact quantities.</p>
+    <div class="staff-table-wrap"><table class="staff-table">
+      <thead><tr><th>Product</th><th>Quantity</th><th>Line note</th></tr></thead>
+      <tbody>
+      {% for idx in line_slots %}
+        <tr>
+          <td><select class="staff-input" name="line_{{ idx }}_menu_item"><option value="">Choose product</option>{% for item in menu_items %}<option value="{{ item.pk }}">{{ item.name }}{% if item.sku %} · {{ item.sku }}{% endif %}</option>{% endfor %}</select></td>
+          <td><input class="staff-input" name="line_{{ idx }}_quantity" type="number" min="0.001" step="0.001" placeholder="0"></td>
+          <td><input class="staff-input" name="line_{{ idx }}_note" maxlength="255" placeholder="Optional specification"></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <button class="staff-btn staff-btn--primary mt-3" type="submit">Create RFQ</button>
+  </form>
+</div>
+{% endblock %}
