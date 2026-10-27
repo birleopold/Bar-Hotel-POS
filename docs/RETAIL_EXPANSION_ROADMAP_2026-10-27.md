@@ -390,7 +390,10 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 - Automatic by-cost and by-quantity modes allocate rounding residual to the final received line so the stored per-line allocation always reconciles exactly to the receipt-level landed-cost total.
 - Original supplier unit cost, line allocated landed cost and landed unit cost remain separate immutable receipt-line snapshots. Landed unit cost feeds the authoritative outlet weighted-average inventory cost and therefore future sale COGS/margin snapshots.
 - A separate generic “allocate by weight” mode is deliberately not implemented because the catalog does not have one trustworthy physical weight-per-base-unit attribute across all merchandise. Weight-UOM products already express received quantity in their stock unit; adding a second guessed weight basis would create false precision.
-- Remaining: controlled landed-cost correction/credit handling after a posted receipt, richer profitability recommendations, and historical-cost reconstruction for assembly unbuilds.
+- Post-receipt landed-cost correction/credit handling is now implemented as an append-only evidence workflow. Original receipt snapshots are never rewritten; the adjustment records its own reference, reason, signed amount, allocation method and per-line amounts.
+- A correction may revalue current weighted-average inventory only when every affected stock balance is complete/positive and no outbound stock movement has occurred for any affected item since that receipt. If stock has already been sold, transferred, returned, wasted or adjusted out, correction fails closed because part of the original cost may already belong in historical COGS.
+- Credits cannot reduce cumulative landed cost below zero. Corrections change no stock quantity, cash, supplier payable, supplier credit-note record or historical sale snapshot; those remain separate workflows.
+- Remaining: richer profitability recommendations and historical-cost reconstruction for assembly unbuilds.
 
 ### R4.5 Supplier performance
 - Implemented on the existing Suppliers directory rather than a separate dashboard.
