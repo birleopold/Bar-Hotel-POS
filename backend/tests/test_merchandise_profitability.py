@@ -213,6 +213,8 @@ def test_management_profitability_respects_scope_and_csv_export():
     assert exported["Content-Type"].startswith("text/csv")
     body = exported.content.decode("utf-8")
     assert "Known gross profit,30.00,UGX" in body
+    assert "Covered net revenue,90.00,UGX" in body
+    assert "Revenue without trusted cost,0.00,UGX" in body
     assert env["item"].name in body
 
 @pytest.mark.django_db
