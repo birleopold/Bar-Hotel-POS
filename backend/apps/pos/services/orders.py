@@ -570,6 +570,9 @@ def create_order_with_lines(
             line_total=sub,
             tax_amount=tax,
             pricing_source="menu",
+            merchandise_category_snapshot=(
+                menu_item.category.name if menu_item.category_id else ""
+            ),
             sort_order=i,
             kds_station=(menu_item.kds_station or "")[:32],
             modifiers_snapshot=mod_snapshot,
@@ -985,14 +988,19 @@ def add_line_to_open_order(
             merged_price = merged_rule.unit_price if merged_rule is not None else candidate_base
             candidate.quantity = new_qty
             candidate.unit_price = merged_price
+            if not candidate.merchandise_category_snapshot:
+                candidate.merchandise_category_snapshot = (
+                    menu_item.category.name if menu_item.category_id else ""
+                )
             candidate.price_book_rule = merged_rule
             candidate.price_book_base_unit_price = candidate_base if merged_rule is not None else None
             merged_eff_unit = merged_price + per_unit_mod
             candidate.line_total = line_total(new_qty, merged_eff_unit)
             candidate.tax_amount = line_tax(candidate.line_total, menu_item.tax_rate_percent)
             candidate.save(update_fields=[
-                "quantity", "unit_price", "price_book_rule",
-                "price_book_base_unit_price", "line_total", "tax_amount", "updated_at",
+                "quantity", "unit_price", "merchandise_category_snapshot",
+                "price_book_rule", "price_book_base_unit_price",
+                "line_total", "tax_amount", "updated_at",
             ])
             recalculate_order_totals(locked)
             log_audit(
@@ -1021,6 +1029,9 @@ def add_line_to_open_order(
         line_total=sub,
         tax_amount=tax,
         pricing_source=pricing_source,
+        merchandise_category_snapshot=(
+            menu_item.category.name if menu_item.category_id else ""
+        ),
         price_book_rule=new_line_rule,
         price_book_base_unit_price=base_unit_price if new_line_rule is not None else None,
         sort_order=next_sort,
