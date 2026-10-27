@@ -170,7 +170,7 @@ Still R2 work:
 - arbitrary multi-pool mix-and-match mechanics beyond one product/family/category/brand pool;
 - group/bundle promotional pricing;
 - an explicit multi-offer stacking/precedence contract if simultaneous offers are later allowed;
-- margin-floor controls using the new authoritative outlet cost basis; only cost-complete merchandise may be protected automatically, with legacy/incomplete stock surfaced for reconciliation;
+- margin-floor threshold configuration and trusted-cost enforcement are implemented; remaining work is landed-cost enrichment, richer profitability reporting and reconciliation tooling for incomplete legacy cost;
 - exact-head CI and deployed browser/till acceptance for this promotion checkpoint.
 
 ## Workstream R2 — Pricing, promotions and merchandising
@@ -287,6 +287,11 @@ Implemented in source, pending exact-head certification:
 - Legitimate retail and serialized restocks reuse the original sale-line cost snapshot when it was authoritative; historically uncosted returns remain incomplete.
 - The existing Stock balances screen now shows average cost, trusted inventory value and an explicit `Cost incomplete` state instead of hiding cost coverage in the database.
 - This is weighted-average cost by outlet. Landed-cost allocation, supplier freight/duty distribution and assembly cost roll-up remain R4 work.
+- Optional tenant-wide minimum retail gross margin is now configurable in Business settings. Enforcement activates only for Retail/Supermarket products whose outlet cost basis is complete.
+- Automatic promotions that would breach the trusted-cost margin floor are hidden and rejected server-side; automatic customer price-book rates fall back to ordinary price; wholesale tiers are rejected rather than silently selling below the configured floor.
+- Manager-approved manual line discounts may cross the floor only when the approval intent includes an explicit margin-override reason of at least eight characters. The override, configured floor, computed minimum unit price and proposed unit price are written to the existing audit ledger.
+- Cost-incomplete merchandise remains intentionally non-blocking: the Stock screen exposes incomplete cost coverage for reconciliation instead of pretending a margin floor is reliable.
+- Cross-target Buy-X-Get-Y pricing now caps the free discount against the reward pool rather than the qualifying pool, so a more expensive reward can be fully discounted when the configured deal intends it.
 
 This checkpoint intentionally does **not** enable automatic margin-floor blocking yet. Margin-floor enforcement will use only balances where `cost_basis_complete=True`; incomplete/legacy stock must first be reconciled through approved cost-bearing workflows.
 
