@@ -2,8 +2,13 @@
 {% block title %}Plans{% endblock %}
 {% block main_class %}staff-main--wide{% endblock %}
 {% block content %}
+<div class="platform-page">
   <div class="staff-toolbar">
-    <h1 class="staff-page-title mb-0">Plans<span class="staff-page-title__accent" aria-hidden="true"></span></h1>
+    <div>
+      <p class="platform-page__eyebrow">Platform operations</p>
+      <h1 class="staff-page-title mb-0">Plans &amp; modules</h1>
+      <p class="platform-page__intro">Define subscription plans and the modules they include for customer workspaces.</p>
+    </div>
     <a class="staff-btn staff-btn--primary" href="{% url 'console-platform-plan-create' %}">New plan</a>
   </div>
   <div class="staff-table-wrap">
@@ -32,4 +37,5 @@
       {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
     </nav>
   {% endif %}
+</div>
 {% endblock %}
