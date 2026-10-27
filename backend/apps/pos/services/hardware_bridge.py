@@ -170,6 +170,10 @@ def enqueue_device_command(
     payload=None,
     ttl_seconds: int = 120,
 ):
+    if tenant.is_training:
+        raise ValidationError(
+            {"device": "Live hardware commands are disabled in training workspaces."}
+        )
     locked = (
         WorkstationDevice.objects.select_for_update()
         .select_related("workstation")
