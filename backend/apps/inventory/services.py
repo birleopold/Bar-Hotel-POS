@@ -221,10 +221,14 @@ def validate_and_consume_stock_for_paid_order(order: Order, user) -> None:
             line.menu_item.category.name
             if line.menu_item.category_id else ""
         )
+        line.merchandise_sku_snapshot = line.menu_item.sku or ""
+        line.inventory_tracked_snapshot = bool(line.menu_item.track_inventory)
         line.save(update_fields=[
             "cost_unit_snapshot",
             "cost_basis_complete_snapshot",
             "merchandise_category_snapshot",
+            "merchandise_sku_snapshot",
+            "inventory_tracked_snapshot",
             "updated_at",
         ])
 
