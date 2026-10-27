@@ -67,7 +67,7 @@ def _matching_rule(*, rules, membership, line):
 def snapshot_order_commissions(*, order: Order, settled_at=None) -> int:
     """Freeze worker attribution and commission math once at full settlement."""
     locked = Order.objects.select_for_update().get(pk=order.pk)
-    if not locked.is_paid:
+    if not locked.is_paid and locked.status != "closed":
         return 0
     settled_at = settled_at or timezone.now()
     operating_date = timezone.localtime(settled_at).date()
@@ -77,7 +77,6 @@ def snapshot_order_commissions(*, order: Order, settled_at=None) -> int:
         membership = Membership.objects.filter(
             tenant_id=locked.tenant_id,
             user_id=locked.created_by_id,
-            is_active=True,
         ).first()
 
     rules = list(
@@ -97,7 +96,7 @@ def snapshot_order_commissions(*, order: Order, settled_at=None) -> int:
     )
     updated = 0
     for line in lines:
-        if line.commission_base_snapshot is not None:
+        if line.commission_settled_at_snapshot is not None:
             continue
         base = _line_net_revenue(locked, line)
         rule = _matching_rule(rules=rules, membership=membership, line=line)
@@ -110,6 +109,7 @@ def snapshot_order_commissions(*, order: Order, settled_at=None) -> int:
         line.commission_base_snapshot = base
         line.commission_rate_percent_snapshot = rate
         line.commission_amount_snapshot = amount
+        line.commission_settled_at_snapshot = settled_at
         line.save(
             update_fields=[
                 "sales_attributed_membership",
@@ -117,6 +117,7 @@ def snapshot_order_commissions(*, order: Order, settled_at=None) -> int:
                 "commission_base_snapshot",
                 "commission_rate_percent_snapshot",
                 "commission_amount_snapshot",
+                "commission_settled_at_snapshot",
                 "updated_at",
             ]
         )
