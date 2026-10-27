@@ -544,13 +544,17 @@ Margin-floor enforcement is now active only when `cost_basis_complete=True`. Aut
 **Maps to:** phases 15, 16, 27, 28, 31, 33; SM-03, SM-12, SM-15, SM-21, SM-28, SM-33, SM-34.
 
 ### R8.1 Hardware adapters
-- Direct receipt/kitchen printer adapter.
-- Cash drawer.
-- Scale/tare.
-- Customer display.
-- Scanner diagnostics.
-- Card/mobile-money provider hardware is deferred.
-- Retry/health/status around supported devices.
+- Workstations now have an explicit tenant-scoped device registry for receipt printers, kitchen printers, cash drawers, barcode scanners, weighing scales and customer displays. Each device records its adapter mode, label, active state, health evidence, failures/latency and recent telemetry; PostgreSQL RLS protects the registry.
+- Adapter policy is explicit and fail-closed. Browser print, keyboard-wedge input and paired-browser display remain supervised browser capabilities and are never described as proof that physical hardware is online. Direct control is only available through the local hardware bridge adapter.
+- A generic local hardware bridge boundary is implemented with revocable one-time credentials, tenant/workstation binding, authenticated poll/report API, command idempotency, claim timeout, expiry, bounded retry/backoff, result/error evidence and device-health updates. Raw bridge secrets are shown once and stored only as hashes.
+- Receipt and kitchen printers support local-bridge ping plus non-financial test-print command envelopes. Existing browser receipt printing remains available as a fallback and still requires the operator to confirm the actual physical print.
+- Cash drawers support a local-bridge open command, but Equipment Check deliberately cannot invoke it. A drawer-open command is queued best-effort only after a committed cash payment tied to an open workstation shift; hardware failure cannot roll back or duplicate the payment, and payment replay cannot queue a second drawer command.
+- Weighing scales support local-bridge ping, read and tare commands. Existing scale-label/barcode support remains separate from live weight telemetry.
+- Customer-facing display remains the existing cashier-specific paired browser display that mirrors only the active basket and hides previous/customer/payment-method details. It is represented as a registered device without converting browser presence into fake physical-device health.
+- Barcode scanner diagnostics continue to test keyboard-wedge input without pretending the scanner identity is independently certified; scanners can also be represented by a future local-bridge adapter.
+- Equipment Check now shows registered device status, adapter capabilities, retry limits, recent bridge commands and staff-observed checks in the existing Workstations area instead of introducing another hardware dashboard.
+- Card/mobile-money provider hardware remains deferred until a provider and production credentials are selected.
+- Benchmark check (Lightspeed Hub/Hardware and Square hardware setup, 2026-10-27): configure hardware per register/station, provide device test/status surfaces, couple printer-driven drawers to authorized sale flows, and surface connection problems quickly. Our bridge follows that pattern while keeping browser fallbacks and physical-device certification explicitly separate.
 
 ### R8.2 Training mode
 - Explicit training tenant/mode banner.
