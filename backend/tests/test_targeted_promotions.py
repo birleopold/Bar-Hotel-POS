@@ -9,7 +9,8 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.accounts.models import Membership, MembershipRole, User
-from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, Promotion
+from apps.audit.models import AuditEvent
+from apps.catalog.models import MenuCategory, MenuItem, ProductFamily, ProductLabelQueueEntry, Promotion
 from apps.catalog.recipe_promo_serializers import PromotionSerializer
 from apps.customers.models import Customer
 from apps.pos.models import Order, Payment, PaymentMethod
@@ -1219,4 +1220,151 @@ class TargetedPromotionTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             apply_promotion_to_order(order=order, promotion=promo, user=self.user)
+
+    def test_unconditional_item_promotion_queues_and_reconciles_markdown_label(self):
+        create_url = reverse("staff-promotion-create")
+        payload = {
+            "name": "Oil shelf markdown",
+            "offer_type": Promotion.OfferType.STANDARD,
+            "menu_item": str(self.oil.pk),
+            "product_family": "",
+            "category": "",
+            "brand": "",
+            "reward_menu_item": "",
+            "reward_product_family": "",
+            "reward_category": "",
+            "reward_brand": "",
+            "discount_percent": "10",
+            "discount_amount": "",
+            "min_order_subtotal": "",
+            "min_target_quantity": "",
+            "coupon_code": "",
+            "max_redemptions": "",
+            "max_redemptions_per_customer": "",
+            "buy_quantity": "",
+            "get_quantity": "",
+            "fixed_quantity": "",
+            "fixed_bundle_amount": "",
+            "max_uses_per_order": "",
+            "starts_at": (timezone.localtime() - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M"),
+            "ends_at": (timezone.localtime() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+            "is_active": "on",
+            "outlets": [str(self.outlet.pk)],
+        }
+        response = self.client.post(create_url, payload)
+        self.assertEqual(response.status_code, 302)
+        promo = Promotion.objects.get(tenant=self.tenant, name="Oil shelf markdown")
+        entry = ProductLabelQueueEntry.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.oil,
+            reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+            status=ProductLabelQueueEntry.Status.PENDING,
+        )
+        self.assertEqual(entry.price_snapshot, Decimal("9000.00"))
+        self.assertTrue(entry.note.startswith(f"[promotion:{promo.pk}]"))
+
+        payload["discount_percent"] = "20"
+        response = self.client.post(
+            reverse("staff-promotion-edit", args=[promo.pk]),
+            payload,
+        )
+        self.assertEqual(response.status_code, 302)
+        pending = ProductLabelQueueEntry.objects.get(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            menu_item=self.oil,
+            reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+            status=ProductLabelQueueEntry.Status.PENDING,
+        )
+        self.assertEqual(pending.price_snapshot, Decimal("8000.00"))
+        self.assertTrue(
+            ProductLabelQueueEntry.objects.filter(
+                tenant=self.tenant,
+                outlet=self.outlet,
+                menu_item=self.oil,
+                reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+                status=ProductLabelQueueEntry.Status.DISMISSED,
+            ).exists()
+        )
+
+        payload.pop("is_active")
+        response = self.client.post(
+            reverse("staff-promotion-edit", args=[promo.pk]),
+            payload,
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            ProductLabelQueueEntry.objects.filter(
+                tenant=self.tenant,
+                outlet=self.outlet,
+                menu_item=self.oil,
+                reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+                status=ProductLabelQueueEntry.Status.PENDING,
+            ).exists()
+        )
+
+    def test_conditioned_promotion_does_not_queue_misleading_markdown_label(self):
+        response = self.client.post(
+            reverse("staff-promotion-create"),
+            {
+                "name": "Coupon-only shelf unsafe",
+                "offer_type": Promotion.OfferType.STANDARD,
+                "menu_item": str(self.oil.pk),
+                "discount_percent": "10",
+                "discount_amount": "",
+                "coupon_code": "ONLY10",
+                "starts_at": (timezone.localtime() - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M"),
+                "ends_at": (timezone.localtime() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M"),
+                "is_active": "on",
+                "outlets": [str(self.outlet.pk)],
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            ProductLabelQueueEntry.objects.filter(
+                tenant=self.tenant,
+                menu_item=self.oil,
+                reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+                status=ProductLabelQueueEntry.Status.PENDING,
+            ).exists()
+        )
+
+    def test_promotion_list_shows_paid_performance_and_recent_price_history(self):
+        promo = self._promotion(name="Reported offer", menu_item=self.oil)
+        Order.objects.create(
+            tenant=self.tenant,
+            outlet=self.outlet,
+            created_by=self.user,
+            applied_promotion=promo,
+            is_paid=True,
+            status="closed",
+            subtotal=Decimal("10000"),
+            discount_amount=Decimal("1000"),
+            total=Decimal("9000"),
+            currency="UGX",
+        )
+        AuditEvent.objects.create(
+            tenant=self.tenant,
+            user=self.user,
+            action="catalog.unit_price_changed",
+            entity_type="menu_item",
+            entity_id=str(self.oil.pk),
+            payload={
+                "item_name": self.oil.name,
+                "outlet_id": str(self.outlet.pk),
+                "outlet_name": self.outlet.name,
+                "before": "9000.00",
+                "after": "10000.00",
+            },
+        )
+
+        response = self.client.get(reverse("staff-promotions"), {"days": "30"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Reported offer")
+        self.assertContains(response, "1")
+        self.assertContains(response, "1000")
+        self.assertContains(response, "9000")
+        self.assertContains(response, "Recent price changes")
+        self.assertContains(response, self.oil.name)
 
