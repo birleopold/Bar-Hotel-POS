@@ -26,6 +26,11 @@
       {% if promotion.discount_percent %}{{ promotion.discount_percent }}%{% endif %}
       {% if promotion.discount_amount %}{{ promotion.discount_amount }} off{% endif %}
     </p>
+    <p><strong>Minimum basket subtotal</strong> {{ promotion.min_order_subtotal|default:"—" }}</p>
+    <p><strong>Minimum qualifying quantity</strong> {{ promotion.min_target_quantity|default:"—" }}</p>
+    <p><strong>Coupon</strong> {% if promotion.coupon_code %}<code>{{ promotion.coupon_code }}</code>{% else %}No coupon required{% endif %}</p>
+    <p><strong>Paid redemptions</strong> {{ paid_redemption_count }}{% if promotion.max_redemptions %} / {{ promotion.max_redemptions }}{% endif %}</p>
+    <p><strong>Per-customer paid limit</strong> {{ promotion.max_redemptions_per_customer|default:"—" }}{% if promotion.max_redemptions_per_customer %} · identified-customer redemptions: {{ identified_customer_redemption_count }}{% endif %}</p>
     <p class="staff-muted">Sections:
       {% for o in promotion.outlets.all %}{{ o.name }}{% if not forloop.last %}, {% endif %}{% empty %}All{% endfor %}
     </p>
