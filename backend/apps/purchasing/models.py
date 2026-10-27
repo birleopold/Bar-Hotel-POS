@@ -59,6 +59,18 @@ class SupplierProductCode(TimeStampedModel):
     )
     code = models.CharField(max_length=128)
     description = models.CharField(max_length=160, blank=True)
+    default_unit_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+        help_text="Planning cost per base unit for new purchase orders from this supplier.",
+    )
+    is_preferred = models.BooleanField(
+        default=False,
+        help_text="Preferred supplier relationship for this product. Only one preferred supplier may exist per product.",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -69,6 +81,11 @@ class SupplierProductCode(TimeStampedModel):
                 "supplier",
                 name="uniq_supplier_product_code_ci",
             ),
+            models.UniqueConstraint(
+                fields=["tenant", "menu_item"],
+                condition=models.Q(is_preferred=True),
+                name="uniq_preferred_supplier_per_product",
+            ),
         ]
 
     def clean(self):
@@ -77,6 +94,10 @@ class SupplierProductCode(TimeStampedModel):
             raise ValidationError({"supplier": "Supplier must belong to this business."})
         if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
             raise ValidationError({"menu_item": "Product must belong to this business."})
+        if self.is_preferred and self.product_package_id:
+            raise ValidationError({
+                "is_preferred": "Set preferred supplier on the base product relationship, not a package-specific code."
+            })
         if self.product_package_id:
             if self.product_package.tenant_id != self.tenant_id:
                 raise ValidationError({"product_package": "Package must belong to this business."})
