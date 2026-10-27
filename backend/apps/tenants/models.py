@@ -77,6 +77,31 @@ class Tenant(TimeStampedModel):
         return self.name
 
 
+class TrainingWorkspaceState(TimeStampedModel):
+    """Resettable sample-pack state for an isolated training tenant."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.OneToOneField(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="training_state",
+    )
+    generation = models.PositiveIntegerField(default=0)
+    seeded_at = models.DateTimeField(null=True, blank=True)
+    seeded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="training_workspaces_seeded",
+    )
+    sample_ids = models.JSONField(default=dict, blank=True)
+    exercise_progress = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f"{self.tenant.slug} training generation {self.generation}"
+
+
 class TenantDomain(TimeStampedModel):
     """A verified hostname that selects a tenant's branded workspace."""
 
