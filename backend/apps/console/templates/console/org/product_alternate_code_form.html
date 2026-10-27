@@ -1,0 +1,12 @@
+{% extends "console/base.html" %}
+{% block title %}{{ form_title }} · {{ menu_item.name }}{% endblock %}
+{% block content %}
+<section class="fizo-entity">
+  <header class="fizo-entity__header"><div><p class="grocery-setup__eyebrow">Catalogue / {{ menu_item.name }} / Metadata</p><h1>{{ form_title }}</h1><p class="staff-muted">This code resolves to the same product at search/scanning. It must be unique across other scanner identities.</p></div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-metadata' menu_item.id %}">Metadata</a></header>
+  <form method="post" class="staff-card grocery-guided-form">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="staff-alert staff-alert--danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="grocery-form-fields">{% for field in form %}<div class="grocery-form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<div class="grocery-form-errors">{{ field.errors }}</div>{% endif %}</div>{% endfor %}</div>
+    <div class="grocery-form-footer"><span>Use the normal barcode field for the primary barcode.</span><div><a class="staff-btn staff-btn--ghost" href="{% url 'console-org-menu-item-metadata' menu_item.id %}">Cancel</a><button class="staff-btn staff-btn--primary" type="submit">Save code</button></div></div>
+  </form>
+</section>
+{% endblock %}
