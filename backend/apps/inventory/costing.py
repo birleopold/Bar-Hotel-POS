@@ -11,6 +11,8 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
+from apps.audit.services import log_audit
+
 from .models import StockBalance
 
 
@@ -107,3 +109,74 @@ def authoritative_unit_cost(balance: StockBalance) -> Decimal | None:
     if not balance.cost_basis_complete or balance.average_unit_cost is None:
         return None
     return balance.average_unit_cost
+
+@transaction.atomic
+def reconcile_incomplete_cost_basis(
+    *,
+    tenant_id,
+    outlet,
+    menu_item,
+    unit_cost,
+    reason: str,
+    user,
+) -> StockBalance:
+    """Establish cost for existing on-hand stock without changing quantity.
+
+    This is intentionally limited to incomplete balances. Correcting an already
+    trusted cost requires a separate reviewed accounting workflow.
+    """
+    note = (reason or "").strip()
+    if len(note) < 12:
+        raise ValidationError({
+            "reason": "Describe the cost evidence or reconciliation basis in at least 12 characters."
+        })
+    cost = normalize_unit_cost(unit_cost)
+    balance = StockBalance.objects.select_for_update().filter(
+        tenant_id=tenant_id,
+        outlet=outlet,
+        menu_item=menu_item,
+    ).first()
+    if balance is None or balance.quantity <= 0:
+        raise ValidationError({
+            "cost": "There must be positive on-hand stock to reconcile a legacy cost basis."
+        })
+    if balance.cost_basis_complete and balance.average_unit_cost is not None:
+        raise ValidationError({
+            "cost": "This stock balance already has a trusted cost basis."
+        })
+
+    before = {
+        "quantity": str(balance.quantity),
+        "average_unit_cost": (
+            str(balance.average_unit_cost)
+            if balance.average_unit_cost is not None else None
+        ),
+        "cost_basis_complete": balance.cost_basis_complete,
+    }
+    balance.average_unit_cost = cost
+    balance.cost_basis_complete = True
+    balance.save(update_fields=[
+        "average_unit_cost", "cost_basis_complete", "updated_at",
+    ])
+    log_audit(
+        tenant_id=tenant_id,
+        user_id=user.pk if user else None,
+        action="inventory.cost_basis_reconciled",
+        entity_type="stock_balance",
+        entity_id=str(balance.pk),
+        payload={
+            "outlet_id": str(outlet.pk),
+            "menu_item_id": str(menu_item.pk),
+            "reason": note[:512],
+            "before": before,
+            "after": {
+                "quantity": str(balance.quantity),
+                "average_unit_cost": str(balance.average_unit_cost),
+                "cost_basis_complete": True,
+            },
+            "quantity_changed": False,
+            "historical_sales_rewritten": False,
+        },
+    )
+    return balance
+
