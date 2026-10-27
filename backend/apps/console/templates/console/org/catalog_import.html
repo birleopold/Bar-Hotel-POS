@@ -52,6 +52,46 @@
       {% endif %}
       <p class="staff-muted small mt-3">This edits base item prices only. Branch-level price overrides, historical sales, stock counts and payments are never rewritten.</p>
     </section>
+    {% if console_has_retail %}
+    <section class="staff-card mb-3" aria-labelledby="package-import-heading">
+      <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+        <div>
+          <h2 id="package-import-heading" class="staff-section-head">Product packages CSV</h2>
+          <p class="staff-muted">Add pack, case or carton definitions to products that already exist. The file identifies each product by its existing SKU; it does not create products or stock.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="staff-btn staff-btn--ghost" href="?packages_sample=1">Example package CSV</a>
+          <a class="staff-btn staff-btn--ghost" href="?packages_export=1">Export current packages</a>
+        </div>
+      </div>
+      {% if package_import_issues %}
+      <div class="staff-alert staff-alert--warning" role="alert">
+        <strong>Please correct these package rows:</strong>
+        <ul class="mb-0 mt-2">{% for issue in package_import_issues %}<li>{{ issue }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label class="staff-label" for="package-import-file">Packages CSV</label>
+        <input id="package-import-file" class="staff-input" type="file" name="package_file" accept=".csv,text/csv" required>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          <button class="staff-btn staff-btn--ghost" type="submit" name="action" value="preview_packages">Check packages</button>
+          <button class="staff-btn staff-btn--primary" type="submit" name="action" value="import_packages">Import packages</button>
+        </div>
+      </form>
+      {% if package_preview_count %}
+        <p class="staff-alert staff-alert--info mt-3" role="status">{{ package_preview_count }} package rows passed validation. No package definitions were saved.</p>
+        <div class="staff-table-wrap"><table class="staff-table">
+          <thead><tr><th>Product SKU</th><th>Product</th><th>Package</th><th>Base units</th><th>Barcode / alias</th><th>Sell price</th></tr></thead>
+          <tbody>{% for row in package_preview_rows %}
+            <tr><td>{{ row.product_sku }}</td><td>{{ row.product_name }}</td><td>{{ row.package_name }}</td><td>{{ row.units_per_package }}</td><td>{{ row.barcode|default:row.sku_alias|default:"—" }}</td><td>{{ row.sell_price|default:"Base-unit price" }}</td></tr>
+          {% endfor %}</tbody>
+        </table></div>
+        {% if package_preview_more %}<p class="staff-muted small">{{ package_preview_more }} additional package rows verified.</p>{% endif %}
+      {% endif %}
+      <p class="staff-muted small mt-3 mb-0"><strong>Required:</strong> <code>product_sku</code>, <code>package_name</code>, <code>units_per_package</code>. Optional scanner codes must be unique across products, packages, PLUs, quick groups, alternate codes and serial/IMEI units. Package imports never post inventory.</p>
+    </section>
+    {% endif %}
     <section class="staff-card">
       <h2 class="staff-section-head">Upload your file</h2>
       <p class="staff-muted">The importer checks all rows first. If one row has an error, no items will be saved. Existing SKUs and barcodes are never silently overwritten.</p>
