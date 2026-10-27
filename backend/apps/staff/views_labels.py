@@ -253,11 +253,17 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             messages.error(request, "Choose a supported label template.")
             return self._return_to_list(request, outlet)
         pdf = self._build_pdf(labels, outlet, template_key)
+        queue_reason = None
+        if template_key == "markdown":
+            queue_reason = ProductLabelQueueEntry.Reason.MARKDOWN
+        elif template_key == "receiving":
+            queue_reason = ProductLabelQueueEntry.Reason.RECEIVING
         mark_product_labels_printed(
             tenant_id=request.tenant.pk,
             outlet=outlet,
             menu_item_ids=[item.pk for item in labels],
             user=request.user,
+            reason=queue_reason,
         )
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{template_key}-labels.pdf"'
@@ -287,6 +293,21 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
         cell_h = (page_h - (2 * margin_y) - ((rows - 1) * gap_y)) / rows
         currency = getattr(request_settings := getattr(self.request.tenant, "settings", None), "default_currency", "USD")
 
+        markdown_prices = {}
+        if template_key == "markdown":
+            pending_markdowns = (
+                ProductLabelQueueEntry.objects.filter(
+                    tenant=self.request.tenant,
+                    outlet=outlet,
+                    menu_item_id__in={item.pk for item in labels},
+                    reason=ProductLabelQueueEntry.Reason.MARKDOWN,
+                    status=ProductLabelQueueEntry.Status.PENDING,
+                )
+                .order_by("menu_item_id", "-updated_at")
+            )
+            for entry in pending_markdowns:
+                markdown_prices.setdefault(entry.menu_item_id, entry.price_snapshot)
+
         for index, item in enumerate(labels):
             slot = index % (cols * rows)
             if slot == 0 and index:
@@ -294,10 +315,16 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             row, col = divmod(slot, cols)
             x = margin_x + col * (cell_w + gap_x)
             y = page_h - margin_y - (row + 1) * cell_h - row * gap_y
-            price = item.unit_price_for_outlet(outlet.pk)
+            regular_price = item.unit_price_for_outlet(outlet.pk)
+            price = (
+                markdown_prices.get(item.pk)
+                if template_key == "markdown" and markdown_prices.get(item.pk) is not None
+                else regular_price
+            )
             self._draw_label(
                 canvas, x, y, cell_w, cell_h, item, price, currency, outlet.name,
                 template_key=template_key,
+                regular_price=regular_price,
             )
 
         canvas.save()
@@ -306,7 +333,7 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
     @staticmethod
     def _draw_label(
         canvas, x, y, width, height, item, price, currency, outlet_name,
-        *, template_key="shelf",
+        *, template_key="shelf", regular_price=None,
     ):
         canvas.setLineWidth(0.25)
         canvas.roundRect(x, y, width, height, 2 * mm)
@@ -346,9 +373,12 @@ class StaffShelfLabelView(StaffTenantRequiredMixin, ListView):
             canvas.drawString(x + pad, y + height - 4 * mm, "MARKDOWN")
             canvas.setFont("Helvetica-Bold", 8)
             canvas.drawString(x + pad, y + height - 8 * mm, str(item.name)[:34])
-            if item.msrp is not None and item.msrp > price:
+            was_price = regular_price
+            if was_price is None or was_price <= price:
+                was_price = item.msrp if item.msrp is not None and item.msrp > price else None
+            if was_price is not None and was_price > price:
                 canvas.setFont("Helvetica", 7)
-                canvas.drawString(x + pad, y + height - 13 * mm, f"Was {currency} {item.msrp}")
+                canvas.drawString(x + pad, y + height - 13 * mm, f"Was {currency} {was_price}")
             canvas.setFont("Helvetica-Bold", 16)
             canvas.drawString(x + pad, y + height - 19 * mm, f"Now {currency} {price}")
         else:
