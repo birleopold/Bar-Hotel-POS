@@ -394,6 +394,78 @@ class ProductAlternateCode(TimeStampedModel):
         return f"{self.menu_item.name} · {self.code}"
 
 
+class ProductLabelQueueEntry(TimeStampedModel):
+    class Reason(models.TextChoices):
+        NEW_PRODUCT = "new_product", "New product"
+        PRICE_CHANGE = "price_change", "Price change"
+        RECEIVING = "receiving", "Goods received"
+        MANUAL = "manual", "Manual request"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PRINTED = "printed", "Printed"
+        DISMISSED = "dismissed", "Dismissed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="product_label_queue_entries",
+    )
+    outlet = models.ForeignKey(
+        "tenants.Outlet",
+        on_delete=models.CASCADE,
+        related_name="product_label_queue_entries",
+    )
+    menu_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name="label_queue_entries",
+    )
+    reason = models.CharField(max_length=24, choices=Reason.choices)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    price_snapshot = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    note = models.CharField(max_length=255, blank=True)
+    requested_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="product_label_requests",
+    )
+    completed_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="product_label_completions",
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["outlet", "menu_item", "reason"],
+                condition=models.Q(status="pending"),
+                name="uniq_pending_label_reason_item_outlet",
+            ),
+        ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.outlet_id and self.tenant_id and self.outlet.site.tenant_id != self.tenant_id:
+            raise ValidationError({"outlet": "Label outlet must belong to this business."})
+        if self.menu_item_id and self.tenant_id and self.menu_item.tenant_id != self.tenant_id:
+            raise ValidationError({"menu_item": "Label product must belong to this business."})
+
+
 class ProductPackage(TimeStampedModel):
     """Alternative scannable sell/purchase pack that converts into base stock units."""
 
