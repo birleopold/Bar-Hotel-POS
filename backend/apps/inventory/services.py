@@ -418,6 +418,13 @@ def execute_stock_transfer(
         raise ValidationError({"menu_item": "Product must belong to this business."})
     if not menu_item.track_inventory:
         raise ValidationError({"menu_item": "Enable track_inventory on this item."})
+    if menu_item.serial_tracking:
+        raise ValidationError({
+            "menu_item": (
+                "Serialized products require identifier-specific transfer handling. "
+                "Use the serial / IMEI workflow instead of aggregate stock transfer."
+            )
+        })
 
     batch = uuid.uuid4()
     note_text = (note or "")[:500]
@@ -599,6 +606,13 @@ def complete_stock_count_session(
             raise ValidationError(
                 {"lines": f'"{mi.name}" does not track inventory.'}
             )
+        if mi.serial_tracking:
+            raise ValidationError({
+                "lines": (
+                    f'"{mi.name}" is serial / IMEI tracked. '
+                    "Serialized stock counts must reconcile identifiers, not only aggregate quantity."
+                )
+            })
         if not menu_item_available_at_outlet(mi, outlet_id):
             raise ValidationError(
                 {"lines": f'"{mi.name}" is not available at this outlet.'}
@@ -698,6 +712,13 @@ def submit_stock_count_for_review(*, session, resolved_lines, user, membership):
         if (item.tenant_id != session.tenant_id or not item.track_inventory
                 or not menu_item_available_at_outlet(item, session.outlet_id)):
             raise ValidationError({"lines": f'"{item.name}" is not a tracked product at this section.'})
+        if item.serial_tracking:
+            raise ValidationError({
+                "lines": (
+                    f'"{item.name}" is serial / IMEI tracked. '
+                    "Use the serialized inventory register to reconcile physical identifiers."
+                )
+            })
         bal = StockBalance.objects.select_for_update().filter(
             tenant_id=session.tenant_id, outlet_id=session.outlet_id, menu_item_id=item.id,
         ).first()
