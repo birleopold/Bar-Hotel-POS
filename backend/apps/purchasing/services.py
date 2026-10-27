@@ -32,9 +32,26 @@ def receive_purchase_order_goods(
     delivery_reference: str = "",
     note: str = "",
     discrepancy_note: str = "",
+    shipping_cost: Decimal = Decimal("0"),
+    duty_cost: Decimal = Decimal("0"),
+    landed_cost_allocation: str = PurchaseReceipt.LandedCostAllocation.EXCLUDE,
 ) -> PurchaseOrder:
     if len(discrepancy_note) > 512:
         raise ValidationError({"discrepancy_note": "Use at most 512 characters."})
+    try:
+        shipping_cost = Decimal(str(shipping_cost or 0)).quantize(Decimal("0.01"))
+        duty_cost = Decimal(str(duty_cost or 0)).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValidationError({"landed_cost": "Enter valid shipping and duty amounts."}) from exc
+    if (
+        not shipping_cost.is_finite()
+        or not duty_cost.is_finite()
+        or shipping_cost < 0
+        or duty_cost < 0
+    ):
+        raise ValidationError({"landed_cost": "Shipping and duty amounts must be non-negative."})
+    if landed_cost_allocation not in PurchaseReceipt.LandedCostAllocation.values:
+        raise ValidationError({"landed_cost_allocation": "Choose a supported landed-cost allocation method."})
     if not outlet_belongs_to_membership(membership, po.outlet_id):
         raise ValidationError({"detail": "You cannot receive stock for this outlet."})
 
@@ -154,12 +171,59 @@ def receive_purchase_order_goods(
             raise ValidationError({
                 "batch_code": f"Batch {batch_code} was already received for {line.menu_item.name}."
             })
+    positive_rows = [row for row in lines_payload if row["quantity"] > 0]
+    total_extra_cost = (shipping_cost + duty_cost).quantize(Decimal("0.01"))
+    for row in positive_rows:
+        row["_allocated_landed_cost"] = Decimal("0.00")
+        row["_landed_unit_cost"] = (
+            Decimal(str(row["_line"].unit_cost)).quantize(Decimal("0.0001"))
+            if row["_line"].unit_cost is not None
+            else None
+        )
+
+    if (
+        total_extra_cost > 0
+        and landed_cost_allocation == PurchaseReceipt.LandedCostAllocation.BY_COST
+    ):
+        if any(row["_line"].unit_cost is None for row in positive_rows):
+            raise ValidationError({
+                "landed_cost": (
+                    "Every received line needs a supplier unit cost before shipping/duty "
+                    "can be distributed into inventory cost."
+                )
+            })
+        base_values = [
+            (row["quantity"] * row["_line"].unit_cost).quantize(Decimal("0.01"))
+            for row in positive_rows
+        ]
+        total_base_value = sum(base_values, Decimal("0.00"))
+        if total_base_value <= 0:
+            raise ValidationError({
+                "landed_cost": "Received supplier-cost value must be greater than zero to distribute landed costs."
+            })
+        allocated_so_far = Decimal("0.00")
+        for index, (row, base_value) in enumerate(zip(positive_rows, base_values)):
+            if index == len(positive_rows) - 1:
+                allocated = total_extra_cost - allocated_so_far
+            else:
+                allocated = (
+                    total_extra_cost * base_value / total_base_value
+                ).quantize(Decimal("0.01"))
+                allocated_so_far += allocated
+            row["_allocated_landed_cost"] = allocated
+            row["_landed_unit_cost"] = (
+                row["_line"].unit_cost + (allocated / row["quantity"])
+            ).quantize(Decimal("0.0001"))
+
     receipt = PurchaseReceipt.objects.create(
         tenant_id=po_locked.tenant_id,
         purchase_order=po_locked,
         delivery_reference=delivery_reference,
         note=(note or "")[:512],
         discrepancy_note=discrepancy_note.strip(),
+        shipping_cost=shipping_cost,
+        duty_cost=duty_cost,
+        landed_cost_allocation=landed_cost_allocation,
         received_by=user,
     )
 
@@ -196,7 +260,7 @@ def receive_purchase_order_goods(
             outlet=po_locked.outlet,
             menu_item=line.menu_item,
             quantity_received=qty,
-            unit_cost=line.unit_cost,
+            unit_cost=row["_landed_unit_cost"],
         )
         line.quantity_received += qty
         line.save(update_fields=["quantity_received", "updated_at"])
@@ -207,6 +271,8 @@ def receive_purchase_order_goods(
             cartons_received=row["cartons"],
             packages_received=row["packages"],
             unit_cost_snapshot=line.unit_cost,
+            landed_unit_cost_snapshot=row["_landed_unit_cost"],
+            landed_cost_allocated=row["_allocated_landed_cost"],
             inventory_batch=batch,
         )
         queue_product_label(
@@ -241,6 +307,9 @@ def receive_purchase_order_goods(
             "purchase_order_id": str(po_locked.pk),
             "delivery_reference": delivery_reference,
             "discrepancy_note": receipt.discrepancy_note,
+            "shipping_cost": str(receipt.shipping_cost),
+            "duty_cost": str(receipt.duty_cost),
+            "landed_cost_allocation": receipt.landed_cost_allocation,
             "lines": [
                 {"purchase_order_line_id": str(line.purchase_order_line_id),
                  "quantity_received": format(line.quantity_received.normalize(), "f"),
@@ -249,7 +318,12 @@ def receive_purchase_order_goods(
                  "unit_cost_snapshot": (
                      str(line.unit_cost_snapshot)
                      if line.unit_cost_snapshot is not None else None
-                 )}
+                 ),
+                 "landed_unit_cost_snapshot": (
+                     str(line.landed_unit_cost_snapshot)
+                     if line.landed_unit_cost_snapshot is not None else None
+                 ),
+                 "landed_cost_allocated": str(line.landed_cost_allocated)}
                 for line in receipt.lines.all()
             ],
         },
