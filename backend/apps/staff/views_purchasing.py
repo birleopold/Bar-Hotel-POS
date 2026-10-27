@@ -416,7 +416,12 @@ def _po_base_queryset(request) -> QuerySet:
             "supplier", "outlet", "created_by", "reviewed_by",
             "source_supplier_quote__rfq",
         )
-        .prefetch_related("lines__menu_item", "receipts__lines__purchase_order_line__menu_item", "payments")
+        .prefetch_related(
+            "lines__menu_item",
+            "receipts__lines__purchase_order_line__menu_item",
+            "receipts__cost_adjustments__lines__receipt_line__purchase_order_line__menu_item",
+            "payments",
+        )
     )
 
 
