@@ -18,6 +18,7 @@ from apps.access.outlets import outlet_belongs_to_membership
 from apps.catalog.models import MenuCategory, MenuItem
 from apps.catalog.packaging import to_stock_units
 from apps.inventory.models import InventorySerialUnit, RetailAssemblyRun, StockBalance, StockCountSession, StockCountStatus, StockMovement, StockReason, StockTransferReceipt
+from apps.inventory.costing import reconcile_incomplete_cost_basis
 from apps.inventory.services import (
     apply_manual_stock_change, submit_stock_count_for_review,
     approve_stock_count_session, return_stock_count_for_recount, execute_stock_transfer,
@@ -397,6 +398,9 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
         ctx["low_stock"] = self.request.GET.get("low_stock", "").lower() in ("1", "true", "yes")
         ctx["stock_q"] = self.request.GET.get("q", "").strip()[:80]
         ctx["can_modify_inventory"] = membership_can_modify_inventory(self.request.tenant_membership)
+        ctx["can_reconcile_cost"] = membership_has_inventory_capability(
+            self.request.tenant_membership, "approve_count"
+        )
         for balance in ctx["balances"]:
             balance.inventory_cost_value = (
                 (balance.quantity * balance.average_unit_cost).quantize(Decimal("0.01"))
@@ -414,6 +418,54 @@ class StaffStockBalanceListView(StaffTenantRequiredMixin, ListView):
                 visible_untracked[item.id] = item
         ctx["untracked_items"] = sorted(visible_untracked.values(), key=lambda item: item.name.lower())
         return ctx
+
+
+    def post(self, request, *args, **kwargs):
+        if not membership_has_inventory_capability(
+            request.tenant_membership, "approve_count"
+        ):
+            messages.error(request, "Only an inventory manager can reconcile stock cost.")
+            return redirect("staff-inventory-balances")
+        if (request.POST.get("action") or "").strip() != "reconcile_cost":
+            messages.error(request, "Unknown stock balance action.")
+            return redirect("staff-inventory-balances")
+        try:
+            balance_id = uuid.UUID((request.POST.get("balance_id") or "").strip())
+        except (TypeError, ValueError):
+            messages.error(request, "Choose a valid stock balance.")
+            return redirect("staff-inventory-balances")
+
+        allowed_outlets = staff_accessible_outlets(request.tenant_membership)
+        allowed_ids = [outlet.pk for outlet in allowed_outlets]
+        balance = (
+            StockBalance.objects.filter(
+                pk=balance_id,
+                tenant=request.tenant,
+                outlet_id__in=allowed_ids,
+            )
+            .select_related("outlet", "menu_item")
+            .first()
+        )
+        if balance is None:
+            messages.error(request, "That stock balance is outside your authorized scope.")
+            return redirect("staff-inventory-balances")
+        try:
+            reconcile_incomplete_cost_basis(
+                tenant_id=request.tenant.pk,
+                outlet=balance.outlet,
+                menu_item=balance.menu_item,
+                unit_cost=(request.POST.get("unit_cost") or "").strip(),
+                reason=(request.POST.get("reason") or "").strip(),
+                user=request.user,
+            )
+        except DRFValidationError as exc:
+            _flash_drf_validation(request, exc)
+        else:
+            messages.success(
+                request,
+                "Legacy stock cost reconciled. Quantity and historical sale cost snapshots were unchanged.",
+            )
+        return redirect("staff-inventory-balances")
 
 
 class StaffStockMovementListView(StaffTenantRequiredMixin, ListView):
